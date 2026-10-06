@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud machine management is now mounted in a third primary tab, with a
+  retained account/team ViewModel, machine lifecycle menus, delete confirmation,
+  size/plan/resource creation controls and real controller actions. **18 focused
+  JVM checks passed**, main/instrumentation compilation passed. Three Android UI
+  cases are queued, not run. Tutorial, native plan sheet, tunnel/Cloud workspace
+  integration, tablet layout and actual account/Pixel acceptance remain open;
+  no live Cloud action or APK/emulator. See `CLOUD_COMPANION.md`.
+
 - Cloud machine state now has an owned controller: retained rows, bounded
   refresh/provisioning polling, per-machine lifecycle actions, account retirement
   and durable creation retry identities. **29 focused JVM checks passed** and

@@ -41,12 +41,13 @@ internal fun NativePrimaryNavigation(
     notificationTab: Boolean, unreadCount: Int, search: NativeSearchState,
     onTab: (Boolean) -> Unit, onBeginSearch: () -> Unit, onEdit: (String, Long) -> Unit,
     onSubmit: () -> Unit, onCancel: () -> Unit,
-    sidebar: Boolean = false, onNewTask: (() -> Unit)? = null
+    sidebar: Boolean = false, onNewTask: (() -> Unit)? = null,
+    cloudTab: Boolean = false, onCloud: (() -> Unit)? = null
 ) {
     val scope = if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
     val label = if (notificationTab) "Search notifications" else "Search workspaces"
     val query = search.text(scope)
-    val active = search.active == scope
+    val active = !cloudTab && search.active == scope
     Row(Modifier.fillMaxWidth().padding(horizontal = if (sidebar) 8.dp else 18.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(if (sidebar) 4.dp else 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (active) {
@@ -72,19 +73,20 @@ internal fun NativePrimaryNavigation(
             else NavigationCircle(R.drawable.ic_primary_close, "Cancel search", onCancel)
         } else {
             Row(Modifier.weight(1f).then(if (sidebar) Modifier else Modifier.navigationSurface().padding(4.dp))) {
-                PrimaryTab("Workspaces", "Workspaces", R.drawable.ic_primary_workspaces, !notificationTab,
+                PrimaryTab("Workspaces", "Workspaces", R.drawable.ic_primary_workspaces, !notificationTab && !cloudTab,
                     0, Modifier.weight(1f), sidebar) { onTab(false) }
                 PrimaryTab("Notifications", if (unreadCount > 0) "Notifications ($unreadCount)" else "Notifications",
-                    R.drawable.ic_feed_bell, notificationTab, unreadCount, Modifier.weight(1f), sidebar) { onTab(true) }
+                    R.drawable.ic_feed_bell, notificationTab && !cloudTab, unreadCount, Modifier.weight(1f), sidebar) { onTab(true) }
+                onCloud?.let { PrimaryTab("Cloud", "Cloud", R.drawable.ic_workspace_cloud, cloudTab, 0, Modifier.weight(1f), sidebar, it) }
             }
-            if (sidebar) {
+            if (!cloudTab && sidebar) {
                 IconButton(onClick = onBeginSearch, modifier = Modifier.semantics {
                     stateDescription = if (query.isBlank()) label else "$label: $query"
                 }) { Icon(painterResource(R.drawable.ic_primary_search), "Search", tint = if (query.isNotBlank()) navigationAccent else navigationText) }
                 if (onNewTask != null) IconButton(onClick = onNewTask) {
                     Icon(painterResource(R.drawable.ic_primary_compose), "New Task", tint = navigationText)
                 }
-            } else NavigationCircle(R.drawable.ic_primary_search, "Search", onBeginSearch,
+            } else if (!cloudTab) NavigationCircle(R.drawable.ic_primary_search, "Search", onBeginSearch,
                 accent = query.isNotBlank(), description = if (query.isBlank()) label else "$label: $query")
         }
     }

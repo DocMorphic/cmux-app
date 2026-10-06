@@ -161,6 +161,11 @@ internal fun NativeScreen(
     }
     val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
     val teamState by accountTeams.state.collectAsState()
+    val cloudModel = remember(runtimeOwner, connector, accountTeams) {
+        if (connector == null) ViewModelProvider(runtimeOwner, NativeCloudViewModel.Factory(context, account, store, accountTeams))
+            .get(NativeCloudViewModel::class.java) else null
+    }
+    val cloudController = cloudModel?.controller?.collectAsState()?.value
     val historyRevision by store.revisions.collectAsState()
     val cachedComputers = remember(store, historyRevision, teamState, signedIn) {
         if (signedIn) NativeCachedComputers.project(store.load(), store.taskSession(), teamState) else null
@@ -289,6 +294,10 @@ internal fun NativeScreen(
         }
         var notifications by remember(code) { mutableStateOf<List<NativeNotification>>(emptyList()) }
         var notificationTab by rememberSaveable(signedIn) { mutableStateOf(false) }
+        var cloudTab by rememberSaveable(signedIn) { mutableStateOf(false) }
+        LaunchedEffect(incomingCode, incomingNotificationRoute) {
+            if (incomingCode != null || incomingNotificationRoute != null) cloudTab = false
+        }
         var searchState by rememberSaveable(signedIn, stateSaver = listSaver(
             save = { state: NativeSearchState -> state.commit().let { listOf(it.workspaceQuery, it.notificationQuery) } },
             restore = { NativeSearchState(workspaceQuery = NativeSearchText.boundQuery(it[0]),
@@ -658,11 +667,13 @@ internal fun NativeScreen(
                 pairedMacs.singleOrNull { it.ownsOrigin(localBrowser.key.computerId) }
                 else pairedMacs.singleOrNull { it.code == code }
             ObserveNativeNotificationSelection(lifecycle,
-                if (displayedTab == null || browserLogin == null || visibleNotificationMac == null ||
+                if (cloudTab || displayedTab == null || browserLogin == null || visibleNotificationMac == null ||
                     (pendingPairingCode != null || ticketProposal != null) || screenResume.pending != null || showSshComputers || showLicenses) null
                 else NativeNotificationSelection(browserLogin, visibleNotificationMac.origin, displayedTab.first.workspaceId,
                     displayedTab.second?.takeIf { it.kind == NativeWorkspaceTabKind.TERMINAL }?.id))
             var feedForeground by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
+            LaunchedEffect(cloudModel, feedForeground) { cloudModel?.setForeground(feedForeground) }
+            DisposableEffect(cloudModel) { onDispose { cloudModel?.setForeground(false) } }
             DisposableEffect(lifecycle, sharedConnections) {
                 val probeOwner = Any()
                 sharedConnections?.setProbeActive(probeOwner, feedForeground)
@@ -2290,6 +2301,7 @@ internal fun NativeScreen(
                 BackHandler(enabled = selectedTerminal != null && selectedSurface == null) { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null }
                 BackHandler(enabled = selectedBrowser != null) { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }
                 BackHandler(enabled = showSettings && selectedTerminal == null) { showSettings = false }
+                BackHandler(enabled = cloudTab && showSettings) { showSettings = false }
 
                 if (showLicenses) OpenSourceLicensesDialog { showLicenses = false }
 
@@ -3477,7 +3489,8 @@ internal fun NativeScreen(
                         onBeginSearch = { searchState = searchState.begin(searchScope) },
                         onEdit = { value, generation -> searchState = searchState.edit(value, searchScope, generation) },
                         onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) },
-                        sidebar = isSidebar, onNewTask = { finishSearch(); newTaskDraft() })
+                        sidebar = isSidebar, onNewTask = { finishSearch(); newTaskDraft() },
+                        onCloud = cloudModel?.let { model -> { finishSearch(); cloudTab = true; model.activate() } })
                 }
                 val showWorkspaceReconnect = (cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
                             (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty())))
@@ -3659,6 +3672,16 @@ internal fun NativeScreen(
                         showSettings && computersOwner != null -> computersContent()
                         showSettings -> settingsContent()
                         showTaskComposer -> taskComposerContent()
+                        cloudTab && cloudModel != null -> Column(Modifier.weight(1f).fillMaxWidth()) {
+                            BackHandler { cloudTab = false }
+                            NativeCloudScreen(cloudController, onSettings = { showSettings = true },
+                                onPlans = { runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://cmux.com/pricing"))) }
+                                    .onFailure { android.widget.Toast.makeText(context, "No browser is available to open cmux.com/pricing", android.widget.Toast.LENGTH_LONG).show() } },
+                                modifier = Modifier.weight(1f))
+                            NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
+                                onTab = { cloudTab = false; finishSearch(); notificationTab = it },
+                                onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {})
+                        }
                         else -> NativeWorkspaceShell(owner = browserLogin to teamState.scope,
                             hasDetail = sshRoute != null || screenResume.pending != null || localBrowser != null ||
                                 selectedWorkspace != null || selectedTerminal != null || selectedBrowser != null ||

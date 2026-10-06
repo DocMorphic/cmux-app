@@ -58,8 +58,8 @@ stays different from a supported empty set. Only an explicit Boolean
 `trustedCarrier: true` permits carrier trust; missing invitations do not imply it.
 Tunnel configuration, invitations and credentials use redacted object descriptions.
 
-This is callable application code with a native account adapter, but it is **not
-yet mounted in the UI or started by a controller**. No live account requests,
+At the API foundation checkpoint this code was not yet mounted in the UI. The
+machine-management mounting is recorded below. No development-time live account requests,
 machine creation/change/deletion, tunnel enrollment, VPN activation or cloud
 provisioning were performed. The terminal-sizing UUID is not a substitute for
 the Iroh device-registry ID required by Cloud enrollment.
@@ -82,10 +82,10 @@ or signed promotion was needed at this foundation checkpoint.
 
 ## Required continuation
 
-1. Mount the implemented machine controller with the native account factory and
-   private creation journal; close it on account/team retirement. Complete hidden
-   machine persistence, screen/shell leases and the tunnel/attachment operation
-   gate. The list/mutation portion is recorded below.
+1. Verify the mounted machine controller/account factory and private journal on
+   Android across recreation, team/account changes and process recovery. Complete
+   hidden machine persistence, shell/tunnel leases and the attachment operation
+   gate. The machine-management portion is recorded below.
 2. Expose the existing Iroh registry identity to Cloud; persist separate terminal
    and browser WireGuard keys, pending revocation, and validated wg-quick routes.
 3. Audit/build the Android Rust/JNI terminal client and in-process WireGuard
@@ -94,8 +94,9 @@ or signed promotion was needed at this foundation checkpoint.
 4. Project Cloud machines/workspaces/terminals into the retained Android navigation
    and terminal owners. Handle concurrent Mac/Cloud sessions, local scroll/resize,
    replay, input ordering, early input and lifecycle without cross-owner leakage.
-5. Port Cloud onboarding/list/create/resource/plan/error screens and their real
-   actions from CloudFlowView/CloudSectionView, then compare visible iOS states.
+5. Finish Cloud onboarding, private-network state and the plan/subscription
+   experience. Verify and visually compare the implemented list/create/resource/
+   lifecycle/error screens against iOS.
 6. Investigate Android system-VPN private-port behavior alongside the user's
    Tailscale setup. Any unavoidable platform constraint needs concrete evidence.
 7. At integration milestones, test the transport and screens against controlled
@@ -151,9 +152,55 @@ machine actions, link retirement and late results after close. File tests cover
 reopening, scope separation, normalization, stale completion, atomic write failure
 and corruption. Evidence: `captures/runtime/cloud-controller/`.
 
-The controller and journal are not yet constructed by the application UI. Actual
+At the controller checkpoint these objects were not yet constructed by the UI;
+the mounting follow-up below supersedes that limitation. Actual
 Android storage/process death, screen lifecycle, the native account adapter,
 connection retirement callbacks and live API behavior still need integration
 evidence. Tunnel/attachment serialization, hidden-machine state, Cloud screens,
 Rust/WireGuard, system VPN and real-account acceptance remain open. No APK/device
 run, emulator, signed promotion or live Cloud operation occurred at this checkpoint.
+
+## Machine-management UI mounting — 2026-10-06
+
+`NativeCloudViewModel` now constructs the native account API, durable create
+journal and controller for the exact verified account/team. It observes both
+team state and credential revisions, closes the old owner before publishing a
+replacement, and retains the controller across Activity recreation. Opening the
+Cloud tab activates catalog reads; after activation, foreground and owner changes
+refresh as appropriate. No terminal tunnel is enrolled by this mounting.
+
+`NativeCloudScreen` and the third primary navigation tab implement the inspected
+`CloudSectionView.swift` / `CloudCreateMachineSheet` source structure:
+
+- Cloud is machine management; rows do not open a second terminal screen.
+- Retained list/loading/empty/error states, pull-to-refresh, retry, machine names,
+  lifecycle and resource readouts; pause/resume and explicit delete confirmation.
+- New Machine sheet with the source's desktop/base choice, server memory ladder,
+  8 GiB fallback/default, known disk-size labels, locked choices and resource-pool
+  usage. The controller receives the selected effective options.
+- Busy states prevent duplicate submission, and pending creation survives the
+  observing screen's cancellation. Server failures and recovery actions remain
+  visible. Plan information opens the public pricing page; the native subscription
+  sheet is not implemented.
+- Account/team replacement remounts the screen so old dialogs/selections cannot
+  submit through a new owner. Back returns to the retained Workspaces route;
+  incoming pairing/notification links leave Cloud. A hidden terminal does not
+  count as visibly selected for notification clearing.
+
+The initial Cloud tutorial, tunnel/private-port controls, Cloud computers and
+workspace projection, terminal transport, tablet-specific composition, visual
+comparison and accessibility acceptance remain open. The workspace-projection
+footer is not shown before that integration exists. Source-code mounting is not
+proof that account API calls, mutation settlement or UI behavior work on a device.
+
+Verification: **18 focused JVM checks passed**, zero failures/errors/skips
+(presentation 4, controller 10, journal 4). Main/instrumentation compilation
+passed; the combined focused run took 19 seconds, a navigation follow-up compile
+10 seconds, and corrected fixture semantics/theme compilation 2 seconds. Three
+Android cases are queued for the integration batch: selected size/usage and
+create, delete confirmation/reconciliation, and the selected Cloud tab without
+workspace search. Those cases have **not run**. Evidence:
+`captures/runtime/cloud-ui-source/`. No APK, emulator, Pixel install, signed
+promotion or live Cloud action occurred. The next installed development build
+will perform real catalog reads when the signed-in user opens Cloud; create and
+lifecycle operations require their explicit UI action.

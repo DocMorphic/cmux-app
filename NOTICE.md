@@ -498,3 +498,12 @@ c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 CloudCreateJournal.kt adds Android persistence for the pending request identity;
 tunnel/attachment ownership and UI integration remain separate work.
+
+NativeCloudScreen.kt, CloudCreatePresentation.kt and the Cloud primary tab adapt
+machine-management UI and size/usage presentation from CloudSectionView.swift and
+CloudFlowView.swift in Packages/iOS/CmuxMobileCloudUI, cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses its retained account/team owner, Compose navigation, external pricing
+page and explicit lifecycle controls. The remaining tutorial, transport, subscription
+and UI acceptance work is recorded in docs/CLOUD_COMPANION.md.
