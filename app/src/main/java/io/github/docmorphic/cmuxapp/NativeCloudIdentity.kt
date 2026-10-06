@@ -14,7 +14,14 @@ import javax.crypto.spec.GCMParameterSpec
 internal fun nativeCloudIdentityStore(context: Context) = CloudTunnelIdentityStore(
     File(context.applicationContext.noBackupFilesDir, "cloud-identity"), CloudKeystoreCipher())
 
-private class CloudKeystoreCipher : CloudIdentityCipher {
+internal fun nativeCloudVpnStore(context: Context) = CloudVpnStore(
+    File(context.applicationContext.noBackupFilesDir, "cloud-vpn"),
+    CloudKeystoreCipher("cmux_cloud_vpn_v1", "cmux-cloud-system-vpn-v1".toByteArray(Charsets.UTF_8)))
+
+private class CloudKeystoreCipher(
+    private val alias: String = "cmux_cloud_identity_v1",
+    private val aad: ByteArray = "cmux-cloud-terminal-identity-v1".toByteArray(Charsets.UTF_8)
+) : CloudIdentityCipher {
     override fun encrypt(bytes: ByteArray): ByteArray {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key(create = true))
@@ -38,9 +45,5 @@ private class CloudKeystoreCipher : CloudIdentityCipher {
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256).setRandomizedEncryptionRequired(true).build())
         }.generateKey()
-    }
-    companion object {
-        private const val alias = "cmux_cloud_identity_v1"
-        private val aad = "cmux-cloud-terminal-identity-v1".toByteArray(Charsets.UTF_8)
     }
 }

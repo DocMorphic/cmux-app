@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- System VPN now has private-route validation and an encrypted profile/peer-cleanup
+  journal. **19 JVM checks passed** and main/Android test compilation passed.
+  Tests also fixed padded WireGuard public keys in terminal fallback config.
+  The official WireGuard AAR passes the supported-ABI 16 KiB gate but is not yet
+  integrated. Controller, VPN service/consent UI and device acceptance remain.
+  See `CLOUD_COMPANION.md` for the precise boundary and implementation sequence.
+
 - Cloud now has the iOS-style three-page first-visit introduction and Cloud basics
   replay, with saved completion/page state, persistence failure handling and
   responsive layouts. Android-specific key/VPN copy reflects actual capabilities.

@@ -589,3 +589,12 @@ c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses Compose paging and SharedPreferences, describes its Keystore-backed
 key storage, and records the still-unimplemented system VPN explicitly.
+
+
+CloudVpnRoutePolicy.kt and CloudVpnStore.kt adapt private routing and durable
+browser-peer cleanup requirements from CloudVPNRoutePolicy.swift and
+CloudSystemVPNController.swift in Packages/iOS/CmuxMobileCloud, at cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses its own encrypted atomic journal and Keystore alias. The optional
+system VPN is not yet integrated; see docs/CLOUD_COMPANION.md.

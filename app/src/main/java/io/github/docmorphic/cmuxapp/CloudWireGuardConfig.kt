@@ -38,8 +38,10 @@ internal class CloudWireGuardConfig private constructor(val text: String) {
         }
 
         private fun fromFields(enrollment: CloudTunnelEnrollment, key: CloudWireGuardKey): CloudWireGuardConfig {
-            fun field(value: String): String {
-                require(value.isNotBlank() && value.length <= 4096 && value.none { it.isISOControl() || it == '#' || it == '=' || it == '\\' }) { "Invalid Cloud tunnel field" }
+            fun field(value: String, keyPadding: Boolean = false): String {
+                // WireGuard public keys use padded Base64. '=' is legal in that value;
+                // line breaks and comment/control syntax remain forbidden for every field.
+                require(value.isNotBlank() && value.length <= 4096 && value.none { it.isISOControl() || it == '#' || (it == '=' && !keyPadding) || it == '\\' }) { "Invalid Cloud tunnel field" }
                 return value
             }
             fun hostAddress(value: String, bits: Int) = field(value).let { if ('/' in it) it else "$it/$bits" }
@@ -47,7 +49,7 @@ internal class CloudWireGuardConfig private constructor(val text: String) {
             val lines = mutableListOf("[Interface]", "PrivateKey = ${key.privateKeyBase64()}")
             enrollment.addressV4?.let { lines += "Address = ${hostAddress(it, 32)}" }
             enrollment.addressV6?.let { lines += "Address = ${hostAddress(it, 128)}" }
-            lines += listOf("MTU = 1200", "", "[Peer]", "PublicKey = ${field(enrollment.serverPublicKey)}",
+            lines += listOf("MTU = 1200", "", "[Peer]", "PublicKey = ${field(enrollment.serverPublicKey, keyPadding = true)}",
                 "AllowedIPs = ${enrollment.routes.joinToString(", ") { field(it) }}")
             enrollment.endpointHost?.let {
                 val host = field(it)

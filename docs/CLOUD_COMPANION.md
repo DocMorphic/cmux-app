@@ -885,3 +885,61 @@ They compile but have **not run** because ADB has no device. No visual matching 
 TalkBack/runtime acceptance is claimed. Evidence:
 `captures/runtime/cloud-introduction/`. No emulator, APK rebuild, live Cloud
 operation or signed release promotion occurred.
+
+
+### System VPN route/storage foundation — 2026-10-06
+
+Scoped iOS source: `CloudSystemVPNController.swift`, `CloudSystemVPNPreferences.swift`
+and `CloudVPNRoutePolicy.swift` at `c2715faa02c260b07012bc0b386597cfb333021d`.
+The optional VPN has a fresh key per enable, enrolls under `browser`, keeps the
+installation fingerprint, and is distinct from the terminal tunnel. It survives
+leaving the tab/backgrounding but is removed on account/team retirement. Pending
+server cleanup is retained rather than evicted. The platform must validate the
+actual installed configuration as well as the structured enrollment fields.
+
+`CloudVpnRoutePolicy.kt` implements private-only routes (RFC 1918, CGNAT and IPv6
+ULA). It rejects default/public/loopback/link-local ranges, DNS settings, hooks and
+application/table overrides. The installed text is independently checked, including
+section placement and bounded address/route lists. Numeric parsing does not resolve
+hostnames. This is a route-policy check; the platform WireGuard parser still owns
+complete key/endpoint/configuration syntax validation.
+
+`CloudVpnStore.kt` provides an encrypted atomic profile and browser-peer cleanup
+journal in no-backup storage. Enrollment identities must be committed before POST.
+Unknown/interrupted enrollment remains pending. Installing a profile retains its
+cleanup entry; retiring the profile does not acknowledge remote revocation. Only
+the exact attempt/owner/fingerprint can settle cleanup, so stale callbacks cannot
+erase a replacement. A pending identity blocks replacement enrollment for that
+owner/fingerprint; capacity never evicts unresolved entries. Failed writes preserve
+the old state, malformed ciphertext fails closed, and reloading a profile checks
+its private routes again. The native factory uses a separate Android Keystore
+alias and authenticated-data context from the terminal identity. No credentials
+are stored in cleanup records. These are prerequisites; **the VPN controller,
+platform service, consent UI and lifecycle integration are still unimplemented**.
+
+The new fallback-configuration test exposed an existing terminal-tunnel bug:
+`CloudWireGuardConfig.fromFields` rejected normal Base64 public-key `=` padding.
+That field now permits padding while retaining line/control/comment-injection
+checks. Other fallback fields retain their original restrictions.
+
+Verification: **19 JVM checks passed in four suites**, zero failures/errors/skips;
+main and Android test compilation passed. The nine new checks cover route boundaries,
+malformed numeric input, divergent server text, encrypted reload, interrupted
+cleanup, write failure, capacity/owner isolation and stale completions. Final run:
+six seconds. Evidence: `captures/runtime/cloud-system-vpn-foundation/`. No live
+VPN enrollment or activation, APK rebuild or emulator was performed; ADB has no
+connected device. Android Keystore and service behavior still need physical proof.
+
+The official [WireGuard embedding library](https://www.wireguard.com/embedding/)
+`com.wireguard.android:tunnel:1.0.20260102` was downloaded for inspection only and
+is **not yet an app dependency**. Its six arm64/x86_64 libraries pass the existing
+16 KiB LOAD/RELRO gate. The artifact also contains 32-bit libraries, which were
+reported separately by the verifier and are outside this app's supported ABIs.
+AAR SHA-256: `2b9c16db026496123e4db695d26d03d1958a201096c7c4c89b21077dc70f3119`.
+
+[Android allows only one active VPN service per user/profile](https://developer.android.com/develop/connectivity/vpn).
+The eventual explicit-enable UI must explain replacing Tailscale/another system
+VPN. The in-process terminal tunnel does not occupy that slot. Next implement the
+serialized account-owned controller, owner-authorized cleanup retries, platform
+WireGuard service/foreground notification, OS consent and onboarding/settings
+controls; then verify private web access and Tailscale transitions on Pixel.
