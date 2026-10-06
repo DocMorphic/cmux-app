@@ -13,6 +13,7 @@ class NativeNotificationRestartReceiver : BroadcastReceiver() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope.launch {
             try { withTimeout(8_000) {
+                PhoneFcmTokens.recover(context.applicationContext).join()
                 PhoneReplyWork.recover(context.applicationContext)
                 PhoneFcmWork.recover(context.applicationContext)
             } }

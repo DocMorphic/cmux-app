@@ -343,8 +343,10 @@ source events not yet admitted; that source subscription lifecycle remains open.
 1. Choose/provision the dedicated Firebase setup or establish official backend
    deployment access. The Mac's currently selected Google Cloud project is not
    implicitly authorized for this app.
-2. Add explicit Android Firebase configuration and token enrollment, rotation,
-   opt-out and unregister tied to the existing account/installation lifecycle.
+2. Add explicit Android Firebase configuration and authenticated helper enrollment.
+   Android token acquisition/rotation/opt-out/deletion now has a durable lifecycle
+   and WorkManager hooks; its separate consent entry point still needs the helper
+   UI, configuration and SDK/physical acceptance. See [the checkpoint](../docs/PUSH_DELIVERY.md#android-token-lifecycle--source-checkpoint-2026-10-06).
 3. Implement the admitted Mac/backend notification subscription and encrypted
    sender identity binding. A private helper needs its own reviewed trust/enrollment
    design; do not extract or replace the official Mac's private key silently.

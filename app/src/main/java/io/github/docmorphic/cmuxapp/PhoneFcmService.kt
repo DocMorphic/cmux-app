@@ -15,6 +15,11 @@ class PhoneFcmService : FirebaseMessagingService() {
         // No plaintext title/body, icon, link or PendingIntent reaches SDK display.
         super.handleIntent(phoneFcmDataOnlyIntent(intent))
     }
+    override fun onNewToken(token: String) {
+        // A delayed callback can contain an obsolete token; fetch the SDK current value.
+        try { runBlocking { withTimeout(8_000) { PhoneFcmTokens.onTokenChanged(applicationContext)?.join() } } }
+        catch (_: Exception) { /* Startup recovery reads the SDK again without logging tokens. */ }
+    }
     override fun onMessageReceived(message: RemoteMessage) {
         if (message.notification != null) return
         val raw = message.data.takeIf { it.keys == setOf("cmux") }?.get("cmux") ?: return

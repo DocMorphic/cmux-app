@@ -175,6 +175,8 @@ class NativeNotificationService : Service() {
                 prefs.edit().putBoolean("background_enabled", previous).commit()
                 throw failure
             }
+            if (enabled) PhoneFcmTokens.recover(context.applicationContext)
+            else PhoneFcmTokens.revoke(context.applicationContext)
         }
     }
 }

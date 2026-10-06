@@ -1,5 +1,59 @@
 # Android background push
 
+
+## Android token lifecycle — source checkpoint, 2026-10-06
+
+`PhoneFcmTokens` now owns SDK token acquisition/renewal/deletion and its durable
+state. It requires a configured **default Firebase app**, signed-in login
+incarnation, allowed OS notifications, background-alert opt-in, and a separate
+explicit cloud-push authorization. Ordinary alert opt-in does not enable cloud
+registration. The authorization entry point is ready for the forthcoming helper
+enrollment UI; **nothing calls it from production UI yet**, and no Firebase
+client configuration has been installed.
+
+Token state is kept in a separate Keystore-encrypted record. Before requesting a
+token, the record marks that the provider may have created one; logout can then
+retain deletion work even if the process dies before the response. Retirement
+removes the token and account identifier locally, keeps only the project/deletion
+marker, and retries SDK deletion. Replacement consent waits for that deletion
+before fetching again. Project changes never delete another project's token;
+an unfinished old-project deletion requires restoring that configuration to
+finish cleanup. It is not silently discarded.
+
+Each token generation exposes an immutable snapshot for future authenticated
+helper enrollment. A delayed `onNewToken` invalidates in-flight reads; its payload
+is never persisted as authoritative. The worker reads the SDK's current token.
+Login, permissions and configuration are rechecked before and after acquisition.
+The helper must separately recheck snapshot identity and its authenticated
+account/key binding before/after enrollment requests. No backend enrollment or
+server deregistration is claimed by this token component.
+
+Startup, main-process foreground/resume, login changes, boot, app replacement,
+notification preferences and SDK callbacks schedule network-constrained work.
+Daily WorkManager refresh provides recovery while SDK auto-init stays disabled;
+this is best-effort background scheduling, not a precise 24-hour deadline. All
+SDK operations are serialized through actual Task completion, including when a
+worker is cancelled, so an old deletion cannot overtake a replacement fetch.
+Provider errors retry without logging token or credential data. Firebase
+Installations IDs are not deleted. The pinned Messaging **25.0.1** token API is
+used, with no SDK upgrade or new dependency. See the
+[Firebase token/callback guide](https://firebase.google.com/docs/cloud-messaging/android/get-started)
+and [Firebase messaging API](https://firebase.google.com/docs/reference/android/com/google/firebase/messaging/FirebaseMessaging).
+
+The iOS reference remains scoped to `MobilePushCoordinator.swift` at
+`186cec79781256867ad4516f0802118738bd2393`: explicit opt-in, live notification
+settings, registration recovery and generation-fenced settings intents. Android
+provider mechanics differ; this checkpoint does not advance the global parity pin.
+
+**Ten JVM cases passed**, covering reconstruction/stable generation, rotation,
+missing consent/configuration, logout cleanup, account replacement, late
+callbacks, opt-out during fetch, provider failures, project mismatch and
+re-enabling during deletion. Main and instrumentation compilation passed.
+No APK/emulator/Pixel run, cloud request or real token was generated. Keystore,
+WorkManager/SDK runtime behavior, helper enrollment UI and actual provider/Doze
+acceptance remain for integration. Local evidence:
+`captures/runtime/push-token-lifecycle/`.
+
 ## Large dismissal admission checkpoint — 2026-10-06
 
 `preparePushBatch` now plans provider-sized dismissal parts without dropping IDs.

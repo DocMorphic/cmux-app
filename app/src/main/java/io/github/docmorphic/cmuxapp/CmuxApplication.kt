@@ -52,7 +52,10 @@ class CmuxApplication : Application() {
             getSystemService(android.app.ActivityManager::class.java).runningAppProcesses?.firstOrNull { it.pid == android.os.Process.myPid() }?.processName.orEmpty()
         runCatching { MobileDiagnostics.install(this, if (process.endsWith(":browser")) DiagnosticRole.BROWSER else DiagnosticRole.APP) }
         MobileDiagnostics.event(DebugOperation.APP_START)
-        if (process == packageName) FileSaveWork.recover(this)
+        if (process == packageName) {
+            FileSaveWork.recover(this)
+            PhoneFcmTokens.observe(this)
+        }
         ArtifactPlaybackSessions.recover(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             private var visible = 0
@@ -63,7 +66,9 @@ class CmuxApplication : Application() {
             override fun onActivityStopped(activity: Activity) { if (--visible == 0) MobileDiagnostics.event(DebugOperation.APP_BACKGROUND) }
             override fun onActivityCreated(activity: Activity, state: Bundle?) {}
             override fun onActivityDestroyed(activity: Activity) {}
-            override fun onActivityResumed(activity: Activity) {}
+            override fun onActivityResumed(activity: Activity) {
+                if (process == packageName) PhoneFcmTokens.recover(this@CmuxApplication)
+            }
             override fun onActivityPaused(activity: Activity) {}
             override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) {}
         })

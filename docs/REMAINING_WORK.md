@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Android now has explicit-consent token acquisition, renewal and durable SDK
+  deletion across logout, with generation checks for late callbacks and serialized
+  provider operations. Startup/resume/boot/settings and WorkManager recovery are
+  wired. **Ten JVM checks passed**; main/instrumentation compilation passed.
+  Firebase configuration and the helper enrollment UI are absent, so cloud push
+  remains disabled. No APK/emulator was created. Native SDK/Keystore/WorkManager
+  runtime and real delivery remain open. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#android-token-lifecycle--source-checkpoint-2026-10-06).
+
 - Zoomed PDF detail integration now passes **four Android checks in 18.481
   seconds**: crop/rotation pixels, cancellation/renderer reuse, visible fine-line
   contrast after magnification/recreation, and XYZ navigation/history. Four
