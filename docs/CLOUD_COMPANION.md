@@ -1064,7 +1064,7 @@ full-storage local shutdown, durable intent after reload and old-format reading.
 Evidence: `captures/runtime/cloud-vpn-cleanup-recovery/`. No APK rebuild, emulator,
 live account request or VPN activation occurred. ADB still has no Pixel.
 
-Restart audit: the currently integrated service is `START_NOT_STICKY`, and initial
+Restart audit at this checkpoint: the integrated service was `START_NOT_STICKY`, and initial
 account binding tears down a saved profile. Android service/process restart
 restoration therefore remains open; it is not claimed as an unavoidable platform
 difference. Implement restoration only for a saved requested profile after matching
@@ -1072,3 +1072,64 @@ its verified owner and existing OS consent. Distinguish initial account loading 
 actual sign-out, never restore a recorded disconnect, and retain service ownership
 through recovery. Then verify process death, offline startup, explicit disconnect,
 account/team replacement, revoked consent and Tailscale replacement on Pixel.
+
+
+### Saved VPN restoration and Android service recovery — 2026-10-06
+
+The first verified account binding can now restore an encrypted, requested VPN
+profile using its saved configuration, key and peer identity. It does not resolve
+a device identity, generate a key or POST another enrollment. The saved user,
+team and login incarnation must match the verified access, and Android must still
+grant VPN consent. Initial membership loading is kept distinct from sign-out.
+A subsequent login, account/team replacement, missing consent or recorded stop
+retires the profile through the existing shutdown and owner-specific cleanup path.
+Old records without a login incarnation remain readable for cleanup but cannot
+restore against the native adapter's non-null login. A disconnect while waiting
+for account verification prevents delayed initial binding from restoring it.
+
+The protected foreground service now returns `START_STICKY` after successful
+admission. A null restart intent or retry of the original explicit START adopts
+an empty service and waits for verified account binding; neither permits peer
+enrollment. The notification has a Disconnect action while waiting. Adoption
+rechecks controller retirement so a concurrently completed sign-out/stop cannot
+leave an orphan waiting service. Unknown intents, failed startup and revoked
+consent stop the service. Stale disconnect intents cannot restart an empty service.
+Always-on and boot activation remain disabled. Android describes null restart
+intents and sticky foreground recovery in its [Service contract](https://developer.android.com/reference/android/app/Service#START_STICKY);
+this is a recovery request, not evidence of guaranteed uninterrupted connectivity.
+
+The restored install uses the same operation gate and cancellation checks as a
+fresh install. A timed-out or retired install must finish local shutdown before
+replacement enrollment proceeds. Active peers are excluded from background
+cleanup. Explicit disconnect persists its stop intent before awaited platform shutdown;
+interrupts still request immediate local stop. An OS kill during an incomplete/failed disk write is still part of the
+physical recovery acceptance gate.
+
+Verification: **34 JVM checks passed across four suites**, with zero failures,
+errors or skips; six new controller tests cover restored peer/key reuse without
+POST/device lookup, account/team/login/legacy-profile/permission/stop rejection,
+disconnect before verification, service adoption after retirement, delayed install
+across account replacement and timed-out recovery. Existing encrypted-store tests
+now verify login persistence through reload/disconnect and absent-field compatibility.
+The first run caught an invalid test fixture order (adding an orphan after saving
+an active profile); correcting the setup yielded the passing run. Main and Android
+test sources compile. Debug and instrumentation APKs built in 1m 43s, and all **22
+native libraries** plus APK ZIP alignment passed the 16 KiB checks. The protected,
+non-exported service and disabled always-on metadata were checked in the merged
+manifest. Debug APK SHA-256:
+`48a6fdcb3a0252f74fea0efcbc871a466bea3eec2af6397d4887a4ed4643b173`.
+Evidence: `captures/runtime/cloud-vpn-restoration/`.
+
+No Android runtime tests, Cloud account requests, peer enrollment or VPN activation
+occurred; ADB reports no connected device. Real sticky recovery, foreground-service
+admission, offline/account verification recovery, notification disconnect, private
+web access and Tailscale replacement remain physical acceptance gates. No emulator
+was started and Gradle was stopped after verification. The published signed APK
+remains 616 and the full parity goal remains active.
+
+The reported Cloud native checkpoint CI failure was rechecked: run `37449713438`
+failed on Linux-only `libc::__errno_location` calls in the Android target. Fix
+`819b6943` is on main. The four subsequent native checkpoint runs succeeded;
+latest checked: [37454996751](https://github.com/DocMorphic/cmux-app/actions/runs/37454996751)
+at `d7cc7281`. These results establish that checkpoint's build status, not physical
+Cloud acceptance or the entire Android application's CI status.

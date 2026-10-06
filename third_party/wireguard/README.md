@@ -16,6 +16,8 @@ The app's existing ELF/RELRO and ZIP checks passed on the integration APK.
 
 Android integration uses a cmux subclass of the upstream VPN service to add an
 explicit-start reservation, a foreground notification and shared-account lifetime.
+Sticky service recovery restores only a previously requested, consented profile
+for the same verified user/team/login; it never enrolls another peer.
 The library's base service is removed from the merged manifest. No always-on or
 boot-start support is enabled. See `docs/CLOUD_COMPANION.md` for runtime evidence
 and remaining work.

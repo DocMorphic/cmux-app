@@ -19,7 +19,7 @@ internal class CloudVpnDevice(val deviceId: String, val fingerprint: String) {
 internal class CloudVpnAccess(val owner: CloudVpnOwner, val isCurrent: () -> Boolean,
     val device: suspend () -> CloudVpnDevice,
     val enroll: suspend (CloudWireGuardKey, CloudVpnDevice) -> CloudTunnelEnrollment,
-    val revoke: suspend (String) -> Unit) {
+    val revoke: suspend (String) -> Unit, val session: String? = null) {
     override fun toString() = "CloudVpnAccess(redacted)"
 }
 
@@ -49,6 +49,7 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
     val state = mutable.asStateFlow()
     private var account: CloudVpnAccess? = null
     private var bound = false
+    private var recoveryAllowed = true
     private val cleanupAccess = mutableMapOf<CloudVpnOwner, CloudVpnAccess>()
     private var generation = 0L
     private var wanted = false
@@ -60,14 +61,16 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
     private val lifetime: DisposableHandle? = parent.coroutineContext[Job]?.invokeOnCompletion { close() }
     init { require(timeoutMillis in 1..300_000) }
 
-    /** Rebinding never enrolls. It removes old local routes before account cleanup. */
-    fun bind(access: CloudVpnAccess?) = synchronized(lock) {
+    /** Rebinding never enrolls. The first verified binding may restore the previously
+     * requested profile; replacements always remove old routes before account cleanup. */
+    fun bind(access: CloudVpnAccess?, restoreSaved: Boolean = false) = synchronized(lock) {
         if (closed || (bound && account === access)) return@synchronized
+        val restore = restoreSaved && !bound && recoveryAllowed && access != null
         bound = true
         account?.let { cleanupAccess[it.owner] = it }
         account = access
         access?.let { cleanupAccess[it.owner] = it }
-        transitionLocked(false)
+        transitionLocked(false, restoreSaved = restore)
     }
     fun enable(): Boolean = synchronized(lock) {
         if (closed) return@synchronized false
@@ -84,7 +87,12 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
         transitionLocked(true)
         true
     }
-    fun disable() = synchronized(lock) { if (!closed) transitionLocked(false) }
+    fun disable() = synchronized(lock) { if (!closed) { recoveryAllowed = false; transitionLocked(false) } }
+    /** Adoption can race a binding that already stopped an empty platform. Recheck
+     * after adoption, so that a retired owner cannot leave a waiting service alive. */
+    fun platformRecovered() = synchronized(lock) {
+        if (closed || (!bound && !recoveryAllowed) || (bound && !wanted)) platform.interrupt()
+    }
     fun retryCleanup() = synchronized(lock) {
         if (closed) return@synchronized
         if (!wanted) transitionLocked(false)
@@ -106,20 +114,27 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
     private fun publish(at: Long, phase: CloudSystemVpnPhase, message: String? = null) = synchronized(lock) {
         if (generation == at && !closed) mutable.value = mutable.value.copy(phase = phase, message = message)
     }
-    private fun transitionLocked(enable: Boolean, failure: String? = null) {
+    private fun transitionLocked(enable: Boolean, failure: String? = null, restoreSaved: Boolean = false) {
         val at = ++generation
-        wanted = enable
+        wanted = enable || restoreSaved
         liveAttempt = null
         operation?.cancel(); timer?.cancel(); cleanupWorker?.cancel(); cleanupWorker = null
-        platform.interrupt()
+        if (!restoreSaved) platform.interrupt()
         val access = account
         mutable.value = mutable.value.copy(phase = if (closed) CloudSystemVpnPhase.CLOSED else if (failure != null) CloudSystemVpnPhase.FAILED
-            else if (enable) CloudSystemVpnPhase.PREPARING else CloudSystemVpnPhase.DISCONNECTING, message = failure)
+            else if (enable || restoreSaved) CloudSystemVpnPhase.PREPARING else CloudSystemVpnPhase.DISCONNECTING, message = failure)
         val worker = workers.launch(start = CoroutineStart.LAZY) {
             try {
                 gate.withLock {
                     ensureActive()
                     if (synchronized(lock) { generation != at }) return@withLock
+                    val restoring = if (restoreSaved && access != null && access.isCurrent() && platform.consentGranted)
+                        store.load().profile?.takeIf { it.requested && it.enrollment.owner == access.owner && it.session == access.session } else null
+                    if (restoring != null && access != null) {
+                        restore(at, access, restoring)
+                        return@withLock
+                    }
+                    synchronized(lock) { if (generation == at) wanted = enable }
                     // Stop even if storage is corrupt or its last write failed.
                     stopAndRetire()
                     cleanupPeers(access?.owner)
@@ -168,21 +183,11 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
             guard(at, access)
             check(enrollment.fingerprint == device.fingerprint) { "Cloud VPN enrollment identity mismatch" }
             val configuration = CloudVpnRoutePolicy.configuration(enrollment, key)
-            store.install(entry, configuration.text)
+            store.install(entry, configuration.text, access.session)
             guard(at, access)
-            val profile = CloudVpnProfile(entry, configuration.text)
-            publish(at, CloudSystemVpnPhase.CONNECTING)
-            platform.install(profile) { current(at, access) }
-            guard(at, access)
-            check(platform.connected(entry.attempt)) { "Cloud VPN did not connect" }
-            val pendingCount = (store.load().pending.size - 1).coerceAtLeast(0)
-            synchronized(lock) {
-                guard(at, access)
-                liveAttempt = entry.attempt
-                retained = true
-                mutable.value = mutable.value.copy(phase = CloudSystemVpnPhase.CONNECTED, message = null,
-                    pendingCleanup = pendingCount)
-            }
+            val profile = CloudVpnProfile(entry, configuration.text, session = access.session)
+            activate(at, access, profile)
+            retained = true
         } finally {
             if (!retained) withContext(NonCancellable) {
                 // Keep the gate until even a late installation is down. A failed stop
@@ -190,6 +195,31 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
                 stopAndRetire()
                 cleanupPeers(access.owner)
             }
+        }
+    }
+    private suspend fun restore(at: Long, access: CloudVpnAccess, profile: CloudVpnProfile) {
+        var retained = false
+        try {
+            guard(at, access)
+            activate(at, access, profile)
+            retained = true
+        } finally {
+            if (!retained) withContext(NonCancellable) { stopAndRetire(); cleanupPeers(access.owner) }
+        }
+    }
+    private suspend fun activate(at: Long, access: CloudVpnAccess, profile: CloudVpnProfile) {
+        guard(at, access)
+        check(profile.requested && profile.enrollment.owner == access.owner && profile.session == access.session)
+        publish(at, CloudSystemVpnPhase.CONNECTING)
+        platform.install(profile) { current(at, access) }
+        guard(at, access)
+        check(platform.connected(profile.enrollment.attempt)) { "Cloud VPN did not connect" }
+        val pendingCount = (store.load().pending.size - 1).coerceAtLeast(0)
+        synchronized(lock) {
+            guard(at, access)
+            liveAttempt = profile.enrollment.attempt
+            mutable.value = mutable.value.copy(phase = CloudSystemVpnPhase.CONNECTED, message = null,
+                pendingCleanup = pendingCount)
         }
     }
     private suspend fun stopAndRetire() {

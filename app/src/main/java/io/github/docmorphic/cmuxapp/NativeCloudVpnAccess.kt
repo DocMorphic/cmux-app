@@ -47,5 +47,5 @@ internal suspend fun nativeCloudVpnAccess(context: Context, account: NativeAccou
         CloudApi(apiOwner, { captured }, { it == apiOwner }).use { api ->
             api.revoke(fingerprint, CloudTunnelPurpose.BROWSER)
         }
-    })
+    }, session = scope.login)
 }

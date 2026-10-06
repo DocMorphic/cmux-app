@@ -45,9 +45,10 @@ class CloudVpnStoreTest {
     @Test fun encryptedProfileRetainsCleanupIdentityAndRejectsStaleRemoval() {
         val root = temporary.newFolder(); val store = CloudVpnStore(root, cipher)
         val first = store.begin(owner, "fingerprint")
-        store.install(first, config)
+        store.install(first, config, "login-1")
         val reopened = CloudVpnStore(root, cipher)
         assertEquals(config, reopened.load().profile!!.configuration)
+        assertEquals("login-1", reopened.load().profile!!.session)
         assertEquals(first, reopened.load().profile!!.enrollment)
         val ciphertext = root.resolve("state.enc").readBytes().toString(Charsets.ISO_8859_1)
         assertFalse(ciphertext.contains("private-key-fixture")); assertFalse(ciphertext.contains("fingerprint"))
@@ -96,10 +97,11 @@ class CloudVpnStoreTest {
 
     @Test fun disconnectIntentSurvivesProcessReloadAndCannotBeOverwrittenByLateInstall() {
         val root = temporary.newFolder(); val store = CloudVpnStore(root, cipher)
-        val entry = store.begin(owner, "fingerprint"); store.install(entry, config)
+        val entry = store.begin(owner, "fingerprint"); store.install(entry, config, "login-1")
         store.requestStop()
         val restored = CloudVpnStore(root, cipher)
         assertFalse(restored.load().profile!!.requested)
+        assertEquals("login-1", restored.load().profile!!.session)
         assertEquals(config, restored.load().profile!!.configuration)
         assertEquals(listOf(entry), restored.load().pending)
         assertThrows(IllegalStateException::class.java) { restored.install(entry, config) }
@@ -115,8 +117,10 @@ class CloudVpnStoreTest {
         val file = root.resolve("state.enc")
         val value = org.json.JSONObject(cipher.decrypt(file.readBytes()).toString(Charsets.UTF_8))
         value.getJSONObject("profile").remove("requested")
+        value.getJSONObject("profile").remove("session")
         file.writeBytes(cipher.encrypt(value.toString().toByteArray(Charsets.UTF_8)))
         assertTrue(CloudVpnStore(root, cipher).load().profile!!.requested)
+        assertNull(CloudVpnStore(root, cipher).load().profile!!.session)
         store.requestStop()
         assertFalse(CloudVpnStore(root, cipher).load().profile!!.requested)
     }

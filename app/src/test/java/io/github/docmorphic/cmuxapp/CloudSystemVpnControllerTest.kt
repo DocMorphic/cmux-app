@@ -17,6 +17,7 @@ class CloudSystemVpnControllerTest {
     private class Platform : CloudSystemVpnPlatform {
         override var consentGranted = true
         var active: String? = null
+        var installed: CloudVpnProfile? = null
         var starts = 0
         var stops = 0
         var interruptions = 0
@@ -28,7 +29,7 @@ class CloudSystemVpnControllerTest {
             starts++; events += "install.begin"
             beforeInstall()
             if (!current()) throw CancellationException("retired")
-            active = profile.enrollment.attempt; events += "install.end"
+            installed = profile; active = profile.enrollment.attempt; events += "install.end"
         }
         override suspend fun stop() {
             stops++; events += "stop"
@@ -37,8 +38,9 @@ class CloudSystemVpnControllerTest {
         }
         override fun connected(attempt: String) = active == attempt
     }
-    private class Access(val store: CloudVpnStore, val owner: CloudVpnOwner = CloudVpnOwner("u", "t")) {
+    private class Access(val store: CloudVpnStore, val owner: CloudVpnOwner = CloudVpnOwner("u", "t"), val session: String? = null) {
         var current = true
+        var devices = 0
         var enrollments = 0
         var revocations = 0
         val revokedFingerprints = mutableListOf<String>()
@@ -47,7 +49,7 @@ class CloudSystemVpnControllerTest {
         var failRevoke = false
         var beforeEnroll: suspend () -> Unit = {}
         var beforeRevoke: suspend () -> Unit = {}
-        val access = CloudVpnAccess(owner, { current }, { CloudVpnDevice("device-id", "fingerprint") }, { key, device ->
+        val access = CloudVpnAccess(owner, { current }, { devices++; CloudVpnDevice("device-id", "fingerprint") }, { key, device ->
             assertTrue(store.load().pending.any { it.owner == owner && it.fingerprint == device.fingerprint })
             enrollments++; keys += key.publicKey; beforeEnroll()
             check(!failEnroll) { "private error with secret should not reach UI" }
@@ -55,7 +57,7 @@ class CloudSystemVpnControllerTest {
                 "vpn.example.test", 51820, listOf("10.0.0.0/8"), "10.0.0.2", null, true, false)
         }, { fingerprint ->
             revocations++; revokedFingerprints += fingerprint; beforeRevoke(); check(!failRevoke) { "revocation failed" }
-        })
+        }, session = session)
     }
     @Test fun bindingAndConsentNeverEnrollUntilExplicitEnableAndDisableRetiresBeforeRevoke() = runTest {
         val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform(); val access = Access(store)
@@ -263,5 +265,129 @@ class CloudSystemVpnControllerTest {
             assertNull(store.load().profile); assertTrue(store.load().pending.isEmpty())
             assertEquals(1, access.enrollments)
         } finally { failWrites = false; controller.close(); runCurrent() }
+    }
+
+    private fun savedProfile(store: CloudVpnStore, owner: CloudVpnOwner, session: String? = "login-1"): CloudVpnProfile {
+        val entry = store.begin(owner, "saved-fingerprint")
+        val config = "[Interface]\nPrivateKey=fixture\nAddress=10.0.0.2/32\n[Peer]\nAllowedIPs=10.0.0.0/8\nPublicKey=fixture"
+        store.install(entry, config, session)
+        return store.load().profile!!
+    }
+
+    @Test fun verifiedRestartRestoresSamePeerAndKeyWithoutEnrollmentOrDeviceLookup() = runTest {
+        val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform()
+        val access = Access(store, session = "login-1")
+        store.begin(access.owner, "old-orphan")
+        val saved = savedProfile(store, access.owner)
+        val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
+        try {
+            controller.platformRecovered()
+            assertEquals(0, platform.interruptions)
+            controller.bind(access.access, restoreSaved = true); advanceUntilIdle()
+            assertEquals(CloudSystemVpnPhase.CONNECTED, controller.state.value.phase)
+            assertEquals(saved.enrollment.attempt, platform.active)
+            assertEquals(saved.configuration, platform.installed!!.configuration)
+            assertEquals(saved.session, platform.installed!!.session)
+            assertEquals(0, access.enrollments); assertEquals(0, access.devices)
+            assertEquals(listOf("old-orphan"), access.revokedFingerprints)
+            assertEquals(listOf(saved.enrollment), store.load().pending)
+            assertEquals(0, platform.stops); assertEquals(0, platform.interruptions)
+            controller.disable(); advanceUntilIdle()
+            assertNull(store.load().profile); assertNull(platform.active); assertTrue(store.load().pending.isEmpty())
+        } finally { controller.close(); runCurrent() }
+    }
+
+    @Test fun wrongOwnerLoginOrPermissionAndStoppedProfilesNeverRestore() = runTest {
+        for (scenario in listOf("user", "team", "session", "legacy", "consent", "stopped", "stale")) {
+            val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform()
+            val savedOwner = CloudVpnOwner("u", "t")
+            val owner = when (scenario) {
+                "user" -> CloudVpnOwner("other", "t")
+                "team" -> CloudVpnOwner("u", "other")
+                else -> savedOwner
+            }
+            val access = Access(store, owner, if (scenario == "session") "login-2" else "login-1")
+            val saved = savedProfile(store, savedOwner, if (scenario == "legacy") null else "login-1")
+            if (scenario == "consent") platform.consentGranted = false
+            if (scenario == "stopped") store.requestStop()
+            if (scenario == "stale") access.current = false
+            val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
+            try {
+                controller.bind(access.access, restoreSaved = true); advanceUntilIdle()
+                assertEquals(scenario, 0, platform.starts); assertEquals(scenario, 0, access.enrollments)
+                assertNull(scenario, store.load().profile)
+                assertEquals(scenario, CloudSystemVpnPhase.OFF, controller.state.value.phase)
+                if (owner != savedOwner) {
+                    assertEquals(listOf(saved.enrollment), store.load().pending); assertEquals(0, access.revocations)
+                } else assertTrue(scenario, store.load().pending.isEmpty())
+            } finally { controller.close(); runCurrent() }
+        }
+    }
+
+    @Test fun disconnectWhileWaitingForVerificationCannotBeUndoneByFirstBinding() = runTest {
+        val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform()
+        val access = Access(store, session = "login-1"); savedProfile(store, access.owner)
+        val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
+        try {
+            controller.disable()
+            controller.bind(access.access, restoreSaved = true); advanceUntilIdle()
+            assertEquals(0, platform.starts); assertEquals(0, access.enrollments)
+            assertNull(store.load().profile); assertTrue(store.load().pending.isEmpty())
+            val stopped = platform.interruptions
+            controller.platformRecovered(); assertEquals(stopped + 1, platform.interruptions)
+            controller.enable(); runCurrent() // A later explicit request remains allowed.
+            assertEquals(1, access.enrollments); assertNotNull(platform.active)
+            val runningInterruptions = platform.interruptions
+            controller.platformRecovered(); assertEquals(runningInterruptions, platform.interruptions)
+        } finally { controller.close(); runCurrent() }
+    }
+
+    @Test fun lateRestoredInstallCannotOvertakeAccountRetirementOrNewEnrollment() = runTest {
+        val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform()
+        val old = Access(store, session = "login-1"); val saved = savedProfile(store, old.owner)
+        val next = Access(store, CloudVpnOwner("another", "team"), "login-2")
+        val release = CompletableDeferred<Unit>()
+        val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
+        try {
+            platform.beforeInstall = { withContext(NonCancellable) { release.await() } }
+            controller.bind(old.access, restoreSaved = true); runCurrent()
+            old.current = false; controller.bind(next.access, restoreSaved = true); controller.enable(); runCurrent()
+            assertEquals(0, next.enrollments); assertEquals(saved.enrollment, store.load().profile!!.enrollment)
+            platform.beforeInstall = {}; release.complete(Unit); advanceUntilIdle()
+            assertEquals(0, old.enrollments); assertEquals(listOf("saved-fingerprint"), old.revokedFingerprints)
+            assertEquals(1, next.enrollments); assertEquals(0, next.revocations)
+            assertEquals(CloudSystemVpnPhase.CONNECTED, controller.state.value.phase)
+            assertNotEquals(saved.enrollment.attempt, platform.active)
+            assertEquals(next.owner, store.load().profile!!.enrollment.owner)
+        } finally { release.complete(Unit); controller.close(); runCurrent() }
+    }
+
+    @Test fun restoreTimeoutFencesLateNativeCompletionAndDrainsItsOriginalPeer() = runTest {
+        val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform()
+        val access = Access(store, session = "login-1"); savedProfile(store, access.owner)
+        val release = CompletableDeferred<Unit>()
+        val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler), timeoutMillis = 1000)
+        try {
+            platform.beforeInstall = { withContext(NonCancellable) { release.await() } }
+            controller.bind(access.access, restoreSaved = true); runCurrent()
+            advanceTimeBy(1001); runCurrent()
+            assertEquals(CloudSystemVpnPhase.FAILED, controller.state.value.phase)
+            assertEquals(0, access.revocations)
+            release.complete(Unit); advanceUntilIdle()
+            assertNull(platform.active); assertNull(store.load().profile); assertTrue(store.load().pending.isEmpty())
+            assertEquals(listOf("saved-fingerprint"), access.revokedFingerprints); assertEquals(0, access.enrollments)
+        } finally { release.complete(Unit); controller.close(); runCurrent() }
+    }
+
+    @Test fun adoptedServiceAfterSignedOutBindingIsStoppedWithoutEnrollment() = runTest {
+        val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform()
+        val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
+        controller.bind(null); advanceUntilIdle()
+        val count = platform.interruptions
+        controller.platformRecovered(); assertEquals(count + 1, platform.interruptions)
+        assertEquals(0, platform.starts)
+        controller.close(); runCurrent()
+        val closedCount = platform.interruptions
+        controller.platformRecovered(); assertEquals(closedCount + 1, platform.interruptions)
     }
 }

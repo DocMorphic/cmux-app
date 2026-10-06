@@ -26,26 +26,33 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
-- VPN cleanup now drains multiple bounded batches automatically, preserves active
-  routes and supports retry while connected. Disconnect intent is durable before
-  shutdown; storage failure still stops the local VPN. **28 JVM checks passed**;
-  main/Android test compilation passed. Service/process restart restoration remains
-  open: distinguish loading from sign-out and restore only a matching requested
-  profile with existing consent. See `CLOUD_COMPANION.md` for the audit and tests.
+- Saved VPN restoration is implemented: reuse the existing peer/configuration only
+  after the same user/team/login is verified and VPN consent remains granted.
+  Sticky service recovery waits for verification; recorded disconnects, account
+  replacement and expired permission cannot silently restore. **34 JVM checks
+  passed**; debug/test APKs built and all 22 native libraries plus ZIP alignment
+  passed 16 KiB checks. Physical service/process recovery, offline startup and
+  Tailscale transitions remain unverified; no Pixel is currently visible in ADB.
+  See `CLOUD_COMPANION.md` for evidence and recovery limits.
+
+- VPN cleanup drains multiple bounded batches automatically, preserves active
+  routes and supports retry while connected. Disconnect intent is persisted before
+  awaited shutdown; storage failure still stops the local VPN. The recovery
+  checkpoint above extends the earlier 28-check cleanup verification.
 
 - Cloud system VPN is now wired through the official WireGuard backend, protected
   foreground service, shared-account lifetime, status controls and OS consent in
   Cloud management/onboarding. **22 JVM checks passed**; debug/test APKs built;
   all 22 packaged native libraries and APK ZIP alignment pass 16 KiB checks.
   The two backend Android checks and live consent/private-web/Tailscale/background
-  flows remain unrun (no Pixel in ADB). Restart restoration, cleanup backlog
-  scheduling and exact UI/runtime acceptance remain. See `CLOUD_COMPANION.md`.
+  flows remain unrun (no Pixel in ADB). Restoration and cleanup scheduling
+  are implemented above; exact UI/runtime acceptance remains. See `CLOUD_COMPANION.md`.
 
 - The system VPN lifecycle controller and native account adapter now implement
   explicit enrollment, serialized install/stop, late-operation fencing and durable
   account-owned cleanup. **22 JVM checks passed**; main/Android test compilation
-  passed. They are not mounted: the WireGuard service, foreground notification,
-  app-lifetime binding, consent/settings UI and physical acceptance remain. See
+  passed at that checkpoint. Service, notification, app-lifetime binding and
+  consent/settings UI are now integrated; physical acceptance remains. See
   `CLOUD_COMPANION.md` for tested behavior and remaining integration details.
 
 - System VPN now has private-route validation and an encrypted profile/peer-cleanup

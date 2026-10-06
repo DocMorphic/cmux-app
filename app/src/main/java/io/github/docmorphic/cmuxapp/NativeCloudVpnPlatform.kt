@@ -45,7 +45,22 @@ internal class NativeCloudVpnPlatform(private val context: Context,
             }
         }.build()
         check(admitted()) { "Cloud VPN account changed" }
-        val startup = NativeCloudVpnService.Startup(UUID.randomUUID().toString(), this, ::admitted)
+        val live = service?.takeIf { it.alive } ?: startService(::admitted)
+        synchronized(NativeCloudVpnService.nativeLock) {
+            check(admitted() && live.alive && service === live) { "Cloud VPN service retired" }
+            val engine = backend ?: GoBackend(context).also { backend = it }
+            val active = object : Tunnel {
+                override fun getName() = "cmux-cloud"
+                override fun onStateChange(state: Tunnel.State) { changed(profile.enrollment.attempt, state == Tunnel.State.UP) }
+            }
+            tunnel = active; attempt = profile.enrollment.attempt
+            check(engine.setState(active, Tunnel.State.UP, resolved) == Tunnel.State.UP)
+            check(admitted() && live.alive) { "Cloud VPN service retired" }
+        }
+        live.showConnected()
+    }
+    private suspend fun startService(admitted: () -> Boolean): NativeCloudVpnService {
+        val startup = NativeCloudVpnService.Startup(UUID.randomUUID().toString(), this, admitted)
         try {
             NativeCloudVpnService.register(startup)
             withContext(Dispatchers.Main.immediate) {
@@ -53,25 +68,17 @@ internal class NativeCloudVpnPlatform(private val context: Context,
                 context.startForegroundService(Intent(context, NativeCloudVpnService::class.java)
                     .setAction(NativeCloudVpnService.START).putExtra(NativeCloudVpnService.TOKEN, startup.id))
             }
-            val live = withTimeout(5000) { startup.ready.await() }
-            service = live
-            synchronized(NativeCloudVpnService.nativeLock) {
-                check(admitted() && live.alive) { "Cloud VPN service retired" }
-                val engine = backend ?: GoBackend(context).also { backend = it }
-                val active = object : Tunnel {
-                    override fun getName() = "cmux-cloud"
-                    override fun onStateChange(state: Tunnel.State) { changed(profile.enrollment.attempt, state == Tunnel.State.UP) }
-                }
-                tunnel = active; attempt = profile.enrollment.attempt
-                check(engine.setState(active, Tunnel.State.UP, resolved) == Tunnel.State.UP)
-                check(admitted() && live.alive) { "Cloud VPN service retired" }
-            }
-            live.showConnected()
+            return withTimeout(5000) { startup.ready.await() }.also { service = it }
         } finally {
             NativeCloudVpnService.unregister(startup)
             // Preserve ownership even if cancellation beats await's resumption.
             if (service == null) service = startup.service
         }
+    }
+    fun adopt(live: NativeCloudVpnService) = synchronized(NativeCloudVpnService.nativeLock) {
+        check(service == null || service === live || service?.alive == false) { "Another Cloud VPN service is active" }
+        check(live.alive)
+        service = live
     }
     override suspend fun stop() {
         val live = service
