@@ -1,5 +1,6 @@
 import { fcmMessage } from './fcm.mjs';
 import { createHash } from 'node:crypto';
+import { validPushAdmission } from './policy.mjs';
 
 const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -28,7 +29,7 @@ function text(value, maximum) {
  * authority is host-owned account/team/Mac/sender state, never taken from the event.
  * The dispatcher rechecks live authorization and registration after encryption.
  */
-function prepare({ event, registration, authority, expiresAt }, { seal, now }) {
+function prepare({ event, registration, authority, expiresAt, hostEpoch }, { seal, now }) {
   // No caller mutation may switch identity/content while the key store/encryptor awaits.
   const [e, r, a] = JSON.parse(JSON.stringify([event, registration, authority]));
   requireInput(e && r?.recipient?.tuple && a && typeof seal === 'function');
@@ -60,10 +61,13 @@ function prepare({ event, registration, authority, expiresAt }, { seal, now }) {
     requireInput(e.kind === 'dismiss' && Array.isArray(e.notificationIds) && e.notificationIds.length >= 1 && e.notificationIds.length <= 4096);
     Object.assign(payload, { title: '', body: '', notificationIds: [...new Set(e.notificationIds.map(value => identifier(value)))] });
   }
-  return { payload, registration: r, authority: a, expiresAt, started };
+  const admission = hostEpoch === undefined ? undefined : { version: 1, hostEpoch, kind: payload.kind,
+    hideContent: payload.hideContent, senderInstallationID: a.macInstallationID, senderPublicKey: a.publicKey };
+  requireInput(admission === undefined || validPushAdmission(admission));
+  return { payload, registration: r, authority: a, expiresAt, started, admission };
 }
 
-async function sealPayload({ payload, registration: r, authority: a, expiresAt }, { seal, now }) {
+async function sealPayload({ payload, registration: r, authority: a, expiresAt, admission }, { seal, now }) {
   const plaintext = Buffer.from(JSON.stringify(payload));
   let envelope;
   try { envelope = await seal({ recipient: r.recipient, publicKey: r.publicKey, plaintext, senderPublicKey: a.publicKey }); }
@@ -71,7 +75,7 @@ async function sealPayload({ payload, registration: r, authority: a, expiresAt }
   const delivery = { token: r.token, recipient: r.recipient, envelope, expiresAt };
   // Validate exact identity, ciphertext and provider size before durable admission.
   if (!fcmMessage(delivery, now())) return { kind: 'expired' };
-  return { kind: 'prepared', job: { eventID: payload.correlationId, registration: r.registration, delivery } };
+  return { kind: 'prepared', job: { eventID: payload.correlationId, registration: r.registration, delivery, ...(admission ? { admission } : {}) } };
 }
 
 export async function preparePushJob(input, { seal, now = Date.now }) {
@@ -105,8 +109,9 @@ function budget(prepared) {
 /** Prepare one logical event. Oversized dismissals split without losing IDs; notify content is not silently reduced.
  * Retain returned sealed jobs for admission retries. Fresh encryption is intentionally not a replacement for an existing job.
  */
-export async function preparePushBatch(input, { seal, now = Date.now, maxParts = 128 }) {
-  requireInput(Number.isInteger(maxParts) && maxParts > 0 && maxParts <= 512);
+export async function preparePushBatch(input, { seal, now = Date.now, maxParts = 128, permits = () => true }) {
+  requireInput(Number.isInteger(maxParts) && maxParts > 0 && maxParts <= 512 && typeof permits === 'function');
+  if (permits() !== true) return { kind: 'retired' };
   const prepared = prepare(input, { seal, now }), fits = budget(prepared);
   const original = prepared.payload, parts = [];
   if (fits(original)) parts.push(original);
@@ -130,8 +135,10 @@ export async function preparePushBatch(input, { seal, now = Date.now, maxParts =
   // Plan and validate every part before starting potentially slow credential-store/crypto operations.
   const jobs = [];
   for (const payload of parts) {
+    if (permits() !== true) return { kind: 'retired' };
     if (prepared.expiresAt - now() < 1000) return { kind: 'expired' };
     const result = await sealPayload({ ...prepared, payload }, { seal, now });
+    if (permits() !== true) return { kind: 'retired' };
     if (result.kind === 'expired') return result;
     jobs.push(result.job);
   }

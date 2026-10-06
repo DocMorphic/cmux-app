@@ -3,6 +3,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomUUID }
 import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { fcmMessage } from './fcm.mjs';
+import { validPushAdmission } from './policy.mjs';
 
 const LEASE_MS = 60_000;
 const MAX_RECORD_BYTES = 32_768;
@@ -98,7 +99,8 @@ export class PushOutbox {
 
   /** One stable event ID per registration generation; duplicates cannot renew expiry or replace ciphertext. */
   #prepare(value, now) {
-    requireInput(exact(value, ['eventID', 'registration', 'delivery']));
+    requireInput(exact(value, ['eventID', 'registration', 'delivery']) ||
+      (exact(value, ['eventID', 'registration', 'delivery', 'admission']) && validPushAdmission(value.admission)));
     requireInput(text(value.eventID) && exact(value.registration, ['id', 'generation']) &&
       text(value.registration.id) && text(value.registration.generation));
     requireInput(exact(value.delivery, ['token', 'envelope', 'recipient', 'expiresAt']));
@@ -194,7 +196,9 @@ export class PushOutbox {
         const { job } = this.#decrypt(row);
         const binding = frozenCopy({ registration: job.registration, token: job.delivery.token, recipient: job.delivery.recipient });
         if (row.state === 'retiring') { results.push(await this.#retire(row, binding, retire)); continue; }
-        const admitted = () => this.#owns(row) && job.delivery.expiresAt - this.#time() >= 1000 && permits(binding) === true;
+        const admission = job.admission === undefined ? null : frozenCopy(job.admission);
+        // Old queues decode normally; a production host policy must reject absent admission metadata.
+        const admitted = () => this.#owns(row) && job.delivery.expiresAt - this.#time() >= 1000 && permits(binding, admission) === true;
         let outcome;
         try {
           outcome = job.delivery.expiresAt - this.#time() < 1000 ? { kind: 'expired' } :

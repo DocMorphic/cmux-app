@@ -12,7 +12,7 @@ export class PushDispatcher {
     this.#now = now; this.#setTimer = setTimer; this.#clearTimer = clearTimer; this.#report = onState;
   }
   #state(value) { try { this.#report(value); } catch { /* Host diagnostics cannot break delivery or expose a binding. */ } }
-  #permits(binding) { return this.#registrations.matches(binding) === true && this.#policy(binding) === true; }
+  #permits(binding, admission) { return this.#registrations.matches(binding) === true && this.#policy(binding, admission) === true; }
   #schedule(delay) {
     if (!this.#running) return;
     if (this.#timer !== null) this.#clearTimer(this.#timer);
@@ -32,9 +32,10 @@ export class PushDispatcher {
   }
   enqueue(job) {
     // The caller must already have authenticated the original event and encrypted it for this admitted recipient.
-    const binding = { registration: job.registration, token: job.delivery.token, recipient: job.delivery.recipient };
-    if (!this.#permits(binding)) return { kind: 'retired' };
-    const result = this.#outbox.enqueue(job); this.#wake(); return result;
+    const snapshot = structuredClone(job);
+    const binding = { registration: snapshot.registration, token: snapshot.delivery.token, recipient: snapshot.delivery.recipient };
+    if (!this.#permits(binding, snapshot.admission ?? null)) return { kind: 'retired' };
+    const result = this.#outbox.enqueue(snapshot); this.#wake(); return result;
   }
   enqueueBatch(jobs) {
     if (!Array.isArray(jobs) || jobs.length < 1 || jobs.length > 512) throw new TypeError('Invalid push batch');
@@ -42,7 +43,7 @@ export class PushDispatcher {
     const snapshot = structuredClone(jobs);
     for (const job of snapshot) {
       const binding = { registration: job.registration, token: job.delivery.token, recipient: job.delivery.recipient };
-      if (!this.#permits(binding)) return { kind: 'retired' };
+      if (!this.#permits(binding, job.admission ?? null)) return { kind: 'retired' };
     }
     const result = this.#outbox.enqueueBatch(snapshot); this.#wake(); return result;
   }
@@ -56,10 +57,10 @@ export class PushDispatcher {
       let storageFailed = false;
       try {
         const outcomes = await this.#outbox.drain({ sender: this.#sender,
-          permits: binding => {
+          permits: (binding, admission) => {
             // Stopping is temporary unavailability, not device revocation. Retain work for the next start.
             if (!this.#running || generation !== this.#generation) throw new Error('Push dispatcher stopped');
-            return this.#permits(binding);
+            return this.#permits(binding, admission);
           }, retire: binding => this.#registrations.retire(binding), limit: 8 });
         this.#state({ kind: 'pass', outcomes });
       } catch { storageFailed = true; this.#state({ kind: 'storage-unavailable' }); }

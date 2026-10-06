@@ -12,6 +12,71 @@ credentials with injected transports or local TLS servers, never the live provid
 node --test push/*.test.mjs
 ```
 
+## Host forwarding pipeline
+
+`PushForwarder` in `forwarder.mjs` composes recipient lookup, `preparePushBatch`,
+`PushDispatcher`, the encrypted outbox and the sender. Construct it with the
+existing stores, sender and sealer plus a **trusted local** `readHost()` callback.
+It does not implement that source, discover credentials, bind a listener or create
+Firebase resources. Never use an incoming event or phone request as `readHost`.
+
+The callback supplies a freshly authenticated snapshot:
+
+```js
+{
+  state: 'ready', epoch: hostAccountAndKeyEpoch,
+  observedAt: verifiedAtMillis, validUntil: verifiedAtMillis + 30000,
+  authority: { accountID, teamID, macDeviceID, macInstanceTag, macBuildID,
+    senderKeyID, macInstallationID, publicKey },
+  settings: { forwardingEnabled, mode, admission, hideContent }
+}
+```
+
+Use a new epoch on account/session/key retirement; do not reuse a prior epoch on
+sign-in. `mode` is `always` or `onlyWhenAway`; `admission` uses native status values.
+A freshly observed `state: 'signed-out'` retires old work. Missing, malformed,
+future-dated or expired observations are temporary unavailability, preserving
+queued work within its original expiry. A source must revoke/replace its snapshot
+on changes; the 30-second maximum lifetime is a backstop, not a substitute for
+observing account and policy transitions.
+
+```js
+const forwarder = new PushForwarder({ registrations, outbox, sender, seal, readHost });
+forwarder.start();
+const prepared = await forwarder.prepare({
+  event, expiresAt: originalExpiry, sourceEpoch: capturedHostEpoch,
+  phoneEligible: true // Only a verified phone-forwarding producer can establish this.
+});
+if (prepared.kind === 'prepared') forwarder.enqueue(prepared);
+await forwarder.stop(); // Await encryption and provider work before closing keys/stores.
+```
+
+The owning source must preserve the original correlation/expiry, durably retain
+prepared ciphertext for admission recovery and manage replay/cursors. Retry the
+**same** prepared batch after storage/capacity errors, never fresh encryption with
+the same event ID. Preparation reports suppressed/retired/expired/no-recipients,
+busy or stopped without queueing a prefix. Complete phone/part fanout is atomically
+admitted. New events apply native away policy; dismissals and already-admitted
+retries do not wait for away presence. Current forwarding, identity, helper key,
+registration and privacy remain checked at delivery, including after OAuth.
+
+Encrypted queue metadata retains the event kind, actual content-redaction choice,
+host epoch and sender identity. Legacy metadata-free jobs are rejected by this
+host policy. Tightening privacy prevents an older unredacted queued alert from
+being sent; it is not re-encrypted or given a new expiry. Metadata is not part of
+the FCM message. Split batches check cancellation/policy between encrypted parts.
+
+**Source integration is still required.** At scoped upstream commit
+`186cec79781256867ad4516f0802118738bd2393`, `TerminalNotificationStore` can call phone
+forwarding even with `effects.record == false`, while `notification.created` is
+published from store changes and its content is redacted. History insertions also
+do not encode the exact focused-pane eligibility decision. Therefore neither a
+feed diff nor an unconditional `phoneEligible: true` on general events reproduces
+the native producer. Integrate at an authenticated source exposing the actual
+phone-forward decision and complete payload; include explicit dismissal and
+account/policy changes. Key/TLS provisioning, that source and real delivery remain
+open. See [verification](../docs/PUSH_DELIVERY.md#forwarding-pipeline-and-durable-privacy-policy--2026-10-06).
+
 ## Integration contract
 
 `FcmSender` requires a Firebase project ID and an OAuth token provider with async
@@ -33,7 +98,8 @@ The module does not read files or environment credentials automatically.
   **Do not derive this authority from the incoming envelope.**
 - The expiry of the encrypted event, never a newly extended retry deadline.
 - A synchronous `permits()` predicate checking the current registration generation,
-  account/team authorization, Mac forwarding/privacy/away policy and opt-in.
+  account/team authorization, Mac forwarding/privacy policy and opt-in. Away
+  presence is evaluated when the host admits a new notify event.
   Missing or non-boolean predicates deny delivery. Check this state again for every
   attempt; registration rotation/revocation must invalidate retained work.
 
@@ -99,7 +165,7 @@ outbox.enqueue({
 });
 await outbox.drain({
   sender: fcmSender,
-  permits: binding => registrationsAndPolicyStillPermit(binding),
+  permits: (binding, admission) => registrationsAndPolicyStillPermit(binding, admission),
   retire: binding => compareAndRetireExactRegistration(binding)
 });
 const { nextDueAt, counts } = outbox.status();
@@ -110,11 +176,12 @@ points, not existing enrollment APIs. `eventID` is stable for the original event
 generation is a nonempty opaque string changed on registration/token replacement.
 `recipient` and the registration must come from independently authenticated state,
 not from the event's claimed identity. Enqueueing does not establish authorization.
-`permits(binding)` is synchronous and must return exactly `true` for the retained
+`permits(binding, admission)` is synchronous and must return exactly `true` for the retained
 token, registration ID/generation, recipient, account/team and current forwarding
 policy. Missing/false permission retires the event. Throw for temporarily
 unavailable policy state to retry instead. The frozen binding contains
-`{registration, token, recipient}`; check all fields. The transport must honor the
+`{registration, token, recipient}`; check all fields. The second frozen argument
+is persisted admission metadata, or null for legacy jobs. The transport must honor the
 supplied admission predicate immediately before sending, as `FcmSender` does.
 
 `retire(binding)` must durably and idempotently **compare every binding field**
@@ -184,7 +251,7 @@ still need its own directory ACL enforcement.
 ```js
 const dispatcher = new PushDispatcher({
   outbox, registrations, sender,
-  policy: binding => liveMembershipAndForwardingPolicyPermit(binding),
+  policy: (binding, admission) => liveMembershipAndForwardingPolicyPermit(binding, admission),
   onState: coarseStatus => updateLocalStatus(coarseStatus)
 });
 dispatcher.start();                 // recovers pending jobs and schedules cleanup
@@ -197,7 +264,8 @@ await dispatcher.stop();           // then the host may close stores/key handles
 ```
 
 The policy callback must return exactly `true`, based on current account/team
-membership, opt-in and forwarding/privacy/away settings. It defaults to denial.
+membership, opt-in and forwarding/privacy settings. Apply away presence at new-event
+admission; `PushForwarder` implements this distinction. It defaults to denial.
 Storage matching alone never grants send authority. Policy must be checked again
 while sending; it is not copied into a permanently admitted job. Throw for
 transiently unavailable policy state to preserve work for retry. Successful
@@ -386,17 +454,18 @@ responses carry Retry-After. See [transport evidence and remaining integration](
    implicitly authorized for this app.
 2. Add explicit Android Firebase configuration and authenticated helper enrollment.
    Android token acquisition/rotation/opt-out/deletion now has a durable lifecycle
-   and WorkManager hooks; its separate consent entry point still needs the helper
-   UI, configuration and SDK/physical acceptance. See [the checkpoint](../docs/PUSH_DELIVERY.md#android-token-lifecycle--source-checkpoint-2026-10-06).
+   and WorkManager hooks; its consent and helper-pairing UI now exist. Provider
+   configuration and SDK/physical acceptance remain open. See [the checkpoint](../docs/PUSH_DELIVERY.md#android-token-lifecycle--source-checkpoint-2026-10-06).
 3. Implement the admitted Mac/backend notification subscription and encrypted
    sender identity binding. Android now has an independent helper sender pin and
    routes replies to the native Mac key, retaining both revocation fences. The
-   authenticated helper handshake/confirmation UI and host key provisioning remain
-   open; never pass unverified network descriptors straight to the pin API. See
+   authenticated helper handshake and confirmation UI now exist; host source/key
+   provisioning remain open; never pass unverified network descriptors straight to the pin API. See
    [helper trust](../docs/PUSH_DELIVERY.md#independent-helper-sender-trust--source-checkpoint-2026-10-06).
 4. Integrate event preparation/encryption, `PushRegistrations`, `PushDispatcher`, `PushOutbox` and `FcmSender`
    into that host with its credential-store key, current membership/hide-content/
-   away policy and admission backpressure. The durable store/scheduler now exist;
+   away policy and admission backpressure. `PushForwarder` composes these parts
+   with live snapshot policy; the trusted host snapshot/event provider is still missing;
    local tests do not establish that a running host has implemented these contracts.
 5. Verify real Pixel delivery, Doze/process death, dismissal, replies, logout,
    token changes and revocation before describing push as functional.

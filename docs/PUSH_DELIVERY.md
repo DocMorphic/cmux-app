@@ -1,6 +1,50 @@
 # Android background push
 
 
+## Forwarding pipeline and durable privacy policy — 2026-10-06
+
+`PushForwarder` now composes scoped recipient lookup, event preparation/encryption,
+atomic whole-fanout queue admission and the existing dispatcher/provider path. Its
+trusted host-snapshot contract binds a fresh account/session epoch, full Mac/helper
+identity and actual forwarding/privacy/away settings. It applies host redaction,
+ignores an event's claimed privacy setting, admits only explicitly qualifying
+notify events and lets dismissals proceed while the Mac is active. As in the scoped
+native producer, away presence gates new admission, not a previously admitted
+retry. Current forwarding, identity and privacy are still checked at send time.
+
+The encrypted outbox now preserves per-event admission metadata: kind, actual
+redaction, host epoch and helper installation/public key. Dispatcher/drain callbacks
+receive it alongside the immutable registration binding. Tightening privacy during
+an awaited OAuth request prevents sending queued unredacted content. Old
+metadata-free records remain readable but the new host policy does not infer
+permission to deliver them. Temporary missing/expired host observations preserve
+original queue deadlines; signed-out/replaced identity retires old work. The
+snapshot must be refreshed within 30 seconds and invalidated immediately on
+observed authority changes. Shutdown awaits encryption/provider work and stops a
+split batch after its current encryption rather than processing every remaining
+part. No subscriber/listener starts implicitly.
+
+**49 focused Node checks passed on both Node22.16.0 and Node26.8.2**, with zero
+failures/skips/cancellations. Four suites cover the forwarder, event preparation,
+SQLite outbox and dispatcher, including thirteen initial integration checks plus
+a split-batch shutdown case. Ciphertext fixtures and provider responses are
+injected; SQLite encryption/persistence and the production scheduling/FCM request
+admission code execute locally. This is not live cloud or Mac-source evidence.
+See ignored `captures/runtime/push-forwarder-policy/`.
+
+**The notification source is not implemented by this composition.** Scoped source
+inspection at `186cec79781256867ad4516f0802118738bd2393` found that
+`TerminalNotificationStore.deliverNotificationSideEffects` can forward without
+`effects.record`, while `CmuxEventPublishing.publishNotificationChanges` produces
+general events from store mutations with redacted payloads. General feed events
+therefore neither cover all native phone alerts nor prove the exact focused-pane
+gate. The next integration must obtain actual phone-forward eligibility/payloads,
+explicit dismissals and authenticated account/policy transitions, plus durable
+source replay/prepared-batch retention. Hardcoding eligibility on a feed diff would
+not establish parity. Provisioned helper keys/TLS, Firebase, test-alert routing and
+actual Pixel delivery remain open. No APK, emulator, Mac listener or cloud resource
+was created; the global upstream pin and signed release are unchanged.
+
 ## Authenticated Mac forwarding controls — 2026-10-06
 
 Android Settings now reads the connected Mac's authenticated `mobile.host.status`

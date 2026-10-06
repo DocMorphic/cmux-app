@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The Mac helper components now have a composed forwarding pipeline with live
+  host policy and encrypted per-event privacy/identity metadata across restarts.
+  **49 Node checks passed on Node22/26**, including privacy tightening during OAuth,
+  account/key retirement and atomic fanout. The actual authenticated source remains
+  open: native phone alerts can occur without history insertion, so a feed diff
+  cannot establish parity. Next: qualifying source/dismissals, durable replay,
+  key/TLS/Firebase provisioning and test/device delivery. No APK/emulator/listener.
+  See [PUSH_DELIVERY.md](PUSH_DELIVERY.md#forwarding-pipeline-and-durable-privacy-policy--2026-10-06).
+
 - Android Settings now exposes the connected Mac's authenticated forwarding,
   away/always and privacy controls, with event/poll refresh, stale-state recovery
   and account/connection checks at RPC write admission. **Nine JVM checks passed**;
