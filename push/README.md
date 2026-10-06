@@ -3,9 +3,10 @@
 These are event preparation, Mac CryptoKit encryption, FCM HTTP v1 transport,
 encrypted outbox/registration storage and an explicit scheduler for a trusted Mac
 forwarder or backend.
-It is **not a running forwarding service**. There is no listener, device registration,
-Firebase project or deployment in this directory. Importing the module makes no
-network calls. All tests inject an in-memory HTTP transport.
+It is **not a running forwarding service**. HTTPS factories remain unbound until
+a host explicitly starts them; no Firebase project or production deployment is
+provisioned here. Importing the modules makes no network calls. Tests use synthetic
+credentials with injected transports or local TLS servers, never the live provider.
 
 ```sh
 node --test push/*.test.mjs
@@ -403,3 +404,28 @@ responses carry Retry-After. See [transport evidence and remaining integration](
 References: [FCM HTTP v1](https://firebase.google.com/docs/cloud-messaging/send/v1-api),
 [FCM errors](https://firebase.google.com/docs/cloud-messaging/error-codes),
 [service-account OAuth](https://developers.google.com/identity/protocols/oauth2/service-account).
+
+## Existing registration renewal and removal
+
+`PushMaintenance({registrations, seal, permits, endpoint, senderKeyID,
+senderPublicKey})` authenticates `renew`/`revoke` using the existing pinned phone
+key. `begin(request)` returns an HPKE challenge; `finish(proof)` synchronously
+commits an atomic registration mutation and encrypted retry receipt. Supply this
+optional service to `createPushEnrollmentServer` to enable `maintain.begin` and
+`maintain.finish` on the same exact HTTPS endpoint. No caller-supplied replacement
+public key is accepted. Requests/challenges/proofs and provider tokens must not be
+logged.
+
+`permits(binding, action)` must synchronously return `true` from fresh host/account
+and key authority. It must support authenticated retirement separately from
+sending permission. Do not use the delivery `registrations.matches` gate here:
+provider-retired tokens cannot receive alerts but may renew with their pinned
+phone key. Use `maintenanceRegistration`/`maintenanceMatches` only inside the
+phone-proof service; they are not delivery admission.
+
+Receipt retry requires the same request ID/proof. Durable receipts survive host
+restart for 24 hours, and replacement generations invalidate old acknowledgments.
+A missing/expired uncommitted challenge returns HTTP428; renew its challenge using
+the same request, then persist the replacement before sending finish. A conflict
+returns HTTP409. The Android automatic worker/lifecycle integration remains open;
+the protocol and real local Kotlin-to-Node TLS/CryptoKit/SQLite exchange are tested.

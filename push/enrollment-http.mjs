@@ -5,8 +5,8 @@ const MAX_BODY = 32_768;
 class HttpFailure extends Error { constructor(status) { super('Enrollment request rejected'); this.status = status; } }
 const requireHttp = (condition, status) => { if (!condition) throw new HttpFailure(status); };
 
-/** Returns an unbound HTTPS server. Only begin/finish are network operations; offers/cancel stay host-local. */
-export function createPushEnrollmentServer({ key, cert, enrollment, endpoint, maxConcurrent = 8, requestTimeoutMs = 10_000 }) {
+/** Returns an unbound HTTPS server. Enrollment/maintenance challenge steps only; offers/cancel stay host-local. */
+export function createPushEnrollmentServer({ key, cert, enrollment, maintenance = null, endpoint, maxConcurrent = 8, requestTimeoutMs = 10_000 }) {
   if (!key || !cert || !enrollment || typeof endpoint !== 'function' || !Number.isInteger(maxConcurrent) ||
       maxConcurrent < 1 || maxConcurrent > 64 || !Number.isInteger(requestTimeoutMs) || requestTimeoutMs < 100 || requestTimeoutMs > 30_000)
     throw new TypeError('Invalid enrollment server configuration');
@@ -52,17 +52,18 @@ export function createPushEnrollmentServer({ key, cert, enrollment, endpoint, ma
       try { body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); }
       catch { throw new HttpFailure(400); }
       requireHttp(body && typeof body === 'object' && !Array.isArray(body) && Object.keys(body).length === 2 &&
-        ['begin', 'finish'].includes(body.step) && Object.hasOwn(body, 'request'), 400);
+        ['begin', 'finish', ...(maintenance ? ['maintain.begin', 'maintain.finish'] : [])].includes(body.step) && Object.hasOwn(body, 'request'), 400);
       // Finish is deliberately synchronous through the registration commit. A lost
       // response remains an uncertain outcome; exact protocol retry recovers its receipt.
       dispatching = true;
-      const result = body.step === 'begin' ? await enrollment.begin(body.request) : enrollment.finish(body.request);
+      const service = body.step.startsWith('maintain.') ? maintenance : enrollment;
+      const result = body.step.endsWith('begin') ? await service.begin(body.request) : service.finish(body.request);
       requireHttp(!retired, 408);
       requireHttp(Buffer.byteLength(JSON.stringify(result)) <= MAX_BODY, 503);
       send(200, result);
     } catch (error) {
       const status = error instanceof HttpFailure ? error.status : error instanceof PushEnrollmentError ?
-        error.kind === 'superseded' ? 409 : error.kind === 'registration-unavailable' ? 503 : 403 : 503;
+        error.kind === 'superseded' ? 409 : error.kind === 'challenge-required' ? 428 : error.kind === 'registration-unavailable' ? 503 : 403 : 503;
       send(status, { error: status === 503 ? 'temporarily-unavailable' : 'request-rejected' });
     } finally { clearTimeout(timer); release(); }
   });

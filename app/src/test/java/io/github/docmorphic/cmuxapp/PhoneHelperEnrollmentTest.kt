@@ -126,6 +126,24 @@ class PhoneHelperEnrollmentTest {
                 assertEquals(receipt, session.confirm(repeated, c.state))
                 assertEquals(c.peer, receipt.binding.macPeer)
                 assertEquals(PhonePushDescriptor.parse(offer.getJSONObject("helper")), receipt.binding.peer.descriptor)
+                PhoneHelperMaintenance(session.endpoint, receipt.registrationID, receipt.generation, receipt.binding, c.phone,
+                    "renew", "replacement-fixture-token", { c.current }, { c.now }).use { renewal ->
+                    val renewalChallenge = (http.send("maintain.begin", renewal.begin()) as PhoneHelperHttpResult.Success).body
+                    val renewalProof = renewal.finish(renewalChallenge)
+                    val renewalAck = (http.send("maintain.finish", renewalProof) as PhoneHelperHttpResult.Success).body
+                    val renewed = renewal.confirm(renewalAck)
+                    val retryAck = (http.send("maintain.finish", renewalProof) as PhoneHelperHttpResult.Success).body
+                    assertEquals(renewed, renewal.confirm(retryAck))
+                    assertNotEquals(receipt.generation, renewed.generation)
+                    PhoneHelperMaintenance(session.endpoint, checkNotNull(renewed.registrationID), checkNotNull(renewed.generation), receipt.binding,
+                        c.phone, "revoke", null, { c.current }, { c.now }).use { removal ->
+                        val removalChallenge = (http.send("maintain.begin", removal.begin()) as PhoneHelperHttpResult.Success).body
+                        val removalProof = removal.finish(removalChallenge)
+                        val removalAck = (http.send("maintain.finish", removalProof) as PhoneHelperHttpResult.Success).body
+                        assertEquals(PhoneHelperMaintenanceReceipt(null, null), removal.confirm(removalAck))
+                        assertEquals(removal.confirm(removalAck), removal.confirm((http.send("maintain.finish", removalProof) as PhoneHelperHttpResult.Success).body))
+                    }
+                }
             } }
         } finally {
             process.destroy()

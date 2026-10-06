@@ -92,3 +92,16 @@ test('a client that never completes its body hits the deadline and releases requ
   assert.equal(result, 408); assert.equal(f.calls.length, 0);
   assert.equal((await send(f.endpoint)).status, 200);
 });
+
+test('optional maintenance steps use the same bounded route and report restart recovery with 428', async t => {
+  const off = await fixture(t);
+  assert.equal((await send(off.endpoint, { body: JSON.stringify({ step: 'maintain.begin', request: {} }) })).status, 400);
+  const called = [];
+  const on = await fixture(t, { maintenance: {
+    begin: async body => { called.push(body); return { requestID: 'fixture', envelope: {} }; },
+    finish: () => { throw new PushEnrollmentError('challenge-required'); }
+  } });
+  assert.equal((await send(on.endpoint, { body: JSON.stringify({ step: 'maintain.begin', request: { fixture: true } }) })).status, 200);
+  assert.deepEqual(called, [{ fixture: true }]); assert.equal(on.calls.length, 0);
+  assert.equal((await send(on.endpoint, { body: JSON.stringify({ step: 'maintain.finish', request: {} }) })).status, 428);
+});

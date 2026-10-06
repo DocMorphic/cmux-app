@@ -1,6 +1,59 @@
 # Android background push
 
 
+## Authenticated registration maintenance protocol — 2026-10-06
+
+`PushMaintenance` and Android `PhoneHelperMaintenance` now implement renewal and
+removal of an existing helper registration. Requests bind the exact endpoint,
+request ID, action, registration ID/generation, recipient account/team/build/Mac
+identity and replacement token. The host resolves the existing phone public key;
+the request cannot supply a new key. A short-lived authenticated HPKE challenge
+proves possession of that phone's private key before any mutation. HMAC finish
+and acknowledgment proofs bind the same transcript, including the resulting
+registration generation or signed removal result. Live host policy is required
+before encryption, commit and receipt replay, with the configured helper key ID.
+
+The existing bounded HTTPS endpoint optionally exposes `maintain.begin` and
+`maintain.finish`. Initial enrollment still uses `begin`/`finish`; offer creation
+remains local. A host restart or expired uncommitted challenge returns HTTP428
+so a durable client can request a fresh challenge. HTTP409 remains a superseded
+registration. One live challenge per registration and a bounded global challenge
+pool limit outstanding encryption work.
+
+`PushRegistrations.maintain` writes the token change/removal and encrypted retry
+receipt in one SQLite transaction. Receipts are bound to their before/after
+generations, logically expire after 24 hours and are pruned on maintenance access.
+They survive helper/store restart, but cannot acknowledge a superseded generation.
+Account/team logout also removes matching receipts. A failed acknowledgment
+transaction leaves the old registration unchanged. Android can reconstruct an
+expired, already-persisted challenge's finish proof within the bounded receipt
+window; it does not admit an expired challenge as a new operation.
+
+FCM `UNREGISTERED` now moves an exact registration to encrypted retired trust.
+It is excluded from active recipients and delivery admission, while its pinned
+phone key can authenticate a new token. Retired trust counts toward device
+capacity. Fresh physical pairing replaces it with a new registration identity;
+account/team revocation removes it. Incoming maintenance policy must independently
+check host/account/key authorization rather than reuse active-token delivery
+admission, which deliberately rejects retired tokens.
+
+**34 Node checks passed** on Node22.16.0 and Node26.8.2, zero failures/skips.
+**19 JVM checks passed**, zero failures/errors/skips. The real local Kotlin HTTPS
+integration now completes enrollment, renewal, removal and repeated receipts
+through Node, CryptoKit and encrypted SQLite. Node checks additionally reopen the
+store/service and cover rollback, expiry, replaced generations, scoped logout,
+retired-token recovery and capacity. Kotlin negative checks cover transcript,
+action, token, generation and proof substitution plus retirement and expiry.
+JVM interoperability inputs now include the host modules and fixture executable,
+so host-only edits cannot reuse a stale Gradle test result.
+
+Evidence: `captures/runtime/push-registration-maintenance/`. This is a protocol
+checkpoint: **automatic Android maintenance is not wired yet**. Next is a durable
+renewal/removal queue connected to token changes and opt-out/logout, including
+recovery of uncertain earlier mutations before applying a later token. Production
+host policy/source integration, Firebase provisioning and real Pixel/provider
+acceptance remain open. No APK, emulator, cloud request or signed release changed.
+
 ## Push settings and offer confirmation — 2026-10-06
 
 Native Settings now includes **Push Alerts**, a phone consent toggle, current

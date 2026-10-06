@@ -40,7 +40,7 @@ internal class PhoneHelperHttp(endpoint: String, private val permits: () -> Bool
         }
     }
     suspend fun send(step: String, payload: JSONObject): PhoneHelperHttpResult {
-        require(step == "begin" || step == "finish")
+        require(step in setOf("begin", "finish", "maintain.begin", "maintain.finish"))
         gate()?.let { return it }
         val bytes = JSONObject().put("step", step).put("request", payload).toString().toByteArray(Charsets.UTF_8)
         require(bytes.size <= MAX_BODY)

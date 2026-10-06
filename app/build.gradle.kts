@@ -185,3 +185,10 @@ dependencies {
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     testImplementation("com.squareup.okhttp3:okhttp-tls:4.12.0")
 }
+
+// JVM interoperability cases run the real Node helper; helper changes must invalidate their cached result.
+tasks.withType<Test>().configureEach {
+    inputs.files(rootProject.fileTree("push") { include("*.mjs") })
+    inputs.file(rootProject.file("scripts/push-enrollment-fixture-server.mjs"))
+    inputs.files(rootProject.fileTree("build/push") { include("cmux-push-seal") })
+}

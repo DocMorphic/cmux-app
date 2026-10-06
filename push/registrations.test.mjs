@@ -128,3 +128,14 @@ test('provider retirement does not erase a token replaced during the provider ca
   assert.deepEqual(await outbox.drain({ sender, permits: value => store.matches(value), retire: value => store.retire(value) }), [{ kind: 'unregistered' }]);
   assert.equal(store.matches(binding(replacement)), true);
 });
+
+test('provider-retired trust counts toward capacity and fresh pairing replaces that same slot', t => {
+  const store = fixture(t, { capacity: 1 }).open();
+  const first = store.replace(enrollment()); store.retire(binding(first));
+  const neighbor = enrollment(); neighbor.recipient.tuple.macDeviceID = 'different-mac';
+  assert.throws(() => store.replace(neighbor), /full/);
+  const replacement = store.replace(enrollment('fresh-token'));
+  assert.notEqual(first.registration.id, replacement.registration.id);
+  assert.equal(store.maintenanceMatches(binding(first)), false);
+  assert.equal(store.matches(binding(replacement)), true);
+});

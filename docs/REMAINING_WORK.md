@@ -25,6 +25,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Existing helper registrations now have matching Android/Node renewal/removal
+  protocols, with phone-key proof, atomic mutation/receipt storage and recovery
+  after a host restart. FCM-retired tokens retain bounded encrypted phone trust
+  for renewal without receiving alerts. **34 Node checks passed on Node22/26**
+  and **19 JVM checks passed**, including real local HTTPS/CryptoKit/SQLite
+  enroll → renew → remove. Automatic Android queue/token/logout wiring is the
+  next step; production provisioning and device acceptance remain open. No APK
+  or emulator. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#authenticated-registration-maintenance-protocol--2026-10-06).
+
 - Native Settings now exposes push consent/readiness, per-Mac pairing progress,
   QR/paste offer review, endpoint/fingerprint confirmation with expiry, cancellation
   and retry. Account/token/key changes fence stale confirmation. **25 JVM checks
