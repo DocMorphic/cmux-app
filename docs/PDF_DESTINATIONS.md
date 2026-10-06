@@ -203,3 +203,41 @@ milestone. See [the combined evidence](PDF_SELECTION.md#combined-content-fit-and
 for the 16 distinct passing cases, initial selection-fixture failure, correction,
 APK hashes and remaining acceptance. Complex content bounds, high-zoom quality,
 physical routes and matched iOS visuals remain open.
+
+## Visible-area detail rendering — source checkpoint, 2026-10-06
+
+Magnified pages now request a separate raster of the visible page region when
+the fitted preview no longer supplies enough pixels. The original preview stays
+visible while detail is prepared; the detail overlays the same page coordinates
+below selection/search highlights. Scroll offsets, destination insets, centered
+mixed-width pages and horizontal pan feed the page-to-viewport mapping.
+
+The planner uses quarter-octave render scales and an overscanned 128-pixel grid
+to reuse a region across small movements. Each detail bitmap is capped at four
+million pixels and 4096 pixels per edge. Large viewports reduce detail density
+to stay within this budget; a detail pass that cannot improve the preview is
+skipped. These are implementation memory budgets, not proven unavoidable Android
+limits, and the existing document zoom range is unchanged.
+
+Rendering uses the existing platform PDF renderer with an explicit point-to-pixel
+scale/translation matrix. Requests are delayed 80ms during movement; obsolete
+requests are cancelled and cannot publish. Cancellation is checked after acquiring
+the document monitor and after rendering; the synchronous native render itself
+cannot be interrupted. Unpublished bitmaps are recycled on failure/cancellation.
+The displayed image is retained until replaced and left to runtime memory
+management afterward, avoiding recycling a bitmap still used by a render-thread
+frame. Offscreen/preview-resolution pages release their retained detail reference.
+No new PDF parser, dependency or persistent raster cache was added. The Android
+[render matrix contract](https://developer.android.com/reference/android/graphics/pdf/PdfRenderer.Page#render(android.graphics.Bitmap,android.graphics.Rect,android.graphics.Matrix,int))
+explicitly supports rendering a page portion into a destination bitmap.
+
+**Six JVM geometry checks passed**, and main/instrumentation Kotlin compilation
+passed in **23 seconds**. Coverage includes viewport coverage, grid reuse,
+page-edge clipping, tall pages, large displays, invalid geometry and allocation
+bounds. Two new Android checks are **compiled but not executed**: native glyph
+pixels compared against an independent whole-page raster for all four crop/rotation
+cases, and oversized/retired/cancelled region behavior with renderer reuse.
+Visible sharpness, overlay alignment through pinch/pan/history/recreation, peak
+memory and real Pixel/Mac acceptance remain for the next combined viewer run.
+No APK or emulator was created; Gradle was stopped. Local evidence:
+`captures/runtime/pdf-detail-regions/verification.json` and compile/test log.

@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.graphics.Point
 import android.graphics.RectF
 import android.graphics.pdf.PdfRenderer
@@ -30,6 +31,26 @@ internal class ChangesPdfDocument(private val file: File, nativeText: Boolean = 
             bitmap.eraseColor(android.graphics.Color.WHITE)
             try { page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY); bitmap }
             catch (error: Throwable) { bitmap.recycle(); throw error }
+        }
+    }
+    @Synchronized fun renderRegion(index: Int, region: PdfDetailRegion, checkActive: () -> Unit = {}): Bitmap {
+        check(!closed); checkActive()
+        require(region.scale.isFinite() && region.scale > 0f && region.left >= 0 && region.top >= 0 &&
+            region.width in 1..PdfDetailRegion.MAX_EDGE && region.height in 1..PdfDetailRegion.MAX_EDGE &&
+            region.width.toLong() * region.height <= PdfDetailRegion.MAX_PIXELS)
+        return renderer.openPage(index).use { page ->
+            require(region.left.toDouble() + region.width <= kotlin.math.ceil(page.width.toDouble() * region.scale) + 1 &&
+                region.top.toDouble() + region.height <= kotlin.math.ceil(page.height.toDouble() * region.scale) + 1)
+            val bitmap = Bitmap.createBitmap(region.width, region.height, Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(android.graphics.Color.WHITE)
+            try {
+                val matrix = Matrix().apply {
+                    setScale(region.scale, region.scale)
+                    postTranslate(-region.left.toFloat(), -region.top.toFloat())
+                }
+                page.render(bitmap, null, matrix, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                checkActive(); bitmap
+            } catch (error: Throwable) { bitmap.recycle(); throw error }
         }
     }
     val supportsText get() = true

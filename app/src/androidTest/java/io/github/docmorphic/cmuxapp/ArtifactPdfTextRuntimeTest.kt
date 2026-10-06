@@ -59,6 +59,46 @@ class ArtifactPdfTextRuntimeTest {
             assertThrows(IllegalStateException::class.java) { pdf.selectedText(selection) }
         } finally { file.delete() }
     }
+    @Test fun detailRegionsMatchRenderedGlyphPixelsAcrossCropAndRotation() {
+        for (rotation in listOf(0, 90, 180, 270)) {
+            val file = fixture(sourceRotation = rotation, crop = true)
+            try { ChangesPdfDocument(file).use { pdf ->
+                val full = pdf.render(0, pdf.pageSizes[0].first * 3)
+                try {
+                    val glyph = pdf.selectionText(0).search(0, "CMUX").single().bounds.first()
+                    val left = ((glyph.left - 4) * 3).toInt().coerceAtLeast(0)
+                    val top = ((glyph.top - 4) * 3).toInt().coerceAtLeast(0)
+                    val region = PdfDetailRegion(3f, left, top, minOf(120, full.width - left), minOf(120, full.height - top))
+                    val detail = pdf.renderRegion(0, region)
+                    try {
+                        var ink = 0; var different = 0
+                        for (y in 0 until detail.height) for (x in 0 until detail.width) {
+                            val actual = detail.getPixel(x, y); val expected = full.getPixel(left + x, top + y)
+                            if (android.graphics.Color.red(actual) < 100) ink++
+                            if (kotlin.math.abs(android.graphics.Color.red(actual) - android.graphics.Color.red(expected)) > 3) different++
+                        }
+                        assertTrue("Empty glyph region at rotation $rotation", ink > 20)
+                        assertTrue("Region differs from independently rendered full page at rotation $rotation", different < detail.width * detail.height / 200)
+                    } finally { detail.recycle() }
+                } finally { full.recycle() }
+            } } finally { file.delete() }
+        }
+    }
+    @Test fun detailRenderingRejectsOversizedRetiredAndCancelledRequests() {
+        val file = fixture(); val pdf = ChangesPdfDocument(file)
+        try {
+            val region = PdfDetailRegion(8f, 128, 256, 128, 128)
+            assertThrows(IllegalArgumentException::class.java) { pdf.renderRegion(0, region.copy(width = 4096, height = 4096)) }
+            var checks = 0
+            assertThrows(java.util.concurrent.CancellationException::class.java) { pdf.renderRegion(0, region) {
+                if (++checks == 2) throw java.util.concurrent.CancellationException()
+            } }
+            assertEquals(2, checks)
+            pdf.renderRegion(0, region).recycle() // Cancellation closed its page; renderer remains usable.
+            pdf.close()
+            assertThrows(IllegalStateException::class.java) { pdf.renderRegion(0, region) }
+        } finally { pdf.close(); file.delete() }
+    }
     @Test fun draggedPdfSelectionSpansPagesAndSurvivesRecreationBeforeCopy() {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
         val instrumentation = InstrumentationRegistry.getInstrumentation(); val context = instrumentation.targetContext

@@ -29,14 +29,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.*
 import java.io.File
+import kotlin.math.roundToInt
 
 @Composable
 internal fun ChangesPdfPreview(file: File) {
@@ -236,6 +240,8 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
                     Column {
                         if (inset(index) > 0f) Spacer(Modifier.height(viewportWidthDp * inset(index)))
                         PdfDocumentPage(pdf, index, matches.filter { it.page == index }, selected, zoom, documentWidth, textSelection.range,
+                            viewportHeight = height,
+                            pageTop = scroll.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.let { it.offset + inset(index) * width },
                             onClearSelection = { textSelection.clear() }, onSelectPage = { textSelection.selectPage(index) },
                             onCopySelection = ::copySelection, onSelectAll = { textSelection.selectAll() },
                             onDoubleTap = { point ->
@@ -262,7 +268,8 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
 
 @Composable
 private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<PdfTextMatch>, selected: PdfTextMatch?, zoom: PreviewZoomTransform,
-    documentWidth: Int, selection: PdfTextSelection?, onClearSelection: () -> Unit, onSelectPage: () -> Unit, onDoubleTap: (Offset) -> Unit,
+    documentWidth: Int, selection: PdfTextSelection?, viewportHeight: Float, pageTop: Float?,
+    onClearSelection: () -> Unit, onSelectPage: () -> Unit, onDoubleTap: (Offset) -> Unit,
     onLink: (PdfLinkTarget) -> Unit, onText: (Offset) -> Unit, onPageText: () -> Unit,
     onCopySelection: () -> Unit, onSelectAll: () -> Unit) {
     val pageSize = pdf.pageSizes[index]
@@ -314,11 +321,23 @@ private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<P
                 try { value = withContext(Dispatchers.IO) { pdf.render(index, width * 2) } }
                 catch (error: Exception) { currentCoroutineContext().ensureActive(); pageFailure = "Could not render this PDF page." }
             }
+            val pixelsPerPoint = viewportPixels / documentWidth * zoom.scale
+            val detailRequest = if (bitmap != null && pageTop != null) pdfDetailRegion(pageSize.first, pageSize.second,
+                viewportPixels, viewportHeight, (viewportPixels - pageSize.first * pixelsPerPoint) / 2 + zoom.x * viewportPixels,
+                pageTop, pixelsPerPoint, bitmap!!.width.toFloat() / pageSize.first) else null
+            val detail = rememberPdfDetail(pdf, index, detailRequest)
             if (bitmap != null) {
                 Box(Modifier.requiredSize(imageWidth, pageHeight).align(Alignment.Center)
                     .graphicsLayer { translationX = zoom.x * viewportPixels }) {
                     Image(bitmap!!.asImageBitmap(), null, Modifier.fillMaxSize())
                     Canvas(Modifier.fillMaxSize()) {
+                        detail?.let { rendered ->
+                            val ratio = size.width / pageSize.first / rendered.region.scale
+                            drawImage(rendered.bitmap.asImageBitmap(),
+                                dstOffset = IntOffset((rendered.region.left * ratio).roundToInt(), (rendered.region.top * ratio).roundToInt()),
+                                dstSize = IntSize((rendered.bitmap.width * ratio).roundToInt().coerceAtLeast(1),
+                                    (rendered.bitmap.height * ratio).roundToInt().coerceAtLeast(1)), filterQuality = FilterQuality.High)
+                        }
                         highlighted.forEach { b ->
                             drawRect(Color(0x665090FF), Offset(b.left / pageSize.first * size.width, b.top / pageSize.second * size.height),
                                 Size((b.right - b.left) / pageSize.first * size.width, (b.bottom - b.top) / pageSize.second * size.height))
