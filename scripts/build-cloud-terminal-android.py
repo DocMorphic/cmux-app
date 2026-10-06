@@ -73,7 +73,8 @@ def main():
     toolchain = ndk / "toolchains/llvm/prebuilt/linux-x86_64"
     compiler = toolchain / "bin/aarch64-linux-android26-clang"
     prefix = output / "ghostty-android"
-    env = dict(os.environ, ANDROID_NDK_HOME=str(ndk))
+    env = dict(os.environ, ANDROID_NDK_HOME=str(ndk),
+               PATH=str(zig.parent) + os.pathsep + os.environ.get("PATH", ""))
     env.update({
         "CMUX_GHOSTTY_ANDROID_PREFIX": str(prefix), "CMUX_ANDROID_SYSROOT": str(toolchain / "sysroot"),
         "CMUX_TUI_BUILD_COMMIT": PIN + "-android-cloud",
@@ -83,6 +84,7 @@ def main():
         "AR_aarch64_linux_android": str(toolchain / "bin/llvm-ar"),
         "CARGO_PROFILE_RELEASE_LTO": "off", "CARGO_PROFILE_RELEASE_DEBUG": "0",
         "CARGO_INCREMENTAL": "0",
+        "CARGO_TARGET_DIR": str(output.parent / "cloud-cargo-target"),
         "CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS":
             "-C embed-bitcode=no -C link-arg=-Wl,--exclude-libs,ALL "
             "-C link-arg=-Wl,-z,relro,-z,now -C link-arg=-Wl,-z,max-page-size=16384 "
@@ -125,7 +127,16 @@ def main():
     symbols = {line.split()[-1] for line in exports.splitlines() if line.split()}
     if not required or not required <= symbols or any(name.startswith("ghostty_") for name in symbols):
         raise RuntimeError(f"C ABI missing {sorted(required - symbols)} or private Ghostty symbols exported")
-    (output / "elf-verification.txt").write_text(proof + "\n" + elf + "\n" + exports)
+    bridge_source = ROOT / "app/src/main/c/cloud_terminal_jni.c"
+    bridge = native.with_name("libcmux_cloud_jni.so")
+    run(compiler, "-shared", "-fPIC", "-O2", "-std=c11", "-Wall", "-Wextra", "-Werror", "-fvisibility=hidden",
+        "-I", header.parent, bridge_source, "-L", native.parent, "-lcmux_terminal_client",
+        "-Wl,--no-undefined", "-Wl,-z,relro,-z,now", "-Wl,-z,max-page-size=16384",
+        "-Wl,-z,common-page-size=16384", "-Wl,-soname,libcmux_cloud_jni.so", "-o", bridge)
+    run(toolchain / "bin/llvm-strip", "--strip-debug", bridge)
+    bridge_proof = alignment.verify(bridge.read_bytes(), bridge.name)
+    bridge_elf = run(toolchain / "bin/llvm-readelf", "-h", "-lW", "-d", bridge, capture=True)
+    (output / "elf-verification.txt").write_text(proof + "\n" + elf + "\n" + exports + "\n" + bridge_proof + "\n" + bridge_elf)
     shutil.copy2(header, output / header.name)
     shutil.copy2(workspace / "Cargo.lock", output / "Cargo.lock")
     # Retain dependency identities/licenses for the packaging review. No source upload.
@@ -136,13 +147,14 @@ def main():
     notices.mkdir(parents=True)
     shutil.copy2(output / "source/LICENSE", notices / "cmux-LICENSE")
     shutil.copy2(output / "ghostty/LICENSE", notices / "ghostty-LICENSE")
-    artifacts = [native, output / header.name, output / "Cargo.lock", output / "dependencies.json",
+    artifacts = [native, bridge, output / header.name, output / "Cargo.lock", output / "dependencies.json",
                  output / "elf-verification.txt", *notices.iterdir()]
     receipt = {"sourceRevision": PIN, "ghosttyRevision": GHOSTTY_PIN, "ndk": NDK_VERSION,
                "androidApi": 26, "abi": "arm64-v8a", "elfPageSize": 16384,
                "rustc": run("rustc", "--version", cwd=workspace, capture=True).strip(),
                "zig": "0.16.0", "patches": patches, "builderSha256": digest(Path(__file__)),
                "ghosttyBuildAdapterSha256": digest(ROOT / "scripts/native/cloud-ghostty-build.rs"),
+               "jniSourceSha256": digest(bridge_source),
                "scope": "C ABI library and alignment only; Android runtime, packaging and dependency notices review pending",
                "files": {str(path.relative_to(output)): digest(path) for path in artifacts}}
     (output / "manifest.json").write_text(json.dumps(receipt, indent=2) + "\n")
