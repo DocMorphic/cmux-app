@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Push host registration storage and scheduling now integrate with the encrypted
+  outbox/FCM sender: encrypted enrollment, token/key generations, exact retirement,
+  scope revocation, live-policy checks, retry/expiry scheduling and awaited shutdown.
+  **38 Node checks passed** on both Node22.16.0 and Node26.8.2. No cloud resource,
+  listener, token enrollment or Android build was created. Firebase project choice,
+  authenticated helper enrollment, host policy/subscription/key lifecycle, Android
+  token lifecycle and real provider/Pixel/Doze acceptance remain open. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#registration-and-scheduling-checkpoint--2026-10-06).
+
 - Combined PDF content-fit/selection milestone: **16 distinct Android cases now
   have passing evidence**. Initial run: 15/16 in 73.434 seconds. The selection
   fixture expected an offscreen endpoint to remain visible; screenshots retained

@@ -1,6 +1,6 @@
 # Android push sender components
 
-These are the FCM HTTP v1 transport and encrypted durable outbox for a trusted Mac forwarder or backend.
+These are the FCM HTTP v1 transport, encrypted outbox/registration storage and explicit scheduler for a trusted Mac forwarder or backend.
 It is **not a running forwarding service**. There is no listener, device registration,
 Firebase project or deployment in this directory. Importing the module makes no
 network calls. All tests inject an in-memory HTTP transport.
@@ -120,8 +120,8 @@ or `superseded`; never delete a newer token/generation by installation ID alone.
 The queue persists the exact UNREGISTERED retirement intent before invoking this
 callback. A crash or callback failure retries retirement, without sending again.
 The intent expires with the event, so failed enrollment storage cannot create an
-unbounded retirement backlog. This callback contract still needs the real
-authenticated registration store.
+unbounded retirement backlog. `PushRegistrations.retire` implements exact durable
+comparison; authenticated enrollment into that store still needs host integration.
 
 The host must schedule a bounded `drain()` pass on enqueue/startup and at
 `status().nextDueAt`. That time includes cleanup of blocked/completed entries at
@@ -141,6 +141,79 @@ by evicting fresh notifications. The host must handle admission backpressure and
 storage errors. The directory/key lifecycle, scheduler, enrollment and policy
 store still need integration into the chosen running helper/backend.
 
+## Registration storage and dispatcher
+
+`PushRegistrations` in `registrations.mjs` stores **already authenticated**
+enrollments in a separate SQLite file with the same private-directory requirement.
+The host supplies a credential-store key; all tokens, registration IDs/generations,
+public keys and recipient tuples are encrypted. Slot IDs use a keyed hash of the
+full account/team, phone installation/build and Mac instance/build tuple. The
+constructor/import does not discover credentials or initiate enrollment.
+
+```js
+const registrations = new PushRegistrations({ directory, key });
+// authenticatedEnrollment = { token, recipient, publicKey }; the host verifies
+// account/team, opt-in, both keys and proof of possession BEFORE calling this.
+const current = registrations.replace(authenticatedEnrollment, {
+  expectedGeneration: previousGeneration ?? null
+});
+```
+
+`null` is create-only. Token/key changes require the exact old generation, retain
+the registration ID, and assign a fresh opaque generation. Retrying an unchanged
+value with the current generation is idempotent. Stale writers fail with
+`superseded`; a network enrollment API must reconcile that result through its own
+authenticated request/response contract. This module is not that API and does not
+validate proof of possession. Public-key validation here is format checking;
+the authenticated exchange must also validate the cryptographic key.
+
+`recipients({accountID, teamID})` explicitly selects one account/team (`null` means
+personal, not all teams). `revoke` durably removes exactly that scope. Build slots
+remain separate. `matches(binding)` checks all outbox binding fields against the
+current record. `retire(binding)` returns `retired` or `superseded` atomically and
+cannot delete a newer token/key generation. Wrong keys/ciphertext corruption do
+not yield partial records, and corrupt scope revocation rolls back. Storage
+errors are coarse; do not log returned records or bindings. A Windows host would
+still need its own directory ACL enforcement.
+
+`PushDispatcher` in `dispatcher.mjs` connects the store, outbox and sender:
+
+```js
+const dispatcher = new PushDispatcher({
+  outbox, registrations, sender,
+  policy: binding => liveMembershipAndForwardingPolicyPermit(binding),
+  onState: coarseStatus => updateLocalStatus(coarseStatus)
+});
+dispatcher.start();                 // recovers pending jobs and schedules cleanup
+const result = dispatcher.enqueue(alreadyEncryptedEvent);
+// After a committed account/policy/enrollment change:
+dispatcher.changed();
+// After repairing provider credentials/configuration explicitly:
+dispatcher.resumeBlocked('credentials');
+await dispatcher.stop();           // then the host may close stores/key handles
+```
+
+The policy callback must return exactly `true`, based on current account/team
+membership, opt-in and forwarding/privacy/away settings. It defaults to denial.
+Storage matching alone never grants send authority. Policy must be checked again
+while sending; it is not copied into a permanently admitted job. Throw for
+transiently unavailable policy state to preserve work for retry. Successful
+queueing/provider acceptance still does not prove phone delivery.
+
+Startup and enqueue schedule bounded eight-entry drain passes. Subsequent timers
+follow durable retry/lease/expiry deadlines; an empty queue stops polling. New
+work wakes a later timer, including work arriving during a pass. Storage failures
+report coarse status and back off. Shutdown clears timers and makes pending
+admission checks temporarily unavailable, retaining unsent work for restart;
+it awaits in-flight work before allowing storage closure. A request already
+submitted to the provider cannot be recalled by stopping. Parked credential or
+payload errors require explicit recovery and never extend event expiry.
+
+These components passed 38 local Node checks on 22.16.0 and 26.8.2 (9 registration,
+6 dispatcher, 23 existing sender/outbox). They do not start a Mac helper, provide
+an authenticated enrollment endpoint, initialize Android Firebase, or establish
+real cloud/Pixel/Doze delivery. Those remain the integration work below.
+
 ## Remaining end-to-end work
 
 1. Choose/provision the dedicated Firebase setup or establish official backend
@@ -151,10 +224,10 @@ store still need integration into the chosen running helper/backend.
 3. Implement the admitted Mac/backend notification subscription and encrypted
    sender identity binding. A private helper needs its own reviewed trust/enrollment
    design; do not extract or replace the official Mac's private key silently.
-4. Integrate `PushOutbox` and `FcmSender` into that host with its credential-store
-   key, scheduler, current membership/hide-content/away policy, admission
-   backpressure and atomic exact-token retirement. Local queue tests do not
-   establish that a running host has implemented these contracts.
+4. Integrate `PushRegistrations`, `PushDispatcher`, `PushOutbox` and `FcmSender`
+   into that host with its credential-store key, current membership/hide-content/
+   away policy and admission backpressure. The durable store/scheduler now exist;
+   local tests do not establish that a running host has implemented these contracts.
 5. Verify real Pixel delivery, Doze/process death, dismissal, replies, logout,
    token changes and revocation before describing push as functional.
 

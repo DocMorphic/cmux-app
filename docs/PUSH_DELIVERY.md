@@ -1,5 +1,36 @@
 # Android background push
 
+## Registration and scheduling checkpoint — 2026-10-06
+
+The host-side `PushRegistrations` store and `PushDispatcher` scheduler now connect
+with the existing encrypted outbox and FCM sender. Registrations persist encrypted
+phone tokens, recipient/key bindings and opaque generations. Compare-and-replace
+prevents stale writers restoring old tokens; exact retirement preserves a newer
+token or key when an older provider request returns UNREGISTERED. Scope revocation
+keeps neighboring accounts/teams/builds separate. Corrupt records and mismatched
+storage keys fail without silently clearing enrollment.
+
+The explicitly started dispatcher combines durable matching with a live policy
+callback, drains bounded passes on startup/enqueue and schedules retry/expiry
+without empty-queue polling. Stop waits for in-flight work and preserves unsent
+jobs; credential repair resumes parked entries explicitly. State reports contain
+coarse outcomes rather than tokens or recipient data. The host still supplies
+real authenticated enrollment, membership/privacy/away decisions and key lifecycle.
+
+**All 38 Node checks passed** on Node26.8.2 and minimum Node22.16.0: nine new
+registration and six scheduler cases, plus the 23 existing outbox/transport cases.
+They include reopen/encrypted disk contents, token/key rotation, late retirement,
+separate SQLite connections, scope revocation, corruption rollback, admission
+changes during OAuth, durable retry scheduling, new work during a pass, shutdown,
+and explicit credential recovery. Providers/policies/timers are injected local
+fixtures; no cloud delivery is claimed. Evidence: ignored local
+`captures/runtime/push-registration-dispatcher/verification.json`.
+
+The Firebase project choice is pending. No cloud resource, listener, registration,
+Android token, APK or emulator was created by this batch. Authenticated helper
+trust/enrollment, Mac subscription, Android token lifecycle and real Pixel/Doze
+acceptance remain open. See [the host contract](../push/README.md#registration-storage-and-dispatcher).
+
 ## Durable sender outbox checkpoint — 2026-10-06
 
 `push/outbox.mjs` adds a local encrypted queue around the existing sender contract.
