@@ -202,7 +202,8 @@ def main():
     # Use the upstream rust-toolchain.toml without a separately drifting workflow version.
     run("cargo", "build", "--locked", "--release", "--lib", "-p", "cmux-terminal-client",
         "--target", TARGET, "--jobs", "2", cwd=workspace, env=env)
-    metadata = json.loads(run("cargo", "metadata", "--locked", "--format-version", "1", cwd=workspace, env=env, capture=True))
+    metadata = json.loads(run("cargo", "metadata", "--locked", "--format-version", "1", "--filter-platform", TARGET,
+                              cwd=workspace, env=env, capture=True))
     built = Path(metadata["target_directory"]) / TARGET / "release/libcmux_terminal_client.so"
     native = output / "jniLibs/arm64-v8a/libcmux_terminal_client.so"
     native.parent.mkdir(parents=True)
@@ -246,8 +247,14 @@ def main():
     verifier_aar = output / "rustls-platform-verifier-0.1.1.aar"
     shutil.copy2(Path(verifier["manifest_path"]).parent /
         "maven/rustls/rustls-platform-verifier/0.1.1/rustls-platform-verifier-0.1.1.aar", verifier_aar)
+    notice_script = ROOT / "scripts/collect-cloud-notices.py"
+    notice_spec = importlib.util.spec_from_file_location("cloud_notices", notice_script)
+    notice_module = importlib.util.module_from_spec(notice_spec)
+    notice_spec.loader.exec_module(notice_module)
+    notice_receipt = notice_module.collect(metadata, workspace, output / "ghostty", zig, output)
     artifacts = [native, bridge, output / header.name, output / "Cargo.lock", output / "dependencies.json",
-                 output / "elf-verification.txt", verifier_aar, *notices.iterdir()]
+                 output / "elf-verification.txt", verifier_aar,
+                 *(p for p in (output / "notices").rglob("*") if p.is_file())]
     receipt = {"sourceRevision": PIN, "ghosttyRevision": GHOSTTY_PIN, "ndk": NDK_VERSION,
                "androidApi": 26, "abi": "arm64-v8a", "elfPageSize": 16384,
                "rustc": run("rustc", "--version", cwd=workspace, capture=True).strip(),
@@ -256,6 +263,7 @@ def main():
                "jniSourceSha256": digest(bridge_source),
                "androidRuntimeSha256": digest(ROOT / "scripts/native/cloud-android-runtime.rs"),
                "androidTlsSha256": digest(ROOT / "scripts/native/cloud-android-tls.rs"),
+               "noticeCollectorSha256": digest(notice_script), "notices": notice_receipt,
                "scope": "C ABI library and alignment only; Android runtime, packaging and dependency notices review pending",
                "files": {str(path.relative_to(output)): digest(path) for path in artifacts}}
     (output / "manifest.json").write_text(json.dumps(receipt, indent=2) + "\n")
