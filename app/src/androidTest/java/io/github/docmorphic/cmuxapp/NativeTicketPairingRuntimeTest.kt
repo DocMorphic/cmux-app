@@ -206,6 +206,29 @@ class NativeTicketPairingRuntimeTest {
         } finally { store.clear(); context.deleteSharedPreferences(name) }
     }
 
+    @Test fun legacyRawBuildAndGrantCommitTogetherAndDiscardOldTicketAcrossKeystoreReload() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "legacy-raw-build-${UUID.randomUUID()}"
+        val store = NativeCredentialStore(context, name)
+        try {
+            val public = "cmux-ios://attach?v=2&r=100.64.0.7:58465&ub=fixture-user"
+            val pairing = PairingCodeParser.parse(public).getOrThrow() as PairingCode.Tailscale
+            val old = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(public, "fixture-mac", "Old Mac"), owner)
+            val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId,
+                TailscaleGrantStore.source(pairing), old.deviceId, null, pairing.routes.single())
+            store.update { it.put("task_session", owner.login).put("refresh_token", "synthetic-refresh")
+                .put("pairings", JSONArray().put(NativePairingRecords.encode(old))).put("computer_selection", old.origin) }
+            TailscaleGrantStore(store::load, store::update).save(owner, grant) { true }
+            val ticketRow = store.rememberAttachTicket(owner, old, ticket(), null) { true }
+            val learned = store.rememberAuthenticatedMac(old.copy(instanceTag = "default"), owner, expected = ticketRow) { true }
+            val restored = NativeCredentialStore(context, name)
+            assertEquals(listOf(learned), restored.pairedMacs()); assertEquals(old.origin, learned.origin)
+            assertEquals(grant.copy(build = "default"), TailscaleGrantStore(restored::load, restored::update).find(owner, grant.source))
+            assertNull(learned.ticketRevision); assertNull(restored.attachTicket(owner, learned))
+            assertEquals(old.origin, restored.load()!!.getString("computer_selection"))
+        } finally { store.clear(); context.deleteSharedPreferences(name) }
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

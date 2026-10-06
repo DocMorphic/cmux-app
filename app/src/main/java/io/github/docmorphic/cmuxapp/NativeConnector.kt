@@ -50,6 +50,13 @@ internal class TailscaleConnector(private val context: Context, private val stor
             val grants = TailscaleGrantStore(store::load, store::update)
             val settings = NativeMacConnectionStore.create(context.applicationContext, owner)
             val target = grant.build?.let { NativeComputerTarget(grant.device, it, "Mac") }
+                ?: store.visiblePairedMacs().singleOrNull { row ->
+                    row.instanceTag == null && canonicalMacDeviceId(row.deviceId) == grant.device &&
+                        NativePairingRecords.owner(row, grants) == (owner.userId to owner.teamId) &&
+                        (PairingCodeParser.parse(row.code).getOrNull() as? PairingCode.Tailscale)?.let {
+                            TailscaleGrantStore.source(it) == grant.source
+                        } == true
+                }?.let { NativeComputerTarget.from(it, owner) }
             fun intent(): NativeMacDialIntent {
                 check(!settings.state.value.error) { "Could not read this phone’s connection settings." }
                 // Pre-tag grants cannot inherit any sibling build's preference.

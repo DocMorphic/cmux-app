@@ -109,7 +109,7 @@ class NativeDirectoryRouteUpgradeTest {
     @Test fun provisionalIdentityRequiresFullScopeAndDoesNotSilentlyRetagOldTailscaleGrant() {
         val state = legacyState(); NativeDirectoryRouteUpgrade.retain(state, team, directory)
         val enriched = row(state); val grants = TailscaleGrantStore({ state }, {})
-        assertTrue(NativeSavedTailscaleRoutes.candidates(enriched, team, grants).isEmpty())
+        assertEquals(listOf<String?>(null), NativeSavedTailscaleRoutes.candidates(enriched, team, grants).map { it.build })
         assertNull(NativePairingRecords.retainedNativeRoute(enriched.copy(nativeRouteCode = "cmux-ios://attach?v=3&i=peer&d=mac&b=default")))
         assertNull(NativeComputerTarget.from(enriched.copy(accountTeamId = "other"), team))
         assertNull(NativeComputerTarget.from(enriched.copy(code = raw.replace("ub=user", "ub=other")), team))

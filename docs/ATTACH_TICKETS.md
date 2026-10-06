@@ -848,3 +848,31 @@ was absent at preflight. No physical Mac workflow, signed-in upgrade, production
 push or signed release acceptance is implied. The latest signed download remains
 616. Logs, command, APK/source hashes and screenshots are in local ignored
 `captures/runtime/legacy-details-milestone/`.
+
+## Authenticated build learning through an old raw grant (2026-10-06)
+
+Saved pre-tag Tailscale pairings can now learn a build from their already granted
+numeric address and exact Mac device. A provisional directory build, when present,
+must match. Host status alone does not update storage: account/workspace and
+compatibility admission must succeed first. The newly known build's connection
+method is checked before requesting a manual ticket or workspace access.
+
+Foreground persistence updates the captured saved row and its original grant in
+one encrypted credential transaction. Grant ID, source/address and stable history
+origin are preserved. The old untagged bearer is not sent under the learned build;
+the connection requests a current manual ticket (with the existing account-only
+fallback for unsupported hosts), and persistence removes the obsolete ticket.
+The foreground closes the old session and restarts under the exact build before
+binding terminal input. Forgotten, hidden, replaced or wrong-account rows cannot
+be upgraded, and a provisional sibling build is rejected.
+
+Verification: **123 focused JVM tests passed**, zero failures/errors/skips;
+main and instrumentation Kotlin compilation passed in 21 seconds. Evidence and
+source hashes: local ignored `captures/runtime/legacy-raw-build/`. The new Android
+Keystore reload case is compiled but queued for the next integration milestone.
+No APK, emulator or physical-device run was performed for this batch.
+
+Remaining: verify the one-time foreground restart on Android and a real upgraded
+Mac; inspect background-only identity adoption and fresh explicit confirmation
+against an old untagged grant. Broader legacy metadata reconciliation and Pixel/Mac
+connection acceptance remain open. Global upstream pins are unchanged.

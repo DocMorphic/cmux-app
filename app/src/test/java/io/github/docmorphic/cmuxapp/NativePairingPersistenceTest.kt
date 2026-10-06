@@ -103,6 +103,38 @@ class NativePairingPersistenceTest {
         }
     }
 
+    @Test fun verifiedLegacyRawBuildUpdatesOnlyItsExactGrantAndSavedRecordThenChangesForegroundReconnectKey() {
+        for (scoped in listOf(false, true)) {
+            val old = incoming.copy(instanceTag = null).let { if (scoped) NativePairingRecords.scoped(it, scope) else it }
+            val state = state(old).put("computer_selection", old.origin)
+            val oldGrant = grant(state, old)
+            val beforeKey = nativeForegroundReconnectKey(NativeComputersState(scope), listOf(old), scope, old.code)
+            val result = NativePairingPersistence.remember(state, incoming, scope, expected = old)
+            val savedGrant = TailscaleGrantStore({ state }, {}).find(scope, oldGrant.source)!!
+            assertEquals(oldGrant.copy(build = "default"), savedGrant)
+            assertEquals(old.origin, result.origin); assertEquals(old.code, result.code)
+            assertEquals("default", result.instanceTag); assertEquals(1, codes(state).size)
+            assertEquals(old.origin, state.getString("computer_selection"))
+            assertNotEquals(beforeKey, nativeForegroundReconnectKey(NativeComputersState(scope), listOf(result), scope, result.code))
+            assertTrue(NativePairingRecords.usable(result, scope, TailscaleGrantStore({ state }, {})))
+        }
+    }
+
+    @Test fun failedLegacyRawUpgradeDoesNotMutateEitherGrantOrRecord() {
+        val old = NativePairingRecords.scoped(incoming.copy(instanceTag = null), scope)
+        for (change in listOf<(JSONObject) -> Unit>(
+            { it.put("task_session", "other") },
+            { NativeComputerVisibility.setVisible(it, scope.login, old, false) { true } },
+            { it.remove("tailscale_grants_v1") },
+            { it.put("pairings", JSONArray()) },
+            { it.put("pairings", JSONArray().put(NativePairingRecords.encode(old.copy(name = "Renamed", code = "other")))) }
+        )) {
+            val state = state(old); grant(state, old); change(state); val before = state.toString()
+            assertThrows(Exception::class.java) { NativePairingPersistence.remember(state, incoming, scope, expected = old) }
+            assertEquals(before, state.toString())
+        }
+    }
+
     @Test fun reconnectWriteRejectsForgottenReplacedOrAmbiguousPairingInsideTransaction() {
         val expected = native()
         for (scoped in listOf(true, false)) {

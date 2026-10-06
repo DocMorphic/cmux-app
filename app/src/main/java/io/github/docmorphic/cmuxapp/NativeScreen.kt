@@ -1857,7 +1857,7 @@ internal fun NativeScreen(
                     store.rememberMac(verified.code, verified.deviceId, verified.name, verified.instanceTag, expected = capturedReconnect ?: saved)
                     verified
                 }
-                if (remembered.code != requestedCode) {
+                if (remembered.code != requestedCode || (ticketAttempt == null && saved != null && saved.instanceTag != remembered.instanceTag)) {
                     active.close()
                     savedPairedMacs = store.pairedMacs()
                     if (expectedReconnect == capturedReconnect) expectedReconnect = null

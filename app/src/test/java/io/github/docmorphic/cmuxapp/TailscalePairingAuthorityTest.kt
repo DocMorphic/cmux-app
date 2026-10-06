@@ -22,6 +22,7 @@ class TailscalePairingAuthorityTest {
         var resolves = 0
         var routeAllowed = true
         var routeEpoch = 0
+        var grantRouteAllowed: (TailscaleSavedGrant) -> Boolean = { true }
         var resolveHook: suspend (() -> Boolean) -> Unit = {}
         var tokenCalls = 0
         var tokenHook: () -> Unit = {}
@@ -56,9 +57,9 @@ class TailscalePairingAuthorityTest {
                 if (enforceCompatibility) compatibility.admit(owner, client, host, locallyAuthorizedTailscale = true)
             }, manualTicket = { client, route, host, owner ->
                 if (manual) ManualAttachTicketRequest.request(client, route, host, owner, null) else null
-            }, savedRouteAdmission = { _, _ ->
+            }, savedRouteAdmission = { _, grant ->
                 val captured = routeEpoch
-                ({ routeAllowed && routeEpoch == captured })
+                ({ routeAllowed && routeEpoch == captured && grantRouteAllowed(grant) })
             })
         suspend fun connect(admission: NativeTicketConnectionAdmission? = null, selected: PairingCode.Tailscale = pairing) =
             authority.connect(selected, attachTicket = ticket, savedTicket = savedTicket, admission = admission, savedRoute = savedRoute, forceToken = forceRefresh) { tokenCalls++; tokenHook(); accessToken }
@@ -96,6 +97,64 @@ class TailscalePairingAuthorityTest {
             assertEquals(grant, f.grants.find(f.scope!!, grant.source))
             assertEquals(listOf("mobile.host.status", "mobile.attach_ticket.create", "mobile.workspace.list", "mobile.workspace.list"), f.transports.last().methods)
         } finally { f.authority.close() }
+    }
+
+    private suspend fun legacySavedFixture(): Fixture {
+        val f = Fixture(); f.build = ""; f.authorize(); f.connect().close()
+        val mac = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(
+            "cmux-ios://attach?v=2&r=mac.tail.ts.net%3A58465&ub=user", "mac", "Old Mac"), f.scope!!)
+        f.savedRoute = NativeSavedTailscaleRouteAdmission(mac, f.grant()!!) { f.savedCurrent }
+        return f
+    }
+
+    @Test fun legacySavedRouteVerifiesLearnedBuildAndUsesManualTicketInsteadOfOldUntaggedBearer() = runBlocking<Unit> {
+        val f = legacySavedFixture()
+        try {
+            val oldGrant = f.grant()!!; assertNull(oldGrant.build)
+            val old = f.savedRoute!!.mac
+            f.build = "default"; f.manual = true
+            f.savedTicket = NativeSavedTicketAdmission(old.copy(ticketRevision = "old-revision"),
+                MobileAttachTicketContext("old-work", "old-term", "old-bearer", null)) { check(f.savedCurrent) }
+            f.savedBearer = "manual-fixture"
+            f.connect().use { it.workspaces() }
+            assertEquals(1, f.resolves)
+            assertEquals(listOf("mobile.host.status", "mobile.attach_ticket.create", "mobile.workspace.list", "mobile.workspace.list"),
+                f.transports.last().methods)
+            assertEquals(oldGrant, f.grant()) // Foreground persistence commits grant and row together, not host.status.
+        } finally { f.authority.close() }
+    }
+
+    @Test fun learnedBuildAppliesItsSpecificMethodBeforeManualTicketOrWorkspaceAdmission() = runBlocking<Unit> {
+        val f = legacySavedFixture()
+        try {
+            val grant = f.grant()!!
+            f.build = "default"; f.manual = true; f.grantRouteAllowed = { it.build == null }
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(listOf("mobile.host.status"), f.transports.last().methods)
+            assertEquals(grant, f.grant()); assertTrue(f.transports.last().closed)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun legacyLearnedBuildRejectsWrongDevicePinnedSiblingOrAccountDenialWithoutChangingGrant() = runBlocking<Unit> {
+        for (kind in listOf("device", "sibling", "account")) {
+            val f = legacySavedFixture()
+            try {
+                val old = f.grant()!!; f.build = "default"
+                when (kind) {
+                    "device" -> f.device = "other"
+                    "sibling" -> {
+                        val admission = f.savedRoute!!
+                        val mac = admission.mac.copy(nativeRouteCode = PairingCodeParser.computer(
+                            IrohV2Computer("r", "a".repeat(64), "mac", "nightly", "Mac", emptyList()), f.scope!!))
+                        f.savedRoute = NativeSavedTailscaleRouteAdmission(mac, old) { true }
+                    }
+                    else -> f.rejectWorkspace = true
+                }
+                assertTrue(runCatching { f.connect() }.isFailure)
+                assertEquals(old, f.grant()); assertTrue(f.transports.last().closed)
+                if (kind != "account") assertEquals(listOf("mobile.host.status"), f.transports.last().methods)
+            } finally { f.authority.close() }
+        }
     }
 
     @Test fun provisionalBuildCannotCarryUntaggedTicketEvenWhenGrantSourceIsUnchanged() = runBlocking<Unit> {

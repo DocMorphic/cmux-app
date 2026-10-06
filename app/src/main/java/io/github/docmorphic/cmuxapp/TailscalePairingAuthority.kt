@@ -222,12 +222,13 @@ internal class TailscalePairingAuthority(
         // additionally retain their captured method/epoch throughout authentication and I/O.
         val routePermits = if (consent == null) savedRouteAdmission(owner, checkNotNull(saved)) else ({ true })
         val capturedExpected = expected(pairing)
+        val learnedRoutePermits = AtomicReference<(() -> Boolean)?>(null)
         val promoted = AtomicReference<TailscaleSavedGrant?>(if (consent == null) saved else null)
         fun allowed(): Boolean = runCatching {
             savedTicket?.requireCurrent()
             savedRoute?.requireCurrent()
             admission?.requireCurrent()
-            permits(owner) && routePermits() && synchronized(lock) { !closed } &&
+            permits(owner) && routePermits() && (learnedRoutePermits.get()?.invoke() != false) && synchronized(lock) { !closed } &&
                 (promoted.get()?.let { grants.find(owner, it.source) == it }
                     ?: synchronized(lock) { consents[source] == consent })
         }.getOrDefault(false)
@@ -269,11 +270,17 @@ internal class TailscalePairingAuthority(
                 val device = status.optString("mac_device_id")
                 require(device.isNotBlank() && device == device.trim() && device.length <= 128) { "The Mac did not provide a valid device identity." }
                 capturedExpected?.requireMatchingHost(status)
-                savedRoute?.mac?.requireMatchingHost(status)
-                saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
+                val learnedBuild = savedRoute?.verifyHost(status, owner)
+                if (learnedBuild != null) {
+                    learnedRoutePermits.set(savedRouteAdmission(owner, checkNotNull(saved).copy(build = learnedBuild)))
+                    requireAllowed() // Apply this now-known build's method before session-ticket/workspace admission.
+                }
+                if (savedRoute == null) saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
                 attachTicket?.requireHost(status)
                 savedTicket?.mac?.requireMatchingHost(status)
-                val sessionContext = savedTicket?.context ?: attachTicket?.context() ?: run {
+                // The old ticket's untagged binding is not the host's newly learned
+                // build. Obtain a current session context before account admission.
+                val sessionContext = savedTicket?.takeIf { learnedBuild == null }?.context ?: attachTicket?.context() ?: run {
                     requestingManualTicket = true
                     manualTicket(base, route, status, owner)?.context().also { requestingManualTicket = false }
                 }

@@ -26,6 +26,7 @@ internal object NativePairingPersistence {
         }
         val pairing = PairingCodeParser.parse(incoming.code).getOrThrow()
         val grants = TailscaleGrantStore({ state }, { error("Read-only grant lookup") })
+        var learnedGrant: TailscaleSavedGrant? = null
         when (pairing) {
             is PairingCode.Tailscale -> {
                 require(pairing.stackUserId == null || pairing.stackUserId == team.userId) { "Computer account changed" }
@@ -39,7 +40,17 @@ internal object NativePairingPersistence {
                         it.accountTeamId == team.teamId && it.stableOrigin != null
                 }
                 val retainedRoute = savedIdentity != null && NativeSavedTailscaleRoutes.candidates(savedIdentity, team, grants).isNotEmpty()
-                check(retainedRoute || (grant != null && grant.device == canonicalMacDeviceId(incoming.deviceId) && grant.build == incoming.instanceTag)) {
+                if (expected != null && expected.instanceTag == null && !incoming.instanceTag.isNullOrBlank() &&
+                    expected.code == incoming.code && canonicalMacDeviceId(expected.deviceId) == canonicalMacDeviceId(incoming.deviceId) &&
+                    NativePairingRecords.owner(expected, grants) == (team.userId to team.teamId) &&
+                    grant != null && grant.build == null && grant.device == canonicalMacDeviceId(incoming.deviceId)) {
+                    val hinted = NativeComputerTarget.from(expected, team)
+                    check(hinted == null || hinted.buildTag == incoming.instanceTag) { "Computer build changed" }
+                    val build = incoming.instanceTag
+                    require(build == build.trim() && build.length <= 64 && build.none(Char::isISOControl))
+                    learnedGrant = grant.copy(build = build)
+                }
+                check(learnedGrant != null || retainedRoute || (grant != null && grant.device == canonicalMacDeviceId(incoming.deviceId) && grant.build == incoming.instanceTag)) {
                     "The Tailscale authorization changed. Pair this Mac again."
                 }
             }
@@ -87,7 +98,9 @@ internal object NativePairingPersistence {
         val nativeMatches = exactMatches.filter { PairingCodeParser.parse(it.second.code).getOrNull() is PairingCode.Iroh }
         val nativeCodes = (nativeMatches.map { it.second.code } + exactMatches.mapNotNull {
             it.second.nativeRouteCode?.takeIf { _ -> NativePairingRecords.retainedNativeRoute(it.second) != null }
-        }).distinct()
+        } + listOfNotNull(legacy?.second?.let { row -> row.nativeRouteCode?.takeIf {
+            NativePairingRecords.retainedNativeRoute(row)?.buildTag == incoming.instanceTag
+        } })).distinct()
         check(pairing !is PairingCode.Tailscale || nativeCodes.size <= 1) {
             "Reconnect this computer from Computers first, then add its Tailscale route."
         }
@@ -128,6 +141,9 @@ internal object NativePairingPersistence {
             else if (index !in replaced) next.put(previous.get(index))
         }
         if (existing == null) next.put(NativePairingRecords.encode(remembered))
+        // Both changes commit inside the same encrypted credential transaction.
+        // Keep the exact grant id/source/address; only authenticated build metadata changes.
+        learnedGrant?.let { grant -> TailscaleGrantStore({ state }, { it(state) }).save(team, grant) { true } }
         state.put("pairings", next).put("pairing_code", remembered.code)
         NativeAttachTicketStore.prune(state)
         return remembered

@@ -25,6 +25,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Old raw Tailscale grants now support authenticated foreground build learning:
+  exact address/device and any provisional build are checked, the learned method
+  is applied before ticket/workspace admission, and row plus grant commit together.
+  History stays intact; the old ticket is discarded and the foreground restarts
+  under the new binding before terminal input. **123 focused JVM tests passed**;
+  main/instrumentation Kotlin compiled (21 s). New Android Keystore reload case
+  is compiled only, queued for the next milestone. No APK/AVD/device run.
+  Background-only adoption, fresh confirmation against an old grant, actual
+  restart/upgrade and metadata reconciliation remain. See `ATTACH_TICKETS.md`,
+  `TAILSCALE_CONNECTION.md` and `captures/runtime/legacy-raw-build/`.
+
 - Combined legacy/Details milestone at `af1d085`: one debug/test APK build (74 s),
   **14/14 Android UI/Keystore tests passed in 80.669 s** on the existing API37 /
   16 KiB AVD. Previously queued raw-only Details and legacy-build reload cases
@@ -32,8 +43,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   regressions. Seven screenshots reviewed; no new runtime crash/ANR, final crash
   buffer empty, sole emulator stopped/reaped. No Pixel/Mac or signed-release
   acceptance. See `ATTACH_TICKETS.md`, `COMPUTER_DETAILS.md` and local
-  `captures/runtime/legacy-details-milestone/`. Next connection implementation:
-  learning a build through an old untagged raw Tailscale grant.
+  `captures/runtime/legacy-details-milestone/`. The subsequent old-grant build
+  learning batch is documented above; its new runtime case remains queued.
 
 - Sole-build directory enrichment now supplies provisional native routes for
   untagged native and raw saved Macs. Details/method selection and foreground
