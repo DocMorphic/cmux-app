@@ -89,3 +89,54 @@ test('date1904 workbooks and formula errors retain authored display semantics', 
   assert.equal(model.text(r.Sheets.Dates.A1), '1904-01-01');
   assert.equal(model.text(r.Sheets.Dates.B1), '#DIV/0!');
 });
+
+// Minimal DOM-shaped elements isolate projection policy; real XML parsing is
+// exercised in WorkbookPreviewRuntimeTest using rich-runs.xlsx.
+const ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+function element(localName, attrs = {}, children = [], textContent = '') {
+  return {localName, namespaceURI: ns, children, textContent,
+    attributes: Object.entries(attrs).map(([name, value]) => ({name, value})),
+    getAttribute: key => Object.hasOwn(attrs, key) ? attrs[key] : null};
+}
+const prop = (name, value) => element(name, value === undefined ? {} : {val: value});
+const run = (text, properties = []) => element('r', {}, [element('rPr', {}, properties), element('t', {}, [], text)]);
+const rich = (...runs) => element('is', {}, runs);
+
+test('rich runs preserve whitespace and XML-looking text while ignoring phonetic and foreign markup', () => {
+  const container = rich(run(' Hello '), run('<script>unsafe</script>'), element('rPh', {}, [element('t', {}, [], 'phonetic')]));
+  container.children.push({...run('foreign'), namespaceURI:'https://example.invalid'});
+  assert.deepEqual(model.richText(container, book()).map(r => r.text), [' Hello ', '<script>unsafe</script>']);
+  assert.equal(model.richText(element('is', {}, [element('t', {}, [], 'plain')]), book()), null);
+});
+test('rich formatting preserves explicit false and independent underline and strike overrides', () => {
+  const [off, decorated] = model.richText(rich(
+    run('off', [prop('b','0'), prop('i','false'), prop('u','none'), prop('strike','0')]),
+    run('double', [prop('b'), prop('i'), prop('u','double'), prop('strike')])
+  ), book(), 'underline line-through');
+  assert.deepEqual(off.style, {fontWeight:'400',fontStyle:'normal',textDecorationLine:'none'});
+  assert.deepEqual(decorated.style, {fontWeight:'700',fontStyle:'italic',textDecorationStyle:'double',textDecorationLine:'underline line-through'});
+  assert.equal(model.richText(rich(run('inherited')), book(), 'line-through')[0].style.textDecorationLine, 'line-through');
+});
+test('run colors, typeface and vertical alignment use bounded typed CSS properties', () => {
+  const b = book(), [sub, sup, rejected] = model.richText(rich(
+    run('2', [prop('sz','20'), prop('vertAlign','subscript'), prop('rFont','A"; color:red'), element('color',{rgb:'FFFF0000'})]),
+    run('2', [prop('vertAlign','superscript')]),
+    run('bad', [prop('sz','Infinity'), prop('rFont','x'.repeat(101)), element('color',{rgb:'url(https://example.invalid)'})])
+  ), b);
+  assert.equal(sub.style.color, '#FF0000'); assert.equal(sub.style.fontSize,'15pt'); assert.equal(sub.style.verticalAlign,'sub');
+  assert.equal(sub.style.fontFamily, JSON.stringify('A"; color:red') + ', sans-serif');
+  assert.equal(sup.style.fontSize,'.75em'); assert.equal(sup.style.verticalAlign,'super');
+  assert.deepEqual(rejected.style,{textDecorationLine:'none'});
+});
+test('OOXML escaped literal sequences are decoded once and pathological run lists fall back', () => {
+  assert.equal(model.richText(rich(run('_x005F_x0041_ _x0042_')),book())[0].text, '_x0041_ B');
+  assert.equal(model.richText(rich(...Array.from({length:4097},()=>run('x'))),book()), null);
+  assert.equal(model.richText(rich(run('one'), run('two')), book(), '', 1), null);
+});
+test('generated real workbook keeps shared and inline rich strings, links and escaped literals', () => {
+  const b = model.read(readFileSync(new URL('../../app/src/androidTest/assets/workbook/rich-runs.xlsx', import.meta.url)));
+  assert.deepEqual([11,12,13,14].map(n => model.text(b.Sheets.Summary['A'+n])),
+    ['RED green', 'H2O + x2 <script>unsafe</script>', 'plain decorated', '_x0041_ literal']);
+  assert.deepEqual(model.link(b.Sheets.Summary.A12), {internal:'Details!B2'});
+  assert.deepEqual(b.Directory.strs, ['/xl/sharedStrings.xml']);
+});

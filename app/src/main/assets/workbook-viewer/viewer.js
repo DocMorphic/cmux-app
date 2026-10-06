@@ -10,7 +10,7 @@
       const note = document.getElementById('limitations'); note.hidden = false;
       note.textContent = 'Charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.';
     }
-    const memories = new Map(), styleIndices = new Map();
+    const memories = new Map(), styleIndices = new Map(), richCells = new Map();
     const nodes = (node, name) => Array.from(node.getElementsByTagNameNS('*', name));
     function xml(path) {
       const bytes = book.files?.[path.replace(/^\/+/, '')]?.content;
@@ -38,14 +38,25 @@
         n.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'))));
     }
     const stylesXml = xml(book.Directory.style || ''), borders = stylesXml ? nodes(stylesXml, 'border') : [];
+    const stringsXml = xml(book.Directory.strs?.[0] || '');
+    const sharedStrings = stringsXml ? model.children(stringsXml.documentElement, 'si') : [];
     function cellStyles(name) {
       if (styleIndices.has(name)) return styleIndices.get(name);
-      const indices = new Map(), source = paths.get(name) && xml(paths.get(name));
+      const indices = new Map(), rich = new Map(), source = paths.get(name) && xml(paths.get(name));
       if (source) nodes(source, 'c').forEach(cell => {
         const index = Number(cell.getAttribute('s') || 0), address = cell.getAttribute('r');
-        if (model.cellAddress(address) && Number.isInteger(index) && index >= 0 && index < (book.Styles?.CellXf?.length || 0)) indices.set(address, index);
+        if (!model.cellAddress(address)) return;
+        if (Number.isInteger(index) && index >= 0 && index < (book.Styles?.CellXf?.length || 0)) indices.set(address, index);
+        let item;
+        if (cell.getAttribute('t') === 'inlineStr') item = model.children(cell, 'is')[0];
+        else if (cell.getAttribute('t') === 's') {
+          const raw = model.children(cell, 'v')[0]?.textContent;
+          const at = /^\d+$/.test(raw || '') ? Number(raw) : -1;
+          if (Number.isSafeInteger(at) && at >= 0) item = sharedStrings[at];
+        }
+        if (item && model.children(item, 'r').length) rich.set(address, item);
       });
-      styleIndices.set(name, indices); return indices;
+      styleIndices.set(name, indices); richCells.set(name, rich); return indices;
     }
     function applyBorder(cell, index) {
       const border = borders[book.Styles?.CellXf?.[index]?.borderId];
@@ -83,6 +94,7 @@
         table.style.width = tableWidth + 'px';
         head.appendChild(headings); table.append(columns, head);
         const body = element('tbody');
+        let runBudget = 16000; // Shared strings can otherwise multiply into millions of DOM nodes.
         for (const r of next.rows) {
           const tr = element('tr'), th = element('th', r + 1); th.scope = 'row'; tr.appendChild(th);
           const height = next.sheet['!rows']?.[r]?.hpt;
@@ -95,16 +107,31 @@
             if (merge) { td.rowSpan = merge.rowSpan; td.colSpan = merge.colSpan; }
             if (source?.t === 'n') td.className = 'number';
             const target = model.link(source), label = model.text(source);
+            const styleIndex = indices.get(address) || 0, cellStyle = model.style(book, styleIndex);
+            const decoration = cellStyle.textDecoration || (target ? 'underline' : '');
+            // Decorations on ancestors cannot be canceled by a run's explicit u=none/strike=0.
+            delete cellStyle.textDecoration;
+            const textHost = element(target ? 'a' : 'span');
+            if (target) textHost.style.textDecoration = 'none';
+            const runs = runBudget > 0 ? model.richText(richCells.get(next.chosen.name)?.get(address), book, decoration, runBudget) : null;
+            if (runs) runBudget -= runs.length;
+            if (runs && runs.map(run => run.text).join('') === label) {
+              for (const run of runs) {
+                const span = element('span', run.text); span.className = 'rich-run';
+                Object.assign(span.style, run.style); textHost.appendChild(span);
+              }
+            } else {
+              const span = element('span', label); span.style.textDecoration = decoration || 'none'; textHost.appendChild(span);
+            }
             if (target) {
-              const a = element('a', label); a.href = target.external || '#';
-              if (target.internal) a.addEventListener('click', event => {
+              textHost.href = target.external || '#';
+              if (target.internal) textHost.addEventListener('click', event => {
                 event.preventDefault(); const point = model.destination(target.internal, book, next.chosen.index);
                 if (point) render(point.sheet, point.row, point.col); else error.textContent = 'This link destination is unavailable.';
               });
-              td.appendChild(a);
-            } else td.textContent = label;
-            const styleIndex = indices.get(address) || 0;
-            Object.assign(td.style, model.style(book, styleIndex)); applyBorder(td, styleIndex);
+            }
+            td.appendChild(textHost);
+            Object.assign(td.style, cellStyle); applyBorder(td, styleIndex);
             tr.appendChild(td);
           }
           body.appendChild(tr);

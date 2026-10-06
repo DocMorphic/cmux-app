@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Workbook previews now retain supported inline/shared rich-text formatting,
+  including mixed colors, explicit style removal, underline/strike and super/subscript.
+  **15 Node checks and the expanded Android viewer case (7.703 s) passed**;
+  rendered glyph pixels, internal links and saved-position restoration were
+  verified. The sole AVD was stopped/reaped. See `DOCUMENT_FORMATS.md` for source
+  mapping, limits and remaining format/physical comparison work. No signed build.
+
 - Terminal composition now preserves selected text and selection direction during
   IME surrounding deletion; hardware Backspace removes a selection or a complete
   grapheme locally. **Six Android checks passed in 24.136 s** on the existing

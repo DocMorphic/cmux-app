@@ -130,7 +130,7 @@ Implemented behavior:
   evidence is still pending.
 
 The reader does **not** yet render charts, drawings/images, conditional formatting,
-pivots, rich text runs or every Excel style variant. A workbook containing charts
+pivots or every Excel style variant. Rich text runs are implemented in the later checkpoint below. A workbook containing charts
 or drawings displays an Open-original notice. The large-sheet window controls
 are an Android implementation choice whose UI/interaction parity is unverified.
 These gaps are tracked as remaining work, not unavoidable platform differences.
@@ -196,3 +196,66 @@ Test APK SHA-256:
 Gradle was stopped before each emulator run; the existing AVD's awake setting was
 restored and its process stopped/reaped afterward. No new AVD, physical Pixel
 install or signed promotion. Format/layout gaps listed above remain open.
+
+
+## Workbook rich text — 2026-10-07
+
+Rechecked `ChatArtifactPreviewRouter.swift` at scoped upstream
+`186cec79781256867ad4516f0802118738bd2393`: content recognized through UTType is
+still a Quick Look candidate after the image/PDF/media/Markdown/text routes.
+This does not establish the current App Store renderer's output or advance the
+project's global parity pin. The Android workbook reader previously flattened
+all text within a cell to one style; it now preserves supported authored runs.
+
+The implementation reads shared-string and inline-string XML from the already
+validated Office package. It follows the SpreadsheetML
+[shared-string structure](https://learn.microsoft.com/en-us/office/open-xml/spreadsheet/working-with-the-shared-string-table)
+and [run properties](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.spreadsheet.runproperties?view=openxml-3.0.1).
+Only direct SpreadsheetML run/text/property children are projected; phonetic and
+foreign markup are excluded. Text enters spans through `textContent` and typed
+CSS properties, never generated HTML. The reconstructed run text must equal the
+existing formatted cell value; otherwise that value remains the plain fallback.
+OOXML escaped literals are decoded once. No network or dependency was added.
+
+Supported run overrides include bold/italic, explicit false values, underline,
+double underline, strike, font name/size, supported RGB/theme/indexed colors,
+and superscript/subscript. Missing properties inherit the cell presentation.
+Decorations are placed on the text spans so explicit underline/strike removal
+can actually take effect. Existing hyperlink admission and internal navigation
+remain shared by rich and plain labels. Accounting underline uses ordinary
+underline placement; advanced font/theme variants and exact Quick Look layout
+still require comparison. Charts, drawings, conditional formatting, pivots and
+other formats remain open work.
+
+The reader limits a cell to 4,096 runs and a displayed range to 16,000 spans.
+Beyond those limits the saved cell text remains readable without run formatting.
+The existing 100-row/32-column window remains in effect. No workbook contents
+are added to saved Android state.
+
+Verification: **15 Node checks passed**, zero failures/skips. Five new cases
+cover literal text/whitespace, excluded phonetic/foreign markup, explicit style
+removal, font/color/vertical properties, one-pass escaping, limits and a real
+XLSX containing shared and inline runs. JavaScript syntax and all **17 pinned
+vendor asset hashes** pass. The deterministic fixture generator is
+`scripts/generate-workbook-rich-runs-fixture.py`; it derives `rich-runs.xlsx`
+from the existing authored fixture, leaving the baseline untouched.
+
+The expanded `WorkbookPreviewRuntimeTest` **passed in 7.703 seconds** on the
+existing API 37 / 16 KiB AVD. It uses the production Office preparation and
+WebView path, checks real parsed run styles and literal script-looking text,
+verifies red/green glyph pixels, follows a rich-text internal link, and restores
+the selected sheet and final cell after Compose saved-state recreation. Existing
+currency, column width, title pixels and hidden-row checks also passed. The
+rich-run screenshot was inspected. This is generated-fixture evidence, not
+physical Pixel/Mac, process-death or iOS Quick Look comparison evidence.
+
+Builds succeeded; local logs and screenshots are under
+`captures/runtime/workbook-rich-runs/`. A System UI startup ANR was dismissed
+before testing and retained in the event baseline. No new ANR/crash appeared
+during the check; the crash buffer was empty. Gradle and the sole emulator were
+stopped, and the emulator process was reaped. APK SHA-256:
+
+- Debug: `995998754418d82a075043439e7ca1ee38c529e27c8061569bdb4248e28d80ef`
+- Test: `adb9c1a192a4eeb53a292d6c786e0eed59ef1193a489808ce3e7617acfa527d9`
+
+No signed release changed. Full format and physical parity remain unverified.

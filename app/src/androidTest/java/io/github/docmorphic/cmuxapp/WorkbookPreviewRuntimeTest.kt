@@ -53,7 +53,7 @@ class WorkbookPreviewRuntimeTest {
     }
     @Test fun formattedWorkbookNavigatesAndRestoresSelectedSheetAndRange() {
         file = File(compose.activity.cacheDir, "rich-workbook.xlsx")
-        InstrumentationRegistry.getInstrumentation().context.assets.open("workbook/rich.xlsx").use { input ->
+        InstrumentationRegistry.getInstrumentation().context.assets.open("workbook/rich-runs.xlsx").use { input ->
             file.outputStream().use { input.copyTo(it) }
         }
         val restoration = StateRestorationTester(compose)
@@ -78,7 +78,8 @@ class WorkbookPreviewRuntimeTest {
             (() => {
               const cell=document.querySelector('[data-cell="B2"]'), range=document.createRange();
               range.selectNodeContents(cell);
-              return {width:cell.getBoundingClientRect().width, lines:range.getClientRects().length,
+              return {width:cell.getBoundingClientRect().width,
+                lines:new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size,
                 whitespace:getComputedStyle(cell).whiteSpace};
             })()
         """.trimIndent()) ?: "{}")
@@ -111,7 +112,50 @@ class WorkbookPreviewRuntimeTest {
                 painted
             } finally { image.recycle() }
         }
-        js("document.querySelector('[data-cell=\"A9\"] a').click();")
+        assertEquals("true", js("""
+            (() => {
+              const runs = address => [...document.querySelectorAll('[data-cell="'+address+'"] .rich-run')];
+              const inline = runs('A11'), shared = runs('A12'), overrides = runs('A13');
+              return inline.length === 2 && getComputedStyle(inline[0]).color === 'rgb(255, 0, 0)' &&
+                getComputedStyle(inline[0]).fontWeight === '700' && getComputedStyle(inline[1]).fontStyle === 'italic' &&
+                shared.length === 5 && getComputedStyle(shared[1]).verticalAlign === 'sub' &&
+                getComputedStyle(shared[3]).verticalAlign === 'super' &&
+                document.querySelector('[data-cell="A12"]').textContent === 'H2O + x2 <script>unsafe</script>' &&
+                !document.querySelector('#content script') &&
+                getComputedStyle(overrides[0]).fontWeight === '400' &&
+                getComputedStyle(overrides[0]).textDecorationLine === 'none' &&
+                getComputedStyle(overrides[1]).textDecorationLine.includes('line-through') &&
+                getComputedStyle(overrides[1]).textDecorationStyle === 'double' &&
+                runs('A14').length === 2 && document.querySelector('[data-cell="A14"]').textContent === '_x0041_ literal';
+            })()
+        """.trimIndent()))
+        js("document.querySelector('[data-cell=\"A11\"]').scrollIntoView({block:'center'});")
+        compose.waitUntil(10_000) {
+            val geometry = JSONObject(js("(() => { const r=document.querySelector('[data-cell=\"A11\"]').getBoundingClientRect(); return {width:visualViewport.width,x:r.x,y:r.y,w:r.width,h:r.height}; })()") ?: "{}")
+            val origin = IntArray(2); var scale = 0.0; var width = 0; var height = 0
+            compose.runOnUiThread { web(compose.activity.window.decorView)?.let {
+                it.getLocationOnScreen(origin); width = it.width; height = it.height; scale = width / geometry.getDouble("width")
+            } }
+            val image = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try {
+                val left = (origin[0] + geometry.getDouble("x") * scale).toInt().coerceAtLeast(origin[0])
+                val right = (origin[0] + (geometry.getDouble("x") + geometry.getDouble("w")) * scale).toInt().coerceAtMost(minOf(image.width, origin[0] + width))
+                val top = (origin[1] + geometry.getDouble("y") * scale).toInt().coerceAtLeast(origin[1])
+                val bottom = (origin[1] + (geometry.getDouble("y") + geometry.getDouble("h")) * scale).toInt().coerceAtMost(minOf(image.height, origin[1] + height))
+                var red = 0; var green = 0
+                for (y in top until bottom) for (x in left until right) {
+                    val color = image.getPixel(x, y)
+                    if (Color.red(color) > 160 && Color.green(color) < 90 && Color.blue(color) < 90) red++
+                    if (Color.green(color) > 70 && Color.green(color) > Color.red(color) * 1.4 && Color.blue(color) < 90) green++
+                }
+                val painted = red > 30 && green > 30
+                if (painted) compose.activity.openFileOutput("workbook-rich-runs.png", Context.MODE_PRIVATE).use {
+                    image.compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                painted
+            } finally { image.recycle() }
+        }
+        js("document.querySelector('[data-cell=\"A12\"] a').click();")
         compose.waitUntil(5000) { js("document.getElementById('sheets').value === '1' && document.querySelector('[data-cell=\"B2\"]').textContent === 'Destination 日本語'") == "true" }
         // Let the native location bridge settle before exercising composition state restoration.
         compose.waitForIdle()

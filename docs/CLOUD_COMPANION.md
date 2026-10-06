@@ -1413,3 +1413,16 @@ or expose raw diagnostics. The media case in that first batch failed separately;
 see `MEDIA_PICTURE_IN_PICTURE.md` for its fixes and follow-ups. Evidence is in
 `captures/runtime/media-pip-return/instrumentation-first.log`. No real Cloud
 account transport or physical Pixel workflow is established by this fixture.
+
+
+### Recovery-policy source recheck — 2026-10-07
+
+Read `CloudWorkspaceBridge` and `CloudMachineConnection` again at scoped
+`c2715faa02c260b07012bc0b386597cfb333021d`. The bridge's timed recovery loop is
+for failed catalog reads (5–60 seconds). Terminal attach failure removes its
+attaching/attached entry and pending input; reconnect and mount/replay can start
+another attachment. That source does not implement a timed terminal-attach retry
+loop. Android's existing catalog loop and explicit reconnect/fresh-catalog and
+mount/replay paths cover those mechanisms. No autonomous terminal retry timer
+was added from this audit. Real transport recovery and next-input behavior still
+need end-to-end comparison; this scoped read does not close those gates.

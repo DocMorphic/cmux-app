@@ -109,5 +109,53 @@
     const sheet = sheets(book).find(item => item.name === name);
     return sheet && at ? {sheet: sheet.index, row: at.r, col: at.c} : null;
   }
-  return {read, sheets, range, windowFor, text, link, style, color, cellAddress, destination, ROWS, COLS};
+  const spreadsheetNamespaces = new Set(['http://schemas.openxmlformats.org/spreadsheetml/2006/main',
+    'http://purl.oclc.org/ooxml/spreadsheetml/main']);
+  function children(node, name) {
+    return Array.from(node?.children || []).filter(n => n.localName === name && spreadsheetNamespaces.has(n.namespaceURI));
+  }
+  /** Read authored runs, never SheetJS's generated HTML or arbitrary document markup. */
+  function richText(container, book, baseDecoration = '', maxRuns = 4096) {
+    const runs = children(container, 'r');
+    if (!runs.length || runs.length > Math.min(4096, maxRuns)) return null;
+    return runs.map(run => {
+      const properties = children(run, 'rPr')[0], css = {};
+      const property = name => children(properties, name)[0];
+      const value = name => property(name)?.getAttribute('val');
+      const toggle = name => {
+        const node = property(name); if (!node) return undefined;
+        const val = node.getAttribute('val');
+        return val == null || val === '1' || val === 'true' ? true : val === '0' || val === 'false' ? false : undefined;
+      };
+      const bold = toggle('b'), italic = toggle('i'), strike = toggle('strike');
+      if (bold != null) css.fontWeight = bold ? '700' : '400';
+      if (italic != null) css.fontStyle = italic ? 'italic' : 'normal';
+      const underline = property('u') ? value('u') || 'single' : undefined;
+      const decoration = new Set(baseDecoration.split(' ').filter(v => v === 'underline' || v === 'line-through'));
+      if (underline === 'none') decoration.delete('underline');
+      else if (['single', 'double', 'singleAccounting', 'doubleAccounting'].includes(underline)) decoration.add('underline');
+      if (underline === 'double' || underline === 'doubleAccounting') css.textDecorationStyle = 'double';
+      if (strike === false) decoration.delete('line-through');
+      else if (strike) decoration.add('line-through');
+      css.textDecorationLine = Array.from(decoration).join(' ') || 'none';
+      const name = value('rFont');
+      if (name && name.length <= 100) css.fontFamily = JSON.stringify(name) + ', sans-serif';
+      const size = value('sz'), number = Number(size);
+      if (size != null && Number.isFinite(number) && number > 0) css.fontSize = Math.max(6, Math.min(96, number)) + 'pt';
+      const node = property('color'), authoredColor = {};
+      if (node) for (const attr of Array.from(node.attributes))
+        if (['rgb', 'theme', 'indexed', 'tint'].includes(attr.name)) authoredColor[attr.name] = attr.name === 'rgb' ? attr.value : Number(attr.value);
+      const foreground = color(authoredColor, book); if (foreground) css.color = foreground;
+      const vertical = value('vertAlign');
+      if (vertical === 'superscript' || vertical === 'subscript') {
+        css.verticalAlign = vertical === 'superscript' ? 'super' : 'sub';
+        css.fontSize = css.fontSize ? parseFloat(css.fontSize) * .75 + 'pt' : '.75em';
+      } else if (vertical === 'baseline') css.verticalAlign = 'baseline';
+      // One pass preserves escaped literals: _x005F_x0041_ means the text _x0041_.
+      const content = children(run, 't').map(n => n.textContent).join('')
+        .replace(/_x([0-9a-f]{4})_/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      return {text: content, style: css};
+    });
+  }
+  return {read, sheets, range, windowFor, text, link, style, color, cellAddress, destination, richText, children, ROWS, COLS};
 });
