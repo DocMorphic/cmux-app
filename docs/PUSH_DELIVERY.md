@@ -1,5 +1,30 @@
 # Android background push
 
+## Event sealing checkpoint — 2026-10-06
+
+The host can now prepare notify/dismiss events and encrypt them through a Mac
+CryptoKit adapter for the Android receiver. Independent account/team/Mac/sender
+authority must match enrollment; content is redacted before encryption when
+hidden, text limits preserve grapheme boundaries, and the original correlation
+ID/expiry pass into the durable queue. The dispatcher rechecks live enrollment
+and policy after encryption. Provider size failures remain explicit; large
+dismissal batching/content handling still belongs to host integration.
+
+The executable uses authenticated X25519/SHA256/ChaChaPoly HPKE and the upstream
+canonical tuple/context. It verifies the supplied sender key pair, takes secrets
+through a bounded stdin pipe and returns ciphertext or a coarse error. It does
+not discover/export official cmux keys, provision its own key, enroll a helper,
+start a listener or send cloud requests. The host credential-store lifecycle and
+an explicit helper sender trust lane remain required.
+
+**50 Node checks passed** on both Node22.16.0 and Node26.8.2, with no skips on this
+Mac. The independent decryptor compiled from pinned upstream `204a11d` opened
+both ordinary and Unicode/omitted-field envelopes produced by the new adapter.
+Additional cases cover invalid keys, privacy, expiry, identity, provider bounds,
+deduplication and rotation during sealing. Evidence is in ignored local
+`captures/runtime/push-event-sealing/`. No APK/emulator or cloud resources were
+created. See [the integration contract](../push/README.md#event-preparation-and-mac-encryption).
+
 ## Registration and scheduling checkpoint — 2026-10-06
 
 The host-side `PushRegistrations` store and `PushDispatcher` scheduler now connect

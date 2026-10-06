@@ -1,6 +1,8 @@
 # Android push sender components
 
-These are the FCM HTTP v1 transport, encrypted outbox/registration storage and explicit scheduler for a trusted Mac forwarder or backend.
+These are event preparation, Mac CryptoKit encryption, FCM HTTP v1 transport,
+encrypted outbox/registration storage and an explicit scheduler for a trusted Mac
+forwarder or backend.
 It is **not a running forwarding service**. There is no listener, device registration,
 Firebase project or deployment in this directory. Importing the module makes no
 network calls. All tests inject an in-memory HTTP transport.
@@ -214,6 +216,84 @@ These components passed 38 local Node checks on 22.16.0 and 26.8.2 (9 registrati
 an authenticated enrollment endpoint, initialize Android Firebase, or establish
 real cloud/Pixel/Doze delivery. Those remain the integration work below.
 
+## Event preparation and Mac encryption
+
+`preparePushJob` in `events.mjs` converts an **already admitted** notify/dismiss
+event into the existing Android receiver's plaintext contract and seals it for
+one independently registered phone. Host-owned `authority` supplies account,
+team, Mac device/instance/build, sender key ID/public key and Mac installation ID.
+It must match the registered tuple; event fields cannot select another account,
+team or sender. This matching is not authentication of the source event.
+
+The caller provides the original lowercase UUID `correlationID` and absolute
+`expiresAt` in milliseconds, aligned to seconds and at most 15 minutes ahead.
+Queue ID and authenticated expiration use those same values. Notify fields are
+`title`, `subtitle`, `body`, `replyShape` (`text` or `none`), optional `workspaceId`,
+`surfaceId`, `notificationId`, and boolean `retargetsToLiveSurfaceOwner`.
+Dismiss uses a nonempty `notificationIds` array. Both require integer `badgeCount`
+and boolean `hideContent`. Text is trimmed and limited to upstream UTF-16 budgets
+without splitting grapheme clusters. Hidden content is removed before sealing.
+Identifiers are never silently truncated. The encrypted result must fit the FCM
+budget; an oversized event fails instead of losing dismissal IDs. The host still
+needs bounded dismissal batching and large-content handling for those failures.
+
+```js
+const seal = cryptoKitSealer({
+  executable: absolutePathToBuiltAdapter,
+  senderKeyID: provisionedSender.keyID,
+  senderPublicKey: provisionedSender.publicKey,
+  privateKey: () => readProvisionedSenderKey() // Host credential-store integration.
+});
+const result = await preparePushJob({
+  event: admittedEvent, registration: admittedRegistration,
+  authority: currentHostAuthority, expiresAt: originalExpiry
+}, { seal });
+if (result.kind === 'prepared') dispatcher.enqueue(result.job);
+```
+
+Import these functions from `crypto.mjs` and `events.mjs`. `dispatcher.enqueue`
+rechecks registration generation/live policy after asynchronous encryption;
+preparation by itself does not grant send permission. Keep the original event ID
+when retrying admission. After durable admission, retries reuse the stored
+ciphertext. The registration's public key and the sender key must already have
+been authenticated and enrolled. **Do not extract the official cmux private key
+or replace its Android peer pin to make a private helper appear trusted.** A
+separate helper trust lane remains to be designed and explicitly enrolled.
+
+Build the one-shot native adapter on macOS:
+
+```sh
+sh scripts/build-push-seal.sh
+```
+
+This compiles `PushSeal.swift` to ignored `build/push/cmux-push-seal`. It invokes
+CryptoKit's authenticated X25519/SHA256/ChaChaPoly HPKE using the upstream v2
+context and sorted JSON tuple encoding. The parent passes the explicit private
+key, public keys and plaintext over a private stdin pipe; nothing sensitive is
+put in argv, environment, logs or temporary files. The child has bounded input,
+output and runtime, verifies the sender key pair and emits only ciphertext or a
+coarse failure. Mutable temporary Node buffers are cleared; this is **not** a
+guarantee that Swift/JavaScript runtimes erase every internal allocation. No key
+is discovered or provisioned automatically. This is a Mac adapter, not a Windows
+host implementation, and requires macOS CryptoKit plus Swift tools to build.
+
+The push suite passes **50 checks** on Node22.16.0 and Node26.8.2 on the Mac.
+Linux runs skip the three native CryptoKit checks. For the independent pinned
+upstream decryptor check, build the existing public-key fixture and set its path:
+
+```sh
+python3 scripts/check-phone-push-crypto.py --upstream /absolute/path/to/cmux-source --output captures/runtime/push-event-sealing/reference
+CMUX_PUSH_REFERENCE_FIXTURE="$PWD/captures/runtime/push-event-sealing/reference/fixture" node --test push/*.test.mjs
+```
+
+The reference is scoped to commit `204a11dfcc76280205e50406ab94270a1c152155`;
+this does not advance the global parity pin. Tests cover upstream decryption,
+Unicode/omitted tuple fields, low-order key rejection, fresh encapsulation,
+redaction, expiry, identity mismatch, provider bounds and a registration rotated
+during encryption. No actual cloud/Pixel delivery is established by these tests.
+CryptoKit references: [authenticated sender](https://developer.apple.com/documentation/cryptokit/hpke/sender/init(recipientkey:ciphersuite:info:authenticatedby:)),
+[cipher suite](https://developer.apple.com/documentation/cryptokit/hpke/ciphersuite/curve25519_sha256_chachapoly).
+
 ## Remaining end-to-end work
 
 1. Choose/provision the dedicated Firebase setup or establish official backend
@@ -224,7 +304,7 @@ real cloud/Pixel/Doze delivery. Those remain the integration work below.
 3. Implement the admitted Mac/backend notification subscription and encrypted
    sender identity binding. A private helper needs its own reviewed trust/enrollment
    design; do not extract or replace the official Mac's private key silently.
-4. Integrate `PushRegistrations`, `PushDispatcher`, `PushOutbox` and `FcmSender`
+4. Integrate event preparation/encryption, `PushRegistrations`, `PushDispatcher`, `PushOutbox` and `FcmSender`
    into that host with its credential-store key, current membership/hide-content/
    away policy and admission backpressure. The durable store/scheduler now exist;
    local tests do not establish that a running host has implemented these contracts.

@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Push event preparation and Mac CryptoKit sealing now feed the existing queue
+  contract with redacted/bounded content, independently matched identity and
+  original event ID/expiry. **50 Node checks passed** on Node22.16.0 and Node26.8.2,
+  including the pinned upstream decryptor opening production-adapter envelopes.
+  No cloud/phone delivery is claimed. Host subscription/policy, Keychain lifecycle,
+  explicit helper trust/enrollment, oversized event handling, Firebase setup and
+  Android token lifecycle remain integration work. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#event-sealing-checkpoint--2026-10-06).
+
 - Push host registration storage and scheduling now integrate with the encrypted
   outbox/FCM sender: encrypted enrollment, token/key generations, exact retirement,
   scope revocation, live-policy checks, retry/expiry scheduling and awaited shutdown.
