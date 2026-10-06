@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud's single-slot terminal attachment owner now serializes blocking attaches,
+  fences old send/resize/detach by native token, delivers ordered output, buffers
+  early input and debounces resize repaint. **25 focused JVM checks passed**, with
+  main/instrumentation compilation. It still needs account/renderer/composer and
+  navigation mounting; live Android terminal behavior is unverified. See
+  `CLOUD_COMPANION.md` and `captures/runtime/cloud-terminal-attachment/`.
+
 - The account-owned Cloud workspace catalog now loads native snapshots with legacy
   list fallback and projects daemon hierarchy into shared workspace/terminal models.
   Running machines wait for the tunnel; disconnects retain rows, failures back off,

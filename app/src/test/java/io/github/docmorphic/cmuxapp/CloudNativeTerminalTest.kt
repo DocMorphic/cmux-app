@@ -85,6 +85,24 @@ class CloudNativeTerminalTest {
         assertTrue(runCatching { session.send(byteArrayOf(1)) }.isFailure)
         tunnel.close()
     }
+    @Test fun forceReplayAndGenerationFencesProtectTheReplacementSlot() {
+        val fake = Fake(); val tunnel = tunnel(fake)
+        try {
+            val session = tunnel.connect(endpoint(), temp.newFolder(), "Pixel")
+            val old = session.attach("term_a")
+            val replay = session.attach("term_a", force = true)
+            assertNotEquals(old, replay)
+            val detachCount = fake.calls.count { it.startsWith("detach:") }
+            session.detachIfCurrent(old)
+            assertEquals(detachCount, fake.calls.count { it.startsWith("detach:") })
+            assertFalse(session.sendAttached(old, byteArrayOf(1)))
+            assertEquals(0L, session.resizeAttached(old, 90, 30))
+            assertTrue(session.sendAttached(replay, byteArrayOf(1)))
+            assertEquals(8L, session.resizeAttached(replay, 90, 30))
+            session.detachIfCurrent(replay)
+            assertFalse(session.sendAttached(replay, byteArrayOf(1)))
+        } finally { tunnel.close() }
+    }
     @Test fun slowCatalogDoesNotBlockInputAndCloseWaitsForTheAdmittedCall() {
         val entered = CountDownLatch(1); val release = CountDownLatch(1)
         val fake = Fake().apply { catalogWork = { entered.countDown(); check(release.await(3, TimeUnit.SECONDS)) } }

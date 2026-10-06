@@ -154,10 +154,10 @@ internal class CloudNativeSession internal constructor(private val calls: CloudN
         output.requireHealthy()
         return handle
     }
-    fun attach(terminal: String, timeoutMillis: Long = 30_000): Long = lock.write {
+    fun attach(terminal: String, timeoutMillis: Long = 30_000, force: Boolean = false): Long = lock.write {
         val live = current()
         require(terminal.isNotEmpty() && timeoutMillis in 1..90_000)
-        if (attached == terminal && !calls.hasExited(live)) return@write generation
+        if (!force && attached == terminal && !calls.hasExited(live)) return@write generation
         if (attached != null) { calls.detach(live); attached = null }
         generation = output.reset()
         calls.attach(live, terminal.toByteArray(Charsets.UTF_8), timeoutMillis)
@@ -167,6 +167,20 @@ internal class CloudNativeSession internal constructor(private val calls: CloudN
     fun detach() = lock.write {
         val live = current()
         calls.detach(live); attached = null; generation = output.reset()
+    }
+    /** A retired view must never detach or send into the slot its successor owns. */
+    fun detachIfCurrent(attachment: Long) = lock.write {
+        if (retiring.get() || handle == 0L || attached == null || generation != attachment) return@write
+        calls.detach(handle); attached = null; generation = output.reset()
+    }
+    fun sendAttached(attachment: Long, bytes: ByteArray): Boolean = lock.read {
+        val live = current()
+        generation == attachment && attached != null && !calls.hasExited(live) && calls.send(live, bytes)
+    }
+    fun resizeAttached(attachment: Long, columns: Int, rows: Int): Long = lock.read {
+        val live = current()
+        require(columns in 1..65535 && rows in 1..65535)
+        if (generation != attachment || attached == null) 0 else calls.resize(live, columns, rows)
     }
     fun catalog(operation: CloudCatalogOperation, workspace: String? = null, name: String? = null,
         timeoutMillis: Long = 30_000): ByteArray = lock.read {

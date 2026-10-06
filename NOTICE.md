@@ -544,3 +544,11 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses retained account ownership, IO workers, explicit stale-read fences and
 its existing workspace/terminal presentation models. Integration evidence and
 remaining attachment/UI work are recorded in docs/CLOUD_COMPANION.md.
+
+
+CloudTerminalAttachment.kt adapts single-slot attachment, early input, ordered output
+and resize-repaint behavior from CloudWorkspaceBridge.swift in
+Packages/iOS/CmuxMobileCloudBridge at cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android adds explicit native attachment tokens and coroutine ownership fences.

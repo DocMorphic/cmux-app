@@ -561,3 +561,49 @@ Single-slot attachment, ordered output delivery, early input, resize/repaint and
 reconnect selection still require their bridge implementation. No live Cloud request,
 Android runtime test, APK build, emulator or signed promotion occurred in this
 checkpoint; ADB still reports no device. This is not a usable Cloud-terminal UI yet.
+
+
+### Single-slot terminal attachment — 2026-10-06
+
+`CloudTerminalAttachment` ports the attachment/input/replay rules from
+`CloudWorkspaceBridge.swift` at the scoped revision. One owner serves one machine's
+selected terminal. A serial native slot and monotonic selection generation fence
+blocking attaches, while native attachment tokens fence send/resize/detach. Switching
+terminals cancels the previous consumer and drops its queued input. A late old attach
+must finish before the replacement can attach; its cleanup cannot detach the newer
+native token. The machine pool owns the underlying session, so closing a view's
+attachment does not close the catalog link.
+
+One consumer delivers output in order onto the owner's dispatcher. The last phone
+grid is sent before flushing early input. Early input is copied and bounded to
+8 KiB; a live attachment accepts a bounded 256 KiB queue (including an ordinary
+64 KiB paste). Rejected or unconfirmed input clears pending bytes and reports a
+failure; it is never automatically replayed. Tunnel loss preserves desired selection
+and geometry but discards the old pending queue. New early input can wait for the
+foreground link to return. Explicit replay force-detaches and re-attaches even the
+same terminal, so it obtains a new daemon snapshot.
+
+A resize away from the last snapshot grid schedules a repaint after 400 ms; repeated
+resize events coalesce, and a fresh snapshot cancels the repaint. Exit stops input
+and releases the slot. Account close immediately fences input/output and schedules
+native cleanup without blocking the UI dispatcher. Linkage failures become a
+recoverable attachment failure.
+
+Verification: **25 focused JVM checks passed**: attachment owner 8, native ownership
+9, handshake regressions 8. The final main/test/instrumentation compilation and
+focused run passed in 10 seconds. Checks cover ordered replay/output, copied early
+input, first viewport, old/new selection isolation, overflow and rejected-input
+non-replay, reconnect, resize debounce/snapshot cancellation, exit/account close,
+large live paste and unavailable runtime. A real two-worker blocking-attach test
+proves the old attach cannot overtake its successor; native token tests prove stale
+send/resize/detach cannot affect a new attachment. Evidence:
+`captures/runtime/cloud-terminal-attachment/`.
+
+This owner is implemented and tested through injected links, but it is not yet
+mounted in the Android renderer/navigation. Next use one owner per machine,
+connect it to the retained Cloud account/catalog, and supply bytes and selection to
+the common Ghostty surface, toolbar and composer. Shared list/filter/sidebar rows,
+workspace/terminal creation, persistence and full UI behavior remain pending. Pixel
+runtime/transport evidence is absent: no ADB device was connected; no emulator, APK
+build or signed promotion ran. Passing ownership tests is not proof of live Cloud
+terminal operation.
