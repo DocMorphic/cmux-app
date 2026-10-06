@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Helper enrollment now has production Kotlin/Node HTTPS transport with bounded
+  requests, no redirects/ambient credentials, retry timing and admission checks.
+  **13 JVM checks passed**, including a real local TLS/CryptoKit/SQLite handshake
+  and repeated finish; **13 Node checks passed** on Node22/26 after fixing a
+  timed-out upload capacity leak. Main/instrumentation compilation passed. No APK
+  or emulator. Durable recovery, automatic renewal/revocation, setup UI and real
+  hosting/Firebase/Pixel acceptance remain open. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#helper-https-transport--2026-10-06).
+
 - Initial helper enrollment now has matching Node/Android challenge proofs, real
   HPKE key-possession checks, generation-safe registration commit and authenticated
   acknowledgment before local helper pinning. **16 Node checks passed** on Node22/26;

@@ -71,7 +71,7 @@ test('overlapping offers use compare-and-replace so the later completion cannot 
   const f = fixture(t), a = f.service.issue(input()), b = f.service.issue(input());
   await f.service.begin(request(a, { token: 'first' })); const proofA = finish(f.challenge());
   await f.service.begin(request(b, { token: 'second' })); const proofB = finish(f.challenge());
-  f.service.finish(proofA); assert.throws(() => f.service.finish(proofB), /registration-unavailable/);
+  f.service.finish(proofA); assert.throws(() => f.service.finish(proofB), /superseded/);
   assert.equal(f.registrations.recipients({ accountID: 'fixture-user' })[0].token, 'first');
   const c = f.service.issue(input()); await f.service.begin(request(c, { token: 'recovered' })); f.service.finish(finish(f.challenge()));
   assert.equal(f.registrations.recipients({ accountID: 'fixture-user' })[0].token, 'recovered');

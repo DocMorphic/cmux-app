@@ -360,6 +360,24 @@ or key as its own authority. The future TLS handler must cap bodies before parsi
 disable redirects on Android, and return only coarse errors. This component does
 not register with Firebase or supply a running forwarding service.
 
+## HTTPS enrollment transport
+
+`createPushEnrollmentServer({key, cert, enrollment, endpoint})` returns an unbound
+TLS server; `endpoint()` must return the configured public URL with path
+`/v1/push/enroll`. The caller provisions certificates, chooses the bind address and
+port, starts/stops the server and owns live authority/key policy. No shell command
+in this module starts it automatically. The route accepts only `{step: "begin" |
+"finish", request: ...}`. It exposes no offer generation, cancellation, provider
+credentials or terminal API. Do not place an unreviewed plaintext proxy in front
+of it or derive the expected endpoint from request headers.
+
+Android `PhoneHelperHttp` uses the exact HTTPS offer URL with certificate and host
+validation, bounded JSON, redirect/retry refusal and live admission checks. Pass
+successful response bodies through `PhoneHelperEnrollment.finish/confirm`; an
+HTTP 200 itself is not proof of enrollment. Retain identical requests for uncertain
+outcomes. HTTP409 requires reconciling a superseded enrollment, and retryable
+responses carry Retry-After. See [transport evidence and remaining integration](../docs/PUSH_DELIVERY.md#helper-https-transport--2026-10-06).
+
 ## Remaining end-to-end work
 
 1. Choose/provision the dedicated Firebase setup or establish official backend

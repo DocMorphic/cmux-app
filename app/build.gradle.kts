@@ -183,4 +183,5 @@ dependencies {
     // JVM counterpart of Android's built-in ICU; never packaged in the APK.
     testImplementation("com.ibm.icu:icu4j:77.1")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("com.squareup.okhttp3:okhttp-tls:4.12.0")
 }

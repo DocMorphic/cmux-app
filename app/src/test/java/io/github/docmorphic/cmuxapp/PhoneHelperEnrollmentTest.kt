@@ -98,4 +98,40 @@ class PhoneHelperEnrollmentTest {
         session.close(); assertTrue(runCatching { session.begin() }.isFailure)
         assertTrue(runCatching { session.finish(c.fixture.getJSONObject("response")) }.isFailure)
     }
+    @Test fun realKotlinClientEnrollsThroughNodeTlsAndCryptoKitWithIdempotentFinish() = kotlinx.coroutines.runBlocking {
+        org.junit.Assume.assumeTrue(System.getProperty("os.name").orEmpty().contains("Mac"))
+        val root = generateSequence(java.io.File(".").canonicalFile) { it.parentFile }
+            .first { java.io.File(it, "scripts/push-enrollment-fixture-server.mjs").isFile }
+        org.junit.Assume.assumeTrue(java.io.File(root, "build/push/cmux-push-seal").isFile)
+        val directory = java.nio.file.Files.createTempDirectory("cmux-enrollment-tls").toFile()
+        val certificate = okhttp3.tls.HeldCertificate.Builder().commonName("localhost").addSubjectAlternativeName("127.0.0.1").build()
+        java.io.File(directory, "cert.pem").writeText(certificate.certificatePem())
+        java.io.File(directory, "key.pem").writeText(certificate.privateKeyPkcs8Pem())
+        val errors = java.io.File(directory, "stderr.txt")
+        val process = ProcessBuilder("node", java.io.File(root, "scripts/push-enrollment-fixture-server.mjs").path, directory.path)
+            .redirectError(errors).apply { environment().keys.retainAll(setOf("PATH")) }.start()
+        val trust = okhttp3.tls.HandshakeCertificates.Builder().addTrustedCertificate(certificate.certificate).build()
+        val base = okhttp3.OkHttpClient.Builder().sslSocketFactory(trust.sslSocketFactory(), trust.trustManager).build()
+        try {
+            val line = java.util.concurrent.CompletableFuture.supplyAsync { process.inputStream.bufferedReader().readLine() }
+                .get(15, java.util.concurrent.TimeUnit.SECONDS)
+            checkNotNull(line) { "Fixture server failed: ${errors.readText().take(1000)}" }
+            val offer = JSONObject(line); val c = Context(fixture())
+            c.session(offer).use { session -> PhoneHelperHttp(session.endpoint, { c.current }, base, { c.now }).use { http ->
+                val challenge = (http.send("begin", session.begin()) as PhoneHelperHttpResult.Success).body
+                val proof = session.finish(challenge)
+                val ack = (http.send("finish", proof) as PhoneHelperHttpResult.Success).body
+                val receipt = session.confirm(ack, c.state)
+                val repeated = (http.send("finish", proof) as PhoneHelperHttpResult.Success).body
+                assertEquals(receipt, session.confirm(repeated, c.state))
+                assertEquals(c.peer, receipt.binding.macPeer)
+                assertEquals(PhonePushDescriptor.parse(offer.getJSONObject("helper")), receipt.binding.peer.descriptor)
+            } }
+        } finally {
+            process.destroy()
+            if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) { process.destroyForcibly(); process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS) }
+            base.connectionPool.evictAll(); base.dispatcher.executorService.shutdown(); directory.deleteRecursively()
+        }
+    }
+
 }

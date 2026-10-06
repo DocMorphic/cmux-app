@@ -1,6 +1,54 @@
 # Android background push
 
 
+## Helper HTTPS transport — 2026-10-06
+
+`createPushEnrollmentServer` returns an **unbound** Node HTTPS server with supplied
+TLS credentials. Only `POST /v1/push/enroll` with `{step, request}` is exposed;
+`step` is `begin` or `finish`. Host-local offer creation/cancellation remain off
+this endpoint. The server checks the configured Host/path, rejects browser Origin
+and unsupported content encodings, caps headers at 8 KiB and bodies/responses at
+32 KiB, validates UTF-8, and defaults to eight concurrent requests and a ten-second
+application deadline. TLS handshakes, header reads and total connections are also
+bounded. Replies are coarse JSON with no-store headers and closed connections.
+Generation conflicts return 409; temporary registration failures return 503.
+The implementation uses the standard [Node HTTPS server](https://nodejs.org/api/https.html).
+
+Android's `PhoneHelperHttp` sends to the exact offered HTTPS URL, with no redirects,
+automatic request retries, inherited interceptors, cookies or account bearer
+credentials. It rechecks admission before sending the body and after the response,
+closes in-flight calls on disposal/cancellation, caps response buffering, and
+honors Retry-After. A dropped response remains uncertain: the caller retains the
+same protocol request and retries it; a transport success alone never pins a key.
+Certificate/hostname validation is preserved. Test-only clients trust only their
+ephemeral local test certificate; production gets the normal trust configuration.
+
+**13 JVM checks passed with zero skips**, including the production Kotlin HTTPS
+client completing enrollment through a real loopback Node TLS server, CryptoKit
+challenge sealing and encrypted SQLite registration. Repeating finish returned
+the same receipt. This is Kotlin/JVM integration evidence, not Android OS or Pixel
+acceptance. Other checks cover credential isolation, redirect refusal, untrusted
+certificates, rate-limit timing, revocation before body write/during response,
+malformed/oversized responses and closing in-flight calls. Main/instrumentation
+compilation passed; `okhttp-tls` was added only to JVM test dependencies, already
+pinned at 4.12.0 for Android tests.
+
+**13 Node checks passed** on Node22.16.0 and Node26.8.2. The slow-upload case found
+and fixed a real capacity leak: a timed-out incomplete body retained its slot.
+It now releases the slot immediately, cannot dispatch afterward, and closes the
+reader after flushing the timeout response. An earlier wrong-Host fixture failed
+at TLS identity validation; the fixture now keeps the expected TLS server name
+while changing only HTTP Host, so it exercises the intended 421 response without
+disabling certificate verification.
+
+Evidence: `captures/runtime/push-helper-https/`. The local fixture servers and
+Gradle are stopped; no APK/emulator or external listener was started. No Firebase
+registration/delivery or user account data was involved. Durable client handshake
+and receipt recovery, automatic renewal/revocation, setup/confirmation UI,
+production TLS/key/authority provisioning and notification service integration
+remain open. No global upstream pin or signed release changed.
+
+
 ## Helper enrollment handshake — source checkpoint, 2026-10-06
 
 The Node host and Android now share an initial-enrollment protocol. The host

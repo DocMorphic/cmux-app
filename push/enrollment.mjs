@@ -108,7 +108,7 @@ export class PushEnrollment {
     if (row.record) need(this.#registrations.matches({ registration: row.record.registration, token: row.record.token, recipient: row.record.recipient }));
     else {
       try { row.record = this.#registrations.replace(row.enrollment, { expectedGeneration: row.expectedGeneration }); }
-      catch { throw new PushEnrollmentError('registration-unavailable'); }
+      catch (error) { throw new PushEnrollmentError(error.kind === 'superseded' ? 'superseded' : 'registration-unavailable'); }
     }
     return { offerID: row.offer.offerID, requestID: row.requestID, registration: clone(row.record.registration),
       proof: mac(row.challenge, 'cmux-app.helper.ack.v1', [row.digest, row.requestDigest, row.record.registration.id, row.record.registration.generation]).toString('base64url') };
