@@ -4,7 +4,10 @@ import androidx.annotation.Keep
 import java.io.File
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
 import kotlin.concurrent.withLock
+import kotlin.concurrent.write
 
 internal class CloudTerminalOutput(val kind: Int, val bytes: ByteArray, val columns: Int, val rows: Int) {
     override fun toString() = "CloudTerminalOutput(kind=$kind, byteCount=${bytes.size}, columns=$columns, rows=$rows)"
@@ -136,10 +139,10 @@ internal class CloudNativeTunnel private constructor(private val calls: CloudNat
 internal enum class CloudCatalogOperation(val code: Int) { SNAPSHOT(0), WORKSPACES(1), TERMINALS(2), CREATE_WORKSPACE(3), CREATE_TERMINAL(4) }
 internal data class CloudResizeAcknowledgment(val requestId: Long, val columns: Int, val rows: Int, val canonicalChanged: Boolean)
 
-/** One attachment at a time, serialized native operations, and exactly one disconnect. */
+/** Catalog/input may run concurrently; attachment changes and disconnect own the exclusive lock. */
 internal class CloudNativeSession internal constructor(private val calls: CloudNativeCalls, private var handle: Long,
     private val output: CloudNativeOutputBuffer, private val retired: (CloudNativeSession) -> Unit) : AutoCloseable {
-    private val lock = Any()
+    private val lock = ReentrantReadWriteLock()
     private var attached: String? = null
     private var generation = 0L
     private fun current(): Long {
@@ -148,37 +151,37 @@ internal class CloudNativeSession internal constructor(private val calls: CloudN
         output.requireHealthy()
         return handle
     }
-    fun attach(terminal: String, timeoutMillis: Long = 30_000): Long = synchronized(lock) {
+    fun attach(terminal: String, timeoutMillis: Long = 30_000): Long = lock.write {
         val live = current()
         require(terminal.isNotEmpty() && timeoutMillis in 1..90_000)
-        if (attached == terminal && !calls.hasExited(live)) return@synchronized generation
+        if (attached == terminal && !calls.hasExited(live)) return@write generation
         if (attached != null) { calls.detach(live); attached = null }
         generation = output.reset()
         calls.attach(live, terminal.toByteArray(Charsets.UTF_8), timeoutMillis)
         attached = terminal
         generation
     }
-    fun detach() = synchronized(lock) {
+    fun detach() = lock.write {
         val live = current()
         calls.detach(live); attached = null; generation = output.reset()
     }
     fun catalog(operation: CloudCatalogOperation, workspace: String? = null, name: String? = null,
-        timeoutMillis: Long = 30_000): ByteArray = synchronized(lock) {
+        timeoutMillis: Long = 30_000): ByteArray = lock.read {
         require(timeoutMillis in 1..90_000)
         if (operation == CloudCatalogOperation.CREATE_TERMINAL) require(workspace?.startsWith("ws_") == true) { "An explicit Cloud workspace is required" }
         calls.catalog(current(), operation.code, workspace?.toByteArray(Charsets.UTF_8), name?.toByteArray(Charsets.UTF_8), timeoutMillis)
     }
     /** False means rejected by the local queue. Never automatically retry accepted input. */
-    fun send(bytes: ByteArray): Boolean = synchronized(lock) {
+    fun send(bytes: ByteArray): Boolean = lock.read {
         val live = current()
         attached != null && !calls.hasExited(live) && calls.send(live, bytes)
     }
-    fun resize(columns: Int, rows: Int): Long = synchronized(lock) {
+    fun resize(columns: Int, rows: Int): Long = lock.read {
         val live = current()
         require(columns in 1..65535 && rows in 1..65535)
         if (attached == null) 0 else calls.resize(live, columns, rows)
     }
-    fun resizeAck(): CloudResizeAcknowledgment? = synchronized(lock) {
+    fun resizeAck(): CloudResizeAcknowledgment? = lock.read {
         calls.resizeAck(current())?.let {
             check(it.size == 4 && it[1] in 1..65535 && it[2] in 1..65535)
             CloudResizeAcknowledgment(it[0], it[1].toInt(), it[2].toInt(), it[3] != 0L)
@@ -187,13 +190,13 @@ internal class CloudNativeSession internal constructor(private val calls: CloudN
     /** Bounded wait also checks JNI callback health when no Java event could be delivered. */
     fun nextOutput(attachment: Long, timeoutMillis: Long = 250): CloudTerminalOutput? {
         require(timeoutMillis in 0..1000)
-        synchronized(lock) { current(); check(attached != null && generation == attachment) { "Cloud terminal attachment changed" } }
+        lock.read { current(); check(attached != null && generation == attachment) { "Cloud terminal attachment changed" } }
         val event = output.poll(attachment, timeoutMillis)
-        synchronized(lock) { current(); check(generation == attachment) { "Cloud terminal attachment changed" } }
+        lock.read { current(); check(generation == attachment) { "Cloud terminal attachment changed" } }
         return event
     }
     override fun close() {
-        synchronized(lock) {
+        lock.write {
             if (handle == 0L) return
             val owned = handle
             handle = 0; attached = null

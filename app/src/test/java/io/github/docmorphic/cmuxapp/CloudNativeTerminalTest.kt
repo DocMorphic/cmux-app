@@ -5,16 +5,18 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class CloudNativeTerminalTest {
     @get:Rule val temp = TemporaryFolder()
     private class Fake : CloudNativeCalls {
-        val calls = mutableListOf<String>()
+        val calls = CopyOnWriteArrayList<String>()
         val sinks = mutableMapOf<Long, CloudNativeOutputBuffer>()
         var healthy = true; var allowed = true; var exited = false; var next = 10L
         var savedConfig: ByteArray? = null
+        var catalogWork: (() -> Unit)? = null
         override fun startTunnel(config: ByteArray): Long { savedConfig = config; calls += "start"; return 1 }
         override fun freeTunnel(handle: Long) { calls += "free:$handle" }
         override fun routeAllowed(handle: Long, route: ByteArray): Boolean { calls += "route"; return allowed }
@@ -25,7 +27,9 @@ class CloudNativeTerminalTest {
         override fun outputHealthy(handle: Long) = healthy
         override fun attach(handle: Long, terminal: ByteArray, timeout: Long) { calls += "attach:${terminal.toString(Charsets.UTF_8)}" }
         override fun detach(handle: Long) { calls += "detach:$handle" }
-        override fun catalog(handle: Long, operation: Int, workspace: ByteArray?, name: ByteArray?, timeout: Long) = "{}".toByteArray()
+        override fun catalog(handle: Long, operation: Int, workspace: ByteArray?, name: ByteArray?, timeout: Long): ByteArray {
+            catalogWork?.invoke(); return "{}".toByteArray()
+        }
         override fun send(handle: Long, bytes: ByteArray): Boolean { calls += "send:$handle"; return true }
         override fun resize(handle: Long, columns: Int, rows: Int) = 8L
         override fun resizeAck(handle: Long) = longArrayOf(8, 80, 24, 1)
@@ -80,6 +84,24 @@ class CloudNativeTerminalTest {
         fake.sinks.getValue(10).onOutput(99, byteArrayOf(), 0, 0)
         assertTrue(runCatching { session.send(byteArrayOf(1)) }.isFailure)
         tunnel.close()
+    }
+    @Test fun slowCatalogDoesNotBlockInputAndCloseWaitsForTheAdmittedCall() {
+        val entered = CountDownLatch(1); val release = CountDownLatch(1)
+        val fake = Fake().apply { catalogWork = { entered.countDown(); check(release.await(3, TimeUnit.SECONDS)) } }
+        val tunnel = tunnel(fake); val session = tunnel.connect(endpoint(), temp.newFolder(), "Pixel")
+        session.attach("term_first")
+        val executor = Executors.newFixedThreadPool(3)
+        try {
+            val catalog = executor.submit<ByteArray> { session.catalog(CloudCatalogOperation.SNAPSHOT) }
+            assertTrue(entered.await(1, TimeUnit.SECONDS))
+            assertTrue(executor.submit<Boolean> { session.send(byteArrayOf(1)) }.get(1, TimeUnit.SECONDS))
+            val closeStarted = CountDownLatch(1)
+            val close = executor.submit { closeStarted.countDown(); session.close() }
+            assertTrue(closeStarted.await(1, TimeUnit.SECONDS))
+            assertFalse(fake.calls.contains("disconnect:10"))
+            release.countDown(); catalog.get(1, TimeUnit.SECONDS); close.get(1, TimeUnit.SECONDS)
+            assertTrue(fake.calls.contains("disconnect:10"))
+        } finally { release.countDown(); executor.shutdownNow(); tunnel.close() }
     }
     @Test fun bufferFailsExplicitlyOnOverflowInsteadOfDroppingVtBytes() {
         val buffer = CloudNativeOutputBuffer(maxBytes = 4, maxEvents = 2)

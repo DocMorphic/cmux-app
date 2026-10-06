@@ -291,8 +291,10 @@ copied before returning; Java global references are released only after the
 upstream synchronous callback clear. Allocation/delivery failure marks the output
 stream unusable instead of silently losing VT bytes.
 
-The Kotlin boundary is blocking and must run on IO workers. It serializes handle
-operations, rejects use after close, disconnects clients before freeing the shared
+The Kotlin boundary is blocking and must run on IO workers. It admits input and
+catalog calls concurrently while attachment changes and close hold an exclusive
+lock. This keeps a slow catalog from blocking typing and still prevents handle
+retirement during any admitted call. It rejects use after close, disconnects clients before freeing the shared
 tunnel, installs raw delivery before attach and requests viewer size priority.
 Callbacks only enqueue; they never reenter native code or run UI/user code. The
 queue has byte/event limits and fails explicitly on overflow. Attachment generations
@@ -307,9 +309,9 @@ existing 1,000-cell dimension bounds still need review when mounting Cloud outpu
 
 Verification: the JNI source passes the NDK arm64/API 26 C11 check with
 `-Wall -Wextra -Werror`; compiled JVM descriptors match the JNI methods and
-`onOutput(I[BII)V`. Main Kotlin compilation passed (15 seconds), and **7 focused
+`onOutput(I[BII)V`. Main Kotlin compilation passed (15 seconds), and **8 focused
 JVM checks passed** (9 seconds, then 6 seconds after adding immediate queue-health
-admission). Tests use a fake C-ABI boundary and cover retirement order/idempotence,
+admission; 24 seconds for the eight-case concurrent-input follow-up). Tests use a fake C-ABI boundary and cover retirement order/idempotence,
 private route rejection, attachment generations, input/exit/error admission,
 overflow, waiting-reader reset and chunked replay ordering. They do **not** verify
 native linking, real callbacks, native transport, renderer pixels or Android runtime.
@@ -319,9 +321,21 @@ Hosted attempt [37447383957](https://github.com/DocMorphic/cmux-app/actions/runs
 failed before Rust compilation because a nested Ghostty step could not find `zig`
 on PATH. The driver now prepends its pinned Zig directory. Follow-up
 [37447939408](https://github.com/DocMorphic/cmux-app/actions/runs/37447939408), source
-`9b1b8f34`, was still running when this adapter checkpoint was recorded; inspect
-that specific run before retrying. It also builds/verifies the JNI shared library.
-No successful Android native checkpoint is claimed yet.
+`9b1b8f34`, then compiled Ghostty and most Rust dependencies before failing in
+`cmux-pty`: Android lacked the Linux-gated `ptsname_r` helpers and libc has no
+`getdtablesize`. The exported-source patch now includes Android in the two
+`ptsname_r` helpers, uses checked `sysconf(_SC_OPEN_MAX)` before fork and bounds
+the portable descriptor loop. The return convention was checked against
+[Bionic's implementation](https://android.googlesource.com/platform/bionic/+/refs/heads/main/libc/bionic/pty.cpp)
+and the installed API 26 NDK headers. This enables compilation of the shared
+crate; the Android companion does not start local PTYs. A further hosted run
+is required; no successful Android native checkpoint is claimed yet.
+
+Before real Cloud Iroh/WSS acceptance, audit Android DNS/context and TLS-root
+initialization for the separately linked Rust library. The existing Iroh FFI
+initializes its own library; do not assume that initializes this cdylib's globals.
+The new workspace pins `rustls-platform-verifier` 0.7.0 and `rustls-native-certs`
+0.8.4. Runtime context/root behavior remains unverified.
 
 The native files are **not yet packaged or mounted**. Next: inspect/repair the
 hosted result, complete dependency notices, validate the checkpoint during Gradle

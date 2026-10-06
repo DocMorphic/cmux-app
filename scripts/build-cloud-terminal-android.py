@@ -51,6 +51,28 @@ def replace_once(path, before, after):
     return {"originalSha256": hashlib.sha256(source.encode()).hexdigest(), "patchedSha256": digest(path)}
 
 
+def patch_android_pty(path):
+    original = digest(path)
+    # Android is Unix but not Rust's target_os=linux. Bionic ptsname_r returns
+    # errno like Linux; getdtablesize is absent, so use POSIX sysconf before fork.
+    for function in ("platform_ptsname_r", "ptsname_error"):
+        replace_once(path, f'#[cfg(target_os = "linux")]\nfn {function}',
+                     f'#[cfg(any(target_os = "linux", target_os = "android"))]\nfn {function}')
+    replace_once(path, "    let descriptor_limit = unsafe { libc::getdtablesize() };", '''    #[cfg(not(target_os = "android"))]
+    let descriptor_limit = unsafe { libc::getdtablesize() };
+    #[cfg(target_os = "android")]
+    let descriptor_limit = RawFd::try_from(unsafe { libc::sysconf(libc::_SC_OPEN_MAX) })
+        .context("failed to determine Android descriptor limit")?;''')
+    # Preserve fail-closed bounded post-fork work when Android takes the portable
+    # descriptor loop rather than Linux's close_range/proc implementation.
+    replace_once(path, "    mark_descriptors_close_on_exec_individually(cleanup.descriptor_limit)", '''    #[cfg(target_os = "android")]
+    if cleanup.descriptor_limit > 65_536 {
+        return Err(io::Error::from_raw_os_error(libc::EOVERFLOW));
+    }
+    mark_descriptors_close_on_exec_individually(cleanup.descriptor_limit)''')
+    return {"originalSha256": original, "patchedSha256": digest(path)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("source", "ghostty", "zig", "ndk", "output"):
@@ -105,6 +127,7 @@ def main():
     manifest = workspace / "crates/cmux-terminal-client/Cargo.toml"
     patches["cmux-tui/crates/cmux-terminal-client/Cargo.toml"] = replace_once(manifest,
         'crate-type = ["staticlib", "rlib"]', 'crate-type = ["cdylib", "rlib"]')
+    patches["cmux-tui/crates/cmux-pty/src/macos.rs"] = patch_android_pty(workspace / "crates/cmux-pty/src/macos.rs")
     # Use the upstream rust-toolchain.toml without a separately drifting workflow version.
     run("cargo", "build", "--locked", "--release", "--lib", "-p", "cmux-terminal-client",
         "--target", TARGET, "--jobs", "2", cwd=workspace, env=env)
