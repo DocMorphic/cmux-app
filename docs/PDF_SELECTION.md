@@ -148,3 +148,33 @@ handle dragging, high zoom/rotation, TalkBack and large-font behavior remain for
 the next combined viewer milestone. No APK, emulator, new AVD or Pixel state was
 changed; Gradle was stopped. Evidence: ignored local
 `captures/runtime/pdf-selection-toolbar/verification.json` and compile/test output.
+
+## Floating menu integration — 2026-10-06
+
+**Three Android cases passed in 63.572 seconds** on the existing API37/16KiB
+emulator. The app and test APKs built together in 56 seconds; Gradle was stopped
+before starting the emulator. The run required no manual interaction or retries.
+
+- The new floating-menu fixture verifies that word selection keeps the page's
+  visible rectangle unchanged and that Copy does not overlap the selected word.
+  Native Select all followed by Activity stop/resume retains both pages' selection
+  and copies the exact two-page text. A fresh selection can be cleared through
+  the native menu, removing handles and Copy without shifting the page.
+- The updated cross-page fixture passes real handle dragging with edge autoscroll,
+  Activity recreation, painted blue highlights and exact two-page clipboard text.
+- The existing search/highlight/Page text/recreation/copy flow also passes.
+
+Four screenshots were inspected: the word menu, clear-action menu, resumed
+select-all, and restored cross-page selection. **All four menu actions fit this
+screen**, so the conditional overflow branch was not exercised (its historical
+capture filename is `overflow-menu.png`). Overflow at narrow widths, large-font
+and TalkBack behavior, high-zoom/rotation positioning, large-copy/cancellation,
+process death and physical Pixel/Mac acceptance remain open. The Pixel was absent.
+No app crash or ANR markers appeared in the recorded logs. The emulator exited
+and its process was reaped; no new AVD or signed release was created.
+
+Debug APK SHA256: `9046bf959059e8a5408f39297b2653af6729a0dadb116c75b57f109f3b97fc6b`.
+Test APK SHA256: `79551192f6799b69a51b83f16ce0836dd4b3787e83da654536fbe1b53ed5f6bb`.
+The app source is `0081f72`; this checkpoint adds the runtime fixture and evidence,
+with no app implementation repair. Complete logs, screenshots, source hashes and
+case results: ignored `captures/runtime/pdf-floating-integration/verification.json`.

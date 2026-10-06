@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The PDF floating-menu integration now passes **three Android checks in 63.572
+  seconds**: unchanged viewport/visible native actions, Select all across
+  background/resume, exact copy/clear, cross-page drag/autoscroll/recreation and
+  the existing search/copy flow. Four screenshots inspected; no recorded app
+  crash/ANR. All actions fit onscreen, so overflow/large-font/TalkBack/high-zoom
+  and physical acceptance remain open. One 56-second combined APK build; Gradle
+  stopped before the sole existing emulator, which is now stopped/reaped. See
+  [PDF_SELECTION.md](PDF_SELECTION.md#floating-menu-integration--2026-10-06).
+
 - PDF selection now uses a native floating Copy/Select all/Select page/Clear menu
   instead of rows that change document height. It follows visible selection bounds,
   hides during scroll/handle drag/copy and retains accessible page actions.

@@ -150,6 +150,53 @@ class ArtifactPdfTextRuntimeTest {
             assertTrue(links.any { (it.target as? PdfLinkTarget.Page)?.index == 1 })
         } } finally { file.delete() }
     }
+    @Test fun floatingPdfSelectionMenuSelectsAllAndClearsWithoutChangingViewport() {
+        check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
+        val instrumentation = InstrumentationRegistry.getInstrumentation(); val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation); val file = fixture()
+        val evidence = File(context.getExternalFilesDir(null), "pdf-selection-toolbar").apply { mkdirs() }
+        fun find(selector: BySelector): UiObject2 = device.wait(Until.findObject(selector), 10_000) ?: run {
+            device.takeScreenshot(File(evidence, "failure.png")); device.dumpWindowHierarchy(File(evidence, "failure.xml"))
+            error(selector.toString())
+        }
+        val word = ChangesPdfDocument(file).use { it.selectionText(0).search(0, "CMUX").single().bounds }
+        try { ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
+            .putExtra("path", file.absolutePath).putExtra("route", ChangesPreviewRoute.PDF.name)
+            .putExtra("mime", "application/pdf")).use { scenario ->
+            val page = find(By.desc("PDF page 1 of 2")).visibleBounds; val factor = page.width() / 300f
+            val target = android.graphics.Rect((page.left + word.first().left * factor).toInt(),
+                (page.top + word.minOf { it.top } * factor).toInt(), (page.left + word.last().right * factor).toInt(),
+                (page.top + word.maxOf { it.bottom } * factor).toInt())
+            fun selectWord() {
+                device.swipe(target.centerX(), target.centerY(), target.centerX(), target.centerY(), 140)
+                val copy = find(By.text(context.getString(android.R.string.copy)))
+                assertEquals(page, find(By.desc("PDF page 1 of 2")).visibleBounds)
+                assertFalse("Floating Copy occludes selected text", android.graphics.Rect.intersects(copy.visibleBounds, target))
+            }
+            selectWord()
+            device.takeScreenshot(File(evidence, "word-menu.png"))
+            find(By.text(context.getString(android.R.string.selectAll))).click()
+            find(By.text(context.getString(android.R.string.copy)))
+            scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+            scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+            find(By.text(context.getString(android.R.string.copy)))
+            assertEquals(page, find(By.desc("PDF page 1 of 2")).visibleBounds)
+            device.takeScreenshot(File(evidence, "select-all-resumed.png"))
+            find(By.text(context.getString(android.R.string.copy))).click()
+            check(device.wait(Until.gone(By.desc("PDF selection start")), 10_000))
+            scenario.onActivity {
+                val copied = context.getSystemService(ClipboardManager::class.java).primaryClip?.getItemAt(0)?.text.toString()
+                assertEquals("CMUX first needle\nCMUX second needle", copied.trim())
+            }
+            selectWord()
+            if (device.findObject(By.text("Clear selection")) == null) find(By.descContains("More options")).click()
+            device.takeScreenshot(File(evidence, "overflow-menu.png"))
+            find(By.text("Clear selection")).click()
+            check(device.wait(Until.gone(By.desc("PDF selection start")), 10_000))
+            check(device.wait(Until.gone(By.text(context.getString(android.R.string.copy))), 10_000))
+            assertEquals(page, find(By.desc("PDF page 1 of 2")).visibleBounds)
+        } } finally { file.delete() }
+    }
     @Test fun compatibilityTextSearchAndWordSelectionRespectCropAndAllPageRotations() {
         for (rotation in listOf(0, 90, 180, 270)) {
             val file = fixture(sourceRotation = rotation, crop = true)
