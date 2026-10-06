@@ -1,0 +1,279 @@
+{
+  "sources": {
+    "Nugine/simd@d74c030d9dc4f3cae02146d1f497ff62726ef09a": [
+      {
+        "path": "Nugine_simd-d74c030d9dc4/LICENSE",
+        "url": "https://raw.githubusercontent.com/Nugine/simd/d74c030d9dc4f3cae02146d1f497ff62726ef09a/LICENSE",
+        "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d"
+      }
+    ],
+    "OpenByteDev/dlopen2@cc80e4a0a90d499b677fdf7743699b4b3a43a989": [
+      {
+        "path": "OpenByteDev_dlopen2-cc80e4a0a90d/LICENSE",
+        "url": "https://raw.githubusercontent.com/OpenByteDev/dlopen2/cc80e4a0a90d499b677fdf7743699b4b3a43a989/LICENSE",
+        "sha256": "39fa265207450e77c62e90c5594a06c085b655d8374c7ced4bf7894b6bd95dd2"
+      }
+    ],
+    "cloudflare/boringtun@051c9d47dc9c5cb36e461b7d36dcd673820dc98b": [
+      {
+        "path": "cloudflare_boringtun-051c9d47dc9c/LICENSE.md",
+        "url": "https://raw.githubusercontent.com/cloudflare/boringtun/051c9d47dc9c5cb36e461b7d36dcd673820dc98b/LICENSE.md",
+        "sha256": "6dbef24708bad8c727bd80cca58ba8aa1637cdcb2cc6e9a31ea49235717e9391"
+      }
+    ],
+    "jni-rs/jni-rs@33045a124105c939d1e2cbdcb5a39e5d868ffa03": [
+      {
+        "path": "jni-rs_jni-rs-33045a124105/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/jni-rs/jni-rs/33045a124105c939d1e2cbdcb5a39e5d868ffa03/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "path": "jni-rs_jni-rs-33045a124105/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/jni-rs/jni-rs/33045a124105c939d1e2cbdcb5a39e5d868ffa03/LICENSE-MIT",
+        "sha256": "fea1d5bf3dd71605ce5d7d2ff695c1837e914c77195e523a86b5391716477960"
+      }
+    ],
+    "jni-rs/jni-rs@5ae9458a4ec44c5318f37ddc7569c1d4ae8a69e7": [
+      {
+        "path": "jni-rs_jni-rs-5ae9458a4ec4/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/jni-rs/jni-rs/5ae9458a4ec44c5318f37ddc7569c1d4ae8a69e7/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "path": "jni-rs_jni-rs-5ae9458a4ec4/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/jni-rs/jni-rs/5ae9458a4ec44c5318f37ddc7569c1d4ae8a69e7/LICENSE-MIT",
+        "sha256": "fea1d5bf3dd71605ce5d7d2ff695c1837e914c77195e523a86b5391716477960"
+      }
+    ],
+    "jni-rs/jni-sys@64d77b7a5f119d7b55b4e2c169a4668067ff59e6": [
+      {
+        "path": "jni-rs_jni-sys-64d77b7a5f11/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/jni-rs/jni-sys/64d77b7a5f119d7b55b4e2c169a4668067ff59e6/LICENSE-APACHE",
+        "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+      },
+      {
+        "path": "jni-rs_jni-sys-64d77b7a5f11/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/jni-rs/jni-sys/64d77b7a5f119d7b55b4e2c169a4668067ff59e6/LICENSE-MIT",
+        "sha256": "1d85bd754b04ceec93e98e890edd1fa3c6a22e81bcb32135806beeccefa51cd1"
+      }
+    ],
+    "knurling-rs/defmt@4a8cdb44891ed57b8ff5a023b6bec7137c48708f": [
+      {
+        "path": "knurling-rs_defmt-4a8cdb44891e/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/knurling-rs/defmt/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-APACHE",
+        "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90"
+      },
+      {
+        "path": "knurling-rs_defmt-4a8cdb44891e/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/knurling-rs/defmt/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-MIT",
+        "sha256": "2710a622a896bba67356913d4d0492cab5465f61b2ecce6d880aeb483834fb50"
+      }
+    ],
+    "n0-computer/iroh@e5c710a29fbd06bdce35fd23ad94d04a62acf15a": [
+      {
+        "path": "n0-computer_iroh-e5c710a29fbd/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/n0-computer/iroh/e5c710a29fbd06bdce35fd23ad94d04a62acf15a/LICENSE-APACHE",
+        "sha256": "903131e2786f073a942fbf8fae122d9e576e4dad758c6da7f9f2ba58fd8611ab"
+      },
+      {
+        "path": "n0-computer_iroh-e5c710a29fbd/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/n0-computer/iroh/e5c710a29fbd06bdce35fd23ad94d04a62acf15a/LICENSE-MIT",
+        "sha256": "f169adb8124d3b005416d8485d00777c9a7bdd9099982c52a4493f9732e6d050"
+      }
+    ],
+    "n0-computer/iroh-metrics@a9afb7cd49bb3804fffefec61647993851f9b8c8": [
+      {
+        "path": "n0-computer_iroh-metrics-a9afb7cd49bb/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/n0-computer/iroh-metrics/a9afb7cd49bb3804fffefec61647993851f9b8c8/LICENSE-APACHE",
+        "sha256": "7953ad8cebf4e01199521a5faa221ef59bec5cee0a9856b179590613a8560cbc"
+      },
+      {
+        "path": "n0-computer_iroh-metrics-a9afb7cd49bb/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/n0-computer/iroh-metrics/a9afb7cd49bb3804fffefec61647993851f9b8c8/LICENSE-MIT",
+        "sha256": "339060c99d5c80c2742cae417f765980afe6b0149a78f959bbf2a79f19ab3af5"
+      }
+    ],
+    "n0-computer/n0-error@56019f01cd4c838edccd9f9b074953a45d87b6ef": [
+      {
+        "path": "n0-computer_n0-error-56019f01cd4c/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/n0-computer/n0-error/56019f01cd4c838edccd9f9b074953a45d87b6ef/LICENSE-APACHE",
+        "sha256": "7953ad8cebf4e01199521a5faa221ef59bec5cee0a9856b179590613a8560cbc"
+      },
+      {
+        "path": "n0-computer_n0-error-56019f01cd4c/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/n0-computer/n0-error/56019f01cd4c838edccd9f9b074953a45d87b6ef/LICENSE-MIT",
+        "sha256": "339060c99d5c80c2742cae417f765980afe6b0149a78f959bbf2a79f19ab3af5"
+      }
+    ],
+    "n0-computer/net-tools@051ab8761006d7f2155e34a49f6bb881b582d5ab": [
+      {
+        "path": "n0-computer_net-tools-051ab8761006/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/n0-computer/net-tools/051ab8761006d7f2155e34a49f6bb881b582d5ab/LICENSE-APACHE",
+        "sha256": "7986218ec4ea89de3511a843ae27fea2584a525036c220ff7b26589179f07888"
+      },
+      {
+        "path": "n0-computer_net-tools-051ab8761006/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/n0-computer/net-tools/051ab8761006d7f2155e34a49f6bb881b582d5ab/LICENSE-MIT",
+        "sha256": "33616ec4c88b6e00de66e6c06f1a55d80bb32a9d7939f3aa83d28e673a1adcae"
+      }
+    ],
+    "rust-lang/rust@59807616e1fa2540724bfbac14d7976d7e4a3860": [
+      {
+        "path": "rust-lang_rust-59807616e1fa/COPYRIGHT",
+        "url": "https://raw.githubusercontent.com/rust-lang/rust/59807616e1fa2540724bfbac14d7976d7e4a3860/COPYRIGHT",
+        "sha256": "172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af"
+      },
+      {
+        "path": "rust-lang_rust-59807616e1fa/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/rust-lang/rust/59807616e1fa2540724bfbac14d7976d7e4a3860/LICENSE-APACHE",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "path": "rust-lang_rust-59807616e1fa/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/rust-lang/rust/59807616e1fa2540724bfbac14d7976d7e4a3860/LICENSE-MIT",
+        "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1"
+      }
+    ],
+    "rust-windowing/android-ndk-rs@10f2ba388fca20f7349996ebae26ccda7a6fda5c": [
+      {
+        "path": "rust-windowing_android-ndk-rs-10f2ba388fca/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/rust-windowing/android-ndk-rs/10f2ba388fca20f7349996ebae26ccda7a6fda5c/LICENSE-APACHE",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      {
+        "path": "rust-windowing_android-ndk-rs-10f2ba388fca/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/rust-windowing/android-ndk-rs/10f2ba388fca20f7349996ebae26ccda7a6fda5c/LICENSE-MIT",
+        "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1"
+      }
+    ],
+    "simdutf/simdutf@ca7acbcea967b5dcbab490066e99e3a6e6925539": [
+      {
+        "path": "simdutf_simdutf-ca7acbcea967/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/simdutf/simdutf/ca7acbcea967b5dcbab490066e99e3a6e6925539/LICENSE-APACHE",
+        "sha256": "3d34610fc6b5e1b0bfe4e2f36171c2d62c28ef05cb8d704f5a0073be41a43b3d"
+      },
+      {
+        "path": "simdutf_simdutf-ca7acbcea967/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/simdutf/simdutf/ca7acbcea967b5dcbab490066e99e3a6e6925539/LICENSE-MIT",
+        "sha256": "fc8dbc04e03ad4efc08a647ffe7f995b811a95bc04c0e85a56d5277c6593fa5f"
+      }
+    ],
+    "Eolu/enum-assoc@86210298260d2753688015d2f7e4bda704f4af6d": [
+      {
+        "path": "enum-assoc-1.3.0/Cargo.toml",
+        "url": "https://raw.githubusercontent.com/Eolu/enum-assoc/86210298260d2753688015d2f7e4bda704f4af6d/Cargo.toml",
+        "sha256": "4406a1e1af8842aae14dec3576d9692ae22fb8f02284bbd7ed193db3812a30c3"
+      }
+    ],
+    "jacobsandlund/uucode@2826a37a4562284fdacd8fa029d49509cc9bffcd": [
+      {
+        "path": "uucode-2826a37a4562/LICENSE_Bjoern_Hoehrmann",
+        "url": "https://raw.githubusercontent.com/jacobsandlund/uucode/2826a37a4562284fdacd8fa029d49509cc9bffcd/licenses/LICENSE_Bjoern_Hoehrmann",
+        "sha256": "de219cece932aad5a817bf763393d8d149d378a15d2ad5320e3331eac07626dd"
+      },
+      {
+        "path": "uucode-2826a37a4562/LICENSE_unicode",
+        "url": "https://raw.githubusercontent.com/jacobsandlund/uucode/2826a37a4562284fdacd8fa029d49509cc9bffcd/licenses/LICENSE_unicode",
+        "sha256": "1eda5a3b026870c737b22e8bcd4954338612c790db688242e003f41a4fa95175"
+      }
+    ],
+    "manaflow-ai/ghostty@324c0273815ddc383d8d2fbf8d59d590cb65dfdb": [
+      {
+        "path": "simdutf-embedded/NOTICE-pytorch.txt",
+        "url": "https://github.com/manaflow-ai/ghostty/blob/324c0273815ddc383d8d2fbf8d59d590cb65dfdb/pkg/simdutf/vendor/simdutf.h",
+        "extraction": "Complete From pytorch license comment",
+        "sha256": "204bbed08ddeeecb362b4da36d3479a0167b7356a9d6024a24f9833affbe228a"
+      }
+    ],
+    "rust-std-1.95.0-aarch64-linux-android": [
+      {
+        "path": "rust-std-1.95.0/COPYRIGHT",
+        "url": "https://static.rust-lang.org/dist/rust-std-1.95.0-aarch64-linux-android.tar.xz",
+        "archiveSha256": "de5e8fa5d955809891eea77682811fc90be705f78883bd94071e98f5a738d05b",
+        "archivePath": "rust-std-1.95.0-aarch64-linux-android/COPYRIGHT",
+        "sha256": "172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af"
+      }
+    ]
+  },
+  "packages": {
+    "boringtun-0.7.1": [
+      "cloudflare_boringtun-051c9d47dc9c/LICENSE.md"
+    ],
+    "defmt-parser-1.0.0": [
+      "knurling-rs_defmt-4a8cdb44891e/LICENSE-APACHE",
+      "knurling-rs_defmt-4a8cdb44891e/LICENSE-MIT"
+    ],
+    "dlopen2-0.8.2": [
+      "OpenByteDev_dlopen2-cc80e4a0a90d/LICENSE"
+    ],
+    "iroh-base-1.0.3": [
+      "n0-computer_iroh-e5c710a29fbd/LICENSE-APACHE",
+      "n0-computer_iroh-e5c710a29fbd/LICENSE-MIT"
+    ],
+    "iroh-dns-1.0.3": [
+      "n0-computer_iroh-e5c710a29fbd/LICENSE-APACHE",
+      "n0-computer_iroh-e5c710a29fbd/LICENSE-MIT"
+    ],
+    "iroh-metrics-derive-1.0.1": [
+      "n0-computer_iroh-metrics-a9afb7cd49bb/LICENSE-APACHE",
+      "n0-computer_iroh-metrics-a9afb7cd49bb/LICENSE-MIT"
+    ],
+    "jni-0.22.4": [
+      "jni-rs_jni-rs-5ae9458a4ec4/LICENSE-APACHE",
+      "jni-rs_jni-rs-5ae9458a4ec4/LICENSE-MIT"
+    ],
+    "jni-macros-0.22.4": [
+      "jni-rs_jni-rs-33045a124105/LICENSE-APACHE",
+      "jni-rs_jni-rs-33045a124105/LICENSE-MIT"
+    ],
+    "jni-sys-macros-0.4.1": [
+      "jni-rs_jni-sys-64d77b7a5f11/LICENSE-APACHE",
+      "jni-rs_jni-sys-64d77b7a5f11/LICENSE-MIT"
+    ],
+    "n0-error-macros-1.0.0": [
+      "n0-computer_n0-error-56019f01cd4c/LICENSE-APACHE",
+      "n0-computer_n0-error-56019f01cd4c/LICENSE-MIT"
+    ],
+    "ndk-context-0.1.1": [
+      "rust-windowing_android-ndk-rs-10f2ba388fca/LICENSE-APACHE",
+      "rust-windowing_android-ndk-rs-10f2ba388fca/LICENSE-MIT"
+    ],
+    "netwatch-0.19.1": [
+      "n0-computer_net-tools-051ab8761006/LICENSE-APACHE",
+      "n0-computer_net-tools-051ab8761006/LICENSE-MIT"
+    ],
+    "portmapper-0.19.1": [
+      "n0-computer_net-tools-051ab8761006/LICENSE-APACHE",
+      "n0-computer_net-tools-051ab8761006/LICENSE-MIT"
+    ],
+    "uuid-simd-0.8.0": [
+      "Nugine_simd-d74c030d9dc4/LICENSE"
+    ],
+    "vsimd-0.8.0": [
+      "Nugine_simd-d74c030d9dc4/LICENSE"
+    ],
+    "enum-assoc-1.3.0": [
+      "enum-assoc-1.3.0/Cargo.toml",
+      "rust-lang_rust-59807616e1fa/LICENSE-APACHE"
+    ]
+  },
+  "additional": {
+    "rust-runtime-1.95.0": [
+      "rust-lang_rust-59807616e1fa/COPYRIGHT",
+      "rust-lang_rust-59807616e1fa/LICENSE-APACHE",
+      "rust-lang_rust-59807616e1fa/LICENSE-MIT",
+      "rust-std-1.95.0/COPYRIGHT"
+    ],
+    "simdutf-9.0.0": [
+      "simdutf_simdutf-ca7acbcea967/LICENSE-APACHE",
+      "simdutf_simdutf-ca7acbcea967/LICENSE-MIT"
+    ],
+    "uucode-embedded-notices": [
+      "uucode-2826a37a4562/LICENSE_Bjoern_Hoehrmann",
+      "uucode-2826a37a4562/LICENSE_unicode"
+    ],
+    "simdutf-embedded": [
+      "simdutf-embedded/NOTICE-pytorch.txt"
+    ]
+  }
+}

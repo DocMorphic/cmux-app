@@ -32,7 +32,7 @@ jobs:
             build/cloud-terminal-android/rustls-platform-verifier-0.1.1.aar
             build/cloud-terminal-android/jniLibs
             build/cloud-terminal-android/notices
-          key: cloud-checkpoint-v1-${{ hashFiles('scripts/native/cloud-*.rs', 'scripts/*cloud*.py', 'scripts/verify-native-alignment.py', 'app/src/main/c/cloud_terminal_jni.c') }}
+          key: cloud-checkpoint-v1-${{ hashFiles('scripts/native/cloud-*.rs', 'scripts/*cloud*.py', 'third_party/cloud-notices/**', 'scripts/verify-native-alignment.py', 'app/src/main/c/cloud_terminal_jni.c') }}
       - uses: actions/checkout@v4
         if: steps.checkpoint.outputs.cache-hit != 'true'
         with:

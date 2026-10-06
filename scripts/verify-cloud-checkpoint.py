@@ -14,6 +14,7 @@ SOURCES = {
     "androidRuntimeSha256": "scripts/native/cloud-android-runtime.rs",
     "androidTlsSha256": "scripts/native/cloud-android-tls.rs",
     "noticeCollectorSha256": "scripts/collect-cloud-notices.py",
+    "noticeSourcesSha256": "third_party/cloud-notices/sources.json",
 }
 REQUIRED = {"jniLibs/arm64-v8a/libcmux_terminal_client.so", "jniLibs/arm64-v8a/libcmux_cloud_jni.so",
             "rustls-platform-verifier-0.1.1.aar", "notices/licenses/CloudTerminal.txt",

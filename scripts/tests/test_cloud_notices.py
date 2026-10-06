@@ -28,4 +28,7 @@ class CloudNoticesTest(unittest.TestCase):
             third_party = nested / "NOTICE.txt"; third_party.write_text("third-party attribution")
             private = Path(directory) / "private"; private.write_text("not part of the package")
             (root / "LICENSE-external").symlink_to(private)
+            workflow = root / ".github/workflows"; workflow.mkdir(parents=True)
+            (workflow / "license.yml").write_text("not a license text")
+            (nested / "license.rs").write_text("// source code, not a license file")
             self.assertEqual(notices.legal_files(root), [license, third_party])

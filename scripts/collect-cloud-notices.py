@@ -9,12 +9,37 @@ import json
 from pathlib import Path
 import shutil
 
+SUPPLEMENTS = Path(__file__).resolve().parents[1] / "third_party/cloud-notices"
+# Audited GhosttyZig.initVt / SharedDeps.addSimd/addItijah at 324c027.
+# Font/theme/GTK packages downloaded by the full build graph are not VT inputs.
+VT_PACKAGES = (
+    "uucode-0.2.0-ZZjBPlK5VADj7fdoq7G8LIHzD5o6FSkcBXXrRWr4jnrA",
+    "itijah-0.2.1-keFZYUG4AwDBukws7ED5UquPdSOnzvHuvMnJWQdnycQ5",
+    "N-V-__8AAGmZhABbsPJLfbqrh6JTHsXhY6qCaLAQyx25e0XE",
+)
+
 
 def legal_files(root):
     return sorted(p for p in root.rglob("*") if p.is_file()
                   and p.name.upper().startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE", "COPYRIGHT", "UNLICENSE"))
                   and p.resolve().is_relative_to(root.resolve())
-                  and ".git" not in p.parts)
+                  and not any(part.startswith(".") for part in p.relative_to(root).parts)
+                  and p.suffix.lower() not in {".yml", ".yaml", ".json", ".rs", ".zig", ".c", ".h", ".cpp", ".py", ".js"})
+
+
+def supplements():
+    manifest = json.loads((SUPPLEMENTS / "sources.json").read_text())
+    validated = set()
+    for group in manifest["sources"].values():
+        for entry in group:
+            path = (SUPPLEMENTS / entry["path"]).resolve()
+            if not path.is_relative_to(SUPPLEMENTS.resolve()) or hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
+                raise ValueError("Supplemental Cloud notice hash/path mismatch")
+            validated.add(entry["path"])
+    for files in [*manifest["packages"].values(), *manifest["additional"].values()]:
+        if not set(files) <= validated:
+            raise ValueError("Unverified supplemental notice mapping")
+    return manifest
 
 
 def runtime_packages(metadata):
@@ -37,6 +62,7 @@ def collect(metadata, workspace, ghostty, zig, output):
     destination = output / "notices/licenses/cloud-terminal"
     destination.mkdir(parents=True, exist_ok=True)
     records, missing = [], []
+    supplemental = supplements()
 
     def preserve(label, root, files, info):
         names = []
@@ -70,20 +96,26 @@ def collect(metadata, workspace, ghostty, zig, output):
             root = Path(by_name["rustls-platform-verifier"]["manifest_path"]).parent
             files = legal_files(root)
             fallback = "paired rustls-platform-verifier crate"
+        key = f"{package['name']}-{package['version']}"
+        if not files and key in supplemental["packages"]:
+            root = SUPPLEMENTS
+            files = [root / name for name in supplemental["packages"][key]]
+            fallback = "pinned upstream supplement; see sources.json"
         preserve(f"cargo/{package['name']}-{package['version']}", root, files,
                  {"ecosystem": "cargo", "name": package["name"], "version": package["version"],
                   "source": package.get("source"), "license": package.get("license"), "fallback": fallback})
 
     preserve("ghostty", ghostty, [ghostty / "LICENSE"], {"ecosystem": "zig"})
     packages = ghostty / "zig-pkg"
-    if not packages.is_dir():
-        missing.append("ghostty/zig-pkg")
-    else:
-        for package in sorted(packages.iterdir()):
-            if package.is_dir():
-                preserve("zig/" + package.name, package, legal_files(package), {"ecosystem": "zig"})
+    for name in VT_PACKAGES:
+        package = packages / name
+        preserve("zig/" + name, package, legal_files(package) if package.is_dir() else [], {"ecosystem": "zig"})
+    for label, names in supplemental["additional"].items():
+        preserve("supplement/" + label, SUPPLEMENTS, [SUPPLEMENTS / name for name in names], {"ecosystem": "runtime", "provenance": "sources.json"})
+    shutil.copy2(SUPPLEMENTS / "sources.json", destination / "sources.json")
     preserve("zig-toolchain", zig.parent, [zig.parent / "LICENSE"], {"ecosystem": "compiler-runtime"})
     report = {"scope": "Target dependency closure including build dependencies; excludes dev-only Cargo edges",
+              "ghosttyScope": "Audited libghostty-vt imports, embedded SIMD/Unicode notices and compiler runtime",
               "components": records, "missingLicenseTexts": missing}
     report_path = destination / "inventory.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n")

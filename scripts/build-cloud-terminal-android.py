@@ -264,6 +264,7 @@ def main():
                "androidRuntimeSha256": digest(ROOT / "scripts/native/cloud-android-runtime.rs"),
                "androidTlsSha256": digest(ROOT / "scripts/native/cloud-android-tls.rs"),
                "noticeCollectorSha256": digest(notice_script), "notices": notice_receipt,
+               "noticeSourcesSha256": digest(ROOT / "third_party/cloud-notices/sources.json"),
                "scope": "C ABI library and alignment only; Android runtime, packaging and dependency notices review pending",
                "files": {str(path.relative_to(output)): digest(path) for path in artifacts}}
     (output / "manifest.json").write_text(json.dumps(receipt, indent=2) + "\n")
