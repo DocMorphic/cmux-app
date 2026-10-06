@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud machine rows and workspace recovery now receive live connection failures,
+  including attach/create/input/output errors, with stale-owner rejection and
+  current-tunnel subscriptions. Retry includes these failures while preserving
+  healthy connections. **47 JVM tests passed**; the new machine-row Android UI
+  case compiles but is pending runtime verification. No APK/emulator was built
+  or started in this batch. See `CLOUD_COMPANION.md`; real transport/physical
+  acceptance and autonomous-recovery comparison remain open.
+
 - Cloud explicit reconnect now waits for a newer verified catalog before attaching,
   retains the selected renderer and scopes creation failures to their machine.
   Attachment/creation user copy no longer includes raw native diagnostics.

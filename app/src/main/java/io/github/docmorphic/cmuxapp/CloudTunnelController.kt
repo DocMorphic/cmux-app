@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal enum class CloudTunnelPhase { IDLE, STARTING, READY, FAILED, CLOSED }
-internal data class CloudTunnelState(val phase: CloudTunnelPhase, val failure: CloudSessionFailure? = null)
+internal data class CloudTunnelState(val phase: CloudTunnelPhase, val failure: CloudSessionFailure? = null, val generation: Long = 0)
 
 /** Account-owned foreground lease with bounded startup and explicit retry.
  * create runs on the native dispatcher. Its final handle-producing call must be
@@ -47,12 +47,12 @@ internal class CloudTunnelController<T : AutoCloseable>(
     }
     fun retry() = synchronized(lock) {
         if (closed || !job.isActive || !isCurrent() || mutable.value.phase != CloudTunnelPhase.FAILED) return@synchronized
-        mutable.value = CloudTunnelState(CloudTunnelPhase.IDLE)
+        mutable.value = CloudTunnelState(CloudTunnelPhase.IDLE, generation = generation)
         if (wanted) startLocked()
     }
     private fun startLocked() {
         val attempt = ++generation
-        mutable.value = CloudTunnelState(CloudTunnelPhase.STARTING)
+        mutable.value = CloudTunnelState(CloudTunnelPhase.STARTING, generation = attempt)
         // Independent from the account job so native startup cannot hold account
         // cancellation open; cancellation still reaches its suspending HTTP stage.
         val worker = CoroutineScope(nativeDispatcher).launch(start = CoroutineStart.LAZY) {
@@ -65,7 +65,7 @@ internal class CloudTunnelController<T : AutoCloseable>(
                     if (!isActive || !admitted(attempt)) throw CancellationException("Cloud tunnel owner changed")
                     live = created; retained = true
                     timer?.cancel(); timer = null; startup = null
-                    mutable.value = CloudTunnelState(CloudTunnelPhase.READY)
+                    mutable.value = CloudTunnelState(CloudTunnelPhase.READY, generation = attempt)
                 }
             } catch (failure: Exception) { fail(attempt, failure) }
             catch (_: LinkageError) { fail(attempt, IllegalStateException("Cloud native runtime is unavailable")) }
@@ -86,7 +86,7 @@ internal class CloudTunnelController<T : AutoCloseable>(
         // startup and must offer retry rather than strand a wanted lease in IDLE.
         val reason = if (failure is CancellationException)
             IllegalStateException("Cloud tunnel startup was interrupted") else failure
-        mutable.value = CloudTunnelState(CloudTunnelPhase.FAILED, CloudSessionFailure.classify(reason, CloudFailureKind.TUNNEL))
+        mutable.value = CloudTunnelState(CloudTunnelPhase.FAILED, CloudSessionFailure.classify(reason, CloudFailureKind.TUNNEL), generation)
     }
     private fun stopLocked() {
         generation++
@@ -97,12 +97,12 @@ internal class CloudTunnelController<T : AutoCloseable>(
             CoroutineScope(nativeDispatcher).launch { owned.close() }
         }
         live = null
-        if (mutable.value.phase != CloudTunnelPhase.FAILED) mutable.value = CloudTunnelState(CloudTunnelPhase.IDLE)
+        if (mutable.value.phase != CloudTunnelPhase.FAILED) mutable.value = CloudTunnelState(CloudTunnelPhase.IDLE, generation = generation)
     }
     override fun close() = synchronized(lock) {
         if (closed) return@synchronized
         closed = true; wanted = false; stopLocked()
-        mutable.value = CloudTunnelState(CloudTunnelPhase.CLOSED)
+        mutable.value = CloudTunnelState(CloudTunnelPhase.CLOSED, generation = generation)
         job.cancel()
     }
 }

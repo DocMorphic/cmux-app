@@ -29,14 +29,14 @@ class CloudMachinesScreenTest {
         override fun close() {}
     }
     private fun mount(service: Service, machines: Map<String, CloudWorkspaceSnapshot> = emptyMap(),
-        onRetry: () -> Unit = {}, onPlans: (String?) -> Unit = {}) {
+        onRetry: () -> Unit = {}, connectionFailures: Map<String, CloudSessionFailure> = emptyMap(), onPlans: (String?) -> Unit = {}) {
         compose.runOnUiThread {
             controller = CloudMachinesController(scope, service, object : CloudCreateJournal {
                 override suspend fun resolve(options: CloudMachineCreateOptions) = "fixture-create"
                 override suspend fun complete(key: String) {}
             }, { true }).also { it.refresh() }
         }
-        compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface { NativeCloudScreen(controller, {}, onPlans, machines = machines, onRetryConnections = onRetry) } } }
+        compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface { NativeCloudScreen(controller, {}, onPlans, machines = machines, onRetryConnections = onRetry, connectionFailures = connectionFailures) } } }
     }
     @After fun stop() { compose.runOnUiThread { controller?.close(); scope.cancel() } }
     @Test fun creationUsesSelectedSizeAndShowsServerUsage() {
@@ -107,6 +107,19 @@ class CloudMachinesScreenTest {
         compose.onNodeWithTag("cloud.delete.confirm").performClick()
         compose.waitUntil(3000) { service.deletes.size == 1 }
         assertEquals(listOf("vm"), service.deletes)
+    }
+    @Test fun terminalFailureIsVisibleAndRetryableEvenWithAHealthyCatalog() {
+        val service = Service(); var retries = 0
+        val healthy = CloudWorkspaceSnapshot(service.rows.single(), availability = NativeFeedAvailability.CONNECTED, authoritative = true)
+        mount(service, mapOf("vm" to healthy), onRetry = { retries++ },
+            connectionFailures = mapOf("vm" to CloudSessionFailure("private attach diagnostic", kind = CloudFailureKind.LINK)))
+        compose.onNodeWithTag("cloud.connection.failure.vm", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Couldn't connect.").assertExists()
+        compose.onNodeWithText("Couldn't connect. Retrying automatically.").assertDoesNotExist()
+        compose.onNodeWithText("private attach diagnostic").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Actions for My machine").performClick()
+        compose.onNodeWithText("Try Again Now").performClick()
+        assertEquals(1, retries)
     }
     @Test fun failedMachineOffersRetryAndRefreshWithoutShowingPrivateDiagnostic() {
         val service = Service(); var retries = 0

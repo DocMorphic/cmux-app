@@ -38,7 +38,8 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
  * Delete always calls the parent's confirmation flow. Only one row stays open. */
 @Composable internal fun NativeCloudMachineRow(machine: CloudMachine, busy: Boolean,
     actionFailure: CloudMachineActionFailure?, connectionFailure: CloudSessionFailure?,
-    swipes: CloudMachineSwipeCoordinator, onRetry: () -> Unit, onAction: (CloudMachineAction) -> Unit) {
+    swipes: CloudMachineSwipeCoordinator, onRetry: () -> Unit, onAction: (CloudMachineAction) -> Unit,
+    automaticallyRetrying: Boolean = false) {
     var menu by remember(machine.id) { mutableStateOf(false) }
     var dragged by remember(machine.id) { mutableStateOf<Float?>(null) }
     val currentMachine by rememberUpdatedState(machine)
@@ -135,7 +136,7 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
                     color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
             }
             connectionFailure?.let {
-                Text("Couldn't connect. Retrying automatically.", color = Color(0xFFFFC071), fontSize = 13.sp,
+                Text(if (automaticallyRetrying) "Couldn't connect. Retrying automatically." else "Couldn't connect.", color = Color(0xFFFFC071), fontSize = 13.sp,
                     modifier = Modifier.testTag("cloud.connection.failure.${machine.id}"))
                 Text(it.userReason, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }

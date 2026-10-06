@@ -173,6 +173,7 @@ internal fun NativeScreen(
     val cloudController = cloudModel?.controller?.collectAsState()?.value
     val cloudTunnel = cloudModel?.tunnel?.collectAsState()?.value
     val cloudTunnelState = cloudTunnel?.state?.collectAsState()?.value
+    val cloudConnectionFailures = cloudModel?.connectionFailures?.collectAsState()?.value.orEmpty()
     val cloudWorkspaces = cloudModel?.workspaces?.collectAsState()?.value
     val allCloudSnapshots = cloudWorkspaces?.state?.collectAsState()?.value.orEmpty()
     val cloudVisibility = cloudModel?.visibility?.collectAsState()?.value
@@ -3809,7 +3810,8 @@ internal fun NativeScreen(
                                             .onFailure { android.widget.Toast.makeText(context, "No browser is available to open cmux.com/pricing", android.widget.Toast.LENGTH_LONG).show() } },
                                         modifier = Modifier.fillMaxSize(), connectionState = cloudTunnelState,
                                         onRetryConnection = { cloudTunnel?.retry() }, vpn = sharedConnections?.cloudVpn,
-                                        machines = allCloudSnapshots, onRetryConnections = { cloudWorkspaces?.let(cloudModel::retryConnections) })
+                                        machines = allCloudSnapshots, connectionFailures = cloudConnectionFailures,
+                                        onRetryConnections = { cloudWorkspaces?.let(cloudModel::retryConnections) })
                                 }
                             }
                             NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,

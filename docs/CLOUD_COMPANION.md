@@ -1355,3 +1355,51 @@ No native library sources changed in this batch; native checkpoint/16 KiB binary
 verification was not repeated. Published signed APK remains 616. Live attachment
 failure propagation into machine-list status, real recovery and the broader
 physical/UI acceptance gates remain open; full parity is not established.
+
+
+### Shared Cloud machine connection failures — 2026-10-06
+
+Compared CloudSessionController.connectionFailure/retryConnections and
+CloudMachineConnection's create, catalog and attach completion paths at scoped
+upstream `c2715faa`. The controller cache was SHA-256 matched to this source pin.
+iOS exposes the connection's last error to its machine row and clears it on a
+successful operation; bulk retry replaces failed links while retaining healthy
+ones. Android previously surfaced only catalog failures there.
+
+CloudMachineConnections now owns observable failures by machine. Catalog,
+creation and terminal operations report through the exact handshake owner.
+Results from a retired/replaced connection cannot overwrite or clear its
+successor's status. Canceled operations do not publish errors; retired machines
+and closed pools drop their status. A reporting terminal-link adapter forwards
+attach, input/resize rejection and output errors without changing attachment
+ownership. Successful attach/catalog/create clears that connection's failure;
+ordinary output and cleanup do not erase a prior failure.
+
+The account view model follows the current tunnel's failure stream and clears it
+on replacement/account retirement. Tunnel states now carry their generation:
+even if a slow observer misses intermediate idle/starting phases, a second READY
+resource is distinguishable and replaces the old failure subscription. Bulk
+retry includes live terminal failures as well as catalog failures, preserves
+healthy links and uses the previously verified fresh-catalog attachment gate.
+Machine rows and workspace panes receive this status. The shared terminal offers
+Reconnect for an explicit recovery error even while its shell is waiting, and
+Cloud avoids repeating the same terminal error in two places. Machine rows only
+say they are retrying automatically when a catalog failure has an active retry
+path; other live operation failures retain the explicit Try Again Now action.
+Further source/runtime comparison of autonomous terminal recovery remains open.
+
+Verification: **47 JVM tests passed in six suites**, zero failures/errors/skips
+(connection pool 7, reporting adapter 2, attachments 12, catalog 7, creation 9,
+tunnel 10). New cases cover per-machine clearing, stale success/failure callbacks,
+late uncancellable results, cancellation without error publication, real adapter
+error forwarding, and a READY-to-READY replacement whose intermediate phases are
+conflated. Existing ownership/input/mutation/retry cases passed. Main and Android
+test sources compile, including a new UI case for a live terminal failure with a
+healthy catalog and an explicit retry action. That new UI case has not run.
+Final verification took 31 seconds; local logs/XML are in
+`captures/runtime/cloud-connection-status/`.
+
+No APK build, emulator, physical device run or Cloud request occurred in this
+batch. Gradle was stopped. The full account UI/transport route, physical recovery,
+notifications provisioning, native billing and remaining iOS audit are still
+acceptance gates. Published signed APK remains 616; the full parity goal is active.

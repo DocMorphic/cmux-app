@@ -18,6 +18,23 @@ class CloudTunnelControllerTest {
         var retired = false
         override fun close() { closes.incrementAndGet() }
     }
+    @Test fun observersSeeAReplacementEvenWhenIntermediatePhasesAreConflated() = runTest {
+        val controller = CloudTunnelController(this, { true }, { Resource() },
+            nativeDispatcher = UnconfinedTestDispatcher(testScheduler))
+        val seen = mutableListOf<CloudTunnelState>()
+        try {
+            controller.setWanted(true)
+            backgroundScope.launch { controller.state.collect { seen += it } }
+            runCurrent()
+            val first = controller.resource()
+            controller.setWanted(false); controller.setWanted(true)
+            assertNotSame(first, controller.resource())
+            runCurrent()
+            assertEquals(2, seen.size)
+            assertTrue(seen.all { it.phase == CloudTunnelPhase.READY })
+            assertTrue(seen.last().generation > seen.first().generation)
+        } finally { controller.close(); runCurrent() }
+    }
     @Test fun leaseStartsOnceAndRetiresSynchronouslyBeforeAsynchronousClose() = runTest {
         val resources = mutableListOf<Resource>()
         val controller = CloudTunnelController(this, { true }, { Resource().also(resources::add) },

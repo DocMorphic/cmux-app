@@ -13,13 +13,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
     val row = snapshot?.rows?.singleOrNull { it.key == route.workspaceId }
     val shown = terminal
     val creationError = creationState?.failureFor(route.host.machineId)
+    val connectionFailures by model.connectionFailures.collectAsState()
+    val connectionError = connectionFailures[route.host.machineId]?.userReason ?: snapshot?.failure?.userReason
     if (row == null || shown == null || row.workspace.terminals.none { it.id == shown.id }) {
         NativeWorkspaceWaitingPane(row?.workspace?.title ?: "Cloud workspace unavailable", onBack = model::leaveWorkspace,
             connected = snapshot?.availability == NativeFeedAvailability.CONNECTED,
-            connectionError = creationError ?: snapshot?.failure?.userReason,
+            connectionError = creationError ?: connectionError,
             onReconnect = { model.retryConnection(route.host.machineId, route.catalogOwner) })
     } else key(shown) {
-        SshShellScreen(shown, reconnectError = creationError, onReconnect = { model.retryConnection(route.host.machineId, route.catalogOwner) },
+        val state by shown.state.collectAsState()
+        SshShellScreen(shown, reconnectError = creationError ?: connectionError?.takeUnless { it == state.error },
+            onReconnect = { model.retryConnection(route.host.machineId, route.catalogOwner) },
             panePicker = {
                 NativePanePicker(shown.title, row.workspace,
                     NativeWorkspacePane(terminal = row.workspace.terminals.singleOrNull { it.id == shown.id }),

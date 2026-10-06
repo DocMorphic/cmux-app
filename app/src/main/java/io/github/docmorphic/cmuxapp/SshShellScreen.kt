@@ -167,7 +167,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         }
         if (reconnecting) LinearProgressIndicator(Modifier.fillMaxWidth())
         reconnectError?.let { Text(it, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.error) }
-        if (state.phase == SshShellPhase.ENDED && onReconnect != null) {
+        if ((state.phase == SshShellPhase.ENDED || reconnectError != null) && onReconnect != null) {
             TextButton(onClick = onReconnect, enabled = !reconnecting, modifier = Modifier.testTag("ssh.shell.reconnect")) { Text("Reconnect") }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {

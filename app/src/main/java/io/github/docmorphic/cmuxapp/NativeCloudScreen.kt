@@ -31,7 +31,8 @@ private val cloudMuted = Color(0xFF9B9FA8)
 @Composable internal fun NativeCloudScreen(controller: CloudMachinesController?, onSettings: () -> Unit,
     onPlans: (String?) -> Unit, modifier: Modifier = Modifier, connectionState: CloudTunnelState? = null,
     onRetryConnection: () -> Unit = {}, onBasics: (() -> Unit)? = null, vpnControl: (@Composable () -> Unit)? = null,
-    machines: Map<String, CloudWorkspaceSnapshot> = emptyMap(), onRetryConnections: () -> Unit = {}) {
+    machines: Map<String, CloudWorkspaceSnapshot> = emptyMap(), onRetryConnections: () -> Unit = {},
+    connectionFailures: Map<String, CloudSessionFailure> = emptyMap()) {
     key(controller) {
         val state = controller?.state?.collectAsState()?.value ?: CloudMachinesState()
         val swipes = remember(controller) { CloudMachineSwipeCoordinator() }
@@ -88,8 +89,10 @@ private val cloudMuted = Color(0xFF9B9FA8)
                     items(state.catalog.machines, key = { it.id }) { machine ->
                         NativeCloudMachineRow(machine, machine.id in state.actions,
                             actionFailure = state.actionFailure?.takeIf { it.machineId == machine.id },
-                            connectionFailure = machines[machine.id]?.takeIf { it.machine == machine && machine.lifecycle == CloudMachineLifecycle.RUNNING }?.failure,
+                            connectionFailure = if (machine.lifecycle == CloudMachineLifecycle.RUNNING)
+                                connectionFailures[machine.id] ?: machines[machine.id]?.takeIf { it.machine == machine }?.failure else null,
                             swipes = swipes, onRetry = onRetryConnections,
+                            automaticallyRetrying = machines[machine.id]?.takeIf { it.machine == machine }?.failure != null,
                             onAction = { action -> if (action == CloudMachineAction.DELETE) deleteId = machine.id
                                 else controller.act(machine.id, action) })
                     }
