@@ -2489,7 +2489,7 @@ internal fun NativeScreen(
                             !createMenuOpen && !computerMenuOpen && !workspaceFilterMenuOpen && !notificationFilterMenu,
                         archive = showWhatsNew && showSettings && signedIn && !showOnboarding && !onboardingExplicitRoute,
                         onCloseArchive = { showWhatsNew = false }, policy = displayPolicy,
-                        webArchive = whatsNewModel?.webArchive,
+                        webArchive = whatsNewModel?.webArchive, replay = whatsNewModel?.replay,
                         isOwnerCurrent = { login -> account.isSignedIn() && store.taskSession() == login },
                         sessionCookies = noticeBroker::cookies)
                 } }

@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native notice UI now follows the iOS archive regular/compact/scroll tiers and
+  separate compact launch-sheet layout, with feature symbols, centered headings,
+  announcement badges and a stable/nightly pairing compatibility section.
+  Debug replay selects and freezes an update range without real acknowledgement.
+  **31 focused JVM cases and main/instrumentation compilation passed.**
+  New archive fitting/accessibility and replay marker checks are queued for the
+  combined feed/UI integration milestone. See [NOTICE_LAYOUT_REPLAY.md](NOTICE_LAYOUT_REPLAY.md).
+
 - Android What's New now fetches an Android-owned feed from this public repo.
   The initial feed preserves the existing two native IDs, with no new release
   claims or production override. Anonymous bounded HTTP, full-endpoint cache

@@ -12,6 +12,7 @@ import java.util.Locale
 internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
     private val feed = NativeWhatsNewFeed()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val replay = if (BuildConfig.DEBUG) NativeWhatsNewReplay() else null
     val webArchive = NativeNoticeArchiveOwner(context.applicationContext, scope)
     private var webOwner: String? = null
     private var isWebOwnerCurrent: (String) -> Boolean = { false }
@@ -43,7 +44,7 @@ internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
             withContext(Dispatchers.IO) { loaded.refresh(feed::fetch) }
         }
     }
-    override fun onCleared() { feed.close(); presentation?.close(); webArchive.close(); scope.cancel(); mutable.value?.close() }
+    override fun onCleared() { feed.close(); replay?.dismiss(); presentation?.close(); webArchive.close(); scope.cancel(); mutable.value?.close() }
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass == NativeWhatsNewViewModel::class.java)

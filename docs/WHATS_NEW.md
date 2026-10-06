@@ -8,6 +8,11 @@ and its linked recovery notes. The Android feed integration below now configures
 live metadata; physical cold-start, authenticated web and signed-upgrade acceptance
 remain open. The global parity pin is unchanged.
 
+Native archive fitting, compact launch content, feature symbols, pairing layout
+and debug replay were subsequently added in [NOTICE_LAYOUT_REPLAY.md](NOTICE_LAYOUT_REPLAY.md).
+Its queued runtime checks must be completed before treating the earlier layout
+screenshots below as evidence for the new implementation.
+
 ## Android-owned announcement feed — 2026-10-06
 
 `NativeWhatsNewViewModel` now fetches the public Android feed described in

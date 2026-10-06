@@ -1,10 +1,14 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -29,6 +33,63 @@ class NativeWhatsNewUiTest {
         i.uiAutomation.takeScreenshot().let { bitmap ->
             java.io.File(directory, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
+        }
+    }
+    @Test fun archiveChoosesRegularCompactThenScrollWithoutDuplicateAccessibleRows() {
+        val page = WhatsNewPage("fit", "Update", WhatsNewBody.Features((1..3).map {
+            WhatsNewFeature("Feature $it", "A short explanation.", "terminal")
+        }), kind = WhatsNewKind.ANNOUNCEMENT)
+        var height by mutableIntStateOf(620)
+        compose.setContent { CmuxTheme {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1f)) {
+                Box(Modifier.size(width = 360.dp, height = height.dp)) {
+                    NativeWhatsNewPageBody(page, NativeMacCompatibilityPolicy.baked)
+                }
+            }
+        } }
+        compose.onNodeWithTag("whatsnew.layout.regular").assertIsDisplayed()
+        compose.onAllNodesWithText("Feature 1").assertCountEquals(1)
+        compose.onNodeWithTag("whatsnew.announcement").assertIsDisplayed()
+        capture("archive-regular")
+        compose.runOnIdle { height = 330 }
+        compose.onNodeWithTag("whatsnew.layout.compact").assertIsDisplayed()
+        compose.onNodeWithText("Feature 3").assertIsDisplayed()
+        compose.onAllNodesWithText("Feature 1").assertCountEquals(1)
+        capture("archive-compact")
+        compose.runOnIdle { height = 120 }
+        compose.onNodeWithTag("whatsnew.layout.scroll").assertIsDisplayed()
+        compose.onNodeWithText("Feature 3").performScrollTo().assertIsDisplayed()
+        capture("archive-scroll")
+    }
+
+    @Test fun debugReplayShowsFrozenRangeWithoutAcknowledgingRealUpdates() {
+        val store = Store()
+        val center = NativeWhatsNewCenter(NativeWhatsNewCatalog.pages, "0.2.0", WhatsNewChannel.DEV, store)
+        runBlocking { center.refresh() }
+        val presentation = NativeWhatsNewPresentation(center)
+        val replay = NativeWhatsNewReplay()
+        compose.setContent { CmuxTheme {
+            NativeWhatsNewHost(center, presentation, "account", false, true, {}, NativeMacCompatibilityPolicy.baked,
+                replay = replay)
+        } }
+        compose.onNodeWithTag("whatsnew.replay.open").performClick()
+        compose.onNodeWithTag("whatsnew.replay.show").performClick()
+        compose.onNodeWithTag("whatsnew.sheet").assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(2, replay.state.value!!.pages.size)
+            assertEquals(2, center.state.value.unseen.size)
+            assertNull(store.values[NativeWhatsNewCenter.MARKER])
+        }
+        compose.onNodeWithTag("whatsnew.continue").performClick()
+        compose.onNodeWithTag("whatsnew.title.entry:android.pairing.iroh-v2").assertIsDisplayed()
+        capture("debug-replay-pairing")
+        compose.onNodeWithTag("whatsnew.continue").performClick()
+        compose.onNodeWithTag("whatsnew.sheet").assertDoesNotExist()
+        compose.runOnIdle {
+            assertNull(replay.state.value)
+            assertEquals(2, center.state.value.unseen.size)
+            assertNull(store.values[NativeWhatsNewCenter.MARKER])
         }
     }
     @Test fun selectedNativeContentResizesSheetAndLongPageKeepsControlsVisible() {

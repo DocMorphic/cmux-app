@@ -6,9 +6,9 @@ internal object NativeWhatsNewCatalog {
         WhatsNewPage(
             id = "android.introduction.0.2.0", title = "Get started with cmux", releaseLabel = "Android 0.2.0",
             body = WhatsNewBody.Features(listOf(
-                WhatsNewFeature("A guided introduction", "Walk through workspaces, notifications and connecting your Mac. You can replay the introduction from Settings."),
-                WhatsNewFeature("Computers while offline", "Previously saved computers stay visible when discovery is unavailable."),
-                WhatsNewFeature("Help for empty workspaces", "Find Mac setup guidance and retry loading your workspaces from an empty list.")
+                WhatsNewFeature("A guided introduction", "Walk through workspaces, notifications and connecting your Mac. You can replay the introduction from Settings.", "book.closed"),
+                WhatsNewFeature("Computers while offline", "Previously saved computers stay visible when discovery is unavailable.", "desktopcomputer"),
+                WhatsNewFeature("Help for empty workspaces", "Find Mac setup guidance and retry loading your workspaces from an empty list.", "rectangle.stack")
             )), minVersion = "0.2.0"
         ),
         WhatsNewPage(
