@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 internal data class CloudWorkspaceSnapshot(val machine: CloudMachine,
     val catalog: CloudWorkspaceCatalog = CloudWorkspaceCatalog(emptyList(), emptyList()),
     val availability: NativeFeedAvailability = NativeFeedAvailability.CONNECTING,
-    val authoritative: Boolean = false, val failure: CloudSessionFailure? = null) {
+    val authoritative: Boolean = false, val failure: CloudSessionFailure? = null,
+    val catalogRevision: Long = 0) {
     val rows get() = projectCloudWorkspaces(machine, catalog)
 }
 
@@ -67,7 +68,8 @@ internal class CloudWorkspaceController(parent: CoroutineScope, private val isCu
         if (machine.lifecycle != CloudMachineLifecycle.RUNNING) {
             publish(CloudWorkspaceSnapshot(machine, availability = NativeFeedAvailability.OFFLINE, authoritative = true))
         } else publish(CloudWorkspaceSnapshot(machine, lastCatalogs[machine.id] ?: CloudWorkspaceCatalog(emptyList(), emptyList()),
-            if (failure == null) NativeFeedAvailability.CONNECTING else NativeFeedAvailability.OFFLINE, false, failure))
+            if (failure == null) NativeFeedAvailability.CONNECTING else NativeFeedAvailability.OFFLINE, false, failure,
+            mutable.value[machine.id]?.catalogRevision ?: 0))
     }
     fun refresh(id: String) {
         if (!current()) return
@@ -84,7 +86,7 @@ internal class CloudWorkspaceController(parent: CoroutineScope, private val isCu
                         ensureActive()
                         if (!admitted(id, at)) return@launch
                         lastCatalogs[id] = catalog
-                        publish(CloudWorkspaceSnapshot(machines.single { it.id == id }, catalog, NativeFeedAvailability.CONNECTED, true))
+                        publish(CloudWorkspaceSnapshot(machines.single { it.id == id }, catalog, NativeFeedAvailability.CONNECTED, true, catalogRevision = at))
                         return@launch
                     } catch (failure: Exception) {
                         ensureActive()
@@ -127,7 +129,7 @@ internal class CloudWorkspaceController(parent: CoroutineScope, private val isCu
             currentCoroutineContext().ensureActive()
             if (!admitted(id, at) || creationEpoch(id) != epoch) null else {
                 lastCatalogs[id] = loaded
-                publish(CloudWorkspaceSnapshot(machines.single { it.id == id }, loaded, NativeFeedAvailability.CONNECTED, true))
+                publish(CloudWorkspaceSnapshot(machines.single { it.id == id }, loaded, NativeFeedAvailability.CONNECTED, true, catalogRevision = at))
                 loaded
             }
         } catch (failure: CancellationException) { throw failure }

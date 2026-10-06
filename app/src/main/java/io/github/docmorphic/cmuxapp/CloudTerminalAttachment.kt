@@ -26,7 +26,7 @@ internal class NativeCloudTerminalLink(private val session: CloudNativeSession) 
 }
 internal enum class CloudAttachmentPhase { IDLE, CONNECTING, READY, FAILED, EXITED, CLOSED }
 internal data class CloudAttachmentState(val terminalId: String? = null, val phase: CloudAttachmentPhase = CloudAttachmentPhase.IDLE,
-    val pendingBytes: Int = 0, val failure: String? = null)
+    val pendingBytes: Int = 0, val failure: CloudSessionFailure? = null)
 
 /** One machine's single native attachment slot, independent of view collectors.
  * Blocking attach runs on an independent worker. Its serial slot and native token
@@ -74,7 +74,7 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
             if (mutable.value.terminalId != null && mutable.value.phase != CloudAttachmentPhase.EXITED) startLocked()
         } else {
             cancelLocked(); clearPending(); appliedGrid = null
-            mutable.value = mutable.value.copy(phase = if (mutable.value.terminalId == null) CloudAttachmentPhase.IDLE else CloudAttachmentPhase.CONNECTING, pendingBytes = 0)
+            mutable.value = mutable.value.copy(phase = if (mutable.value.terminalId == null) CloudAttachmentPhase.IDLE else CloudAttachmentPhase.CONNECTING, pendingBytes = 0, failure = null)
         }
     }
     fun replay() = synchronized(lock) {
@@ -189,10 +189,9 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
                     } finally { commands.cancel() }
                 }
             } catch (failure: Exception) {
-                fail(at, if (failure is CancellationException) "Cloud terminal attachment was interrupted" else
-                    failure.message?.take(2048) ?: "Cloud terminal disconnected")
+                fail(at, CloudSessionFailure.classify(failure, CloudFailureKind.LINK))
             } catch (_: LinkageError) {
-                fail(at, "Cloud native runtime is unavailable")
+                fail(at, CloudSessionFailure("Cloud native runtime is unavailable", kind = CloudFailureKind.LINK))
             } finally {
                 val live = link; val token = attachment
                 if (live != null && token != null) withContext(NonCancellable) {
@@ -203,10 +202,10 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
         }
         worker = task; task.start()
     }
-    private fun fail(at: Long, message: String) = synchronized(lock) {
+    private fun fail(at: Long, failure: CloudSessionFailure) = synchronized(lock) {
         if (admitted(at)) {
             clearPending(); repaint?.cancel(); repaint = null
-            mutable.value = mutable.value.copy(phase = CloudAttachmentPhase.FAILED, pendingBytes = 0, failure = message)
+            mutable.value = mutable.value.copy(phase = CloudAttachmentPhase.FAILED, pendingBytes = 0, failure = failure)
         }
     }
     private fun scheduleRepaint(at: Long) {

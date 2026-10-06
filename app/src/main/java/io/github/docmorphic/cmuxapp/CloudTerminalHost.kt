@@ -14,6 +14,8 @@ internal class CloudTerminalHost(parent: CoroutineScope, val machineId: String,
     val selected = mutable.asStateFlow()
     private var closed = false
     private var foreground = false
+    private var lastCatalogRevision = 0L
+    private var reconnectAfterRevision: Long? = null
     private val attachment = CloudTerminalAttachment(scope, { !closed && current() }, connect, { terminal, event ->
         mutable.value?.takeIf { it.remoteId == terminal }?.receive(event)
     })
@@ -38,6 +40,10 @@ internal class CloudTerminalHost(parent: CoroutineScope, val machineId: String,
     fun reconcile(snapshot: CloudWorkspaceSnapshot?, inForeground: Boolean, tunnelReady: Boolean) {
         if (closed) return
         foreground = inForeground
+        if (snapshot?.authoritative == true && snapshot.availability == NativeFeedAvailability.CONNECTED) {
+            lastCatalogRevision = maxOf(lastCatalogRevision, snapshot.catalogRevision)
+            if (reconnectAfterRevision?.let { snapshot.catalogRevision > it } == true) reconnectAfterRevision = null
+        }
         val selected = mutable.value
         if (selected != null && snapshot != null) {
             val terminal = snapshot.rows.flatMap { it.workspace.terminals }.singleOrNull { it.id == selected.id }
@@ -50,13 +56,20 @@ internal class CloudTerminalHost(parent: CoroutineScope, val machineId: String,
             if (snapshot.authoritative && snapshot.machine.lifecycle == CloudMachineLifecycle.RUNNING)
                 drafts.discardWhere { id -> snapshot.catalog.terminals.none { CloudAddress(machineId, it.id).identifier == id } }
         }
-        attachment.setAvailable(inForeground && tunnelReady && snapshot?.machine?.lifecycle == CloudMachineLifecycle.RUNNING &&
+        attachment.setAvailable(reconnectAfterRevision == null && inForeground && tunnelReady && snapshot?.machine?.lifecycle == CloudMachineLifecycle.RUNNING &&
             snapshot.authoritative && snapshot.availability == NativeFeedAvailability.CONNECTED)
         // Pausing keeps the view; a resumed authoritative catalog can restore it.
         if (selected != null && snapshot?.authoritative == true && snapshot.catalog.terminals.any { it.id == selected.remoteId } &&
             attachment.state.value.terminalId == null) attachment.select(selected.remoteId)
     }
     fun replay() = attachment.replay()
+    /** Keep the selected display, but require a new catalog before attaching to a reset link. */
+    fun awaitFreshCatalog(revision: Long) {
+        if (closed) return
+        reconnectAfterRevision = maxOf(lastCatalogRevision, revision)
+        attachment.setAvailable(false)
+        mutable.value?.connection(attachment.state.value)
+    }
     fun leave() { attachment.select(null); mutable.value?.close(); mutable.value = null }
     override fun close() {
         if (closed) return
@@ -90,7 +103,7 @@ internal class CloudRenderedTerminal(private var terminal: NativeTerminal, val r
             CloudAttachmentPhase.FAILED, CloudAttachmentPhase.EXITED, CloudAttachmentPhase.CLOSED -> SshShellPhase.ENDED
             else -> SshShellPhase.OPENING
         }
-        mutable.value = mutable.value.copy(phase = phase, error = value.failure, revision = mutable.value.revision + 1)
+        mutable.value = mutable.value.copy(phase = phase, error = value.failure?.userReason, revision = mutable.value.revision + 1)
     }
     fun unavailable(message: String) { if (!closed) mutable.value = mutable.value.copy(phase = SshShellPhase.ENDED, error = message) }
     fun receive(event: CloudTerminalOutput) {

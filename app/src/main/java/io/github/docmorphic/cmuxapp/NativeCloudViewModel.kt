@@ -153,18 +153,18 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
     fun retryConnections(expected: CloudWorkspaceController) {
         if (mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return
         val failed = expected.state.value.values.filter { it.failure != null }.map { it.machine.id }.toSet()
+        failed.forEach { hosts[it]?.awaitFreshCatalog(expected.state.value[it]?.catalogRevision ?: 0) }
         mutableTunnel.value?.resource()?.connections?.retire(failed)
         mutableTunnel.value?.retry()
         expected.refreshAll()
-        failed.forEach { hosts[it]?.replay() }
     }
     fun retryConnection(machineId: String, expected: CloudWorkspaceController) {
         if (mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return
-        mutableCreation.value?.clearFailure()
+        mutableCreation.value?.clearFailure(machineId)
+        hosts[machineId]?.awaitFreshCatalog(expected.state.value[machineId]?.catalogRevision ?: 0)
         mutableTunnel.value?.resource()?.connections?.retire(setOf(machineId))
         mutableTunnel.value?.retry()
         mutableWorkspaces.value?.refresh(machineId)
-        hosts[machineId]?.replay()
     }
     fun openWorkspace(row: CloudWorkspaceRow, terminalId: String? = null, expected: CloudWorkspaceController) {
         check(row.machine.id !in mutableVisibility.value?.hidden?.value.orEmpty()) { "This Cloud computer is hidden on this phone" }

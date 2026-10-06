@@ -10,6 +10,26 @@ import java.io.IOException
 class CloudWorkspaceControllerTest {
     private fun machine(id: String = "vm_a", status: String = "running") = CloudMachine(id, "fixture", status, id, null, null)
     private fun catalog(id: String = "ws_a") = CloudWorkspaceCatalog(listOf(CloudWorkspaceSummary(id)), listOf(CloudTerminalSummary("term_a", workspaceId = id)))
+    @Test fun identicalCatalogRefreshAdvancesRevisionButRetainedFailuresDoNot() = runTest {
+        var failing = false
+        val controller = CloudWorkspaceController(this, { true }) {
+            if (failing) throw IOException("offline") else catalog()
+        }
+        try {
+            controller.setMachines(listOf(machine())); controller.setAvailable(true); runCurrent()
+            val first = controller.state.value.getValue("vm_a")
+            controller.refresh("vm_a"); runCurrent()
+            val second = controller.state.value.getValue("vm_a")
+            assertEquals(first.catalog, second.catalog)
+            assertTrue(second.catalogRevision > first.catalogRevision)
+            failing = true; controller.refresh("vm_a"); runCurrent()
+            assertEquals(second.catalogRevision, controller.state.value.getValue("vm_a").catalogRevision)
+            controller.setAvailable(false)
+            assertEquals(second.catalogRevision, controller.state.value.getValue("vm_a").catalogRevision)
+            failing = false; controller.setAvailable(true); runCurrent()
+            assertTrue(controller.state.value.getValue("vm_a").catalogRevision > second.catalogRevision)
+        } finally { controller.close() }
+    }
     @Test fun placeholdersDoNotDialUntilTheTunnelIsReadyAndNonRunningMachinesNeverDial() = runTest {
         val calls = mutableListOf<String>()
         val controller = CloudWorkspaceController(this, { true }) { calls += it; catalog() }

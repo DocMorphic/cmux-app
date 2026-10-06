@@ -7,7 +7,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal data class CloudCreatedTarget(val machineId: String, val workspaceId: String, val terminalId: String? = null)
-internal data class CloudWorkspaceCreationState(val pending: Boolean = false, val failure: String? = null)
+internal data class CloudWorkspaceCreationState(val pending: Boolean = false, val failure: String? = null,
+    val machineId: String? = null) {
+    fun failureFor(machineId: String) = failure.takeIf { this.machineId == machineId }
+}
 
 /** Owned by the account, not by the menu awaiting a result. Never retries a mutation. */
 internal class CloudWorkspaceCreation(parent: CoroutineScope, private val catalog: CloudWorkspaceController,
@@ -22,7 +25,7 @@ internal class CloudWorkspaceCreation(parent: CoroutineScope, private val catalo
         if (!canCreate(machineId, workspaceId)) return false
         val epoch = catalog.creationEpoch(machineId) ?: return false
         fun current() = job.isActive && catalog.creationEpoch(machineId) == epoch
-        mutable.value = CloudWorkspaceCreationState(pending = true)
+        mutable.value = CloudWorkspaceCreationState(pending = true, machineId = machineId)
         scope.launch {
             var acknowledged = false
             try {
@@ -51,7 +54,7 @@ internal class CloudWorkspaceCreation(parent: CoroutineScope, private val catalo
                 if (failure !is Exception && failure !is LinkageError) throw failure
                 if (current()) {
                     val message = if (acknowledged) "Created, but the new workspace or terminal is not available yet. Refresh before trying again."
-                        else "Creation could not be confirmed. Refresh before trying again. ${CloudSessionFailure.classify(failure as? Exception ?: IllegalStateException("Cloud native runtime is unavailable.")).detail}"
+                        else "Creation could not be confirmed. Refresh before trying again. ${CloudSessionFailure.classify(failure as? Exception ?: IllegalStateException("Cloud native runtime is unavailable."), CloudFailureKind.LINK).userReason}"
                     mutable.value = mutable.value.copy(failure = message)
                     catalog.refresh(machineId)
                 }
@@ -61,6 +64,8 @@ internal class CloudWorkspaceCreation(parent: CoroutineScope, private val catalo
         }
         return true
     }
-    fun clearFailure() { if (job.isActive) mutable.value = mutable.value.copy(failure = null) }
+    fun clearFailure(machineId: String? = null) {
+        if (job.isActive && (machineId == null || mutable.value.machineId == machineId)) mutable.value = mutable.value.copy(failure = null)
+    }
     override fun close() { job.cancel(); mutable.value = CloudWorkspaceCreationState() }
 }

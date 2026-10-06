@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud explicit reconnect now waits for a newer verified catalog before attaching,
+  retains the selected renderer and scopes creation failures to their machine.
+  Attachment/creation user copy no longer includes raw native diagnostics.
+  **32 JVM checks and two Android terminal checks passed** (16.516 s on the existing
+  Android 17 / 16 KiB AVD). The emulator was stopped and reaped; no Pixel or real
+  Cloud network was used. Real link recovery, service/process recovery and the
+  broader iOS audit remain. See `CLOUD_COMPANION.md` for exact evidence and limits.
+
 - Cloud integration now has Android 17 / 16 KiB runtime evidence for the real
   Rust/JNI and WireGuard libraries, machine UI, onboarding, visibility and common
   terminal renderer/input. A repeated terminal check found a closed-Ghostty focus

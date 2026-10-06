@@ -1291,3 +1291,67 @@ The native build driver, JNI source and workflow have no changes between that
 successful checkpoint and `8488f496`; this UI/runtime batch does not rebuild the
 native checkpoint. Physical Cloud terminal/VPN service recovery, private web,
 Tailscale transitions, native billing and the remaining source/UI audit stay open.
+
+
+### Cloud terminal retry ordering and failure presentation — 2026-10-06
+
+Compared CloudWorkspaceBridge.externalHostReconnect/applyCatalog and
+CloudMachineConnection.lastError/performAttach, plus CloudSessionFailure in
+CloudSessionPhase.swift, at scoped upstream `c2715faa`. The source preserves the
+wanted terminal, retires the attachment and link, then reattaches after a fresh
+catalog confirms the terminal still exists. Creation/attach errors belong to the
+machine connection and have classified user copy separate from diagnostics.
+The two cached bridge/connection files were SHA-256 matched to this source pin.
+
+Android explicit retry previously reset the link and immediately requested a
+repaint against the previously authoritative catalog. It now suspends that
+machine's attachment first, retains the selected renderer, and admits attachment
+only after a newer successful catalog read. Catalog snapshots carry a read
+revision, so even an unchanged catalog produces a distinguishable success;
+retained failure/background snapshots preserve the last verified revision.
+Superseded reads still cannot publish. Bulk retries apply the same ordering to
+failed catalog connections while healthy links remain mounted. New input typed
+while waiting uses the existing bounded queue; previous pending/uncertain input
+is discarded on retirement, never silently replayed. The terminal remains
+selected through retry and the existing account/machine admission guards apply.
+
+Attachment errors now retain CloudSessionFailure classification and diagnostics,
+while rendered terminal copy uses userReason. Session expiry keeps its sign-in
+instruction. Beginning reconnect clears the stale attachment error. Terminal
+errors are displayed once by the shared shell, instead of duplicating them in
+the Cloud wrapper. Creation failures now carry machine identity: another
+machine's terminal cannot inherit or clear that error, and the global operation
+alert names its machine when still available. Unconfirmed creation still asks
+for refresh and is never automatically repeated; native diagnostic details no
+longer form its user-facing message.
+
+Verification so far: 32 JVM checks passed in four suites (attachment 12, catalog
+7, creation 9, failure classification 4), with zero failures/errors/skips; main
+and Android test sources compiled. New cases cover unchanged-catalog revisions,
+retained failure revisions, session/transport classification and machine-scoped
+creation failure display/clearing. Existing cases cover stale account/read
+completion, serialized attachment tokens, input receipts and non-replayed
+mutations. APKs built in 43 seconds. Runtime results are recorded below.
+
+Both Android terminal checks passed in **16.516 seconds** on the existing API 37 /
+16 KiB AVD. The new test rejects an old authoritative catalog and a newer retained
+catalog, waits for native detach, then accepts a newer verified catalog. It checks
+that the same selected renderer survives, exactly one new attachment appears,
+newly typed recovery input is delivered once, and the real shared terminal UI
+shows the stable failure copy without the native diagnostic. The prior renderer,
+composer persistence, terminal-switch and focus-retirement regression also passed.
+These tests exercise the host and injected link; the full account view-model /
+physical Cloud transport workflow remains to be verified.
+
+The terminal screenshot was inspected. Pre-test boot logs recorded System UI and
+Google Play services ANRs; the System UI dialog was closed before instrumentation.
+No additional ANR appeared during the tests and the crash buffer was empty.
+No Cloud enrollment, VM mutation, VPN activation or physical-device testing took
+place. Gradle was stopped, the single existing emulator was stopped and reaped,
+and no AVD was created. Local evidence: `captures/runtime/cloud-recovery/`.
+Debug APK SHA-256:
+`44c4bca607f690a8f92e473af6fc5e09fc17414e34b6720de5f2a8aee8c8d953`.
+No native library sources changed in this batch; native checkpoint/16 KiB binary
+verification was not repeated. Published signed APK remains 616. Live attachment
+failure propagation into machine-list status, real recovery and the broader
+physical/UI acceptance gates remain open; full parity is not established.

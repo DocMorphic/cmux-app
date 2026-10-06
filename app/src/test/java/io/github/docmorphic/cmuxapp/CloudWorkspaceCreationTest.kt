@@ -12,6 +12,23 @@ class CloudWorkspaceCreationTest {
     private fun makeInventory(workspace: String = "ws_old", terminal: String = "term_old") =
         CloudWorkspaceCatalog(listOf(CloudWorkspaceSummary(workspace)), listOf(CloudTerminalSummary(terminal, workspaceId = workspace)))
 
+    @Test fun creationFailureBelongsToItsMachineAndHidesNativeDiagnostic() = runTest {
+        val other = machine.copy(id = "vm_b")
+        val catalog = CloudWorkspaceController(this, { true }) { makeInventory() }
+        val creator = CloudWorkspaceCreation(this, catalog) { _, _ -> throw IOException("private-native-diagnostic") }
+        try {
+            catalog.setMachines(listOf(machine, other)); catalog.setAvailable(true); runCurrent()
+            assertTrue(creator.request(machine.id) {}); runCurrent()
+            val failure = checkNotNull(creator.state.value.failureFor(machine.id))
+            assertTrue(failure.contains("Refresh before trying again"))
+            assertFalse(failure.contains("private-native-diagnostic"))
+            assertNull(creator.state.value.failureFor(other.id))
+            creator.clearFailure(other.id)
+            assertEquals(failure, creator.state.value.failureFor(machine.id))
+            creator.clearFailure(machine.id)
+            assertNull(creator.state.value.failure)
+        } finally { creator.close(); catalog.close() }
+    }
     @Test fun acknowledgedWorkspaceIsSelectedBeforeItsStarterCatalogAndDuplicateTapCannotCreateTwice() = runTest {
         var reads = 0; var calls = 0
         val after = CompletableDeferred<CloudWorkspaceCatalog>()

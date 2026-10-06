@@ -41,6 +41,46 @@ class CloudTerminalScreenTest {
         override suspend fun output(attachment: Long) = events.getValue(attachment).receive()
     }
     @After fun stop() { compose.runOnIdle { host?.close(); lifetime.cancel() } }
+    @Test fun explicitReconnectWaitsForNewVerifiedCatalogAndKeepsTheSelectedDisplay() {
+        val link = Link()
+        val machine = CloudMachine("fixture", "fixture", "running", "Cloud fixture", null, null)
+        val catalog = CloudWorkspaceCatalog(listOf(CloudWorkspaceSummary("ws_a", "Workspace")),
+            listOf(CloudTerminalSummary("term_a", "First", "ws_a")))
+        val snapshot = CloudWorkspaceSnapshot(machine, catalog, NativeFeedAvailability.CONNECTED, true, catalogRevision = 10)
+        val row = snapshot.rows.single()
+        lateinit var terminal: CloudRenderedTerminal
+        compose.runOnUiThread {
+            host = CloudTerminalHost(lifetime, machine.id, { true }, { link }).also {
+                it.reconcile(snapshot, true, true)
+                terminal = it.select(row.workspace, row.workspace.terminals.single())
+            }
+        }
+        compose.setContent { CmuxTheme { Surface { SshShellScreen(terminal, onBack = {}) } } }
+        compose.waitUntil(5000) { terminal.state.value.phase == SshShellPhase.RUNNING }
+        val originalToken = link.live
+        compose.runOnIdle {
+            host!!.awaitFreshCatalog(snapshot.catalogRevision)
+            assertEquals(SshShellPhase.OPENING, terminal.state.value.phase)
+            assertSame(terminal, host!!.selected.value)
+            // A stale successful catalog and a newer unverified one cannot reopen the link.
+            host!!.reconcile(snapshot, true, true)
+            host!!.reconcile(snapshot.copy(catalogRevision = 11, authoritative = false), true, true)
+            assertTrue(terminal.send("typed during reconnect"))
+        }
+        compose.waitUntil(5000) { link.live == 0L }
+        assertTrue(link.input.isEmpty())
+        compose.runOnIdle { host!!.reconcile(snapshot.copy(catalogRevision = 12), true, true) }
+        compose.waitUntil(5000) { link.input.any { it.second == "typed during reconnect" } }
+        assertEquals(originalToken + 1, link.live)
+        assertEquals(1, link.input.count { it.second == "typed during reconnect" })
+        compose.runOnIdle {
+            assertSame(terminal, host!!.selected.value)
+            terminal.connection(CloudAttachmentState("term_a", CloudAttachmentPhase.FAILED,
+                failure = CloudSessionFailure("private-native-diagnostic", kind = CloudFailureKind.LINK)))
+        }
+        compose.onNodeWithText("Could not reach this machine's terminal service.").assertIsDisplayed()
+        compose.onNodeWithText("private-native-diagnostic").assertDoesNotExist()
+    }
     @Test fun commonRendererComposerAndTerminalSwitchUseTheCloudSlot() {
         val link = Link()
         val machine = CloudMachine("fixture", "fixture", "running", "Cloud fixture", null, null)

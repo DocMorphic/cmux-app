@@ -38,6 +38,22 @@ class CloudTerminalAttachmentTest {
             check(streams.getValue(token).trySend(CloudTerminalOutput(kind, text.toByteArray(), cols, rows)).isSuccess)
         }
     }
+    @Test fun failureClassifiesSessionAndTransportWithoutDisplayingNativeDiagnostics() = runTest {
+        for (failure in listOf(java.io.IOException("private-native-diagnostic"), CloudNotSignedIn())) {
+            val owner = CloudTerminalAttachment(this, { true }, { throw failure }, { _, _ -> }, StandardTestDispatcher(testScheduler))
+            try {
+                owner.select("term_a"); owner.setAvailable(true); runCurrent()
+                val classified = checkNotNull(owner.state.value.failure)
+                assertEquals(CloudAttachmentPhase.FAILED, owner.state.value.phase)
+                assertFalse(classified.userReason.contains("private-native-diagnostic"))
+                assertEquals(failure is CloudNotSignedIn, classified.signedOut)
+                if (failure is CloudNotSignedIn) assertTrue(classified.userReason.contains("Sign in again"))
+                else assertEquals(CloudFailureKind.LINK, classified.kind)
+                owner.setAvailable(false)
+                assertNull(owner.state.value.failure)
+            } finally { owner.close(); runCurrent() }
+        }
+    }
     @Test fun composerReceiptWaitsForNativeAdmissionAndRejectsFailedTransport() = runTest {
         val link = Link(); val ready = CompletableDeferred<CloudTerminalLink>()
         val owner = CloudTerminalAttachment(this, { true }, { ready.await() }, { _, _ -> }, StandardTestDispatcher(testScheduler))
@@ -139,7 +155,7 @@ class CloudTerminalAttachmentTest {
             assertEquals(1, link.calls.count { it.startsWith("input:") })
             unavailable = true; owner.replay(); runCurrent()
             assertEquals(CloudAttachmentPhase.FAILED, owner.state.value.phase)
-            assertEquals("Cloud native runtime is unavailable", owner.state.value.failure)
+            assertEquals("Cloud native runtime is unavailable", owner.state.value.failure?.detail)
         } finally { owner.close(); runCurrent() }
     }
     @Test fun resizedGridRepaintsAfterFourHundredMillisecondsAndSnapshotCancelsRepaint() = runTest {

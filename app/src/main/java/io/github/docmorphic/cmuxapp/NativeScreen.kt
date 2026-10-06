@@ -648,8 +648,11 @@ internal fun NativeScreen(
         }
         LaunchedEffect(cloudModel, cloudNavigationFailure) { cloudNavigationFailure?.let { error = it } }
         LaunchedEffect(cloudVisibility, cloudVisibilityFailure) { cloudVisibilityFailure?.let { error = it } }
-        LaunchedEffect(cloudCreation, cloudCreationState?.failure) {
-            cloudCreationState?.failure?.let { error = it }
+        LaunchedEffect(cloudCreation, cloudCreationState?.machineId, cloudCreationState?.failure) {
+            cloudCreationState?.failure?.let { failure ->
+                val name = allCloudSnapshots[cloudCreationState.machineId]?.machine?.preferredName
+                error = if (name != null) "$name: $failure" else failure
+            }
         }
         fun canCreateCloud(snapshot: CloudWorkspaceSnapshot) = cloudWorkspaces != null &&
             cloudModel?.workspaces?.value === cloudWorkspaces && cloudCreation?.canCreate(snapshot.machine.id) == true
