@@ -22,6 +22,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -51,6 +52,8 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     val context = LocalContext.current
     val density = LocalDensity.current
     val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val composerFocus = remember(shell) { FocusRequester() }
     val preferences = remember(context) { context.getSharedPreferences("native_display", Context.MODE_PRIVATE) }
     val toolbar = rememberTerminalToolbar(preferences)
     val zoom = remember(shell.id) { TerminalZoomState() }
@@ -87,6 +90,9 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     val focus = remember { FocusRequester() }
     val display = shell.display
     val canInput = available && inputStatus.error == null && !inputStatus.closed
+    val dictation = rememberComposerDictation(composer, enabled = canInput && !direct && !preparing && draft.operation == null,
+        readText = { composer.current.text }, writeText = { composer.edit(it) }, isCurrent = composer::isActive)
+    val dictationState by dictation.state.collectAsState()
     val orderedTerminal = remember(shell, input) { object : SshTerminal by shell {
         override fun send(text: String, paste: Boolean) = input.send(text, paste)
         override fun sendBytes(bytes: ByteArray) = input.sendBytes(bytes)
@@ -111,13 +117,14 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         modifiers = modifiers.consume()
         return write(value)
     }
-    fun showKeyboard() { if (canInput) { motion.stop(); direct = true; rawKeyboard?.showKeyboard() } }
-    fun showText() { motion.stop(); keyboard?.hide(); snapshot = TerminalTextSnapshot.capture(display) }
+    fun showKeyboard() { if (canInput) { dictation.cancel(); motion.stop(); direct = true; rawKeyboard?.showKeyboard() } }
+    fun showText() { dictation.cancel(); motion.stop(); keyboard?.hide(); snapshot = TerminalTextSnapshot.capture(display) }
     BackHandler { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }
     DisposableEffect(shell, input) { onDispose {
         rawKeyboard?.dispose(); motion.stop(); input.close(); fallbackDrafts.close()
     } }
     fun showFiles() {
+        dictation.cancel()
         rawKeyboard?.finishComposition()
         modifiers = TerminalInputModifiers()
         if (input.queue.status.value.let { it.pendingBytes == 0 && it.error == null && !it.closed }) { direct = false; keyboard?.hide(); onFiles?.invoke() }
@@ -201,6 +208,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                 rawKeyboard?.finishComposition()
                 when (button) {
                     TerminalToolbarButton.PASTE -> {
+                        dictation.cancel()
                         modifiers = TerminalInputModifiers()
                         try {
                             val clip = context.getSystemService(android.content.ClipboardManager::class.java).primaryClip
@@ -218,7 +226,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             }, onCustom = { rawKeyboard?.finishComposition(); modifiers = TerminalInputModifiers(); write(it.output) },
             onCustomize = { keyboard?.hide(); shortcuts = true })
         if (state.phase == SshShellPhase.ENDED) Text(state.error ?: "Shell ended", Modifier.padding(12.dp), color = MaterialTheme.colorScheme.error)
-        (message ?: pasteMessage ?: draft.error)?.let { Text(it, Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.error) }
+        (dictationState.error ?: message ?: pasteMessage ?: draft.error)?.let { Text(it, Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.error) }
         if (direct) AndroidView(factory = { viewContext -> TerminalKeyboardView(viewContext).also { view -> rawKeyboard = view; view.post { view.showKeyboard() } } },
             update = { view ->
                 view.isEnabled = canInput
@@ -233,17 +241,26 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         else {
             SshTerminalAttachmentStrip(composer, draft.attachments,
                 canRemove = true, preparing = preparing,
-                beforePreview = { rawKeyboard?.finishComposition(); motion.stop(); keyboard?.hide() })
+                beforePreview = { dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); keyboard?.hide() })
             Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (input.supportsImages) IconButton(onClick = { pickerTarget = shell; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                if (input.supportsImages) IconButton(onClick = {
+                    dictation.cancel(); motion.stop(); focusManager.clearFocus(); keyboard?.hide()
+                    pickerTarget = shell; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
                     enabled = canInput && !preparing && draft.operation == null,
                     modifier = Modifier.testTag("ssh.shell.attach").semantics { contentDescription = "Attach image" }) { Text("+", fontSize = 24.sp) }
-                RichContentEditor(owner = shell, enabled = canInput && input.supportsImages && draft.operation == null,
+                ComposerDictationButton(dictation, enabled = canInput && !preparing && draft.operation == null,
+                    beforeStart = { motion.stop(); focusManager.clearFocus(); keyboard?.hide() })
+                RichContentEditor(owner = shell, enabled = !dictationState.locksField && canInput && input.supportsImages && draft.operation == null,
                     onContent = { input.paste(it, direct = false) }, onError = { message = it }) { pasteModifier ->
-                    OutlinedTextField(draft.text, { composer.edit(it) }, Modifier.weight(1f).then(pasteModifier).testTag("ssh.shell.composer"),
-                        placeholder = { Text("Message or command") }, maxLines = 5, enabled = canInput)
+                    OutlinedTextField(draft.text, { if (!dictationState.locksField) composer.edit(it) },
+                        Modifier.weight(1f).focusRequester(composerFocus).then(pasteModifier).testTag("ssh.shell.composer"),
+                        placeholder = { Text("Message or command") }, maxLines = 14, readOnly = dictationState.locksField, enabled = canInput)
                 }
-                TextButton(onClick = { rawKeyboard?.finishComposition(); motion.stop(); scroll = 0.0; input.submit() },
+                TextButton(onClick = {
+                    dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); scroll = 0.0
+                    composerFocus.requestFocus(); keyboard?.show(); input.submit()
+                },
                     enabled = canInput && !preparing && draft.operation == null && (draft.text.isNotEmpty() || draft.attachments.isNotEmpty()),
                     modifier = Modifier.testTag("ssh.shell.send")) { Text(if (draft.operation == null) "Send" else "Sending…") }
             }

@@ -46,6 +46,7 @@ internal class SshComposerPool : AutoCloseable {
                 drafts.removeAttachment(target, id); retainPayloads()
             }
         }
+        fun isActive(): Boolean = synchronized(this@SshComposerPool) { valid() }
         fun ownsAttachment(attachment: ComposerAttachment): Boolean = synchronized(this@SshComposerPool) {
             valid() && attachment in current.attachments && payloads.containsKey(attachment.id)
         }

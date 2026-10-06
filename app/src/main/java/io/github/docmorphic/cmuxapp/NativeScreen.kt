@@ -1100,6 +1100,26 @@ internal fun NativeScreen(
 
             LaunchedEffect(signedIn) { if (!signedIn) { drafts.clear(); inAppNotification = null } }
 
+            val composerFocus = remember(draftTarget) { FocusRequester() }
+            val dictationGeneration = drafts.generation
+            val dictationTarget = draftTarget
+            val dictationLogin = store.taskSession()
+            val dictation = rememberComposerDictation(listOf(draftTarget, dictationGeneration, client, dictationLogin),
+                enabled = signedIn && connectionReady && !directTyping && terminalAttached && client != null &&
+                    draftTarget != null && selectedTerminal?.isReady == true && inputFailure == null &&
+                    terminalDraft.operation == null && !preparingAttachments,
+                readText = { drafts.state.value[dictationTarget]?.text.orEmpty() },
+                writeText = { text ->
+                    if (dictationTarget != null && store.taskSession() == dictationLogin && drafts.generation == dictationGeneration) {
+                        drafts.edit(dictationTarget, text); true
+                    } else false
+                }, isCurrent = { drafts.generation == dictationGeneration && store.taskSession() == dictationLogin })
+            val dictationState by dictation.state.collectAsState()
+            fun leaveComposerInput() {
+                dictation.cancel(); rawKeyboardView?.finishComposition()
+                stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide()
+            }
+
             val attachmentFiles = remember(context) { AttachmentFiles(context.applicationContext) }
             val attachmentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
                 val target = pickerTarget
@@ -1126,6 +1146,7 @@ internal fun NativeScreen(
             }
 
             fun acceptTerminalPaste(content: TerminalPasteContent): Boolean {
+                dictation.cancel()
                 inputModifiers = TerminalInputModifiers()
                 val target = draftTarget ?: return false
                 val active = client ?: return false
@@ -1216,7 +1237,9 @@ internal fun NativeScreen(
                 val target = draftTarget ?: return
                 val active = client ?: return
                 if (!terminalAttached || preparingAttachments || inputFailure != null || selectedTerminal?.isReady != true) return
+                dictation.cancel()
                 val send = drafts.begin(target) ?: return
+                if (!directTyping) { composerFocus.requestFocus(); softwareKeyboard?.show() }
                 val supportsFiles = ComposerAttachment.FILE_CAPABILITY in hostCapabilities
                 stopTerminalScrolling(); scrollPosition = 0.0
                 val retainedKey = deliveryKey.takeIf { retainedInputQueue != null }
@@ -3008,7 +3031,7 @@ internal fun NativeScreen(
                             draftTarget?.let { target -> NativeTerminalAttachmentStrip(draftRepository, target,
                                     terminalDraft.attachments, canRemove = true,
                                     preparing = preparingAttachments, modifier = Modifier.background(nativePanel),
-                                    beforePreview = { rawKeyboardView?.finishComposition(); stopTerminalScrolling(); softwareKeyboard?.hide() }) }
+                                    beforePreview = ::leaveComposerInput) }
                             key(draftTarget) {
                                 Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Box {
@@ -3018,6 +3041,7 @@ internal fun NativeScreen(
                                         DropdownMenu(attachmentMenu, onDismissRequest = { attachmentMenu = false }) {
                                             fun pick(images: Boolean) {
                                                 attachmentMenu = false
+                                                leaveComposerInput()
                                                 pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerImages = images
                                                 attachmentPicker.launch(arrayOf(if (images) "image/*" else "*/*"))
                                             }
@@ -3026,17 +3050,20 @@ internal fun NativeScreen(
                                                 enabled = ComposerAttachment.FILE_CAPABILITY in hostCapabilities)
                                         }
                                     }
+                                    ComposerDictationButton(dictation,
+                                        enabled = terminalAttached && connectionReady && terminalDraft.operation == null && !preparingAttachments,
+                                        beforeStart = { stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide() })
                                     RichContentEditor(owner = draftTarget to client,
-                                        enabled = terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments,
+                                        enabled = !dictationState.locksField && terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments,
                                         onContent = ::acceptTerminalPaste, onError = { error = it }) { pasteModifier ->
-                                        OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
-                                            Modifier.weight(1f).then(pasteModifier).onPreviewKeyEvent { event ->
+                                        OutlinedTextField(terminalDraft.text, { text -> if (!dictationState.locksField) draftTarget?.let { drafts.edit(it, text) } },
+                                            Modifier.weight(1f).focusRequester(composerFocus).testTag("native.composer").then(pasteModifier).onPreviewKeyEvent { event ->
                                                 val key = event.nativeKeyEvent
                                                 if (key.action == AndroidKeyEvent.ACTION_DOWN &&
                                                     key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
                                                     sendComposer(submit = true); true
                                                 } else false
-                                            }, minLines = 1, maxLines = 5,
+                                            }, minLines = 1, maxLines = 14, readOnly = dictationState.locksField,
                                             placeholder = { Text("Message or command") },
                                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
                                             keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
@@ -3049,7 +3076,7 @@ internal fun NativeScreen(
                                 }
                             }
                         }
-                        (terminalDraft.error ?: draftSaveError)?.let { message ->
+                        (dictationState.error ?: terminalDraft.error ?: draftSaveError)?.let { message ->
                             Text(message, Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(12.dp),
                                 color = Color(0xFFFFAAAA), fontSize = 12.sp)
                         }

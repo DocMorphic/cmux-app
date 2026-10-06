@@ -11,6 +11,7 @@ import android.view.inputmethod.InputContentInfo
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -85,6 +86,60 @@ class SshImageInputScreenTest {
                     addItem(ClipData.Item("separate caption\n"))
                 })
         }
+    }
+
+    @Test fun dictationStopRefinesDraftAndSendRejectsLateSpeech() {
+        val speech = FakeComposerSpeech()
+        compose.setContent { CompositionLocalProvider(LocalComposerSpeechService provides speech) {
+            CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+                SshShellScreen(terminal, onBack = {})
+            } }
+        } }
+        compose.onNodeWithTag("ssh.shell.composer").performTextInput("Explain")
+        compose.onNodeWithContentDescription("Start dictation").performClick()
+        compose.runOnIdle { speech.engines.single().listener.transcript("the bug", false) }
+        compose.onNodeWithTag("ssh.shell.composer").assertTextContains("Explain the bug")
+            .assert(SemanticsMatcher.keyNotDefined(androidx.compose.ui.semantics.SemanticsActions.SetText))
+        assertTrue(terminal.writes.isEmpty())
+        compose.onNodeWithContentDescription("Stop dictation").performClick()
+        compose.runOnIdle {
+            assertTrue(speech.engines.single().stopped)
+            speech.engines.single().listener.transcript("the bug please", true)
+        }
+        compose.onNodeWithTag("ssh.shell.composer").assertTextContains("Explain the bug please")
+        compose.onNodeWithContentDescription("Start dictation").performClick()
+        compose.runOnIdle { speech.engines.last().listener.transcript("today", false) }
+        compose.onNodeWithTag("ssh.shell.send").performClick()
+        compose.waitUntil(10_000) { terminal.composer.current.operation == null && terminal.composer.current.text.isEmpty() }
+        compose.runOnIdle {
+            assertTrue(speech.engines.all { it.closed })
+            speech.engines.last().listener.transcript("late result must not refill", true)
+            assertEquals(listOf("Explain the bug please today\r"), terminal.writes.map { it.decodeToString() })
+        }
+        compose.onNodeWithTag("ssh.shell.composer").assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString(""))).assertIsFocused()
+        capture("ssh-dictation-after-send")
+    }
+
+    @Test fun leavingTerminalStopsDictationAndReturningNeverResumesMicrophone() {
+        val speech = FakeComposerSpeech(); val visible = mutableStateOf(true)
+        compose.setContent { CompositionLocalProvider(LocalComposerSpeechService provides speech) {
+            CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                if (visible.value) SshShellScreen(terminal, onBack = { visible.value = false })
+                else TextButton(onClick = { visible.value = true }) { Text("Return to terminal") }
+            } }
+        } }
+        compose.onNodeWithContentDescription("Start dictation").performClick()
+        compose.runOnIdle { speech.engines.single().listener.transcript("Unsent words", false) }
+        compose.onNodeWithText("Back").performClick()
+        compose.runOnIdle {
+            assertTrue(speech.engines.single().closed)
+            speech.engines.single().listener.transcript("stale navigation result", true)
+        }
+        compose.onNodeWithText("Return to terminal").performClick()
+        compose.onNodeWithTag("ssh.shell.composer").assertTextContains("Unsent words")
+        compose.onNodeWithContentDescription("Start dictation").assertIsDisplayed()
+        assertEquals(1, speech.engines.size); assertTrue(terminal.writes.isEmpty())
     }
 
     @Test fun acknowledgedImageStaysVisibleUntilDoneClosesItsPreview() = previewDuringSend(false)

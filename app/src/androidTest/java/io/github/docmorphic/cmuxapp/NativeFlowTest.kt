@@ -324,6 +324,38 @@ class NativeFlowTest {
         compose.onNodeWithText("Reconnect test").assertIsDisplayed()
     }
 
+    @Test fun terminalDictationSendsCurrentWordsAndDoesNotAcceptLateFinalResult() {
+        val speech = FakeComposerSpeech()
+        compose.setContent { CompositionLocalProvider(LocalComposerSpeechService provides speech) {
+            CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                })
+            } }
+        } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick(); waitForTerminalText()
+        compose.onNodeWithTag("native.composer").performTextInput("Explain")
+        compose.onNodeWithContentDescription("Start dictation").performClick()
+        compose.runOnIdle { speech.engines.single().listener.transcript("this terminal", false) }
+        compose.onNodeWithTag("native.composer").assertTextContains("Explain this terminal")
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.SetText))
+        assertTrue(peer.requests.none { it.optString("method") == "terminal.paste" })
+        screenshot("native-dictation-listening")
+        compose.onNodeWithText("Send").performClick()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
+        compose.runOnIdle {
+            assertTrue(speech.engines.single().closed)
+            speech.engines.single().listener.transcript("late final", true)
+        }
+        val sent = peer.requests.single { it.optString("method") == "terminal.paste" }.getJSONObject("params")
+        assertEquals("Explain this terminal", sent.getString("text")); assertEquals("return", sent.getString("submit_key"))
+        compose.waitUntil(10_000) { TerminalDraftRepository.get(context).drafts.state.value.values.all { it.text.isEmpty() && it.operation == null } }
+        compose.onNodeWithTag("native.composer").assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString(""))).assertIsFocused()
+        screenshot("native-dictation-after-send")
+    }
+
     @Test fun workspaceFilterTerminalInputAndKeyboardResize() {
         compose.setContent {
             CmuxTheme {
