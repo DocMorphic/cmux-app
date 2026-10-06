@@ -77,6 +77,48 @@ phone-forward decision and complete payload; include explicit dismissal and
 account/policy changes. Key/TLS provisioning, that source and real delivery remain
 open. See [verification](../docs/PUSH_DELIVERY.md#forwarding-pipeline-and-durable-privacy-policy--2026-10-06).
 
+## Durable source handoff
+
+`PushSourceJournal` in `source-journal.mjs` adds an encrypted local spool between
+an **already authenticated** producer and `PushForwarder`. The source adapter is
+still required; the journal does not turn a general feed event into an authorized
+phone alert.
+
+```js
+const journal = new PushSourceJournal({ directory: privateDirectory, key: keyFromCredentialStore });
+const captured = journal.accept({ event, expiresAt: originalExpiry, sourceEpoch, phoneEligible });
+// Only captured/duplicate confirms local durable capture; this is not phone delivery.
+const outcomes = await journal.drain({ forwarder });
+const { nextDueAt, counts } = journal.status();
+// The host schedules bounded passes from nextDueAt and awaits each pass before close().
+```
+
+A capture is identified by its source epoch and correlation UUID; keyed content
+fingerprints reject reuse with changed content, eligibility or expiry. Both the
+original request and later prepared ciphertext are AES-GCM encrypted. The prepared
+batch commits **before** delivery-queue insertion. If that insertion commits but
+its result/acknowledgment is lost, recovery submits the exact saved batch and the
+existing outbox deduplicates it. Preparation is never repeated for a saved batch.
+Source capture/queue admission/provider acceptance/device display are distinct
+outcomes; an upstream cursor must not be advanced merely because preparation began.
+
+SQLite uses FULL synchronous WAL transactions and a private 0700 directory/0600
+file. Capture size is at most 1 MiB; an encrypted record may contain up to 4 MiB of
+request/prepared data. Default capacity is 128 records (configurable 1–512),
+including completion receipts until original expiry, with a 2048-page main database
+limit (8 MiB at the default 4 KiB page size; WAL storage is additional). Capacity errors preserve existing records;
+there is no silent eviction. Source expiry is bounded by the existing 15-minute
+transport maximum and is never extended during retry. Completed records erase
+the payload while retaining the keyed deduplication receipt until expiry.
+
+Sixty-second owner leases allow another process to recover interrupted work.
+Late preparation cannot replace a new owner's result. No recipient, busy/stopped
+forwarder, temporary policy or storage failure retries with bounded backoff until
+the original expiry. Explicit suppression/retirement/expiry finishes the source
+record. Corruption is reported without acknowledging processing. The owning host
+must handle these coarse results and source backpressure; no scheduler or listener
+starts when this module is imported. Await an active drain before closing stores.
+
 ## Integration contract
 
 `FcmSender` requires a Firebase project ID and an OAuth token provider with async

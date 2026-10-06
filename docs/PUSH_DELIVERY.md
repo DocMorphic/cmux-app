@@ -1,6 +1,46 @@
 # Android background push
 
 
+## Durable source-to-delivery handoff — 2026-10-06
+
+`PushSourceJournal` now durably captures admitted source requests, commits prepared
+ciphertext before delivery-queue insertion, and replays that same batch after an
+uncertain queue acknowledgment. The keyed source ID/fingerprint prevents event-ID
+reuse with different content, eligibility or expiry. Completion receipts dedupe
+source replay until the original deadline; completed payloads are removed.
+The AES-GCM SQLite spool uses FULL synchronous WAL commits, private files, bounded
+record/database capacity and 60-second owner leases. An expired lease may be
+recovered, while a late former owner cannot replace or enqueue its fresh encryption.
+Missing recipients and temporary policy/storage errors preserve the original
+expiry; explicit suppression/retirement finishes the record. This adds crash-safe
+handoff, not source authentication or a live event subscriber.
+
+**24 checks passed on Node22.16.0 and Node26.8.2**, zero failures/skips/cancellations:
+ten source-journal cases plus fourteen forwarder integration cases. The new cases
+include real encrypted SQLite reopen, source conflict/capacity, write failures on
+both sides of delivery admission, saved-batch account retirement, corrupt storage,
+lease replacement and an actual **SIGKILL after outbox insertion but before source
+acknowledgment**. Recovery waits for the source lease and replays the saved batch
+without re-encryption or a duplicate queued alert. Provider/ciphertext fixtures
+remain synthetic; there is no claim of cloud or device delivery. Evidence:
+ignored `captures/runtime/push-source-journal/`.
+
+The notification producer was rechecked against latest cached upstream commit
+`c2715faa02c260b07012bc0b386597cfb333021d`, specifically
+`Sources/Cloud/PhonePushClient.swift`, `Sources/Cloud/PhonePushPayload.swift` and
+`Sources/TerminalNotificationStore.swift`. The producer still forwards qualifying
+notifications even without a history record, and the audited general history/event
+interfaces do not expose that complete decision/payload. A custom Mac source hook
+would permit exact capture; the user has been asked whether a custom Mac build is
+acceptable or unmodified cmux is a requirement. That architectural choice remains
+open. No source hook was applied or Mac binary modified while awaiting the answer.
+The journal work is independent of that choice.
+
+Next: resolve the source constraint, implement the authenticated source adapter
+and its scheduling/acknowledgments, provision keys/TLS/Firebase, and verify real
+Pixel delivery. This source-only checkpoint created no APK, emulator, listener or
+cloud resource and did not advance the global parity pin or signed release.
+
 ## Forwarding pipeline and durable privacy policy — 2026-10-06
 
 `PushForwarder` now composes scoped recipient lookup, event preparation/encryption,

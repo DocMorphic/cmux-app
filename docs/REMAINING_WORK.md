@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Source events now have an encrypted durable handoff through preparation and
+  delivery admission, with identical-ciphertext recovery after an actual process
+  kill in the acknowledgment gap. **24 Node checks passed on Node22/26**. Latest
+  cached cmux producer recheck confirms that history alone misses phone alerts.
+  The user was asked whether a custom Mac source hook/build is acceptable; that
+  source decision is pending. Adapter/scheduler, provisioning and live delivery
+  remain open. No APK/emulator/listener. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#durable-source-to-delivery-handoff--2026-10-06).
+
 - The Mac helper components now have a composed forwarding pipeline with live
   host policy and encrypted per-event privacy/identity metadata across restarts.
   **49 Node checks passed on Node22/26**, including privacy tightening during OAuth,
