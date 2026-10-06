@@ -35,7 +35,7 @@ internal fun NativeWorkspaceDragList(
     onChromeAction: (String) -> Unit = {},
     hasOtherRows: Boolean = false,
     displayRows: List<NativeWorkspaceDisplayRow>? = null,
-    sshRow: @Composable (SshFeedRow) -> Unit = {}, empty: @Composable () -> Unit,
+    sshRow: @Composable (SshFeedRow) -> Unit = {}, cloudRow: @Composable (CloudWorkspaceRow) -> Unit = {}, empty: @Composable () -> Unit,
     row: @Composable (WorkspaceListEntry) -> Unit
 ) {
     val list = rememberLazyListState()
@@ -141,6 +141,10 @@ internal fun NativeWorkspaceDragList(
             workspaceChromeRows(renderedLeading, currentLeading, currentChromeAction)
             itemsIndexed(renderedRows, key = { _, item -> item.key }) { _, item ->
                 WorkspacePresentationRow(item.key in targetKeys, { latestTargetRows.any { it.key == item.key } }) {
+                if (item is NativeWorkspaceDisplayRow.Cloud) {
+                    Column { cloudRow(item.row) }
+                    return@WorkspacePresentationRow
+                }
                 if (item is NativeWorkspaceDisplayRow.Ssh) {
                     CompositionLocalProvider(LocalWorkspaceSwipeKey provides item.key,
                         LocalWorkspaceContextKey provides WorkspaceContextMenuKey(item.key)) {

@@ -60,6 +60,7 @@ internal sealed interface NativeWorkspaceDisplayRow {
     val key: String
     data class Mac(val entry: WorkspaceListEntry) : NativeWorkspaceDisplayRow { override val key get() = entry.key }
     data class Ssh(val row: SshFeedRow) : NativeWorkspaceDisplayRow { override val key get() = row.key }
+    data class Cloud(val row: CloudWorkspaceRow) : NativeWorkspaceDisplayRow { override val key get() = row.key }
 }
 private data class WorkspaceDisplayBlock(val rows: List<NativeWorkspaceDisplayRow>, val pinned: Boolean, val time: Double?)
 private fun List<NativeWorkspace>.activity() = mapNotNull { it.lastActivityAt?.takeIf(Double::isFinite) }.maxOrNull()
@@ -72,7 +73,7 @@ private fun WorkspaceListEntry.withSource(source: NativeFeedSource): WorkspaceLi
 /** Immutable display projection. Every action retains the original source, including its full sidebar order. */
 internal fun sortedWorkspaceRows(sources: List<NativeFeedSource>, ssh: List<SshFeedRow>, computers: List<NativeSortComputer>,
     state: NativeWorkspaceSortState, allComputers: Boolean, matches: Set<String>, filtering: Boolean, unread: Boolean,
-    collapsed: Map<String, Boolean>, locale: Locale): List<NativeWorkspaceDisplayRow> {
+    collapsed: Map<String, Boolean>, locale: Locale, cloud: List<CloudWorkspaceRow> = emptyList()): List<NativeWorkspaceDisplayRow> {
     val ranks = orderWorkspaceComputers(computers, state, locale).withIndex().associate { it.value.id to it.index }
     val blocks = mutableListOf<Pair<Int, List<WorkspaceDisplayBlock>>>()
     val recent = allComputers && state.mode == NativeWorkspaceSortMode.ACTIVITY
@@ -115,12 +116,18 @@ internal fun sortedWorkspaceRows(sources: List<NativeFeedSource>, ssh: List<SshF
             WorkspaceDisplayBlock(listOf(NativeWorkspaceDisplayRow.Ssh(it)), it.workspace.isPinned, it.workspace.lastActivityAt)
         }
     }
+    cloud.groupBy { it.machine.id }.forEach { (id, rows) ->
+        blocks += (ranks[CloudAddress(id).identifier] ?: Int.MAX_VALUE) to rows.map {
+            WorkspaceDisplayBlock(listOf(NativeWorkspaceDisplayRow.Cloud(it)), false, null)
+        }
+    }
     val ordered = (if (allComputers) blocks.sortedBy { it.first } else blocks).flatMap { it.second }
     val result = (if (recent) ordered.sortedWith(compareByDescending<WorkspaceDisplayBlock> { it.pinned }
         .thenByDescending { it.time ?: Double.NEGATIVE_INFINITY }) else ordered).flatMap { it.rows }
     // iOS flat lists retain pinned-first behavior across computer boundaries.
     return if (!recent && (filtering || unread || sources.none { it.groups.isNotEmpty() })) result.sortedByDescending {
         when (it) { is NativeWorkspaceDisplayRow.Mac -> (it.entry as? WorkspaceListEntry.Workspace)?.workspace?.isPinned == true
-            is NativeWorkspaceDisplayRow.Ssh -> it.row.workspace.isPinned }
+            is NativeWorkspaceDisplayRow.Ssh -> it.row.workspace.isPinned
+            is NativeWorkspaceDisplayRow.Cloud -> false }
     } else result
 }

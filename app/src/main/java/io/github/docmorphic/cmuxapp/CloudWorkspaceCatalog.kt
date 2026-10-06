@@ -130,6 +130,8 @@ internal object CloudWorkspaceDecoding {
 
 internal data class CloudWorkspaceRow(val machine: CloudMachine, val remoteId: String, val workspace: NativeWorkspace) {
     val key get() = workspace.id
+    fun searchFields(): List<String?> = listOf(workspace.title, workspace.directory, machine.preferredName, "Cloud") +
+        workspace.terminals.flatMap { listOf(it.title, it.directory) }
 }
 internal fun projectCloudWorkspaces(machine: CloudMachine, catalog: CloudWorkspaceCatalog): List<CloudWorkspaceRow> {
     val terminals = catalog.terminals.groupBy { it.workspaceId }

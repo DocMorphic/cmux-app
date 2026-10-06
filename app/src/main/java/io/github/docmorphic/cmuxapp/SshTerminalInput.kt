@@ -25,7 +25,8 @@ internal class SshTerminalInput(
         guard()
         check(entry.rawBytes?.let(terminal::sendBytes) ?: terminal.send(entry.text, entry.paste))
     }
-    private fun allowed() = !closed && current() && composer.isActive() && terminal.state.value.phase == SshShellPhase.RUNNING
+    private fun allowed() = !closed && current() && composer.isActive() && (terminal.state.value.phase == SshShellPhase.RUNNING ||
+        (terminal.acceptsInputWhileOpening && terminal.state.value.phase == SshShellPhase.OPENING))
     private fun guard() { check(allowed()) { "The paste target changed. Paste again in the intended terminal." } }
     private fun report(error: Exception) {
         failure.value = when (error) {
@@ -45,7 +46,7 @@ internal class SshTerminalInput(
             }) {
             content.close()
             failure.value = when {
-                !allowed() -> "Open an active SSH terminal before pasting."
+                !allowed() -> "Open an active terminal before pasting."
                 content.items.size !in 1..10 -> "Paste up to 10 items at a time."
                 else -> "Use Files to upload a document. This terminal accepts images and text."
             }

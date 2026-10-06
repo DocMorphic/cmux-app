@@ -70,7 +70,8 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     val draft = drafts[composer.target] ?: TerminalDrafts.Draft()
     val scope = rememberCoroutineScope()
     val attachmentFiles = remember(context) { AttachmentFiles(context) }
-    val available by rememberUpdatedState(state.phase == SshShellPhase.RUNNING && !reconnecting)
+    val available by rememberUpdatedState((state.phase == SshShellPhase.RUNNING ||
+        (shell.acceptsInputWhileOpening && state.phase == SshShellPhase.OPENING)) && !reconnecting)
     val input = remember(shell, composer) {
         SshTerminalInput(shell, composer, scope, { available }) { uri -> attachmentFiles.prepare(uri, image = true) }
     }
@@ -173,7 +174,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             RenderGridView(display, cells, state.revision, Modifier.fillMaxSize().testTag("ssh.shell.terminal")
                 .onSizeChanged { size = it }.focusRequester(focus).onPreviewKeyEvent { key(it.nativeKeyEvent) }.focusable()
                 .semantics {
-                    stateDescription = "SSH terminal ${shell.title}, ${state.phase.name.lowercase()}"
+                    stateDescription = "${shell.transportLabel} terminal ${shell.title}, ${state.phase.name.lowercase()}"
                     onClick("Open keyboard") { showKeyboard(); true }
                     customActions = listOf(CustomAccessibilityAction("View as Text") { showText(); true })
                     scrollBy { _, y ->

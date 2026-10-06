@@ -51,4 +51,15 @@ class CloudMachineConnectionsTest {
             assertEquals(CloudLinkPhase.READY, replacement.state.value.phase); assertEquals(2, attempts)
         } finally { pool.close(); runCurrent() }
     }
+    @Test fun staleCatalogFailureCannotRetireAReplacementConnection() = runTest {
+        val pool = CloudMachineConnections(this, Api(), "fingerprint", { true }, { Session() }, StandardTestDispatcher(testScheduler))
+        try {
+            val old = pool.connection("one")!!; old.start(); runCurrent()
+            pool.retire(setOf("one")); runCurrent()
+            val replacement = pool.connection("one")!!; replacement.start(); runCurrent()
+            pool.retire("one", old); runCurrent()
+            assertSame(replacement, pool.connection("one"))
+            assertEquals(CloudLinkPhase.READY, replacement.state.value.phase)
+        } finally { pool.close(); runCurrent() }
+    }
 }

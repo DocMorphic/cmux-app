@@ -607,3 +607,44 @@ workspace/terminal creation, persistence and full UI behavior remain pending. Pi
 runtime/transport evidence is absent: no ADB device was connected; no emulator, APK
 build or signed promotion ran. Passing ownership tests is not proof of live Cloud
 terminal operation.
+
+
+### Shared workspace and terminal UI — 2026-10-06
+
+Cloud workspace rows now appear in the common All Computers list and routed
+sidebar, using shared sorting, search, machine filters, pane selection and workspace
+presentation. Opening a row captures its account-owned catalog; stale navigation
+cannot open a same-ID workspace in a replacement account. Cloud rows do not expose
+unsupported Mac mutation actions or invent unread/activity metadata.
+
+`CloudTerminalHost` retains one attachment slot per machine and supplies the
+existing Ghostty surface, toolbar, keyboard and composer through
+`CloudRenderedTerminal`. Ordered snapshot/output bytes feed the real renderer;
+initial snapshots suppress bells. Terminal switches fence the previous display's
+input and preserve bounded in-memory drafts. Early input is available while the
+Cloud attachment opens. Backgrounding rejects input; reconnect waits for an
+authoritative catalog before restoring the selected terminal. Removed terminals
+and paused machines report their unavailable state. Failed catalog links are
+retired by identity so an old failure cannot close a replacement connection.
+
+Verification: **92 JVM checks passed across 14 suites**, zero failures/errors/skips,
+covering the new Cloud navigation and connection retirement plus shared sorting
+and routed-sidebar regressions. Debug and instrumentation APKs built successfully
+in the same 1m25s milestone. Captured navigation-owner admission then compiled and
+packaged in a 46-second final rebuild. APK ZIP alignment passes at 16 KiB; native
+receipt/pin gates passed. Final debug APK SHA-256:
+`258a127cb8b709efc11f37e7561b66eb1d2ac7814482e865e59a20b009d45ba3`.
+Evidence: `captures/runtime/cloud-ui-integration/`.
+
+`CloudTerminalScreenTest` compiles a real-Ghostty/shared-composer fixture with an
+injected daemon link, Unicode/colored output, terminal switching and background
+input rejection. It has **not run**: ADB reports no device. No emulator or signed
+release was produced. Compiling this fixture is not evidence of actual native
+Cloud connectivity, Android rendering or input delivery.
+
+Next complete Cloud workspace/terminal creation, full computer-picker and scoped
+return navigation, selection restoration and hidden-machine persistence. Audit
+Cloud-only onboarding, plan/tutorial/private-port controls and owner fencing of
+retry callbacks. Then run Android fixtures and authorized real-account Pixel
+workflows, including DNS/TLS, reconnect and process recovery, and compare UI states
+against iOS. The shared UI is mounted; full parity and live transport remain open.

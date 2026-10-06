@@ -13,6 +13,8 @@ internal interface SshTerminal : AutoCloseable {
     val display: GhosttyVtTerminal
     val composer: SshComposerPool.Draft? get() = null
     val imageUpload: SshImageUpload? get() = null
+    val transportLabel: String get() = "SSH"
+    val acceptsInputWhileOpening: Boolean get() = false
     fun send(text: String, paste: Boolean = false): Boolean
     /** Copies caller-owned bytes. Mouse protocols are not necessarily valid UTF-8. */
     fun sendBytes(bytes: ByteArray): Boolean

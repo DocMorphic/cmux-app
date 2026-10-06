@@ -31,6 +31,10 @@ internal class CloudMachineConnections<S : AutoCloseable>(
         // hold its own lock while checking this pool's admission predicate.
         retired.forEach { it.close() }
     }
+    fun retire(id: String, expected: CloudMachineHandshake<S>) {
+        val retired = synchronized(lock) { if (connections[id] === expected) connections.remove(id) else null }
+        retired?.close()
+    }
     override fun close() {
         val retired = synchronized(lock) {
             if (closed) return

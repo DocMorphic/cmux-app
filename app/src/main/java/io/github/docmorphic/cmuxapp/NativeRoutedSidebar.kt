@@ -11,6 +11,7 @@ internal sealed interface NativeSidebarTarget {
     data class Action(val kind: RoutedSidebarActionKind) : NativeSidebarTarget
     data class Workspace(val mac: NativeCredentialStore.PairedMac, val id: String) : NativeSidebarTarget
     data class Ssh(val row: SshFeedRow) : NativeSidebarTarget
+    data class Cloud(val row: CloudWorkspaceRow) : NativeSidebarTarget
     data class Notification(val entry: NativeFeedEntry) : NativeSidebarTarget
 }
 internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val ssh: List<SshFeedRow>,
@@ -18,7 +19,9 @@ internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val 
     val sshAvailability: Map<java.util.UUID, NativeFeedAvailability> = emptyMap(),
     val appearances: NativeMacAppearances = NativeMacAppearances(), val locale: Locale = Locale.getDefault(),
     val actions: Set<RoutedSidebarActionKind> = emptySet(), val pendingMoves: Map<String, Int> = emptyMap(),
-    val creation: NativeSidebarCreation? = null, val display: NativeDisplayPreferences = NativeDisplayPreferences())
+    val creation: NativeSidebarCreation? = null, val display: NativeDisplayPreferences = NativeDisplayPreferences(),
+    val cloud: List<CloudWorkspaceRow> = emptyList(), val cloudAvailability: Map<String, NativeFeedAvailability> = emptyMap(),
+    val cloudSelection: String? = null)
 internal data class NativeSidebarPresentation(val computer: String? = null, val notifications: Boolean = false,
     val workspaceQuery: String = "", val notificationQuery: String = "", val workspaceUnread: Boolean = false,
     val notificationUnread: Boolean = false, val machines: Set<String> = emptySet(),
@@ -55,6 +58,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
     private fun computer(key: String) = id("computer", key)
+    private fun cloud(row: CloudWorkspaceRow) = id("cloud", row.key)
     private fun workspace(mac: NativeCredentialStore.PairedMac, key: String) = id("workspace", mac.origin, mac.code, key)
     private fun group(source: NativeFeedSource, key: String) = id("group", source.mac.origin, source.mac.code, key)
     private fun ssh(row: SshFeedRow) = id("ssh", row.key, row.kind.name, row.generation, row.registry,
@@ -92,7 +96,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     }
     private fun machines(value: NativeSidebarInput) = (value.sources.filter { it.workspaces.isNotEmpty() }.mapNotNull {
         workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag)
-    } + value.ssh.map { workspaceSshFilterId(it.host.id) }).toSet()
+    } + value.ssh.map { workspaceSshFilterId(it.host.id) } + value.cloud.map { CloudAddress(it.machine.id).identifier }).toSet()
     private fun filter(value: NativeSidebarInput, query: RoutedSidebarQuery) = NativeWorkspaceFilter(query.workspaceUnread, query.machines)
         .forMenu(machines(value).map(::computer).toSet(), query.computer != null)
     override fun sort(command: RoutedSidebarSort) {
@@ -319,6 +323,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         val selected = query.computer?.let { key -> value.computers.singleOrNull { computer(it.id) == key }?.id }
         if (query.computer != null && selected == null) return null
         if (value.ssh.any { selected == null || workspaceSshFilterId(it.host.id) == selected }) return null
+        if (value.cloud.any { selected == null || CloudAddress(it.machine.id).identifier == selected }) return null
         val source = value.sources.filter { selected == null || workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag) == selected }.singleOrNull() ?: return null
         if (!source.canReorderWorkspaces() || (source.groups.isEmpty() && source.workspaces.any { it.isPinned }) ||
             (checkPending && (value.pendingMoves[source.mac.origin] ?: 0) >= 3)) return null
@@ -376,6 +381,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         val validScope = query.computer == null || selected != null
         val sources = value.sources.filter { validScope && (selected == null || workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag) == selected) }
         val sshRows = value.ssh.filter { validScope && (selected == null || workspaceSshFilterId(it.host.id) == selected) }
+        val cloudRows = value.cloud.filter { validScope && (selected == null || CloudAddress(it.machine.id).identifier == selected) }
         val entries = aggregateNativeFeed(sources, computerName = value.appearances::name)
         val unread = entries.count { !it.notification.isRead }
         val filter = filter(value, query)
@@ -383,7 +389,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         val rows = if (query.notifications) notifications(projection, value.locale) else workspaces(value,
             sources.filter { source -> filter.matches(workspaceMacFilterId(source.mac.deviceId, source.mac.instanceTag)?.let(::computer), true) },
             sshRows.filter { filter.matches(computer(workspaceSshFilterId(it.host.id)), it.workspace.hasUnread) },
-            query, selected == null, filter.active, selection)
+            query, selected == null, filter.active, selection,
+            cloudRows.filter { filter.matches(computer(CloudAddress(it.machine.id).identifier), false) })
         val drag = dragContext(value, query)
         val dragRows = if (drag == null) rows else rows.map { row ->
             val index = drag.keys.indexOf(row.key)
@@ -414,17 +421,22 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             wrapTitles = value.display.wrapTitles, previewLines = value.display.previewLines, dragRevision = drag?.revision)
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
-        query: RoutedSidebarQuery, all: Boolean, filtering: Boolean, selection: NativeSidebarSelection?): List<RoutedSidebarRow> {
+        query: RoutedSidebarQuery, all: Boolean, filtering: Boolean, selection: NativeSidebarSelection?, cloudRows: List<CloudWorkspaceRow>): List<RoutedSidebarRow> {
         val matches = NativeSearchIndex(workspaceSearchRows(sources, value.appearances::name), value.locale).matches(query.text)
         val sshMatches = NativeSearchIndex(sshRows.map { it.key to it.searchFields() }, value.locale).matches(query.text)
+        val cloudMatches = NativeSearchIndex(cloudRows.map { it.key to it.searchFields() }, value.locale).matches(query.text)
         val collapsed = sources.flatMap { source -> source.groups.map { item ->
             WorkspaceListEntry.Header(source, item).key to (query.groupExpansion[group(source, item.id)]?.not() ?: item.isCollapsed)
         } }.toMap()
         val movable = if (moveWorkspace == null) emptyMap() else sources.associate { source -> source.mac.origin to
             NativeWorkspaceGroupMoveMenu.availableWorkspaceIds(source, value.pendingMoves[source.mac.origin] ?: 0) }
         return sortedWorkspaceRows(sources, sshRows.filter { it.key in sshMatches && (!query.unread || it.workspace.hasUnread) },
-            value.computers, value.sort, all, matches, query.text.isNotBlank() || filtering, query.unread, collapsed, value.locale).map { row ->
+            value.computers, value.sort, all, matches, query.text.isNotBlank() || filtering, query.unread, collapsed, value.locale,
+            cloudRows.filter { it.key in cloudMatches && !query.unread }).map { row ->
             when (row) {
+                is NativeWorkspaceDisplayRow.Cloud -> displayWorkspace(cloud(row.row), row.row.workspace, row.row.machine.preferredName,
+                    value.cloudAvailability[row.row.machine.id] ?: NativeFeedAvailability.OFFLINE, 0, true)
+                    .copy(selected = value.cloudSelection == row.row.key)
                 is NativeWorkspaceDisplayRow.Ssh -> displayWorkspace(ssh(row.row), row.row.workspace, row.row.host.name,
                     (value.sshAvailability[row.row.host.id] ?: NativeFeedAvailability.OFFLINE), 0, row.row.openTarget() != null).copy(
                         selected = selection.matches(row.row), sshKind = row.row.kind, mutations = if (closeSsh != null && canCloseSsh(row.row))
@@ -513,6 +525,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                 }
             }
             value.ssh.firstOrNull { ssh(it) == key && it.openTarget() != null }?.let { return NativeSidebarTarget.Ssh(it) }
+            value.cloud.firstOrNull { cloud(it) == key }?.let { return NativeSidebarTarget.Cloud(it) }
             aggregateNativeFeed(value.sources).firstOrNull { notification(it) == key }?.let { return NativeSidebarTarget.Notification(it) }
             return null
         }

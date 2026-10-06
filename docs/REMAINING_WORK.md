@@ -26,6 +26,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud workspaces now mount in the shared list/sidebar and use the common Ghostty
+  surface, toolbar, keyboard and composer through account-owned machine hosts.
+  **92 JVM checks passed**; debug/test APKs built and 16 KiB ZIP alignment passed.
+  The real-renderer fixture compiled but has not run (ADB has no device).
+  Next: creation, full computer-picker/scope return, hidden-machine persistence,
+  restoration and live Android/native acceptance. See `CLOUD_COMPANION.md` and
+  `captures/runtime/cloud-ui-integration/`. Earlier mounting gaps below are
+  historical checkpoints superseded by this entry; no full parity claim.
+
 - Cloud's single-slot terminal attachment owner now serializes blocking attaches,
   fences old send/resize/detach by native token, delivers ordered output, buffers
   early input and debounces resize repaint. **25 focused JVM checks passed**, with
