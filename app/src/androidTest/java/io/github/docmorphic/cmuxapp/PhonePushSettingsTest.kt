@@ -44,4 +44,23 @@ class PhonePushSettingsTest {
         compose.onNodeWithText("Helper paired · delivery not yet verified").assertDoesNotExist()
         compose.onNodeWithTag("push.message").assertTextEquals("Pairing started")
     }
+    @Test fun macControlsReflectAuthorityAndDisableWhileUnconfirmed() {
+        val status = PhoneMacPushStatus(true, PhoneMacPushMode.AWAY, true, "suppressed_mac_active", "healthy")
+        var change: PhoneMacPushChange? = null
+        val state = androidx.compose.runtime.mutableStateOf(PhoneMacPushState(status, true, loading = false, stale = false))
+        compose.setContent { MaterialTheme {
+            PhoneMacPushSettingsContent("Fixture Mac", state.value, { change = it }, {})
+        } }
+        compose.onNodeWithTag("push.mac.enabled").assertIsOn().performClick()
+        assertEquals(PhoneMacPushChange.Enabled(false), change)
+        compose.onNodeWithTag("push.mac.hidden").assertIsOn()
+        compose.onNodeWithTag("push.mac.mode.onlyWhenAway").assertIsSelected()
+        compose.onNodeWithTag("push.mac.admission").assertTextEquals("Alerts are paused while you’re active on the Mac.")
+        compose.runOnIdle { state.value = state.value.copy(stale = true, error = "Couldn’t confirm that change.") }
+        compose.onNodeWithTag("push.mac.enabled").assertIsNotEnabled().assertIsOn()
+        compose.onNodeWithText("Last confirmed settings").assertExists()
+        compose.onNodeWithTag("push.mac.admission").assertDoesNotExist()
+        compose.onNodeWithText("Refresh Mac Settings").assertIsEnabled()
+    }
+
 }

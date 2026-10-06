@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Android Settings now exposes the connected Mac's authenticated forwarding,
+  away/always and privacy controls, with event/poll refresh, stale-state recovery
+  and account/connection checks at RPC write admission. **Nine JVM checks passed**;
+  main/instrumentation compile. One new Compose case awaits the next integration
+  run. The official Apple test-alert RPC is not presented as Android delivery.
+  Helper source/policy/provisioning, its test action and physical acceptance remain
+  open. No APK/emulator. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#authenticated-mac-forwarding-controls--2026-10-06).
+
 - Automatic Android helper maintenance is now wired to token/account/key changes,
   opt-out/logout and recovery. Durable proof/receipt sequencing settles an uncertain
   token update before the next token or removal; encrypted cleanup credentials

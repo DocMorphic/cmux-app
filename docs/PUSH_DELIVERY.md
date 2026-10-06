@@ -1,6 +1,50 @@
 # Android background push
 
 
+## Authenticated Mac forwarding controls — 2026-10-06
+
+Android Settings now reads the connected Mac's authenticated `mobile.host.status`
+projection and exposes **Forward Alerts from This Mac**, **Only When Away / Always**
+and **Hide Notification Content** through `phone_push.settings.update`. It shows
+current admission and reported queue-persistence failures. This reads and changes
+cmux's actual preferences; it does not claim that the separate Android helper is
+configured or that a notification reached the phone.
+
+The scoped iOS/Mac reference remains
+`186cec79781256867ad4516f0802118738bd2393`: `MobileHostPhonePushStatus.swift`,
+`MobilePushSettingsContent.swift`, `MobileHostService.swift`,
+`MobileHostService+Capabilities.swift`, `TerminalController+MobilePhonePushSettings.swift`
+and `PhonePushClient.swift`. This does not advance the global parity pin. The
+native `phone_push.test` method was deliberately not attached to an Android test
+button: that upstream producer feeds the official Apple delivery path. An Android
+helper test must prove its own queue admission and provider delivery.
+
+Status decoding requires the verified-same-account scope and known typed fields.
+Unsupported hosts remain read-only/unavailable. Settings refetches on foreground
+entry, subscribes to `phone_push.status.changed` with its own stream and polls every
+15 seconds to recover missed events. Leaving the screen/lifecycle releases the
+subscription. Reads and writes are serialized; repeated gestures do not queue
+mutations, and an in-flight read does not discard the first gesture. UI values
+come from a full authenticated read after mutation. A lost response leaves the last
+confirmed values marked stale and disabled until refreshed, without automatically
+repeating an uncertain write. Account/team, saved pairing, connection identity and
+lifecycle are checked at request admission, after token lookup, before transport
+writes and before displaying completion.
+
+**Nine JVM checks passed**, zero failures/errors/skips: malformed/unknown status,
+legacy optional fields, concurrent remote changes, lost acknowledgments without
+replay, owner retirement, unavailable capabilities, overlapping reads/gestures,
+cancellation, actual authenticated framed RPC for all three controls without an
+unrelated selection ticket, and no mutation bytes after account retirement during
+token lookup. Main and instrumentation Kotlin compile. A new Compose case checks
+confirmed values and stale/disabled controls, but it has **not run on Android**.
+Evidence: ignored `captures/runtime/mac-push-settings/`.
+
+No APK, emulator, physical settings mutation, listener or Firebase resource was
+created. Mac/Pixel interaction and lifecycle acceptance remain open. The helper
+still needs its host source/policy/provisioning integration and its own Android
+test-alert action; changing native preferences alone does not finish that work.
+
 ## Automatic Android registration maintenance — 2026-10-06
 
 Android now connects token refresh, initial receipt retention, account/key changes,

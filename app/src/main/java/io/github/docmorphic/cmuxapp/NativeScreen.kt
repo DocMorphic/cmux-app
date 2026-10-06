@@ -2608,6 +2608,13 @@ internal fun NativeScreen(
                     }
                     PhonePushSettings(teamState.scope, accountTeams::isCurrent,
                         onEnableBackground = { enableNotifications(false) }, onConnect = ::presentComputers)
+                    PhoneMacPushSettings(client.takeIf { connectionReady && connectedCode == code },
+                        notificationSyncMac, teamState.scope,
+                        isCurrent = { active, mac, owner ->
+                            signedIn && accountTeams.isCurrent(owner) && client === active && connectionReady &&
+                                code == mac.code && connectedCode == mac.code && store.taskSession() == owner.login &&
+                                store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
+                        }, onConnect = ::presentComputers)
                     NativeNotificationSettings()
                     }, preferences = {
                     if (whatsNewState?.archive?.isNotEmpty() == true) TextButton(onClick = { showWhatsNew = true },

@@ -404,6 +404,16 @@ class MobileRpcClient internal constructor(
             values.opt(it) == WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY
         }
     }
+    internal suspend fun phonePushHostStatus(isCurrent: () -> Boolean): JSONObject =
+        requestAdmitted("mobile.host.status", JSONObject(), 15_000) {
+            check(isCurrent()) { "Mac connection changed" }
+        }.also { check(isCurrent()) { "Mac connection changed" } }
+
+    internal suspend fun changePhonePushSettings(change: PhoneMacPushChange, isCurrent: () -> Boolean): JSONObject =
+        requestAdmitted("phone_push.settings.update", change.wire(), 15_000) {
+            check(isCurrent()) { "Mac connection changed" }
+        }.also { check(isCurrent()) { "Mac connection changed" } }
+
     suspend fun workspaces(): JSONObject = request("mobile.workspace.list")
     internal suspend fun exchangePhonePushKey(buildID: String, descriptor: PhonePushDescriptor): JSONObject =
         request("phone_push.keys.exchange", JSONObject().put("version", 1).put("hpke_envelope_version", 2)
