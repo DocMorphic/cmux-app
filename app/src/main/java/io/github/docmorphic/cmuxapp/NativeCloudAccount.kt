@@ -36,8 +36,7 @@ internal suspend fun prepareNativeCloudTunnel(context: Context, api: CloudApi,
         val application = context.applicationContext
         // This cdylib has separate DNS/TLS globals from the existing Iroh FFI library.
         CloudNativeBindings.initialize(application)
-        val registryId = IrohInstallationStore(application).storedDeviceId()
-            ?: error("The cmux device identity is not ready yet")
+        val registryId = IrohInstallationStore(application).loadOrCreateDeviceId()
         val identity = nativeCloudIdentityStore(application).resolve()
         admitted()
         registryId to identity

@@ -16,7 +16,8 @@ internal class CloudMachineHandshake<S : AutoCloseable>(
     private val machineId: String, private val fingerprint: String,
     private val isCurrent: () -> Boolean, private val connect: (CloudAttachEndpoint) -> S,
     private val nativeDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val approvalAttempts: Int = 150, private val approvalTimeoutMillis: Long = 300_000
+    private val approvalAttempts: Int = 150, private val approvalTimeoutMillis: Long = 300_000,
+    private val retireSession: (S) -> Unit = {}
 ) : AutoCloseable {
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
@@ -119,7 +120,10 @@ internal class CloudMachineHandshake<S : AutoCloseable>(
         }
         job.cancel()
         // Never block the account/UI dispatcher in disconnect's callback drain.
-        if (owned != null) CoroutineScope(nativeDispatcher).launch { owned.close() }
+        if (owned != null) {
+            retireSession(owned)
+            CoroutineScope(nativeDispatcher).launch { owned.close() }
+        }
     }
     override fun close() { fail(CancellationException("Cloud connection closed")) }
 }

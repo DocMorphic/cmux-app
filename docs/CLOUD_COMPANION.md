@@ -460,9 +460,9 @@ late handle. Cancelling an observer does not steal or close the owner's session.
 The machine owner must explicitly close the attempt on retirement.
 
 `prepareNativeCloudTunnel` resolves the encrypted terminal key and enrolls with the
-existing Iroh registry device ID, checking the current account/team before and after
-IO. Reading that ID never creates an installation or replaces lost/corrupt identity.
-This startup function and handshake are not yet invoked by the mounted UI.
+shared Iroh registry device ID, checking the current account/team before and after
+IO. At this foundation checkpoint the startup function and handshake were not yet
+invoked by the mounted UI; the lifecycle integration below supersedes that status.
 
 Verification: **18 JVM checks passed** (8 handshake and 10 Cloud API); main and Iroh
 instrumentation Kotlin compilation passed in the final six-second run. Checks include
@@ -471,3 +471,47 @@ failure, HTTP retry/expiry, polling bounds and observer cancellation. The new An
 identity-read test compiled but was not run. Evidence:
 `captures/runtime/cloud-machine-handshake/`. Native transport, account tunnel leases,
 workspace/renderer integration and real device acceptance remain open.
+
+
+### Account-owned tunnel lifecycle — 2026-10-06
+
+`NativeCloudViewModel` now refreshes the catalog with the authenticated foreground
+shell, starts a terminal tunnel only when machines exist, and retains it across
+primary-tab changes. Backgrounding, sign-out and account/team replacement retire
+machine admission immediately and release the tunnel on an IO worker. This follows
+`CMUXMobileRootScene.cloudShellLeaseWanted` and `CloudSessionController` at the scoped
+revision above. Machine catalog requests remain owned by their existing controller.
+
+`CloudTunnelController` bounds enrollment and native startup to 30 seconds. A
+blocking native startup does not delay account retirement: its late handle is
+closed rather than published. Failures survive visibility changes and offer explicit
+retry; unexpected enrollment cancellation also offers retry. The Cloud screen shows
+connecting, connected and failure/retry states.
+
+`CloudMachineConnections` lazily shares one attach/approval owner per machine and
+retires affected links on catalog removal/lifecycle changes. `CloudNativeSession`
+fences new input before waiting for admitted blocking catalog calls to drain.
+Known-daemon state is private and isolated by user/team; it survives transient
+login and generation changes. All shared native handles still have one owner.
+
+Cloud-first startup now calls `IrohInstallationStore.loadOrCreateDeviceId`, using
+the same synchronized registry identity as computer discovery without opening a
+scoped signing key. Existing malformed IDs or lost IDs with remaining scoped keys
+still fail without replacement. The read-only `storedDeviceId` contract is unchanged.
+This removes the first-login race between independent Cloud and computer discovery.
+
+Verification: **37 focused JVM checks passed**: tunnel lifecycle 9, shared machine
+connections 2, native terminal ownership 8, attach/approval 8, machine controller 10.
+Main, app instrumentation and Iroh instrumentation Kotlin compilation passed in
+39 seconds. The checks include real blocking-worker timeout/late cleanup,
+foreground replacement, parent cancellation, explicit retry, immediate input
+rejection during a blocked catalog read, and daemon identity scope isolation.
+The new Android concurrent Cloud/computer registry test compiled but has not run.
+Evidence: `captures/runtime/cloud-lifecycle/`.
+
+No ADB device was connected, no emulator or APK build was started, and no live
+Cloud request or signed release was performed during this checkpoint. The app now
+owns the tunnel lifecycle, but the workspace bridge does not yet consume its lazy
+machine connections: common workspace/catalog projection, terminal renderer/input
+mounting, private-network/plan UX and actual Android transport acceptance remain
+open. A READY tunnel badge alone does not prove an attached terminal works.

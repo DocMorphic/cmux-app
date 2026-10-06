@@ -26,7 +26,8 @@ private val cloudMuted = Color(0xFF9B9FA8)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun NativeCloudScreen(controller: CloudMachinesController?, onSettings: () -> Unit,
-    onPlans: () -> Unit, modifier: Modifier = Modifier) {
+    onPlans: () -> Unit, modifier: Modifier = Modifier, connectionState: CloudTunnelState? = null,
+    onRetryConnection: () -> Unit = {}) {
     key(controller) {
         val state = controller?.state?.collectAsState()?.value ?: CloudMachinesState()
         var createSheet by rememberSaveable { mutableStateOf(false) }
@@ -49,6 +50,23 @@ private val cloudMuted = Color(0xFF9B9FA8)
             } else PullToRefreshBox(isRefreshing = state.phase == CloudCatalogPhase.LOADING && state.catalog.machines.isNotEmpty(),
                 onRefresh = controller::refresh, modifier = Modifier.weight(1f)) {
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    connectionState?.takeIf { it.phase in setOf(CloudTunnelPhase.STARTING, CloudTunnelPhase.READY, CloudTunnelPhase.FAILED) }?.let { connection -> item {
+                        Column(Modifier.fillMaxWidth().testTag("cloud.connection").background(cloudPanel, RoundedCornerShape(16.dp)).padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            when (connection.phase) {
+                                CloudTunnelPhase.STARTING -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                    Text("Connecting to Cloud…")
+                                }
+                                CloudTunnelPhase.READY -> Text("Cloud network connected")
+                                CloudTunnelPhase.FAILED -> {
+                                    connection.failure?.let { CloudFailureText(it) }
+                                    TextButton(onClick = onRetryConnection, modifier = Modifier.testTag("cloud.connection.retry")) { Text("Retry connection") }
+                                }
+                                else -> Unit
+                            }
+                        }
+                    } }
                     item { Text("MACHINES", color = cloudMuted, fontSize = 12.sp) }
                     if (state.catalog.machines.isEmpty() && state.phase in setOf(CloudCatalogPhase.IDLE, CloudCatalogPhase.LOADING)) item {
                         Row(Modifier.fillMaxWidth().background(cloudPanel, RoundedCornerShape(16.dp)).padding(18.dp),

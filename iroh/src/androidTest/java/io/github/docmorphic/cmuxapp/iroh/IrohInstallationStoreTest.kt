@@ -122,4 +122,23 @@ class IrohInstallationStoreTest {
         assertThrows(IOException::class.java) { store().storedDeviceId() }
         assertFalse(id.exists())
     }
+
+    @Test fun cloudFirstEnrollmentAndComputerDiscoveryShareOneRegistryId() {
+        val executor = Executors.newFixedThreadPool(4)
+        try {
+            val ids = executor.invokeAll(List(8) { index -> Callable {
+                if (index % 2 == 0) store().loadOrCreateDeviceId()
+                else store().loadOrCreate(scope).use { it.deviceId }
+            } }).map { it.get() }
+            assertEquals(1, ids.toSet().size)
+            assertEquals(ids.first(), store().storedDeviceId())
+            val id = File(directory, "installation-id")
+            id.writeText("damaged")
+            assertThrows(IOException::class.java) { store().loadOrCreateDeviceId() }
+            assertEquals("damaged", id.readText())
+            id.delete()
+            assertThrows(IOException::class.java) { store().loadOrCreateDeviceId() }
+            assertFalse(id.exists())
+        } finally { executor.shutdownNow() }
+    }
 }

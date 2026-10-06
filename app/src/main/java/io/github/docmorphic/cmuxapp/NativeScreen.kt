@@ -166,6 +166,8 @@ internal fun NativeScreen(
             .get(NativeCloudViewModel::class.java) else null
     }
     val cloudController = cloudModel?.controller?.collectAsState()?.value
+    val cloudTunnel = cloudModel?.tunnel?.collectAsState()?.value
+    val cloudTunnelState = cloudTunnel?.state?.collectAsState()?.value
     val historyRevision by store.revisions.collectAsState()
     val cachedComputers = remember(store, historyRevision, teamState, signedIn) {
         if (signedIn) NativeCachedComputers.project(store.load(), store.taskSession(), teamState) else null
@@ -3677,7 +3679,8 @@ internal fun NativeScreen(
                             NativeCloudScreen(cloudController, onSettings = { showSettings = true },
                                 onPlans = { runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://cmux.com/pricing"))) }
                                     .onFailure { android.widget.Toast.makeText(context, "No browser is available to open cmux.com/pricing", android.widget.Toast.LENGTH_LONG).show() } },
-                                modifier = Modifier.weight(1f))
+                                modifier = Modifier.weight(1f), connectionState = cloudTunnelState,
+                                onRetryConnection = { cloudTunnel?.retry() })
                             NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
                                 onTab = { cloudTab = false; finishSearch(); notificationTab = it },
                                 onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {})

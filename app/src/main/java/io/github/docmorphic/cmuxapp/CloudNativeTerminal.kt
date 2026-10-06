@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp
 import androidx.annotation.Keep
 import java.io.File
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -144,10 +145,11 @@ internal data class CloudResizeAcknowledgment(val requestId: Long, val columns: 
 internal class CloudNativeSession internal constructor(private val calls: CloudNativeCalls, private var handle: Long,
     private val output: CloudNativeOutputBuffer, private val retired: (CloudNativeSession) -> Unit) : AutoCloseable {
     private val lock = ReentrantReadWriteLock()
+    private val retiring = AtomicBoolean(false)
     private var attached: String? = null
     private var generation = 0L
     private fun current(): Long {
-        check(handle != 0L) { "Cloud terminal is closed" }
+        check(!retiring.get() && handle != 0L) { "Cloud terminal is closed" }
         check(calls.outputHealthy(handle)) { "Cloud terminal output delivery failed" }
         output.requireHealthy()
         return handle
@@ -196,7 +198,10 @@ internal class CloudNativeSession internal constructor(private val calls: CloudN
         lock.read { current(); check(generation == attachment) { "Cloud terminal attachment changed" } }
         return event
     }
+    /** Fence new input immediately, without waiting for a blocking native catalog call. */
+    fun retire() { retiring.set(true); output.close() }
     override fun close() {
+        retire()
         lock.write {
             if (handle == 0L) return
             val owned = handle

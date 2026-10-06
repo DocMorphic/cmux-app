@@ -26,6 +26,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud tunnel lifecycle is mounted in the retained account owner: foreground
+  shells with machines keep the tunnel across tabs; background/account changes
+  retire links and input before asynchronous native cleanup. Startup is bounded
+  to 30 seconds with explicit retry and late-handle disposal. Cloud-first registry
+  initialization shares the computer-discovery ID with corruption guards.
+  **37 focused JVM checks passed**, main/app/Iroh test sources compile; Android
+  identity and live transport checks remain unrun (no connected device). Common
+  workspace/terminal mounting is next. See `CLOUD_COMPANION.md` and
+  `captures/runtime/cloud-lifecycle/`.
+
 - Cloud native packaging is integrated: both libraries, verifier AAR, keep rules,
   portable Gradle receipt checks, in-app notices and cached/reusable CI checkpoint.
   Native run `37454996751` passed with **756 artifact hashes**, **410 notice components**

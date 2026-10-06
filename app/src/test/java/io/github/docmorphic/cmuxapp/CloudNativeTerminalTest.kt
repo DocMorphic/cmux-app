@@ -95,6 +95,10 @@ class CloudNativeTerminalTest {
             val catalog = executor.submit<ByteArray> { session.catalog(CloudCatalogOperation.SNAPSHOT) }
             assertTrue(entered.await(1, TimeUnit.SECONDS))
             assertTrue(executor.submit<Boolean> { session.send(byteArrayOf(1)) }.get(1, TimeUnit.SECONDS))
+            session.retire()
+            assertTrue(executor.submit<Boolean> { runCatching { session.send(byteArrayOf(2)) }.isFailure }
+                .get(1, TimeUnit.SECONDS))
+            assertFalse(fake.calls.contains("disconnect:10"))
             val closeStarted = CountDownLatch(1)
             val close = executor.submit { closeStarted.countDown(); session.close() }
             assertTrue(closeStarted.await(1, TimeUnit.SECONDS))

@@ -133,6 +133,14 @@ class IrohInstallationStore private constructor(context: Context, private val st
     /** Cloud enrollment uses this registry ID. Reading never mints an ID or opens a scoped signing key. */
     fun storedDeviceId(): String? = synchronized(lock) { readDeviceId() }
 
+    /** Shared registry identity for Cloud-first startup; no scoped signing key is opened.
+     * The same corruption/lost-ID checks as loadOrCreate remain authoritative.
+     */
+    fun loadOrCreateDeviceId(): String = synchronized(lock) {
+        check(directory.isDirectory || directory.mkdirs()) { "Cannot create Iroh identity directory" }
+        deviceId()
+    }
+
     private fun deviceId(): String = readDeviceId() ?: UUID.randomUUID().toString().also {
         write(AtomicFile(File(directory, "installation-id")), it.toByteArray(Charsets.US_ASCII))
     }
