@@ -25,6 +25,18 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- NativeScreen compiler-size obstacle addressed: composition-local state and
+  separate feed/terminal, foreground-effect and rendering groups reduce the
+  largest debug project DEX method from **44,283 to 13,147 code units**. All
+  3,497 associated methods are below ART's size/register guard. **Ten distinct
+  Android screen cases have unassisted passing evidence** (initial nine passes
+  and one stale filter-selector failure; corrected follow-up passed). No new
+  compiler-size warning, crash or ANR; relevant screenshots inspected. One
+  17 s app/test packaging build, then test-only rebuilds; sole AVD stopped/reaped.
+  This is not a frame-time benchmark or Pixel/Mac acceptance. The new
+  `scripts/check-native-screen-size.py` can check future DEX archives without
+  packaging an APK. See [SCREEN_COMPOSITION.md](SCREEN_COMPOSITION.md).
+
 - Combined identity-upgrade Android milestone: **20 distinct cases have
   unassisted passing evidence** (17 Details/Keystore cases, two corrected recovery
   flows, and the final explicit re-pair/build/reconnect/visible-terminal case).
@@ -35,8 +47,9 @@ and currently disabled; the upstream watcher is active on main with review issue
   changed only the test APK. Existing API37/16 KiB AVD stopped/reaped; no new AVD,
   no Pixel/Mac or signed-release acceptance. See `ATTACH_TICKETS.md` and local
   `captures/runtime/confirmed-upgrade-milestone/`. Next concrete observations:
-  investigate debug ART's NativeScreen compilation-size warning/frame skips and
-  reconcile remaining obsolete raw-launch fixtures with actual entry policy.
+  NativeScreen's compilation-size warning is addressed above; frame-time
+  profiling and reconciliation of remaining obsolete raw-launch fixtures with
+  actual entry policy remain.
 
 - Fresh confirmation of an older saved Mac now takes the explicit pairing path
   and commits its new address grant and saved identity together. Existing

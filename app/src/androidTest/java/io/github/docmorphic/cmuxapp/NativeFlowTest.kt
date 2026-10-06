@@ -337,8 +337,12 @@ class NativeFlowTest {
         }
         compose.onNodeWithContentDescription("Open Completed group").assertIsDisplayed()
         screenshot("workspaces")
-        compose.onNodeWithText("☷").performClick()
+        compose.onNodeWithContentDescription("Filter workspaces").performClick()
         compose.onNodeWithText("Unread").performClick()
+        compose.onNodeWithText("Unread").assertIsSelected()
+        // View options now update the list live and stay open until dismissed.
+        androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).pressBack()
+        compose.onNode(isPopup()).assertDoesNotExist()
         compose.onNodeWithText("Read project").assertDoesNotExist()
         compose.onNodeWithText("Completed group").assertDoesNotExist()
         compose.onNodeWithText("Claude Code task").performClick()

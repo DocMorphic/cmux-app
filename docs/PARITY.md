@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Screen composition compiler-size checkpoint (2026-10-06)
+
+The debug NativeScreen method now measures 13,147 code units, down from 44,283
+in the same project DEX archive measurement. Its transient state is shared through
+one snapshot-backed holder; feed/terminal setup, foreground effects and rendering
+have separate composition groups. Keyed state, saveable state and effect bodies
+remain intact. All 3,497 measured screen methods pass the new DEX size checker.
+
+Ten distinct Android screen fixtures passed without manual assistance: nine in
+the initial 98.338 s run and the corrected filter/input/keyboard case in 20.468 s.
+The initial obsolete-selector failure is preserved. No new compiler-size
+warning/crash/ANR; relevant screenshots inspected; sole existing AVD stopped.
+This does not close physical parity or responsiveness gates. Details and local
+evidence locations: [SCREEN_COMPOSITION.md](SCREEN_COMPOSITION.md).
+
 ## Viewer controls integration checkpoint (2026-10-05)
 
 Image gestures/actions, progressive text and media controls have completed their
