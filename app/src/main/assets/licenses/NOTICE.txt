@@ -1,6 +1,17 @@
 cmux-app is an unofficial Android companion distributed under GNU GPL version 3.
 Source: https://github.com/DocMorphic/cmux-app
 
+Cloud machine, identity, invitation approval, terminal output and UI code adapt
+Packages/iOS/CmuxMobileCloud and CmuxMobileCloudUI at cmux
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+The Cloud native C ABI comes from the same cmux Rust workspace with Ghostty
+324c0273815ddc383d8d2fbf8d59d590cb65dfdb. Android adds JNI ownership, Android
+DNS/TLS initialization and build portability patches. CloudTerminal.txt and the
+bundled cloud-terminal inventory preserve dependency notices and attribution.
+The platform verifier Android component is rustls-platform-verifier 0.1.1,
+used with rustls-platform-verifier Rust crate 0.7.0; MIT OR Apache-2.0.
+
 Mac pairing setup guidance and the unmodified MacSettings-dark.png and
 MacSettings-light.png images follow OnboardingPairingView.swift,
 OnboardingPairingSettingsScreenshot.swift and OnboardingConnectionView.swift in

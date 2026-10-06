@@ -26,12 +26,23 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud native packaging is integrated: both libraries, verifier AAR, keep rules,
+  portable Gradle receipt checks, in-app notices and cached/reusable CI checkpoint.
+  Native run `37454996751` passed with **756 artifact hashes**, **410 notice components**
+  and no missing texts. Debug/test APKs built (1m17s); all **21 native libraries**
+  pass alignment and APK ZIP alignment passes. **749 notice assets** match their
+  receipt; Cloud binary bytes match after reproducing AGP symbol stripping.
+  The real-library initialization/coexistence test compiled but has not run; no
+  ADB device was present and a Pixel request is pending. No emulator/signed release.
+  Next: account-owned tunnel/session mounting, common workspaces and renderer/input,
+  plus physical initialization/DNS/WSS gates. See `CLOUD_COMPANION.md`.
+
 - Cloud's Android DNS/TLS adapter is implemented in the exported native build:
   process-lifetime JNI context, one-time initialization, Android WSS certificate
   verification and the matching verifier AAR. **26 focused JVM checks passed**;
   native run `37452130548` at `e3322507` **passed**. Downloaded hashes and 16 KiB
-  alignment are verified. Packaging, dependency notices,
-  device DNS/TLS checks and mounting the account tunnel owner remain open.
+  alignment are verified. Packaging/notices are completed by the newer checkpoint
+  above; device DNS/TLS checks and mounting the account tunnel owner remain open.
 
 - Cloud attach/approval now has an account-owned handshake: parallel native connect
   and bounded invitation polling, prompt cancellation and late-handle disposal.
@@ -52,8 +63,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   alignment. Downloaded artifacts match all receipt hashes and passed the local
   alignment check. The dependency audit identified required separate DNS and TLS
   initialization and a WSS trust-store adapter; their implementation is recorded above.
-  The new native dependency is not yet packaged or mounted. Continue with its
-  initialization/notices, account-owned tunnel/attachment lifecycle and workspace/renderer
+  The new native dependency is now packaged, but not mounted in the terminal flow.
+  Continue with account-owned tunnel/attachment lifecycle and workspace/renderer
   integration. See `CLOUD_COMPANION.md`.
 
 - Cloud terminal identity/configuration is implemented: an encrypted no-backup

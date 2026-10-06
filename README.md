@@ -35,8 +35,8 @@ The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux
 Install Android Studio with Android SDK platforms 37.0 and 36, build-tools 36.0.0 and JDK 17.
 The wrapper pins Gradle 9.3.1; the build uses AGP 9.1.1 and Kotlin/Compose compiler 2.4.20.
 SDK 36 is used only by the Android 8 fingerprint adapter; see [toolchain notes](docs/ANDROID_TOOLCHAIN.md). The app now includes its
-native Iroh, rebuilt graphics-path, Ghostty VT and simulator-video dependencies.
-Obtain the four reviewed checkpoints below (requires GitHub CLI access), or
+native Iroh, rebuilt graphics-path, Ghostty VT, simulator-video and Cloud dependencies.
+Obtain the five reviewed checkpoints below (requires GitHub CLI access), or
 reproduce them from pinned source as described in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
 
 ```bash
@@ -44,15 +44,19 @@ gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-
 gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
 gh run download 36642877666 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
 gh run download 36653485468 --repo DocMorphic/cmux-app --name cmux-simulator-video-android-arm64 --dir build/simulator-codecs-android
+gh run download 37454996751 --repo DocMorphic/cmux-app --name cmux-cloud-terminal-android-arm64 --dir build/cloud-terminal-android
 ./gradlew :app:assembleDebug
 ```
 
-Gradle verifies all four native receipts and every listed hash before compiling. Move
+Gradle verifies all five native receipts and every listed hash before compiling. Move
 any older checkpoint directories aside before downloading these replacements.
 If artifacts expire, use reviewed new `native_only`, `graphics_only`, `ghostty_only` and `video_only` workflow
 runs or the documented source builds (see also
 [Ghostty build notes](docs/GHOSTTY_VT_ANDROID.md#app-build-dependency) and
 [graphics-path source notes](third_party/androidx-graphics-path/README.md)).
+Cloud checkpoints can be regenerated with the manual `cloud-native.yml` workflow;
+see [Cloud integration and build notes](docs/CLOUD_COMPANION.md). APK CI reuses the
+source-matched checkpoint cache and verifies dependency notice completeness.
 The simulator decoder uses [FFmpeg n9.0.2 source](https://github.com/FFmpeg/FFmpeg/tree/946fcce07b6dcd0331c8cc609192aeff5e1924f8),
 licensed under LGPL-2.1-or-later; build instructions and attribution are in
 [SIMULATOR_STREAMING.md](docs/SIMULATOR_STREAMING.md) and [NOTICE.md](NOTICE.md).

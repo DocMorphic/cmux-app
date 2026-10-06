@@ -54,6 +54,49 @@ val verifySimulatorNative by tasks.registering {
     }
 }
 tasks.named("preBuild").configure { dependsOn(verifySimulatorNative) }
+val cloudNativeRoot = rootProject.layout.projectDirectory.dir("build/cloud-terminal-android")
+val cloudNativeSources = mapOf(
+    "builderSha256" to "scripts/build-cloud-terminal-android.py",
+    "ghosttyBuildAdapterSha256" to "scripts/native/cloud-ghostty-build.rs",
+    "jniSourceSha256" to "app/src/main/c/cloud_terminal_jni.c",
+    "androidRuntimeSha256" to "scripts/native/cloud-android-runtime.rs",
+    "androidTlsSha256" to "scripts/native/cloud-android-tls.rs",
+    "noticeCollectorSha256" to "scripts/collect-cloud-notices.py",
+    "noticeSourcesSha256" to "third_party/cloud-notices/sources.json"
+)
+val verifyCloudNative by tasks.registering {
+    inputs.files(fileTree(cloudNativeRoot))
+    inputs.files(cloudNativeSources.values.map { rootProject.file(it) })
+    doLast {
+        val root = cloudNativeRoot.asFile.canonicalFile
+        val manifest = root.resolve("manifest.json")
+        check(manifest.isFile) { "Missing Cloud native checkpoint. See docs/CLOUD_COMPANION.md" }
+        val receipt = JsonSlurper().parse(manifest) as Map<*, *>
+        check(receipt["sourceRevision"] == "c2715faa02c260b07012bc0b386597cfb333021d")
+        check(receipt["ghosttyRevision"] == "324c0273815ddc383d8d2fbf8d59d590cb65dfdb")
+        check(receipt["ndk"] == "28.2.13676358" && receipt["androidApi"] == 26 && receipt["abi"] == "arm64-v8a" && receipt["elfPageSize"] == 16384)
+        fun digest(file: File) = MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
+        cloudNativeSources.forEach { (field, source) ->
+            check(receipt[field] == digest(rootProject.file(source))) { "Rebuild Cloud checkpoint after changing $source" }
+        }
+        val files = receipt["files"] as Map<*, *>
+        check(files.keys.containsAll(listOf("jniLibs/arm64-v8a/libcmux_terminal_client.so", "jniLibs/arm64-v8a/libcmux_cloud_jni.so",
+            "rustls-platform-verifier-0.1.1.aar", "notices/licenses/CloudTerminal.txt", "notices/licenses/cloud-terminal/inventory.json")))
+        files.forEach { (path, hash) ->
+            val artifact = root.resolve(path as String).canonicalFile
+            check(artifact.toPath().startsWith(root.toPath()) && artifact.isFile && digest(artifact) == hash) { "Cloud checkpoint mismatch: $path" }
+        }
+        root.resolve("jniLibs").walkTopDown().filter { it.isFile }.forEach {
+            check(files.containsKey(it.relativeTo(root).invariantSeparatorsPath)) { "Unverified Cloud native library: ${it.name}" }
+        }
+        val inventory = root.resolve("notices/licenses/cloud-terminal/inventory.json")
+        val noticeReceipt = receipt["notices"] as Map<*, *>
+        check(digest(inventory) == noticeReceipt["inventorySha256"])
+        val notices = JsonSlurper().parse(inventory) as Map<*, *>
+        check((notices["missingLicenseTexts"] as List<*>).isEmpty()) { "Cloud license texts missing: ${notices["missingLicenseTexts"]}" }
+    }
+}
+tasks.named("preBuild").configure { dependsOn(verifyCloudNative) }
 configurations.configureEach { exclude(group = "androidx.graphics", module = "graphics-path") }
 
 // About/support identifies development reloads without creating installation identifiers.
@@ -107,6 +150,7 @@ android {
         }
         release {
             isMinifyEnabled = false
+            proguardFiles("cloud-rules.pro")
             // Signed Actions APKs are the development distribution, not an official store release.
             buildConfigField("String", "NOTICE_CHANNEL", "\"beta\"")
             signingConfig = signingConfigs.findByName("cmuxAppRelease")
@@ -118,6 +162,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     sourceSets.getByName("main").java.directories.add("../third_party/termux/terminal-emulator/src/main/java")
+    sourceSets.getByName("main").jniLibs.directories.add(cloudNativeRoot.dir("jniLibs").asFile.path)
+    sourceSets.getByName("main").assets.directories.add(cloudNativeRoot.dir("notices").asFile.path)
     sourceSets.getByName("main").jniLibs.directories.add(simulatorNativeRoot.dir("jniLibs").asFile.path)
     sourceSets.getByName("main").assets.directories.add(simulatorNativeRoot.dir("notices").asFile.path)
     sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/terminal")
@@ -143,6 +189,7 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.09.00")
     implementation(composeBom)
     implementation(files(graphicsRoot.file("graphics-path-1.1.0-relro.aar")))
+    implementation(files(cloudNativeRoot.file("rustls-platform-verifier-0.1.1.aar")))
     // Local AARs do not carry their Maven transitive dependencies.
     implementation("androidx.core:core:1.12.0")
     implementation("androidx.collection:collection:1.5.0")

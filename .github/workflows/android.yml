@@ -70,14 +70,25 @@ jobs:
           else
             echo 'should_build=true' >> "$GITHUB_OUTPUT"
           fi
-  build:
+  cloud-native:
     needs: decide
+    if: needs.decide.outputs.should_build == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.native_only && !inputs.graphics_only && !inputs.ghostty_only && !inputs.video_only) || (github.event_name == 'pull_request' && !github.event.pull_request.draft))
+    uses: ./.github/workflows/cloud-native.yml
+  build:
+    needs: [decide, cloud-native]
     # Draft feature commits accumulate without rebuilding release APKs.
     # Build a milestone manually, or automatically once the PR is ready.
     if: needs.decide.outputs.should_build == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.native_only && !inputs.graphics_only && !inputs.ghostty_only && !inputs.video_only) || (github.event_name == 'pull_request' && !github.event.pull_request.draft))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Download matching Cloud native checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: cmux-cloud-terminal-android-arm64
+          path: build/cloud-terminal-android
+      - name: Verify Cloud native checkpoint and notices
+        run: python3 scripts/verify-cloud-checkpoint.py build/cloud-terminal-android --require-notices
       - name: Verify pinned viewer assets
         run: python3 scripts/verify-viewer-assets.py
       - uses: actions/setup-node@v4

@@ -380,7 +380,7 @@ verifier, hostname/chain validation intact. Plain WS retains upstream behavior;
 Iroh's embedded-root default is unchanged. Only new dependency edges to versions
 already in the pinned Cargo.lock are added; the hosted cargo build remains locked.
 The checkpoint includes the matching verifier 0.1.1 AAR and hashes both Android
-adapter sources. Gradle packaging and shrinker keep rules remain to be wired.
+adapter sources. Gradle packaging and shrinker keep rules are now wired below.
 
 Run [`37452130548`](https://github.com/DocMorphic/cmux-app/actions/runs/37452130548)
 at `e3322507` **passed**, including the Rust runtime adapter, WSS connector and JNI
@@ -398,13 +398,56 @@ versus rejected WSS certificates before claiming runtime acceptance. Evidence:
 `captures/runtime/cloud-android-runtime/`. Gradle was stopped after verification;
 no emulator or APK build was started.
 
-The native files are **not yet packaged or mounted**. Next: complete dependency
-notices and the Android initialization above, validate the checkpoint during Gradle
-packaging, then implement account-owned enrollment/approval/attachment cancellation,
+The native files are now wired into Gradle packaging as described below. Next:
+implement account-owned enrollment/approval/attachment cancellation,
 common-workspace projection and renderer/input integration. Caller cancellation
 must retire any late native connection result; wrapper methods alone do not supply
 that coroutine ownership. Android/fixture and authorized Pixel/live account gates
-remain open. No emulator was started or APK rebuilt for this work.
+remain open. The earlier foundation checks did not start an emulator or rebuild an APK.
+
+### Android packaging checkpoint
+
+Run [`37454996751`](https://github.com/DocMorphic/cmux-app/actions/runs/37454996751)
+at `d7cc7281` passed. The downloaded checkpoint has **756 verified artifact hashes**,
+**410 notice components**, no missing notice texts and passing 16 KiB LOAD/RELRO
+checks for both libraries. The first collector run identified missing published
+crate texts and accidentally counted hidden license-CI workflows as notices;
+the collector now excludes CI/source files and uses verified source supplements.
+All 31 committed supplemental texts preserve their recorded source bytes.
+See `third_party/cloud-notices/README.md` for the pinned source mapping, Ghostty VT
+import audit, embedded SIMD/Unicode attribution and Rust runtime texts.
+
+Gradle now packages both arm64 libraries, the matching verifier AAR and license
+assets. Its portable gate checks source/toolchain pins, all adapter and artifact
+hashes, unexpected JNI files, inventory integrity and missing notice texts.
+The verifier JNI classes have keep rules, and Cloud appears in the app's license
+viewer. APK CI calls the reusable Cloud native workflow, which restores a complete
+checkpoint on an exact source key or builds it on a cache miss. The same verifier
+runs before APK construction. The standalone Python verifier additionally checks
+ELF alignment. The workflow YAML parses and Gradle configuration passed (9 seconds).
+
+The two collector regressions passed: runtime/build dependency closure excludes
+dev-only edges; nested notices survive while external symlinks, CI and source files
+are excluded. `CloudAndroidRuntimeTest` exercises real repeated/concurrent JNI
+initialization beside the existing Iroh library and the native invalid-config
+error path, without enrollment or VM creation.
+
+**Debug and instrumentation APKs built successfully in 1 minute 17 seconds.** The
+packaged verifier class is present; all **749 notice assets** match checkpoint
+hashes. Both Cloud libraries exactly match the checkpoint after reproducing AGP's
+`llvm-strip --strip-unneeded` step. All **21 packaged arm64 libraries** pass ELF
+alignment verification, and `zipalign -c -P 16 -v 4` passes. APK SHA-256:
+`e4ce299ea9f72e6600918ea20d5d58346627ddc7dfbcf0c432c6644ebfb024b6`.
+The local build was from the packaging changes on `d7cc7281` (dirty source stamp).
+Evidence: `captures/runtime/cloud-packaging/`.
+
+The real-library Android test compiled but **has not run**: no ADB device was
+connected. A Pixel connection request is pending. Initialization, current-network
+DNS and trusted/rejected WSS acceptance remain unverified. No emulator was started,
+Gradle was stopped, and superseded generated Cloud checkpoints were removed.
+No signed APK was published. Account-owned tunnel/session mounting, common workspace
+projection and terminal renderer/input integration remain the next implementation
+work; packaging alone does not provide a usable Cloud terminal.
 
 ### Account-owned attach and approval foundation
 
