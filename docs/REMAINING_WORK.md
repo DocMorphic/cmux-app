@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Automatic browser recovery now passes through the real routed Activity/service/
+  SOCKS proxy. Integration found WebView's generic (-1) mapping for tunnel failures,
+  now covered by the bounded GET retry. **Three Android cases passed in 39.069 s**
+  and three JVM classification cases passed; cookies, history, manual Retry,
+  rendered pixels and host release were checked. Failed attempts and a corrected
+  fixture timing assumption are documented in `LOCAL_BROWSER.md`. The sole AVD
+  was stopped/reaped; actual Pixel/Mac and SSH/Iroh recovery remain open.
+
 - Routed browser GET connection failures now prepare the existing computer route
   and retry once, with Stop/replacement cancellation and no automatic POST replay.
   **Four Android checks passed together in 21.498 seconds**, including visible

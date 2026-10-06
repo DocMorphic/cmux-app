@@ -109,8 +109,10 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
                 if (url != navigatingUrl && url != web.url) return
                 if (preparingRecovery) return // Duplicate callbacks for the failed load.
                 failed = true
+                // Diagnostic code only: never log the URL, page or localized message.
+                if (BuildConfig.DEBUG) android.util.Log.d("CmuxBrowser", "Page load failed (WebView code ${error.errorCode})")
                 if (beforeNavigation != null && !retriedRoute && request.method == "GET" &&
-                    error.errorCode in setOf(ERROR_CONNECT, ERROR_TIMEOUT, ERROR_HOST_LOOKUP, ERROR_IO)) {
+                    localBrowserConnectionError(error.errorCode)) {
                     retriedRoute = true
                     preparingRecovery = true
                     navigate(web, url, recovery = true) {

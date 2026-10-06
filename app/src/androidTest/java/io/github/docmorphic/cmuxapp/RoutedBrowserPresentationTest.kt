@@ -56,6 +56,11 @@ class RoutedBrowserPresentationTest {
     private val visits = CopyOnWriteArrayList<RecordedRequest>()
     private val uploads = CopyOnWriteArrayList<RecordedRequest>()
     private val targets = CopyOnWriteArrayList<String>()
+    private val listingCalls = AtomicInteger()
+    private val recoveryEvents = CopyOnWriteArrayList<String>()
+    private val rejectedRecoveryLanes = AtomicInteger()
+    private val recoveryPolicyReads = AtomicInteger()
+    private val recoveryAllowed = java.util.concurrent.atomic.AtomicBoolean()
     private val holds = AtomicInteger()
     private val releases = AtomicInteger()
     private val probes = CopyOnWriteArrayList<Boolean>()
@@ -211,9 +216,15 @@ class RoutedBrowserPresentationTest {
                             <input id="file" name="attachment" type="file" accept="text/plain" hidden onchange="if(this.files.length)document.title='Selected file'">
                             <button type="button" onclick="document.getElementById('file').click()">Choose upload file</button>
                             <button>Upload selected file</button></form>""".trimIndent())
+                    if (request.path == "/recovered") return MockResponse().setHeader("Content-Type", "text/html")
+                        .setHeader("Cache-Control", "no-store").setBody("""<!doctype html>
+                            <meta name="viewport" content="width=device-width,initial-scale=1"><title>Recovered route</title>
+                            <body style="background:#2255aa;color:white;font:24px sans-serif"><h1>Recovered through Mac proxy</h1></body>""")
+                    val recoveryLink = if (scenarioName.startsWith("routedConnectionRecovery"))
+                        "<p><a style='color:white' href='http://localhost:34877/recovered'>Recover computer page</a></p>" else ""
                     val next = request.path!!.startsWith("/next")
                     return MockResponse().setHeader("Content-Type", "text/html").setHeader("Cache-Control", "no-store")
-                        .setBody("""<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>${if(next) "Next" else "Routed fixture"}</title><body style="background:#164f3b;color:white;font:24px sans-serif"><h1>Mac route fixture</h1><a style="color:white" href="/next">Open next page</a><p><button onclick="window.draft=true;renderDraft()">Keep draft</button></p><p><a style="color:white" href="/form">Open upload form</a></p><script>function renderDraft(){if(window.draft)document.title='Draft '+(innerWidth>innerHeight?'landscape':'portrait')}addEventListener('resize',renderDraft);document.body.dataset.cookie=document.cookie;document.cookie='presentation=kept;path=/'</script>""")
+                        .setBody("""<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>${if(next) "Next" else "Routed fixture"}</title><body style="background:#164f3b;color:white;font:24px sans-serif"><h1>Mac route fixture</h1>$recoveryLink<a style="color:white" href="/next">Open next page</a><p><button onclick="window.draft=true;renderDraft()">Keep draft</button></p><p><a style="color:white" href="/form">Open upload form</a></p><script>function renderDraft(){if(window.draft)document.title='Draft '+(innerWidth>innerHeight?'landscape':'portrait')}addEventListener('resize',renderDraft);document.body.dataset.cookie=document.cookie;document.cookie='presentation=kept;path=/'</script>""")
                 }
             }; start()
         }
@@ -509,9 +520,22 @@ class RoutedBrowserPresentationTest {
             }
             network = NativeMacBrowserNetwork(owner, object : MacBrowserAccess {
                 override suspend fun availability() = MacBrowserAvailability.AVAILABLE
-                override suspend fun listeningPorts() = BrowserTunnelProtocol.ListeningPorts(emptyList(), false)
+                override suspend fun listeningPorts(): BrowserTunnelProtocol.ListeningPorts {
+                    val afterFailure = rejectedRecoveryLanes.get() > 0
+                    recoveryEvents += "listing:${listingCalls.incrementAndGet()}:afterFailure=$afterFailure"
+                    if (afterFailure) {
+                        recoveryPolicyReads.incrementAndGet()
+                        if (scenarioName != "routedConnectionRecoveryStopsAfterFailureAndExplicitRetryRecovers") recoveryAllowed.set(true)
+                    }
+                    return BrowserTunnelProtocol.ListeningPorts(emptyList(), false)
+                }
                 override suspend fun use(host: String, port: Int, connected: suspend (BrowserTunnelLane) -> Unit) {
                     targets += "$host:$port"
+                    if (port == 34877 && !recoveryAllowed.get()) {
+                        recoveryEvents += "refused:${rejectedRecoveryLanes.incrementAndGet()}"
+                        throw java.net.ConnectException("Generated Mac tunnel refusal")
+                    }
+                    recoveryEvents += "connected:$port"
                     NioBrowserSocket.direct.use("127.0.0.1", server.port, connected)
                 }
             }, { true })
@@ -1548,6 +1572,75 @@ class RoutedBrowserPresentationTest {
             assertEquals(1, releases.get())
         } finally { device.setOrientationNatural(); device.unfreezeRotation() }
     }
+    private fun enterRecoveryAddress() {
+        val selector = By.clazz("android.widget.EditText").hasDescendant(By.desc("Browser address"))
+        val address = checkNotNull(device.wait(Until.findObject(selector), 5_000))
+        address.click(); address.text = "http://localhost:34877/recovered"
+        assertTrue(device.wait(Until.hasObject(By.copy(selector).text("http://localhost:34877/recovered")), 5_000))
+        device.pressEnter()
+    }
+    private fun recoveredRoute() {
+        try { text("Recovered route ▾"); text("Recovered through Mac proxy") }
+        catch (failure: Throwable) {
+            capturePicker("routed-recovery-failure")
+            throw AssertionError("Recovery events: $recoveryEvents; paths=$paths", failure)
+        }
+    }
+    @Test fun routedConnectionRecoveryFollowsALinkThroughTheFailedProxy() {
+        browser("Routed fixture ▾")
+        text("Recover computer page").click(); recoveredRoute()
+        assertTrue(rejectedRecoveryLanes.get() > 0)
+        // Page-owned links also refresh policy at onPageStarted. Its ordering
+        // relative to provisional errors varies; recovery must visibly succeed.
+        assertTrue(recoveryEvents.toString(), recoveryPolicyReads.get() in 1..2)
+        assertEquals(1, paths.count { it == "/recovered" })
+        assertEquals(1, holds.get()); assertEquals(0, releases.get())
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }; assertEquals(1, releases.get())
+    }
+
+    @Test fun routedConnectionRecoveryRefreshesTheOwningMacAndPreservesHistory() {
+        browser("Routed fixture ▾")
+        enterRecoveryAddress()
+        recoveredRoute()
+        assertTrue(rejectedRecoveryLanes.get() > 0)
+        assertEquals(recoveryEvents.toString(), 1, recoveryPolicyReads.get())
+        assertEquals(1, paths.count { it == "/recovered" })
+        assertTrue(visits.single { it.path == "/recovered" }.getHeader("Cookie").orEmpty().contains("presentation=kept"))
+        assertTrue(targets.all { it == "localhost:34876" || it == "localhost:34877" })
+        assertEquals(1, holds.get()); assertEquals(0, releases.get())
+        compose.waitUntil(10_000) {
+            val bitmap = instrumentation.uiAutomation.takeScreenshot()
+            try {
+                val pixel = bitmap.getPixel(bitmap.width / 2, bitmap.height * 3 / 4)
+                android.graphics.Color.blue(pixel) in 160..180 && android.graphics.Color.red(pixel) in 25..45
+            } finally { bitmap.recycle() }
+        }
+        capturePicker("routed-recovery-rendered")
+        assertEquals(1, paths.count { it == "/start" })
+        // Back must select the original history entry. Its no-store response
+        // is allowed to refetch according to the renderer's cache policy.
+        desc("Browser Back").click(); text("Routed fixture ▾"); text("Recover computer page")
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }; assertEquals(1, releases.get())
+    }
+
+    @Test fun routedConnectionRecoveryStopsAfterFailureAndExplicitRetryRecovers() {
+        browser("Routed fixture ▾")
+        enterRecoveryAddress()
+        text("Couldn’t load this page. Check the address or your connection.")
+        assertEquals(recoveryEvents.toString(), 1, recoveryPolicyReads.get())
+        assertEquals(0, paths.count { it == "/recovered" })
+        assertTrue(rejectedRecoveryLanes.get() > 0)
+        recoveryAllowed.set(true)
+        text("Retry").click(); recoveredRoute()
+        assertEquals(1, paths.count { it == "/recovered" })
+        assertEquals(2, recoveryPolicyReads.get())
+        assertEquals(1, holds.get()); assertEquals(0, releases.get())
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }; assertEquals(1, releases.get())
+    }
+
     @Test fun addressEntryCommitsTheEditedUrl() {
         browser("Routed fixture ▾")
         // Compose exposes the description on a child of the actual editable node.

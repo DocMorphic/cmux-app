@@ -1,5 +1,60 @@
 # Phone-local browser parity audit
 
+## Real routed recovery and WebView generic errors — 2026-10-07
+
+The preceding bare-host checks did not cover the SOCKS proxy's error mapping.
+The production routed integration exposed a gap: WebView displayed
+`net::ERR_SOCKS_CONNECTION_FAILED` but delivered public error code **-1
+(ERROR_UNKNOWN)**. The host now admits that code to its existing single-attempt,
+main-frame GET recovery. Matching the text on WebView's error page against the
+callback description was insufficient. No localized description is used for the
+decision. Explicit certificate, authentication, Safe Browsing, bad destination,
+redirect-loop and resource-limit error codes remain excluded. The existing route,
+GET, cancellation and retry-budget checks still apply; unknown errors may receive
+one attempt even when they are not a tunnel failure. Debug builds record only the
+numeric error code, never the URL or page/message contents.
+
+**Three Android integration checks passed together in 39.069 seconds**, plus
+**three JVM classification tests**. The runtime uses the real separate-process
+`RoutedBrowserActivity`, bound service, `NativeMacBrowserNetwork` and SOCKS proxy,
+with generated Mac backend/HTTP responses on the existing Android 17 / 16 KiB AVD
+(WebView 145.0.7632.218):
+
+- Address entry hits a refused Mac tunnel, refreshes its owning Mac policy once,
+  then renders the page without a Reload tap. It preserves the site's cookie,
+  stays on the expected loopback targets, keeps the host lease and returns to the
+  original page with Back. The recovered blue document pixels and screenshot
+  were checked. Back may refetch the original `no-store` document normally.
+- A persistent refusal uses one recovery policy refresh, settles into the error
+  UI and successfully recovers after the user presses Retry. One HTTP document
+  request is delivered after recovery, and leaving releases the host once.
+- A page-owned link also recovers and releases its host. Its independent page-start
+  policy refresh may arrive before or after the provisional failure, so this case
+  allows one or two post-failure policy reads; the address-entry cases establish
+  the exact single-retry budget without that independent refresh.
+
+Three earlier runs are preserved in ignored
+`captures/runtime/routed-browser-recovery/`. The first missed automatic recovery;
+its persistent case could mistake the ordinary page-start refresh for recovery.
+The second still relied on diagnostic text and the third used the corrected
+public error code, but both included an invalid fixture gate waiting for a
+page-start refresh before allowing a provisional failure. Removing that gate and
+separating address entry from links gave the final passing batch. This history
+is not counted as a clean pass. One earlier emulator boot had a recorded System UI
+startup ANR; it was dismissed before that unsuccessful test run. The final boot's
+ANR/crash buffers were empty. Gradle and the sole AVD were stopped and reaped.
+
+Final debug APK SHA-256:
+`fe118b814194667edd2c54d6124973b7d3bb7d84524942c68e66c687acd68b63`.
+Final test APK SHA-256:
+`d06a986516772fcef7cf836c817fb1852d00b856d7ed28c8534b8aa24fbd8209`.
+
+These checks close the generated routed/proxy integration gap for this recovery
+path. They do not prove physical Pixel/Mac, real SSH/Iroh reconnect or network
+transition behavior. Published signed APK remains **616**, no new AVD was created,
+and full parity remains unverified. The scoped iOS source comparison below and
+global upstream pins are unchanged.
+
 ## Automatic routed-page recovery — 2026-10-07
 
 A failed main-frame GET can now prepare its existing computer route again and
