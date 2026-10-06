@@ -144,7 +144,9 @@ def main():
     patches["cmux-tui/crates/cmux-terminal-client/Cargo.toml"] = replace_once(manifest,
         'crate-type = ["staticlib", "rlib"]', 'crate-type = ["cdylib", "rlib"]')
     patches["cmux-tui/crates/cmux-pty/src/macos.rs"] = patch_android_pty(workspace / "crates/cmux-pty/src/macos.rs")
-    patches["cmux-tui/crates/cmux-tui-core/src/workspace_registry.rs"] = patch_android_errno(workspace / "crates/cmux-tui-core/src/workspace_registry.rs")
+    for relative in ("crates/cmux-tui-core/src/workspace_registry.rs",
+                     "crates/cmux-remote/src/workspace/files.rs"):
+        patches[f"cmux-tui/{relative}"] = patch_android_errno(workspace / relative)
     # Use the upstream rust-toolchain.toml without a separately drifting workflow version.
     run("cargo", "build", "--locked", "--release", "--lib", "-p", "cmux-terminal-client",
         "--target", TARGET, "--jobs", "2", cwd=workspace, env=env)
