@@ -482,3 +482,11 @@ c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses a random installation UUID stored outside backups and retains the
 upstream unknown device kind rather than claiming an Apple device identity.
+
+CloudModels.kt and CloudApi.kt adapt CloudMachine.swift, CloudAPIRequestBuilder.swift,
+CloudAPIResponseDecoding.swift, CloudTunnelPurpose.swift and CloudVMService.swift
+from Packages/iOS/CmuxMobileCloud, cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses its native account/team ownership and OkHttp transport. Source and
+remaining composition/transport/UI scope are recorded in docs/CLOUD_COMPANION.md.

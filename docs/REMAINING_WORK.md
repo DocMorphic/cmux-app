@@ -19,11 +19,19 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including native errors outside RPC and broader real-route retry acceptance, directory/rename/read/export/decoder failure coverage, live panel-kind changes, and broader main Files/direct-tap/transport restoration, forced browser-parent recreation with binary content, rendered-Markdown reflow and real-route/process recovery, Save process-death/large-write recovery and remote-file freshness semantics, video acceptance and zoom across aspect-ratio changes. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
 | Background notifications | Configure and deploy the Android push path. FCM/HPKE, worker and reply code exists but production delivery is disabled/unconfigured. The proposed private Firebase plus Mac-forwarder setup still needs provisioning. | Real registered-device delivery with the app foregrounded, backgrounded and process-dead, plus Doze, token rotation, tap/reply routing and account revocation. Document infrastructure and any demonstrated platform differences. |
+| Cloud machines and terminals | Port the configured newer iOS Cloud controller, WireGuard/daemon bridge, machine UI and common workspace integration; the API foundation alone is insufficient. Audit optional system-VPN/private-port behavior. | Source-to-behavior mapping, fixture transport and UI evidence, then authorized real account/Pixel terminal and lifecycle workflows. See CLOUD_COMPANION.md; do not confuse Cloud machine access with Android background push. |
 | UI and accessibility | Finish screen-by-screen iOS comparison, keyboard insets, dynamic text, TalkBack, gestures/haptics and performance on Pixel. | Matched-state screenshots and interaction checks for all main screens and sheets; usable enlarged text and accessibility traversal; measured investigation of any remaining freezes/ANRs. |
 | Release and updates | Verify an upgrade while signed in; verify the configured Android notice feed across cold-start/offline restart, cookie exchange and What's New; carry an upstream review through a port and chosen preview milestone; scheduled previews remain opt-in during feature-first development. | Stable-signer upgrade preserving account/pairing/settings, actual configured feed and update checks, and one observed upstream-change-to-review/build cycle. The watcher has succeeded on main and created review issue #2; port/build acceptance remains. Scheduled APK builds require `CMUX_AUTOMATIC_PREVIEWS=true` (currently disabled). |
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- Cloud is enabled by the newer iOS production composition and projects its
+  machines into the common workspace UI. Android now has the machine/tunnel/
+  attach API contracts, typed decoding, bounded cookie-free HTTP and an exact
+  account/team adapter. **15 focused JVM checks passed**, with main compilation;
+  no live Cloud requests or APK/device run. The controller, WireGuard/Rust bridge,
+  navigation/screens and live acceptance remain open. See `CLOUD_COMPANION.md`.
 
 - Shared sizing now sends a stable per-install phone UUID across viewport,
   replay, counts and reattach, following newer iOS device-priority identity.
@@ -32,13 +40,9 @@ and currently disabled; the upstream watcher is active on main with review issue
   passed (36 seconds); no APK/device run. Physical priority/upgrade acceptance
   remains. See `TERMINAL_SHARED_SIZING.md`.
 
-- Next upstream audit: the newer cached source adds Cloud/external-host packages
-  and shell routing. `MobileCloudTabContent.swift` at `c2715faa` is configured by
-  the composition root and omitted when no service is configured. Determine the
-  official app's actual configuration and exposed flows before reconciling this
-  area; package presence alone does not prove a shipped feature. Android has no
-  matching Cloud machine implementation yet. This belongs to the broad delta
-  audit and is not covered by the terminal identity/toolbar ports.
+- The Cloud composition audit is recorded in `CLOUD_COMPANION.md`; Android's
+  API foundation does not yet provide the actual machine/terminal UI. This belongs
+  to the broad delta audit, and the global upstream pin remains unchanged.
 
 - Composer Send now requires explicit `submitted: true` before clearing its draft.
   A refused, absent or malformed submit acknowledgment preserves text/files and
