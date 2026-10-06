@@ -9,7 +9,8 @@ internal data class PdfTextBounds(val left: Float, val top: Float, val right: Fl
 internal data class PdfTextMatch(val page: Int, val start: Int, val bounds: List<PdfTextBounds>)
 internal data class PdfDocumentLink(val bounds: List<PdfTextBounds>, val target: PdfLinkTarget)
 internal sealed interface PdfLinkTarget {
-    data class Page(val index: Int, val y: Float) : PdfLinkTarget
+    data class Page(val index: Int, val y: Float, val x: Float = 0f, val zoom: Float = 0f,
+        val retainZoom: Boolean = true) : PdfLinkTarget
     data class External(val url: String) : PdfLinkTarget
     companion object {
         fun external(value: String): External? = runCatching {

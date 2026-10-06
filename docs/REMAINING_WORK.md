@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- PDF internal-link destinations now carry X/Y and XYZ zoom; the reader applies
+  bounded magnification and keeps a saved return history. Restoring search
+  results no longer overrides the reading location. Extraction, pixel zoom and
+  link/return Android checks are queued with PiP for the next integration run.
+  Main/instrumentation Kotlin compilation and **19 focused JVM cases passed**.
+  Full fit-mode handling, null-coordinate retention, document-wide zoom and
+  selection remain open. See [PDF_DESTINATIONS.md](PDF_DESTINATIONS.md).
+
 - Video picture-in-picture feature batch implemented in the shared media viewer,
   with dedicated main/browser playback Activities, independent private file
   lifetime, account retirement, system controls and paused return bookmarks.

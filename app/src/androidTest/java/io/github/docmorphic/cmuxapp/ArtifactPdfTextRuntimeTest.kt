@@ -13,12 +13,13 @@ import org.junit.Test
 
 class ArtifactPdfTextRuntimeTest {
     /** Original two-page PDF with text plus external and internal annotations. */
-    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false): File {
+    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false, targetX: Int = 0, targetZoom: Float = 0f): File {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val text = listOf("CMUX first needle", "CMUX second needle")
-        val streams = text.map { "BT /F1 18 Tf 30 340 Td ($it) Tj ET" }
+        val streams = text.mapIndexed { index, value -> "BT /F1 18 Tf 30 340 Td ($value) Tj ET" +
+            if (index == 1 && targetZoom > 0f) " q 0 1 0 rg $targetX 370 20 30 re f Q" else "" }
         val objects = listOf(
-            "<< /Type /Catalog /Pages 2 0 R /Names << /Dests << /Names [(target) [4 0 R /XYZ 0 400 0]] >> >> >>",
+            "<< /Type /Catalog /Pages 2 0 R /Names << /Dests << /Names [(target) [4 0 R /XYZ $targetX 400 $targetZoom]] >> >> >>",
             "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] ${if (crop) "/CropBox [10 20 290 380]" else ""} /Rotate $sourceRotation /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R /Annots [8 0 R 9 0 R] >>",
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 $targetHeight] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
@@ -28,8 +29,8 @@ class ArtifactPdfTextRuntimeTest {
             "<< /Type /Annot /Subtype /Link /Rect [30 250 180 280] /A << /S /URI /URI (https://cmux.com/docs) >> >>",
             "<< /Type /Annot /Subtype /Link /Rect [30 200 180 230] " + when (form) {
                 "named" -> "/Dest (target)"
-                "action" -> "/A << /S /GoTo /D [4 0 R /XYZ 0 400 0] >>"
-                else -> "/Dest [4 0 R /XYZ 0 400 0]"
+                "action" -> "/A << /S /GoTo /D [4 0 R /XYZ $targetX 400 $targetZoom] >>"
+                else -> "/Dest [4 0 R /XYZ $targetX 400 $targetZoom]"
             } + " >>")
         val output = ByteArrayOutputStream()
         fun write(value: String) { output.write(value.toByteArray(Charsets.US_ASCII)) }
@@ -98,6 +99,63 @@ class ArtifactPdfTextRuntimeTest {
             } } finally { file.delete() }
         }
     }
+    @Test fun internalDestinationsRetainHorizontalCoordinatesAndZoom() {
+        for (form in listOf("direct", "named", "action")) {
+            val file = fixture(form, targetHeight = 600, targetX = 150, targetZoom = 4f)
+            try { ChangesPdfDocument(file).use { pdf ->
+                assertEquals(PdfLinkTarget.Page(1, 200f, 150f, 4f),
+                    pdf.links(0).single { it.target is PdfLinkTarget.Page }.target)
+            } } finally { file.delete() }
+        }
+    }
+    @Test fun xyzLinkRendersRequestedZoomAndReturnsAfterRecreation() {
+        check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation)
+        val file = fixture(targetHeight = 600, targetX = 150, targetZoom = 4f)
+        val evidence = File(context.getExternalFilesDir(null), "pdf-destinations").apply { mkdirs() }
+        fun follow(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            node.actionList.firstOrNull { it.label?.toString() == "Go to page 2" }?.let { return node.performAction(it.id) }
+            return (0 until node.childCount).any { follow(node.getChild(it)) }
+        }
+        fun waitFor(label: String, condition: () -> Boolean) {
+            val deadline = android.os.SystemClock.uptimeMillis() + 15_000
+            while (!condition()) {
+                check(android.os.SystemClock.uptimeMillis() < deadline) { label }
+                android.os.SystemClock.sleep(100)
+            }
+        }
+        fun checkPixels(name: String) {
+            val expectedWidth = 20f * 4f * context.resources.displayMetrics.density
+            waitFor("XYZ destination did not render its requested position and zoom") {
+                val screenshot = File(evidence, name)
+                device.takeScreenshot(screenshot)
+                val bitmap = android.graphics.BitmapFactory.decodeFile(screenshot.path) ?: return@waitFor false
+                try {
+                    var left = bitmap.width; var right = -1
+                    for (y in 0 until bitmap.height step 3) for (x in 0 until bitmap.width step 2) {
+                        val pixel = bitmap.getPixel(x, y)
+                        if (android.graphics.Color.green(pixel) > 230 && android.graphics.Color.red(pixel) < 30 &&
+                            android.graphics.Color.blue(pixel) < 30) { left = minOf(left, x); right = maxOf(right, x) }
+                    }
+                    right >= left && kotlin.math.abs(right - left - expectedWidth) < 15f && left < 20
+                } finally { bitmap.recycle() }
+            }
+        }
+        try { ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
+            .putExtra("path", file.absolutePath).putExtra("route", ChangesPreviewRoute.PDF.name)
+            .putExtra("mime", "application/pdf")).use { scenario ->
+            waitFor("No internal link action") { follow(instrumentation.uiAutomation.rootInActiveWindow) }
+            checkPixels("xyz.png")
+            scenario.recreate()
+            checkPixels("xyz-restored.png")
+            checkNotNull(device.wait(Until.findObject(By.text("Back to previous location")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("1 / 2")), 10_000))
+            assertFalse(device.hasObject(By.text("Back to previous location")))
+        } } finally { file.delete() }
+    }
     @Test fun searchNavigatesHighlightsAndPageTextCopiesAfterRecreation() {
         check(Build.VERSION.SDK_INT >= 35 && (Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")))
         val instrumentation = InstrumentationRegistry.getInstrumentation(); val context = instrumentation.targetContext
@@ -120,7 +178,9 @@ class ArtifactPdfTextRuntimeTest {
             }
             assertTrue("Internal page link action unavailable", followed)
             find(By.desc("PDF page 2 of 2"))
-            find(By.text("Previous page")).click()
+            // A link bookmark survives recreation and returns to the reading location.
+            scenario.recreate()
+            find(By.text("Back to previous location")).click()
             find(By.desc("PDF page 1 of 2"))
             find(By.text("Search document")).click(); find(By.clazz("android.widget.EditText")).text = "needle"
             assertTrue(find(By.desc("PDF search results")).wait(Until.textEquals("1 / 2"), 10_000))

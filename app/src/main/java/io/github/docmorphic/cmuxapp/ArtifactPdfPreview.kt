@@ -55,7 +55,9 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var matchIndex by rememberSaveable { mutableIntStateOf(0) }
+    var searchNavigationPending by rememberSaveable { mutableStateOf(false) }
     var matches by remember(pdf) { mutableStateOf<List<PdfTextMatch>>(emptyList()) }
+    var matchesQuery by remember(pdf) { mutableStateOf("") }
     var scanned by remember(pdf) { mutableIntStateOf(0) }
     var searching by remember(pdf) { mutableStateOf(false) }
     var searchFailure by remember(pdf) { mutableStateOf<String?>(null) }
@@ -65,39 +67,74 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
     var selectionY by rememberSaveable { mutableFloatStateOf(-1f) }
     var navigationGeneration by rememberSaveable { mutableIntStateOf(0) }
     var pageWidth by remember { mutableFloatStateOf(0f) }
+    // Compact saved bookmarks: page, scroll offset/page width, scale, X, Y.
+    var history by rememberSaveable { mutableStateOf(arrayListOf<Float>()) }
+    var destination by rememberSaveable { mutableStateOf(arrayListOf<Float>()) }
+    val transforms = remember(pdf) { mutableMapOf<Int, PreviewZoomTransform>() }
+    val density = LocalDensity.current.density
     val selected = matches.getOrNull(matchIndex)
+    fun navigate(page: Int, offsetPerWidth: Float, transform: PreviewZoomTransform = PreviewZoomTransform()) {
+        destination = arrayListOf(page.toFloat(), offsetPerWidth, transform.scale, transform.x, transform.y)
+        navigationGeneration++
+        scope.launch { scroll.scrollToItem(page, (offsetPerWidth * pageWidth).toInt().coerceAtLeast(0)) }
+    }
+    fun rememberLocation() {
+        val page = scroll.firstVisibleItemIndex
+        val transform = transforms[page] ?: PreviewZoomTransform()
+        history = ArrayList((history + listOf(page.toFloat(), scroll.firstVisibleItemScrollOffset / pageWidth.coerceAtLeast(1f),
+            transform.scale, transform.x, transform.y)).takeLast(32 * 5))
+    }
+    fun returnToLocation() {
+        if (history.size < 5) return
+        val saved = history.takeLast(5)
+        searchNavigationPending = false
+        history = ArrayList(history.dropLast(5))
+        navigate(saved[0].toInt(), saved[1], PreviewZoomTransform(saved[2], saved[3], saved[4]))
+    }
     fun jump(page: Int, y: Float = 0f) {
         if (page !in pdf.pageSizes.indices) return
-        navigationGeneration++
-        scope.launch { scroll.scrollToItem(page, if (y.isFinite()) (y.coerceIn(0f, pdf.pageSizes[page].second.toFloat()) * pageWidth / pdf.pageSizes[page].first).toInt() else 0) }
+        navigate(page, if (y.isFinite()) y.coerceIn(0f, pdf.pageSizes[page].second.toFloat()) / pdf.pageSizes[page].first else 0f)
     }
-    fun open(link: PdfLinkTarget) {
+    fun open(link: PdfLinkTarget, origin: Int) {
         when (link) {
-            is PdfLinkTarget.Page -> jump(link.index, link.y)
+            is PdfLinkTarget.Page -> {
+                if (link.index !in pdf.pageSizes.indices || pageWidth <= 0f) return
+                val size = pdf.pageSizes[link.index]
+                val target = PdfDestinationViewport.resolve(link, size.first, size.second, pageWidth, density,
+                    transforms[origin]?.scale ?: 1f)
+                searchNavigationPending = false
+                rememberLocation()
+                navigate(link.index, target.scrollFraction * size.second / size.first, target.transform)
+            }
             is PdfLinkTarget.External -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link.url))) }
                 .onFailure { actionFailure = "No app could open this link." }
         }
     }
     LaunchedEffect(pdf, query, searchOpen) {
-        matches = emptyList(); scanned = 0; searchFailure = null; searching = false
+        matches = emptyList(); matchesQuery = ""; scanned = 0; searchFailure = null; searching = false
         if (!searchOpen || query.isBlank() || !pdf.supportsText) return@LaunchedEffect
         searching = true
         try {
             delay(250)
             for (index in pdf.pageSizes.indices) {
                 val found = withContext(Dispatchers.IO) { pdf.search(index, query) }
-                ensureActive(); matches = matches + found; scanned = index + 1
+                ensureActive(); matches = matches + found; matchesQuery = query; scanned = index + 1
             }
             if (matchIndex !in matches.indices) matchIndex = 0
         } catch (error: Exception) { ensureActive(); searchFailure = "This document couldn't be searched. Try another query or reopen it." }
         finally { searching = false }
     }
-    LaunchedEffect(selected, pageWidth) { selected?.let { jump(it.page, it.bounds.firstOrNull()?.top ?: 0f) } }
+    LaunchedEffect(selected, pageWidth, searchNavigationPending, query, matchesQuery) {
+        if (searchNavigationPending && pageWidth > 0f && matchesQuery == query) selected?.let {
+            jump(it.page, it.bounds.firstOrNull()?.top ?: 0f); searchNavigationPending = false
+        }
+    }
     textPage?.let { index ->
         PdfPageTextDialog(pdf, index, if (selectionX >= 0 && selectionY >= 0) Offset(selectionX, selectionY) else null,
             onDismiss = { textPage = null; selectionX = -1f; selectionY = -1f }, onWholePage = { selectionX = -1f; selectionY = -1f })
     }
     Column(Modifier.fillMaxSize()) {
+        if (history.isNotEmpty()) TextButton(onClick = ::returnToLocation) { Text("Back to previous location") }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
             TextButton(enabled = scroll.firstVisibleItemIndex > 0, onClick = { jump(scroll.firstVisibleItemIndex - 1) }) { Text("Previous page") }
             Text("${scroll.firstVisibleItemIndex + 1} / ${pdf.pageSizes.size}", fontSize = 12.sp)
@@ -108,13 +145,13 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
             TextButton(onClick = { selectionX = -1f; selectionY = -1f; textPage = scroll.firstVisibleItemIndex }) { Text("Page text") }
         }
         if (searchOpen && pdf.supportsText) {
-            OutlinedTextField(query, { query = it.take(1024); matchIndex = 0 }, singleLine = true,
+            OutlinedTextField(query, { query = it.take(1024); matchIndex = 0; searchNavigationPending = query.isNotBlank() }, singleLine = true,
                 label = { Text("Search PDF") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                TextButton(enabled = matches.isNotEmpty(), onClick = { matchIndex = pdfMatchStep(matchIndex, -1, matches.size) }) { Text("Previous match") }
+                TextButton(enabled = matches.isNotEmpty(), onClick = { matchIndex = pdfMatchStep(matchIndex, -1, matches.size); searchNavigationPending = true }) { Text("Previous match") }
                 Text(if (matches.isNotEmpty()) "${matchIndex.coerceAtMost(matches.lastIndex) + 1} / ${matches.size}" else if (query.isBlank()) "" else if (searching) "Searching…" else "No matches", fontSize = 12.sp,
                     modifier = Modifier.semantics { contentDescription = "PDF search results"; liveRegion = LiveRegionMode.Polite })
-                TextButton(enabled = matches.isNotEmpty(), onClick = { matchIndex = pdfMatchStep(matchIndex, 1, matches.size) }) { Text("Next match") }
+                TextButton(enabled = matches.isNotEmpty(), onClick = { matchIndex = pdfMatchStep(matchIndex, 1, matches.size); searchNavigationPending = true }) { Text("Next match") }
             }
             if (searching) LinearProgressIndicator(progress = { scanned.toFloat() / pdf.pageSizes.size.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
             searchFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -123,13 +160,18 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
         BoxWithConstraints(Modifier.weight(1f)) {
             val lastSize = pdf.pageSizes.lastOrNull()
             val lastHeight = lastSize?.let { maxWidth * (it.second.toFloat() / it.first) } ?: maxHeight
-            val endPadding = maxOf(0.dp, maxHeight - lastHeight)
+            val destinationTail = if (destination.firstOrNull()?.toInt() == pdf.pageSizes.lastIndex)
+                maxWidth * destination[1] else 0.dp
+            val endPadding = maxOf(0.dp, maxHeight - lastHeight + destinationTail)
             val width = with(LocalDensity.current) { maxWidth.toPx() }
             SideEffect { pageWidth = width }
             LazyColumn(Modifier.fillMaxSize(), state = scroll, contentPadding = PaddingValues(bottom = endPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(pdf.pageSizes.size, key = { it }) { index ->
                     PdfDocumentPage(pdf, index, matches.filter { it.page == index }, selected, navigationGeneration,
-                        onLink = ::open, onText = { point -> selectionX = point.x; selectionY = point.y; textPage = index },
+                        initialTransform = if (destination.firstOrNull()?.toInt() == index)
+                            PreviewZoomTransform(destination[2], destination[3], destination[4]) else PreviewZoomTransform(),
+                        onTransformChanged = { transforms[index] = it },
+                        onLink = { open(it, index) }, onText = { point -> selectionX = point.x; selectionY = point.y; textPage = index },
                         onPageText = { selectionX = -1f; selectionY = -1f; textPage = index })
                 }
             }
@@ -139,6 +181,7 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
 
 @Composable
 private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<PdfTextMatch>, selected: PdfTextMatch?, navigationGeneration: Int,
+    initialTransform: PreviewZoomTransform, onTransformChanged: (PreviewZoomTransform) -> Unit,
     onLink: (PdfLinkTarget) -> Unit, onText: (Offset) -> Unit, onPageText: () -> Unit) {
     val pageSize = pdf.pageSizes[index]
     var pageFailure by remember(pdf, index) { mutableStateOf<String?>(null) }
@@ -161,6 +204,7 @@ private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<P
             catch (error: Exception) { currentCoroutineContext().ensureActive(); pageFailure = "Could not render this PDF page." }
         }
         if (bitmap != null) PreviewZoom(Modifier.fillMaxSize(), doubleTapScale = 2f, resetGeneration = navigationGeneration,
+            initialTransform = initialTransform, onTransformChanged = onTransformChanged, minimumScale = .125f,
             onContentTap = { point -> links.firstOrNull { link -> link.bounds.any { it.contains(point.x * pageSize.first, point.y * pageSize.second) } }?.let { onLink(it.target) } },
             onContentLongPress = if (pdf.supportsText) onText else null) { modifier ->
             Box(modifier) {

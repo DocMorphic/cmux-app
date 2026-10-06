@@ -71,7 +71,9 @@ internal class PdfAnnotationLinks(file: File, private val pageSizes: List<Pair<I
             else -> null
         } ?: (geometry.bottom + geometry.height)
         val point = geometry.point(x, top) ?: return null
-        return PdfLinkTarget.Page(index, point.second.coerceIn(0f, pageSizes[index].second.toFloat()))
+        return PdfLinkTarget.Page(index, point.second.coerceIn(0f, pageSizes[index].second.toFloat()),
+            point.first.coerceIn(0f, pageSizes[index].first.toFloat()),
+            if (kind == "XYZ") number(4)?.coerceAtLeast(0f) ?: 0f else 0f, retainZoom = kind == "XYZ")
     }
     override fun close() { cache.clear(); textCache.clear(); document.close() }
 }

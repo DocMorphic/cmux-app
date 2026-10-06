@@ -95,13 +95,15 @@ internal fun FilePreviewContent(artifact: LocalFilePreview, remote: RemoteArtifa
 @Composable
 internal fun PreviewZoom(modifier: Modifier = Modifier, onLongPress: ((Offset) -> Unit)? = null, doubleTapScale: Float = 3f,
     onContentTap: ((Offset) -> Unit)? = null, onContentLongPress: ((Offset) -> Unit)? = null, resetGeneration: Int = 0,
+    initialTransform: PreviewZoomTransform = PreviewZoomTransform(), minimumScale: Float = 1f, onTransformChanged: ((PreviewZoomTransform) -> Unit)? = null,
     content: @Composable (Modifier) -> Unit) {
     var position by rememberSaveable(stateSaver = listSaver<PreviewZoomTransform, Float>(
         save = { listOf(it.scale, it.x, it.y) },
         restore = { PreviewZoomTransform(it[0], it[1], it[2]) }
-    )) { mutableStateOf(PreviewZoomTransform()) }
+    )) { mutableStateOf(initialTransform) }
     var lastReset by rememberSaveable { mutableIntStateOf(resetGeneration) }
-    LaunchedEffect(resetGeneration) { if (lastReset != resetGeneration) { position = PreviewZoomTransform(); lastReset = resetGeneration } }
+    LaunchedEffect(resetGeneration) { if (lastReset != resetGeneration) { position = initialTransform; lastReset = resetGeneration } }
+    SideEffect { onTransformChanged?.invoke(position) }
     var width by remember { mutableIntStateOf(0) }
     var height by remember { mutableIntStateOf(0) }
     val latestLongPress by rememberUpdatedState(onLongPress)
@@ -110,7 +112,7 @@ internal fun PreviewZoom(modifier: Modifier = Modifier, onLongPress: ((Offset) -
     fun contentPoint(point: Offset): Offset? = position.contentPoint(point.x, point.y, width, height)?.let { Offset(it.first, it.second) }
     fun applyTransform(zoom: Float, pan: Offset, centroid: Offset = Offset(width / 2f, height / 2f)) {
         if (width > 0 && height > 0) position = position.transform(zoom, pan.x / width, pan.y / height,
-            centroid.x / width - .5f, centroid.y / height - .5f)
+            centroid.x / width - .5f, centroid.y / height - .5f, minimumScale)
     }
     val transform = rememberTransformableState { zoom, pan, _ -> applyTransform(zoom, pan) }
     Box(modifier.clipToBounds().onSizeChanged { width = it.width; height = it.height }

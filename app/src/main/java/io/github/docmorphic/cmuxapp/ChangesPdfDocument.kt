@@ -70,7 +70,7 @@ internal class ChangesPdfDocument(private val file: File, nativeText: Boolean = 
             } } + (if (parsed != null) emptyList() else page.gotoLinks.mapNotNull { link ->
                 val target = link.destination
                 target.pageNumber.takeIf { it in pageSizes.indices }?.let {
-                    PdfDocumentLink(link.bounds.map { it.pdfBounds() }, PdfLinkTarget.Page(it, target.yCoordinate))
+                    PdfDocumentLink(link.bounds.map { it.pdfBounds() }, PdfLinkTarget.Page(it, target.yCoordinate, target.xCoordinate, target.zoom))
                 }
             })
         } } catch (error: Exception) {
