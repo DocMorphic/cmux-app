@@ -22,22 +22,25 @@ import kotlinx.coroutines.isActive
 
 @Composable
 internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: TaskDrafts.Editor, origin: String,
-    attachments: List<ComposerAttachment>, enabled: Boolean, canAdd: Boolean, isCurrent: () -> Boolean,
+    attachments: List<ComposerAttachment>, enabled: Boolean, canAdd: Boolean, isCurrent: () -> Boolean, canPreview: () -> Boolean,
     onPreparing: (Boolean) -> Unit, onChanged: () -> Unit, onError: (String) -> Unit,
     content: @Composable (@Composable () -> Unit, @Composable () -> Unit, (TerminalPasteContent) -> Boolean) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val files = remember(context) { AttachmentFiles(context.applicationContext, taskFiles = true) }
     val guard by rememberUpdatedState(isCurrent)
+    val previewGuard by rememberUpdatedState(canPreview)
     var menu by remember { mutableStateOf(false) }
-    var preview by remember { mutableStateOf<ComposerAttachment?>(null) }
     val owner = "${repository.session}:${editor.id}:$origin"
+    var previewId by rememberSaveable(owner) { mutableStateOf<String?>(null) }
+    var previewPresentation by rememberSaveable(owner) { mutableStateOf("") }
     val currentOwner by rememberUpdatedState(owner)
     val currentEditor by rememberUpdatedState(editor)
     var pickerOwner by rememberSaveable { mutableStateOf<String?>(null) }
     var pickerImages by rememberSaveable { mutableStateOf(false) }
     var staging by remember(owner, editor) { mutableStateOf(false) }
     fun current() = currentOwner == owner && currentEditor == editor && guard()
+    fun previewCurrent() = currentOwner == owner && currentEditor == editor && previewGuard()
     fun stage(items: List<TerminalPasteContent.Item.Attachment>, release: () -> Unit = {}): Boolean {
         if (items.isEmpty() || staging || !enabled || !canAdd || !current() || !scope.isActive) return false
         val remaining = TaskAttachments.MAX_COUNT - repository.drafts.state.value[editor.id]?.attachments.orEmpty().size
@@ -86,13 +89,18 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
         val matches = pickerOwner == owner; pickerOwner = null
         if (matches) stage(uris.map { TerminalPasteContent.Item.Attachment(it, pickerImages) })
     }
-    if (preview != null) TaskAttachmentPreview(checkNotNull(preview), repository) { preview = null }
+    attachments.singleOrNull { it.id == previewId }?.takeIf { previewCurrent() }?.let { attachment ->
+        TaskAttachmentPreview(TaskAttachmentPreviewIdentity(previewPresentation, repository.session,
+            editor.id, origin, attachment), repository) { previewId = null }
+    }
     content({
         if (attachments.isNotEmpty()) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             attachments.forEach { item ->
                 Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 3.dp) {
                     Row(Modifier.padding(6.dp)) {
-                        Row(Modifier.clickable(enabled = enabled) { preview = item }.padding(6.dp)) {
+                        Row(Modifier.clickable(enabled = previewCurrent(), onClickLabel = "Preview attachment") {
+                            previewPresentation = java.util.UUID.randomUUID().toString(); previewId = item.id
+                        }.padding(6.dp)) {
                             AttachmentThumbnail(item, read = repository::readAttachment)
                             Spacer(Modifier.width(6.dp))
                             Text(item.name, Modifier.widthIn(max = 170.dp), maxLines = 2)

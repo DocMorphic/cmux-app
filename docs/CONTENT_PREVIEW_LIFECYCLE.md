@@ -1593,3 +1593,56 @@ this change is newer and has not been published as a signed APK.
   tall pages to test a definite selected-page transition; it does not resolve
   that short-page navigation issue.
 - Full format/UI/accessibility and physical Mac/Pixel validation are still open.
+
+
+## Task composer attachment viewer — 2026-10-06
+
+Scoped comparison at upstream `186cec79781256867ad4516f0802118738bd2393`:
+`TaskComposer/TaskComposerAttachmentPreview.swift` presents the exact staged URL
+through `MobileAttachmentQuickLookView`, with filename and Done.
+`TaskComposerAttachmentStrip.swift` permits preview while removal is disabled.
+This comparison does not advance the globally implemented/reviewed pins.
+
+Android now opens a full-screen attachment viewer with filename/Done, instead of
+an image-only AlertDialog. It uses the existing image zoom/animation, PDF,
+text/Markdown, media and external-format routes, plus shared Open/Share/Save.
+Decrypted bytes are written unchanged; image thumbnail data is not used as the
+preview payload. Unknown formats still use external actions; the complete
+Quick Look supported-format comparison remains open.
+
+The preview selection stores an attachment ID and presentation token, scoped to
+account session, draft and Mac origin. Each presentation owns a retained Activity
+ViewModel/controller and one private cache directory. Reattaching keeps the same
+completed file; dismissal cancels the request and removes that directory.
+Activity configuration teardown preserves it. Repository checks enforce exact
+draft/origin membership before/after decryption; controller checks fence late
+publication, and unique attempt directories isolate cancellation/retry cleanup.
+Cache leases protect an open preview from pruning. Old orphan directories are
+eligible for the existing one-hour cleanup. Open/Share own independent durable
+exports, so another app can finish reading after the preview closes.
+
+Task preview has a separate ownership guard from mutation/submission: busy task
+creation disables editing/removal but does not disable reading staged attachments.
+
+Verification for this batch:
+
+- 30 focused JVM cases passed: 9 preview-controller, 9 attachments, 12 drafts.
+  New cases cover unchanged bytes, identity switches, stale dismissal, late
+  cancellation, invalidated ownership, retry, corrupt lengths, path containment,
+  route selection and active/orphan cache cleanup.
+- Main and Android-test Kotlin compilation passed. No APK packaging or device
+  run was performed for this feature batch.
+- The existing attachment Open/removal instrumentation case now checks shared
+  viewer actions and independent export lifetime.
+- New `NativeTaskAttachmentPreviewRuntimeTest` is compiled and queued for the
+  next combined AVD milestone. It uses the real disabled-editing attachment
+  controls and encrypted repository, a two-color PDF, pixel checks of page two,
+  actual Activity recreation, exact cached-file identity/bytes, Done/Back cleanup
+  and fresh-page reopening. It is emulator-only because it replaces fixture
+  credentials. Compilation is not evidence that these runtime assertions pass.
+- True process-death restoration, physical Pixel/Mac workflows, remaining
+  Quick Look formats and complete task-chip visual matching remain unverified.
+
+Local evidence: `captures/runtime/task-attachment-viewer/`. An initial Gradle
+attempt lacked `ANDROID_HOME` and stopped before compilation; subsequent checks
+used the installed SDK explicitly. Logs preserve both attempts.

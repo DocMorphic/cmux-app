@@ -287,6 +287,7 @@ class NativeTaskAttachmentsTest {
         repository.drafts.edit(editor) { it.copy(prompt = "Keep this prompt") }
         show()
         compose.onNodeWithText("preview.txt").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Viewer actions").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("${bytes.size} bytes").assertExists()
         val opened = java.util.concurrent.atomic.AtomicReference<ByteArray?>()
         val exportedUri = java.util.concurrent.atomic.AtomicReference<Uri?>()
@@ -304,12 +305,16 @@ class NativeTaskAttachmentsTest {
         }
         instrumentation.addMonitor(viewer)
         try {
+            compose.onNodeWithContentDescription("Viewer actions").performClick()
             compose.onNodeWithText("Open").performClick()
-            compose.waitUntil(10_000) { opened.get() != null && File(context.cacheDir, "task-previews").listFiles().orEmpty().isEmpty() }
+            compose.waitUntil(10_000) { opened.get() != null }
             assertArrayEquals(bytes, opened.get())
-            assertTrue(runCatching { context.contentResolver.openInputStream(exportedUri.get()!!)!!.close() }.isFailure)
+            // Open owns an independent export: returning from another app must not delete it
+            // while that app may still read it. Preview dismissal only removes the local preview.
+            assertArrayEquals(bytes, context.contentResolver.openInputStream(exportedUri.get()!!)!!.use { it.readBytes() })
         } finally { instrumentation.removeMonitor(viewer) }
         compose.onNodeWithText("Done").performClick()
+        compose.waitUntil(10_000) { File(context.cacheDir, "task-previews").listFiles().orEmpty().none { it.isDirectory } }
         compose.onNodeWithContentDescription("Remove task attachment: preview.txt").performScrollTo().performClick()
         compose.waitUntil(10_000) { repository.drafts.state.value[id]?.attachments == listOf(second) }
         assertEquals("Keep this prompt", repository.drafts.state.value.getValue(id).prompt)

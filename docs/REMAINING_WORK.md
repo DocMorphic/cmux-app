@@ -25,6 +25,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Task attachments now use the full shared image/PDF/text/Markdown/media viewer
+  with filename/Done and Open/Share/Save. Exact staged bytes, retained ownership,
+  cancellation/retry cleanup and cache leases replace the image-only popup.
+  Preview remains available while task mutation is disabled. **30 focused JVM
+  checks passed** and main/instrumentation compilation passed; no APK/AVD run.
+  The two-color PDF/Activity-recreation/disabled-editor check and updated Open
+  export-lifetime case are compiled and queued for the next combined milestone,
+  alongside the appearance-upgrade check below. Physical acceptance, process
+  death and the full Quick Look format/visual matrix remain open. See
+  [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#task-composer-attachment-viewer--2026-10-06).
+
 - Authenticated legacy upgrades now preserve custom computer name/color/icon.
   Pairing commits queue the move; atomic appearance receipts make cross-file
   recovery safe through restart, failed acknowledgement and later edits/resets.

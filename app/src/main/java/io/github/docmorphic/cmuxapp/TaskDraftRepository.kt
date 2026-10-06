@@ -113,6 +113,16 @@ internal class TaskDraftRepository private constructor(
             files.read(attachment).also { requireSession(checkNotNull(store.load())) }
         }
     }
+    fun ownsAttachment(draftId: String, origin: String, attachment: ComposerAttachment): Boolean =
+        !closed && drafts.state.value[draftId]?.let { it.origin == origin && attachment in it.attachments } == true
+
+    /** Preview permission belongs to one task, including before and after decryption. */
+    suspend fun readAttachment(draftId: String, origin: String, attachment: ComposerAttachment): ByteArray {
+        check(ownsAttachment(draftId, origin, attachment)) { "Attachment was removed or its task changed." }
+        return readAttachment(attachment).also {
+            check(ownsAttachment(draftId, origin, attachment)) { "Attachment was removed or its task changed." }
+        }
+    }
     private fun retainFiles(saved: org.json.JSONObject) {
         val rows = saved.getJSONArray("drafts")
         files.retain((0 until rows.length()).flatMap { TaskAttachments.read(rows.getJSONObject(it).optJSONArray("attachments")) }

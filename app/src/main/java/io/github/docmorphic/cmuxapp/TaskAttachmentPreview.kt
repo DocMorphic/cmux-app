@@ -1,71 +1,79 @@
 package io.github.docmorphic.cmuxapp
 
-import android.content.Intent
-import android.graphics.BitmapFactory
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.webkit.MimeTypeMap
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import kotlinx.coroutines.*
 import java.io.File
-import java.util.UUID
+
+internal class TaskAttachmentPreviewModel : ViewModel() {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val controller = TaskAttachmentPreviewController(scope)
+    override fun onCleared() { controller.close(); scope.cancel() }
+}
+private fun Context.attachmentPreviewActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.takeUnless { it === this }?.attachmentPreviewActivity()
+    else -> null
+}
 
 @Composable
-internal fun TaskAttachmentPreview(attachment: ComposerAttachment, repository: TaskDraftRepository, onDismiss: () -> Unit) {
+internal fun TaskAttachmentPreview(identity: TaskAttachmentPreviewIdentity,
+    repository: TaskDraftRepository, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var failure by remember { mutableStateOf<String?>(null) }
-    var opening by remember { mutableStateOf(false) }
-    var exported by remember { mutableStateOf<File?>(null) }
-    val image = produceState<android.graphics.Bitmap?>(null, attachment.id) {
-        if (attachment.imageFormat != null) try {
-            val bytes = repository.readAttachment(attachment)
-            value = withContext(Dispatchers.Default) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
-        } catch (error: Exception) { if (error is CancellationException) throw error; failure = error.message }
-    }.value
-    DisposableEffect(Unit) { onDispose { exported?.deleteRecursively() } }
-    val viewer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        exported?.deleteRecursively(); exported = null; opening = false
+    val activity = context.attachmentPreviewActivity()
+    val owner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
+    val model = remember(owner) { ViewModelProvider(owner)[TaskAttachmentPreviewModel::class.java] }
+    val controller = model.controller
+    val state by controller.state.collectAsState()
+    val attachment = identity.attachment
+    LaunchedEffect(controller, identity, repository) {
+        val extension = attachment.imageFormat ?: attachment.name.substringAfterLast('.', "").lowercase()
+        val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+        controller.open(identity, File(context.applicationContext.cacheDir, "task-previews"), mime,
+            valid = { repository.ownsAttachment(identity.draft, identity.origin, attachment) },
+            read = { repository.readAttachment(identity.draft, identity.origin, attachment) })
     }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(attachment.name) }, text = {
-        Column {
-            if (image != null) Image(image.asImageBitmap(), attachment.name, Modifier.fillMaxWidth().heightIn(max = 350.dp))
-            Text("${attachment.size} bytes")
-            failure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        }
-    }, confirmButton = { TextButton(enabled = !opening, onClick = {
-        opening = true; failure = null
-        scope.launch {
-            var created: File? = null
-            try {
-                val bytes = repository.readAttachment(attachment)
-                val file = withContext(Dispatchers.IO) {
-                    val root = File(context.cacheDir, "task-previews").apply { mkdirs() }
-                    root.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 3_600_000 }?.forEach { it.deleteRecursively() }
-                    val folder = File(root, UUID.randomUUID().toString()).apply { check(mkdirs()); created = this }
-                    val name = attachment.name.substringAfterLast('/').substringAfterLast('\\').filterNot { it.isISOControl() }.take(60).ifBlank { "attachment" }
-                    File(folder, name).apply { writeBytes(bytes) }
+    DisposableEffect(controller, identity, activity) {
+        onDispose { if (activity?.isChangingConfigurations != true) controller.clear(identity) }
+    }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(
+        usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Surface(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(attachment.name, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.titleMedium)
+                    TextButton(onClick = onDismiss) { Text("Done") }
                 }
-                currentCoroutineContext().ensureActive()
-                check(repository.drafts.state.value.values.any { attachment in it.attachments }) { "Attachment was removed" }
-                val uri = FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file)
-                val extension = attachment.imageFormat ?: attachment.name.substringAfterLast('.', "").lowercase()
-                val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "application/octet-stream"
-                exported = created
-                viewer.launch(Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
-            } catch (error: Exception) {
-                created?.deleteRecursively(); exported = null; opening = false
-                if (error is CancellationException) throw error
-                failure = if (error is android.content.ActivityNotFoundException) "No installed app can open this file." else error.message ?: "Could not open attachment"
+                HorizontalDivider()
+                val visible = state.takeIf { it.identity == identity }
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    when {
+                        visible?.artifact != null -> FilePreviewContent(visible.artifact)
+                        visible?.error != null -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(visible.error, color = MaterialTheme.colorScheme.error)
+                            TextButton(onClick = { controller.retry(identity) }) { Text("Retry") }
+                        }
+                        else -> CircularProgressIndicator()
+                    }
+                }
             }
         }
-    }) { Text(if (opening) "Opening…" else "Open") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Done") } })
+    }
 }

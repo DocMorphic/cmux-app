@@ -558,6 +558,7 @@ internal fun NativeTaskComposerView(
     if (attachmentRepository != null) TaskAttachmentControls(attachmentRepository, editor, origin,
         draft.attachments, canEdit, canAdd = !plainShell && supportsAttachments,
         isCurrent = { currentContext() && collection.isCurrent(editor) && !busy && !accepted && !plainShell && supportsAttachments },
+        canPreview = { currentContext() && collection.isCurrent(editor) },
         onPreparing = { preparingAttachments = it }, onChanged = { dirty = true; error = null }, onError = { error = it }, content = layout)
     else layout({}, {}, { false })
 }
