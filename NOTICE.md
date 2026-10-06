@@ -483,6 +483,14 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses a random installation UUID stored outside backups and retains the
 upstream unknown device kind rather than claiming an Apple device identity.
 
+CloudTunnelIdentity.kt and CloudWireGuardConfig.kt adapt CloudDeviceIdentity.swift,
+CloudDeviceIdentityResolver.swift, WireGuardKeyPair.swift and WireGuardQuickConfig.swift
+from Packages/iOS/CmuxMobileCloud, cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses a truthful installation fingerprint, Keystore encryption, atomic
+no-backup storage and fail-without-replacement handling for unreadable identities.
+
 CloudModels.kt and CloudApi.kt adapt CloudMachine.swift, CloudAPIRequestBuilder.swift,
 CloudAPIResponseDecoding.swift, CloudTunnelPurpose.swift and CloudVMService.swift
 from Packages/iOS/CmuxMobileCloud, cmux revision

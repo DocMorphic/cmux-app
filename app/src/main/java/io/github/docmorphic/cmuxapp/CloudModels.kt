@@ -94,7 +94,8 @@ internal object CloudResponseDecoding {
         val address = value.optJSONObject("address")
         val routes = value.optJSONArray("routes")?.let { rows -> (0 until rows.length()).map { rows.getString(it) } }.orEmpty()
         return CloudTunnelEnrollment(value.required("tunnelId"), value.required("provider"), value.required("deviceFingerprint"),
-            value.required("clientConfig"), value.required("serverPublicKey"), value.text("endpointHost"), port, routes,
+            requireNotNull(value.opt("clientConfig") as? String) { "Missing Cloud client configuration" },
+            value.required("serverPublicKey"), value.text("endpointHost"), port, routes,
             address?.text("ipv4"), address?.text("ipv6"), value.opt("created") == true, value.opt("rotated") == true)
     }
     fun attach(value: JSONObject): CloudAttachEndpoint {

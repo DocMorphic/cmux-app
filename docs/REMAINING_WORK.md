@@ -26,6 +26,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud terminal identity/configuration is implemented: an encrypted no-backup
+  installation identity, X25519 key, atomic resolve, and server/fallback wg-quick
+  completion. **25 focused JVM checks passed** with main compilation (24 seconds).
+  The factory is not mounted until the tunnel owner exists; Android Keystore and
+  native route checks still need integration coverage. Upstream's Rust/Ghostty
+  build lacks an Android target mapping; adapt it before linking the C ABI and
+  verifying 16 KiB compatibility. No APK/emulator or live enrollment.
+  See `CLOUD_COMPANION.md`.
+
 - Cloud machine management is now mounted in a third primary tab, with a
   retained account/team ViewModel, machine lifecycle menus, delete confirmation,
   size/plan/resource creation controls and real controller actions. **18 focused

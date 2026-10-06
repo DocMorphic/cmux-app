@@ -86,8 +86,9 @@ or signed promotion was needed at this foundation checkpoint.
    Android across recreation, team/account changes and process recovery. Complete
    hidden machine persistence, shell/tunnel leases and the attachment operation
    gate. The machine-management portion is recorded below.
-2. Expose the existing Iroh registry identity to Cloud; persist separate terminal
-   and browser WireGuard keys, pending revocation, and validated wg-quick routes.
+2. Expose the existing Iroh registry identity to Cloud; integrate the persisted
+   terminal identity/configuration below, separately owned browser keys and pending
+   revocation. Validate routes through the native tunnel before carrier attach.
 3. Audit/build the Android Rust/JNI terminal client and in-process WireGuard
    transport with 16 KiB-compatible libraries. Do not route Cloud daemon traffic
    through the paired Mac RPC. Port invitation/trust and output-reducer contracts.
@@ -204,3 +205,66 @@ workspace search. Those cases have **not run**. Evidence:
 promotion or live Cloud action occurred. The next installed development build
 will perform real catalog reads when the signed-in user opens Cloud; create and
 lifecycle operations require their explicit UI action.
+
+## Tunnel identity and configuration — 2026-10-06
+
+`CloudTunnelIdentity.kt`, `NativeCloudIdentity.kt` and `CloudWireGuardConfig.kt`
+implement the installation identity and in-memory configuration boundary from
+`CloudDeviceIdentity`, `CloudDeviceIdentityResolver`, `WireGuardKeyPair` and
+`WireGuardQuickConfig` at the same scoped upstream revision.
+
+- One random `android-<uuid>` fingerprint and X25519 terminal key per installation,
+  separate from account, push, terminal-sizing and Iroh registry identities. The
+  inspected server accepts 1–128 URL-safe fingerprint characters; no Apple device
+  identity is claimed. Only the public key belongs in enrollment requests.
+- Android Keystore AES-256-GCM seals the identity with versioned authenticated
+  context; ciphertext lives in the app's no-backup directory. Reads never create
+  a replacement Keystore key. Corruption, unavailable keys and failed persistence
+  fail without silently changing an enrolled identity. A process monitor and file
+  lock serialize resolve across store instances/processes; fsync and atomic replace
+  complete before resolve returns. The store has no account-logout deletion path.
+- The iOS composition shares the fingerprint with the optional system VPN, but
+  `CloudSystemVPNController` mints a **new browser key on each enable**, saved inside
+  that VPN configuration. It does not persist a second independent installation
+  fingerprint or reuse the terminal key. That browser lifecycle remains to port.
+- Nonempty server configuration receives the local private key and 25-second
+  keepalive. Empty/whitespace configuration uses enrollment addresses/routes,
+  MTU 1200, host prefixes and bracketed IPv6 endpoint. The API decoder now permits
+  an empty string while continuing to reject absent/non-string configuration.
+  Duplicate/misplaced key settings and injected multiline fallback fields fail.
+  Configurations and identities have redacted descriptions. Completed configuration
+  stays in memory; no system interface, shell command or VPN is started here.
+
+The native `cmux-wg` parser remains authoritative for address/route validity and
+trusted-carrier coverage. This Kotlin preparation must never be used as proof
+that a route is inside WireGuard. The factory is ready for the tunnel owner but
+is **not yet mounted**; opening Cloud still only activates machine catalog reads.
+
+Verification: **25 JVM checks passed**, zero failures/errors/skips, with main
+compilation in 24 seconds: identity 5, configuration 5, models 5 and API 10.
+Coverage includes the RFC 7748 public-key vector, encrypted file reopening,
+parallel resolvers, tamper/unavailable-key/corruption failures without replacement,
+failed atomic persistence, dual-stack configuration and strict API fallback
+decoding. JVM storage tests use an AES-GCM test cipher; Android Keystore,
+cross-process contention, actual process/power failure, native parsing and live
+enrollment still require integration evidence. No APK, emulator, signed promotion,
+cloud provisioning or tunnel activation occurred. Evidence:
+`captures/runtime/cloud-tunnel-identity/`.
+
+### Native transport build finding
+
+The upstream `cmux-terminal-client` provides a C ABI, persistent daemon enrollment,
+raw snapshot/output/resize/exit callbacks, workspace/catalog operations and an
+in-process userspace WireGuard/TCP stack. Android should use that transport and
+feed raw output into its renderer. Callback clearing waits for in-flight delivery;
+callbacks must not clear themselves, and tunnel free must follow all clients.
+Explicit carrier trust requires the native literal-IP/AllowedIPs check, with no
+ordinary OS fallback.
+
+At `c2715faa`, `ghostty-vt-sys/build.rs` maps iOS/macOS/Linux/Windows Rust targets
+to Zig targets but has **no `aarch64-linux-android` mapping**. Merely selecting the
+Android Cargo target would leave Zig's host target selected. Its bindgen invocation
+also needs Android target/sysroot review. The next native build must pin the source,
+adapt that build boundary, link through the NDK, and verify 16 KiB LOAD/RELRO
+alignment before packaging. This is a source finding; no Android Rust client build
+has been attempted or claimed successful.
