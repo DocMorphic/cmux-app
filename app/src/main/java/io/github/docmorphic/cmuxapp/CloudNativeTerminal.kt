@@ -79,6 +79,7 @@ internal interface CloudNativeCalls {
 @Keep
 internal object CloudNativeBindings : CloudNativeCalls {
     init { System.loadLibrary("cmux_cloud_jni") }
+    external fun initialize(context: android.content.Context)
     external override fun startTunnel(config: ByteArray): Long
     external override fun freeTunnel(handle: Long)
     external override fun routeAllowed(handle: Long, route: ByteArray): Boolean

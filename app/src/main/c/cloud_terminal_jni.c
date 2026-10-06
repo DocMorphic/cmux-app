@@ -13,6 +13,9 @@
 #define MAX_BYTES (16u * 1024u * 1024u)
 #define UNUSED(x) (void)(x)
 
+extern bool cmux_android_initialize(void *env, void *context);
+static atomic_bool runtime_ready = false;
+
 typedef struct {
     CmuxTerminalClient *client;
     JavaVM *vm;
@@ -78,8 +81,21 @@ static void output(void *context, uint32_t kind, const uint8_t *bytes, size_t le
     if (attached) (*client->vm)->DetachCurrentThread(client->vm);
 }
 
+JNIEXPORT void JNICALL JNI(initialize)(JNIEnv *env, jobject self, jobject context) {
+    UNUSED(self);
+    // Resolve through the app's class loader before any Rust TLS worker is started.
+    jclass verifier = (*env)->FindClass(env, "org/rustls/platformverifier/CertificateVerifier");
+    if (!verifier) return;
+    (*env)->DeleteLocalRef(env, verifier);
+    if (!context || !cmux_android_initialize(env, context)) {
+        fail(env, "Cloud Android runtime could not initialize"); return;
+    }
+    atomic_store(&runtime_ready, true);
+}
+
 JNIEXPORT jlong JNICALL JNI(startTunnel)(JNIEnv *env, jobject self, jbyteArray config) {
     UNUSED(self);
+    if (!atomic_load(&runtime_ready)) { fail(env, "Cloud Android runtime is not initialized"); return 0; }
     char *value = text(env, config, false);
     if (!value) return 0;
     CmuxWireGuardNet *net = cmux_wireguard_net_start(value, NULL, 0);
@@ -100,6 +116,7 @@ JNIEXPORT jboolean JNICALL JNI(routeAllowed)(JNIEnv *env, jobject self, jlong ha
 JNIEXPORT jlong JNICALL JNI(connect)(JNIEnv *env, jobject self, jlong tunnel, jbyteArray route,
         jbyteArray directory, jbyteArray device, jbyteArray invitation, jboolean trusted, jlong timeout, jobject sink) {
     UNUSED(self);
+    if (!atomic_load(&runtime_ready)) { fail(env, "Cloud Android runtime is not initialized"); return 0; }
     if (!sink || timeout <= 0) { fail(env, "Invalid Cloud connection options"); return 0; }
     char *r = text(env, route, false), *d = text(env, directory, false), *n = text(env, device, false);
     char *i = text(env, invitation, true);

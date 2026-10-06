@@ -58,7 +58,7 @@ jobs:
             ~/.cargo/git
             ~/.cache/zig
             build/cloud-cargo-target
-          key: cloud-native-c2715faa-rust195-ndk28-${{ hashFiles('scripts/native/cloud-ghostty-build.rs', 'scripts/build-cloud-terminal-android.py', 'app/src/main/c/cloud_terminal_jni.c') }}
+          key: cloud-native-c2715faa-rust195-ndk28-${{ hashFiles('scripts/native/cloud-*.rs', 'scripts/build-cloud-terminal-android.py', 'app/src/main/c/cloud_terminal_jni.c') }}
           restore-keys: cloud-native-c2715faa-rust195-ndk28-
       - name: Build upstream C ABI for Android
         run: |
@@ -93,5 +93,6 @@ jobs:
             build/cloud-terminal-android/cmux_terminal_client.h
             build/cloud-terminal-android/Cargo.lock
             build/cloud-terminal-android/dependencies.json
+            build/cloud-terminal-android/rustls-platform-verifier-0.1.1.aar
             build/cloud-terminal-android/jniLibs
             build/cloud-terminal-android/notices

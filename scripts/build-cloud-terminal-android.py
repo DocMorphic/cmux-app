@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import tarfile
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 PIN = "c2715faa02c260b07012bc0b386597cfb333021d"
@@ -86,6 +87,56 @@ def patch_android_errno(path):
     return {"originalSha256": original, "patchedSha256": digest(path)}
 
 
+def patch_android_runtime(workspace, patches):
+    lock = workspace / "Cargo.lock"
+    original_lock = digest(lock)
+    pinned = {(p["name"], p["version"]) for p in tomllib.loads(lock.read_text())["package"]}
+    required = {("iroh-dns", "1.0.3"), ("jni", "0.22.4"), ("rustls-platform-verifier", "0.7.0")}
+    if not required <= pinned:
+        raise RuntimeError("Android runtime dependency pins changed")
+    dependencies = {
+        "cmux-terminal-client": ('iroh-dns = "=1.0.3"\njni = { version = "=0.22.4", default-features = false }\n'
+                                 'rustls-platform-verifier = "=0.7.0"\n',
+                                 ["iroh-dns", "jni 0.22.4", "rustls-platform-verifier"]),
+        "cmux-remote": ('rustls.workspace = true\nrustls-platform-verifier = "=0.7.0"\n',
+                        ["rustls", "rustls-platform-verifier"]),
+    }
+    for crate, (declarations, names) in dependencies.items():
+        manifest = workspace / f"crates/{crate}/Cargo.toml"
+        key = f"cmux-tui/crates/{crate}/Cargo.toml"
+        first_hash = patches.get(key, {}).get("originalSha256", digest(manifest))
+        with manifest.open("a") as stream:
+            stream.write('\n[target.\'cfg(target_os = "android")\'.dependencies]\n' + declarations)
+        patches[key] = {"originalSha256": first_hash, "patchedSha256": digest(manifest)}
+        # Add only edges to existing locked packages; never resolve newer versions.
+        contents = lock.read_text()
+        pattern = rf'(\[\[package\]\]\nname = "{crate}"\nversion = "[^"]+"\ndependencies = \[\n)(.*?)(\n\])'
+        match = re.search(pattern, contents, re.S)
+        if not match:
+            raise RuntimeError(f"Missing locked dependency block: {crate}")
+        entries = set(re.findall(r' "([^"]+)",', match[2])) | set(names)
+        replacement = match[1] + "\n".join(f' "{entry}",' for entry in sorted(entries)) + match[3]
+        lock.write_text(contents[:match.start()] + replacement + contents[match.end():])
+    patches["cmux-tui/Cargo.lock"] = {"originalSha256": original_lock, "patchedSha256": digest(lock)}
+    runtime = workspace / "crates/cmux-terminal-client/src/android_runtime.rs"
+    shutil.copy2(ROOT / "scripts/native/cloud-android-runtime.rs", runtime)
+    lib = runtime.with_name("lib.rs")
+    patches["cmux-tui/crates/cmux-terminal-client/src/lib.rs"] = replace_once(lib,
+        "use std::collections::BTreeMap;", '#[cfg(target_os = "android")]\nmod android_runtime;\n\nuse std::collections::BTreeMap;')
+    websocket = workspace / "crates/cmux-remote/src/provider/websocket.rs"
+    original = digest(websocket)
+    replace_once(websocket, "    let (socket, _) = client_async_tls_with_config(request, stream, Some(config), None)",
+        '''    #[cfg(target_os = "android")]
+    let connector = android_tls_connector(endpoint)?;
+    #[cfg(not(target_os = "android"))]
+    let connector = None;
+    let (socket, _) = client_async_tls_with_config(request, stream, Some(config), connector)''')
+    with websocket.open("a") as stream:
+        stream.write("\n" + (ROOT / "scripts/native/cloud-android-tls.rs").read_text())
+    patches["cmux-tui/crates/cmux-remote/src/provider/websocket.rs"] = {
+        "originalSha256": original, "patchedSha256": digest(websocket)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("source", "ghostty", "zig", "ndk", "output"):
@@ -147,6 +198,7 @@ def main():
     for relative in ("crates/cmux-tui-core/src/workspace_registry.rs",
                      "crates/cmux-remote/src/workspace/files.rs"):
         patches[f"cmux-tui/{relative}"] = patch_android_errno(workspace / relative)
+    patch_android_runtime(workspace, patches)
     # Use the upstream rust-toolchain.toml without a separately drifting workflow version.
     run("cargo", "build", "--locked", "--release", "--lib", "-p", "cmux-terminal-client",
         "--target", TARGET, "--jobs", "2", cwd=workspace, env=env)
@@ -167,7 +219,8 @@ def main():
     header = workspace / "crates/cmux-terminal-client/include/cmux_terminal_client.h"
     required = set(re.findall(r"\b(cmux_(?:terminal_client|wireguard_net)_\w+)\s*\(", header.read_text()))
     symbols = {line.split()[-1] for line in exports.splitlines() if line.split()}
-    if not required or not required <= symbols or any(name.startswith("ghostty_") for name in symbols):
+    required.add("cmux_android_initialize")
+    if not required <= symbols or any(name.startswith("ghostty_") for name in symbols):
         raise RuntimeError(f"C ABI missing {sorted(required - symbols)} or private Ghostty symbols exported")
     bridge_source = ROOT / "app/src/main/c/cloud_terminal_jni.c"
     bridge = native.with_name("libcmux_cloud_jni.so")
@@ -189,14 +242,20 @@ def main():
     notices.mkdir(parents=True)
     shutil.copy2(output / "source/LICENSE", notices / "cmux-LICENSE")
     shutil.copy2(output / "ghostty/LICENSE", notices / "ghostty-LICENSE")
+    verifier = next(p for p in metadata["packages"] if p["name"] == "rustls-platform-verifier-android" and p["version"] == "0.1.1")
+    verifier_aar = output / "rustls-platform-verifier-0.1.1.aar"
+    shutil.copy2(Path(verifier["manifest_path"]).parent /
+        "maven/rustls/rustls-platform-verifier/0.1.1/rustls-platform-verifier-0.1.1.aar", verifier_aar)
     artifacts = [native, bridge, output / header.name, output / "Cargo.lock", output / "dependencies.json",
-                 output / "elf-verification.txt", *notices.iterdir()]
+                 output / "elf-verification.txt", verifier_aar, *notices.iterdir()]
     receipt = {"sourceRevision": PIN, "ghosttyRevision": GHOSTTY_PIN, "ndk": NDK_VERSION,
                "androidApi": 26, "abi": "arm64-v8a", "elfPageSize": 16384,
                "rustc": run("rustc", "--version", cwd=workspace, capture=True).strip(),
                "zig": "0.16.0", "patches": patches, "builderSha256": digest(Path(__file__)),
                "ghosttyBuildAdapterSha256": digest(ROOT / "scripts/native/cloud-ghostty-build.rs"),
                "jniSourceSha256": digest(bridge_source),
+               "androidRuntimeSha256": digest(ROOT / "scripts/native/cloud-android-runtime.rs"),
+               "androidTlsSha256": digest(ROOT / "scripts/native/cloud-android-tls.rs"),
                "scope": "C ABI library and alignment only; Android runtime, packaging and dependency notices review pending",
                "files": {str(path.relative_to(output)): digest(path) for path in artifacts}}
     (output / "manifest.json").write_text(json.dumps(receipt, indent=2) + "\n")
