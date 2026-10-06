@@ -724,3 +724,42 @@ creation/selection/input and process-death behavior still need integration evide
 Next finish hidden-machine persistence, terminal selection/restoration, Cloud-only
 onboarding and the remaining upstream behaviors, then run the queued fixtures and
 real-account acceptance.
+
+
+### Saved Cloud computer visibility — 2026-10-06
+
+The pinned iOS `CloudSessionController.swift` stores only hidden machine IDs,
+partitioned by API origin, user and effective team. `MobileCloudComposition.swift`
+supplies that scope; login/session generation is excluded. Successful machine
+inventories prune deleted IDs. `CloudWorkspaceBridge.swift` mirrors the stored
+choice into the common host filter, and the Computers screen owns the switch.
+
+Android now follows this behavior through `CloudMachineVisibility` and the existing
+Computers management destination. Preferences are partitioned by a hash of the
+structured origin/user/team tuple, surviving login and team-generation changes.
+New machines are visible by default. Loading/failed inventories preserve stored
+choices; only authoritative machine lists prune removed machines. Failed writes
+preserve the published choice and report an error without terminating the account's
+catalog/tunnel observer. Actual Android disk/process-failure behavior is unverified.
+
+Hidden machines remain listed in Computers with an accessible Show switch. They
+are removed from the workspace list, computer dropdown, sorting/filter choices,
+create menus and routed-sidebar inputs. Hiding the open machine closes its terminal
+host and input path; hiding the explicitly selected computer clears that selection.
+A late create result cannot reopen a hidden machine. The all-hidden state keeps
+Computers reachable and explains how to show the machines again. Hiding does not
+pause/delete a remote machine, revoke the account or alter its catalog membership.
+
+Verification: **28 focused JVM checks passed across five suites**, zero
+failures/errors/skips, with main/instrumentation compilation in 21 seconds.
+Five visibility checks cover reopening, login/generation stability, account/team
+separation, successful-only pruning, unknown/retired callback rejection, failed
+writes and structured scope collision avoidance; existing catalog/creation/sidebar
+checks also passed. The Android management switch fixture compiles but has **not
+run**. Evidence: `captures/runtime/cloud-computer-visibility/`. ADB reports no
+connected device; no emulator, APK rebuild, signed promotion or live Cloud action.
+
+Next implement and verify terminal selection/process restoration and Cloud-only
+onboarding, finish the source-to-behavior audit, and run the queued Android/Pixel
+acceptance workflows. This checkpoint completes the visibility implementation,
+not physical parity acceptance.

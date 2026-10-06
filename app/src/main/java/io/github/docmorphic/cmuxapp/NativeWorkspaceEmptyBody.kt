@@ -42,6 +42,7 @@ internal fun NativeWorkspaceEmptyBody(model: NativeEmptyVisual, measuring: Boole
             modifier = Modifier.semantics { heading() })
         Text(when (guidance) {
             NativeWorkspaceEmptyGuidance.MAC -> "Open cmux on your Mac and enable iOS pairing in Settings > Mobile. Use the same cmux account and team on both devices."
+            NativeWorkspaceEmptyGuidance.HIDDEN_CLOUD -> "Your Cloud computers are hidden on this phone. Open Manage computers to show them again."
             NativeWorkspaceEmptyGuidance.CLOUD_HOST -> "Use + to create a workspace on this Cloud computer. If it is unavailable, check its status in Cloud."
             NativeWorkspaceEmptyGuidance.SSH_HOST -> "Create a workspace with New cmux Workspace, or open a New Shell below. Your SSH connection does not require Mac pairing."
             NativeWorkspaceEmptyGuidance.ALL_COMPUTERS -> "Use + to create a workspace on a computer."

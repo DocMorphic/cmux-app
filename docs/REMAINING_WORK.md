@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud visibility now persists separately per user/team and is controlled in
+  Computers. Hidden hosts leave navigation/create menus while remaining available
+  to re-enable; hiding the open host closes its terminal and input path. Only a
+  successful machine inventory prunes saved IDs. **28 JVM checks passed**, main
+  and Android test sources compile; the management fixture remains unrun. Next:
+  terminal selection/process restoration, onboarding and live acceptance. See
+  `CLOUD_COMPANION.md` and `captures/runtime/cloud-computer-visibility/`.
+
 - Cloud workspace/terminal creation now uses the native daemon and common list,
   picker and routed-sidebar menus. Workspace IDs appear immediately; starter and
   new-terminal selection follow catalog confirmation. Synthetic unassigned rows

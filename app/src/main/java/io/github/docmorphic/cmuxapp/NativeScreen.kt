@@ -169,7 +169,11 @@ internal fun NativeScreen(
     val cloudTunnel = cloudModel?.tunnel?.collectAsState()?.value
     val cloudTunnelState = cloudTunnel?.state?.collectAsState()?.value
     val cloudWorkspaces = cloudModel?.workspaces?.collectAsState()?.value
-    val cloudSnapshots = cloudWorkspaces?.state?.collectAsState()?.value.orEmpty()
+    val allCloudSnapshots = cloudWorkspaces?.state?.collectAsState()?.value.orEmpty()
+    val cloudVisibility = cloudModel?.visibility?.collectAsState()?.value
+    val cloudVisibilityFailure = cloudVisibility?.failure?.collectAsState()?.value
+    val hiddenCloudIds = cloudVisibility?.hidden?.collectAsState()?.value.orEmpty()
+    val cloudSnapshots = allCloudSnapshots.filterKeys { it !in hiddenCloudIds }
     val cloudCreation = cloudModel?.creation?.collectAsState()?.value
     val cloudCreationState = cloudCreation?.state?.collectAsState()?.value
     val cloudCreationBusy = cloudCreationState?.pending == true
@@ -635,6 +639,7 @@ internal fun NativeScreen(
             store.update { it.put("computer_selection", selectedComputerOrigin) }
             target.session.workspaceFeed.open(target.host, explicit = false)
         }
+        LaunchedEffect(cloudVisibility, cloudVisibilityFailure) { cloudVisibilityFailure?.let { error = it } }
         LaunchedEffect(cloudCreation, cloudCreationState?.failure) {
             cloudCreationState?.failure?.let { error = it }
         }
@@ -2422,6 +2427,14 @@ internal fun NativeScreen(
                     } catch (failure: Exception) { error = failure.message ?: "Could not change computer visibility" }
                 }
 
+                fun setCloudComputerVisibility(snapshot: CloudWorkspaceSnapshot, visible: Boolean) {
+                    try {
+                        val visibility = checkNotNull(cloudVisibility) { "Cloud computers are still loading" }
+                        check(cloudModel?.setHidden(snapshot.machine.id, !visible, visibility) == true) { "Cloud account or computer changed" }
+                        if (!visible && selectedCloudId == snapshot.machine.id) selectPickerComputer(null)
+                    } catch (failure: Exception) { error = failure.message ?: "Could not change Cloud computer visibility" }
+                }
+
                 fun presentComputers() {
                     computersReturnToSettings = showSettings
                     computersOwner = NativeComputerMenuOwner(store.taskSession(), teamState.scope)
@@ -2599,6 +2612,8 @@ internal fun NativeScreen(
                                     } else legacyDetails = mac
                                 } }, onPair = ::pairMac, hiddenOrigins = hiddenOrigins, onVisibility = ::setComputerVisibility,
                                 readOnly = cachedComputers != null)
+                            NativeCloudComputerRows(allCloudSnapshots.values.toList(), hiddenCloudIds,
+                                enabled = admitted() && cloudVisibility != null, onVisibility = ::setCloudComputerVisibility)
                         }
                     }
                 }
@@ -3342,7 +3357,7 @@ internal fun NativeScreen(
                         }
                     }
                     if ((busy || sshCreationBusy || creatingGroup || cloudCreationBusy) && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    if (selectedCloudId == null && cloudSnapshots.isEmpty() && client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()) {
+                    if (selectedCloudId == null && allCloudSnapshots.isEmpty() && client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()) {
                         Column(Modifier.padding(horizontal = 18.dp)) {
                             Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
                             TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
@@ -3463,6 +3478,8 @@ internal fun NativeScreen(
                                 effectiveWorkspaceFilter.machines.isNotEmpty() && unreadWorkspacesOnly -> NativeWorkspaceEmptyGuidance.UNREAD_MACHINES
                                 effectiveWorkspaceFilter.machines.isNotEmpty() -> NativeWorkspaceEmptyGuidance.MACHINES
                                 unreadWorkspacesOnly -> NativeWorkspaceEmptyGuidance.UNREAD
+                                hiddenCloudIds.isNotEmpty() && (selectedCloudId in hiddenCloudIds ||
+                                    (allWorkspaceComputers && cloudSnapshots.isEmpty() && workspaceSources.isEmpty() && visibleSshRows.isEmpty())) -> NativeWorkspaceEmptyGuidance.HIDDEN_CLOUD
                                 selectedCloudId != null -> NativeWorkspaceEmptyGuidance.CLOUD_HOST
                                 selectedOrigin == null && (sshTargets.isNotEmpty() || cloudSnapshots.isNotEmpty()) -> NativeWorkspaceEmptyGuidance.ALL_COMPUTERS
                                 else -> NativeWorkspaceEmptyGuidance.MAC
@@ -3571,7 +3588,7 @@ internal fun NativeScreen(
                         sidebar = isSidebar, onNewTask = { finishSearch(); newTaskDraft() },
                         onCloud = cloudModel?.let { model -> { finishSearch(); cloudTab = true; model.activate() } })
                 }
-                val showWorkspaceReconnect = selectedCloudId == null && cloudSnapshots.isEmpty() && ((cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
+                val showWorkspaceReconnect = selectedCloudId == null && allCloudSnapshots.isEmpty() && ((cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
                             (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()))))
                 val customizePane: ((NativeWorkspace) -> Unit)? = workspaceSourceForPane()?.takeIf { it.canCustomizeWorkspace() }?.let { source ->
                     { workspace -> customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, source.mac, workspace.id) }

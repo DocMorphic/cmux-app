@@ -562,3 +562,12 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses an account-owned coroutine, lifecycle epochs, explicit native C ABI
 operations and the common Android create menus. Verification and remaining work
 are recorded in docs/CLOUD_COMPANION.md.
+
+
+CloudMachineVisibility.kt adapts hidden-machine persistence and authoritative
+inventory reconciliation from CloudSessionController.swift in
+Packages/iOS/CmuxMobileCloud, with the visibility scope supplied by
+MobileCloudComposition.swift, at cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses account-scoped SharedPreferences and the common Computers screen.

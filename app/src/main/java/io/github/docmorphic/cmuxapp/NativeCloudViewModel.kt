@@ -24,6 +24,8 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
     val route = mutableRoute.asStateFlow()
     private val mutableCreation = MutableStateFlow<CloudWorkspaceCreation?>(null)
     val creation = mutableCreation.asStateFlow()
+    private val mutableVisibility = MutableStateFlow<CloudMachineVisibility?>(null)
+    val visibility = mutableVisibility.asStateFlow()
     private var navigationRevision = 0L
     private var owner: NativeTeamScope? = null
     private var foreground = false
@@ -35,6 +37,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
             combine(teams.state, store.revisions) { state, _ -> state.scope?.takeIf(teams::isCurrent) }.collect { next ->
                 if (next == owner) return@collect
                 catalogObserver?.cancel(); catalogObserver = null
+                mutableVisibility.value?.close(); mutableVisibility.value = null
                 mutableCreation.value?.close(); mutableCreation.value = null; navigationRevision++
                 hosts.values.forEach { it.close() }; hosts.clear(); mutableRoute.value = null
                 mutableWorkspaces.value?.close(); mutableWorkspaces.value = null
@@ -42,6 +45,12 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                 mutable.value?.close(); mutable.value = null; owner = next
                 if (next != null) {
                     val capture = CloudAccountScope(next.login, next.userId, next.teamId, next.generation)
+                    val preferences = application.getSharedPreferences("cloud_machine_visibility", Context.MODE_PRIVATE)
+                    val visibility = CloudMachineVisibility(capture,
+                        { key -> preferences.getStringSet(key, emptySet()).orEmpty().toSet() },
+                        { key, ids -> check(preferences.edit().putStringSet(key, ids).commit()) { "Could not save Cloud computer visibility" } },
+                        { teams.isCurrent(next) })
+                    mutableVisibility.value = visibility
                     val api = nativeCloudApi(account, teams, next)
                     val runtime = CloudTunnelController(scope, { teams.isCurrent(next) },
                         { startNativeCloudTunnelResource(application, scope, api, teams, next) },
@@ -74,6 +83,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                     catalogObserver = scope.launch {
                         combine(controller.state, runtime.state, workspaces.state) { machines, tunnel, rows -> Triple(machines, tunnel, rows) }
                             .collect { (update, tunnel, rows) ->
+                            visibility.reconcile(update.catalog.machines.map { it.id }.toSet(), update.phase == CloudCatalogPhase.LOADED)
                             runtime.setWanted(foreground && update.catalog.machines.isNotEmpty())
                             workspaces.setMachines(update.catalog.machines)
                             workspaces.setAvailable(foreground && tunnel.phase == CloudTunnelPhase.READY)
@@ -120,6 +130,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         hosts[machineId]?.replay()
     }
     fun openWorkspace(row: CloudWorkspaceRow, terminalId: String? = null, expected: CloudWorkspaceController) {
+        check(row.machine.id !in mutableVisibility.value?.hidden?.value.orEmpty()) { "This Cloud computer is hidden on this phone" }
         check(mutableWorkspaces.value === expected) { "Cloud workspace account changed" }
         val owner = owner ?: return
         check(teams.isCurrent(owner)) { "Cloud account changed" }
@@ -139,18 +150,28 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         mutableRoute.value = CloudWorkspaceRoute(host, current.key, expected)
     }
     fun createWorkspace(machineId: String, expected: CloudWorkspaceController, workspaceId: String? = null): Boolean {
-        if (mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return false
+        if (machineId in mutableVisibility.value?.hidden?.value.orEmpty() || mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return false
         val navigation = navigationRevision
         return mutableCreation.value?.request(machineId, workspaceId) { created ->
-            if (navigationRevision == navigation && mutableWorkspaces.value === expected && foreground) {
+            if (navigationRevision == navigation && mutableWorkspaces.value === expected && foreground &&
+                created.machineId !in mutableVisibility.value?.hidden?.value.orEmpty()) {
                 expected.state.value[created.machineId]?.rows?.singleOrNull { it.remoteId == created.workspaceId }?.let { row ->
                     openWorkspace(row, created.terminalId?.let { CloudAddress(created.machineId, it).identifier }, expected)
                 }
             }
         } == true
     }
+    fun setHidden(machineId: String, hidden: Boolean, expected: CloudMachineVisibility): Boolean {
+        if (mutableVisibility.value !== expected || !expected.setHidden(machineId, hidden)) return false
+        if (hidden) {
+            if (mutableRoute.value?.host?.machineId == machineId) leaveWorkspace()
+            hosts.remove(machineId)?.close()
+        }
+        return true
+    }
     fun leaveWorkspace() { navigationRevision++; mutableRoute.value?.host?.leave(); mutableRoute.value = null }
     override fun onCleared() {
+        mutableVisibility.value?.close(); mutableVisibility.value = null
         mutableCreation.value?.close(); mutableCreation.value = null; navigationRevision++
         catalogObserver?.cancel(); mutableWorkspaces.value?.close(); mutableWorkspaces.value = null
         hosts.values.forEach { it.close() }; hosts.clear(); mutableRoute.value = null
