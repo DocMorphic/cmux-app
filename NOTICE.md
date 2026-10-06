@@ -552,3 +552,13 @@ Packages/iOS/CmuxMobileCloudBridge at cmux revision
 c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android adds explicit native attachment tokens and coroutine ownership fences.
+
+
+CloudWorkspaceCreation.kt and the creation hooks in CloudWorkspaceController.kt
+adapt workspace/terminal creation and optimistic catalog publication from
+CloudWorkspaceBridge.swift in Packages/iOS/CmuxMobileCloudBridge at cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses an account-owned coroutine, lifecycle epochs, explicit native C ABI
+operations and the common Android create menus. Verification and remaining work
+are recorded in docs/CLOUD_COMPANION.md.

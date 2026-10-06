@@ -22,6 +22,9 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
     private val hosts = mutableMapOf<String, CloudTerminalHost>()
     private val mutableRoute = MutableStateFlow<CloudWorkspaceRoute?>(null)
     val route = mutableRoute.asStateFlow()
+    private val mutableCreation = MutableStateFlow<CloudWorkspaceCreation?>(null)
+    val creation = mutableCreation.asStateFlow()
+    private var navigationRevision = 0L
     private var owner: NativeTeamScope? = null
     private var foreground = false
     private var catalogObserver: Job? = null
@@ -32,6 +35,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
             combine(teams.state, store.revisions) { state, _ -> state.scope?.takeIf(teams::isCurrent) }.collect { next ->
                 if (next == owner) return@collect
                 catalogObserver?.cancel(); catalogObserver = null
+                mutableCreation.value?.close(); mutableCreation.value = null; navigationRevision++
                 hosts.values.forEach { it.close() }; hosts.clear(); mutableRoute.value = null
                 mutableWorkspaces.value?.close(); mutableWorkspaces.value = null
                 mutableTunnel.value?.close(); mutableTunnel.value = null
@@ -53,6 +57,16 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                         catch (failure: CancellationException) { throw failure }
                         catch (failure: Exception) { pool.retire(machineId, link); throw failure }
                     }
+                    val creation = CloudWorkspaceCreation(scope, workspaces) { machineId, workspaceId ->
+                        val session = checkNotNull(runtime.resource()?.connections?.connection(machineId)) { "Cloud tunnel is reconnecting" }.awaitSession()
+                        val bytes = withContext(Dispatchers.IO) {
+                            check(teams.isCurrent(next)) { "Cloud account changed" }
+                            session.catalog(if (workspaceId == null) CloudCatalogOperation.CREATE_WORKSPACE else CloudCatalogOperation.CREATE_TERMINAL,
+                                workspace = workspaceId)
+                        }
+                        CloudWorkspaceDecoding.created(bytes, terminal = workspaceId != null)
+                    }
+                    mutableCreation.value = creation
                     controller.setForeground(foreground)
                     mutableTunnel.value = runtime
                     mutable.value = controller
@@ -68,6 +82,11 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                                 if (mutableRoute.value?.host?.machineId == id) mutableRoute.value = null
                             }
                             hosts.forEach { (id, host) -> host.reconcile(rows[id], foreground, tunnel.phase == CloudTunnelPhase.READY) }
+                            mutableRoute.value?.takeIf { it.host.selected.value == null && it.catalogOwner === workspaces }?.let { route ->
+                                rows[route.host.machineId]?.takeIf { it.authoritative }?.rows?.singleOrNull { it.key == route.workspaceId }?.let { row ->
+                                    row.workspace.terminals.firstOrNull()?.let { route.host.select(row.workspace, it) }
+                                }
+                            }
                         }
                     }
                     if (foreground) controller.refresh()
@@ -94,6 +113,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
     }
     fun retryConnection(machineId: String, expected: CloudWorkspaceController) {
         if (mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return
+        mutableCreation.value?.clearFailure()
         mutableTunnel.value?.resource()?.connections?.retire(setOf(machineId))
         mutableTunnel.value?.retry()
         mutableWorkspaces.value?.refresh(machineId)
@@ -115,10 +135,23 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
             else current.workspace.terminals.singleOrNull { it.id == terminalId }
         if (terminalId != null && terminal == null) return
         if (terminal != null) host.select(current.workspace, terminal) else host.leave()
+        navigationRevision++
         mutableRoute.value = CloudWorkspaceRoute(host, current.key, expected)
     }
-    fun leaveWorkspace() { mutableRoute.value?.host?.leave(); mutableRoute.value = null }
+    fun createWorkspace(machineId: String, expected: CloudWorkspaceController, workspaceId: String? = null): Boolean {
+        if (mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return false
+        val navigation = navigationRevision
+        return mutableCreation.value?.request(machineId, workspaceId) { created ->
+            if (navigationRevision == navigation && mutableWorkspaces.value === expected && foreground) {
+                expected.state.value[created.machineId]?.rows?.singleOrNull { it.remoteId == created.workspaceId }?.let { row ->
+                    openWorkspace(row, created.terminalId?.let { CloudAddress(created.machineId, it).identifier }, expected)
+                }
+            }
+        } == true
+    }
+    fun leaveWorkspace() { navigationRevision++; mutableRoute.value?.host?.leave(); mutableRoute.value = null }
     override fun onCleared() {
+        mutableCreation.value?.close(); mutableCreation.value = null; navigationRevision++
         catalogObserver?.cancel(); mutableWorkspaces.value?.close(); mutableWorkspaces.value = null
         hosts.values.forEach { it.close() }; hosts.clear(); mutableRoute.value = null
         mutableTunnel.value?.close(); mutableTunnel.value = null

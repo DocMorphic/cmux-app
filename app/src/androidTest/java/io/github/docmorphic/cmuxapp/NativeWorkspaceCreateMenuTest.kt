@@ -29,6 +29,8 @@ class NativeWorkspaceCreateMenuTest {
     private var groupAllowed by mutableStateOf(false)
     private var groupsCreated = 0
     private var groupMac by mutableStateOf(stable)
+    private var cloud by mutableStateOf(emptyList<CloudWorkspaceSnapshot>())
+    private val cloudCreated = mutableListOf<String>()
     private val created = mutableListOf<NativeCredentialStore.PairedMac>()
 
     private var sshTargets by mutableStateOf(emptyList<NativeSshCreateTarget>())
@@ -53,6 +55,21 @@ class NativeWorkspaceCreateMenuTest {
         compose.runOnIdle { sshSession?.close(); sshScope?.cancel() }
         sshRoot?.deleteRecursively()
     }
+    @Test fun cloudTargetSharesMenuAndSingleTargetQuickCreateWhileRefreshRevokesOldAction() {
+        val machine = CloudMachine("vm_cloud", "fixture", "running", "Cloud build", null, null)
+        cloud = listOf(CloudWorkspaceSnapshot(machine, availability = NativeFeedAvailability.CONNECTED, authoritative = true))
+        content()
+        compose.onNodeWithContentDescription("New Workspace").performClick()
+        compose.onNodeWithTag("workspace.create.cloud:vm_cloud").performClick()
+        compose.runOnIdle { assertEquals(listOf("vm_cloud"), cloudCreated) }
+        compose.onNodeWithContentDescription("New Workspace").performClick()
+        compose.runOnIdle { cloud = cloud.map { it.copy(authoritative = false) } }
+        compose.onNodeWithTag("workspace.create.cloud:vm_cloud").assertIsNotEnabled().performClick()
+        compose.runOnIdle { assertEquals(1, cloudCreated.size); open = false; rows = emptyList(); cloud = cloud.map { it.copy(authoritative = true) } }
+        compose.onNodeWithContentDescription("New Workspace").performClick()
+        compose.runOnIdle { assertEquals(listOf("vm_cloud", "vm_cloud"), cloudCreated); assertFalse(open) }
+    }
+
     private fun content() {
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { Column(Modifier.statusBarsPadding()) {
             NativeWorkspaceCreateMenu(rows, NativeMacAppearances(), NativeMacPresenceState(),
@@ -62,7 +79,9 @@ class NativeWorkspaceCreateMenuTest {
                 { NativeComputerMenuPairing.isCurrent(it, rows) && it.origin in connected },
                 { created += it }, if (groupAllowed) ({ groupsCreated++ }) else null, sshTargets = sshTargets,
                 canCreateSsh = { target, _ -> sshAllowed && sshTargets.any { it.session === target.session && it.host.connectsLike(target.host) } },
-                onCreateSsh = { target, kind -> sshCreated += target.host.id to kind }, groupMac = groupMac)
+                onCreateSsh = { target, kind -> sshCreated += target.host.id to kind }, groupMac = groupMac, cloud = cloud,
+                canCreateCloud = { candidate -> cloud.any { it.machine.id == candidate.machine.id && it.authoritative && it.availability == NativeFeedAvailability.CONNECTED } },
+                onCreateCloud = { cloudCreated += it.machine.id })
         } } } }
     }
     private fun openMenu() = compose.onNodeWithContentDescription("New Workspace").performClick()

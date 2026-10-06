@@ -680,3 +680,47 @@ pending; preserving the computer filter is not terminal process restoration.
 Continue with Cloud workspace/terminal creation, hidden-machine persistence,
 terminal selection/process restoration and Cloud-only onboarding, followed by the
 queued Android fixtures and physical workflows.
+
+
+### Workspace and terminal creation — 2026-10-06
+
+`CloudWorkspaceCreation` follows the Creating section of the pinned iOS
+`CloudWorkspaceBridge.swift`. The account owns the request lifetime and permits
+one create at a time. Admission requires the current running machine and an
+authoritative connected catalog. The native C ABI receives `CREATE_WORKSPACE`
+with no name, or `CREATE_TERMINAL` with the explicit real workspace ID and no name.
+No create operation is automatically retried.
+
+An acknowledged workspace ID is published immediately as a non-authoritative row,
+selected before the following catalog read returns. The retained route picks its
+starter terminal once the authoritative inventory arrives. New Terminal refreshes
+the inventory and selects the acknowledged terminal only in its actual workspace.
+The synthetic `unassigned` row creates a real workspace first and uses its starter
+terminal; its synthetic ID never goes to the daemon's create-terminal operation.
+Machine lifecycle epochs and account retirement reject late completions. A later
+navigation choice prevents an earlier completion from reopening its destination.
+
+Cloud targets now participate in the shared New Workspace menu and routed sidebar,
+including empty machines and explicit computer scope. The terminal pane's shared
+picker exposes New Workspace and New Terminal with current admission/busy checks.
+Single-Cloud-target + creates directly. Failures distinguish unconfirmed creation
+from acknowledged creation whose inventory has not loaded; both ask for refresh
+before another attempt. An interrupted link or absent runtime becomes a visible
+failure. Explicit reconnect clears the creation banner and refreshes the inventory.
+
+Verification: **100 focused JVM checks passed across 15 suites**, zero
+failures/errors/skips, with final main/instrumentation compilation in 9 seconds.
+Eight creation-owner tests cover optimistic selection/starter loading, duplicate
+taps, real and unassigned workspace paths, lost acknowledgments, failed follow-up
+reads, removal/re-addition, pause/background admission, account retirement,
+interrupted links and missing runtime. Sidebar cases cover empty-machine creation,
+computer scope and stale/busy/disconnected actions. The new Android shared-menu
+fixture compiles but has **not run**. Evidence:
+`captures/runtime/cloud-workspace-creation/`.
+
+No live daemon mutation, Pixel workflow, emulator, APK rebuild or signed promotion
+was performed. The creation UI and native call path are mounted; actual Android
+creation/selection/input and process-death behavior still need integration evidence.
+Next finish hidden-machine persistence, terminal selection/restoration, Cloud-only
+onboarding and the remaining upstream behaviors, then run the queued fixtures and
+real-account acceptance.

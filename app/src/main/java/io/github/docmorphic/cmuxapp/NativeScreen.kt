@@ -170,6 +170,9 @@ internal fun NativeScreen(
     val cloudTunnelState = cloudTunnel?.state?.collectAsState()?.value
     val cloudWorkspaces = cloudModel?.workspaces?.collectAsState()?.value
     val cloudSnapshots = cloudWorkspaces?.state?.collectAsState()?.value.orEmpty()
+    val cloudCreation = cloudModel?.creation?.collectAsState()?.value
+    val cloudCreationState = cloudCreation?.state?.collectAsState()?.value
+    val cloudCreationBusy = cloudCreationState?.pending == true
     val cloudRoute = cloudModel?.route?.collectAsState()?.value
     val historyRevision by store.revisions.collectAsState()
     val cachedComputers = remember(store, historyRevision, teamState, signedIn) {
@@ -631,6 +634,19 @@ internal fun NativeScreen(
             selectedComputerOrigin = "ssh:${target.host.id}"
             store.update { it.put("computer_selection", selectedComputerOrigin) }
             target.session.workspaceFeed.open(target.host, explicit = false)
+        }
+        LaunchedEffect(cloudCreation, cloudCreationState?.failure) {
+            cloudCreationState?.failure?.let { error = it }
+        }
+        fun canCreateCloud(snapshot: CloudWorkspaceSnapshot) = cloudWorkspaces != null &&
+            cloudModel?.workspaces?.value === cloudWorkspaces && cloudCreation?.canCreate(snapshot.machine.id) == true
+        fun createCloudWorkspace(snapshot: CloudWorkspaceSnapshot) {
+            if (!canCreateCloud(snapshot)) return
+            error = null
+            if (cloudWorkspaces?.let { cloudModel?.createWorkspace(snapshot.machine.id, it) } == true) {
+                sshNavigation.leave(); screenResume.cancel(); workspaceRoute = null; inAppNotification = null
+                selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null; selectedSurface = null; selectedChangesWorkspace = null
+            }
         }
         fun canSelectCloud(snapshot: CloudWorkspaceSnapshot) = signedIn && browserLogin != null &&
             store.taskSession() == browserLogin && accountTeams.state.value.scope == teamState.scope &&
@@ -3305,7 +3321,7 @@ internal fun NativeScreen(
                                 appearances = appearances, presence = scopedPresence,
                                 connections = computerConnections, open = createMenuOpen, onOpen = { createMenuOpen = it },
                                 owner = NativeComputerMenuOwner(browserLogin, teamState.scope), selection = selectedComputerOrigin,
-                                busy = creatingWorkspace || creatingTerminal || sshCreationBusy || creatingGroup,
+                                busy = creatingWorkspace || creatingTerminal || sshCreationBusy || creatingGroup || cloudCreationBusy,
                                 isOwnerCurrent = { owner -> signedIn && store.taskSession() == owner.login &&
                                     accountTeams.state.value.scope == owner.team },
                                 canCreate = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
@@ -3318,11 +3334,14 @@ internal fun NativeScreen(
                                     pairedMacs.singleOrNull { it.code == connectedCode }?.let { mac -> { createWorkspaceGroup(mac) } } else null,
                                 sshTargets = if (selectedCloudId == null && selectedOrigin == null) sshTargets.filter { selectedSshComputer == null || it.host.id == selectedSshComputer.host.id } else emptyList(),
                                 canCreateSsh = ::canCreateSsh, onCreateSsh = ::createSshWorkspace,
-                                groupMac = pairedMacs.singleOrNull { it.code == connectedCode })
+                                groupMac = pairedMacs.singleOrNull { it.code == connectedCode },
+                                cloud = if (selectedOrigin != null || selectedSshComputer != null) emptyList() else
+                                    cloudSnapshots.values.filter { selectedCloudId == null || it.machine.id == selectedCloudId },
+                                canCreateCloud = ::canCreateCloud, onCreateCloud = ::createCloudWorkspace)
 
                         }
                     }
-                    if ((busy || sshCreationBusy || creatingGroup) && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if ((busy || sshCreationBusy || creatingGroup || cloudCreationBusy) && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
                     if (selectedCloudId == null && cloudSnapshots.isEmpty() && client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()) {
                         Column(Modifier.padding(horizontal = 18.dp)) {
                             Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
@@ -3590,9 +3609,9 @@ internal fun NativeScreen(
                                 add(RoutedSidebarActionKind.SETTINGS); add(RoutedSidebarActionKind.COMPUTERS)
                                 if (taskDraftRepository != null) add(RoutedSidebarActionKind.NEW_TASK)
                             }, pendingMoves = workspaceMoves.status.value.mapValues { it.value.pending },
-                            creation = NativeSidebarCreation(creatingWorkspace || creatingTerminal || sshCreationBusy || creatingGroup,
+                            creation = NativeSidebarCreation(creatingWorkspace || creatingTerminal || sshCreationBusy || creatingGroup || cloudCreationBusy,
                                 sshTargets.filter { it.session === ssh && it.session.isOpen && hosts.any { host -> host.connectsLike(it.host) } },
-                                foregroundMac = macs.singleOrNull { it.code == connectedCode }),
+                                foregroundMac = macs.singleOrNull { it.code == connectedCode }, cloud = cloudSnapshots.values.toList()),
                             display = NativeDisplayPreferences.read(displayPreferences),
                             cloud = cloudSnapshots.values.flatMap { it.rows }, cloudAvailability = cloudSnapshots.mapValues { it.value.availability },
                             cloudSelection = cloudRoute?.workspaceId)
@@ -3624,6 +3643,9 @@ internal fun NativeScreen(
                 val sidebarNavigate by rememberUpdatedState<(NativeSidebarTarget) -> Unit>({ target ->
                     check(sidebarCurrent()) { "Sidebar account changed" }
                     when (target) {
+                        is NativeSidebarTarget.CreateCloud -> {
+                            cloudSnapshots[target.machineId]?.let(::createCloudWorkspace)
+                        }
                         is NativeSidebarTarget.Cloud -> {
                             cloudModel?.openWorkspace(target.row, expected = checkNotNull(cloudWorkspaces))
                             workspaceSortStore.recordOpened(CloudAddress(target.row.machine.id).identifier, System.currentTimeMillis())

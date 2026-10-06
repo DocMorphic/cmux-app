@@ -24,6 +24,8 @@ internal class CloudWorkspaceController(parent: CoroutineScope, private val isCu
     private val reads = mutableMapOf<String, Job>()
     private val revisions = mutableMapOf<String, Long>()
     private var revision = 0L
+    private var machineEpoch = 0L
+    private val machineEpochs = mutableMapOf<String, Long>()
     private val lastCatalogs = mutableMapOf<String, CloudWorkspaceCatalog>()
     private val mutable = MutableStateFlow<Map<String, CloudWorkspaceSnapshot>>(emptyMap())
     val state = mutable.asStateFlow()
@@ -35,6 +37,8 @@ internal class CloudWorkspaceController(parent: CoroutineScope, private val isCu
         require(next.map { it.id }.distinct().size == next.size)
         val previous = machines.associateBy { it.id }
         machines = next
+        machineEpochs.keys.retainAll(next.map { it.id }.toSet())
+        next.forEach { if (previous[it.id]?.lifecycle != it.lifecycle || it.id !in machineEpochs) machineEpochs[it.id] = ++machineEpoch }
         val ids = next.map { it.id }.toSet()
         reads.keys.toList().filter { it !in ids }.forEach(::cancelRead)
         lastCatalogs.keys.retainAll(ids)
@@ -94,11 +98,52 @@ internal class CloudWorkspaceController(parent: CoroutineScope, private val isCu
         }
         reads[id] = task; task.start()
     }
+    fun creationEpoch(id: String): Long? = machineEpochs[id]?.takeIf {
+        current() && machines.any { it.id == id && it.lifecycle == CloudMachineLifecycle.RUNNING }
+    }
+    fun canCreate(id: String, workspaceId: String? = null): Boolean {
+        val snapshot = mutable.value[id] ?: return false
+        return creationEpoch(id) != null && available && snapshot.authoritative && snapshot.availability == NativeFeedAvailability.CONNECTED &&
+            (workspaceId == null || snapshot.rows.any { it.remoteId == workspaceId })
+    }
+    fun publishCreatedWorkspace(id: String, workspaceId: String) {
+        if (creationEpoch(id) == null) return
+        val machine = machines.single { it.id == id }
+        cancelRead(id)
+        val previous = lastCatalogs[id] ?: CloudWorkspaceCatalog(emptyList(), emptyList())
+        val updated = if (previous.workspaces.any { it.id == workspaceId }) previous else
+            previous.copy(workspaces = previous.workspaces + CloudWorkspaceSummary(workspaceId))
+        lastCatalogs[id] = updated
+        publish(CloudWorkspaceSnapshot(machine, updated, NativeFeedAvailability.CONNECTED, false))
+    }
+    /** One fresh read after an acknowledged mutation; ordinary retry owns later recovery. */
+    suspend fun reloadAfterCreation(id: String): CloudWorkspaceCatalog? {
+        val epoch = creationEpoch(id) ?: return null
+        if (!available) return null
+        cancelRead(id)
+        val at = revisions.getValue(id)
+        return try {
+            val loaded = load(id)
+            currentCoroutineContext().ensureActive()
+            if (!admitted(id, at) || creationEpoch(id) != epoch) null else {
+                lastCatalogs[id] = loaded
+                publish(CloudWorkspaceSnapshot(machines.single { it.id == id }, loaded, NativeFeedAvailability.CONNECTED, true))
+                loaded
+            }
+        } catch (failure: CancellationException) { throw failure }
+        catch (failure: Exception) {
+            if (admitted(id, at) && creationEpoch(id) == epoch) {
+                publishRetained(machines.single { it.id == id }, CloudSessionFailure.classify(failure))
+                refresh(id)
+            }
+            null
+        }
+    }
     override fun close() {
         if (closed) return
         closed = true; available = false
         reads.keys.toList().forEach(::cancelRead)
-        job.cancel(); machines = emptyList(); lastCatalogs.clear(); revisions.clear(); mutable.value = emptyMap()
+        job.cancel(); machines = emptyList(); lastCatalogs.clear(); revisions.clear(); machineEpochs.clear(); mutable.value = emptyMap()
     }
     companion object {
         fun retryDelay(failures: Int) = minOf(5_000L shl (failures - 1).coerceIn(0, 4), 60_000L)

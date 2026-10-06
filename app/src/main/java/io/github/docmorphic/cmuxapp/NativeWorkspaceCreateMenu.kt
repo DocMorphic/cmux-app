@@ -21,7 +21,8 @@ private data class WorkspaceCreateMenuRow(val mac: NativeCredentialStore.PairedM
     val buildLabel: String?, val connection: NativeComputerConnection)
 private data class WorkspaceCreateMenuOpening(val owner: NativeComputerMenuOwner, val selection: String?,
     val rows: List<WorkspaceCreateMenuRow>, val create: (NativeCredentialStore.PairedMac) -> Unit,
-    val group: (() -> Unit)?, val groupMac: NativeCredentialStore.PairedMac?, val ssh: List<NativeSshCreateTarget>, val createSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Unit)
+    val group: (() -> Unit)?, val groupMac: NativeCredentialStore.PairedMac?, val ssh: List<NativeSshCreateTarget>, val createSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Unit,
+    val cloud: List<CloudWorkspaceSnapshot>, val createCloud: (CloudWorkspaceSnapshot) -> Unit)
 
 /** Capture the displayed targets once; never let a later account/filter substitute a target under a tap. */
 @Composable
@@ -34,14 +35,16 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
     sshTargets: List<NativeSshCreateTarget> = emptyList(),
     canCreateSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Boolean = { _, _ -> false },
     onCreateSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Unit = { _, _ -> },
-    groupMac: NativeCredentialStore.PairedMac? = null) {
+    groupMac: NativeCredentialStore.PairedMac? = null, cloud: List<CloudWorkspaceSnapshot> = emptyList(),
+    canCreateCloud: (CloudWorkspaceSnapshot) -> Boolean = { false }, onCreateCloud: (CloudWorkspaceSnapshot) -> Unit = {}) {
     val opening = remember(open) {
         if (!open) null else WorkspaceCreateMenuOpening(owner, selection, macs.map { mac ->
             WorkspaceCreateMenuRow(mac, appearances.name(mac), presence.buildLabel(mac),
                 connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection())
-        }, onCreate, onGroup, groupMac, sshTargets, onCreateSsh)
+        }, onCreate, onGroup, groupMac, sshTargets, onCreateSsh, cloud.toList(), onCreateCloud)
     }
     var selectedSsh by remember(open) { mutableStateOf<java.util.UUID?>(null) }
+    val currentCloudCheck by rememberUpdatedState(canCreateCloud)
     val currentSshCheck by rememberUpdatedState(canCreateSsh)
     val currentOwnerCheck by rememberUpdatedState(isOwnerCurrent)
     val currentCreateCheck by rememberUpdatedState(canCreate)
@@ -55,8 +58,9 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
             onOpen(false)
     }
     Box {
-        val single = macs.singleOrNull().takeIf { sshTargets.isEmpty() }
-        val enabled = !busy && isOwnerCurrent(owner) && (macs.any(canCreate) || sshTargets.any { target -> target.options.any { it.unavailableReason == null && canCreateSsh(target, it.kind) } })
+        val single = macs.singleOrNull().takeIf { sshTargets.isEmpty() && cloud.isEmpty() }
+        val singleCloud = cloud.singleOrNull().takeIf { macs.isEmpty() && sshTargets.isEmpty() }
+        val enabled = !busy && isOwnerCurrent(owner) && (macs.any(canCreate) || cloud.any(canCreateCloud) || sshTargets.any { target -> target.options.any { it.unavailableReason == null && canCreateSsh(target, it.kind) } })
         Box(Modifier.size(48.dp).clip(CircleShape).semantics { contentDescription = "New Workspace" }
             .combinedClickable(enabled = enabled, role = Role.Button,
                 onLongClickLabel = if (single != null) "Workspace creation options" else null,
@@ -64,6 +68,7 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
                 onClick = {
                     if (!busy && isOwnerCurrent(owner)) {
                         if (single != null) { if (canCreate(single)) onCreate(single) }
+                        else if (singleCloud != null) { if (canCreateCloud(singleCloud)) onCreateCloud(singleCloud) }
                         else onOpen(true)
                     }
                 }), contentAlignment = Alignment.Center) {
@@ -73,7 +78,7 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
         DropdownMenu(open && opening?.owner == owner && opening.selection == selection,
             onDismissRequest = { onOpen(false) }) {
             opening?.let { menu ->
-                val multiple = menu.rows.size + menu.ssh.size > 1
+                val multiple = menu.rows.size + menu.ssh.size + menu.cloud.size > 1
                 val ssh = if (multiple) menu.ssh.singleOrNull { it.host.id == selectedSsh } else menu.ssh.singleOrNull()
                 if (ssh != null) {
                     if (multiple) DropdownMenuItem(text = { Text("‹  ${ssh.name}") }, onClick = { selectedSsh = null })
@@ -95,6 +100,16 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
                         trailingIcon = { NativeComputerStatusDot(row.connection, NativeComputerPresence(), reconnect = false) }, onClick = {
                             onOpen(false)
                             if (admitted(menu) && currentCreateCheck(row.mac)) menu.create(row.mac)
+                        })
+                }
+                menu.cloud.forEach { snapshot ->
+                    DropdownMenuItem(text = { Column {
+                        Text(if (multiple) snapshot.machine.preferredName else "New Workspace")
+                        if (multiple) Text("Cloud", style = MaterialTheme.typography.labelMedium)
+                    } }, modifier = Modifier.testTag("workspace.create.cloud:${snapshot.machine.id}"),
+                        enabled = admitted(menu) && currentCloudCheck(snapshot), onClick = {
+                            onOpen(false)
+                            if (admitted(menu) && currentCloudCheck(snapshot)) menu.createCloud(snapshot)
                         })
                 }
                 menu.ssh.forEach { target ->

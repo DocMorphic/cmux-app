@@ -11,6 +11,7 @@ internal sealed interface NativeSidebarTarget {
     data class Action(val kind: RoutedSidebarActionKind) : NativeSidebarTarget
     data class Workspace(val mac: NativeCredentialStore.PairedMac, val id: String) : NativeSidebarTarget
     data class Ssh(val row: SshFeedRow) : NativeSidebarTarget
+    data class CreateCloud(val machineId: String) : NativeSidebarTarget
     data class Cloud(val row: CloudWorkspaceRow) : NativeSidebarTarget
     data class Notification(val entry: NativeFeedEntry) : NativeSidebarTarget
 }
@@ -272,6 +273,9 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private fun createKey(target: NativeSshCreateTarget, kind: SshWorkspaceKind) =
         id("create-ssh", target.session.creationIdentity, target.host.id.toString(), target.host.endpoint.host,
             target.host.endpoint.port, target.host.endpoint.username, target.host.keyId?.toString(), target.host.jumpHostId?.toString(), kind.name)
+    private fun createCloudKey(machineId: String) = id("create-cloud", machineId)
+    private fun CloudWorkspaceSnapshot.canCreate() = authoritative && availability == NativeFeedAvailability.CONNECTED &&
+        machine.lifecycle == CloudMachineLifecycle.RUNNING
     private fun canCreate(value: NativeSidebarInput, source: NativeFeedSource) = value.creation?.busy == false &&
         source.availability == NativeFeedAvailability.CONNECTED && source.canMutateMacWorkspaces()
     private fun creation(value: NativeSidebarInput, selected: String?): List<RoutedSidebarCreateComputer> {
@@ -296,7 +300,15 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             }, options = target.options.map { option -> RoutedSidebarCreateOption(createKey(target, option.kind), option.kind,
                 if (state.busy) "Workspace creation is in progress" else option.unavailableReason) })
         }
-        return macs + ssh
+        val cloud = state.cloud.filter { selected == null || CloudAddress(it.machine.id).identifier == selected }.map { snapshot ->
+            RoutedSidebarCreateComputer(computer(CloudAddress(snapshot.machine.id).identifier), snapshot.machine.preferredName,
+                "Cloud", snapshot.availability, listOf(RoutedSidebarCreateOption(createCloudKey(snapshot.machine.id), unavailableReason = when {
+                    state.busy -> "Workspace creation is in progress"
+                    !snapshot.canCreate() -> "Connect to this Cloud computer to create a workspace"
+                    else -> null
+                })))
+        }
+        return macs + ssh + cloud
     }
     private fun creationTarget(value: NativeSidebarInput, key: String): NativeSidebarTarget? {
         val state = value.creation?.takeUnless { it.busy } ?: return null
@@ -305,6 +317,9 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             if (source.canCreateInGroup()) source.groups.singleOrNull { createKey(source.mac, it.id) == key }?.let {
                 return NativeSidebarTarget.CreateWorkspace(source.mac, it.id)
             }
+        }
+        state.cloud.singleOrNull { it.canCreate() && createCloudKey(it.machine.id) == key }?.let {
+            return NativeSidebarTarget.CreateCloud(it.machine.id)
         }
         state.ssh.filter { it.session.isOpen && it.session.hosts.state.value.host(it.host.id)?.connectsLike(it.host) == true }.forEach { target -> target.options.singleOrNull { it.unavailableReason == null && createKey(target, it.kind) == key }?.let {
             return NativeSidebarTarget.CreateSsh(target, it.kind)

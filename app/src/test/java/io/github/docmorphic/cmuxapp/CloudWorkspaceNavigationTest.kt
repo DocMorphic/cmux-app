@@ -19,6 +19,31 @@ class CloudWorkspaceNavigationTest {
         assertEquals(2, result.map { it.key }.toSet().size)
         assertTrue(rows.all { it.workspace.lastActivityAt == null && !it.workspace.isPinned })
     }
+    @Test fun emptyCloudMachinesOfferScopedCreationAndOldActionsRecheckConnectionAndBusyState() {
+        val machine = CloudMachine("empty", "fixture", "running", "Empty Cloud", null, null)
+        val snapshot = CloudWorkspaceSnapshot(machine, availability = NativeFeedAvailability.CONNECTED, authoritative = true)
+        var input = NativeSidebarInput(emptyList(), emptyList(), listOf(NativeSortComputer(CloudAddress(machine.id).identifier, machine.preferredName)),
+            NativeWorkspaceSortState(), creation = NativeSidebarCreation(cloud = listOf(snapshot)))
+        val targets = mutableListOf<NativeSidebarTarget>()
+        val host = NativeRoutedSidebarHost("account", "fixture", { input }, { RoutedSidebarLease({}, {}) }, targets::add)
+        val shown = host.read(RoutedSidebarQuery())!!
+        assertTrue(shown.rows.isEmpty()); assertEquals("Cloud", shown.creation.single().build)
+        val target = shown.creation.single()
+        assertTrue(target.enabled)
+        assertEquals(listOf(target), host.read(RoutedSidebarQuery(computer = target.key))!!.creation)
+        val action = host.resolve(target.options.single().key)!!
+        action(); assertEquals(listOf(NativeSidebarTarget.CreateCloud(machine.id)), targets)
+        for (replacement in listOf(
+            NativeSidebarCreation(busy = true, cloud = listOf(snapshot)),
+            NativeSidebarCreation(cloud = listOf(snapshot.copy(authoritative = false))),
+            NativeSidebarCreation(cloud = listOf(snapshot.copy(machine = machine.copy(status = "paused")))),
+            NativeSidebarCreation(cloud = emptyList()))) {
+            input = input.copy(creation = replacement)
+            assertThrows(IllegalStateException::class.java) { action() }
+        }
+        assertEquals(1, targets.size)
+    }
+
     @Test fun cloudComputerScopeSurvivesSidebarRoundTripAndMissingInventoryCannotBroadenIt() {
         val rows = rows("a") + rows("b")
         val selected = CloudAddress("b").identifier

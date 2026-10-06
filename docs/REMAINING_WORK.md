@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud workspace/terminal creation now uses the native daemon and common list,
+  picker and routed-sidebar menus. Workspace IDs appear immediately; starter and
+  new-terminal selection follow catalog confirmation. Synthetic unassigned rows
+  create a real workspace, and failures never automatically repeat mutations.
+  **100 focused JVM checks passed**, main/Android test compilation passed; the
+  Android menu fixture remains unrun. Next: hidden-machine persistence, terminal
+  restoration, onboarding and live acceptance. See `CLOUD_COMPANION.md`.
+
 - Cloud computer selection now uses the common dropdown and survives sidebar
   return/loading/disconnect without broadening to other hosts. Source lists,
   refresh and creation menus respect the Cloud scope; retired Retry callbacks
