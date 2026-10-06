@@ -17,6 +17,9 @@ internal class CloudMachineConnections<S : AutoCloseable>(
     private val connections = mutableMapOf<String, CloudMachineHandshake<S>>()
     fun connection(id: String): CloudMachineHandshake<S>? = synchronized(lock) {
         if (closed || !isCurrent()) return@synchronized null
+        // A failed initial dial owns no reusable session. The next catalog retry
+        // needs a fresh attempt; retirement/cleanup already belongs to that dial.
+        if (connections[id]?.state?.value?.phase in setOf(CloudLinkPhase.FAILED, CloudLinkPhase.CLOSED)) connections.remove(id)
         connections.getOrPut(id) {
             CloudMachineHandshake(parent, service, id, fingerprint,
                 { synchronized(lock) { !closed && isCurrent() } }, connect, nativeDispatcher, retireSession = retireSession)

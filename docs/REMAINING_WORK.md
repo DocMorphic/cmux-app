@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The account-owned Cloud workspace catalog now loads native snapshots with legacy
+  list fallback and projects daemon hierarchy into shared workspace/terminal models.
+  Running machines wait for the tunnel; disconnects retain rows, failures back off,
+  and stale reads cannot resurrect removed/account-retired rows. **22 focused JVM
+  checks passed** with main compilation. Shared list/filter/sidebar mounting and
+  terminal selection/output/input are the next implementation work; no live transport
+  or Pixel acceptance is claimed. See `CLOUD_COMPANION.md`.
+
 - Cloud tunnel lifecycle is mounted in the retained account owner: foreground
   shells with machines keep the tunnel across tabs; background/account changes
   retire links and input before asynchronous native cleanup. Startup is bounded

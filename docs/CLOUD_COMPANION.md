@@ -515,3 +515,49 @@ owns the tunnel lifecycle, but the workspace bridge does not yet consume its laz
 machine connections: common workspace/catalog projection, terminal renderer/input
 mounting, private-network/plan UX and actual Android transport acceptance remain
 open. A READY tunnel badge alone does not prove an attached terminal works.
+
+
+### Owned workspace catalog and shell projection — 2026-10-06
+
+`CloudWorkspaceCatalog.kt` ports `SessionCatalog.swift`, `TerminalCatalog.swift`,
+`CloudTerminalTransport.swift`, `CloudAddress.swift` and `CloudWorkspaceProjector.swift`
+at the same scoped revision. The snapshot follows terminal → first tab → pane →
+screen → workspace, then sorts by workspace order, screen index, pane order and
+tab index, with stable terminal order for ties. Unplaced terminals remain reachable
+under an `unassigned` row. Tab names precede program titles and home-relative paths;
+otherwise terminals are numbered within their workspace. The address namespace uses
+the upstream group separator, keeping Cloud ownership distinct from Mac/build IDs.
+The projection produces this app's shared `NativeWorkspace`/`NativeTerminal` models.
+
+The C ABI's direct result shapes are decoded: snapshots, wrapped or legacy bare
+workspace lists, terminal lists and creation results. Missing required inventories,
+duplicate selectable identities, malformed UTF-8 and oversized catalogs fail rather
+than becoming authoritative empty lists. As in the iOS native adapter, unavailable
+or undecodable snapshots fall back to concurrent workspace/terminal lists; caller
+cancellation never starts fallback calls. Native calls execute on IO workers.
+
+`CloudWorkspaceController` retains account-owned rows and catalogs. It only reads
+running machines after the terminal tunnel is ready. Losing that tunnel retains
+last rows as reconnecting; failed reads retain rows as unavailable and retry at
+5/10/20/40/60 seconds, capped at a minute. Non-running machines publish authoritative
+empty inventories without dialing; removed machines stop their reads and lose rows.
+Read generations and account checks reject late results. `NativeCloudViewModel`
+now wires machine and tunnel changes into this controller. Failed initial handshake
+attempts are replaced for the next catalog request so automatic retry can actually
+recover. Successful machine links remain shared.
+
+Verification: **22 focused JVM checks passed**, main compilation passed in 25
+seconds. Catalog decoding/projection 6, catalog lifecycle 5, shared connections 3,
+handshake regressions 8. Tests cover hierarchy/order, detached terminals, names,
+legacy wire shapes, invalid inventories, address namespace, cancellation versus
+fallback, tunnel admission, pause/removal, retained rows, timed retry and superseded
+uncancellable reads. Evidence: `captures/runtime/cloud-workspace-catalog/`.
+
+The catalog is now consumed by the account owner, but its projected rows are not yet
+mounted in the shared list. Next integrate the `NativeWorkspaceDisplayRow`/sort/filter
+and sidebar paths, Cloud selection and the existing terminal surface/composer.
+Creation result decoding does not yet provide a workspace/terminal mutation flow.
+Single-slot attachment, ordered output delivery, early input, resize/repaint and
+reconnect selection still require their bridge implementation. No live Cloud request,
+Android runtime test, APK build, emulator or signed promotion occurred in this
+checkpoint; ADB still reports no device. This is not a usable Cloud-terminal UI yet.

@@ -38,4 +38,17 @@ class CloudMachineConnectionsTest {
             assertNotNull(pool.connection("one")); current = false; assertNull(pool.connection("two"))
         } finally { pool.close(); runCurrent() }
     }
+    @Test fun failedInitialDialIsReplacedForTheNextCatalogRetry() = runTest {
+        var attempts = 0
+        val pool = CloudMachineConnections(this, Api(), "fingerprint", { true }, {
+            if (++attempts == 1) error("transient dial failure") else Session()
+        }, StandardTestDispatcher(testScheduler))
+        try {
+            val failed = pool.connection("one")!!; failed.start(); runCurrent()
+            assertEquals(CloudLinkPhase.FAILED, failed.state.value.phase)
+            val replacement = pool.connection("one")!!
+            assertNotSame(failed, replacement); replacement.start(); runCurrent()
+            assertEquals(CloudLinkPhase.READY, replacement.state.value.phase); assertEquals(2, attempts)
+        } finally { pool.close(); runCurrent() }
+    }
 }

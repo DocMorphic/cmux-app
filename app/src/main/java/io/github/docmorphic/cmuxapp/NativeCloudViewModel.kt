@@ -17,6 +17,8 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
     val controller = mutable.asStateFlow()
     private val mutableTunnel = MutableStateFlow<CloudTunnelController<NativeCloudTunnelResource>?>(null)
     val tunnel = mutableTunnel.asStateFlow()
+    private val mutableWorkspaces = MutableStateFlow<CloudWorkspaceController?>(null)
+    val workspaces = mutableWorkspaces.asStateFlow()
     private var owner: NativeTeamScope? = null
     private var foreground = false
     private var catalogObserver: Job? = null
@@ -27,6 +29,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
             combine(teams.state, store.revisions) { state, _ -> state.scope?.takeIf(teams::isCurrent) }.collect { next ->
                 if (next == owner) return@collect
                 catalogObserver?.cancel(); catalogObserver = null
+                mutableWorkspaces.value?.close(); mutableWorkspaces.value = null
                 mutableTunnel.value?.close(); mutableTunnel.value = null
                 mutable.value?.close(); mutable.value = null; owner = next
                 if (next != null) {
@@ -38,12 +41,20 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                     val controller = CloudMachinesController(scope, api,
                         CloudCreateFileJournal(root, capture), { teams.isCurrent(next) },
                         retireConnections = { runtime.resource()?.connections?.retire(it) })
+                    val workspaces = CloudWorkspaceController(scope, { teams.isCurrent(next) }) { machineId ->
+                        val link = runtime.resource()?.connections?.connection(machineId)
+                            ?: throw IllegalStateException("Cloud tunnel is reconnecting")
+                        link.awaitSession().loadWorkspaceCatalog()
+                    }
                     controller.setForeground(foreground)
                     mutableTunnel.value = runtime
                     mutable.value = controller
+                    mutableWorkspaces.value = workspaces
                     catalogObserver = scope.launch {
-                        controller.state.collect { update ->
+                        combine(controller.state, runtime.state) { machines, tunnel -> machines to tunnel }.collect { (update, tunnel) ->
                             runtime.setWanted(foreground && update.catalog.machines.isNotEmpty())
+                            workspaces.setMachines(update.catalog.machines)
+                            workspaces.setAvailable(foreground && tunnel.phase == CloudTunnelPhase.READY)
                         }
                     }
                     if (foreground) controller.refresh()
@@ -57,6 +68,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
     fun setForeground(value: Boolean) {
         foreground = value
         mutable.value?.setForeground(value)
+        if (!value) mutableWorkspaces.value?.setAvailable(false)
         mutableTunnel.value?.setWanted(value && mutable.value?.state?.value?.catalog?.machines?.isNotEmpty() == true)
         if (value) activate()
     }
@@ -68,9 +80,11 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
     fun retryConnection(machineId: String) {
         mutableTunnel.value?.resource()?.connections?.retire(setOf(machineId))
         mutableTunnel.value?.retry()
+        mutableWorkspaces.value?.refresh(machineId)
     }
     override fun onCleared() {
-        catalogObserver?.cancel(); mutableTunnel.value?.close(); mutableTunnel.value = null
+        catalogObserver?.cancel(); mutableWorkspaces.value?.close(); mutableWorkspaces.value = null
+        mutableTunnel.value?.close(); mutableTunnel.value = null
         mutable.value?.close(); mutable.value = null; scope.cancel()
     }
     class Factory(private val context: Context, private val account: NativeAccount,
