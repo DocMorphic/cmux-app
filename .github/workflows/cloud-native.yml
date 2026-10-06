@@ -1,0 +1,76 @@
+name: Cloud terminal Android native checkpoint
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-native-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: c2715faa02c260b07012bc0b386597cfb333021d
+          path: native/cmux
+          sparse-checkout: |
+            cmux-tui
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/ghostty
+          ref: 324c0273815ddc383d8d2fbf8d59d590cb65dfdb
+          path: native/ghostty-cloud
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install pinned native toolchains
+        run: |
+          sdkmanager 'ndk;28.2.13676358'
+          rust_version=$(python3 -c 'import tomllib; print(tomllib.load(open("native/cmux/cmux-tui/rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$rust_version" --profile minimal --target aarch64-linux-android
+          sudo apt-get update -qq
+          sudo apt-get install -y libclang-dev
+          curl -fsSL --retry 2 https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz -o "$RUNNER_TEMP/zig.tar.xz"
+          echo '70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00  '"$RUNNER_TEMP/zig.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/zig.tar.xz" -C "$RUNNER_TEMP"
+      - name: Build upstream C ABI for Android
+        run: |
+          set -o pipefail
+          python3 scripts/build-cloud-terminal-android.py \
+            --source native/cmux --ghostty native/ghostty-cloud \
+            --zig "$RUNNER_TEMP/zig-x86_64-linux-0.16.0/zig" \
+            --ndk "$ANDROID_HOME/ndk/28.2.13676358" \
+            --output build/cloud-terminal-android 2>&1 | tee cloud-native-build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-native-build-log
+          path: cloud-native-build.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmux-cloud-terminal-android-arm64
+          if-no-files-found: error
+          path: |
+            build/cloud-terminal-android/manifest.json
+            build/cloud-terminal-android/elf-verification.txt
+            build/cloud-terminal-android/cmux_terminal_client.h
+            build/cloud-terminal-android/Cargo.lock
+            build/cloud-terminal-android/dependencies.json
+            build/cloud-terminal-android/jniLibs
+            build/cloud-terminal-android/notices
