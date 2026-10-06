@@ -1,6 +1,53 @@
 # Android background push
 
 
+## Durable enrollment recovery — 2026-10-06
+
+Android now commits an account-encrypted pending offer before sending enrollment
+requests. It records the stable request ID, native Mac peer/epoch, phone public
+identity, consent/token revision and encrypted challenge. The provider token stays
+in the separate token lifecycle store; the private key stays in its existing
+account key record. Pending offers are private data and are not logged.
+
+`PhoneHelperEnrollmentRecovery` reconstructs the same begin request or finish
+proof after an interrupted response or process recreation. It authenticates the
+challenge before saving it, saves it before the finish request, persists retry
+not-before times, and rechecks the exact attempt and current token/account/key
+state at the transport gate and receipt commit. New attempts fence old responses.
+Expired offers require a new offer; a Mac helper restart still retires that
+helper's in-memory offers. Capacity is eight active Mac attempts.
+
+A verified acknowledgment, helper pin, registration generation and endpoint are
+saved in one credential transaction, which also removes the pending offer. The
+receipt omits the offer secret and encrypted challenge. Failed/rejected replacement
+attempts preserve an existing verified helper. Receipts are pruned with their
+helper/native/phone identities; cloud opt-out retires pending attempts and helpers.
+Token rotation retires an unfinished attempt. Automatic renewal of an already
+registered token is still a separate, outstanding protocol.
+
+`PhoneHelperEnrollments` provides the explicit-confirmation entry point and a
+network-constrained WorkManager worker. Startup/resume/boot recovery connects
+through the existing token lifecycle recovery path. Network passes are serialized;
+new offers replace pending work, while ordinary recovery keeps scheduled work.
+The shared account/token lock covers snapshots and durable state mutations, never
+network waits. HTTP admission uses reads rather than rewriting storage on each gate.
+
+**26 JVM checks passed, zero failures/errors/skips:** nine new recovery cases,
+seven enrollment cases and ten token lifecycle cases. The new cases recreate the
+coordinator from serialized committed state, check identical requests/proofs after
+lost responses, backoff, replacement/token/account/native-key retirement, receipt
+integrity, existing-pin preservation and disk failures before challenge/receipt
+commit. The enrollment suite also reran the real loopback Node TLS/CryptoKit/SQLite
+handshake. Main and test source compilation passed. A test-only nullable cleanup
+briefly failed compilation and was corrected before the final successful run.
+
+Evidence: `captures/runtime/push-enrollment-recovery/`. This is source/JVM evidence;
+Android Keystore and WorkManager process-restart acceptance remain for the next
+integration milestone. No APK, emulator, phone installation, production listener,
+Firebase registration or signed release was created. Setup/confirmation UI, host
+TLS/key/authority provisioning, automatic token renewal/revocation, notification
+source integration and actual provider/Pixel delivery remain open.
+
 ## Helper HTTPS transport — 2026-10-06
 
 `createPushEnrollmentServer` returns an **unbound** Node HTTPS server with supplied
@@ -43,8 +90,9 @@ disabling certificate verification.
 
 Evidence: `captures/runtime/push-helper-https/`. The local fixture servers and
 Gradle are stopped; no APK/emulator or external listener was started. No Firebase
-registration/delivery or user account data was involved. Durable client handshake
-and receipt recovery, automatic renewal/revocation, setup/confirmation UI,
+registration/delivery or user account data was involved. Client handshake/receipt
+recovery was still open at this checkpoint; see the later recovery section above.
+Automatic renewal/revocation, setup/confirmation UI,
 production TLS/key/authority provisioning and notification service integration
 remain open. No global upstream pin or signed release changed.
 

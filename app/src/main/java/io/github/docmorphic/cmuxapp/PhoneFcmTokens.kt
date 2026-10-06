@@ -65,18 +65,25 @@ internal object PhoneFcmTokens {
         try { synchronized(credentials.accountStateLock) {
             val tokens = store(context)
             if (tokens.load()?.has(PhoneFcmTokenState.KEY) == true) tokens.update { PhoneFcmTokenState(it).revoke() }
-            if (credentials.load()?.has(PhonePushHelperState.KEY) == true)
-                credentials.update { PhonePushHelperState(it).clear() }
+            if (credentials.load() != null)
+                credentials.update {
+                    PhonePushHelperState(it).clear()
+                    PhoneHelperEnrollmentState(it).retainForToken(null)
+                }
         } } finally { recover(context) }
     }
     private fun retainHelpers(context: Context) {
         val credentials = NativeCredentialStore(context)
         synchronized(credentials.accountStateLock) {
-            if (credentials.load()?.has(PhonePushHelperState.KEY) != true) return
+            val account = credentials.load() ?: return
+            if (!account.has(PhonePushHelperState.KEY) && !account.has(PhoneHelperEnrollmentState.KEY)) return
             // Re-read under the shared store lock: a delayed recovery must not retire a newer enrollment.
             val lifecycle = store(context).load()?.let(::PhoneFcmTokenState)
             lifecycle?.reconcile(credentials.taskSession(), allowed(context), installed(context))
-            credentials.update { PhonePushHelperState(it).retainForToken(lifecycle?.grant) }
+            credentials.update {
+                PhonePushHelperState(it).retainForToken(lifecycle?.grant)
+                PhoneHelperEnrollmentState(it).retainForToken(lifecycle?.snapshot)
+            }
         }
     }
     /** Snapshot for authenticated helper enrollment; consumers must recheck it before and after I/O. */
@@ -130,6 +137,7 @@ internal object PhoneFcmTokens {
                     PeriodicWorkRequestBuilder<PhoneFcmTokenWorker>(24, TimeUnit.HOURS)
                         .setConstraints(constraints).build()).await()
             } catch (_: Exception) { currentCoroutineContext().ensureActive() }
+            finally { PhoneHelperEnrollments.recover(app) }
         }
     }
     suspend fun run(context: Context): Boolean = serial.withLock {

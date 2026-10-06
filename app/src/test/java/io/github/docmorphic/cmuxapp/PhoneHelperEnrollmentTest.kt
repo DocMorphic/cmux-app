@@ -11,7 +11,7 @@ class PhoneHelperEnrollmentTest {
         value.get(name).let { if (it is JSONObject) fields(it) else it }
     }
     private fun fixture() = JSONObject(javaClass.getResource("/push/helper-enrollment.json")!!.readText())
-    private class Context(val fixture: JSONObject) {
+    internal class Context(val fixture: JSONObject) {
         val offer = fixture.getJSONObject("offer")
         val macFields = offer.getJSONObject("mac")
         val team = NativeTeamScope("fixture-login", macFields.getString("accountID"), macFields.getString("teamID"), 1)

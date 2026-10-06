@@ -25,12 +25,23 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Android now persists initial helper enrollment before network writes, retries
+  the same request/proof after lost responses, and commits a verified receipt with
+  its helper pin. Startup/resume/boot recovery and a WorkManager worker are wired.
+  **26 JVM checks passed**, including nine new restart/retirement/disk-failure
+  cases and the existing real local TLS/CryptoKit/SQLite handshake. Main and test
+  sources compile; no APK/emulator run. Android Keystore/worker restart acceptance,
+  confirmation UI, automatic token renewal/revocation, production host provisioning
+  and Firebase/Pixel acceptance remain open. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#durable-enrollment-recovery--2026-10-06).
+
 - Helper enrollment now has production Kotlin/Node HTTPS transport with bounded
   requests, no redirects/ambient credentials, retry timing and admission checks.
   **13 JVM checks passed**, including a real local TLS/CryptoKit/SQLite handshake
   and repeated finish; **13 Node checks passed** on Node22/26 after fixing a
   timed-out upload capacity leak. Main/instrumentation compilation passed. No APK
-  or emulator. Durable recovery, automatic renewal/revocation, setup UI and real
+  or emulator. Durable recovery was added in the subsequent checkpoint above;
+  automatic renewal/revocation, setup UI and real
   hosting/Firebase/Pixel acceptance remain open. See
   [PUSH_DELIVERY.md](PUSH_DELIVERY.md#helper-https-transport--2026-10-06).
 

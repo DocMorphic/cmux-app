@@ -217,6 +217,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         NativeComputerVisibility.prune(value)
         PhonePushKeyState(value).prune()
         PhonePushHelperState(value).prune()
+        PhoneHelperEnrollmentState(value).prune()
         PhonePushInbox(value).prune()
         PhoneFcmQueue(value).prune()
         PhoneReplyActions(value).prune()
