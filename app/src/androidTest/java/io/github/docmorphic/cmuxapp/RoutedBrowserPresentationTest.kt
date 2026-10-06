@@ -102,6 +102,20 @@ class RoutedBrowserPresentationTest {
     private val sidebarCustomizationStarted = CompletableDeferred<Unit>()
     private val sidebarCustomizationCancelled = CompletableDeferred<Unit>()
     private val changesReads = CopyOnWriteArrayList<String>()
+    private val changesPdf by lazy {
+        java.io.ByteArrayOutputStream().use { bytes ->
+            val pdf = android.graphics.pdf.PdfDocument()
+            try {
+                repeat(2) { index ->
+                    val page = pdf.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(240, 400, index + 1).create())
+                    page.canvas.drawColor(if (index == 0) android.graphics.Color.YELLOW else android.graphics.Color.GREEN)
+                    pdf.finishPage(page)
+                }
+                pdf.writeTo(bytes)
+            } finally { pdf.close() }
+            bytes.toByteArray()
+        }
+    }
     private val noticeWrites = CopyOnWriteArrayList<String>()
     private val noticeBulk = CopyOnWriteArrayList<List<String>>()
     private var failNoticeWrite = true
@@ -204,7 +218,8 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
-            if (scenarioName == "globalSidebarChangesSheetReadsExactMacAndRetainsBrowserThroughDismissalAndRevocation") {
+            if (scenarioName.startsWith("globalSidebarChanges")) {
+                val binary = scenarioName == "globalSidebarChangesBinaryPreviewAndDraftSurviveBrowserParentRecreation"
                 val a = NativeCredentialStore.PairedMac("changes-a", "A", "Mac A")
                 val b = NativeCredentialStore.PairedMac("changes-b", "B", "Mac B")
                 noticeSources = listOf(a, b).mapIndexed { index, mac -> NativeFeedSource(mac,
@@ -218,10 +233,25 @@ class RoutedBrowserPresentationTest {
                         changesReads += "${mac.deviceId}:${request.javaClass.simpleName}"
                         when (request) {
                             WorkspaceChangesRead.Files -> JSONObject().put("workspace_id", row.id).put("repo_root", "/fixture")
-                                .put("files", org.json.JSONArray().put(JSONObject().put("path", "README.md").put("status", "modified").put("additions", 1).put("deletions", 1)))
+                                .put("files", org.json.JSONArray().put(JSONObject().put("path", if (binary) "report.pdf" else "README.md")
+                                    .put("status", if (binary) "added" else "modified").put("is_binary", binary).put("additions", 1).put("deletions", 1)))
                             is WorkspaceChangesRead.Diff -> JSONObject().put("path", request.path)
-                                .put("unified_diff", "@@ -1 +1 @@\n-old-${mac.deviceId}\n+fresh-${mac.deviceId}\n").put("truncated", false)
-                            else -> error("Unexpected content request")
+                                .put("unified_diff", if (binary) "" else "@@ -1 +1 @@\n-old-${mac.deviceId}\n+fresh-${mac.deviceId}\n")
+                                .put("is_binary", binary).put("truncated", false)
+                            is WorkspaceChangesRead.Stat -> {
+                                check(binary && request.path == "report.pdf")
+                                JSONObject().put("exists", true).put("is_directory", false).put("size", changesPdf.size)
+                                    .put("kind", "binary").put("mime_type", "application/pdf")
+                                    .put("content_fingerprint", "stat:${changesPdf.size}:123:4:5:6")
+                            }
+                            is WorkspaceChangesRead.Fetch -> {
+                                check(binary && request.path == "report.pdf")
+                                val end = minOf(changesPdf.size.toLong(), request.offset + request.length).toInt()
+                                JSONObject().put("offset", request.offset).put("total_size", changesPdf.size)
+                                    .put("eof", end == changesPdf.size)
+                                    .put("data_b64", java.util.Base64.getEncoder().encodeToString(changesPdf.copyOfRange(request.offset.toInt(), end)))
+                                    .put("content_fingerprint", "stat:${changesPdf.size}:123:4:5:6")
+                            }
                         }
                     } })
             }
@@ -654,6 +684,78 @@ class RoutedBrowserPresentationTest {
         capturePicker("browser-sidebar-changes-return")
         device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
         until { sidebarReleases.get() == 3 }; assertEquals(0, holds.get())
+    }
+
+    @Test fun globalSidebarChangesBinaryPreviewAndDraftSurviveBrowserParentRecreation() = wideSidebar {
+        val originalScale = device.executeShellCommand("settings get system font_scale").trim()
+        val scale = if (originalScale.toFloatOrNull() == 1.25f) "1.1" else "1.25"
+        val output = File(context.getExternalFilesDir(null), "browser-binary-recreation").apply { mkdirs() }
+        fun sheet() = main {
+            androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)
+                .filterIsInstance<RoutedChangesActivity>().singleOrNull()
+        }
+        fun events() = device.executeShellCommand("logcat -b events -d -v threadtime")
+            .lineSequence().filter { it.contains("RoutedBrowserActivity") && it.contains("relaunch") }.toSet()
+        fun visiblePage() {
+            compose.waitUntil(15_000) { device.hasObject(By.desc("PDF page 2 of 2")) }
+            // Pump the Compose test clock while the asynchronously rendered
+            // bitmap replaces its loading placeholder after recreation.
+            compose.waitUntil(15_000) {
+                val bounds = desc("PDF page 2 of 2").visibleBounds
+                val pixels = instrumentation.uiAutomation.takeScreenshot()
+                try { pixels.getPixel(bounds.centerX(), bounds.centerY()) == android.graphics.Color.GREEN }
+                finally { pixels.recycle() }
+            }
+        }
+        try {
+            compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+            desc("Choose terminal or pane"); text("Keep draft").click()
+            until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+            val loads = paths.count { it == "/start" }
+            val beforeEvents = events()
+            desc("Changes: 2 files, +22, −2").click()
+            compose.waitUntil(15_000) { device.hasObject(By.desc("Open diff report.pdf")) }
+            desc("Open diff report.pdf").click()
+            compose.waitUntil(15_000) { device.hasObject(By.desc("PDF page 1 of 2")) }
+            text("Next page").click(); visiblePage()
+            val originalSheet = checkNotNull(sheet())
+            val model = main { androidx.lifecycle.ViewModelProvider(originalSheet)[RoutedChangesModel::class.java] }
+            val artifact = main { checkNotNull(model.presentation!!.store.previews.state.value.artifact).file }
+            val reads = changesReads.toList()
+            assertTrue(reads.isNotEmpty() && reads.all { it.startsWith("B:") })
+            assertTrue(reads.any { it == "B:Fetch" })
+            device.takeScreenshot(File(output, "before.png"))
+            // Font scale is deliberately absent from the production browser's
+            // configChanges: Android must recreate it, not merely rotate its view.
+            device.executeShellCommand("settings put system font_scale $scale")
+            compose.waitUntil(15_000) { sheet()?.let { it !== originalSheet } == true }
+            visiblePage()
+            val recreatedSheet = checkNotNull(sheet())
+            main {
+                assertSame(model, androidx.lifecycle.ViewModelProvider(recreatedSheet)[RoutedChangesModel::class.java])
+                assertEquals(artifact, model.presentation!!.store.previews.state.value.artifact?.file)
+            }
+            assertEquals(reads, changesReads.toList())
+            assertTrue(artifact.isFile)
+            device.takeScreenshot(File(output, "recreated-page.png"))
+            device.pressBack()
+            compose.waitUntil(15_000) { device.hasObject(By.desc("Close changes")) }
+            desc("Close changes").click()
+            desc("Choose terminal or pane")
+            until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+            until { (events() - beforeEvents).isNotEmpty() }
+            File(output, "browser-relaunch-events.txt").writeText((events() - beforeEvents).joinToString("\n"))
+            assertEquals("Recreation reloaded the browser and discarded its DOM", loads, paths.count { it == "/start" })
+            assertEquals(reads, changesReads.toList())
+            until { !artifact.exists() }
+            device.takeScreenshot(File(output, "returned-browser.png"))
+            device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+            until { holds.get() == 0 }
+        } finally {
+            device.executeShellCommand(if (originalScale == "null") "settings delete system font_scale"
+                else "settings put system font_scale $originalScale")
+        }
     }
 
     @Test fun globalSidebarSelectionFollowsCapturedOwnerAndLiveAnchorWithoutReload() = wideSidebar {

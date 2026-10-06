@@ -1,5 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <!-- Keep the bare Compose test harness alive while a font-scale change
+             recreates the real routed browser and Changes Activities. -->
+        <activity android:name="androidx.activity.ComponentActivity" android:configChanges="fontScale" />
         <activity android:name=".TaskAttachmentPreviewTestActivity" android:exported="false" />
         <activity android:name=".ArtifactPreviewTestActivity" android:exported="false" />
         <activity android:name=".RetainedBrowserTestActivity" android:exported="false" />

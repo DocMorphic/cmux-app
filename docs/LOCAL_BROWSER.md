@@ -1,5 +1,58 @@
 # Phone-local browser parity audit
 
+## Browser recreation with a binary Changes preview — 2026-10-07
+
+The production routed browser and Changes sheet now have a passing Android
+integration check for a font-scale change while a binary PDF is open. The case
+uses the real separate-process `RoutedBrowserActivity`, bound host service,
+sidebar, main-process `RoutedChangesActivity` and PDF viewer, with generated
+network responses and document bytes. No credentials or real Mac are used.
+
+`globalSidebarChangesBinaryPreviewAndDraftSurviveBrowserParentRecreation`:
+
+- Creates an unsent JavaScript draft in the routed browser, opens Mac B's Changes
+  from the shared sidebar, and selects page two of a two-page PDF.
+- Changes Android font scale to force recreation. It observes a different sheet
+  Activity with the same retained model and artifact file, checks the page-two
+  pixels are green, and verifies that no Changes request was repeated or sent to
+  Mac A. Android's `wm_relaunch_activity` event explicitly identifies the real
+  browser Activity, so this is more than a resize of the earlier debug WebView host.
+- Dismisses the sheet and verifies the browser's draft title and original page
+  request count, then checks preview-file cleanup and browser-host lease release.
+- Restores font scale and the display override. A debug-only manifest entry
+  prevents the bare Compose harness from being recreated by font scale; neither
+  production Activity handles that change itself. The existing harness Activity
+  is now included in the release verifier's dynamic exclusion inventory (12 entries).
+
+**Final result: one Android case passed in 19.344 seconds** on the existing
+`cmux_api37_16k` AVD, Android 17 with 16384-byte pages. The signed-APK verifier's
+three Python unit checks also passed; no signed APK was built or verified here.
+Final screenshots were inspected: page two is visibly rendered at enlarged text
+size, and the browser returns with its draft and sidebar. The final boot's event
+buffer has no ANR/crash events and its crash buffer is empty. Settings returned to
+font scale 1.0 and physical 1080×2400 with no override; ADB was non-root. Gradle and
+the emulator were stopped, and the emulator process was reaped.
+
+Failed/interrupted attempts remain in `captures/runtime/browser-binary-recreation/`:
+the original bitmap wait did not advance the Compose test clock; a later attempt
+hit a bind-application ANR before any test started, with the saved main-thread
+trace in ART's instrumentation initialization; another runner disappeared without
+a final result. After resumption, all recovery assertions passed but cleanup
+looked for a back button absent from the tablet layout. Using Android Back gave
+the final complete pass. These attempts do not count as successful runs.
+
+Final debug APK SHA-256:
+`990aaa2c62e16b0b075f09ad4f981455ba017078027651a995e8026c7e961a8c`.
+Final test APK SHA-256:
+`d3fa59b445007065488d5684ad99e697e5e9309a66b2f9d4c7e4cbe1328ffe9c`.
+
+This verifies the PDF/browser recreation path. Media/PiP and pending Save from
+this route, renderer/process death, actual host freshness, and physical Pixel/Mac
+acceptance remain open. Browser Changes previews run in the main process; this
+does not exercise the separate `BrowserMediaPlaybackActivity` fallback. Global
+upstream pins are unchanged. Published signed APK remains **616** and full parity
+remains unverified.
+
 ## Retained browser view and Changes rotation — 2026-10-05
 
 The routed browser controller now owns one `LocalBrowserWebOwner`. Activity

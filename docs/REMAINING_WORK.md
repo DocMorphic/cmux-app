@@ -1,6 +1,6 @@
 # Remaining work for iOS parity
 
-Updated 2026-10-06. **The goal is active and full parity is unverified.** This is
+Updated 2026-10-07. **The goal is active and full parity is unverified.** This is
 the current completion checklist; dated entries in [PARITY.md](PARITY.md) preserve
 the detailed evidence and history. A passing fixture or signed APK does not close
 a physical workflow gate. These are work areas, not equal-sized progress units.
@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- Real browser-parent recreation with a binary Changes PDF now passes on the
+  existing Android 17 / 16 KiB AVD (**one case, 19.344 seconds**). Android relaunch
+  events, visible page-two pixels, unchanged request counts, retained artifact/
+  sheet ownership and the unsent browser draft establish this specific path.
+  Test settings were restored and the emulator stopped/reaped. Media/PiP and Save
+  from this route, process death and physical Pixel/Mac acceptance remain open.
+  See `LOCAL_BROWSER.md` for evidence and the earlier unsuccessful attempts.
 
 - PiP expansion and return now have Android 17 / 16 KiB runtime coverage for
   position, French audio/subtitles, speed, mute, source recreation, visible video
