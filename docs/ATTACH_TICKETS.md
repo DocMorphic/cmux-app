@@ -1033,3 +1033,12 @@ for the next combined milestone, not yet executed. Local source snapshots, hashe
 and test logs: `captures/runtime/legacy-appearance-upgrade/`. No APK, emulator or
 physical-device run in this batch. Physical upgrade/restart acceptance, remaining
 metadata/route comparison and the wider connection matrix remain open.
+
+
+Follow-up combined milestone (2026-10-06):
+`legacyAppearanceUpgradeResumesAfterKeystoreAcknowledgementFailure` passed on
+the existing Android 17/API 37/16 KiB AVD with app source `3f907be`. It exercises
+the isolated Android Keystore store, interrupted acknowledgement, file reload,
+user reset and reconciliation without resurrecting old appearance. See
+[the combined composer/appearance evidence](CONTENT_PREVIEW_LIFECYCLE.md#combined-composer-preview-milestone--2026-10-06).
+Physical authenticated legacy upgrade/restart acceptance remains open.

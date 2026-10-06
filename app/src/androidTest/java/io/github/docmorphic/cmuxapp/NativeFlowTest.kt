@@ -523,8 +523,9 @@ class NativeFlowTest {
         compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Claude Code task").performClick()
         waitForTerminalText()
-        val file = File(context.cacheDir, "attachment-fixture.txt").apply { writeText("Private fixture content") }
-        val photo = File(context.cacheDir, "attachment-fixture.png")
+        val fixtureDirectory = File(context.cacheDir, "task-previews/terminal-picker-${java.util.UUID.randomUUID()}").apply { mkdirs() }
+        val file = File(fixtureDirectory, "attachment-fixture.txt").apply { writeText("Private fixture content") }
+        val photo = File(fixtureDirectory, "attachment-fixture.png")
         Bitmap.createBitmap(2400, 1200, Bitmap.Config.ARGB_8888).also { bitmap ->
             bitmap.eraseColor(android.graphics.Color.BLUE)
             photo.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -537,7 +538,9 @@ class NativeFlowTest {
             val monitor = instrumentation.addMonitor(IntentFilter(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE); addDataType("*/*")
             },
-                Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(Uri.fromFile(file))), true)
+                Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(
+                    androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file))
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)), true)
             try {
                 compose.onNodeWithContentDescription("Add attachment").performClick()
                 compose.onNodeWithText(menu).performClick()
@@ -547,6 +550,7 @@ class NativeFlowTest {
         choose(photo, "Photos")
         compose.waitUntil(15_000) { repo.drafts.state.value[target]?.attachments?.size == 1 }
         val image = repo.drafts.state.value[target]!!.attachments.single()
+        assertEquals(photo.name, image.name)
         val imageBytes = runBlocking { repo.read(image) }
         val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, bounds)
@@ -555,6 +559,7 @@ class NativeFlowTest {
         choose(file, "Files")
         compose.waitUntil(15_000) { repo.drafts.state.value[target]?.attachments?.size == 2 }
         val attachment = repo.drafts.state.value[target]!!.attachments.last()
+        assertEquals(file.name, attachment.name)
         assertEquals("Private fixture content", runBlocking { String(repo.read(attachment)) })
         val onDisk = File(context.noBackupFilesDir, "terminal-attachments/${attachment.id}").readBytes()
         assertTrue(!String(onDisk).contains("Private fixture content"))
@@ -568,6 +573,13 @@ class NativeFlowTest {
         compose.runOnIdle {
             val model = androidx.lifecycle.ViewModelProvider(compose.activity)[ComposerAttachmentPreviewModel::class.java]
             assertArrayEquals(imageBytes, checkNotNull(model.controller.state.value.artifact).file.readBytes())
+        }
+        // The semantics node can arrive before ImageView's first painted frame.
+        compose.waitUntil(10_000) {
+            val bounds = compose.onNodeWithContentDescription("Image preview ${image.name}").fetchSemanticsNode().boundsInWindow
+            val screen = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try { screen.getPixel(bounds.center.x.toInt(), bounds.center.y.toInt()) == android.graphics.Color.BLUE }
+            finally { screen.recycle() }
         }
         screenshot("composer-image-preview")
         compose.onNodeWithText("Done").performClick()
@@ -601,7 +613,7 @@ class NativeFlowTest {
         assertEquals("'/tmp/cmux fixture.txt' Explain these attachments", paste.getString("text"))
         runBlocking { repo.persistNow() }
         assertTrue(!File(context.noBackupFilesDir, "terminal-attachments/${attachment.id}").exists())
-        file.delete(); photo.delete()
+        fixtureDirectory.deleteRecursively()
     }
 
     private fun showTodoFixture() {

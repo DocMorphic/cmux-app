@@ -25,24 +25,33 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined composer/appearance milestone: **five distinct Android cases now
+  have unassisted passing evidence**, covering appearance acknowledgement recovery,
+  task PDF page/file retention through Activity recreation, Open export lifetime,
+  native staged image/text previews plus send retry, and SSH preview without
+  sending. Initial chooser/provider fixture failures were corrected; visual
+  review also caught a loading-frame image capture, and the stronger native
+  pixel-check case passed. One app APK build; two test-only rebuilds, unchanged
+  app hash. Green PDF, cyan/blue images, text and chip screenshots inspected.
+  No new crash/ANR events. Sole AVD stopped/reaped; no new AVD or physical-device
+  claim. See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#combined-composer-preview-milestone--2026-10-06).
+
 - Native/SSH terminal attachment chips now open the shared full viewer, with
   exact terminal/account/binding ownership. Task and terminal chips use iOS-like
   thumbnail sizes, file labels and separate remove controls. **33 focused JVM
   checks passed**; main/instrumentation compilation passed. Native image/text
-  and SSH visible-image checks are compiled and join task PDF/Open and legacy
-  appearance in the next combined milestone (five listed cases in
+  and SSH visible-image checks passed in the combined milestone above (cases in
   [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#native-and-ssh-terminal-attachment-previews--2026-10-06)).
-  No APK/AVD run; keyboard return, visual/accessibility, process death and
-  physical-device acceptance remain open.
+  Keyboard return, full visual/accessibility, process death and physical-device
+  acceptance remain open.
 
 - Task attachments now use the full shared image/PDF/text/Markdown/media viewer
   with filename/Done and Open/Share/Save. Exact staged bytes, retained ownership,
   cancellation/retry cleanup and cache leases replace the image-only popup.
   Preview remains available while task mutation is disabled. **30 focused JVM
-  checks passed** and main/instrumentation compilation passed; no APK/AVD run.
-  The two-color PDF/Activity-recreation/disabled-editor check and updated Open
-  export-lifetime case are compiled and queued for the next combined milestone,
-  alongside the appearance-upgrade check below. Physical acceptance, process
+  checks passed** and main/instrumentation compilation passed. The two-color
+  PDF/Activity-recreation/disabled-editor and Open export-lifetime cases passed
+  in the combined milestone above. Physical acceptance, process
   death and the full Quick Look format/visual matrix remain open. See
   [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#task-composer-attachment-viewer--2026-10-06).
 
@@ -52,9 +61,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   Exact tagged customization wins, sibling builds stay separate, and Forget
   disarms queued work before cleanup. UUID spelling changes retain other edited
   fields. **67 focused JVM checks passed**; main/instrumentation compilation
-  passed (16 s final run). The Android Keystore/appearance-reload case is compiled
-  and queued for the next combined
-  milestone. No APK/AVD run. See the dated appearance section in
+  passed (16 s final run). The Android Keystore/appearance-reload case passed
+  in the combined milestone above. See the dated appearance section in
   [ATTACH_TICKETS.md](ATTACH_TICKETS.md).
 
 - NativeScreen compiler-size obstacle addressed: composition-local state and

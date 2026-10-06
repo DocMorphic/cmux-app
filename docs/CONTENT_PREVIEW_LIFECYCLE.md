@@ -1707,3 +1707,52 @@ insets and input resumption. Synthetic account fixtures must not run on the
 user's Pixel. Pixel/Mac, process death, the broader Quick Look format matrix and
 full iOS UI parity remain acceptance gates. Local batch evidence is under
 `captures/runtime/composer-attachment-previews/`.
+
+
+## Combined composer preview milestone — 2026-10-06
+
+App source `3f907be8f5779eb053378e2a5561e9cb78fe3265`, debug APK SHA-256
+`261db5bbc915ee5b19995c2d4c2de02a26dd042a5974dbdd0de0a1b3e51dd7a8`.
+The five cases listed in the previous section now have **unassisted passing
+runtime evidence** on the existing `cmux_api37_16k` AVD (Android 17/API 37,
+arm64, `PAGE_SIZE=16384`, 1080×2400, density 420).
+
+The first five-case run took 65.857 s: appearance migration, task PDF recreation
+and SSH image preview passed; Open and the native attachment flow failed for
+fixture mismatches. The Open monitor expected a bare ACTION_VIEW, whereas the
+shared viewer intentionally launches ACTION_CHOOSER containing ACTION_VIEW.
+The native picker stub supplied file:// URLs without OpenableColumns metadata,
+so its text attachment was named `attachment` and took the external-format
+route. The corrected stub supplies FileProvider content:// URLs with a read
+grant and asserts that the original filenames survive staging. The chooser
+monitor now inspects the embedded view intent, URI and grant; its export remains
+readable after preview dismissal. These two corrected cases passed in 39.993 s.
+
+Visual review then rejected the native image screenshot as rendering evidence:
+it still captured a loading frame despite the image semantics node existing.
+The native case now waits for an actual blue center pixel before capture. That
+stronger, complete picker/preview/retry case passed in 23.456 s. The screenshot
+visibly shows the blue staged image. The earlier loading screenshot and original
+failures are retained; they are not counted as visual acceptance.
+
+Inspected captures show the green second PDF page before/after real Activity
+recreation, cyan SSH image, blue native image, native staged text, and terminal
+attachment chips with original filename/byte count and separate removal buttons.
+The task case also verifies the same cached PDF file/bytes across recreation,
+Done/Back cleanup, fresh-page reopening and preview while task editing is disabled.
+SSH checks verify no remote input/upload occurs merely by previewing. The native
+case preserves prompt/attachments across dismissal and retains its encrypted
+staging and explicit retry/send checks.
+
+Only one app APK was packaged (46 s app+test build). Follow-ups rebuilt only the
+test APK (30 s and 24 s); the app APK hash was unchanged. The sole existing AVD
+was stopped/reaped before each Gradle build and after the final run; no new AVD
+was created. No new crash-buffer entries or am_crash/am_anr events appeared in
+any of the three runs. This does not establish a performance benchmark.
+
+Local evidence: `captures/runtime/composer-preview-milestone/verification.json`,
+original/follow-up/pixel instrumentation logs, APK receipts and PNGs. No Pixel
+was connected. Physical Mac/Pixel acceptance, real keyboard return/insets,
+process death, full format/visual/TalkBack comparisons, broader native/SSH
+recreation and preview behavior during an in-flight send remain open. The
+signed release and global upstream pins are unchanged.

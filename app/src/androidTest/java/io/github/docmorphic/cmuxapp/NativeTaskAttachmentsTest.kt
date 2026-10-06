@@ -294,9 +294,12 @@ class NativeTaskAttachmentsTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val viewer = object : Instrumentation.ActivityMonitor() {
             override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
-                if (intent.action != Intent.ACTION_VIEW) return null
-                assertTrue(intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
-                val uri = checkNotNull(intent.data)
+                val target = if (intent.action == Intent.ACTION_CHOOSER)
+                    androidx.core.content.IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java) ?: return null
+                    else intent
+                if (target.action != Intent.ACTION_VIEW) return null
+                assertTrue(target.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+                val uri = checkNotNull(target.data)
                 assertEquals("${context.packageName}.task-previews", uri.authority)
                 opened.set(context.contentResolver.openInputStream(uri)!!.use { it.readBytes() })
                 exportedUri.set(uri)
@@ -315,6 +318,7 @@ class NativeTaskAttachmentsTest {
         } finally { instrumentation.removeMonitor(viewer) }
         compose.onNodeWithText("Done").performClick()
         compose.waitUntil(10_000) { File(context.cacheDir, "task-previews").listFiles().orEmpty().none { it.isDirectory } }
+        assertArrayEquals(bytes, context.contentResolver.openInputStream(exportedUri.get()!!)!!.use { it.readBytes() })
         compose.onNodeWithContentDescription("Remove task attachment: preview.txt").performScrollTo().performClick()
         compose.waitUntil(10_000) { repository.drafts.state.value[id]?.attachments == listOf(second) }
         assertEquals("Keep this prompt", repository.drafts.state.value.getValue(id).prompt)
