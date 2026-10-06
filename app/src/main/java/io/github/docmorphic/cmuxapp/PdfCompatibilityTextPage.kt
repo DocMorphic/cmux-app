@@ -3,7 +3,8 @@ package io.github.docmorphic.cmuxapp
 import java.text.BreakIterator
 import java.util.Locale
 
-internal data class PdfTextRun(val start: Int, val end: Int, val bounds: List<PdfTextBounds>)
+internal data class PdfTextBaseline(val startX: Float, val startY: Float, val endX: Float, val endY: Float)
+internal data class PdfTextRun(val start: Int, val end: Int, val bounds: List<PdfTextBounds>, val baseline: PdfTextBaseline? = null)
 
 /** UTF-16 offsets refer to extracted reading-order text, including inferred separators. */
 internal data class PdfCompatibilityTextPage(val text: String, val runs: List<PdfTextRun>) {

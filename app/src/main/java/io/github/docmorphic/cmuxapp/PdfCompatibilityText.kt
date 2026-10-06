@@ -29,6 +29,11 @@ internal fun pdfCompatibilityText(document: PDDocument, index: Int, geometry: Pd
         val endX = position.endX + geometry.left; val endY = position.endY + geometry.bottom
         return geometry.bounds(listOf(x to y, endX to endY, (x + dx) to (y + dy), (endX + dx) to (endY + dy)))
     }
+    fun baseline(position: TextPosition): PdfTextBaseline? {
+        val start = geometry.point(position.textMatrix.translateX + geometry.left, position.textMatrix.translateY + geometry.bottom) ?: return null
+        val end = geometry.point(position.endX + geometry.left, position.endY + geometry.bottom) ?: return null
+        return PdfTextBaseline(start.first, start.second, end.first, end.second)
+    }
     val extractor = object : PDFTextStripper() {
         override fun processTextPosition(position: TextPosition) {
             if (++glyphs > 100_000) throw IOException("PDF page has too much text")
@@ -40,7 +45,7 @@ internal fun pdfCompatibilityText(document: PDDocument, index: Int, geometry: Pd
                 var offset = start
                 positions.forEach { position ->
                     val end = offset + position.unicode.orEmpty().length
-                    if (end > offset) runs += PdfTextRun(offset, end, listOfNotNull(bounds(position)))
+                    if (end > offset) runs += PdfTextRun(offset, end, listOfNotNull(bounds(position)), baseline(position))
                     offset = end
                 }
             } else {

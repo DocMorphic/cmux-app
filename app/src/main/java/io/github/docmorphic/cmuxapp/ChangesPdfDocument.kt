@@ -53,6 +53,25 @@ internal class ChangesPdfDocument(private val file: File, nativeText: Boolean = 
         if (linkIndex == null) linkIndex = PdfAnnotationLinks(file, pageSizes)
         return checkNotNull(linkIndex)
     }
+    @Synchronized fun selectionText(index: Int): PdfCompatibilityTextPage {
+        check(!closed)
+        return compatibility().text(index)
+    }
+    @Synchronized fun selectedText(selection: PdfTextSelection, checkActive: () -> Unit = {}): String {
+        check(!closed)
+        require(selection.start.page in pageSizes.indices && selection.end.page in pageSizes.indices)
+        val result = StringBuilder()
+        for (page in selection.start.page..selection.end.page) {
+            checkActive()
+            val text = selectionText(page).text
+            val offsets = selection.offsets(page, text.length) ?: continue
+            if (result.isNotEmpty() && result.last() != '\n' && text[offsets.first] != '\n') result.append('\n')
+            // Leave room for Android's clipboard Binder envelope. Never silently truncate copied text.
+            require(result.length + offsets.count() <= 250_000) { "PDF selection is too large for the clipboard" }
+            result.append(text, offsets.first, offsets.last + 1)
+        }
+        return result.toString()
+    }
     @Synchronized fun text(index: Int): String {
         check(!closed); if (!useNativeText) return compatibility().text(index).text
         return renderer.openPage(index).use { it.textContents.joinToString("\n") { content -> content.text } }

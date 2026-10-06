@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -54,11 +55,14 @@ internal fun ChangesPdfPreview(file: File) {
     else PdfDocumentContent(pdf)
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
     val context = LocalContext.current
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val textSelection = rememberPdfSelection(pdf)
+    BackHandler(textSelection.range != null) { textSelection.clear() }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var matchIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -89,6 +93,7 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
     fun inset(page: Int): Float = if (destination.firstOrNull()?.toInt() == page) destination.getOrElse(5) { 0f } else 0f
     fun navigate(page: Int, offsetPerWidth: Float, transform: PreviewZoomTransform = zoom, topInset: Float = 0f) {
         linkJob?.cancel()
+        textSelection.clear()
         destination = arrayListOf(page.toFloat(), offsetPerWidth, transform.scale, transform.x, 0f, topInset)
         zoom = transform
         scroll.requestScrollToItem(page, (offsetPerWidth * pageWidth).toInt().coerceAtLeast(0))
@@ -190,7 +195,7 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
             TextButton(enabled = scroll.firstVisibleItemIndex < pdf.pageSizes.lastIndex, onClick = { jump(scroll.firstVisibleItemIndex + 1) }) { Text("Next page") }
         }
         if (pdf.supportsText) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            TextButton(onClick = { searchOpen = !searchOpen }) { Text(if (searchOpen) "Close search" else "Search document") }
+            TextButton(onClick = { textSelection.clear(); searchOpen = !searchOpen }) { Text(if (searchOpen) "Close search" else "Search document") }
             TextButton(onClick = { selectionX = -1f; selectionY = -1f; textPage = scroll.firstVisibleItemIndex }) { Text("Page text") }
         }
         if (searchOpen && pdf.supportsText) {
@@ -205,6 +210,15 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
             if (searching) LinearProgressIndicator(progress = { scanned.toFloat() / pdf.pageSizes.size.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
             searchFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
+        if (textSelection.range != null) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            TextButton(enabled = !textSelection.copying, onClick = { textSelection.copy { text ->
+                context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("PDF text", text))
+            } }) { Text(if (textSelection.copying) "Copying…" else "Copy selection") }
+            TextButton(onClick = { textSelection.selectPage(scroll.firstVisibleItemIndex) }) { Text("Select page") }
+            TextButton(onClick = { textSelection.selectAll() }) { Text("Select all") }
+            TextButton(onClick = { textSelection.clear() }) { Text("Clear selection") }
+        }
+        textSelection.failure?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         actionFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         BoxWithConstraints(Modifier.weight(1f)) {
             val lastSize = pdf.pageSizes.lastOrNull()
@@ -226,7 +240,8 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
                 items(pdf.pageSizes.size, key = { it }) { index ->
                     Column {
                         if (inset(index) > 0f) Spacer(Modifier.height(viewportWidthDp * inset(index)))
-                        PdfDocumentPage(pdf, index, matches.filter { it.page == index }, selected, zoom, documentWidth,
+                        PdfDocumentPage(pdf, index, matches.filter { it.page == index }, selected, zoom, documentWidth, textSelection.range,
+                            onClearSelection = { textSelection.clear() }, onSelectPage = { textSelection.selectPage(index) },
                             onDoubleTap = { point ->
                                 val item = scroll.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
                                 if (item != null) {
@@ -236,20 +251,30 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
                                         Offset(pageWidth / 2f, viewportHeight / 2f) - focus, focus)
                                     gesture.anchor = null
                                 }
-                            }, onLink = ::open, onText = { point -> selectionX = point.x; selectionY = point.y; textPage = index },
+                            }, onLink = ::open, onText = { point -> textSelection.selectWord(index, point.x, point.y) },
                             onPageText = { selectionX = -1f; selectionY = -1f; textPage = index })
                     }
                 }
             }
+            if (textSelection.range != null) PdfSelectionHandles(textSelection, pdf, scroll, zoom,
+                width, height, documentWidth, ::inset)
         }
     }
 }
 
 @Composable
 private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<PdfTextMatch>, selected: PdfTextMatch?, zoom: PreviewZoomTransform,
-    documentWidth: Int, onDoubleTap: (Offset) -> Unit,
+    documentWidth: Int, selection: PdfTextSelection?, onClearSelection: () -> Unit, onSelectPage: () -> Unit, onDoubleTap: (Offset) -> Unit,
     onLink: (PdfLinkTarget) -> Unit, onText: (Offset) -> Unit, onPageText: () -> Unit) {
     val pageSize = pdf.pageSizes[index]
+    val selectionText by produceState<PdfCompatibilityTextPage?>(null, pdf, index, selection != null) {
+        value = null
+        if (selection != null) try { value = withContext(Dispatchers.IO) { pdf.selectionText(index) } }
+        catch (error: Exception) { currentCoroutineContext().ensureActive() }
+    }
+    val highlighted = remember(selectionText, selection, index) {
+        selection?.let { selectionText?.selectionBounds(it, index) }.orEmpty()
+    }
     var pageFailure by remember(pdf, index) { mutableStateOf<String?>(null) }
     var linkFailure by remember(pdf, index) { mutableStateOf(false) }
     val links by produceState<List<PdfDocumentLink>>(emptyList(), pdf, index) {
@@ -267,14 +292,15 @@ private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<P
             val y = position.y / pagePixels
             return Offset(x, y).takeIf { x in 0f..1f && y in 0f..1f }
         }
-        Box(Modifier.fillMaxWidth().height(pageHeight).clipToBounds().pointerInput(links, zoom, viewportPixels, pagePixels) {
+        Box(Modifier.fillMaxWidth().height(pageHeight).clipToBounds().pointerInput(links, zoom, viewportPixels, pagePixels, selection != null) {
             detectTapGestures(onDoubleTap = onDoubleTap,
-                onTap = { position -> point(position)?.let { p -> links.firstOrNull { link -> link.bounds.any {
+                onTap = { position -> if (selection != null) onClearSelection() else point(position)?.let { p -> links.firstOrNull { link -> link.bounds.any {
                     it.contains(p.x * pageSize.first, p.y * pageSize.second) } }?.let { onLink(it.target) } } },
                 onLongPress = { position -> if (pdf.supportsText) point(position)?.let(onText) })
         }.semantics {
             contentDescription = "PDF page ${index + 1} of ${pdf.pageSizes.size}"
-            customActions = (if (pdf.supportsText) listOf(CustomAccessibilityAction("Read or copy page text") { onPageText(); true }) else emptyList()) +
+            customActions = (if (pdf.supportsText) listOf(CustomAccessibilityAction("Read or copy page text") { onPageText(); true },
+                CustomAccessibilityAction("Select page text") { onSelectPage(); true }) else emptyList()) +
                 links.map { link -> CustomAccessibilityAction(when (val target = link.target) {
                     is PdfLinkTarget.Page -> "Go to page ${target.index + 1}"
                     is PdfLinkTarget.External -> "Open ${target.url}"
@@ -291,6 +317,10 @@ private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<P
                     .graphicsLayer { translationX = zoom.x * viewportPixels }) {
                     Image(bitmap!!.asImageBitmap(), null, Modifier.fillMaxSize())
                     Canvas(Modifier.fillMaxSize()) {
+                        highlighted.forEach { b ->
+                            drawRect(Color(0x665090FF), Offset(b.left / pageSize.first * size.width, b.top / pageSize.second * size.height),
+                                Size((b.right - b.left) / pageSize.first * size.width, (b.bottom - b.top) / pageSize.second * size.height))
+                        }
                         matches.forEach { match -> match.bounds.forEach { b ->
                             if (b.contains(b.left, b.top)) drawRect(if (match == selected) Color(0xAAFF9800) else Color(0x66FFE600),
                                 Offset(b.left / pageSize.first * size.width, b.top / pageSize.second * size.height),

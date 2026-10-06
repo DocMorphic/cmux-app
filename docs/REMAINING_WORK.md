@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- On-page PDF word/range selection now has highlights, draggable handles,
+  cross-page ranges, edge scrolling, Copy/Select page/Select all/Clear, accessible
+  endpoint actions and saved offsets. Glyph baselines follow crop/rotation.
+  **16 focused JVM cases passed** and main/instrumentation compilation passed.
+  Two Android extraction/drag/recreation/pixel/copy cases are compiled, not run;
+  combine them with content-fit coverage at the next viewer milestone. See
+  [PDF_SELECTION.md](PDF_SELECTION.md). Pixel, broad font/gesture/accessibility
+  and large-copy acceptance remain open.
+
 - PDF FitB/FitBH/FitBV now resolve geometric content bounds lazily, including
   vectors, glyph outlines and images, with clipped forms, rotation and explicit
   axis retention. Blank pages fit the page; extraction errors retain the current

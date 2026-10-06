@@ -43,6 +43,72 @@ class ArtifactPdfTextRuntimeTest {
         write("trailer\n<< /Size ${objects.size + 1} /Root 1 0 R >>\nstartxref\n$xref\n%%EOF\n")
         return File(context.cacheDir, "pdf-text-fixture.pdf").apply { writeBytes(output.toByteArray()) }
     }
+    @Test fun selectionAcrossPagesUsesReadingOrderAndRejectsRetiredDocuments() {
+        val file = fixture()
+        try {
+            val pdf = ChangesPdfDocument(file)
+            val first = pdf.selectionText(0); val second = pdf.selectionText(1)
+            val selection = PdfTextSelection(PdfTextPosition(0, first.text.indexOf("first")),
+                PdfTextPosition(1, second.text.indexOf("needle") + "needle".length))
+            val expected = "first needle\nCMUX second needle"
+            assertEquals(expected, pdf.selectedText(selection).trim())
+            assertEquals(expected, pdf.selectedText(PdfTextSelection(selection.focus, selection.anchor)).trim())
+            assertTrue(first.selectionBounds(selection, 0).isNotEmpty())
+            assertTrue(second.selectionBounds(selection, 1).isNotEmpty())
+            pdf.close()
+            assertThrows(IllegalStateException::class.java) { pdf.selectedText(selection) }
+        } finally { file.delete() }
+    }
+    @Test fun draggedPdfSelectionSpansPagesAndSurvivesRecreationBeforeCopy() {
+        check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
+        val instrumentation = InstrumentationRegistry.getInstrumentation(); val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation); val file = fixture()
+        val evidence = File(context.getExternalFilesDir(null), "pdf-selection").apply { mkdirs() }
+        fun find(selector: BySelector) = checkNotNull(device.wait(Until.findObject(selector), 10_000)) { selector.toString() }
+        val firstWord = ChangesPdfDocument(file).use { it.selectionText(0).search(0, "CMUX").single().bounds }
+        val firstX = (firstWord.first().left + firstWord.last().right) / 2
+        val firstY = (firstWord.first().top + firstWord.first().bottom) / 2
+        val end = ChangesPdfDocument(file).use { pdf ->
+            val text = pdf.selectionText(1)
+            checkNotNull(text.caret(PdfTextPosition(1, text.text.indexOf("needle") + 6), false))
+        }
+        try { ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
+            .putExtra("path", file.absolutePath).putExtra("route", ChangesPreviewRoute.PDF.name)
+            .putExtra("mime", "application/pdf")).use { scenario ->
+            val first = find(By.desc("PDF page 1 of 2")).visibleBounds
+            val factor = first.width() / 300f
+            val x = (first.left + firstX * factor).toInt(); val y = (first.top + firstY * factor).toInt()
+            device.swipe(x, y, x, y, 140)
+            find(By.text("Copy selection")); find(By.desc("PDF selection start"))
+            val focus = find(By.desc("PDF selection end")).visibleBounds
+            val second = find(By.desc("PDF page 2 of 2")).visibleBounds
+            // Handles track the glyph baseline, while the touch target extends below it.
+            val targetX = (second.left + end.x * factor + 2).toInt()
+            val targetY = (second.top + end.y * factor + focus.height() / 2).toInt()
+            device.swipe(focus.centerX(), focus.centerY(), targetX, targetY.coerceAtMost(device.displayHeight - 100), 100)
+            find(By.desc("PDF selection end"))
+            scenario.recreate()
+            find(By.text("Copy selection")); find(By.desc("PDF selection end"))
+            val screenshot = File(evidence, "cross-page-restored.png")
+            device.takeScreenshot(screenshot)
+            val bitmap = android.graphics.BitmapFactory.decodeFile(screenshot.path)
+            try {
+                var selectedPixels = 0
+                for (yy in 0 until bitmap.height step 3) for (xx in 0 until bitmap.width step 3) {
+                    val pixel = bitmap.getPixel(xx, yy)
+                    if (android.graphics.Color.blue(pixel) > 245 && android.graphics.Color.red(pixel) in 175..205 &&
+                        android.graphics.Color.green(pixel) in 195..225) selectedPixels++
+                }
+                assertTrue("Selection has no visible blue highlights", selectedPixels > 100)
+            } finally { bitmap.recycle() }
+            find(By.text("Copy selection")).click()
+            check(device.wait(Until.gone(By.text("Copy selection")), 10_000))
+            scenario.onActivity {
+                val copied = context.getSystemService(ClipboardManager::class.java).primaryClip?.getItemAt(0)?.text.toString()
+                assertEquals("CMUX first needle\nCMUX second needle", copied.trim())
+            }
+        } } finally { file.delete() }
+    }
     @Test fun nativePdfTextSearchLinksAndWordSelectionUseDocumentCoordinates() {
         check(Build.VERSION.SDK_INT >= 35)
         val file = fixture()
