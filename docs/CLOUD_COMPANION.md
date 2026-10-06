@@ -358,15 +358,45 @@ for this audit (`/tmp/cmux-cloud-crate-audit/`). Concrete integration requiremen
   runtime/refs alternatives); uninitialized global access panics. It uses JNI
   0.22.4 and the `rustls-platform-verifier-android` 0.1.1 Java component, which must
   be packaged with keep rules. The README's older `init_hosted` sample does not
-  match these pinned source APIs. `iroh-relay` delegates its platform verifier here.
+  match these pinned source APIs. `iroh-relay` delegates its optional platform
+  verifier here; the pinned cmux composition uses its embedded WebPKI default.
 - The upstream WebSocket provider passes no custom TLS connector. Its native-root
   route uses `rustls-native-certs` 0.8.4 and `openssl-probe` 0.2.1; the latter's
   Android certificate-file default is a Termux path. This cannot be treated as
   proven Android system trust. Wire an initialized platform verifier for WSS and
   test trusted and rejected certificates; do not disable TLS verification.
 
-These initialization/connector changes are not implemented yet. Native linking
-alone does not establish Android DNS, trust-store or real transport acceptance.
+### Android DNS and TLS adapter
+
+The exported-source driver now adds a process-owned Android initialization module
+to the Cloud cdylib. It initializes `rustls-platform-verifier` using JNI 0.22's actual
+API, retains a global application context for `iroh-dns`, serializes repeated calls,
+and catches JNI-closure panics at the boundary. JNI checks that the verifier Java
+class exists and refuses tunnel start/connect until initialization succeeds. The
+explicit account tunnel-preparation function supplies the application context.
+
+Android WSS uses a Ring-backed Rustls connector with the initialized platform
+verifier, hostname/chain validation intact. Plain WS retains upstream behavior;
+Iroh's embedded-root default is unchanged. Only new dependency edges to versions
+already in the pinned Cargo.lock are added; the hosted cargo build remains locked.
+The checkpoint includes the matching verifier 0.1.1 AAR and hashes both Android
+adapter sources. Gradle packaging and shrinker keep rules remain to be wired.
+
+Run [`37452130548`](https://github.com/DocMorphic/cmux-app/actions/runs/37452130548)
+at `e3322507` **passed**, including the Rust runtime adapter, WSS connector and JNI
+linking. The downloaded checkpoint replaced the earlier generated checkpoint in
+`build/cloud-terminal-android`: all nine artifact hashes and five adapter/builder
+hashes matched, and both libraries passed local 16 KiB alignment verification.
+The exact source patches and locked manifest edits applied locally, and the NDK C
+syntax check passed. The compiled Kotlin initialization descriptor matches JNI.
+**26 focused JVM
+checks passed** with main compilation (24 seconds): native ownership, handshake and
+Cloud API regression cases. They do not execute Rust or the Android verifier.
+Native linking alone does not establish Android DNS, trust-store or real transport
+acceptance. Add device checks for initialization, current-network DNS, and trusted
+versus rejected WSS certificates before claiming runtime acceptance. Evidence:
+`captures/runtime/cloud-android-runtime/`. Gradle was stopped after verification;
+no emulator or APK build was started.
 
 The native files are **not yet packaged or mounted**. Next: complete dependency
 notices and the Android initialization above, validate the checkpoint during Gradle

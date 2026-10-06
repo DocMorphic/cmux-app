@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud's Android DNS/TLS adapter is implemented in the exported native build:
+  process-lifetime JNI context, one-time initialization, Android WSS certificate
+  verification and the matching verifier AAR. **26 focused JVM checks passed**;
+  native run `37452130548` at `e3322507` **passed**. Downloaded hashes and 16 KiB
+  alignment are verified. Packaging, dependency notices,
+  device DNS/TLS checks and mounting the account tunnel owner remain open.
+
 - Cloud attach/approval now has an account-owned handshake: parallel native connect
   and bounded invitation polling, prompt cancellation and late-handle disposal.
   Explicit tunnel enrollment uses the existing Iroh registry ID and encrypted Cloud
@@ -44,7 +51,7 @@ and currently disabled; the upstream watcher is active on main with review issue
   at `819b6943` **passed**, including native/JNI linking, C exports and 16 KiB
   alignment. Downloaded artifacts match all receipt hashes and passed the local
   alignment check. The dependency audit identified required separate DNS and TLS
-  initialization and a WSS trust-store adapter; these remain to be implemented.
+  initialization and a WSS trust-store adapter; their implementation is recorded above.
   The new native dependency is not yet packaged or mounted. Continue with its
   initialization/notices, account-owned tunnel/attachment lifecycle and workspace/renderer
   integration. See `CLOUD_COMPANION.md`.
