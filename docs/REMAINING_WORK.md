@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud machine state now has an owned controller: retained rows, bounded
+  refresh/provisioning polling, per-machine lifecycle actions, account retirement
+  and durable creation retry identities. **29 focused JVM checks passed** and
+  main compilation passed (39 seconds). UI construction, hidden-machine state,
+  tunnel/attachment ownership and real account/device acceptance remain open;
+  no live Cloud operation, APK or emulator. See `CLOUD_COMPANION.md`.
+
 - Cloud is enabled by the newer iOS production composition and projects its
   machines into the common workspace UI. Android now has the machine/tunnel/
   attach API contracts, typed decoding, bounded cookie-free HTTP and an exact

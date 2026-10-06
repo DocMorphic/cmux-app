@@ -490,3 +490,11 @@ c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses its native account/team ownership and OkHttp transport. Source and
 remaining composition/transport/UI scope are recorded in docs/CLOUD_COMPANION.md.
+
+CloudMachinesController.kt adapts machine catalog, lifecycle, retry and pending-create
+behavior from CloudSessionController.swift and CloudSessionPhase.swift in
+Packages/iOS/CmuxMobileCloud, cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+CloudCreateJournal.kt adds Android persistence for the pending request identity;
+tunnel/attachment ownership and UI integration remain separate work.

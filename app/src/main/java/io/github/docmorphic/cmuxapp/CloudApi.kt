@@ -26,6 +26,14 @@ internal class CloudApiFailure(val status: Int, val action: String?, message: St
     message?.takeIf { it.isNotBlank() }?.take(2048) ?: "Cloud request failed ($status)") {
     val unauthorized get() = status == 401
 }
+internal class CloudNotSignedIn : IOException("Sign in to cmux to use Cloud")
+internal interface CloudMachinesService : AutoCloseable {
+    suspend fun catalog(): CloudMachineCatalog
+    suspend fun create(options: CloudMachineCreateOptions, idempotencyKey: String): CloudMachine
+    suspend fun pause(id: String)
+    suspend fun resume(id: String)
+    suspend fun delete(id: String)
+}
 
 /** Pure request contract. Constructing operations never sends or provisions anything. */
 internal class CloudApiRequests(baseUrl: String = "https://cmux.com") {
@@ -100,7 +108,7 @@ internal class CloudApi(
     private val isCurrent: (CloudAccountScope) -> Boolean,
     private val requests: CloudApiRequests = CloudApiRequests(),
     http: OkHttpClient = OkHttpClient()
-) : AutoCloseable {
+) : CloudMachinesService {
     private val http = http.newBuilder().cookieJar(CookieJar.NO_COOKIES).cache(null)
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
         .authenticator(okhttp3.Authenticator.NONE).proxyAuthenticator(okhttp3.Authenticator.NONE)
@@ -111,12 +119,12 @@ internal class CloudApi(
     private fun admitted() {
         if (synchronized(lock) { closed } || !isCurrent(owner)) throw CancellationException("Cloud account changed")
     }
-    suspend fun catalog() = CloudResponseDecoding.catalog(json(send(requests.list())))
-    suspend fun create(options: CloudMachineCreateOptions, idempotencyKey: String) =
+    override suspend fun catalog() = CloudResponseDecoding.catalog(json(send(requests.list())))
+    override suspend fun create(options: CloudMachineCreateOptions, idempotencyKey: String) =
         CloudResponseDecoding.machine(json(send(requests.create(options, idempotencyKey))))
-    suspend fun pause(id: String) { send(requests.pause(id)) }
-    suspend fun resume(id: String) { send(requests.resume(id)) }
-    suspend fun delete(id: String) { send(requests.delete(id)) }
+    override suspend fun pause(id: String) { send(requests.pause(id)) }
+    override suspend fun resume(id: String) { send(requests.resume(id)) }
+    override suspend fun delete(id: String) { send(requests.delete(id)) }
     suspend fun enroll(publicKey: String, deviceId: String, fingerprint: String, purpose: CloudTunnelPurpose, name: String?) =
         CloudResponseDecoding.enrollment(json(send(requests.enroll(publicKey, deviceId, fingerprint, purpose, name))))
     suspend fun revoke(fingerprint: String, purpose: CloudTunnelPurpose) { send(requests.revoke(fingerprint, purpose)) }
@@ -131,7 +139,7 @@ internal class CloudApi(
             throw failure
         }
         admitted()
-        if (snapshot == null) throw IOException("Sign in to cmux to use Cloud")
+        if (snapshot == null) throw CloudNotSignedIn()
         if (snapshot.scope != owner) throw CancellationException("Cloud account changed")
         val call = http.newCall(requests.request(operation, snapshot))
         call.timeout().timeout(operation.deadlineSeconds, TimeUnit.SECONDS)

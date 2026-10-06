@@ -82,9 +82,10 @@ or signed promotion was needed at this foundation checkpoint.
 
 ## Required continuation
 
-1. Port the controller's owner/operation gates, list refresh and reconciliation,
-   machine creation idempotency persistence, lifecycle actions and retry states.
-   Connect the current native account factory and close clients on retirement.
+1. Mount the implemented machine controller with the native account factory and
+   private creation journal; close it on account/team retirement. Complete hidden
+   machine persistence, screen/shell leases and the tunnel/attachment operation
+   gate. The list/mutation portion is recorded below.
 2. Expose the existing Iroh registry identity to Cloud; persist separate terminal
    and browser WireGuard keys, pending revocation, and validated wg-quick routes.
 3. Audit/build the Android Rust/JNI terminal client and in-process WireGuard
@@ -104,3 +105,55 @@ or signed promotion was needed at this foundation checkpoint.
 Cloud notification behavior and any further workspace/file/task support require
 the remainder of the upstream source audit. These are open requirements, not
 exclusions from full parity.
+
+## Retained machine controller — 2026-10-06
+
+`CloudMachinesController.kt` ports the list/machine portions of
+`CloudSessionController.swift` and list failure rules from `CloudSessionPhase.swift`
+at the same scoped revision. A controller belongs to one account/team and runs on
+its owner UI dispatcher. It owns its coroutine jobs independently of observers:
+cancelling an observer's await does not cancel an admitted create or lifecycle
+action. Explicit close cancels jobs, closes the API, retires connections and
+clears all published rows/errors. Replaced list requests have generation fences.
+
+- Refresh/failure retains the previous catalog, capabilities and limits. Destroyed
+  machines disappear; removed machines and changed lifecycles retire their links.
+- The first transient failure with no rows retries quietly. Retries use 2 seconds,
+  then 5/10/20/40/60 seconds, with an eight-read budget. Missing/rejected login and
+  ordinary 4xx failures do not poll; 408/429 and 5xx can retry.
+- Provisioning polls every five seconds up to a 60-poll budget, then preserves
+  the rows with a manual-refresh failure. Backgrounding cancels scheduled reads;
+  foregrounding restarts unsettled work. In-flight catalog reads are retained.
+- Only one create is admitted at a time, and only one lifecycle action per
+  machine. Other machines can act concurrently. Pause/resume/delete admission
+  checks the current catalog; unknown lifecycle states do not enable mutations.
+- A delete retires its link before sending. Actions reconcile through the server
+  catalog after success/failure instead of inventing a local lifecycle. Create
+  failure also refreshes, since a lost response may already have created a VM.
+
+`CloudCreateFileJournal.kt` adds a durable Android reservation before the create
+request. Same effective options reuse the UUID after failure or reopening;
+changed options create a new identity, and acknowledged completion retires it.
+The file is scoped by login/user/team (not transient team generation), stored
+under the caller's private no-backup root, atomically replaced and fsynced before
+transmission. Unreadable/corrupt state fails instead of silently minting another
+key. A stale completion cannot remove a newer intent. The source's in-memory
+pending-create contract and `web/app/api/vm/route.ts` idempotency header handling
+were inspected; this is not evidence of a particular server retention duration.
+No automatic create/lifecycle retry is introduced.
+
+Verification: **29 JVM checks passed**, zero failures/errors/skips: controller 10,
+journal 4, API 10, models 5. Main compilation passed in the same 39-second run.
+Cases cover previous rows, quiet/terminal failures, retry/poll bounds, background
+timers, superseded uncancellable reads, observer cancellation, duplicate admission,
+create identity settlement, persistence failure, pre-start cancellation, parallel
+machine actions, link retirement and late results after close. File tests cover
+reopening, scope separation, normalization, stale completion, atomic write failure
+and corruption. Evidence: `captures/runtime/cloud-controller/`.
+
+The controller and journal are not yet constructed by the application UI. Actual
+Android storage/process death, screen lifecycle, the native account adapter,
+connection retirement callbacks and live API behavior still need integration
+evidence. Tunnel/attachment serialization, hidden-machine state, Cloud screens,
+Rust/WireGuard, system VPN and real-account acceptance remain open. No APK/device
+run, emulator, signed promotion or live Cloud operation occurred at this checkpoint.
