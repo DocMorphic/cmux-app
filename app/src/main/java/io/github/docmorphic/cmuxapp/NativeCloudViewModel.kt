@@ -92,7 +92,8 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         if (machine.lifecycle != CloudMachineLifecycle.RUNNING) return null
         return mutableTunnel.value?.resource()?.connections?.connection(machineId)
     }
-    fun retryConnection(machineId: String) {
+    fun retryConnection(machineId: String, expected: CloudWorkspaceController) {
+        if (mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return
         mutableTunnel.value?.resource()?.connections?.retire(setOf(machineId))
         mutableTunnel.value?.retry()
         mutableWorkspaces.value?.refresh(machineId)

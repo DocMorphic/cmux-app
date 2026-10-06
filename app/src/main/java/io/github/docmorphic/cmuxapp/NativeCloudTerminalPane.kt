@@ -14,10 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
         NativeWorkspaceWaitingPane(row?.workspace?.title ?: "Cloud workspace unavailable", onBack = model::leaveWorkspace,
             connected = snapshot?.availability == NativeFeedAvailability.CONNECTED,
             connectionError = snapshot?.failure?.detail,
-            onReconnect = { model.retryConnection(route.host.machineId) })
+            onReconnect = { model.retryConnection(route.host.machineId, route.catalogOwner) })
     } else key(shown) {
         val state by shown.state.collectAsState()
-        SshShellScreen(shown, reconnectError = state.error, onReconnect = { model.retryConnection(route.host.machineId) },
+        SshShellScreen(shown, reconnectError = state.error, onReconnect = { model.retryConnection(route.host.machineId, route.catalogOwner) },
             panePicker = {
                 NativePanePicker(shown.title, row.workspace,
                     NativeWorkspacePane(terminal = row.workspace.terminals.singleOrNull { it.id == shown.id }),

@@ -648,3 +648,35 @@ Cloud-only onboarding, plan/tutorial/private-port controls and owner fencing of
 retry callbacks. Then run Android fixtures and authorized real-account Pixel
 workflows, including DNS/TLS, reconnect and process recovery, and compare UI states
 against iOS. The shared UI is mounted; full parity and live transport remain open.
+
+
+### Computer selection and sidebar return — 2026-10-06
+
+The common computer dropdown now includes Cloud machines, their names, status and
+selected state. Like the iOS deferred menu used by Mac/SSH, each opening captures
+its presentation and callbacks; taps recheck the current account and machine.
+Catalog name changes update the toolbar while an open menu retains its original
+labels. Removed-machine rows become disabled. A missing saved Cloud host is shown
+as unavailable, with All Computers remaining an explicit choice.
+
+Cloud host identifiers now survive the existing saved computer-selection path and
+routed-sidebar presentation round trip. Loading, disconnect or removal does not
+broaden a selected Cloud scope to Mac, SSH or another Cloud machine. Workspace and
+notification sources, refresh, status rows, sorting/filter context and Mac/SSH
+creation menus honor that scope. Switching computers retires the previous Cloud
+view. Cloud empty guidance and toolbar text no longer suggest pairing a Mac.
+Cloud Retry also captures its catalog owner, preventing a retired callback from
+resetting a replacement account's same-ID connection.
+
+Verification: **84 JVM checks passed in 13 suites**, zero failures/errors/skips,
+including Cloud sidebar round-trip/removal admission, computer pairing and shared
+sidebar regressions. Main and Android test compilation passed in 52 seconds. The
+new Android dropdown case covers captured names/callbacks, selection, live toolbar
+renaming and rejection after removal, but has **not run**. Evidence:
+`captures/runtime/cloud-computer-scope/`. No ADB device, emulator, APK rebuild or
+signed promotion. Full screen/process recovery and real-account acceptance remain
+pending; preserving the computer filter is not terminal process restoration.
+
+Continue with Cloud workspace/terminal creation, hidden-machine persistence,
+terminal selection/process restoration and Cloud-only onboarding, followed by the
+queued Android fixtures and physical workflows.

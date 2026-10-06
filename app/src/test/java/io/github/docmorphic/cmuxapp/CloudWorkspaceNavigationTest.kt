@@ -19,6 +19,27 @@ class CloudWorkspaceNavigationTest {
         assertEquals(2, result.map { it.key }.toSet().size)
         assertTrue(rows.all { it.workspace.lastActivityAt == null && !it.workspace.isPinned })
     }
+    @Test fun cloudComputerScopeSurvivesSidebarRoundTripAndMissingInventoryCannotBroadenIt() {
+        val rows = rows("a") + rows("b")
+        val selected = CloudAddress("b").identifier
+        var input = NativeSidebarInput(emptyList(), emptyList(), computers(rows), NativeWorkspaceSortState(), cloud = rows)
+        val presentations = mutableListOf<NativeSidebarPresentation>()
+        val host = NativeRoutedSidebarHost("account", "fixture", { input }, { RoutedSidebarLease({}, {}) }, {},
+            initial = { NativeSidebarPresentation(computer = selected) }, adoptPresentation = presentations::add)
+        val query = host.initialQuery()
+        assertEquals(1, host.read(query)!!.rows.size)
+        host.adopt(query)
+        assertEquals(selected, presentations.single().computer)
+        input = input.copy(cloud = rows.take(1), computers = computers(rows.take(1)))
+        assertTrue(host.read(query)!!.rows.isEmpty())
+        host.adopt(query)
+        assertEquals(1, presentations.size)
+        assertEquals(selected, presentations.single().computer)
+        // Explicit All Computers is the only action that broadens the saved scope.
+        host.adopt(query.copy(computer = null))
+        assertNull(presentations.last().computer)
+    }
+
     @Test fun routedSidebarSearchAndComputerScopeResolveCloudWithoutMacMutations() {
         val rows = rows("a") + rows("b")
         var input = NativeSidebarInput(emptyList(), emptyList(), computers(rows), NativeWorkspaceSortState(),

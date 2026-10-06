@@ -526,11 +526,15 @@ internal fun NativeScreen(
         val selectedComputer = pairedMacs.firstOrNull { it.ownsOrigin(selectedComputerOrigin) }
         val selectedOrigin = selectedComputer?.origin
         val selectedSshComputer = sshTargets.singleOrNull { "ssh:${it.host.id}" == selectedComputerOrigin }
-        val visibleSshRows = if (selectedOrigin != null) emptyList() else sshTargets
+        // Preserve the Cloud host identity even before its catalog loads or after removal.
+        // An unavailable selected host must never broaden the list to unrelated computers.
+        val selectedCloudId = CloudAddress.parse(selectedComputerOrigin)?.takeIf { it.component == null }?.machineId
+        val selectedCloudComputer = selectedCloudId?.let(cloudSnapshots::get)
+        val visibleSshRows = if (selectedCloudId != null || selectedOrigin != null) emptyList() else sshTargets
             .filter { selectedSshComputer == null || it.host.id == selectedSshComputer.host.id }
             .flatMap { sshFeed[it.host.id]?.rows.orEmpty() }
         val visibleCloudRows = if (selectedOrigin != null || selectedSshComputer != null) emptyList()
-            else cloudSnapshots.values.flatMap { it.rows }
+            else cloudSnapshots.values.filter { selectedCloudId == null || it.machine.id == selectedCloudId }.flatMap { it.rows }
         SideEffect {
             sshNavigation.reconcile(browserLogin, sshCreationState, browserNavigationContext() + selectedComputerOrigin,
                 hostCurrent = { host -> sshSession?.isOpen == true && sshSession.hosts.state.value.host(host.id)?.connectsLike(host) == true },
@@ -594,6 +598,7 @@ internal fun NativeScreen(
             computerMenuOpen = false
         }
         fun selectPickerComputer(mac: NativeCredentialStore.PairedMac?) {
+            cloudModel?.leaveWorkspace()
             screenResume.cancel(); workspaceRoute = null; computerMenuOpen = false
             if (mac != null) {
                 val isConnected = connectionReady && connectedCode == mac.code && client?.isClosed == false
@@ -627,6 +632,20 @@ internal fun NativeScreen(
             store.update { it.put("computer_selection", selectedComputerOrigin) }
             target.session.workspaceFeed.open(target.host, explicit = false)
         }
+        fun canSelectCloud(snapshot: CloudWorkspaceSnapshot) = signedIn && browserLogin != null &&
+            store.taskSession() == browserLogin && accountTeams.state.value.scope == teamState.scope &&
+            cloudWorkspaces != null && cloudModel?.workspaces?.value === cloudWorkspaces &&
+            cloudWorkspaces.state.value.containsKey(snapshot.machine.id)
+        fun selectCloudComputer(snapshot: CloudWorkspaceSnapshot) {
+            if (!canSelectCloud(snapshot)) return
+            selectPickerComputer(null)
+            sshNavigation.leave(); inAppNotification = null
+            selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null; selectedSurface = null; selectedChangesWorkspace = null
+            selectedComputerOrigin = CloudAddress(snapshot.machine.id).identifier
+            store.update { it.put("computer_selection", selectedComputerOrigin) }
+            workspaceSortStore.recordOpened(selectedComputerOrigin, System.currentTimeMillis())
+            cloudWorkspaces?.refresh(snapshot.machine.id)
+        }
         val forgetCallbacks = NativeComputerForgetCallbacks(started = { owner, target, rows ->
             if (teamState.scope == owner && NativeComputerForgetLocal.ownsForeground(code, owner, target, rows)) {
                 // Stop this foreground handshake/reconnect before remote removal, so it
@@ -645,11 +664,11 @@ internal fun NativeScreen(
         }
         LaunchedEffect(pairedMacs, selectedComputerOrigin, sshTargets, sshSession) {
             feedSession.taskModels.retainOrigins(pairedMacs.flatMap { it.origins }.toSet())
-            if (selectedComputerOrigin.isNotBlank() && selectedComputer == null && selectedSshComputer == null &&
+            if (selectedComputerOrigin.isNotBlank() && selectedComputer == null && selectedSshComputer == null && selectedCloudId == null &&
                 (!selectedComputerOrigin.startsWith("ssh:") || sshSession != null)) selectComputer(null)
         }
         val canCreateOnCurrentMac = connectionReady && client != null && connectedCode == code &&
-            (selectedSshComputer == null && (selectedComputer == null || selectedComputer.code == connectedCode))
+            (selectedCloudId == null && selectedSshComputer == null && (selectedComputer == null || selectedComputer.code == connectedCode))
         val canCreateInCurrentPane = connectionReady && client != null && connectedCode == code
         val computerConnections = nativeComputerConnections(pairedMacs, feedSources,
             activeCode = connectedCode.takeIf { connectionReady && client != null && it == code },
@@ -663,8 +682,8 @@ internal fun NativeScreen(
             val visibleFeedSources = remember(feedSources, pairedMacs) {
                 feedSources.values.filter { source -> pairedMacs.any { it.origin == source.mac.origin } }
             }
-            val scopedFeedSources = remember(visibleFeedSources, selectedOrigin, selectedSshComputer) {
-                visibleFeedSources.filter { selectedSshComputer == null && (selectedOrigin == null || it.mac.origin == selectedOrigin) }
+            val scopedFeedSources = remember(visibleFeedSources, selectedOrigin, selectedSshComputer, selectedCloudId) {
+                visibleFeedSources.filter { selectedCloudId == null && selectedSshComputer == null && (selectedOrigin == null || it.mac.origin == selectedOrigin) }
             }
             val feedEntries = remember(scopedFeedSources, selectedOrigin, appearances) {
                 aggregateNativeFeed(scopedFeedSources, selectedOrigin, appearances::name)
@@ -772,8 +791,8 @@ internal fun NativeScreen(
             DisposableEffect(emptyWorkspaceRecovery) { onDispose { emptyWorkspaceRecovery.close() } }
             LaunchedEffect(feedForeground, emptyWorkspaceRecovery) { if (!feedForeground) emptyWorkspaceRecovery.cancel() }
             val searchLocale = configuration.locales[0]
-            val workspaceSources = remember(pairedMacs, feedSources, moveSources, selectedOrigin, selectedSshComputer, connectedCode, client, workspaces, groups, hostCapabilities, mutationAuthorityTick) {
-                pairedMacs.filter { selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) }.map { mac ->
+            val workspaceSources = remember(pairedMacs, feedSources, moveSources, selectedOrigin, selectedSshComputer, selectedCloudId, connectedCode, client, workspaces, groups, hostCapabilities, mutationAuthorityTick) {
+                pairedMacs.filter { selectedCloudId == null && selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) }.map { mac ->
                     val snapshot = moveSources[mac.origin] ?: feedSources[mac.origin]
                     if (snapshot?.hasWorkspaceSnapshot == true) snapshot
                     else if (client != null && connectedCode == mac.code) NativeFeedSource(mac, workspaces = workspaces,
@@ -789,9 +808,9 @@ internal fun NativeScreen(
             } + visibleSshRows.map { NativeWorkspaceFilterMachine(workspaceSshFilterId(it.host.id), it.host.name) } +
                 visibleCloudRows.map { NativeWorkspaceFilterMachine(CloudAddress(it.machine.id).identifier, it.machine.preferredName, "Cloud") }).distinctBy { it.id }
             val effectiveWorkspaceFilter = workspaceFilter.forMenu(filterMachines.map { it.id }.toSet(),
-                selectedOrigin != null || selectedSshComputer != null)
+                selectedOrigin != null || selectedSshComputer != null || selectedCloudId != null)
             SideEffect { if (workspaceFilter != effectiveWorkspaceFilter) workspaceFilter = effectiveWorkspaceFilter }
-            val allWorkspaceComputers = selectedOrigin == null && selectedSshComputer == null
+            val allWorkspaceComputers = selectedOrigin == null && selectedSshComputer == null && selectedCloudId == null
             val sortComputers = pairedMacs.mapNotNull { mac -> workspaceMacFilterId(mac.deviceId, mac.instanceTag)?.let {
                 NativeSortComputer(it, appearances.name(mac), connectedCode == mac.code && connectionReady, scopedPresence.buildLabel(mac))
             } } + sshTargets.map { NativeSortComputer(workspaceSshFilterId(it.host.id), it.name) } +
@@ -3216,7 +3235,8 @@ internal fun NativeScreen(
                     @Composable fun ListTitle(modifier: Modifier) {
                         Column(modifier) {
                             Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                            Text(selectedSshComputer?.name ?: selectedComputer?.let(appearances::name) ?: "All Computers", color = nativeMuted,
+                            Text(selectedCloudId?.let { selectedCloudComputer?.machine?.preferredName ?: "Cloud computer unavailable" }
+                                ?: selectedSshComputer?.name ?: selectedComputer?.let(appearances::name) ?: "All Computers", color = nativeMuted,
                                 fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
@@ -3242,7 +3262,9 @@ internal fun NativeScreen(
                                 accountTeams.state.value.scope == owner.team },
                             canSelect = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac) },
                             presence = scopedPresence, sshTargets = sshTargets, selectedSsh = selectedSshComputer,
-                            canSelectSsh = ::canSelectSsh, onSelectSsh = ::selectSshComputer)
+                            canSelectSsh = ::canSelectSsh, onSelectSsh = ::selectSshComputer,
+                            cloud = cloudSnapshots.values.toList(), selectedCloud = selectedCloudId,
+                            canSelectCloud = ::canSelectCloud, onSelectCloud = ::selectCloudComputer)
                         if (isSidebar) Spacer(Modifier.weight(1f)) else ListTitle(Modifier.weight(1f))
                         if (notificationTab) {
                             if (feedEntries.any { !it.notification.isRead }) IconButton(
@@ -3279,7 +3301,7 @@ internal fun NativeScreen(
                                     workspaceSortStore.setMode(mode)
                                 }, onOrder = { showComputerOrder = true })
                             NativeWorkspaceCreateMenu(
-                                macs = pairedMacs.filter { selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) },
+                                macs = pairedMacs.filter { selectedCloudId == null && selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) },
                                 appearances = appearances, presence = scopedPresence,
                                 connections = computerConnections, open = createMenuOpen, onOpen = { createMenuOpen = it },
                                 owner = NativeComputerMenuOwner(browserLogin, teamState.scope), selection = selectedComputerOrigin,
@@ -3294,14 +3316,14 @@ internal fun NativeScreen(
                                 onGroup = if (canCreateOnCurrentMac && currentMacMutationAllowed &&
                                     "workspace.group_create.v1" in hostCapabilities)
                                     pairedMacs.singleOrNull { it.code == connectedCode }?.let { mac -> { createWorkspaceGroup(mac) } } else null,
-                                sshTargets = if (selectedOrigin == null) sshTargets.filter { selectedSshComputer == null || it.host.id == selectedSshComputer.host.id } else emptyList(),
+                                sshTargets = if (selectedCloudId == null && selectedOrigin == null) sshTargets.filter { selectedSshComputer == null || it.host.id == selectedSshComputer.host.id } else emptyList(),
                                 canCreateSsh = ::canCreateSsh, onCreateSsh = ::createSshWorkspace,
                                 groupMac = pairedMacs.singleOrNull { it.code == connectedCode })
 
                         }
                     }
                     if ((busy || sshCreationBusy || creatingGroup) && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    if (client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()) {
+                    if (selectedCloudId == null && cloudSnapshots.isEmpty() && client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()) {
                         Column(Modifier.padding(horizontal = 18.dp)) {
                             Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
                             TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
@@ -3341,10 +3363,11 @@ internal fun NativeScreen(
                             matches, search.isNotEmpty() || effectiveWorkspaceFilter.active, unreadWorkspacesOnly, collapsedGroups, searchLocale, cloudEntries)
                         val entries = displayRows.filterIsInstance<NativeWorkspaceDisplayRow.Mac>().map { it.entry }
                         PullToRefreshBox(isRefreshing = feedRefreshing || sshFeed.values.any { it.loading }, onRefresh = {
-                            if (selectedOrigin == null && selectedSshComputer == null) cloudWorkspaces?.refreshAll()
+                            if (selectedCloudId != null) cloudWorkspaces?.refresh(selectedCloudId)
+                            else if (selectedOrigin == null && selectedSshComputer == null) cloudWorkspaces?.refreshAll()
                             selectedSshComputer?.let { it.session.workspaceFeed.open(it.host, explicit = true) }
-                                ?: sshSession?.workspaceFeed?.refreshConnected()
-                            if (selectedSshComputer == null) refreshFeed()
+                                ?: if (selectedCloudId == null) sshSession?.workspaceFeed?.refreshConnected() else Unit
+                            if (selectedCloudId == null && selectedSshComputer == null) refreshFeed()
                         }, modifier = Modifier.weight(1f)) {
                         val reorderSource = workspaceSources.singleOrNull()
                         val canReorder = !(allWorkspaceComputers && workspaceSort.mode == NativeWorkspaceSortMode.ACTIVITY) &&
@@ -3356,13 +3379,13 @@ internal fun NativeScreen(
                             val accepted = workspaceMoves.enqueue(source, id, intent)
                             return accepted
                         }
-                        val sshStatusRows = sshTargets.filter { selectedOrigin == null &&
+                        val sshStatusRows = sshTargets.filter { selectedCloudId == null && selectedOrigin == null &&
                             (selectedSshComputer == null || it.host.id == selectedSshComputer.host.id) }
                             .filter { effectiveWorkspaceFilter.matches(workspaceSshFilterId(it.host.id), false) }
                             .filter { it.connection?.phase != SshConnectionPhase.CONNECTED || sshFeed[it.host.id]?.error != null }
                         val macStatusRows = filteredSources.filter { it.availability != NativeFeedAvailability.CONNECTED }
                         val cloudStatusRows = if (selectedOrigin != null || selectedSshComputer != null) emptyList() else cloudSnapshots.values.filter {
-                            it.availability != NativeFeedAvailability.CONNECTED && effectiveWorkspaceFilter.matches(CloudAddress(it.machine.id).identifier, false)
+                            (selectedCloudId == null || it.machine.id == selectedCloudId) && it.availability != NativeFeedAvailability.CONNECTED && effectiveWorkspaceFilter.matches(CloudAddress(it.machine.id).identifier, false)
                         }
                         NativeWorkspaceDragList(entries, canReorder, Modifier.fillMaxSize(), onMove = ::move,
                             leading = sshStatusRows.map { target -> WorkspaceListChrome("ssh-status:${target.host.id}",
@@ -3374,7 +3397,7 @@ internal fun NativeScreen(
                             } + cloudStatusRows.map { snapshot -> WorkspaceListChrome("cloud-status:${snapshot.machine.id}",
                                 "${snapshot.machine.preferredName} · Cloud · ${snapshot.failure?.detail ?: if (snapshot.availability == NativeFeedAvailability.CONNECTING) "Connecting…" else snapshot.machine.status}",
                                 "Retry") }, onChromeAction = { id ->
-                                cloudStatusRows.singleOrNull { "cloud-status:${it.machine.id}" == id }?.let { cloudModel?.retryConnection(it.machine.id) }
+                                cloudStatusRows.singleOrNull { "cloud-status:${it.machine.id}" == id }?.let { cloudWorkspaces?.let { owner -> cloudModel?.retryConnection(it.machine.id, owner) } }
                                 sshStatusRows.singleOrNull { "ssh-status:${it.host.id}" == id }?.let { target ->
                                     if (canSelectSsh(target)) target.session.workspaceFeed.open(target.host, explicit = true)
                                 }
@@ -3421,6 +3444,7 @@ internal fun NativeScreen(
                                 effectiveWorkspaceFilter.machines.isNotEmpty() && unreadWorkspacesOnly -> NativeWorkspaceEmptyGuidance.UNREAD_MACHINES
                                 effectiveWorkspaceFilter.machines.isNotEmpty() -> NativeWorkspaceEmptyGuidance.MACHINES
                                 unreadWorkspacesOnly -> NativeWorkspaceEmptyGuidance.UNREAD
+                                selectedCloudId != null -> NativeWorkspaceEmptyGuidance.CLOUD_HOST
                                 selectedOrigin == null && (sshTargets.isNotEmpty() || cloudSnapshots.isNotEmpty()) -> NativeWorkspaceEmptyGuidance.ALL_COMPUTERS
                                 else -> NativeWorkspaceEmptyGuidance.MAC
                             }, emptyWorkspaceRecoveryState, onClearFilter = if (search.isBlank() && effectiveWorkspaceFilter.active &&
@@ -3528,7 +3552,7 @@ internal fun NativeScreen(
                         sidebar = isSidebar, onNewTask = { finishSearch(); newTaskDraft() },
                         onCloud = cloudModel?.let { model -> { finishSearch(); cloudTab = true; model.activate() } })
                 }
-                val showWorkspaceReconnect = cloudSnapshots.isEmpty() && ((cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
+                val showWorkspaceReconnect = selectedCloudId == null && cloudSnapshots.isEmpty() && ((cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
                             (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()))))
                 val customizePane: ((NativeWorkspace) -> Unit)? = workspaceSourceForPane()?.takeIf { it.canCustomizeWorkspace() }?.let { source ->
                     { workspace -> customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, source.mac, workspace.id) }
@@ -3577,7 +3601,7 @@ internal fun NativeScreen(
                 val sidebarInitial by rememberUpdatedState<() -> NativeSidebarPresentation>({
                     val mac = store.visiblePairedMacs().singleOrNull { it.ownsOrigin(selectedComputerOrigin) }
                     val ssh = sshSession?.hosts?.state?.value?.hosts?.singleOrNull { "ssh:${it.id}" == selectedComputerOrigin }
-                    NativeSidebarPresentation(mac?.let { workspaceMacFilterId(it.deviceId, it.instanceTag) } ?: ssh?.let { workspaceSshFilterId(it.id) },
+                    NativeSidebarPresentation(mac?.let { workspaceMacFilterId(it.deviceId, it.instanceTag) } ?: ssh?.let { workspaceSshFilterId(it.id) } ?: selectedCloudId?.let { CloudAddress(it).identifier },
                         notificationTab, searchState.text(NativeSearchScope.WORKSPACES), searchState.text(NativeSearchScope.NOTIFICATIONS),
                         unreadWorkspacesOnly, unreadNotificationsOnly, workspaceFilter.machines, feedSession.projection, collapsedGroups)
                 })
@@ -3585,7 +3609,8 @@ internal fun NativeScreen(
                     if (sidebarCurrent()) {
                         val mac = store.visiblePairedMacs().singleOrNull { workspaceMacFilterId(it.deviceId, it.instanceTag) == presentation.computer }
                         val ssh = sshSession?.hosts?.state?.value?.hosts?.singleOrNull { workspaceSshFilterId(it.id) == presentation.computer }
-                        selectedComputerOrigin = mac?.origin ?: ssh?.let { "ssh:${it.id}" }.orEmpty()
+                        selectedComputerOrigin = mac?.origin ?: ssh?.let { "ssh:${it.id}" }
+                            ?: presentation.computer?.let(CloudAddress::parse)?.takeIf { it.component == null }?.identifier.orEmpty()
                         store.update { it.put("computer_selection", selectedComputerOrigin) }
                         notificationTab = presentation.notifications
                         searchState = searchState.commit().copy(workspaceQuery = presentation.workspaceQuery, notificationQuery = presentation.notificationQuery)

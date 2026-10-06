@@ -27,6 +27,9 @@ class NativeComputerSelectorTest {
     private var permitted = true
     private var canAdd by mutableStateOf(true)
     private var presence by mutableStateOf(NativeMacPresenceState())
+    private val cloudMachine = CloudMachine("cloud-a", "fixture", "running", "Cloud A", null, null)
+    private var cloud by mutableStateOf(listOf<CloudWorkspaceSnapshot>())
+    private var selectedCloud by mutableStateOf<String?>(null)
     private val actions = mutableListOf<String>()
 
     private fun content() {
@@ -36,11 +39,37 @@ class NativeComputerSelectorTest {
                 NativeComputerSelector(rows, selected, appearances, emptyMap(), connections, open, { open = it },
                     { actions += "$callbackVersion:${it?.code ?: "all"}" }, pending,
                     if (canAdd) ({ actions += "$callbackVersion:pair" }) else null, owner, { it == owner && permitted },
-                    { NativeComputerMenuPairing.isCurrent(it, rows) }, presence)
+                    { NativeComputerMenuPairing.isCurrent(it, rows) }, presence,
+                    cloud = cloud, selectedCloud = selectedCloud,
+                    canSelectCloud = { snapshot -> cloud.any { it.machine.id == snapshot.machine.id } },
+                    onSelectCloud = { actions += "$callbackVersion:cloud:${it.machine.id}" })
             } } }
         }
     }
     private fun openMenu() = compose.onNodeWithContentDescription("Computer filter").performClick()
+
+    @Test fun cloudSelectionRetainsFrozenNamesAndCallbacksButRejectsRemovedMachines() {
+        selected = null; selectedCloud = cloudMachine.id
+        cloud = listOf(CloudWorkspaceSnapshot(cloudMachine))
+        content(); openMenu()
+        compose.onNodeWithTag("computer.select.cloud:cloud-a").assertIsSelected()
+        compose.onNodeWithText("All Computers").assertIsNotSelected()
+        compose.runOnIdle { cloud = listOf(CloudWorkspaceSnapshot(cloudMachine.copy(displayName = "Cloud renamed"))); version = 2 }
+        compose.onNodeWithText("Cloud A").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Computer filter").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Cloud renamed"))
+        compose.onNodeWithTag("computer.select.cloud:cloud-a").performClick()
+        compose.runOnIdle { assertEquals(listOf("1:cloud:cloud-a"), actions) }
+        openMenu()
+        compose.onNodeWithText("Cloud renamed").assertIsDisplayed()
+        compose.runOnIdle { cloud = emptyList() }
+        compose.onNodeWithTag("computer.select.cloud:cloud-a").assertIsNotEnabled().performClick()
+        compose.runOnIdle { assertEquals(listOf("1:cloud:cloud-a"), actions) }
+        compose.onNodeWithContentDescription("Computer filter").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Cloud computer unavailable"))
+        compose.onNodeWithText("All Computers").assertIsNotSelected().performClick()
+        compose.runOnIdle { assertEquals(listOf("1:cloud:cloud-a", "2:all"), actions) }
+    }
 
     @Test fun openRowsStayFixedThroughRefreshWhileToolbarUpdatesAndNextOpeningUsesNewState() {
         content(); openMenu()

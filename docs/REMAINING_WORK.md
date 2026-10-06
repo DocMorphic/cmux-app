@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud computer selection now uses the common dropdown and survives sidebar
+  return/loading/disconnect without broadening to other hosts. Source lists,
+  refresh and creation menus respect the Cloud scope; retired Retry callbacks
+  cannot reset a replacement account. **84 JVM checks passed**, main/Android test
+  compilation passed; the selector fixture remains unrun. No APK rebuild/emulator.
+  Next: workspace/terminal creation, hidden-machine persistence, terminal process
+  restoration and live acceptance. See `CLOUD_COMPANION.md`.
+
 - Cloud workspaces now mount in the shared list/sidebar and use the common Ghostty
   surface, toolbar, keyboard and composer through account-owned machine hosts.
   **92 JVM checks passed**; debug/test APKs built and 16 KiB ZIP alignment passed.

@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-internal enum class NativeWorkspaceEmptyGuidance { MAC, SSH_HOST, ALL_COMPUTERS, SEARCH, UNREAD, MACHINES, UNREAD_MACHINES }
+internal enum class NativeWorkspaceEmptyGuidance { MAC, SSH_HOST, CLOUD_HOST, ALL_COMPUTERS, SEARCH, UNREAD, MACHINES, UNREAD_MACHINES }
 
 @Composable
 internal fun NativeWorkspaceEmptyRow(guidance: NativeWorkspaceEmptyGuidance,

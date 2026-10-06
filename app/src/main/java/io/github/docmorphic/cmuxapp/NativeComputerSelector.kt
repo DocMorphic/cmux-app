@@ -31,7 +31,8 @@ private data class ComputerMenuRow(val mac: NativeCredentialStore.PairedMac, val
     val selected: Boolean, val buildLabel: String?, val connection: NativeComputerConnection)
 private data class ComputerMenuOpening(val owner: NativeComputerMenuOwner, val allSelected: Boolean,
     val rows: List<ComputerMenuRow>, val select: (NativeCredentialStore.PairedMac?) -> Unit, val pair: (() -> Unit)?,
-    val ssh: List<NativeSshCreateTarget>, val selectedSsh: java.util.UUID?, val selectSsh: (NativeSshCreateTarget) -> Unit)
+    val ssh: List<NativeSshCreateTarget>, val selectedSsh: java.util.UUID?, val selectSsh: (NativeSshCreateTarget) -> Unit,
+    val cloud: List<CloudWorkspaceSnapshot>, val selectedCloud: String?, val selectCloud: (CloudWorkspaceSnapshot) -> Unit)
 
 @Composable
 internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, selected: NativeCredentialStore.PairedMac?,
@@ -41,18 +42,21 @@ internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>,
     owner: NativeComputerMenuOwner, isOwnerCurrent: (NativeComputerMenuOwner) -> Boolean,
     canSelect: (NativeCredentialStore.PairedMac) -> Boolean, presence: NativeMacPresenceState = NativeMacPresenceState(),
     sshTargets: List<NativeSshCreateTarget> = emptyList(), selectedSsh: NativeSshCreateTarget? = null,
-    canSelectSsh: (NativeSshCreateTarget) -> Boolean = { false }, onSelectSsh: (NativeSshCreateTarget) -> Unit = {}) {
+    canSelectSsh: (NativeSshCreateTarget) -> Boolean = { false }, onSelectSsh: (NativeSshCreateTarget) -> Unit = {},
+    cloud: List<CloudWorkspaceSnapshot> = emptyList(), selectedCloud: String? = null,
+    canSelectCloud: (CloudWorkspaceSnapshot) -> Boolean = { false }, onSelectCloud: (CloudWorkspaceSnapshot) -> Unit = {}) {
     // Match iOS's deferred menu: capture presentation and callbacks once per opening.
     // Toolbar state remains live. Current authority is checked separately at every tap.
     val opening = remember(open) {
-        if (!open) null else ComputerMenuOpening(owner, selected == null && pending == null && selectedSsh == null,
+        if (!open) null else ComputerMenuOpening(owner, selected == null && pending == null && selectedSsh == null && selectedCloud == null,
             macs.map { mac -> ComputerMenuRow(mac, appearances.name(mac), (pending ?: selected)?.origin == mac.origin, presence.buildLabel(mac),
-                connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()) }, onSelect, onPair, sshTargets, selectedSsh?.host?.id, onSelectSsh)
+                connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()) }, onSelect, onPair, sshTargets, selectedSsh?.host?.id, onSelectSsh, cloud.toList(), selectedCloud, onSelectCloud)
     }
     val currentOwner by rememberUpdatedState(owner)
     val currentOwnerCheck by rememberUpdatedState(isOwnerCurrent)
     val currentPairingCheck by rememberUpdatedState(canSelect)
     val currentSshCheck by rememberUpdatedState(canSelectSsh)
+    val currentCloudCheck by rememberUpdatedState(canSelectCloud)
     val dismiss by rememberUpdatedState(onOpen)
     fun admitted(menu: ComputerMenuOpening) = menu.owner == currentOwner && currentOwnerCheck(menu.owner)
     LaunchedEffect(open, owner) {
@@ -62,6 +66,7 @@ internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>,
         IconButton(onClick = { onOpen(true) }, modifier = Modifier.semantics {
             contentDescription = "Computer filter"
             stateDescription = pending?.let { "Connecting to ${appearances.name(it)}" }
+                ?: selectedCloud?.let { id -> cloud.singleOrNull { it.machine.id == id }?.machine?.preferredName ?: "Cloud computer unavailable" }
                 ?: selectedSsh?.name ?: selected?.let(appearances::name) ?: "All Computers"
         }) {
             if (pending != null) CircularProgressIndicator(Modifier.size(20.dp).testTag("computer.switch.progress"),
@@ -100,6 +105,20 @@ internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>,
                         }), NativeComputerPresence(), reconnect = false) }, onClick = {
                             dismiss(false)
                             if (admitted(menu) && currentSshCheck(target)) menu.selectSsh(target)
+                        })
+                }
+                menu.cloud.forEach { snapshot ->
+                    val machine = snapshot.machine
+                    DropdownMenuItem(text = { Column {
+                        Text(machine.preferredName)
+                        Text("Cloud", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } }, modifier = Modifier.testTag("computer.select.cloud:${machine.id}").semantics { this.selected = menu.selectedCloud == machine.id },
+                        leadingIcon = { Text(if (menu.selectedCloud == machine.id) "✓" else " ") },
+                        enabled = admitted(menu) && currentCloudCheck(snapshot),
+                        trailingIcon = { NativeComputerStatusDot(NativeComputerConnection(snapshot.availability), NativeComputerPresence(), reconnect = false) },
+                        onClick = {
+                            dismiss(false)
+                            if (admitted(menu) && currentCloudCheck(snapshot)) menu.selectCloud(snapshot)
                         })
                 }
                 menu.pair?.let { pair ->
