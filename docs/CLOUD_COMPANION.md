@@ -763,3 +763,55 @@ Next implement and verify terminal selection/process restoration and Cloud-only
 onboarding, finish the source-to-behavior audit, and run the queued Android/Pixel
 acceptance workflows. This checkpoint completes the visibility implementation,
 not physical parity acceptance.
+
+
+### Cloud terminal selection and activity restoration — 2026-10-06
+
+The pinned iOS `MobileWorkspaceLastTabStore.swift` and `MobileShellComposite.swift`
+remember the phone's last tab per workspace, independent of remote focus. Android
+Cloud now reuses `NativeWorkspaceLastTabs`, including its 512-workspace bound,
+unchanged-write suppression and credential transaction admission. Keys include the
+verified user/team, a Cloud-namespaced machine ID and the workspace. Reopening a
+workspace selects the remembered terminal; a retained/incomplete catalog cannot
+disprove that choice. Authoritative removal permits fallback inside that workspace.
+Explicit terminal picks supersede remembered selection.
+
+`CloudScreenCheckpoint` adds a bounded destination-only record to Android's
+`SavedStateHandle`, installed by the ViewModel factory's `CreationExtras`. Android
+activity/process recreation can restore its saved login/user/team/machine/workspace/
+terminal IDs. No input, credentials, buffers or mutation commands are checkpointed.
+Restoration waits for foreground, a running machine and an authoritative connected
+catalog. Account/login/team mismatch, hidden machines and confirmed removal discard
+the intent; a paused machine waits without being resumed automatically. Explicit
+navigation or an incoming pairing/notification link cancels the pending restore.
+This uses Android's saved activity state; it does not promise reopening a terminal
+on an unrelated cold launch or after clearing app data.
+
+A freshly created workspace can resolve its starter through the same remembered
+selection path. An open terminal removed from the catalog safely becomes a fallback
+or waiting pane instead of constructing an invalid zero-selection picker. Switching
+Cloud machines now retires the previous view's foreground/input admission. The
+currently selected host alone regains that admission after foregrounding. Last-tab
+write or restore failures report a navigation error.
+
+Verification: **53 focused JVM checks passed in eight suites**, zero failures,
+errors or skips, with final main/instrumentation compilation in 23 seconds.
+Six Cloud restoration checks exercise persisted tab ownership, retained versus
+fresh inventory, foreground/readiness gates, removed/paused/hidden machines,
+account mismatch, within-workspace terminal fallback and bounded checkpoint
+validation. Existing last-tab, catalog, creation and navigation checks also passed.
+Evidence: `captures/runtime/cloud-terminal-restoration/`.
+
+Actual Pixel activity/process recreation, saved-state delivery, live reconnect and
+input admission remain unverified; ADB reports no device. Cloud composer drafts
+are still bounded in memory and need the persisted-draft behavior audited/ported.
+The destination checkpoint does not claim draft restoration. Continue Cloud-only
+onboarding and the remaining native/UI audit alongside those acceptance gates.
+
+
+Integration packaging for the accumulated Cloud selection, creation, visibility and
+restoration changes also passed: debug and instrumentation APKs built in **57
+seconds**, including DEX generation and native receipt gates. Debug APK ZIP
+alignment passes at 16 KiB. SHA-256:
+`22f312ea16bb32fdaf207d5929e131257427bc4e2c107e6f76ba559339d58fc6`.
+No runtime installation, emulator or signed release promotion occurred.

@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
     val terminal by route.host.selected.collectAsState()
     val row = snapshot?.rows?.singleOrNull { it.key == route.workspaceId }
     val shown = terminal
-    if (row == null || shown == null) {
+    if (row == null || shown == null || row.workspace.terminals.none { it.id == shown.id }) {
         NativeWorkspaceWaitingPane(row?.workspace?.title ?: "Cloud workspace unavailable", onBack = model::leaveWorkspace,
             connected = snapshot?.availability == NativeFeedAvailability.CONNECTED,
             connectionError = creationState?.failure ?: snapshot?.failure?.detail,

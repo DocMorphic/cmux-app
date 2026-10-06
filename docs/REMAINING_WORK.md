@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud now uses the bounded per-workspace last-tab store and a destination-only
+  Android saved-activity checkpoint. Restoration waits for a fresh catalog, honors
+  account/hidden-machine ownership and yields to explicit navigation. Removed
+  terminals fall back safely; only the active Cloud view regains input admission.
+  **53 JVM checks passed**, main/Android test sources compile. Real Android process
+  restoration and persisted composer drafts remain open. See `CLOUD_COMPANION.md`.
+
 - Cloud visibility now persists separately per user/team and is controlled in
   Computers. Hidden hosts leave navigation/create menus while remaining available
   to re-enable; hiding the open host closes its terminal and input path. Only a

@@ -165,6 +165,10 @@ internal fun NativeScreen(
         if (connector == null) ViewModelProvider(runtimeOwner, NativeCloudViewModel.Factory(context, account, store, accountTeams))
             .get(NativeCloudViewModel::class.java) else null
     }
+    LaunchedEffect(cloudModel, incomingCode, incomingNotificationRoute) {
+        if (incomingCode != null || incomingNotificationRoute != null) cloudModel?.leaveWorkspace()
+    }
+    val cloudNavigationFailure = cloudModel?.navigationFailure?.collectAsState()?.value
     val cloudController = cloudModel?.controller?.collectAsState()?.value
     val cloudTunnel = cloudModel?.tunnel?.collectAsState()?.value
     val cloudTunnelState = cloudTunnel?.state?.collectAsState()?.value
@@ -639,6 +643,7 @@ internal fun NativeScreen(
             store.update { it.put("computer_selection", selectedComputerOrigin) }
             target.session.workspaceFeed.open(target.host, explicit = false)
         }
+        LaunchedEffect(cloudModel, cloudNavigationFailure) { cloudNavigationFailure?.let { error = it } }
         LaunchedEffect(cloudVisibility, cloudVisibilityFailure) { cloudVisibilityFailure?.let { error = it } }
         LaunchedEffect(cloudCreation, cloudCreationState?.failure) {
             cloudCreationState?.failure?.let { error = it }

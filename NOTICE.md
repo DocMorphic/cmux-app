@@ -571,3 +571,13 @@ MobileCloudComposition.swift, at cmux revision
 c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses account-scoped SharedPreferences and the common Computers screen.
+
+
+CloudWorkspaceRestoration.kt and Cloud terminal selection hooks follow the last-tab
+behavior in MobileWorkspaceLastTabStore.swift (Packages/iOS/CmuxMobileShellModel)
+and MobileShellComposite.swift (Packages/iOS/CmuxMobileShell), at cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android reuses its bounded last-tab store and adds a destination-only activity
+checkpoint through SavedStateHandle. Runtime acceptance remains documented in
+docs/CLOUD_COMPANION.md.
