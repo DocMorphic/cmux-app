@@ -1,0 +1,135 @@
+'use strict';
+(async () => {
+  const model = CmuxWorkbookModel, content = document.getElementById('content');
+  const error = document.getElementById('error'), selector = document.getElementById('sheets');
+  try {
+    const response = await fetch('document.zip', {credentials: 'omit', cache: 'no-store'});
+    if (!response.ok) throw new Error('Document unavailable');
+    const book = model.read(await response.arrayBuffer());
+    if (book.Directory.charts.length || book.Directory.drawings.length) {
+      const note = document.getElementById('limitations'); note.hidden = false;
+      note.textContent = 'Charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.';
+    }
+    const memories = new Map(), styleIndices = new Map();
+    const nodes = (node, name) => Array.from(node.getElementsByTagNameNS('*', name));
+    function xml(path) {
+      const bytes = book.files?.[path.replace(/^\/+/, '')]?.content;
+      if (!bytes) return null;
+      const parsed = new DOMParser().parseFromString(new TextDecoder().decode(bytes), 'application/xml');
+      return nodes(parsed, 'parsererror').length ? null : parsed;
+    }
+    function resolve(base, target) {
+      if (!target || target.includes('\\') || /^[a-z]+:/i.test(target)) return null;
+      const parts = target.startsWith('/') ? [] : base.split('/').slice(0, -1);
+      for (const part of target.split('/')) {
+        if (part === '..') { if (!parts.length) return null; parts.pop(); }
+        else if (part && part !== '.') parts.push(part);
+      }
+      return parts.join('/');
+    }
+    const main = book.Directory.workbooks[0].replace(/^\/+/, '');
+    const mainXml = xml(main), relationshipPath = main.replace(/([^/]+)$/, '_rels/$1.rels');
+    const rels = xml(relationshipPath);
+    const paths = new Map();
+    if (mainXml && rels) {
+      const relations = new Map(nodes(rels, 'Relationship').filter(n => n.getAttribute('TargetMode') !== 'External')
+        .map(n => [n.getAttribute('Id'), resolve(main, n.getAttribute('Target'))]));
+      nodes(mainXml, 'sheet').forEach(n => paths.set(n.getAttribute('name'), relations.get(n.getAttribute('r:id') ||
+        n.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'))));
+    }
+    const stylesXml = xml(book.Directory.style || ''), borders = stylesXml ? nodes(stylesXml, 'border') : [];
+    function cellStyles(name) {
+      if (styleIndices.has(name)) return styleIndices.get(name);
+      const indices = new Map(), source = paths.get(name) && xml(paths.get(name));
+      if (source) nodes(source, 'c').forEach(cell => {
+        const index = Number(cell.getAttribute('s') || 0), address = cell.getAttribute('r');
+        if (model.cellAddress(address) && Number.isInteger(index) && index >= 0 && index < (book.Styles?.CellXf?.length || 0)) indices.set(address, index);
+      });
+      styleIndices.set(name, indices); return indices;
+    }
+    function applyBorder(cell, index) {
+      const border = borders[book.Styles?.CellXf?.[index]?.borderId];
+      if (!border) return;
+      for (const side of ['left', 'right', 'top', 'bottom']) {
+        const edge = Array.from(border.children).find(n => n.localName === side), type = edge?.getAttribute('style');
+        if (!type || type === 'none') continue;
+        const colorNode = edge.children[0], colorValue = {};
+        if (colorNode) for (const attr of Array.from(colorNode.attributes)) colorValue[attr.name] = ['theme', 'indexed', 'tint'].includes(attr.name) ? Number(attr.value) : attr.value;
+        const width = type === 'thick' ? 3 : type.startsWith('medium') || type === 'double' ? 2 : 1;
+        const line = type === 'double' ? 'double' : /dash/i.test(type) ? 'dashed' : type === 'dotted' ? 'dotted' : 'solid';
+        cell.style['border' + side[0].toUpperCase() + side.slice(1)] = `${width}px ${line} ${model.color(colorValue, book) || '#222'}`;
+      }
+    }
+    const element = (tag, text) => { const node = document.createElement(tag); if (text != null) node.textContent = text; return node; };
+    for (const sheet of model.sheets(book)) { const option = element('option', sheet.name); option.value = sheet.index; selector.appendChild(option); }
+    let current;
+    function render(index, row = 0, col = 0, initial = false) {
+      try {
+        const next = model.windowFor(book, index, row, col), table = element('table');
+        table.setAttribute('aria-label', next.chosen.name);
+        const indices = cellStyles(next.chosen.name), head = element('thead'), headings = element('tr');
+        headings.appendChild(element('th', ''));
+        const columns = element('colgroup'); columns.appendChild(element('col'));
+        for (const c of next.cols) {
+          const col = element('col'), metadata = next.sheet['!cols']?.[c];
+          const width = metadata?.wpx ?? (Number(metadata?.wch) * 7 + 10);
+          col.style.width = (Number.isFinite(width) ? Math.min(800, Math.max(32, width)) : 110) + 'px'; columns.appendChild(col);
+          const th = element('th', XLSX.utils.encode_col(c)); th.scope = 'col'; headings.appendChild(th);
+        }
+        head.appendChild(headings); table.append(columns, head);
+        const body = element('tbody');
+        for (const r of next.rows) {
+          const tr = element('tr'), th = element('th', r + 1); th.scope = 'row'; tr.appendChild(th);
+          const height = next.sheet['!rows']?.[r]?.hpt;
+          if (Number.isFinite(height)) tr.style.height = Math.min(600, Math.max(12, height)) + 'pt';
+          for (const c of next.cols) {
+            const key = `${r}:${c}`, merge = next.merged.get(key);
+            if (next.covered.has(key) && !merge) continue;
+            const address = merge?.address || XLSX.utils.encode_cell({r, c}), source = next.sheet[address];
+            const td = element('td'); td.dataset.cell = address;
+            if (merge) { td.rowSpan = merge.rowSpan; td.colSpan = merge.colSpan; }
+            if (source?.t === 'n') td.className = 'number';
+            const target = model.link(source), label = model.text(source);
+            if (target) {
+              const a = element('a', label); a.href = target.external || '#';
+              if (target.internal) a.addEventListener('click', event => {
+                event.preventDefault(); const point = model.destination(target.internal, book, next.chosen.index);
+                if (point) render(point.sheet, point.row, point.col); else error.textContent = 'This link destination is unavailable.';
+              });
+              td.appendChild(a);
+            } else td.textContent = label;
+            const styleIndex = indices.get(address) || 0;
+            Object.assign(td.style, model.style(book, styleIndex)); applyBorder(td, styleIndex);
+            tr.appendChild(td);
+          }
+          body.appendChild(tr);
+        }
+        table.appendChild(body);
+        content.replaceChildren(next.empty ? element('p', 'This worksheet is empty.') : table);
+        current = next; selector.value = next.chosen.index; memories.set(next.chosen.index, {row: next.row, col: next.col});
+        document.getElementById('left').disabled = next.col <= next.bounds.s.c;
+        document.getElementById('up').disabled = next.row <= next.bounds.s.r;
+        document.getElementById('right').disabled = !next.cols.length || next.cols.at(-1) >= next.bounds.e.c;
+        document.getElementById('down').disabled = !next.rows.length || next.rows.at(-1) >= next.bounds.e.r;
+        document.getElementById('range').textContent = next.empty ? 'Empty worksheet' : !next.rows.length || !next.cols.length ?
+          'No visible cells in this range.' : `Rows ${next.rows[0] + 1}–${next.rows.at(-1) + 1} · Columns ${XLSX.utils.encode_col(next.cols[0])}–${XLSX.utils.encode_col(next.cols.at(-1))}`;
+        error.textContent = '';
+        if (!initial) window.scrollTo(0, 0);
+        CmuxMarkdownBridge.postMessage(JSON.stringify({action: 'workbookState', sheet: next.chosen.index, row: next.row, col: next.col}));
+      } catch (_) { error.textContent = 'This worksheet range can’t be displayed. Choose another sheet or cell.'; if (!current) throw new Error('No readable range'); }
+    }
+    selector.addEventListener('change', () => { const index = Number(selector.value), position = memories.get(index); render(index, position?.row, position?.col); });
+    for (const [id, dr, dc] of [['up', -1, 0], ['down', 1, 0], ['left', 0, -1], ['right', 0, 1]]) document.getElementById(id).addEventListener('click', () => {
+      render(current.chosen.index, dr > 0 ? current.rows.at(-1) + 1 : current.row + dr * model.ROWS,
+        dc > 0 ? current.cols.at(-1) + 1 : current.col + dc * model.COLS);
+    });
+    const go = () => { const point = model.destination(document.getElementById('address').value.trim(), book, current.chosen.index);
+      if (point) render(point.sheet, point.row, point.col); else error.textContent = 'Enter a cell address, such as B12.'; };
+    document.getElementById('go').addEventListener('click', go);
+    document.getElementById('address').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); go(); } });
+    const initial = new URLSearchParams(location.hash.slice(1));
+    render(Number(initial.get('sheet')), Number(initial.get('row')), Number(initial.get('col')), true);
+    window.__cmuxWorkbookReady = true;
+    CmuxMarkdownBridge.postMessage(JSON.stringify({action: 'officeReady'}));
+  } catch (_) { content.replaceChildren(); CmuxMarkdownBridge.postMessage(JSON.stringify({action: 'officeFailed'})); }
+})();

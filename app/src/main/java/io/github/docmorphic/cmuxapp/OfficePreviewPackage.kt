@@ -19,7 +19,7 @@ internal object DocxPreviewPolicy {
         mime?.substringBefore(';')?.trim()?.equals(MIME, true) == true
 }
 
-internal data class DocxLimits(
+internal data class OfficePackageLimits(
     val archiveBytes: Long = 64L * 1024 * 1024,
     val expandedBytes: Long = 64L * 1024 * 1024,
     val entryBytes: Int = 16 * 1024 * 1024,
@@ -30,24 +30,24 @@ internal data class DocxLimits(
 )
 
 /** An owned, bounded ZIP snapshot: the JavaScript decoder never consumes unchecked ZIP metadata. */
-internal class DocxPackage private constructor(val file: File, private val lease: AutoCloseable) : AutoCloseable {
+internal class OfficePreviewPackage private constructor(val file: File, private val lease: AutoCloseable) : AutoCloseable {
     override fun close() { try { file.parentFile?.deleteRecursively() } finally { lease.close() } }
 
     companion object {
-        fun prepare(source: File, root: File, limits: DocxLimits = DocxLimits(), checkActive: () -> Unit = {}): DocxPackage {
-            check(source.length() in 1..limits.archiveBytes) { "This Word document is too large to preview." }
-            check(root.isDirectory || root.mkdirs()) { "Could not prepare the Word preview." }
+        fun prepare(source: File, root: File, limits: OfficePackageLimits = OfficePackageLimits(), checkActive: () -> Unit = {}): OfficePreviewPackage {
+            check(source.length() in 1..limits.archiveBytes) { "This Office document is too large to preview." }
+            check(root.isDirectory || root.mkdirs()) { "Could not prepare the Office preview." }
             val directory = File(root, UUID.randomUUID().toString())
             val lease = ArtifactExportCache.hold(directory)
             try {
                 ArtifactExportCache.prune(root)
-                check(directory.mkdir()) { "Could not prepare the Word preview." }
-                val output = File(directory, "document.docx")
+                check(directory.mkdir()) { "Could not prepare the Office preview." }
+                val output = File(directory, "document.zip")
                 var total = 0L
                 var elements = 0
                 val names = mutableSetOf<String>()
                 ZipFile(source).use { zip ->
-                    check(zip.size() in 1..limits.entries) { "This Word document contains too many parts." }
+                    check(zip.size() in 1..limits.entries) { "This Office document contains too many parts." }
                     ZipOutputStream(output.outputStream()).use { target ->
                         val entries = zip.entries()
                         while (entries.hasMoreElements()) {
@@ -56,12 +56,12 @@ internal class DocxPackage private constructor(val file: File, private val lease
                             val name = entry.name
                             check(name.length in 1..512 && !name.contains('\\') && !name.any { it.isISOControl() } &&
                                 name.trimEnd('/').split('/').all { it.isNotEmpty() && it != "." && it != ".." } && names.add(name)) {
-                                "This Word document has invalid or duplicate parts."
+                                "This Office document has invalid or duplicate parts."
                             }
                             if (entry.isDirectory) continue
                             val xml = name.endsWith(".xml", true) || name.endsWith(".rels", true)
                             val limit = if (xml) minOf(limits.xmlBytes, limits.entryBytes) else limits.entryBytes
-                            check(entry.size in 0..limit.toLong()) { "A part of this Word document is too large to preview." }
+                            check(entry.size in 0..limit.toLong()) { "A part of this Office document is too large to preview." }
                             val bytes = zip.getInputStream(entry).use { input ->
                                 val buffer = ByteArray(16 * 1024)
                                 val data = ByteArrayOutputStream()
@@ -71,16 +71,16 @@ internal class DocxPackage private constructor(val file: File, private val lease
                                     if (count < 0) break
                                     total += count
                                     check(data.size().toLong() + count <= limit && total <= limits.expandedBytes) {
-                                        "This Word document expands beyond the preview limit."
+                                        "This Office document expands beyond the preview limit."
                                     }
                                     data.write(buffer, 0, count)
                                 }
                                 data.toByteArray()
                             }
                             val crc = CRC32().apply { update(bytes) }.value
-                            check(bytes.size.toLong() == entry.size && crc == entry.crc) { "This Word document is damaged." }
+                            check(bytes.size.toLong() == entry.size && crc == entry.crc) { "This Office document is damaged." }
                             if (xml) validateXml(bytes, limits, checkActive) { elements++; check(elements <= limits.elements) {
-                                "This Word document is too complex to preview."
+                                "This Office document is too complex to preview."
                             } }
                             // STORED avoids a second decompression and recreates all lengths/CRCs from actual bytes.
                             target.putNextEntry(ZipEntry(name).apply {
@@ -90,21 +90,21 @@ internal class DocxPackage private constructor(val file: File, private val lease
                         }
                     }
                 }
-                check("[Content_Types].xml" in names && "_rels/.rels" in names) { "This file is not a Word document." }
+                check("[Content_Types].xml" in names && "_rels/.rels" in names) { "This file is not a Office document." }
                 checkActive()
-                return DocxPackage(output, lease)
+                return OfficePreviewPackage(output, lease)
             } catch (failure: Throwable) {
                 directory.deleteRecursively(); lease.close(); throw failure
             }
         }
 
-        private fun validateXml(bytes: ByteArray, limits: DocxLimits, checkActive: () -> Unit, element: () -> Unit) {
+        private fun validateXml(bytes: ByteArray, limits: OfficePackageLimits, checkActive: () -> Unit, element: () -> Unit) {
             var depth = 0
             val handler = object : DefaultHandler2() {
-                override fun startDTD(name: String?, publicId: String?, systemId: String?) { throw SAXException("Document types are not supported in Word previews.") }
+                override fun startDTD(name: String?, publicId: String?, systemId: String?) { throw SAXException("Document types are not supported in Office previews.") }
                 override fun resolveEntity(publicId: String?, systemId: String?): InputSource { throw SAXException("External entities are not supported.") }
                 override fun startElement(uri: String?, localName: String?, qName: String?, attributes: Attributes?) {
-                    checkActive(); element(); check(++depth <= limits.depth) { "This Word document is too deeply nested." }
+                    checkActive(); element(); check(++depth <= limits.depth) { "This Office document is too deeply nested." }
                 }
                 override fun endElement(uri: String?, localName: String?, qName: String?) { depth-- }
                 override fun fatalError(error: org.xml.sax.SAXParseException) { throw error }

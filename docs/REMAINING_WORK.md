@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Offline XLSX preview now shares the Office reader with DOCX: sheet navigation,
+  author-formatted/cached values, hidden rows/columns, merges, basic styles,
+  bounded grid windows and saved reader location. **23 JVM checks and ten Node
+  model checks passed**; 17 asset hashes matched. Visual/navigation/restoration
+  cases for both Word and workbooks are queued for the next Android integration
+  batch. Charts/drawings, broader Excel formatting, other Office formats and
+  actual Quick Look/Pixel comparison remain open. No APK/emulator or signed
+  promotion. See [DOCUMENT_FORMATS.md](DOCUMENT_FORMATS.md#xlsx-and-shared-office-reader--2026-10-06).
+
 - Offline DOCX preview is implemented in the shared Files/Changes/attachment
   viewer, with bundled rendering, bounded archive preparation, local-only loading
   and existing file actions. **20 JVM checks passed**, main and instrumentation

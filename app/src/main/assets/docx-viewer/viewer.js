@@ -2,7 +2,7 @@
 'use strict';
 (async () => {
   try {
-    const response = await fetch('document.docx', {credentials: 'omit', cache: 'no-store'});
+    const response = await fetch('document.zip', {credentials: 'omit', cache: 'no-store'});
     if (!response.ok) throw new Error('Document unavailable');
     const documentFile = await response.arrayBuffer();
     const rendered = await docx.renderAsync(documentFile, document.getElementById('content'),
@@ -27,10 +27,10 @@
       if (!['https:', 'http:', 'mailto:', 'tel:'].includes(scheme)) event.preventDefault();
     }, true);
     window.__cmuxDocxReady = true;
-    CmuxMarkdownBridge.postMessage(JSON.stringify({action: 'docxReady'}));
+    CmuxMarkdownBridge.postMessage(JSON.stringify({action: 'officeReady'}));
   } catch (_) {
     // Document text/paths never enter logs or diagnostic errors.
     document.getElementById('content').replaceChildren();
-    CmuxMarkdownBridge.postMessage(JSON.stringify({action: 'docxFailed'}));
+    CmuxMarkdownBridge.postMessage(JSON.stringify({action: 'officeFailed'}));
   }
 })();

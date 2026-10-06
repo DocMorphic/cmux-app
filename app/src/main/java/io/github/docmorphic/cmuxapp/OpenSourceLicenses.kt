@@ -26,7 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal val licenseAssets = listOf(
-    "NOTICE.txt", "GeckoView.txt", "GPL-3.0.txt", "Apache-2.0.txt", "Lucide.txt", "Markdown.txt", "RawCode.txt", "Docx.txt",
+    "NOTICE.txt", "GeckoView.txt", "GPL-3.0.txt", "Apache-2.0.txt", "Lucide.txt", "Markdown.txt", "RawCode.txt", "Docx.txt", "SheetJS.txt",
     "JNA.txt", "JSch.txt", "JSch-jBCrypt.txt", "JSch-JZlib.txt", "BouncyCastle.txt", "PdfBox-Android.txt",
     "AndroidX-Graphics-Path.txt", "Ghostty.txt", "iroh/LICENSE-MIT", "iroh/LICENSE-APACHE",
     "simulator-video/COPYING.LGPLv2.1", "simulator-video/LICENSE.md",

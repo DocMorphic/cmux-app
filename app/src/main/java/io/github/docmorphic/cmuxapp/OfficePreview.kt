@@ -31,42 +31,42 @@ import java.io.File
 import java.util.UUID
 
 @Composable
-internal fun DocxFilePreview(artifact: LocalFilePreview) {
+internal fun OfficeFilePreview(artifact: LocalFilePreview, kind: OfficePreviewKind) {
     val context = LocalContext.current
-    val viewport = rememberSaveable(artifact.file.absolutePath, saver = listSaver<MarkdownViewportState, Any>(
-        save = { it.capture?.invoke(); it.save() }, restore = { MarkdownViewportState().apply { restore(it) } }
-    )) { MarkdownViewportState() }
-    var prepared by remember(artifact.file) { mutableStateOf<DocxPackage?>(null) }
-    var failure by remember(artifact.file) { mutableStateOf<String?>(null) }
-    var ready by remember(artifact.file) { mutableStateOf(false) }
-    var recovery by remember(artifact.file) { mutableIntStateOf(0) }
-    LaunchedEffect(artifact.file) {
-        var owned: DocxPackage? = null
+    val state = rememberSaveable(artifact.file.absolutePath, kind, saver = listSaver<OfficeReaderState, Any>(
+        save = { it.viewport.capture?.invoke(); it.save() }, restore = { OfficeReaderState().apply { restore(it) } }
+    )) { OfficeReaderState() }
+    var prepared by remember(artifact.file, kind) { mutableStateOf<OfficePreviewPackage?>(null) }
+    var failure by remember(artifact.file, kind) { mutableStateOf<String?>(null) }
+    var ready by remember(artifact.file, kind) { mutableStateOf(false) }
+    var recovery by remember(artifact.file, kind) { mutableIntStateOf(0) }
+    LaunchedEffect(artifact.file, kind) {
+        var owned: OfficePreviewPackage? = null
         try {
             // Assign ownership inside IO so cancellation at the dispatch boundary cannot leak the lease.
             withContext(Dispatchers.IO) {
                 val job = currentCoroutineContext()
-                owned = DocxPackage.prepare(artifact.file, File(context.cacheDir, "docx-previews")) { job.ensureActive() }
+                owned = OfficePreviewPackage.prepare(artifact.file, File(context.cacheDir, "office-previews")) { job.ensureActive() }
             }
             prepared = owned
             awaitCancellation()
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { failure = "This Word document can’t be previewed. Use Viewer actions to open, share or save it." }
+        catch (_: Exception) { failure = "This document can’t be previewed. Use Viewer actions to open, share or save it." }
         finally { withContext(NonCancellable + Dispatchers.IO) { owned?.close() } }
     }
     Box(Modifier.fillMaxSize()) {
         if (failure != null) ChangesNotice("Preview unavailable", failure!!)
-        else prepared?.let { document -> key(document, recovery) {
-            val controller = remember { DocxWebController(context, document, viewport,
+        else prepared?.let { document -> key(document, recovery, kind) {
+            val controller = remember { OfficeWebController(context, document, kind, state,
                 onReady = { ready = true }, onFailure = {
-                    failure = "This Word document can’t be previewed. Use Viewer actions to open, share or save it."
+                    failure = "This document can’t be previewed. Use Viewer actions to open, share or save it."
                 }, onCrash = {
                     ready = false
-                    if (recovery < 1) recovery++ else failure = "The Word viewer stopped. Reopen the preview to try again."
+                    if (recovery < 1) recovery++ else failure = "The document viewer stopped. Reopen the preview to try again."
                 }) }
             DisposableEffect(controller) { onDispose { controller.close() } }
             AndroidView(factory = { controller.create() }, modifier = Modifier.fillMaxSize().semantics {
-                contentDescription = "Word document preview"
+                contentDescription = kind.description
             }, onRelease = { controller.close() })
         } }
         if (failure == null && !ready) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -74,28 +74,27 @@ internal fun DocxFilePreview(artifact: LocalFilePreview) {
 }
 
 /** Every request terminates here; only the bundled shell and one owned snapshot are served. */
-internal class DocxWebController(
-    private val context: Context, private val document: DocxPackage, private val viewport: MarkdownViewportState,
+internal class OfficeWebController(
+    private val context: Context, private val document: OfficePreviewPackage, private val kind: OfficePreviewKind, private val state: OfficeReaderState,
     private val onReady: () -> Unit, private val onFailure: () -> Unit, private val onCrash: () -> Unit,
 ) : AutoCloseable {
-    private val origin = "https://docx-${UUID.randomUUID()}.invalid"
+    private val origin = "https://office-${UUID.randomUUID()}.invalid"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var view: MarkdownViewportWebView? = null
     private var binding: MarkdownViewportBinding? = null
     @Volatile private var closed = false
     private var ready = false
-    private val assets = mapOf("shell.html" to "text/html", "viewer.css" to "text/css", "viewer.js" to "application/javascript",
-        "jszip.min.js" to "application/javascript", "docx-preview.min.js" to "application/javascript")
+    private val assets = kind.assets
     @SuppressLint("SetJavaScriptEnabled")
     fun create(): WebView = MarkdownViewportWebView(context).also { web ->
-        view = web; binding = MarkdownViewportBinding(web, viewport); NativeViewHaptics(web)
+        view = web; binding = MarkdownViewportBinding(web, state.viewport); NativeViewHaptics(web)
         web.setBackgroundColor(android.graphics.Color.rgb(32, 33, 36))
         web.settings.apply {
             javaScriptEnabled = true; allowFileAccess = false; allowContentAccess = false
             domStorageEnabled = false; databaseEnabled = false
             javaScriptCanOpenWindowsAutomatically = false; setSupportMultipleWindows(false)
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            useWideViewPort = true; loadWithOverviewMode = true
+            useWideViewPort = true; loadWithOverviewMode = kind == OfficePreviewKind.WORD
             setSupportZoom(true); builtInZoomControls = true; displayZoomControls = false
         }
         web.addJavascriptInterface(object {
@@ -105,9 +104,10 @@ internal class DocxWebController(
                 scope.launch {
                     if (closed) return@launch
                     when (message.optString("action")) {
-                        "docxReady" -> if (!ready) { ready = true; binding?.rendered(); onReady() }
-                        "docxFailed" -> onFailure()
+                        "officeReady" -> if (!ready) { ready = true; binding?.rendered(); onReady() }
+                        "officeFailed" -> onFailure()
                         "markdownViewport" -> if (ready) binding?.geometry(message)
+                        "workbookState" -> if (kind == OfficePreviewKind.WORKBOOK) state.readWorkbookState(message)
                     }
                 }
             }
@@ -121,11 +121,11 @@ internal class DocxWebController(
                     try {
                         val mime = assets[name]
                         val input = when {
-                            name == "document.docx" && !request.isForMainFrame -> document.file.inputStream()
-                            mime != null && (name == "shell.html") == request.isForMainFrame -> context.assets.open("docx-viewer/$name")
+                            name == "document.zip" && !request.isForMainFrame -> document.file.inputStream()
+                            mime != null && (name == "shell.html") == request.isForMainFrame -> context.assets.open("${kind.assetDirectory}/$name")
                             else -> null
                         }
-                        if (input != null) return WebResourceResponse(mime ?: DocxPreviewPolicy.MIME, if (mime != null) "UTF-8" else null,
+                        if (input != null) return WebResourceResponse(mime ?: "application/zip", if (mime != null) "UTF-8" else null,
                             200, "OK", mapOf("Cache-Control" to "no-store", "X-Content-Type-Options" to "nosniff"), input)
                     } catch (_: Exception) { scope.launch { if (!closed) onFailure() } }
                 }
@@ -146,7 +146,7 @@ internal class DocxWebController(
                 if (!closed) { close(); onCrash() }; return true
             }
         }
-        web.loadUrl("$origin/shell.html")
+        web.loadUrl("$origin/shell.html#sheet=${state.sheet}&row=${state.row}&col=${state.column}")
         scope.launch { delay(30_000); if (!closed && !ready) onFailure() }
     }
     override fun close() {

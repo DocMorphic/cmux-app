@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the unmodified pinned raw-code, Markdown and DOCX viewer assets on any OS."""
+"""Verify the unmodified pinned raw-code, Markdown and Office viewer assets on any OS."""
 import hashlib
 import json
 from pathlib import Path
@@ -10,7 +10,7 @@ def main():
     root = Path(__file__).resolve().parents[1] / "app/src/main/assets"
     failures = []
     checked = 0
-    for directory in ("raw-code", "markdown-viewer", "docx-viewer"):
+    for directory in ("raw-code", "markdown-viewer", "docx-viewer", "workbook-viewer"):
         folder = root / directory
         manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
         files = manifest["files"]

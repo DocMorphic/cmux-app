@@ -21,15 +21,15 @@ class DocxPackageTest {
             zip.putNextEntry(ZipEntry(name)); zip.write(text.toByteArray()); zip.closeEntry()
         } }
     }
-    private fun rejected(values: Map<String, String> = parts, limits: DocxLimits = DocxLimits()) {
+    private fun rejected(values: Map<String, String> = parts, limits: OfficePackageLimits = OfficePackageLimits()) {
         val root = temporary.newFolder()
-        assertThrows(Exception::class.java) { DocxPackage.prepare(source(values), root, limits) }
-        assertTrue(root.walkTopDown().none { it.name == "document.docx" })
+        assertThrows(Exception::class.java) { OfficePreviewPackage.prepare(source(values), root, limits) }
+        assertTrue(root.walkTopDown().none { it.name == "document.zip" })
         assertTrue(root.listFiles().orEmpty().none { it.isDirectory && it.name.matches(Regex("[a-f0-9-]{36}")) })
     }
     @Test fun ownedSnapshotPreservesPartsWithVerifiedStoredLengthsAndSurvivesSourceRemoval() {
         val root = temporary.newFolder(); val original = source()
-        val prepared = DocxPackage.prepare(original, root)
+        val prepared = OfficePreviewPackage.prepare(original, root)
         try {
             assertTrue(original.delete())
             ZipFile(prepared.file).use { zip -> parts.forEach { (name, text) ->
@@ -43,11 +43,11 @@ class DocxPackageTest {
     }
     @Test fun compressedBombTotalAndIndividualPartLimitsAreEnforcedAndCleaned() {
         val inflated = parts + ("word/media/image.bin" to "x".repeat(50_000))
-        rejected(inflated, DocxLimits(expandedBytes = 1024))
-        rejected(inflated, DocxLimits(entryBytes = 1024))
-        rejected(parts, DocxLimits(archiveBytes = 1))
-        rejected(parts, DocxLimits(entries = 2))
-        rejected(parts, DocxLimits(xmlBytes = 8))
+        rejected(inflated, OfficePackageLimits(expandedBytes = 1024))
+        rejected(inflated, OfficePackageLimits(entryBytes = 1024))
+        rejected(parts, OfficePackageLimits(archiveBytes = 1))
+        rejected(parts, OfficePackageLimits(entries = 2))
+        rejected(parts, OfficePackageLimits(xmlBytes = 8))
     }
     @Test fun xmlDtdsExternalEntitiesMalformedMarkupAndComplexityAreRejected() {
         for (xml in listOf(
@@ -55,8 +55,8 @@ class DocxPackageTest {
             "<!DOCTYPE doc SYSTEM 'file:///not-readable-by-a-preview'><doc/>",
             "<doc><unclosed></doc>",
         )) rejected(parts + ("word/document.xml" to xml))
-        rejected(parts, DocxLimits(depth = 1))
-        rejected(parts, DocxLimits(elements = 3))
+        rejected(parts, OfficePackageLimits(depth = 1))
+        rejected(parts, OfficePackageLimits(elements = 3))
     }
     @Test fun traversalAbsoluteAndAmbiguousNamesAndNonWordArchivesAreRejected() {
         for (name in listOf("../escape", "/absolute", "word/../alias", "word//alias", "word\\alias", "word/./alias"))
@@ -66,11 +66,11 @@ class DocxPackageTest {
     @Test fun cancellationDuringExpansionDeletesTheOwnedSnapshot() {
         val root = temporary.newFolder(); var checks = 0
         assertThrows(CancellationException::class.java) {
-            DocxPackage.prepare(source(parts + ("word/media/image.bin" to "x".repeat(50_000))), root) {
+            OfficePreviewPackage.prepare(source(parts + ("word/media/image.bin" to "x".repeat(50_000))), root) {
                 if (++checks == 7) throw CancellationException()
             }
         }
-        assertTrue(root.walkTopDown().none { it.name == "document.docx" })
+        assertTrue(root.walkTopDown().none { it.name == "document.zip" })
     }
     @Test fun docxRoutingRespectsWireImagesTextAndExistingPdfRoutes() {
         assertEquals(ChangesPreviewRoute.DOCX, filePreviewRoute("binary", null, "/work/Report.DOCX"))
