@@ -58,7 +58,7 @@ jobs:
             ~/.cargo/git
             ~/.cache/zig
             build/cloud-cargo-target
-          key: cloud-native-c2715faa-rust195-ndk28-${{ hashFiles('scripts/native/cloud-ghostty-build.rs') }}
+          key: cloud-native-c2715faa-rust195-ndk28-${{ hashFiles('scripts/native/cloud-ghostty-build.rs', 'scripts/build-cloud-terminal-android.py', 'app/src/main/c/cloud_terminal_jni.c') }}
           restore-keys: cloud-native-c2715faa-rust195-ndk28-
       - name: Build upstream C ABI for Android
         run: |

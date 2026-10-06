@@ -34,6 +34,10 @@ internal interface CloudMachinesService : AutoCloseable {
     suspend fun resume(id: String)
     suspend fun delete(id: String)
 }
+internal interface CloudTerminalService {
+    suspend fun attach(id: String, fingerprint: String, capabilities: List<String> = emptyList()): CloudAttachEndpoint
+    suspend fun approve(id: String, invitationId: String): Boolean
+}
 
 /** Pure request contract. Constructing operations never sends or provisions anything. */
 internal class CloudApiRequests(baseUrl: String = "https://cmux.com") {
@@ -108,7 +112,7 @@ internal class CloudApi(
     private val isCurrent: (CloudAccountScope) -> Boolean,
     private val requests: CloudApiRequests = CloudApiRequests(),
     http: OkHttpClient = OkHttpClient()
-) : CloudMachinesService {
+) : CloudMachinesService, CloudTerminalService {
     private val http = http.newBuilder().cookieJar(CookieJar.NO_COOKIES).cache(null)
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
         .authenticator(okhttp3.Authenticator.NONE).proxyAuthenticator(okhttp3.Authenticator.NONE)
@@ -128,9 +132,9 @@ internal class CloudApi(
     suspend fun enroll(publicKey: String, deviceId: String, fingerprint: String, purpose: CloudTunnelPurpose, name: String?) =
         CloudResponseDecoding.enrollment(json(send(requests.enroll(publicKey, deviceId, fingerprint, purpose, name))))
     suspend fun revoke(fingerprint: String, purpose: CloudTunnelPurpose) { send(requests.revoke(fingerprint, purpose)) }
-    suspend fun attach(id: String, fingerprint: String, capabilities: List<String> = emptyList()) =
+    override suspend fun attach(id: String, fingerprint: String, capabilities: List<String>) =
         CloudResponseDecoding.attach(json(send(requests.attach(id, fingerprint, capabilities))))
-    suspend fun approve(id: String, invitationId: String) = CloudResponseDecoding.approved(json(send(requests.approve(id, invitationId))))
+    override suspend fun approve(id: String, invitationId: String) = CloudResponseDecoding.approved(json(send(requests.approve(id, invitationId))))
 
     private suspend fun send(operation: CloudApiRequests.Operation): ByteArray {
         admitted()

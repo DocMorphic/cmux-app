@@ -130,7 +130,16 @@ class IrohInstallationStore private constructor(context: Context, private val st
         } finally { seed?.fill(0) }
     }
 
-    private fun deviceId(): String {
+    /** Cloud enrollment uses this registry ID. Reading never mints an ID or opens a scoped signing key. */
+    fun storedDeviceId(): String? = synchronized(lock) { readDeviceId() }
+
+    private fun deviceId(): String = readDeviceId() ?: UUID.randomUUID().toString().also {
+        write(AtomicFile(File(directory, "installation-id")), it.toByteArray(Charsets.US_ASCII))
+    }
+
+    private fun readDeviceId(): String? {
+        if (!directory.exists()) return null
+        val entries = directory.listFiles() ?: throw IOException("Iroh identity directory is unreadable")
         val file = AtomicFile(File(directory, "installation-id"))
         if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) {
             val stored = file.openRead().use {
@@ -144,9 +153,9 @@ class IrohInstallationStore private constructor(context: Context, private val st
             return value
         }
         // Never replace a lost installation ID while scoped identities still exist.
-        if (directory.listFiles().orEmpty().any { it.name.endsWith(".seed") || it.name.endsWith(".seed.bak") })
+        if (entries.any { it.name.endsWith(".seed") || it.name.endsWith(".seed.bak") })
             throw IOException("Iroh installation ID missing for existing keys")
-        return UUID.randomUUID().toString().also { write(file, it.toByteArray(Charsets.US_ASCII)) }
+        return null
     }
 
     private fun wrappingKey(create: Boolean): SecretKey {

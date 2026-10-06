@@ -328,8 +328,14 @@ on PATH. The driver now prepends its pinned Zig directory. Follow-up
 the portable descriptor loop. The return convention was checked against
 [Bionic's implementation](https://android.googlesource.com/platform/bionic/+/refs/heads/main/libc/bionic/pty.cpp)
 and the installed API 26 NDK headers. This enables compilation of the shared
-crate; the Android companion does not start local PTYs. A further hosted run
-is required; no successful Android native checkpoint is claimed yet.
+crate; the Android companion does not start local PTYs. Runs `37449188907` and
+`37449713438` subsequently exposed the missing exported Ghostty submodule layout
+and Linux errno accessors in two directory readers. The driver now restores the
+expected layout and patches both readers to Bionic's `__errno` under Android cfg.
+Their exact source anchors were verified against the pinned source. Run
+`37450983946` at `819b6943` is pending; no successful native checkpoint is claimed.
+The compilation cache key now includes the builder and JNI source so each porting
+fix can save its additional compilation progress, while restoring earlier caches.
 
 Before real Cloud Iroh/WSS acceptance, audit Android DNS/context and TLS-root
 initialization for the separately linked Rust library. The existing Iroh FFI
@@ -344,3 +350,26 @@ common-workspace projection and renderer/input integration. Caller cancellation
 must retire any late native connection result; wrapper methods alone do not supply
 that coroutine ownership. Android/fixture and authorized Pixel/live account gates
 remain open. No emulator was started or APK rebuilt for this work.
+
+### Account-owned attach and approval foundation
+
+`CloudMachineHandshake` starts native connect and invitation approval concurrently,
+requiring both before publishing READY. It follows the iOS two-second polling,
+150-attempt/five-minute bounds, transient retries, invitation expiry and explicit
+trusted-carrier behavior. Account cancellation and approval failure settle promptly
+even while native connect is blocking; the independent native worker closes any
+late handle. Cancelling an observer does not steal or close the owner's session.
+The machine owner must explicitly close the attempt on retirement.
+
+`prepareNativeCloudTunnel` resolves the encrypted terminal key and enrolls with the
+existing Iroh registry device ID, checking the current account/team before and after
+IO. Reading that ID never creates an installation or replaces lost/corrupt identity.
+This startup function and handshake are not yet invoked by the mounted UI.
+
+Verification: **18 JVM checks passed** (8 handshake and 10 Cloud API); main and Iroh
+instrumentation Kotlin compilation passed in the final six-second run. Checks include
+approval/connect ordering, real blocking-worker cancellation and late cleanup, native
+failure, HTTP retry/expiry, polling bounds and observer cancellation. The new Android
+identity-read test compiled but was not run. Evidence:
+`captures/runtime/cloud-machine-handshake/`. Native transport, account tunnel leases,
+workspace/renderer integration and real device acceptance remain open.

@@ -26,13 +26,22 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud attach/approval now has an account-owned handshake: parallel native connect
+  and bounded invitation polling, prompt cancellation and late-handle disposal.
+  Explicit tunnel enrollment uses the existing Iroh registry ID and encrypted Cloud
+  identity. **18 JVM checks passed**; main and Iroh instrumentation compilation passed.
+  This foundation is not mounted; the Android identity-read case was not run.
+  Continue native build, tunnel leases and workspace/renderer integration.
+
 - Cloud's Android C/JNI adapter and Kotlin handle/output ownership now exist,
   including catalog, attachment, input, resize acknowledgments and ordered replay.
   **8 focused JVM checks passed**, main compilation and NDK C checks passed.
   These use a fake native boundary; actual linking/runtime remains unverified.
   Hosted run `37447383957` failed on a missing Zig PATH; fixed follow-up
   `37447939408` then found Android PTY compile gaps. The builder now patches
-  those exported-source cfg/libc cases; a further hosted build is required.
+  those exported-source cfg/libc cases. Subsequent runs found missing Ghostty source
+  layout and errno accessors in two crates; fixed in the driver. Run `37450983946`
+  at `819b6943` is pending; a successful hosted checkpoint is still required.
   The new native dependency is not yet packaged or mounted. Continue with its
   build/notices, account-owned tunnel/attachment lifecycle and workspace/renderer
   integration. See `CLOUD_COMPANION.md`.

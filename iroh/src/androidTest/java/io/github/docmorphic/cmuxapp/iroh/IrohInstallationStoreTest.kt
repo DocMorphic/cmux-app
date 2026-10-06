@@ -108,4 +108,18 @@ class IrohInstallationStoreTest {
         assertFalse(File(directory, "installation-id").exists())
         assertArrayEquals(bytes, record.readBytes())
     }
+
+    @Test fun cloudRegistryReadDoesNotMintOrReplaceAnInstallation() {
+        assertNull(store().storedDeviceId())
+        assertFalse(directory.exists())
+        val expected = store().loadOrCreate(scope).use { it.deviceId }
+        assertEquals(expected, store().storedDeviceId())
+        val id = File(directory, "installation-id")
+        id.writeText("damaged")
+        assertThrows(IOException::class.java) { store().storedDeviceId() }
+        assertEquals("damaged", id.readText())
+        id.delete()
+        assertThrows(IOException::class.java) { store().storedDeviceId() }
+        assertFalse(id.exists())
+    }
 }
