@@ -417,3 +417,12 @@ are reproduced in GeckoView.txt and the original engine assets/omni.ja.
 Source revision: 8eb25af4acf031ab1e06abf1a912275083c820ed
 https://hg.mozilla.org/releases/mozilla-release/rev/8eb25af4acf031ab1e06abf1a912275083c820ed
 The bundled notice-session extension is cmux-app code, not a Mozilla modification.
+
+TerminalToolbarScroll.kt and the leading fade in TerminalToolbarView.kt adapt
+shortcut-row geometry/interaction decisions from TerminalInputTextView.swift,
+AccessoryEdgeFadeScrollView.swift and AccessoryEdgeFadeTests.swift under
+Packages/iOS/CmuxMobileTerminal at cmux
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android retains Compose scrolling, observes contact without consuming input,
+and applies the fade against its existing Material toolbar background.

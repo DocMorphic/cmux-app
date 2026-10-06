@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The terminal shortcut row now follows the newer iOS resting-edge and active-
+  gesture geometry behavior, with a gradual leading fade. **17 focused JVM
+  checks passed** and final main/instrumentation compilation passed. Two Android
+  geometry cases are queued with existing arrow-pad cases for the next terminal
+  integration batch; no APK/emulator. Physical gestures, RTL/dynamic text and
+  matched iOS UI remain open. This scoped port does not advance the global pin.
+  See [TERMINAL_SHORTCUTS.md](TERMINAL_SHORTCUTS.md#shortcut-row-geometry-follow-up--2026-10-06).
+
 - Word and workbook previews now pass **two distinct Android runtime checks**
   on API37/16 KiB, including painted pixels, workbook navigation and composition
   state restoration. Screenshot review found and fixed shrunken spreadsheet

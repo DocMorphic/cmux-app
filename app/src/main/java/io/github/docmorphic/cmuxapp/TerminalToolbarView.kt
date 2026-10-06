@@ -18,7 +18,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -26,6 +31,7 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
@@ -62,9 +68,35 @@ internal fun TerminalToolbarView(layout: TerminalToolbarLayout, modifiers: Termi
     onButton: (TerminalToolbarButton) -> Unit, onCustom: (TerminalToolbarAction) -> Unit,
     onCustomize: () -> Unit, insert: (() -> Unit)? = null, inputOwner: Any?) {
     val accent = Color(0xFF76B9FF)
-    Row(Modifier.fillMaxWidth().background(Color(0xFF191B1F)), verticalAlignment = Alignment.CenterVertically) {
+    val background = Color(0xFF191B1F)
+    val contact = remember { mutableStateOf(false) }
+    val scroll = rememberTerminalToolbarScrollState(contact)
+    Row(Modifier.fillMaxWidth().background(background), verticalAlignment = Alignment.CenterVertically) {
         TerminalArrowNub(inputOwner, canInput, onButton)
-        Row(Modifier.weight(1f).testTag("terminal-toolbar-scroll").horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f).testTag("terminal-toolbar-scroll")
+            .pointerInput(contact) {
+                // Observe contact before touch slop, without consuming or replacing native scrolling.
+                try { awaitPointerEventScope {
+                    while (true) contact.value = awaitPointerEvent(PointerEventPass.Initial).changes.any { it.pressed }
+                } } finally { contact.value = false }
+            }
+            .drawWithContent {
+                drawContent()
+                val band = 24.dp.toPx()
+                val fade = minOf(band, size.width)
+                val strength = (scroll.value / band).coerceIn(0f, 1f)
+                // iOS ramps only the leading edge over the first 24 points of scrolling.
+                if (fade > 0f && strength > 0f) {
+                    val edge = background.copy(alpha = strength)
+                    if (layoutDirection == LayoutDirection.Ltr) {
+                        drawRect(Brush.horizontalGradient(listOf(edge, Color.Transparent), 0f, fade), size = Size(fade, size.height))
+                    } else {
+                        drawRect(Brush.horizontalGradient(listOf(Color.Transparent, edge), size.width - fade, size.width),
+                            topLeft = Offset(size.width - fade, 0f), size = Size(fade, size.height))
+                    }
+                }
+            }
+            .horizontalScroll(scroll), verticalAlignment = Alignment.CenterVertically) {
             insert?.let { TextButton(onClick = it) { Text("Insert") } }
             layout.visible.forEach { id -> key(id) {
                 val button = layout.button(id)

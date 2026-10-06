@@ -2,6 +2,51 @@
 
 Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 
+## Shortcut-row geometry follow-up — 2026-10-06
+
+Scoped comparison of `TerminalInputTextView.swift`,
+`AccessoryEdgeFadeScrollView.swift` and `AccessoryEdgeFadeTests.swift` at
+`c2715faa02c260b07012bc0b386597cfb333021d`, against the previously audited
+`204a11dfcc76280205e50406ab94270a1c152155`. The newer iOS input view defers layout
+correction during tracking/drag/deceleration and preserves either resting edge
+across size changes. Its leading fade ramps over the first 24 points, rather than
+turning on abruptly. This scoped port does not advance the global parity pin or
+close the remaining terminal replay, sizing and external-host delta audit.
+
+Android now retains the leading/trailing edge or absolute middle offset across
+shortcut content and viewport changes. `TerminalToolbarScrollAnchor` ignores
+unmeasured bounds and leaves the initial saved offset to Compose. Touch contact
+is observed before drag slop without consuming pointer events; active contact,
+drag and fling defer correction. Once interaction ends, its latest position wins
+and only an invalid offset is clamped. Coalesced focus/reader movement also wins
+over a stale edge. Admission checks immediately before `scrollTo` avoid taking
+over a newly started gesture or applying an obsolete geometry snapshot.
+
+The row still uses Compose's ordinary horizontal scrolling and overscroll. A
+24 dp leading fade ramps with the actual scroll offset and mirrors to the logical
+leading side in RTL. It draws against the existing opaque toolbar background;
+UIKit's glass-mask overscan is not transplanted into Material's button rendering.
+No input bytes, shortcuts, modifier semantics or remote viewport requests change.
+
+The newer iOS arrow-pad accessibility label/hint was also compared with Android's
+existing label, directional custom actions and resumed-owner/input admission.
+Those controls were already implemented; no duplicate pad behavior was added.
+
+Verification: **17 focused JVM tests passed**, zero failures/errors/skips:
+seven geometry cases, seven existing toolbar cases and three arrow-repeat cases.
+The geometry checks include saved/unmeasured state, both resting edges, content
+growth, shrinking bounds, middle offsets, interaction deferral, coalesced changes
+and density tolerance. Main compilation passed in the same 38-second invocation;
+the final main/instrumentation compilation passed in 5 seconds.
+
+Two `TerminalToolbarGeometryTest` Android cases are **compiled but not run**:
+resting-end retention through viewport shrink/custom-action insertion, and held
+contact deferral/release. They belong in the next terminal integration batch with
+the existing arrow-pad runtime cases. Actual gestures/fling, fade pixels, RTL,
+enlarged text, iOS screenshots and physical Pixel/Mac acceptance remain open.
+Evidence: ignored local `captures/runtime/toolbar-geometry-source/`. No APK or
+emulator was created for this source checkpoint; Gradle was stopped afterward.
+
 ## Keyboard encoding audit
 
 The pinned iOS `TerminalHardwareKeyResolver` registers UIKit key commands for
