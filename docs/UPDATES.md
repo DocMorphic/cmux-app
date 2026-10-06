@@ -51,6 +51,13 @@ acknowledgement and presentation rules at `0fc35d6`; build automation below is n
 evidence of that UI. Android notices need Android release identities rather than
 copying iOS marketing-version claims.
 
+The Android feed is now configured at the public repository's
+[`distribution/android-notices.json`](../distribution/android-notices.json).
+[Maintenance instructions](../distribution/README.md) explain identity, targeting,
+publication and anonymous fetch limits. Feed-only changes publish metadata without
+an APK build; the app fetches on notice-owner startup. They do not install an
+update, enable scheduled previews, or establish physical release acceptance.
+
 ## Two different update events
 
 ### A commit lands in manaflow-ai/cmux

@@ -22,11 +22,12 @@ internal data class WhatsNewState(
 internal class NativeWhatsNewCenter(
     private val catalog: List<WhatsNewPage>, private val version: String, private val channel: WhatsNewChannel,
     private val storage: WhatsNewStorage, apiBaseUrl: String? = null,
-    private val languages: List<String> = listOf("en")
+    private val languages: List<String> = listOf("en"), feedIdentity: String? = null
 ) : AutoCloseable {
     private val lock = Any()
     val webPolicy = WhatsNewWebPolicy(apiBaseUrl)
-    private val cacheKey = "whatsNew.remote.v1.${webPolicy.originKey}"
+    // A JSON distribution host is not a trusted announcement web-rendering origin.
+    private val cacheKey = "whatsNew.remote.v1.${feedIdentity ?: webPolicy.originKey}"
     private var remote: WhatsNewRemote? = storage.read(cacheKey)?.let { runCatching { WhatsNewRemote.decode(it) }.getOrNull() }
     private var marker: String? = storage.read(MARKER)
     private var acknowledged: Set<String> = runCatching {

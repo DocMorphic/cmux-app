@@ -3,8 +3,43 @@
 Source reference: `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`.
 [WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md) records the complete iOS contract. This
 now includes the model, persistence, native archive and launch-sheet integration.
-Web rendering/session exchange and live feed delivery remain incomplete. The
-global parity pin is unchanged.
+Subsequent renderer/session integration is recorded in [NOTICE_LAUNCH.md](NOTICE_LAUNCH.md)
+and its linked recovery notes. The Android feed integration below now configures
+live metadata; physical cold-start, authenticated web and signed-upgrade acceptance
+remain open. The global parity pin is unchanged.
+
+## Android-owned announcement feed — 2026-10-06
+
+`NativeWhatsNewViewModel` now fetches the public Android feed described in
+[distribution/README.md](../distribution/README.md). It initially publishes only
+the existing Android-owned introduction and pairing IDs, with no announcements
+or production-channel override. It never queries the official iOS visibility
+endpoint or borrows iOS release/version claims.
+
+`NativeWhatsNewFeed` uses its own anonymous HTTP client, disables redirects and
+implicit retries, enforces a 1 MiB byte limit (including unknown-length/chunked
+bodies), and a ten-second total deadline. Cancellation and owner retirement cancel
+requests. No account token, cookie jar, device ID or authenticated client is used.
+The full endpoint has a separate hashed cache identity; it does not expand the
+web-renderer origin allowlist. Fetching and persistent cache updates run on IO.
+Failed/malformed responses preserve the existing center's cached native/fallback
+and acknowledgement behavior. A changed repository path cannot inherit another
+feed's cache; compiled entry acknowledgement IDs remain permanent per install.
+
+**40 JVM cases passed**: six feed transport/configuration cases, 22 center cases,
+five presentation cases and seven launch cases. Main and instrumentation Kotlin
+compilation passed in the same 34 s run. Coverage includes anonymous requests and
+cookie rejection, redirects/non-200 responses, declared/chunked byte caps,
+cancellation, feed cache separation without web-origin trust, cached retraction
+on failure, plus existing launch/acknowledgement rules. Live raw-URL availability
+and exact published-byte verification are recorded after push in
+`captures/runtime/android-notice-feed/live-feed.json`.
+
+No APK/emulator/Pixel run or signed promotion in this batch. Next integration
+must verify real ViewModel cold-start fetch, cached offline restart, a reviewed
+notice update, and authenticated web launch using the configured feed. The initial
+feed has no web page and cannot prove cookie exchange or remote announcement UI.
+Earlier dated sections below describe their original, less-complete checkpoints.
 
 ## Web exchange and bounded lifetime (2026-10-04)
 

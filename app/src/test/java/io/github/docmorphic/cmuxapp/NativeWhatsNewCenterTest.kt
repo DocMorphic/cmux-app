@@ -85,6 +85,24 @@ class NativeWhatsNewCenterTest {
         for (origin in listOf("http://cmux.com", "https://cmux.com:8443", "https://staging.cmux.com", null))
             assertEquals(3, center(store, origin = origin).ids().size)
     }
+    @Test fun explicitFeedCacheIsIndependentOfRendererOriginsAndOtherFeeds() = runTest {
+        val store = Memory()
+        fun fromFeed(id: String) = NativeWhatsNewCenter(catalog, "0.2.0", WhatsNewChannel.BETA,
+            store, feedIdentity = id)
+        val first = fromFeed("android-repo-a")
+        first.refresh { remote(emptyList()) }
+        assertEquals(0, fromFeed("android-repo-a").ids().size)
+        assertEquals(3, fromFeed("android-repo-b").ids().size)
+        assertEquals(3, center(store, origin = null).ids().size)
+        assertFalse(first.webPolicy.allows("https://raw.githubusercontent.com/owner/other/page.html"))
+        assertTrue(first.webPolicy.allows("https://cmux.com/news"))
+        val restarted = fromFeed("android-repo-a")
+        restarted.refresh { throw java.io.IOException("Offline") }
+        assertTrue(restarted.state.value.initialRefreshComplete)
+        assertFalse(restarted.state.value.fetchedThisLaunch)
+        assertEquals(0, restarted.ids().size) // Failure cannot undo an authoritative cached retraction.
+    }
+
     @Test fun malformedVisibilityCannotRetractOrPruneButMalformedAnnouncementIsIsolated() = runTest {
         val store = Memory(); val c = center(store)
         c.refresh { remote(listOf("old"), listOf(notice("valid"), notice("bad").apply { remove("maxVersion") }, notice("wrong").put("title", 42))) }

@@ -20,10 +20,19 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including native errors outside RPC and broader real-route retry acceptance, directory/rename/read/export/decoder failure coverage, live panel-kind changes, and broader main Files/direct-tap/transport restoration, forced browser-parent recreation with binary content, rendered-Markdown reflow and real-route/process recovery, Save process-death/large-write recovery and remote-file freshness semantics, video acceptance and zoom across aspect-ratio changes. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
 | Background notifications | Configure and deploy the Android push path. FCM/HPKE, worker and reply code exists but production delivery is disabled/unconfigured. The proposed private Firebase plus Mac-forwarder setup still needs provisioning. | Real registered-device delivery with the app foregrounded, backgrounded and process-dead, plus Doze, token rotation, tap/reply routing and account revocation. Document infrastructure and any demonstrated platform differences. |
 | UI and accessibility | Finish screen-by-screen iOS comparison, keyboard insets, dynamic text, TalkBack, gestures/haptics and performance on Pixel. | Matched-state screenshots and interaction checks for all main screens and sheets; usable enlarged text and accessibility traversal; measured investigation of any remaining freezes/ANRs. |
-| Release and updates | Verify an upgrade while signed in; finish notice-feed configuration, cold-start/cookie checks and What's New; carry an upstream review through a port and chosen preview milestone; scheduled previews remain opt-in during feature-first development. | Stable-signer upgrade preserving account/pairing/settings, actual configured feed and update checks, and one observed upstream-change-to-review/build cycle. The watcher has succeeded on main and created review issue #2; port/build acceptance remains. Scheduled APK builds require `CMUX_AUTOMATIC_PREVIEWS=true` (currently disabled). |
+| Release and updates | Verify an upgrade while signed in; verify the configured Android notice feed across cold-start/offline restart, cookie exchange and What's New; carry an upstream review through a port and chosen preview milestone; scheduled previews remain opt-in during feature-first development. | Stable-signer upgrade preserving account/pairing/settings, actual configured feed and update checks, and one observed upstream-change-to-review/build cycle. The watcher has succeeded on main and created review issue #2; port/build acceptance remains. Scheduled APK builds require `CMUX_AUTOMATIC_PREVIEWS=true` (currently disabled). |
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- Android What's New now fetches an Android-owned feed from this public repo.
+  The initial feed preserves the existing two native IDs, with no new release
+  claims or production override. Anonymous bounded HTTP, full-endpoint cache
+  separation and IO persistence are wired to the existing center. **40 JVM
+  cases and main/instrumentation compilation passed**; no APK or device run.
+  Configured-feed cold start, offline restart and physical/authenticated web
+  acceptance remain open. See [WHATS_NEW.md](WHATS_NEW.md#android-owned-announcement-feed--2026-10-06)
+  and [feed maintenance](../distribution/README.md).
 
 - Combined composer layout/menu milestone: **12/12 initial Android cases passed**;
   after review corrections **5/5 focused cases passed**, totaling **14 distinct

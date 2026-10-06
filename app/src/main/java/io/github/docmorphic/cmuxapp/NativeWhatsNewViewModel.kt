@@ -10,6 +10,7 @@ import java.io.File
 import java.util.Locale
 
 internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
+    private val feed = NativeWhatsNewFeed()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val webArchive = NativeNoticeArchiveOwner(context.applicationContext, scope)
     private var webOwner: String? = null
@@ -30,7 +31,7 @@ internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
                 NativeWhatsNewCenter(NativeWhatsNewCatalog.pages, BuildConfig.NOTICE_VERSION,
                     WhatsNewChannel.entries.single { it.token == BuildConfig.NOTICE_CHANNEL },
                     NativeWhatsNewFileStore(File(application.noBackupFilesDir, "whats-new")),
-                    languages = listOf(Locale.getDefault().toLanguageTag()))
+                    languages = listOf(Locale.getDefault().toLanguageTag()), feedIdentity = feed.cacheIdentity)
             }
             presentation = NativeWhatsNewPresentation(loaded, scope) { page, login, dark ->
                 NativeNoticeRenderer(application, scope, loaded.webPolicy, (page.body as WhatsNewBody.Web).url,
@@ -38,11 +39,11 @@ internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
                     currentOwner = { webOwner == login && isWebOwnerCurrent(login) }, cookies = webCookies)
             }
             mutable.value = loaded
-            // No Android notice feed is configured. Never query the iOS visibility endpoint.
-            loaded.refresh()
+            // Fetch only Android-owned metadata. Failure retains cached/compiled native pages.
+            withContext(Dispatchers.IO) { loaded.refresh(feed::fetch) }
         }
     }
-    override fun onCleared() { presentation?.close(); webArchive.close(); scope.cancel(); mutable.value?.close() }
+    override fun onCleared() { feed.close(); presentation?.close(); webArchive.close(); scope.cancel(); mutable.value?.close() }
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass == NativeWhatsNewViewModel::class.java)
