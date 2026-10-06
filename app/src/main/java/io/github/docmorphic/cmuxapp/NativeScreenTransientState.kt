@@ -63,7 +63,7 @@ internal class NativeScreenTransientState(
     var scrollInteractionEpoch by mutableIntStateOf(0)
     var pickerTarget by mutableStateOf<TerminalDrafts.Target?>(null)
     var pickerGeneration by mutableLongStateOf(0)
-    var pickerImages by mutableStateOf(false)
+    var pickerLogin by mutableStateOf<String?>(null)
     var preparingAttachments by mutableStateOf(false)
     var attachmentMenu by mutableStateOf(false)
 }

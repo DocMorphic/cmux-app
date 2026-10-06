@@ -541,6 +541,50 @@ class NativeFlowTest {
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
     }
 
+    @Test fun photoLibraryStagesVideoAndImageAfterUnreadableSelectionWithoutSending() {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick(); waitForTerminalText()
+        compose.onNodeWithTag("native.composer").performTextInput("Review these media")
+        val repo = TerminalDraftRepository.get(context)
+        val target = TerminalDrafts.Target("cmux-ios://attach?v=2&r=100.64.0.1:58465", "workspace-1", "terminal-1")
+        ComposerMediaFixture(context).use { media ->
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val monitor = instrumentation.addMonitor(composerPickerFilter(context, true),
+                Instrumentation.ActivityResult(Activity.RESULT_OK, media.result()), true)
+            try {
+                compose.onNodeWithContentDescription("Add attachment").performClick()
+                compose.onNodeWithText("Photos").performClick()
+                compose.waitUntil(10_000) { monitor.hits > 0 }
+                compose.waitUntil(15_000) { repo.drafts.state.value[target]?.attachments?.size == 2 }
+                val staged = repo.drafts.state.value.getValue(target)
+                assertEquals("Review these media", staged.text)
+                assertEquals(listOf("clip.mp4", "photo.png"), staged.attachments.map { it.name })
+                val video = staged.attachments.first(); assertNull(video.imageFormat)
+                assertArrayEquals(media.video.readBytes(), runBlocking { repo.read(video) })
+                assertFalse(java.io.File(context.noBackupFilesDir, "terminal-attachments/${video.id}").readBytes().contentEquals(media.video.readBytes()))
+                assertEquals("png", staged.attachments.last().imageFormat)
+                compose.onNodeWithTag("native.composer").assertIsNotFocused()
+                assertTrue(peer.requests.none { it.optString("method") in listOf("terminal.paste", "terminal.paste_image", "mobile.task.attachment.upload") })
+                val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                val previous = clipboard.primaryClip
+                try {
+                    compose.runOnIdle { clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Fixture", "do not execute this clipboard text")) }
+                    compose.onNodeWithContentDescription("Add attachment").performClick()
+                    compose.onNodeWithText("Paste attachment").performClick()
+                    compose.onNodeWithText("No copied photos or files. Paste text into the composer.").assertExists()
+                    assertEquals("Review these media", repo.drafts.state.value.getValue(target).text)
+                    assertTrue(peer.requests.none { it.optString("method") in listOf("terminal.paste", "terminal.input") })
+                } finally { compose.runOnIdle { if (previous != null) clipboard.setPrimaryClip(previous) else clipboard.clearPrimaryClip() } }
+                screenshot("native-media-library-staged")
+            } finally { instrumentation.removeMonitor(monitor) }
+        }
+    }
+
     @Test fun attachmentPickerStagesEncryptsAndSendsAfterExplicitRetry() {
         compose.setContent {
             CmuxTheme {
@@ -567,9 +611,7 @@ class NativeFlowTest {
         val target = TerminalDrafts.Target("cmux-ios://attach?v=2&r=100.64.0.1:58465", "workspace-1", "terminal-1")
         fun choose(file: File, menu: String) {
             val instrumentation = InstrumentationRegistry.getInstrumentation()
-            val monitor = instrumentation.addMonitor(IntentFilter(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE); addDataType("*/*")
-            },
+            val monitor = instrumentation.addMonitor(composerPickerFilter(context, menu == "Photos"),
                 Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(
                     androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file))
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)), true)

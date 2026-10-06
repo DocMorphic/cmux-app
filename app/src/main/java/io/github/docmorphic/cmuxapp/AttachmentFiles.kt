@@ -31,6 +31,11 @@ class AttachmentFiles(private val context: Context, taskFiles: Boolean = false) 
     private val directory = File(context.noBackupFilesDir, if (taskFiles) "task-attachments" else "terminal-attachments").apply { mkdirs() }
     data class Prepared(val attachment: ComposerAttachment, val bytes: ByteArray)
 
+    /** Photo pickers can return movies and opaque future media: only declared images are decoded. */
+    suspend fun isPhotoImage(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        context.contentResolver.getType(uri)?.substringBefore(';')?.trim()?.startsWith("image/", ignoreCase = true) == true
+    }
+
     suspend fun prepare(uri: Uri, image: Boolean, imageLimit: Int = ComposerAttachment.IMAGE_LIMIT, allowEmpty: Boolean = false): Prepared = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         var name = if (image) "image.png" else "attachment"

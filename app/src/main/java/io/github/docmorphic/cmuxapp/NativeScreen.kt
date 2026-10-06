@@ -6,6 +6,7 @@ import android.os.Build
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -1121,21 +1122,33 @@ internal fun NativeScreen(
             }
 
             val attachmentFiles = remember(context) { AttachmentFiles(context.applicationContext) }
-            val attachmentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            fun pickedAttachments(uris: List<android.net.Uri>, photoLibrary: Boolean) {
                 val target = pickerTarget
                 val generation = pickerGeneration
-                val images = pickerImages
-                pickerTarget = null
-                if (target != null && uris.isNotEmpty()) scope.launch {
-                    preparingAttachments = true
+                val pickedLogin = pickerLogin
+                pickerTarget = null; pickerLogin = null
+                if (target == null || uris.isEmpty()) return
+                if (preparingAttachments) { error = "Wait for the current attachments to finish preparing."; return }
+                val remaining = 10 - drafts.state.value[target]?.attachments.orEmpty().size
+                if (uris.size > remaining) { error = "Each terminal can hold up to 10 attachments"; return }
+                fun checkTarget() {
+                    check(signedIn && store.taskSession() == pickedLogin && code == target.pairing &&
+                        selectedWorkspace?.id == target.workspace && selectedTerminal?.id == target.surface && drafts.generation == generation &&
+                        workspaces.any { it.id == target.workspace && it.terminals.any { terminal -> terminal.id == target.surface } }) {
+                        "The attachment target changed. Choose the attachment again."
+                    }
+                }
+                preparingAttachments = true
+                scope.launch {
                     try {
-                        require(uris.size <= 10) { "Choose up to 10 attachments" }
                         for (uri in uris) {
-                            val prepared = attachmentFiles.prepare(uri, images)
-                            check(signedIn && code == target.pairing && drafts.generation == generation &&
-                                workspaces.any { it.id == target.workspace && it.terminals.any { terminal -> terminal.id == target.surface } }) {
-                                "The attachment target changed. Choose the attachment again."
-                            }
+                            val prepared = readComposerAttachment(::checkTarget, { error = it }) {
+                                val image = photoLibrary && attachmentFiles.isPhotoImage(uri)
+                                require(image || ComposerAttachment.FILE_CAPABILITY in hostCapabilities) {
+                                    "Update cmux on your Mac to attach videos and files."
+                                }
+                                attachmentFiles.prepare(uri, image)
+                            } ?: continue
                             draftRepository.attach(target, prepared, generation)
                         }
                     } catch (failure: Exception) {
@@ -1143,6 +1156,12 @@ internal fun NativeScreen(
                         error = failure.message ?: "Could not open the attachment"
                     } finally { preparingAttachments = false }
                 }
+            }
+            val attachmentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {
+                pickedAttachments(it, photoLibrary = false)
+            }
+            val attachmentPhotos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) {
+                pickedAttachments(it, photoLibrary = true)
             }
 
             fun acceptTerminalPaste(content: TerminalPasteContent): Boolean {
@@ -3042,12 +3061,21 @@ internal fun NativeScreen(
                                             fun pick(images: Boolean) {
                                                 attachmentMenu = false
                                                 leaveComposerInput()
-                                                pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerImages = images
-                                                attachmentPicker.launch(arrayOf(if (images) "image/*" else "*/*"))
+                                                pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerLogin = store.taskSession()
+                                                if (images) attachmentPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                                                else attachmentPicker.launch(arrayOf("*/*"))
                                             }
                                             DropdownMenuItem(text = { Text("Photos") }, onClick = { pick(true) })
                                             DropdownMenuItem(text = { Text("Files") }, onClick = { pick(false) },
                                                 enabled = ComposerAttachment.FILE_CAPABILITY in hostCapabilities)
+                                            DropdownMenuItem(text = { Text("Paste attachment") }, onClick = {
+                                                attachmentMenu = false
+                                                val paste = ComposerClipboardPaste(context,
+                                                    current = { signedIn && !directTyping && draftTarget != null },
+                                                    enabled = { terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments },
+                                                    receive = ::acceptTerminalPaste, report = { error = it })
+                                                if (!paste.paste()) error = "No copied photos or files. Paste text into the composer."
+                                            })
                                         }
                                     }
                                     ComposerDictationButton(dictation,

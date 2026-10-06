@@ -25,6 +25,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native terminal and New Task Photos now open Android's photo/video picker;
+  videos retain their original bytes through encrypted file staging. Native
+  multi-selection continues past unreadable providers, validates the captured
+  account/terminal, and includes attachment-menu Paste without executing plain
+  clipboard text. **22 focused JVM cases passed**; two new media UI cases and
+  two updated picker/retry cases join the next combined milestone. Device media
+  selection/playback, picker restoration, selection-limit UI and SSH non-image
+  support remain open. See [COMPOSER_MEDIA_PICKER.md](COMPOSER_MEDIA_PICKER.md).
+  Next milestone: one APK/test build, DEX size check, and ten queued/updated
+  preview, dictation and media cases on the sole existing AVD.
+
 - Native and SSH terminal composers now have live dictation: partial text merges,
   locked editing while listening, graceful Stop, Send cancellation, permission
   and recognizer error handling, and account/navigation/background retirement.

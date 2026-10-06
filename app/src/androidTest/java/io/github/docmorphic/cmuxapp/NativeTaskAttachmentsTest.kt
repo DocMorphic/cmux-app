@@ -172,14 +172,41 @@ class NativeTaskAttachmentsTest {
     }
     private fun choose(file: File, label: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val monitor = instrumentation.addMonitor(IntentFilter(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE); addDataType("*/*")
-        }, Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(Uri.fromFile(file))), true)
+        val monitor = instrumentation.addMonitor(composerPickerFilter(context, label == "Photos"),
+            Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(
+                androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file))
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)), true)
         try {
             compose.onNodeWithContentDescription("Add task attachment").performClick()
             compose.onNodeWithText(label).performClick()
             compose.waitUntil(10_000) { monitor.hits > 0 }
         } finally { instrumentation.removeMonitor(monitor) }
+    }
+
+    @Test fun photoLibraryKeepsVideoBytesAndLaterImageWhenOneSelectionIsUnreadable() {
+        show()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Review these media")
+        ComposerMediaFixture(context).use { media ->
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val monitor = instrumentation.addMonitor(composerPickerFilter(context, true),
+                Instrumentation.ActivityResult(Activity.RESULT_OK, media.result()), true)
+            try {
+                compose.onNodeWithContentDescription("Add task attachment").performClick()
+                compose.onNodeWithText("Photos").performClick()
+                compose.waitUntil(10_000) { monitor.hits > 0 }
+                compose.waitUntil(15_000) { repository.drafts.state.value[id]?.attachments?.size == 2 }
+                val draft = repository.drafts.state.value.getValue(id)
+                assertEquals("Review these media", draft.prompt)
+                assertEquals(listOf("clip.mp4", "photo.png"), draft.attachments.map { it.name })
+                val video = draft.attachments.first(); assertNull(video.imageFormat)
+                assertArrayEquals(media.video.readBytes(), runBlocking { repository.readAttachment(video) })
+                assertFalse(File(context.noBackupFilesDir, "task-attachments/${video.id}").readBytes().contentEquals(media.video.readBytes()))
+                assertEquals("png", draft.attachments.last().imageFormat)
+                compose.onNodeWithText("1 attachment couldn't be read. Try adding the missing files again.").assertExists()
+                compose.onNodeWithContentDescription("Task prompt").assertIsNotFocused()
+                assertTrue(peer.requests.none { it.optString("method") == "mobile.task.attachment.upload" })
+            } finally { instrumentation.removeMonitor(monitor) }
+        }
     }
 
     @Test fun pickerStagesPhotosAndEmptyFilesThenRetriesWithoutChangingTaskIdentity() {
@@ -190,12 +217,13 @@ class NativeTaskAttachmentsTest {
             if (!rejected) { rejected = true; throw IOException("Fixture rejection") }
             client.request("workspace.create", params)
         }
-        val photo = File(context.cacheDir, "task-photo-fixture.png")
+        val directory = File(context.cacheDir, "task-previews").apply { mkdirs() }
+        val photo = File(directory, "task-photo-fixture.png")
         Bitmap.createBitmap(2400, 1200, Bitmap.Config.ARGB_8888).also { bitmap ->
             bitmap.eraseColor(android.graphics.Color.BLUE)
             photo.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
         }
-        val empty = File(context.cacheDir, "task-empty-fixture.txt").apply { writeBytes(byteArrayOf()) }
+        val empty = File(directory, "task-empty-fixture.txt").apply { writeBytes(byteArrayOf()) }
         try {
             choose(photo, "Photos")
             compose.waitUntil(15_000) { repository.drafts.state.value[id]?.attachments?.size == 1 }

@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -36,11 +37,10 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
     val currentOwner by rememberUpdatedState(owner)
     val currentEditor by rememberUpdatedState(editor)
     var pickerOwner by rememberSaveable { mutableStateOf<String?>(null) }
-    var pickerImages by rememberSaveable { mutableStateOf(false) }
     var staging by remember(owner, editor) { mutableStateOf(false) }
     fun current() = currentOwner == owner && currentEditor == editor && guard()
     fun previewCurrent() = currentOwner == owner && currentEditor == editor && previewGuard()
-    fun stage(items: List<TerminalPasteContent.Item.Attachment>, release: () -> Unit = {}): Boolean {
+    fun stage(items: List<TerminalPasteContent.Item.Attachment>, release: () -> Unit = {}, photoLibrary: Boolean = false): Boolean {
         if (items.isEmpty() || staging || !enabled || !canAdd || !current() || !scope.isActive) return false
         val remaining = TaskAttachments.MAX_COUNT - repository.drafts.state.value[editor.id]?.attachments.orEmpty().size
         if (items.size > remaining) { onError("You can attach up to 10 items to a task."); return false }
@@ -49,11 +49,12 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
         scope.launch {
             try {
                 var unreadable = 0
-                for ((uri, images) in items) {
+                for ((uri, imageHint) in items) {
                     currentCoroutineContext().ensureActive(); check(current()) { "Task session changed" }
                     val prepared = readComposerAttachment(
                         guard = { check(current()) { "Task session changed" } }, failed = { unreadable++ }
                     ) {
+                        val images = if (photoLibrary) files.isPhotoImage(uri) else imageHint
                         if (!images) files.prepare(uri, false, allowEmpty = true) else {
                             try {
                                 files.prepare(uri, true, TaskAttachments.IMAGE_BYTES).let { prepared ->
@@ -86,7 +87,11 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         val matches = pickerOwner == owner; pickerOwner = null
-        if (matches) stage(uris.map { TerminalPasteContent.Item.Attachment(it, pickerImages) })
+        if (matches) stage(uris.map { TerminalPasteContent.Item.Attachment(it, false) })
+    }
+    val photos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
+        val matches = pickerOwner == owner; pickerOwner = null
+        if (matches) stage(uris.map { TerminalPasteContent.Item.Attachment(it, false) }, photoLibrary = true)
     }
     attachments.singleOrNull { it.id == previewId }?.takeIf { previewCurrent() }?.let { attachment ->
         TaskAttachmentPreview(ComposerAttachmentPreviewIdentity(previewPresentation,
@@ -117,8 +122,13 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
         if (canAdd) Box {
             TaskComposerCircle("Add task attachment", R.drawable.ic_task_plus, enabled, onClick = { menu = true })
             DropdownMenu(menu, { menu = false }) {
-                DropdownMenuItem(text = { Text("Photos") }, onClick = { menu = false; pickerOwner = owner; pickerImages = true; picker.launch(arrayOf("image/*")) })
-                DropdownMenuItem(text = { Text("Files") }, onClick = { menu = false; pickerOwner = owner; pickerImages = false; picker.launch(arrayOf("*/*")) })
+                DropdownMenuItem(text = { Text("Photos") }, onClick = {
+                    menu = false; focus.clearFocus(); keyboard?.hide(); pickerOwner = owner
+                    photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                })
+                DropdownMenuItem(text = { Text("Files") }, onClick = {
+                    menu = false; focus.clearFocus(); keyboard?.hide(); pickerOwner = owner; picker.launch(arrayOf("*/*"))
+                })
                 DropdownMenuItem(text = { Text("Paste attachment") }, onClick = {
                     menu = false
                     val action = ComposerClipboardPaste(context, ::current, { enabled && canAdd },
