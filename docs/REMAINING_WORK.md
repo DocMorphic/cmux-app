@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Embedded browser video now supports fullscreen with renderer controls and
+  lifecycle cleanup. **Two Android checks passed together in 21.602 seconds** on
+  the existing Android 17 / 16 KiB AVD, including visible playback, Back, retained
+  draft and no reload through recreation. Screenshots were inspected and the
+  emulator stopped. Actual routed-process/proxy and physical acceptance remain
+  open; see `LOCAL_BROWSER.md`. No signed release was made.
+
 - Real browser-parent recreation with a binary Changes PDF now passes on the
   existing Android 17 / 16 KiB AVD (**one case, 19.344 seconds**). Android relaunch
   events, visible page-two pixels, unchanged request counts, retained artifact/

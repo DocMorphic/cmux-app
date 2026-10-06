@@ -27,6 +27,8 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
     private var stopped = false
     private var failed = false
     private var navigatingUrl: String? = null
+    private val fullscreen = LocalBrowserFullscreen()
+    private var foreground = false
 
     private fun current(view: WebView, ticket: Long) = !released && browser === view && token == ticket && !surface.state.value.closed
     private fun isWeb(url: String?) = url?.let { Uri.parse(it).scheme?.lowercase() in setOf("http", "https") } == true
@@ -66,6 +68,7 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
             }
             override fun onPageStarted(web: WebView, url: String?, favicon: Bitmap?) {
                 if (!current(web, ticket) || stopped || !isWeb(url)) return
+                fullscreen.hide()
                 navigatingUrl = url; failed = false
                 surface.started(ticket); location(web, ticket)
                 if (preparedUrl == url) preparedUrl = null
@@ -103,6 +106,7 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
             }
             override fun onRenderProcessGone(web: WebView, detail: RenderProcessGoneDetail): Boolean {
                 if (!current(web, ticket)) return true
+                fullscreen.hide(notifyPage = false)
                 surface.failed(ticket, "The browser page stopped. Reload to continue.")
                 surface.detach(ticket); cancelFiles(web)
                 browser = null; rendererGone = true; removeView(web); web.destroy()
@@ -116,12 +120,20 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
             override fun onReceivedTitle(web: WebView, title: String?) { if (current(web, ticket)) location(web, ticket) }
             override fun onShowFileChooser(web: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean =
                 current(web, ticket) && chooseFiles(web, params, callback)
+            override fun onShowCustomView(custom: android.view.View, callback: CustomViewCallback) {
+                if (current(view, ticket) && foreground) fullscreen.show(view, custom, callback)
+                else callback.onCustomViewHidden()
+            }
+            override fun onHideCustomView() {
+                if (current(view, ticket)) fullscreen.hide(notifyPage = false)
+            }
             override fun onConsoleMessage(message: ConsoleMessage?) = true
         }
         addView(view, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     private fun navigate(view: WebView, url: String?, action: () -> Unit) {
+        fullscreen.hide()
         navigation?.cancel(); policyRefresh?.cancel()
         // History and reload can also fail before a page-start callback.
         if (isWeb(url)) navigatingUrl = url
@@ -180,7 +192,11 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
             null -> Unit
         }
     }
-    fun foreground(active: Boolean) { browser?.let { if (active) it.onResume() else it.onPause() } }
+    fun foreground(active: Boolean) {
+        foreground = active
+        if (!active) fullscreen.hide()
+        browser?.let { if (active) it.onResume() else it.onPause() }
+    }
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         // The routed Activity retains this view through resize/rotation so drafts and
@@ -192,11 +208,13 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
         this.chooseFiles = chooseFiles; this.cancelFiles = cancelFiles; this.beforeNavigation = beforeNavigation
     }
     fun detachUi() {
+        fullscreen.hide()
         browser?.let(cancelFiles)
         chooseFiles = { _, _, _ -> false }; cancelFiles = {}; beforeNavigation = null
     }
     fun release() {
         if (released) return
+        fullscreen.hide()
         released = true; surface.detach(token)
         scope.cancel()
         browser?.let { view ->

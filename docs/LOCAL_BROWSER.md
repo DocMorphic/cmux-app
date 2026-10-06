@@ -1,5 +1,46 @@
 # Phone-local browser parity audit
 
+## Embedded web video fullscreen — 2026-10-07
+
+`LocalBrowserWebHost` now implements both WebChromeClient custom-view callbacks.
+Previously it supplied neither, so Android WebView did not advertise fullscreen
+support. The Activity-owned fullscreen window hosts the renderer's video controls,
+hides system bars, keeps the screen awake while open, and restores the page when
+Back dismisses it. Duplicate requests are rejected; navigation, backgrounding,
+UI detach, release and renderer death retire the window. Activity recreation exits
+fullscreen before detaching the retained WebView, preserving its DOM and draft.
+
+Source comparison: official iOS revision
+`186cec79781256867ad4516f0802118738bd2393`,
+`Packages/iOS/CmuxMobileBrowser/Sources/CmuxMobileBrowser/MobileBrowserView.swift`,
+lines 55–88, configures WKWebView with inline media playback enabled. This is a
+scoped embedded-media audit, not evidence of every iOS HTML fullscreen behavior.
+Android's [WebChromeClient contract](https://developer.android.com/reference/android/webkit/WebChromeClient#onShowCustomView(android.view.View,%20android.webkit.WebChromeClient.CustomViewCallback))
+requires custom-view hosting and the corresponding hide callback for fullscreen.
+Global source pins are unchanged.
+
+**Two Android checks passed together in 21.602 seconds** on the existing Android
+17 / 16384-byte-page AVD. The first covers duplicate rejection, callback counts,
+renderer-initiated exit, detachment and idempotent cleanup. The second uses an
+actual HTML video with the existing generated two-track MP4, a real user tap and
+WebView fullscreen rendering. It checks visible gold/blue video pixels, advancing
+playback, Back, exact retained WebView identity, draft preservation and unchanged
+page request counts across Activity recreation. Both screenshots were inspected.
+The latter uses the debug lifecycle Activity with the production browser host and
+owner; separate-process routed browser/proxy and physical Pixel/Mac acceptance
+remain open, as do wider media lifecycle, accessibility and iOS visual comparison.
+
+Debug/test APK assembly passed. Local evidence is in
+`captures/runtime/browser-fullscreen/` (ignored): runner output, screenshots and
+before/after ANR/crash buffers. Those buffers were empty for this boot. Gradle was
+stopped before the emulator boot; the sole AVD was then stopped and reaped.
+No extra AVD or signed release was created; published signed APK remains **616**.
+
+Debug APK SHA-256:
+`2aa667879422d4cbd2c64d6f9ed125c8a9f4689e759accf0384e1b3f3c6b5bc6`.
+Test APK SHA-256:
+`a5170ffee9b60e48e264b5832147acb93bb7462f65e1a3c65cbfcd4bf980060d`.
+
 ## Browser recreation with a binary Changes preview — 2026-10-07
 
 The production routed browser and Changes sheet now have a passing Android
