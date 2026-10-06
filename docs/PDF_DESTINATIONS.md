@@ -191,3 +191,15 @@ curves can have conservative control-point bounds; unbounded shadings use the
 current clip. These approximations need comparison against PDFKit before this
 area can be called full parity. Selection handles/cross-page selection and
 high-zoom quality remain open. No APK, emulator, or signed release is claimed.
+
+## Content-fit runtime acceptance — 2026-10-06
+
+The queued four content-bounds extraction cases and expanded FitB/FitBH/FitBV
+parser case now pass on the existing API37 / 16 KiB AVD. A new visible FitB case
+also passes: the complete graphics rectangle is magnified and centered, survives
+Activity recreation, and retains a working return bookmark. Its screenshot was
+inspected. Existing XYZ/FitR/pinch/scroll and search/copy cases passed in the same
+milestone. See [the combined evidence](PDF_SELECTION.md#combined-content-fit-and-selection-integration--2026-10-06)
+for the 16 distinct passing cases, initial selection-fixture failure, correction,
+APK hashes and remaining acceptance. Complex content bounds, high-zoom quality,
+physical routes and matched iOS visuals remain open.

@@ -13,10 +13,10 @@ import org.junit.Test
 
 class ArtifactPdfTextRuntimeTest {
     /** Original two-page PDF with text plus external and internal annotations. */
-    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false, targetX: Int = 0, targetZoom: Float = 0f, targetDestination: String? = null, targetRotation: Int = 0, filledRectangle: Boolean = false): File {
+    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false, targetX: Int = 0, targetZoom: Float = 0f, targetDestination: String? = null, targetRotation: Int = 0, filledRectangle: Boolean = false, targetText: Boolean = true): File {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val text = listOf("CMUX first needle", "CMUX second needle")
-        val streams = text.mapIndexed { index, value -> "BT /F1 18 Tf 30 340 Td ($value) Tj ET" +
+        val streams = text.mapIndexed { index, value -> (if (index == 0 || targetText) "BT /F1 18 Tf 30 340 Td ($value) Tj ET" else "") +
             if (index == 1 && filledRectangle) " q 0 1 0 rg 150 200 100 200 re f Q"
             else if (index == 1 && targetZoom > 0f) " q 0 1 0 rg $targetX 370 20 30 re f Q" else "" }
         val destination = targetDestination ?: "/XYZ $targetX 400 $targetZoom"
@@ -64,7 +64,13 @@ class ArtifactPdfTextRuntimeTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation(); val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation); val file = fixture()
         val evidence = File(context.getExternalFilesDir(null), "pdf-selection").apply { mkdirs() }
-        fun find(selector: BySelector) = checkNotNull(device.wait(Until.findObject(selector), 10_000)) { selector.toString() }
+        fun find(selector: BySelector): UiObject2 {
+            return device.wait(Until.findObject(selector), 10_000) ?: run {
+                device.takeScreenshot(File(evidence, "failure.png"))
+                device.dumpWindowHierarchy(File(evidence, "failure.xml"))
+                error(selector.toString())
+            }
+        }
         val firstWord = ChangesPdfDocument(file).use { it.selectionText(0).search(0, "CMUX").single().bounds }
         val firstX = (firstWord.first().left + firstWord.last().right) / 2
         val firstY = (firstWord.first().top + firstWord.first().bottom) / 2
@@ -84,9 +90,27 @@ class ArtifactPdfTextRuntimeTest {
             val second = find(By.desc("PDF page 2 of 2")).visibleBounds
             // Handles track the glyph baseline, while the touch target extends below it.
             val targetX = (second.left + end.x * factor + 2).toInt()
-            val targetY = (second.top + end.y * factor + focus.height() / 2).toInt()
-            device.swipe(focus.centerX(), focus.centerY(), targetX, targetY.coerceAtMost(device.displayHeight - 100), 100)
+            val targetY = device.displayHeight - 80
+            val down = android.os.SystemClock.uptimeMillis()
+            fun touch(action: Int, x: Float, y: Float) {
+                val event = android.view.MotionEvent.obtain(down, android.os.SystemClock.uptimeMillis(), action, x, y, 0)
+                event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+                try { check(instrumentation.uiAutomation.injectInputEvent(event, true)) } finally { event.recycle() }
+            }
+            touch(android.view.MotionEvent.ACTION_DOWN, focus.exactCenterX(), focus.exactCenterY())
+            try {
+                repeat(40) { step ->
+                    val progress = (step + 1) / 40f
+                    touch(android.view.MotionEvent.ACTION_MOVE, focus.centerX() + (targetX - focus.centerX()) * progress,
+                        focus.centerY() + (targetY - focus.centerY()) * progress)
+                    android.os.SystemClock.sleep(16)
+                }
+                // Keep the finger at the edge so the second page's selected line scrolls into view.
+                repeat(65) { touch(android.view.MotionEvent.ACTION_MOVE, targetX.toFloat(), targetY.toFloat()); android.os.SystemClock.sleep(16) }
+            } finally { touch(android.view.MotionEvent.ACTION_UP, targetX.toFloat(), targetY.toFloat()) }
             find(By.desc("PDF selection end"))
+            device.takeScreenshot(File(evidence, "before-recreation.png"))
+            device.dumpWindowHierarchy(File(evidence, "before-recreation.xml"))
             scenario.recreate()
             find(By.text("Copy selection")); find(By.desc("PDF selection end"))
             val screenshot = File(evidence, "cross-page-restored.png")
@@ -246,6 +270,46 @@ class ArtifactPdfTextRuntimeTest {
             checkNotNull(device.wait(Until.findObject(By.desc("Back to previous location")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("1 / 2")), 10_000))
             assertFalse(checkNotNull(device.findObject(By.desc("Back to previous location"))).isEnabled)
+        } } finally { file.delete() }
+    }
+    @Test fun contentFitDisplaysGraphicsBoundsAndPreservesHistoryAfterRecreation() {
+        check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
+        val instrumentation = InstrumentationRegistry.getInstrumentation(); val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation)
+        val file = fixture(targetHeight = 600, targetDestination = "/FitB", filledRectangle = true, targetText = false)
+        val evidence = File(context.getExternalFilesDir(null), "pdf-content-fit").apply { mkdirs() }
+        fun follow(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            node.actionList.firstOrNull { it.label?.toString() == "Go to page 2" }?.let { return node.performAction(it.id) }
+            return (0 until node.childCount).any { follow(node.getChild(it)) }
+        }
+        fun await(message: String, condition: () -> Boolean) {
+            val deadline = android.os.SystemClock.uptimeMillis() + 15_000
+            while (!condition()) { check(android.os.SystemClock.uptimeMillis() < deadline) { message }; android.os.SystemClock.sleep(100) }
+        }
+        fun checkPixels(name: String) {
+            await("Content fit did not magnify/center the complete graphics rectangle") {
+                val screenshot = File(evidence, name); device.takeScreenshot(screenshot)
+                val bitmap = android.graphics.BitmapFactory.decodeFile(screenshot.path) ?: return@await false
+                try {
+                    var left = bitmap.width; var right = -1; var top = bitmap.height; var bottom = -1
+                    for (y in 0 until bitmap.height step 3) for (x in 0 until bitmap.width step 3) {
+                        val color = bitmap.getPixel(x, y)
+                        if (android.graphics.Color.green(color) > 230 && android.graphics.Color.red(color) < 30 && android.graphics.Color.blue(color) < 30) {
+                            left = minOf(left, x); right = maxOf(right, x); top = minOf(top, y); bottom = maxOf(bottom, y)
+                        }
+                    }
+                    right - left > 400 && bottom - top > 1000 && kotlin.math.abs((bottom - top).toFloat() / (right - left) - 2f) < .03f &&
+                        kotlin.math.abs((left + right) / 2f - bitmap.width / 2f) < 12f
+                } finally { bitmap.recycle() }
+            }
+        }
+        try { ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
+            .putExtra("path", file.absolutePath).putExtra("route", ChangesPreviewRoute.PDF.name).putExtra("mime", "application/pdf")).use { scenario ->
+            await("Content-fit link unavailable") { follow(instrumentation.uiAutomation.rootInActiveWindow) }
+            checkPixels("content-fit.png"); scenario.recreate(); checkPixels("content-fit-restored.png")
+            checkNotNull(device.wait(Until.findObject(By.desc("Back to previous location")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("1 / 2")), 10_000))
         } } finally { file.delete() }
     }
     @Test fun fitRectangleShowsTheWholeMagnifiedRegion() {

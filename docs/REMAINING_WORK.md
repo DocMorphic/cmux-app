@@ -25,6 +25,18 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined PDF content-fit/selection milestone: **16 distinct Android cases now
+  have passing evidence**. Initial run: 15/16 in 73.434 seconds. The selection
+  fixture expected an offscreen endpoint to remain visible; screenshots retained
+  selection/position. A stronger real edge-hold drag proves autoscroll, recreation,
+  visible highlights and exact two-page clipboard text; it passed in 28.141 seconds.
+  Content-fit pixels/history, four geometry-extraction cases and existing PDF
+  navigation/zoom/search checks passed. One 62-second app/test build, then 17/16-second
+  test-only builds with an unchanged app APK. Screenshots inspected; no recorded
+  crash/ANR markers. Emulator/Gradle stopped, no new AVD or signed promotion.
+  Broad selection/format/UI and physical acceptance remain open. See
+  [PDF_SELECTION.md](PDF_SELECTION.md#combined-content-fit-and-selection-integration--2026-10-06).
+
 - On-page PDF word/range selection now has highlights, draggable handles,
   cross-page ranges, edge scrolling, Copy/Select page/Select all/Clear, accessible
   endpoint actions and saved offsets. Glyph baselines follow crop/rotation.
