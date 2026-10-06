@@ -44,7 +44,7 @@ class SshTerminalInputTest {
                 assertTrue(input.paste(content, direct = false)); input.queue.awaitIdle()
                 assertEquals(1, releases); assertEquals(2, terminal.composer.current.attachments.size)
                 assertEquals("Keep my prompt", terminal.composer.current.text)
-                assertEquals("Provider no longer permits reading", input.message.value)
+                assertEquals(COMPOSER_ATTACHMENT_UNREADABLE, input.message.value)
                 assertTrue(uploads.isEmpty()); assertTrue(terminal.writes.isEmpty())
                 assertTrue(input.submit()); input.queue.awaitIdle()
                 assertEquals(listOf(1, 3), uploads)

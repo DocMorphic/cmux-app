@@ -244,7 +244,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                 canRemove = true, preparing = preparing,
                 beforePreview = { composerFocus.cancel(); dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); keyboard?.hide() })
             Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.Bottom) {
-                if (input.supportsImages) ComposerAttachmentMenu(
+                if (input.supportsImages) ComposerAttachmentMenu(owner = shell,
                     enabled = canInput && !preparing && draft.operation == null,
                     modifier = Modifier.testTag("ssh.shell.attach"),
                     onPhotos = {

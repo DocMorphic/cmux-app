@@ -3064,7 +3064,7 @@ internal fun NativeScreen(
                                         if (images) attachmentPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
                                         else attachmentPicker.launch(arrayOf("*/*"))
                                     }
-                                    ComposerAttachmentMenu(enabled = !preparingAttachments && terminalDraft.operation == null,
+                                    ComposerAttachmentMenu(owner = draftTarget to client, enabled = !preparingAttachments && terminalDraft.operation == null,
                                         onPhotos = { pickAttachment(true) },
                                         onFiles = if (ComposerAttachment.FILE_CAPABILITY in hostCapabilities) ({ pickAttachment(false) }) else null,
                                         onPaste = {

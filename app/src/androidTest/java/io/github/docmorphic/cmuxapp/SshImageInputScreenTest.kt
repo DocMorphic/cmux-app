@@ -93,7 +93,7 @@ class SshImageInputScreenTest {
         val previous = clipboard.primaryClip
         val document = File(photo.parentFile, "menu-document-${UUID.randomUUID()}.txt").apply { writeText("Fixture document") }
         try {
-            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
                 SshShellScreen(terminal, onBack = {})
             } } }
             compose.onNodeWithTag("ssh.shell.composer").performTextInput("Keep this prompt")
@@ -132,7 +132,7 @@ class SshImageInputScreenTest {
     @Test fun dictationStopRefinesDraftAndSendRejectsLateSpeech() {
         val speech = FakeComposerSpeech()
         compose.setContent { CompositionLocalProvider(LocalComposerSpeechService provides speech) {
-            CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
                 SshShellScreen(terminal, onBack = {})
             } }
         } }
@@ -195,7 +195,7 @@ class SshImageInputScreenTest {
         val attachment = ComposerAttachment(name = "sending.png", size = bytes.size, imageFormat = "png")
         terminal.composer.attach(attachment, bytes); terminal.composer.edit("Send this image")
         terminal.release = CompletableDeferred()
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             SshShellScreen(terminal, onBack = {})
         } } }
         compose.onNodeWithTag("ssh.shell.send").performClick()
@@ -227,7 +227,7 @@ class SshImageInputScreenTest {
         val bytes = photo.readBytes()
         val attachment = ComposerAttachment(name = "preview.png", size = bytes.size, imageFormat = "png")
         terminal.composer.attach(attachment, bytes); terminal.composer.edit("Unsent SSH prompt")
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             SshShellScreen(terminal, onBack = {})
         } } }
         compose.onNodeWithContentDescription(attachment.name).performScrollTo().performClick()
@@ -257,7 +257,7 @@ class SshImageInputScreenTest {
 
     @Test fun toolbarImagePasteDisarmsControlAndNeverSendsCaptionsOrEnter() {
         compose.runOnUiThread { terminal.release = CompletableDeferred() }
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             SshShellScreen(terminal, onBack = {})
         } } }
         compose.onNodeWithText("Keyboard").performClick()
@@ -281,7 +281,7 @@ class SshImageInputScreenTest {
     }
 
     @Test fun toolbarComposerImagePastePreservesPromptAndWaitsForSend() {
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             SshShellScreen(terminal, onBack = {})
         } } }
         compose.onNodeWithTag("ssh.shell.composer").performTextInput("Explain λ")
@@ -301,7 +301,7 @@ class SshImageInputScreenTest {
 
     @Test fun zoomFilesAndComposerClearArmedModifiersWithoutSendingInput() {
         var filesOpened = 0
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             SshShellScreen(terminal, onFiles = { filesOpened++ }, onBack = {})
         } } }
         compose.onNodeWithText("Keyboard").performClick()
@@ -326,7 +326,7 @@ class SshImageInputScreenTest {
     @Test fun composerImeImageRetainsDraftAcrossNavigationAndSendsImageBeforeText() {
         val request = AtomicReference<PlatformTextInputMethodRequest?>()
         val visible = mutableStateOf(true)
-        compose.setContent { CaptureComposerInput({ request.set(it) }) { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+        compose.setContent { CaptureComposerInput({ request.set(it) }) { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             if (visible.value) SshShellScreen(terminal, onBack = { visible.value = false })
             else TextButton(onClick = { visible.value = true }) { Text("Return to terminal") }
         } } } }
@@ -373,7 +373,7 @@ class SshImageInputScreenTest {
         try {
             resolver.openOutputStream(uri)!!.use { it.write(photo.readBytes()) }
             resolver.update(uri, android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
-            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) { SshShellScreen(terminal, onBack = {}) } } }
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) { SshShellScreen(terminal, onBack = {}) } } }
             val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
             compose.onNodeWithTag("ssh.shell.attach").performClick()
             compose.onNodeWithText("Photos").performClick()
@@ -406,7 +406,7 @@ class SshImageInputScreenTest {
 
     @Test fun directImeWaitsForUploadBeforeTypingAndRetiresOldKeyboardOnModeChange() {
         compose.runOnUiThread { terminal.release = CompletableDeferred() }
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) { SshShellScreen(terminal, onBack = {}) } } }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) { SshShellScreen(terminal, onBack = {}) } } }
         compose.onNodeWithText("Keyboard").performClick()
         lateinit var connection: android.view.inputmethod.InputConnection
         compose.runOnIdle {

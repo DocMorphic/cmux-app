@@ -25,20 +25,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
-- Native and SSH now share an attachment-source menu. SSH adds explicit Photos
-  and Paste attachment actions; mixed clipboard staging keeps supported images
-  while reporting unsupported files. Native clipboard failures stay local to
-  the composer. SSH admission rejects retired draft bindings and checks the
-  10-item limit before opening another provider. Main/instrumentation compilation
-  passed (35 s); three new and two updated cases join the next combined
-  layout/keyboard milestone. See [COMPOSER_ATTACHMENT_MENU.md](COMPOSER_ATTACHMENT_MENU.md).
-
-- Native/SSH terminal composers now share the iOS-style rounded message field
-  with inline arrow/spinner/failure control, bottom-aligned circular mic and
-  attachment controls, and 14-line growth. Main and instrumentation compilation
-  passed (36 s). Two layout/status cases and affected rich-paste/dictation checks
-  are queued for the next combined milestone; no new APK or runtime claim.
-  See [TERMINAL_COMPOSER_LAYOUT.md](TERMINAL_COMPOSER_LAYOUT.md).
+- Combined composer layout/menu milestone: **12/12 initial Android cases passed**;
+  after review corrections **5/5 focused cases passed**, totaling **14 distinct
+  passing cases**, plus **six provider/ownership JVM cases**. Native/SSH inline
+  Send, multiline cap, IME/rich paste, retry, real photo picker and local provider
+  error behavior were checked. Menu ownership now closes stale popups on terminal
+  replacement; provider I/O/access errors no longer display raw paths. Screenshots
+  inspected; no crash/ANR markers. DEX: 3,511 methods, largest 13,156 code units,
+  none rejected. Existing AVD and Gradle stopped. Physical acceptance and the
+  broader completion gates above remain open. See [the milestone](TERMINAL_COMPOSER_LAYOUT.md#combined-layoutmenu-integration--2026-10-06)
+  and [attachment menu](COMPOSER_ATTACHMENT_MENU.md).
 
 - Combined preview/dictation/media milestone: **all ten distinct queued Android
   cases now have passing evidence** across the initial and focused follow-up

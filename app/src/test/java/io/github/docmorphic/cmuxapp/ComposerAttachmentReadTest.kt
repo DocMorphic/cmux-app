@@ -17,7 +17,19 @@ class ComposerAttachmentReadTest {
             staged += item
         }
         assertEquals(listOf("existing", "first", "last"), staged)
-        assertEquals(listOf("File permission expired"), errors)
+        assertEquals(listOf(COMPOSER_ATTACHMENT_UNREADABLE), errors)
+    }
+
+    @Test fun providerDetailsAreHiddenButActionableLimitsArePreserved() = runBlocking {
+        val reports = mutableListOf<String>()
+        val failures = listOf(
+            java.io.FileNotFoundException("/data/user/0/private/cache/secret-name.txt: ENOENT"),
+            SecurityException("Permission denied for content://private-provider/account-123"),
+            IllegalArgumentException("Choose a file smaller than 32 MiB"))
+        failures.forEach { failure -> assertNull(readComposerAttachment({}, reports::add) { throw failure }) }
+        assertEquals(listOf(COMPOSER_ATTACHMENT_UNREADABLE,
+            "Access to this attachment was denied. Select or copy it again to grant access.",
+            "Choose a file smaller than 32 MiB"), reports)
     }
 
     @Test fun retiredOwnerRejectsBothLateSuccessAndLateProviderFailure() = runBlocking {

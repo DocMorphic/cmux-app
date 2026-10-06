@@ -1,6 +1,7 @@
 # Terminal attachment-source menu
 
-Implemented 2026-10-06; runtime cases remain queued with the composer layout batch.
+Implemented 2026-10-06; emulator integration is recorded in
+[the layout/menu milestone](TERMINAL_COMPOSER_LAYOUT.md#combined-layoutmenu-integration--2026-10-06).
 
 ## Scoped comparison
 
@@ -44,7 +45,7 @@ matching Photos/File preparation. A failed or unsupported item does not replace
 terminal output with the global reconnect state or discard later readable items.
 The send/upload paths and account/target admission checks remain authoritative.
 
-## Queued runtime evidence
+## Cases prepared for the combined milestone
 
 New cases:
 
@@ -61,8 +62,14 @@ Updated cases:
   the terminal remains displayed with the unchanged prompt and no upload.
 
 Main and instrumentation compilation passed (35 s). Results are in `captures/runtime/composer-attachment-menu/compile.log`.
-No Android runtime, new APK, emulator or physical Pixel evidence is claimed for
-this batch. These checks join the pending shared-field and keyboard/paste cases
-at the next combined milestone. Standalone SSH general files, physical provider
+At the feature commit no APK or runtime check had run. The subsequent combined
+milestone above now records passing Android evidence for these five cases.
+Physical Pixel acceptance remains open. Standalone SSH general files, physical provider
 and permission behavior, large-font/TalkBack/menu positioning, real media playback
 and the broader parity gates remain open.
+
+Integration corrections explicitly key menu expansion to terminal/connection
+ownership, so replacement at the same composition location closes the old popup.
+Provider I/O and access-denied errors now avoid displaying raw paths or URIs.
+App validation messages remain actionable; cancellation and retired-owner failures
+still propagate instead of becoming ordinary unreadable-item messages.

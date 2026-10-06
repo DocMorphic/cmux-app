@@ -12,9 +12,9 @@ import androidx.compose.ui.unit.dp
 
 /** Available sources follow this composer's transport; merely opening the menu reads no clipboard. */
 @Composable
-internal fun ComposerAttachmentMenu(enabled: Boolean, onPhotos: () -> Unit, onPaste: () -> Unit,
+internal fun ComposerAttachmentMenu(owner: Any?, enabled: Boolean, onPhotos: () -> Unit, onPaste: () -> Unit,
     modifier: Modifier = Modifier, onFiles: (() -> Unit)? = null) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember(owner) { mutableStateOf(false) }
     LaunchedEffect(enabled) { if (!enabled) expanded = false }
     Box {
         ComposerIconButton(onClick = { expanded = true }, enabled = enabled,

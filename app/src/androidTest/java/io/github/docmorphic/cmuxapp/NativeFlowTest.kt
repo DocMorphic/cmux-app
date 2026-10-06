@@ -598,11 +598,16 @@ class NativeFlowTest {
                     compose.onNodeWithContentDescription("Add attachment").performClick()
                     compose.onNodeWithText("Paste attachment").performClick()
                     compose.waitUntil(15_000) { repo.drafts.state.value[target]?.attachments?.size == 4 }
+                    compose.onNodeWithText(COMPOSER_ATTACHMENT_UNREADABLE).assertExists()
                     compose.onNodeWithTag("native-terminal").assertIsDisplayed()
                     compose.onNodeWithTag("native.composer").assertTextContains("Review these media")
                     compose.onNodeWithText("Reconnect").assertDoesNotExist()
                     assertTrue(peer.requests.none { it.optString("method") in listOf("terminal.paste", "terminal.paste_image", "mobile.task.attachment.upload") })
                 } finally { compose.runOnIdle { if (previous != null) clipboard.setPrimaryClip(previous) else clipboard.clearPrimaryClip() } }
+                // Android's copied-content overlay can cover the composer after a synthetic
+                // clipboard import. Wait for that actual system UI to leave before capture.
+                androidx.test.uiautomator.UiDevice.getInstance(instrumentation).wait(
+                    androidx.test.uiautomator.Until.gone(androidx.test.uiautomator.By.text("Copied")), 8_000)
                 screenshot("native-media-library-staged")
             } finally { instrumentation.removeMonitor(monitor) }
         }

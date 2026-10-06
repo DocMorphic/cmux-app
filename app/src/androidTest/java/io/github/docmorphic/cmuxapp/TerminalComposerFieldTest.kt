@@ -16,6 +16,27 @@ import org.junit.Test
 class TerminalComposerFieldTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
+    @Test fun attachmentMenuClosesWhenTerminalOwnerChangesOrActionsBecomeUnavailable() {
+        var owner by mutableStateOf(Any())
+        var available by mutableStateOf(true)
+        var photos = 0
+        var pastes = 0
+        compose.setContent { CmuxTheme { Surface {
+            ComposerAttachmentMenu(owner, available, { photos++ }, { pastes++ })
+        } } }
+        compose.onNodeWithContentDescription("Add attachment").performClick()
+        compose.onNodeWithText("Photos").assertExists()
+        compose.runOnIdle { owner = Any() }
+        compose.onNodeWithText("Photos").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Add attachment").performClick()
+        compose.onNodeWithText("Photos").performClick()
+        compose.runOnIdle { assertEquals(1, photos); assertEquals(0, pastes) }
+        compose.onNodeWithContentDescription("Add attachment").performClick()
+        compose.runOnIdle { available = false }
+        compose.onNodeWithText("Paste attachment").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Add attachment").assertIsNotEnabled()
+    }
+
     @Test fun multilineFieldGrowsToFourteenLinesAndSendStaysInsideAtBottom() {
         var text by mutableStateOf("One line")
         compose.setContent { CmuxTheme { Surface {
