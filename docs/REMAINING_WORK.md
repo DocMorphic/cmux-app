@@ -26,12 +26,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud composer text now uses the shared encrypted draft repository, partitioned
+  by login/user/team/machine/terminal. Sends persist a pending marker before input
+  and wait for native transport admission before clearing the submitted revision.
+  Interrupted delivery retains text with an unconfirmed warning and never replays
+  automatically. **35 JVM checks passed**; Android test compilation passed. The
+  renderer fixture and real encrypted-storage/process recovery remain unrun.
+  Continue Cloud onboarding/source audit and physical acceptance.
+
 - Cloud now uses the bounded per-workspace last-tab store and a destination-only
   Android saved-activity checkpoint. Restoration waits for a fresh catalog, honors
   account/hidden-machine ownership and yields to explicit navigation. Removed
   terminals fall back safely; only the active Cloud view regains input admission.
   **53 JVM checks passed**, main/Android test sources compile. Real Android process
-  restoration and persisted composer drafts remain open. See `CLOUD_COMPANION.md`.
+  restoration remains open; persisted composer implementation is recorded above.
+  See `CLOUD_COMPANION.md`.
 
 - Cloud visibility now persists separately per user/team and is controlled in
   Computers. Hidden hosts leave navigation/create menus while remaining available

@@ -22,6 +22,7 @@ class CloudTerminalScreenTest {
         private val counter = AtomicLong()
         private val events = ConcurrentHashMap<Long, Channel<CloudTerminalOutput>>()
         val input = CopyOnWriteArrayList<Pair<Long, String>>()
+        var beforeSend: (String) -> Unit = {}
         @Volatile var live = 0L
         override fun attach(terminal: String): Long {
             val token = counter.incrementAndGet()
@@ -33,7 +34,8 @@ class CloudTerminalScreenTest {
         override fun detach(attachment: Long) { if (live == attachment) live = 0 }
         override fun send(attachment: Long, bytes: ByteArray): Boolean {
             if (live != attachment) return false
-            input += attachment to bytes.toString(Charsets.UTF_8); return true
+            val text = bytes.toString(Charsets.UTF_8)
+            beforeSend(text); input += attachment to text; return true
         }
         override fun resize(attachment: Long, columns: Int, rows: Int) = if (live == attachment) 1L else 0L
         override suspend fun output(attachment: Long) = events.getValue(attachment).receive()
@@ -46,9 +48,20 @@ class CloudTerminalScreenTest {
             listOf(CloudTerminalSummary("term_a", "First", "ws_a"), CloudTerminalSummary("term_b", "Second", "ws_a")))
         val snapshot = CloudWorkspaceSnapshot(machine, catalog, NativeFeedAvailability.CONNECTED, true)
         val row = snapshot.rows.single()
+        val drafts = TerminalDrafts()
+        val saved = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        val draftOwner = NativeTeamScope("fixture-login", "fixture-user", "fixture-team", 1)
+        link.beforeSend = { text ->
+            val persisted = org.json.JSONArray(checkNotNull(saved.get()) { "Input preceded draft persistence" })
+            check((0 until persisted.length()).any { index ->
+                val draft = persisted.getJSONObject(index)
+                draft.getBoolean("delivery_unconfirmed") && text.contains(draft.getString("text")) && draft.getString("text").isNotEmpty()
+            }) { "No pending draft was persisted before sending" }
+        }
         lateinit var first: CloudRenderedTerminal
         compose.runOnUiThread {
-            host = CloudTerminalHost(lifetime, machine.id, { true }, { link }).also {
+            host = CloudTerminalHost(lifetime, machine.id, { true }, { link },
+                SshComposerPool(drafts, { cloudDraftTarget(draftOwner, machine.id, it) }, { saved.set(drafts.saved().toString()) })).also {
                 it.reconcile(snapshot, true, true)
                 first = it.select(row.workspace, row.workspace.terminals.first())
             }

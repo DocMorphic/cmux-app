@@ -111,6 +111,8 @@ internal class SshTerminalInput(
             composer.finish(submitted, if (completed) null else TerminalDrafts.DELIVERY_UNCONFIRMED)
         }) {
             try {
+                guard()
+                composer.persistPending(submitted)
                 for (attachment in submitted.attachments) {
                     guard()
                     if (!composer.contains(submitted, attachment)) continue
@@ -121,11 +123,11 @@ internal class SshTerminalInput(
                 }
                 guard()
                 // Images-only sends never execute a shell command.
-                if (submitted.text.isNotEmpty()) check(terminal.send(
+                if (submitted.text.isNotEmpty()) check(terminal.submitText(
                     TerminalKeyEncoding.paste(submitted.text, terminal.display.bracketedPaste) + "\r"))
                 completed = true
             } catch (error: Exception) {
-                if (error !is CancellationException) report(error)
+                if (error !is CancellationException) failure.value = "Could not send the draft. Check the terminal before sending again."
                 throw error
             }
         }

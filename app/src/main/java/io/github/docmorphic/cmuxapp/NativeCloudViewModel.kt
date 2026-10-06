@@ -16,6 +16,7 @@ import java.io.File
 internal class NativeCloudViewModel(context: Context, account: NativeAccount,
     private val store: NativeCredentialStore, private val teams: NativeAccountTeams,
     private val savedState: SavedStateHandle = SavedStateHandle()) : ViewModel() {
+    private val draftRepository = TerminalDraftRepository.get(context.applicationContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutable = MutableStateFlow<CloudMachinesController?>(null)
     val controller = mutable.asStateFlow()
@@ -165,9 +166,10 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         val snapshot = mutableWorkspaces.value?.state?.value?.get(row.machine.id) ?: return
         val current = snapshot.rows.singleOrNull { it.key == row.key } ?: return
         val host = hosts.getOrPut(row.machine.id) {
-            CloudTerminalHost(scope, row.machine.id, { teams.isCurrent(owner) }) {
+            CloudTerminalHost(scope, row.machine.id, { teams.isCurrent(owner) }, {
                 NativeCloudTerminalLink(checkNotNull(connection(row.machine.id)) { "Cloud tunnel is reconnecting" }.awaitSession())
-            }
+            }, SshComposerPool(draftRepository.drafts, { terminal -> cloudDraftTarget(owner, row.machine.id, terminal) },
+                draftRepository::persistNow, { teams.isCurrent(owner) }))
         }
         mutableRoute.value?.host?.takeUnless { it === host }?.let { previous ->
             previous.reconcile(mutableWorkspaces.value?.state?.value?.get(previous.machineId), false, false)

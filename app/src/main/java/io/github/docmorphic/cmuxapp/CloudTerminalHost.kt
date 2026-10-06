@@ -6,10 +6,10 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /** One per machine for the account lifetime: all views share its native slot. */
 internal class CloudTerminalHost(parent: CoroutineScope, val machineId: String,
-    private val current: () -> Boolean, connect: suspend () -> CloudTerminalLink) : AutoCloseable {
+    private val current: () -> Boolean, connect: suspend () -> CloudTerminalLink,
+    private val drafts: SshComposerPool = SshComposerPool()) : AutoCloseable {
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
-    private val drafts = SshComposerPool()
     private val mutable = MutableStateFlow<CloudRenderedTerminal?>(null)
     val selected = mutable.asStateFlow()
     private var closed = false
@@ -107,6 +107,8 @@ internal class CloudRenderedTerminal(private var terminal: NativeTerminal, val r
     override fun send(text: String, paste: Boolean) = sendBytes((if (paste)
         TerminalKeyEncoding.paste(text, display.bracketedPaste) else text).toByteArray(Charsets.UTF_8))
     override fun sendBytes(bytes: ByteArray) = !closed && current() && attachment.state.value.terminalId == remoteId && attachment.send(bytes)
+    override suspend fun submitText(text: String): Boolean = !closed && current() &&
+        attachment.state.value.terminalId == remoteId && attachment.sendAndAwait(text.toByteArray(Charsets.UTF_8))
     override fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics) {
         if (closed) return
         cellWidth = cells.widthPx.toInt().coerceIn(1, 4096); cellHeight = cells.heightPx.toInt().coerceIn(1, 4096)

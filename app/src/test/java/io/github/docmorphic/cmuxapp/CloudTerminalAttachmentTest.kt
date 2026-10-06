@@ -38,6 +38,43 @@ class CloudTerminalAttachmentTest {
             check(streams.getValue(token).trySend(CloudTerminalOutput(kind, text.toByteArray(), cols, rows)).isSuccess)
         }
     }
+    @Test fun composerReceiptWaitsForNativeAdmissionAndRejectsFailedTransport() = runTest {
+        val link = Link(); val ready = CompletableDeferred<CloudTerminalLink>()
+        val owner = CloudTerminalAttachment(this, { true }, { ready.await() }, { _, _ -> }, StandardTestDispatcher(testScheduler))
+        try {
+            owner.select("term_a"); owner.setAvailable(true)
+            val sending = async { owner.sendAndAwait("draft\r".toByteArray()) }; runCurrent()
+            assertFalse(sending.isCompleted); assertEquals(6, owner.state.value.pendingBytes)
+            ready.complete(link); runCurrent(); assertTrue(sending.await())
+            link.acceptsInput = false
+            val refused = async { owner.sendAndAwait("retain\r".toByteArray()) }; runCurrent()
+            assertFalse(refused.await()); assertEquals(CloudAttachmentPhase.FAILED, owner.state.value.phase)
+        } finally { owner.close(); runCurrent() }
+    }
+    @Test fun timedOutOrCancelledComposerInputIsRemovedBeforeAConnectionCanSendIt() = runTest {
+        val link = Link()
+        val owner = CloudTerminalAttachment(this, { true }, { link }, { _, _ -> }, StandardTestDispatcher(testScheduler))
+        try {
+            owner.select("term_a")
+            val timed = async { owner.sendAndAwait("timeout".toByteArray()) }; runCurrent()
+            advanceTimeBy(30_001); runCurrent(); assertFalse(timed.await()); assertEquals(0, owner.state.value.pendingBytes)
+            val canceled = async { owner.sendAndAwait("canceled".toByteArray()) }; runCurrent()
+            canceled.cancelAndJoin(); assertEquals(0, owner.state.value.pendingBytes)
+            owner.setAvailable(true); runCurrent()
+            assertFalse(link.calls.any { it.startsWith("input:") })
+        } finally { owner.close(); runCurrent() }
+    }
+    @Test fun replacingSelectionCompletesAllInlineReceiptsWithoutReentrantQueueMutation() = runTest {
+        val owner = CloudTerminalAttachment(this, { true }, { Link() }, { _, _ -> }, StandardTestDispatcher(testScheduler))
+        try {
+            owner.select("old")
+            val first = async(UnconfinedTestDispatcher(testScheduler)) { owner.sendAndAwait("first".toByteArray()) }
+            val second = async(UnconfinedTestDispatcher(testScheduler)) { owner.sendAndAwait("second".toByteArray()) }
+            owner.select("new")
+            assertFalse(first.await()); assertFalse(second.await()); assertEquals(0, owner.state.value.pendingBytes)
+        } finally { owner.close(); runCurrent() }
+    }
+
     @Test fun holdsEarlyInputAndViewportThenDeliversOutputInOrder() = runTest {
         val link = Link(); val ready = CompletableDeferred<CloudTerminalLink>(); val output = mutableListOf<String>()
         val owner = CloudTerminalAttachment(this, { true }, { ready.await() }, { terminal, event ->

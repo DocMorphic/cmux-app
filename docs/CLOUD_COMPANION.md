@@ -815,3 +815,38 @@ seconds**, including DEX generation and native receipt gates. Debug APK ZIP
 alignment passes at 16 KiB. SHA-256:
 `22f312ea16bb32fdaf207d5929e131257427bc4e2c107e6f76ba559339d58fc6`.
 No runtime installation, emulator or signed release promotion occurred.
+
+
+### Persistent Cloud composer text and native send receipts — 2026-10-06
+
+The scoped iOS `MobileShellComposite.swift` serializes draft writes and preserves
+newer typing when an earlier send finishes. Android Cloud now binds its common
+composer to `TerminalDraftRepository`, using the existing encrypted credential
+store. Targets isolate production origin, login, user, team, machine and terminal;
+a team generation change alone does not change the key. Host/view teardown retains
+text. Confirmed terminal removal discards its binding; logout invalidates old
+bindings through the repository generation. Cloud currently accepts text drafts;
+this does not add Cloud image transfer.
+
+Composer submission persists a pending-delivery marker before any bytes leave the
+ordered input queue. A failed write prevents transmission. The Cloud attachment
+returns a receipt only after the native send accepts those bytes. This establishes
+native transport admission, **not remote command execution**. Failed, interrupted
+or uncertain delivery retains text with an unconfirmed warning; recovery never
+resubmits automatically. New typing survives completion of an older submission.
+Cancelled/timed-out queued input is removed before a later connection can send it.
+Keyboard input retains its existing immediate queue behavior.
+
+Verification: **35 JVM checks passed in four suites**, with zero failures, errors
+or skips. Main and instrumentation compilation passed; the final instrumentation
+compile took two seconds. Checks cover draft scope/reload, pending markers, failed
+storage, owner retirement, global clear, native rejection and cancelled/timed-out
+queues. The common-renderer Android fixture additionally checks that pending text
+was journaled before native submission; it compiles but has **not run**. Evidence:
+`captures/runtime/cloud-composer-drafts/`.
+
+ADB reports no device. Actual encrypted Android storage, activity/process recovery,
+live Cloud delivery and the renderer fixture remain physical/runtime acceptance
+gates. No emulator, APK rebuild, signed release or live Cloud action was performed
+for this batch. The four latest native checkpoint CI runs are green; the latest is
+[37454996751](https://github.com/DocMorphic/cmux-app/actions/runs/37454996751).

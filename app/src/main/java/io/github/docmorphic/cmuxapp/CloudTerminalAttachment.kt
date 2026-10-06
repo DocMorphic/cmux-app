@@ -51,7 +51,8 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
     private var repaint: Job? = null
     private var grid: Pair<Int, Int>? = null
     private var appliedGrid: Pair<Int, Int>? = null
-    private val pending = ArrayDeque<ByteArray>()
+    private data class Input(val bytes: ByteArray, val receipt: CompletableDeferred<Boolean>? = null)
+    private val pending = ArrayDeque<Input>()
     private var pendingBytes = 0
     init { job.invokeOnCompletion { close() } }
     private fun allowed() = !closed && job.isActive && isCurrent()
@@ -81,14 +82,28 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
             (worker?.isActive == true && mutable.value.phase == CloudAttachmentPhase.CONNECTING)) return@synchronized
         startLocked()
     }
-    fun send(bytes: ByteArray): Boolean = synchronized(lock) {
+    fun send(bytes: ByteArray): Boolean = enqueue(bytes)
+    private fun enqueue(bytes: ByteArray, receipt: CompletableDeferred<Boolean>? = null): Boolean = synchronized(lock) {
         val limit = if (mutable.value.phase == CloudAttachmentPhase.READY) LIVE_INPUT_LIMIT else INPUT_LIMIT
         if (!allowed() || mutable.value.terminalId == null || mutable.value.phase in setOf(CloudAttachmentPhase.FAILED, CloudAttachmentPhase.EXITED) ||
             bytes.size > limit - pendingBytes || pending.size >= 256) return@synchronized false
-        if (bytes.isEmpty()) return@synchronized true
-        pending.addLast(bytes.copyOf()); pendingBytes += bytes.size
+        if (bytes.isEmpty()) { receipt?.complete(true); return@synchronized true }
+        pending.addLast(Input(bytes.copyOf(), receipt)); pendingBytes += bytes.size
         mutable.value = mutable.value.copy(pendingBytes = pendingBytes)
         signal?.trySend(Unit); true
+    }
+    /** True acknowledges native transport admission, not remote command execution. */
+    suspend fun sendAndAwait(bytes: ByteArray): Boolean {
+        val receipt = CompletableDeferred<Boolean>()
+        if (!enqueue(bytes, receipt)) return false
+        return try { withTimeoutOrNull(30_000) { receipt.await() } ?: false }
+        finally { synchronized(lock) {
+            pending.firstOrNull { it.receipt === receipt }?.let { input ->
+                pending.remove(input); pendingBytes -= input.bytes.size; input.bytes.fill(0)
+                mutable.value = mutable.value.copy(pendingBytes = pendingBytes)
+            }
+            receipt.complete(false)
+        } }
     }
     fun resize(columns: Int, rows: Int) = synchronized(lock) {
         if (!allowed() || mutable.value.terminalId == null) return@synchronized
@@ -100,7 +115,11 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
         generation++; worker?.cancel(); worker = null
         signal?.close(); signal = null; repaint?.cancel(); repaint = null
     }
-    private fun clearPending() { pending.forEach { it.fill(0) }; pending.clear(); pendingBytes = 0 }
+    private fun clearPending() {
+        // Completion can resume an unconfined waiter inline; detach the queue first.
+        val abandoned = pending.toList(); pending.clear(); pendingBytes = 0
+        abandoned.forEach { it.bytes.fill(0); it.receipt?.complete(false) }
+    }
     private fun startLocked() {
         cancelLocked()
         val at = generation
@@ -136,13 +155,15 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
                                 }
                                 while (true) {
                                     ensureActive(); requireAttempt(at)
-                                    val bytes = synchronized(lock) {
+                                    val input = synchronized(lock) {
                                         if (!admitted(at)) null else pending.removeFirstOrNull()?.also {
-                                            pendingBytes -= it.size; mutable.value = mutable.value.copy(pendingBytes = pendingBytes)
+                                            pendingBytes -= it.bytes.size; mutable.value = mutable.value.copy(pendingBytes = pendingBytes)
                                         }
                                     } ?: break
-                                    try { check(live.send(token, bytes)) { "Cloud terminal input was rejected. Input was not replayed." } }
-                                    finally { bytes.fill(0) }
+                                    try {
+                                        check(live.send(token, input.bytes)) { "Cloud terminal input was rejected. Input was not replayed." }
+                                        synchronized(lock) { input.receipt?.complete(admitted(at)) }
+                                    } finally { input.receipt?.complete(false); input.bytes.fill(0) }
                                 }
                             }
                         }

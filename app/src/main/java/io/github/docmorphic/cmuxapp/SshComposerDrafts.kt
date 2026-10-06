@@ -3,11 +3,15 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Account-owned, bounded in-memory drafts, like the iOS pending-image store.
+/** Account-owned composer bindings with transient images or an injected persistent text store.
  * Renderers may come and go; providers prune bindings when live topology proves removal.
- * A disconnected transport does not discard a persistent terminal draft. Payloads never enter saved instance state. */
-internal class SshComposerPool : AutoCloseable {
-    private val drafts = TerminalDrafts()
+ * Closing a persistent pool retains text. Image payloads never enter saved instance state. */
+internal class SshComposerPool(
+    private val drafts: TerminalDrafts = TerminalDrafts(),
+    private val targetFor: (String) -> TerminalDrafts.Target = { TerminalDrafts.Target("ssh", "ssh", it) },
+    private val persist: (suspend () -> Unit)? = null,
+    private val currentOwner: () -> Boolean = { true }
+) : AutoCloseable {
     private val payloads = mutableMapOf<String, ByteArray>()
     private val bindings = mutableMapOf<String, Draft>()
     private var closed = false
@@ -15,7 +19,7 @@ internal class SshComposerPool : AutoCloseable {
 
     @Synchronized fun open(id: String, route: Any? = null): Draft {
         check(!closed) { "SSH account ended" }
-        if (bindings[id]?.route != route) bindings[id]?.close()
+        if (bindings[id]?.route != route || bindings[id]?.isActive() == false) bindings[id]?.close()
         return bindings.getOrPut(id) { Draft(id, route) }
     }
 
@@ -26,16 +30,18 @@ internal class SshComposerPool : AutoCloseable {
 
     inner class Draft internal constructor(private val id: String, internal val route: Any?) : AutoCloseable {
         val previewBinding = java.util.UUID.randomUUID().toString()
-        val target = TerminalDrafts.Target("ssh", "ssh", id)
+        val target = targetFor(id)
+        private val generation = drafts.generation
         val state get() = this@SshComposerPool.state
         val current get() = state.value[target] ?: TerminalDrafts.Draft()
-        private fun valid() = !closed && bindings[id] === this
+        private fun valid() = !closed && currentOwner() && drafts.generation == generation && bindings[id] === this
         private fun guard() { check(valid()) { "SSH draft retired" } }
         fun edit(text: String): Boolean = synchronized(this@SshComposerPool) {
             if (!valid()) false else { drafts.edit(target, text); true }
         }
         fun attach(attachment: ComposerAttachment, bytes: ByteArray) = synchronized(this@SshComposerPool) {
             guard()
+            check(persist == null) { "This persistent composer accepts text only" }
             require(attachment.imageFormat in listOf("png", "jpg") && attachment.size == bytes.size)
             require(attachment.id !in payloads) { "Image already staged" }
             drafts.attach(target, attachment, drafts.generation)
@@ -71,19 +77,33 @@ internal class SshComposerPool : AutoCloseable {
                 }
             }
         }
+        /** Journal pending delivery before any bytes leave the composer. */
+        suspend fun persistPending(send: TerminalDrafts.Send) {
+            if (persist == null) return
+            synchronized(this@SshComposerPool) { guard(); check(current.operation == send.operation && send.target == target) }
+            persist.invoke()
+            synchronized(this@SshComposerPool) { guard(); check(current.operation == send.operation && send.target == target) }
+        }
+        internal fun interruptPending() {
+            if (drafts.generation != generation) return
+            val draft = current
+            draft.operation?.let { operation -> drafts.finish(TerminalDrafts.Send(target, draft.text, draft.revision, operation, draft.attachments),
+                TerminalDrafts.DELIVERY_UNCONFIRMED) }
+        }
         fun begin(): TerminalDrafts.Send? = synchronized(this@SshComposerPool) { if (valid()) drafts.begin(target) else null }
         fun contains(send: TerminalDrafts.Send, attachment: ComposerAttachment) = synchronized(this@SshComposerPool) {
-            !closed && bindings[id] === this && drafts.contains(send, attachment)
+            valid() && drafts.contains(send, attachment)
         }
         fun accepted(send: TerminalDrafts.Send, attachment: ComposerAttachment) = synchronized(this@SshComposerPool) {
             if (contains(send, attachment)) remove(attachment.id)
         }
         fun finish(send: TerminalDrafts.Send, error: String? = null) = synchronized(this@SshComposerPool) {
-            if (!closed && bindings[id] === this) drafts.finish(send, error)
+            if (valid()) drafts.finish(send, error)
         }
         override fun close() = synchronized(this@SshComposerPool) {
             if (bindings[id] === this) {
-                drafts.discard(target); bindings.remove(id); retainPayloads()
+                if (drafts.generation == generation) drafts.discard(target)
+                bindings.remove(id); retainPayloads()
             }
         }
     }
@@ -94,6 +114,7 @@ internal class SshComposerPool : AutoCloseable {
 
     @Synchronized override fun close() {
         closed = true; payloads.values.forEach { it.fill(0) }; payloads.clear()
-        bindings.clear(); drafts.clear()
+        if (persist == null) drafts.clear() else bindings.values.forEach { it.interruptPending() }
+        bindings.clear()
     }
 }
