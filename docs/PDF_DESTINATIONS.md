@@ -241,3 +241,29 @@ Visible sharpness, overlay alignment through pinch/pan/history/recreation, peak
 memory and real Pixel/Mac acceptance remain for the next combined viewer run.
 No APK or emulator was created; Gradle was stopped. Local evidence:
 `captures/runtime/pdf-detail-regions/verification.json` and compile/test log.
+
+## Detail-rendering integration — 2026-10-06
+
+**Four Android cases passed in 18.481 seconds** on the sole existing API37 /
+16 KiB emulator: crop/rotation glyph pixels, oversized/closed/cancelled requests
+with renderer reuse, visible detail before/after Activity recreation, and XYZ
+destination position/zoom/history before/after recreation.
+
+The new screen-pixel fixture displays fine vertical lines at 4× document zoom.
+Its visible red-channel standard deviation was 98.468 versus 82.388 for an
+independently magnified strip from the fitted preview, both before and after
+recreation; the 419×419-pixel frame also checks placement and scale. This exceeds
+the fixture's 10% contrast-improvement threshold. Four screenshots were inspected.
+These are synthetic contrast/geometry checks, not a general image-quality score.
+
+The initial combined build failed in the new test's Canvas overload; replacing
+that test-only call with a matrix draw corrected compilation. The final combined
+APK build passed in 39 seconds. No production repair was needed. Debug APK SHA-256:
+`a9ea39b7768a84981b881ea3a78985225ce1c9a1f56dedb6d225c13f3d95f36c`;
+test APK: `5a6f1f9fa0490cc7bd46e26b096801b7caef610cb4c2585085daa67bd23928fa`.
+No crash/ANR markers were found in the captured logs. Gradle was stopped before
+the emulator run; the emulator was then stopped and reaped. No new AVD or signed
+release was created. Local evidence: `captures/runtime/pdf-detail-integration/`.
+
+Broad pinch/pan/overlay alignment, peak memory, large-font/accessibility, complex
+PDFs and physical Pixel/Mac acceptance remain open.

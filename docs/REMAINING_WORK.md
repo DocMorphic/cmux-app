@@ -25,13 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
-- Zoomed PDFs now render a bounded detail image of the visible page region over
-  the fitted preview, with snapped/overscanned requests, cancellation checks and
-  preserved selection/search overlays. **Six JVM checks passed** and Kotlin
-  main/instrumentation compilation passed. Two native pixel/lifecycle cases are
-  queued; visible sharpness, pinch/pan alignment, memory and physical acceptance
-  remain open. No new APK/emulator. See
-  [PDF_DESTINATIONS.md](PDF_DESTINATIONS.md#visible-area-detail-rendering--source-checkpoint-2026-10-06).
+- Zoomed PDF detail integration now passes **four Android checks in 18.481
+  seconds**: crop/rotation pixels, cancellation/renderer reuse, visible fine-line
+  contrast after magnification/recreation, and XYZ navigation/history. Four
+  screenshots inspected; no recorded crash/ANR markers. The final combined APK
+  build passed in 39 seconds after a test-only Canvas overload correction.
+  Emulator stopped/reaped; no new AVD or signed promotion. Broad pinch/pan,
+  overlay alignment, memory and physical acceptance remain open. See
+  [PDF_DESTINATIONS.md](PDF_DESTINATIONS.md#detail-rendering-integration--2026-10-06).
 
 - The PDF floating-menu integration now passes **three Android checks in 63.572
   seconds**: unchanged viewport/visible native actions, Select all across

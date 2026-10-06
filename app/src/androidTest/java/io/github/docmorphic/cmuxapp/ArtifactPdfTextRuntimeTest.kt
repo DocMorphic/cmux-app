@@ -13,11 +13,15 @@ import org.junit.Test
 
 class ArtifactPdfTextRuntimeTest {
     /** Original two-page PDF with text plus external and internal annotations. */
-    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false, targetX: Int = 0, targetZoom: Float = 0f, targetDestination: String? = null, targetRotation: Int = 0, filledRectangle: Boolean = false, targetText: Boolean = true): File {
+    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false, targetX: Int = 0, targetZoom: Float = 0f, targetDestination: String? = null, targetRotation: Int = 0, filledRectangle: Boolean = false, targetText: Boolean = true, detailPattern: Boolean = false): File {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val text = listOf("CMUX first needle", "CMUX second needle")
         val streams = text.mapIndexed { index, value -> (if (index == 0 || targetText) "BT /F1 18 Tf 30 340 Td ($value) Tj ET" else "") +
-            if (index == 1 && filledRectangle) " q 0 1 0 rg 150 200 100 200 re f Q"
+            if (index == 1 && detailPattern) buildString {
+                append(" q 0 0 1 rg 150 350 40 40 re f 1 1 1 rg 151 351 38 38 re f 0 0 0 rg")
+                repeat(95) { append(" %.2f 352 0.2 36 re f".format(java.util.Locale.US, 151.0 + it * .4)) }
+                append(" Q")
+            } else if (index == 1 && filledRectangle) " q 0 1 0 rg 150 200 100 200 re f Q"
             else if (index == 1 && targetZoom > 0f) " q 0 1 0 rg $targetX 370 20 30 re f Q" else "" }
         val destination = targetDestination ?: "/XYZ $targetX 400 $targetZoom"
         val objects = listOf(
@@ -98,6 +102,69 @@ class ArtifactPdfTextRuntimeTest {
             pdf.close()
             assertThrows(IllegalStateException::class.java) { pdf.renderRegion(0, region) }
         } finally { pdf.close(); file.delete() }
+    }
+    @Test fun zoomedViewerShowsMoreDetailThanTheFittedPreviewAfterRecreation() {
+        check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
+        val instrumentation = InstrumentationRegistry.getInstrumentation(); val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation)
+        val file = fixture(targetHeight = 600, targetX = 150, targetZoom = 4f, detailPattern = true)
+        val evidence = File(context.getExternalFilesDir(null), "pdf-detail").apply { mkdirs() }
+        val preview = ChangesPdfDocument(file).use { it.render(1, device.displayWidth * 2) }
+        fun follow(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            node.actionList.firstOrNull { it.label?.toString() == "Go to page 2" }?.let { return node.performAction(it.id) }
+            return (0 until node.childCount).any { follow(node.getChild(it)) }
+        }
+        fun await(message: String, condition: () -> Boolean) {
+            val until = android.os.SystemClock.uptimeMillis() + 15_000
+            while (!condition()) { check(android.os.SystemClock.uptimeMillis() < until) { message }; android.os.SystemClock.sleep(150) }
+        }
+        fun deviation(values: List<Int>): Double {
+            val mean = values.average()
+            return kotlin.math.sqrt(values.sumOf { (it - mean) * (it - mean) } / values.size)
+        }
+        fun checkDetail(name: String) {
+            await("Visible PDF detail did not improve on the magnified fitted preview") {
+                val screenshot = File(evidence, "$name.png"); device.takeScreenshot(screenshot)
+                val actual = android.graphics.BitmapFactory.decodeFile(screenshot.path) ?: return@await false
+                try {
+                    var left = actual.width; var right = -1; var top = actual.height; var bottom = -1
+                    for (y in 0 until actual.height step 2) for (x in 0 until actual.width step 2) {
+                        val color = actual.getPixel(x, y)
+                        if (android.graphics.Color.blue(color) > 230 && android.graphics.Color.red(color) < 30 && android.graphics.Color.green(color) < 30) {
+                            left = minOf(left, x); right = maxOf(right, x); top = minOf(top, y); bottom = maxOf(bottom, y)
+                        }
+                    }
+                    val expected = 40 * 4 * context.resources.displayMetrics.density
+                    if (left > 20 || kotlin.math.abs(right - left - expected) > 15 || kotlin.math.abs(bottom - top - expected) > 15) return@await false
+                    val scale = (right - left + 1) / 40f; val inset = ((right - left + 1) * .1f).toInt()
+                    val start = left + inset; val end = right - inset; val count = end - start + 1
+                    val sample = android.graphics.Bitmap.createBitmap(count, 1, android.graphics.Bitmap.Config.ARGB_8888)
+                    try {
+                        // Independently magnify only a thin strip of the old fitted raster, without allocating a full zoomed page.
+                        val previewScale = preview.width / 300f
+                        val source = android.graphics.RectF((150 + inset / scale) * previewScale, (230 - .5f / scale) * previewScale,
+                            (150 + (inset + count) / scale) * previewScale, (230 + .5f / scale) * previewScale)
+                        val matrix = android.graphics.Matrix().apply {
+                            setRectToRect(source, android.graphics.RectF(0f, 0f, count.toFloat(), 1f), android.graphics.Matrix.ScaleToFit.FILL)
+                        }
+                        android.graphics.Canvas(sample).drawBitmap(preview, matrix, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                        val baseline = deviation((0 until count).map { android.graphics.Color.red(sample.getPixel(it, 0)) })
+                        val visible = deviation((start..end).map { android.graphics.Color.red(actual.getPixel(it, (top + bottom) / 2)) })
+                        File(evidence, "$name.json").writeText(org.json.JSONObject().put("fittedPreviewDeviation", baseline)
+                            .put("visibleDeviation", visible).put("patternWidth", right - left + 1).put("patternHeight", bottom - top + 1).toString())
+                        baseline > 10 && visible > baseline * 1.1
+                    } finally { sample.recycle() }
+                } finally { actual.recycle() }
+            }
+        }
+        try { ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
+            .putExtra("path", file.absolutePath).putExtra("route", ChangesPreviewRoute.PDF.name).putExtra("mime", "application/pdf")).use { scenario ->
+            await("No internal link action") { follow(instrumentation.uiAutomation.rootInActiveWindow) }
+            checkDetail("magnified"); scenario.recreate(); checkDetail("restored")
+            checkNotNull(device.wait(Until.findObject(By.desc("Back to previous location")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text("1 / 2")), 10_000))
+        } } finally { preview.recycle(); file.delete() }
     }
     @Test fun draggedPdfSelectionSpansPagesAndSurvivesRecreationBeforeCopy() {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
