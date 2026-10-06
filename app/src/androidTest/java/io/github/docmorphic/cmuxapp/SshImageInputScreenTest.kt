@@ -88,6 +88,47 @@ class SshImageInputScreenTest {
         }
     }
 
+    @Test fun attachmentMenuConsumesOnlyImagesAndNeverExecutesClipboardText() {
+        val clipboard = compose.activity.getSystemService(ClipboardManager::class.java)
+        val previous = clipboard.primaryClip
+        val document = File(photo.parentFile, "menu-document-${UUID.randomUUID()}.txt").apply { writeText("Fixture document") }
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+                SshShellScreen(terminal, onBack = {})
+            } } }
+            compose.onNodeWithTag("ssh.shell.composer").performTextInput("Keep this prompt")
+            compose.runOnIdle { clipboard.setPrimaryClip(ClipData.newPlainText("Fixture", "never execute this")) }
+            compose.onNodeWithTag("ssh.shell.attach").performClick()
+            compose.onNodeWithText("Photos").assertExists()
+            compose.onNodeWithText("Files").assertDoesNotExist()
+            compose.onNodeWithText("Paste attachment").performClick()
+            compose.onNodeWithText("No copied photos or files. Paste text into the composer.").assertExists()
+            compose.runOnIdle {
+                assertEquals("Keep this prompt", terminal.composer.current.text)
+                assertTrue(terminal.writes.isEmpty()); assertTrue(terminal.images.isEmpty())
+                val documentUri = FileProvider.getUriForFile(compose.activity, "${compose.activity.packageName}.task-previews", document)
+                clipboard.setPrimaryClip(ClipData("Mixed content", arrayOf("text/uri-list", "image/png"),
+                    ClipData.Item(documentUri)).apply {
+                    addItem(ClipData.Item("ignored caption", null, null, image().contentUri))
+                })
+            }
+            compose.onNodeWithTag("ssh.shell.attach").performClick()
+            compose.onNodeWithText("Paste attachment").performClick()
+            compose.waitUntil(10_000) { terminal.composer.current.attachments.size == 1 }
+            compose.onNodeWithText("This SSH composer accepts images only. Add documents using Files.").assertExists()
+            compose.onNodeWithTag("ssh.shell.composer").assertTextContains("Keep this prompt")
+            compose.onNodeWithTag("ssh.shell.terminal").assertIsDisplayed()
+            capture("ssh-attachment-menu-mixed-paste")
+            compose.runOnIdle { assertTrue(terminal.writes.isEmpty()); assertTrue(terminal.images.isEmpty()) }
+            compose.onNodeWithTag("ssh.shell.send").performClick()
+            compose.waitUntil(10_000) { terminal.writes.size == 2 }
+            compose.runOnIdle { assertEquals(listOf("'/fixture/image.png' ", "Keep this prompt\r"), terminal.writes.map { it.decodeToString() }) }
+        } finally {
+            compose.runOnIdle { previous?.let(clipboard::setPrimaryClip) ?: clipboard.clearPrimaryClip() }
+            document.delete()
+        }
+    }
+
     @Test fun dictationStopRefinesDraftAndSendRejectsLateSpeech() {
         val speech = FakeComposerSpeech()
         compose.setContent { CompositionLocalProvider(LocalComposerSpeechService provides speech) {
@@ -335,11 +376,13 @@ class SshImageInputScreenTest {
             compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) { SshShellScreen(terminal, onBack = {}) } } }
             val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
             compose.onNodeWithTag("ssh.shell.attach").performClick()
+            compose.onNodeWithText("Photos").performClick()
             checkNotNull(device.wait(androidx.test.uiautomator.Until.findObject(androidx.test.uiautomator.By.descContains("Photo taken")), 10_000))
             device.pressBack()
             compose.onNodeWithTag("ssh.shell.attach").assertIsDisplayed()
             compose.runOnIdle { assertTrue(terminal.composer.current.attachments.isEmpty()); assertTrue(terminal.images.isEmpty()) }
             compose.onNodeWithTag("ssh.shell.attach").performClick()
+            compose.onNodeWithText("Photos").performClick()
             checkNotNull(device.wait(androidx.test.uiautomator.Until.findObject(androidx.test.uiautomator.By.descContains("Photo taken")), 10_000)).click()
             checkNotNull(device.wait(androidx.test.uiautomator.Until.findObject(
                 androidx.test.uiautomator.By.pkg(java.util.regex.Pattern.compile("com\\.(google\\.)?android\\.(photopicker|providers\\.media\\.module)"))

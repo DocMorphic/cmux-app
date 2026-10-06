@@ -25,7 +25,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.IntSize
@@ -245,14 +244,21 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                 canRemove = true, preparing = preparing,
                 beforePreview = { composerFocus.cancel(); dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); keyboard?.hide() })
             Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.Bottom) {
-                if (input.supportsImages) ComposerIconButton(onClick = {
-                    composerFocus.cancel(); dictation.cancel(); motion.stop(); focusManager.clearFocus(); keyboard?.hide()
-                    pickerTarget = shell; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
+                if (input.supportsImages) ComposerAttachmentMenu(
                     enabled = canInput && !preparing && draft.operation == null,
-                    modifier = Modifier.testTag("ssh.shell.attach").semantics { contentDescription = "Attach image" }) {
-                    Icon(painterResource(R.drawable.ic_composer_attachment), null, Modifier.size(20.dp))
-                }
+                    modifier = Modifier.testTag("ssh.shell.attach"),
+                    onPhotos = {
+                        composerFocus.cancel(); dictation.cancel(); motion.stop(); focusManager.clearFocus(); keyboard?.hide()
+                        message = null
+                        pickerTarget = shell; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }, onPaste = {
+                        message = null
+                        val paste = ComposerClipboardPaste(context,
+                            current = { !direct && composer.isActive() },
+                            enabled = { available && !preparing && draft.operation == null },
+                            receive = { dictation.cancel(); input.paste(it, direct = false) }, report = { message = it })
+                        if (!paste.paste()) message = "No copied photos or files. Paste text into the composer."
+                    })
                 ComposerDictationButton(dictation, enabled = canInput && !preparing && draft.operation == null,
                     beforeStart = { composerFocus.cancel(); motion.stop(); focusManager.clearFocus(); keyboard?.hide() })
                 RichContentEditor(owner = shell, enabled = !dictationState.locksField && canInput && input.supportsImages && draft.operation == null,

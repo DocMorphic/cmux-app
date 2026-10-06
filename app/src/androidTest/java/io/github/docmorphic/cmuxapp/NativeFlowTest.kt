@@ -592,6 +592,16 @@ class NativeFlowTest {
                     compose.onNodeWithText("No copied photos or files. Paste text into the composer.").assertExists()
                     assertEquals("Review these media", repo.drafts.state.value.getValue(target).text)
                     assertTrue(peer.requests.none { it.optString("method") in listOf("terminal.paste", "terminal.input") })
+                    // A subsequent unreadable clipboard item must leave the live grid visible
+                    // and still stage the readable video/image that follow it.
+                    compose.runOnIdle { clipboard.setPrimaryClip(checkNotNull(media.result().clipData)) }
+                    compose.onNodeWithContentDescription("Add attachment").performClick()
+                    compose.onNodeWithText("Paste attachment").performClick()
+                    compose.waitUntil(15_000) { repo.drafts.state.value[target]?.attachments?.size == 4 }
+                    compose.onNodeWithTag("native-terminal").assertIsDisplayed()
+                    compose.onNodeWithTag("native.composer").assertTextContains("Review these media")
+                    compose.onNodeWithText("Reconnect").assertDoesNotExist()
+                    assertTrue(peer.requests.none { it.optString("method") in listOf("terminal.paste", "terminal.paste_image", "mobile.task.attachment.upload") })
                 } finally { compose.runOnIdle { if (previous != null) clipboard.setPrimaryClip(previous) else clipboard.clearPrimaryClip() } }
                 screenshot("native-media-library-staged")
             } finally { instrumentation.removeMonitor(monitor) }

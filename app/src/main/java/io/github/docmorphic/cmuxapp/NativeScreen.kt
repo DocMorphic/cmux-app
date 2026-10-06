@@ -1177,7 +1177,7 @@ internal fun NativeScreen(
                     if (accepted) content.close()
                     return accepted
                 }
-                if (items.any { it is TerminalPasteContent.Item.Attachment && !it.image } &&
+                if (directTyping && items.any { it is TerminalPasteContent.Item.Attachment && !it.image } &&
                     ComposerAttachment.FILE_CAPABILITY !in hostCapabilities) {
                     error = "Update cmux on your Mac to paste files"
                     return false
@@ -1216,6 +1216,7 @@ internal fun NativeScreen(
                     return accepted
                 }
                 // Composer paste uses the same encrypted storage and captured target as picked attachments.
+                composerAttachmentError = null
                 preparingAttachments = true
                 scope.launch {
                     try {
@@ -1224,7 +1225,10 @@ internal fun NativeScreen(
                             when (item) {
                                 is TerminalPasteContent.Item.Text -> drafts.edit(target, (drafts.state.value[target]?.text ?: "") + item.value)
                                 is TerminalPasteContent.Item.Attachment -> {
-                                    val prepared = readComposerAttachment(::checkTarget, { error = it }) {
+                                    val prepared = readComposerAttachment(::checkTarget, { composerAttachmentError = it }) {
+                                        require(item.image || ComposerAttachment.FILE_CAPABILITY in hostCapabilities) {
+                                            "Update cmux on your Mac to paste files"
+                                        }
                                         attachmentFiles.prepare(item.uri, item.image)
                                     } ?: continue
                                     checkTarget()
@@ -1234,7 +1238,7 @@ internal fun NativeScreen(
                         }
                     } catch (failure: Exception) {
                         if (failure is CancellationException) throw failure
-                        error = failure.message ?: "Could not open the pasted attachment"
+                        composerAttachmentError = failure.message ?: "Could not open the pasted attachment"
                     } finally { preparingAttachments = false }
                 }.invokeOnCompletion { content.close() }
                 return true
@@ -3054,33 +3058,23 @@ internal fun NativeScreen(
                                     beforePreview = ::leaveComposerInput) }
                             key(draftTarget) {
                                 Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.Bottom) {
-                                    Box {
-                                        ComposerIconButton(onClick = { attachmentMenu = true },
-                                            enabled = !preparingAttachments && terminalDraft.operation == null,
-                                            modifier = Modifier.semantics { contentDescription = "Add attachment" }) {
-                                            Icon(painterResource(R.drawable.ic_composer_attachment), null, Modifier.size(20.dp))
-                                        }
-                                        DropdownMenu(attachmentMenu, onDismissRequest = { attachmentMenu = false }) {
-                                            fun pick(images: Boolean) {
-                                                attachmentMenu = false
-                                                leaveComposerInput()
-                                                pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerLogin = store.taskSession()
-                                                if (images) attachmentPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
-                                                else attachmentPicker.launch(arrayOf("*/*"))
-                                            }
-                                            DropdownMenuItem(text = { Text("Photos") }, onClick = { pick(true) })
-                                            DropdownMenuItem(text = { Text("Files") }, onClick = { pick(false) },
-                                                enabled = ComposerAttachment.FILE_CAPABILITY in hostCapabilities)
-                                            DropdownMenuItem(text = { Text("Paste attachment") }, onClick = {
-                                                attachmentMenu = false
-                                                val paste = ComposerClipboardPaste(context,
-                                                    current = { signedIn && !directTyping && draftTarget != null },
-                                                    enabled = { terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments },
-                                                    receive = ::acceptTerminalPaste, report = { composerAttachmentError = it })
-                                                if (!paste.paste()) composerAttachmentError = "No copied photos or files. Paste text into the composer."
-                                            })
-                                        }
+                                    fun pickAttachment(images: Boolean) {
+                                        leaveComposerInput()
+                                        pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerLogin = store.taskSession()
+                                        if (images) attachmentPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                                        else attachmentPicker.launch(arrayOf("*/*"))
                                     }
+                                    ComposerAttachmentMenu(enabled = !preparingAttachments && terminalDraft.operation == null,
+                                        onPhotos = { pickAttachment(true) },
+                                        onFiles = if (ComposerAttachment.FILE_CAPABILITY in hostCapabilities) ({ pickAttachment(false) }) else null,
+                                        onPaste = {
+                                            composerAttachmentError = null
+                                            val paste = ComposerClipboardPaste(context,
+                                                current = { signedIn && !directTyping && draftTarget != null },
+                                                enabled = { terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments },
+                                                receive = ::acceptTerminalPaste, report = { composerAttachmentError = it })
+                                            if (!paste.paste()) composerAttachmentError = "No copied photos or files. Paste text into the composer."
+                                        })
                                     ComposerDictationButton(dictation,
                                         enabled = terminalAttached && connectionReady && terminalDraft.operation == null && !preparingAttachments,
                                         beforeStart = { composerFocus.cancel(); stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide() })

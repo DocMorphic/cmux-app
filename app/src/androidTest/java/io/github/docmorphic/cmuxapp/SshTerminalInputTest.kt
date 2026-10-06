@@ -53,6 +53,51 @@ class SshTerminalInputTest {
         }
     }
 
+    @Test fun composerSkipsUnsupportedFilesWithoutOpeningThemButDirectPasteRejectsWholeBatch() = runBlocking {
+        withContext(Dispatchers.Main) {
+            val pool = SshComposerPool(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            val terminal = Terminal(pool) { _, _ -> "/image.png" }
+            val opened = mutableListOf<String>(); var released = 0
+            val input = SshTerminalInput(terminal, terminal.composer, scope, { true }) { uri ->
+                opened += uri.lastPathSegment!!; prepared()
+            }
+            fun mixed() = TerminalPasteContent(listOf(
+                TerminalPasteContent.Item.Attachment(Uri.parse("content://fixture/private.pdf"), false),
+                TerminalPasteContent.Item.Attachment(Uri.parse("content://fixture/readable.png"), true)
+            )) { released++ }
+            try {
+                assertFalse(input.paste(mixed(), direct = true))
+                assertTrue(opened.isEmpty()); assertTrue(terminal.writes.isEmpty()); assertEquals(1, released)
+                assertTrue(input.paste(mixed(), direct = false)); input.queue.awaitIdle()
+                assertEquals(listOf("readable.png"), opened)
+                assertEquals(1, terminal.composer.current.attachments.size); assertEquals(2, released)
+                assertNull(input.queue.status.value.error); assertTrue(terminal.writes.isEmpty())
+                assertEquals("This SSH composer accepts images only. Add documents using Files.", input.message.value)
+                pool.close()
+                assertFalse(input.paste(content { released++ }, direct = false))
+                assertEquals(3, released); assertEquals(listOf("readable.png"), opened)
+                assertFalse(input.send("retired account")); assertTrue(terminal.writes.isEmpty())
+            } finally { input.close(); terminal.close(); pool.close(); scope.cancel() }
+        }
+    }
+
+    @Test fun fullDraftRejectsNextImageBeforeOpeningItsProvider() = runBlocking {
+        withContext(Dispatchers.Main) {
+            val pool = SshComposerPool(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            val terminal = Terminal(pool) { _, _ -> "/image.png" }
+            var opened = 0; var released = 0
+            val input = SshTerminalInput(terminal, terminal.composer, scope, { true }) { opened++; prepared() }
+            try {
+                repeat(10) { val image = prepared(it); terminal.composer.attach(image.attachment, image.bytes) }
+                assertTrue(input.paste(content { released++ }, direct = false)); input.queue.awaitIdle()
+                assertEquals(0, opened); assertEquals(1, released)
+                assertEquals(10, terminal.composer.current.attachments.size)
+                assertEquals("Each terminal can hold up to 10 attachments", input.message.value)
+                assertNull(input.queue.status.value.error); assertTrue(terminal.writes.isEmpty())
+            } finally { input.close(); terminal.close(); pool.close(); scope.cancel() }
+        }
+    }
+
     @Test fun imageReservesPreparationAndUploadBeforeTextAndBinaryMouseThenReleasesGrant() = runBlocking {
         withContext(Dispatchers.Main) {
             val pool = SshComposerPool(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)

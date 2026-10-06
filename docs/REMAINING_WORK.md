@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native and SSH now share an attachment-source menu. SSH adds explicit Photos
+  and Paste attachment actions; mixed clipboard staging keeps supported images
+  while reporting unsupported files. Native clipboard failures stay local to
+  the composer. SSH admission rejects retired draft bindings and checks the
+  10-item limit before opening another provider. Main/instrumentation compilation
+  passed (35 s); three new and two updated cases join the next combined
+  layout/keyboard milestone. See [COMPOSER_ATTACHMENT_MENU.md](COMPOSER_ATTACHMENT_MENU.md).
+
 - Native/SSH terminal composers now share the iOS-style rounded message field
   with inline arrow/spinner/failure control, bottom-aligned circular mic and
   attachment controls, and 14-line growth. Main and instrumentation compilation

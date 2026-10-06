@@ -25,7 +25,7 @@ internal class SshTerminalInput(
         guard()
         check(entry.rawBytes?.let(terminal::sendBytes) ?: terminal.send(entry.text, entry.paste))
     }
-    private fun allowed() = !closed && current() && terminal.state.value.phase == SshShellPhase.RUNNING
+    private fun allowed() = !closed && current() && composer.isActive() && terminal.state.value.phase == SshShellPhase.RUNNING
     private fun guard() { check(allowed()) { "The paste target changed. Paste again in the intended terminal." } }
     private fun report(error: Exception) {
         failure.value = when (error) {
@@ -41,7 +41,7 @@ internal class SshTerminalInput(
      * after reserving its place in the lane, including picker/composer staging. */
     fun paste(content: TerminalPasteContent, direct: Boolean): Boolean {
         if (!allowed() || content.items.size !in 1..10 || content.items.any {
-                it is TerminalPasteContent.Item.Attachment && (!it.image || !supportsImages)
+                it is TerminalPasteContent.Item.Attachment && (!supportsImages || (direct && !it.image))
             }) {
             content.close()
             failure.value = when {
@@ -63,6 +63,13 @@ internal class SshTerminalInput(
                         is TerminalPasteContent.Item.Text -> if (direct) check(terminal.send(item.value, paste = true))
                             else composer.edit(composer.current.text + item.value)
                         is TerminalPasteContent.Item.Attachment -> {
+                            if (!item.image) {
+                                failure.value = "This SSH composer accepts images only. Add documents using Files."
+                                continue
+                            }
+                            // Recheck the current draft before opening a provider. Earlier queued
+                            // staging may have consumed the remaining slots since the UI frame.
+                            if (!direct) require(composer.current.attachments.size < 10) { "Each terminal can hold up to 10 attachments" }
                             val prepared = if (direct) prepare(item.uri) else
                                 readComposerAttachment(::guard, { failure.value = it }) { prepare(item.uri) } ?: continue
                             try {
