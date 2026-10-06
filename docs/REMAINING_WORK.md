@@ -25,6 +25,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Shared sizing now sends a stable per-install phone UUID across viewport,
+  replay, counts and reattach, following newer iOS device-priority identity.
+  Names are bounded/sanitized; the UUID is stored outside backups and persists
+  independently of login. **19 focused JVM checks passed**, main compilation
+  passed (36 seconds); no APK/device run. Physical priority/upgrade acceptance
+  remains. See `TERMINAL_SHARED_SIZING.md`.
+
+- Next upstream audit: the newer cached source adds Cloud/external-host packages
+  and shell routing. `MobileCloudTabContent.swift` at `c2715faa` is configured by
+  the composition root and omitted when no service is configured. Determine the
+  official app's actual configuration and exposed flows before reconciling this
+  area; package presence alone does not prove a shipped feature. Android has no
+  matching Cloud machine implementation yet. This belongs to the broad delta
+  audit and is not covered by the terminal identity/toolbar ports.
+
 - Composer Send now requires explicit `submitted: true` before clearing its draft.
   A refused, absent or malformed submit acknowledgment preserves text/files and
   never retries automatically; Insert without Enter retains its existing behavior.

@@ -54,7 +54,7 @@ class TerminalSizingControlsTest {
     @Test fun wirePreservesViewportGenerationNullOverrideAndCapturedParticipantIds() = runBlocking<Unit> {
         val wire = Wire()
         MobileRpcClient(wire, { "fixture" }).use { client ->
-            client.connect(); client.terminalDeviceName = "Pixel 6a"
+            client.connect(); client.terminalDeviceIdentity = TerminalDeviceIdentity("Pixel 6a", "f2f98081-af0d-4dbe-a590-aad4d516f450")
             val viewport = TerminalViewport(67, 47)
             suspend fun change(action: TerminalSizingAction) = client.changeTerminalSizing("workspace", "surface", action, viewport, 19) { true }
             change(TerminalSizingAction.Counts(false)); change(TerminalSizingAction.Counts(null))
@@ -64,6 +64,7 @@ class TerminalSizingControlsTest {
             assertFalse(params[0].getBoolean("counts_override")); assertTrue(params[1].has("counts_override")); assertTrue(params[1].isNull("counts_override"))
             assertEquals(19, params[0].getInt("viewport_generation")); assertEquals(67, params[0].getInt("viewport_columns"))
             assertEquals("unknown", params[0].getString("device_kind")); assertEquals("Pixel 6a", params[0].getString("device_name"))
+            assertEquals("f2f98081-af0d-4dbe-a590-aad4d516f450", params[0].getString("device_id"))
             assertEquals("priority", params[2].getJSONObject("policy").getString("mode"))
             assertEquals(listOf("mac", "browser"), params.drop(3).map { it.getString("participant_id") })
             assertEquals(1, params.map { it.getString("client_id") }.distinct().size)

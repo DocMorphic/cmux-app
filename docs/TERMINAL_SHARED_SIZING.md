@@ -1,5 +1,29 @@
 # Shared terminal sizing and explicit detach
 
+## Stable phone identity — 2026-10-06
+
+Scoped comparison with cmux `c2715faa02c260b07012bc0b386597cfb333021d`:
+`MobileTerminalDeviceIdentity.swift` adds a stable vendor ID for distinct device
+priority keys; `MobileShellComposite+TerminalSizing.swift` includes it on reattach.
+Android now supplies a random per-install UUID with viewport, replay, counts
+override and reattach requests after negotiating shared sizing. It does not use
+hardware/advertising identifiers or the connection's participant/client ID.
+The UUID is atomically stored under `noBackupFilesDir`, survives sign-out/updates,
+and is excluded from backup/transfer. Failed storage omits the optional ID rather
+than transmitting an unpersisted replacement. Names collapse whitespace/control
+characters, cap at 64 Unicode code points and fall back to Android. Android still
+uses upstream's `unknown` device kind; upstream iPhone/iPad-specific policy
+exclusions are not silently treated as Android behavior.
+
+**19 focused JVM checks passed**: installation store/name handling (4), sizing
+session/wire (9), sizing controls (6), zero failures/errors/skips. Coverage includes
+concurrent creation, reopening, separate installations, corrupt/unwritable paths,
+identity omission, and the same UUID on viewport/replay/reattach/counts requests.
+Main compilation passed in the same 36-second invocation. Evidence is under
+`captures/runtime/terminal-device-identity/`. No APK/device run or signed promotion;
+physical two-phone priority, logout/upgrade retention and matched iOS UI remain
+for integration acceptance. Global upstream pin unchanged.
+
 **Current delivery (2026-10-03):** signed build 411 at `28265f8` includes the
 implementation checkpoints below. Full CI, independent APK signature/assets/16 KB
 alignment checks and an emulator 397 → 411 upgrade passed. Physical Mac/Pixel

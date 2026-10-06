@@ -217,7 +217,8 @@ class NativeTerminalSizingSessionTest {
             client.connect()
             client.reportViewport("workspace", surface, TerminalViewport(67, 47), 1)
             assertFalse(wire.received.last().getJSONObject("params").has("device_kind"))
-            client.terminalDeviceName = "Pixel 6a"
+            assertFalse(wire.received.last().getJSONObject("params").has("device_id"))
+            client.terminalDeviceIdentity = TerminalDeviceIdentity("Pixel 6a", "f2f98081-af0d-4dbe-a590-aad4d516f450")
             client.reportViewport("workspace", surface, TerminalViewport(67, 47), 2)
             client.replay("workspace", surface, 67, 47, 2)
             client.reattachTerminal("workspace", surface, true, TerminalViewport(67, 47))
@@ -225,8 +226,13 @@ class NativeTerminalSizingSessionTest {
                 val params = it.getJSONObject("params")
                 assertEquals("unknown", params.getString("device_kind"))
                 assertEquals("Pixel 6a", params.getString("device_name"))
+                assertEquals("f2f98081-af0d-4dbe-a590-aad4d516f450", params.getString("device_id"))
                 assertFalse(params.has("counts_override"))
             }
+            client.terminalDeviceIdentity = TerminalDeviceIdentity("Pixel 6a")
+            client.reportViewport("workspace", surface, TerminalViewport(67, 47), 3)
+            assertEquals("Pixel 6a", wire.received.last().getJSONObject("params").getString("device_name"))
+            assertFalse(wire.received.last().getJSONObject("params").has("device_id"))
         }
     }
 

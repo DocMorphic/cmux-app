@@ -1925,7 +1925,11 @@ internal fun NativeScreen(
                                 val sizingStream = terminalSizing.bind(owner, active)
                                 if (TerminalSizingTraffic.CAPABILITY in capabilities) {
                                     // Upstream has no Android enum; use its truthful unknown kind and actual model name.
-                                    active.terminalDeviceName = android.os.Build.MODEL
+                                    active.terminalDeviceIdentity = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                        TerminalDeviceIdentity(android.os.Build.MODEL, runCatching {
+                                            TerminalDeviceIdentityStore(context.applicationContext.noBackupFilesDir).loadOrCreate()
+                                        }.getOrNull())
+                                    }
                                     try { active.subscribe(TerminalSizingTraffic.topics, sizingStream) }
                                     catch (failure: Throwable) { terminalSizing.unbind(active); throw failure }
                                 }

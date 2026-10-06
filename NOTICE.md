@@ -474,3 +474,11 @@ Packages/iOS/CmuxMobileRPC, cmux revision
 c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android retains its existing draft ownership, queue and no-automatic-retry rules.
+
+TerminalDeviceIdentity.kt and shared terminal RPC identity fields adapt name
+sanitization and stable device-priority identity from MobileTerminalDeviceIdentity.swift
+(CmuxMobileShellModel) and MobileShellComposite+TerminalSizing.swift, cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses a random installation UUID stored outside backups and retains the
+upstream unknown device kind rather than claiming an Apple device identity.

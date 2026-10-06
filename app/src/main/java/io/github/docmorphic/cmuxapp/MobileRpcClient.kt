@@ -55,13 +55,16 @@ class MobileRpcClient internal constructor(
     private suspend fun terminalOperation(operation: TerminalInputOperation): JSONObject =
         terminalInputDispatcher?.invoke(operation) ?: operation.rpc(this, null)
 
-    @Volatile internal var terminalDeviceName: String? = null
+    @Volatile internal var terminalDeviceIdentity: TerminalDeviceIdentity? = null
     @Volatile private var hostAccountMutations = false
     internal fun macMutationTicket() = attachTicket?.macMutationTicket()
     internal fun allowsMacWorkspaceMutations(nowMillis: Long = System.currentTimeMillis()) =
         hostAccountMutations || attachTicket?.allowsMacWorkspaceMutations(false, nowMillis) == true
     private fun JSONObject.withTerminalDevice(): JSONObject = apply {
-        terminalDeviceName?.let { put("device_kind", "unknown"); put("device_name", it) }
+        terminalDeviceIdentity?.let {
+            put("device_kind", "unknown"); put("device_name", it.name)
+            it.deviceId?.let { id -> put("device_id", id) }
+        }
     }
     @Volatile internal var terminalTrafficAllowed: (String) -> Boolean = { true }
     internal fun checkTerminalTraffic(surface: String) {
