@@ -25,6 +25,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native Settings now exposes push consent/readiness, per-Mac pairing progress,
+  QR/paste offer review, endpoint/fingerprint confirmation with expiry, cancellation
+  and retry. Account/token/key changes fence stale confirmation. **25 JVM checks
+  passed**; main/instrumentation sources compile, with three new Compose cases
+  awaiting execution. No APK/emulator run. The iOS status/toggle/repair structure
+  was checked at the scoped reference in the linked evidence. Firebase/host
+  provisioning, automatic renewal/revocation, Mac forwarding/privacy/test controls,
+  UI/worker runtime acceptance and real Pixel delivery remain open. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#push-settings-and-offer-confirmation--2026-10-06).
+
 - Android now persists initial helper enrollment before network writes, retries
   the same request/proof after lost responses, and commits a verified receipt with
   its helper pin. Startup/resume/boot recovery and a WorkManager worker are wired.

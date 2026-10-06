@@ -2606,6 +2606,8 @@ internal fun NativeScreen(
                         }, enabled = signedIn && code.isNotBlank(),
                             modifier = Modifier.semantics { contentDescription = "Background notifications" })
                     }
+                    PhonePushSettings(teamState.scope, accountTeams::isCurrent,
+                        onEnableBackground = { enableNotifications(false) }, onConnect = ::presentComputers)
                     NativeNotificationSettings()
                     }, preferences = {
                     if (whatsNewState?.archive?.isNotEmpty() == true) TextButton(onClick = { showWhatsNew = true },

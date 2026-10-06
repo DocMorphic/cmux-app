@@ -49,14 +49,18 @@ internal object PhoneFcmTokens {
             runCatching { PhoneFcmProject(project, it.applicationId, sender) }.getOrNull()
         }
 
-    /** Future helper-enrollment UI calls this only after explaining and accepting cloud push. */
-    fun authorize(context: Context): PhoneFcmTokenGrant {
+    /** Helper-enrollment UI calls this only after explaining and accepting cloud push. */
+    fun authorize(context: Context, expectedLogin: String, permits: () -> Boolean): PhoneFcmTokenGrant {
         val credentials = NativeCredentialStore(context)
-        val project = checkNotNull(installed(context)) { "Push is not configured in this app" }
-        check(allowed(context)) { "Allow notifications before enabling cloud push" }
-        val login = checkNotNull(credentials.taskSession()) { "Sign in before enabling cloud push" }
         var owner: PhoneFcmTokenGrant? = null
-        store(context).update { owner = PhoneFcmTokenState(it).authorize(login, project) }
+        synchronized(credentials.accountStateLock) {
+            check(permits()) { "Account changed during push setup" }
+            val project = checkNotNull(installed(context)) { "Push is not configured in this app" }
+            check(allowed(context)) { "Allow notifications before enabling cloud push" }
+            val login = checkNotNull(credentials.taskSession()) { "Sign in before enabling cloud push" }
+            check(expectedLogin == login) { "Account changed during push setup" }
+            store(context).update { owner = PhoneFcmTokenState(it).authorize(login, project) }
+        }
         recover(context)
         return checkNotNull(owner)
     }
@@ -93,6 +97,18 @@ internal object PhoneFcmTokens {
         state.reconcile(NativeCredentialStore(context).taskSession(), allowed(context), installed(context))
         return state.snapshot
     }
+    fun setup(context: Context): PhonePushSetupProvider {
+        val credentials = NativeCredentialStore(context)
+        return synchronized(credentials.accountStateLock) {
+            val lifecycle = store(context).load()?.let(::PhoneFcmTokenState)
+            val project = installed(context)
+            lifecycle?.reconcile(credentials.taskSession(), allowed(context), project)
+            PhonePushSetupProvider(project != null,
+                context.getSystemService(NotificationManager::class.java).areNotificationsEnabled(),
+                NativeNotificationService.isEnabled(context), lifecycle?.grant, lifecycle?.snapshot, lifecycle?.deletion != null)
+        }
+    }
+    fun revisions(context: Context) = store(context).revisions
     fun onTokenChanged(context: Context): Job? {
         val tokens = store(context)
         if (tokens.load()?.has(PhoneFcmTokenState.KEY) != true) return null

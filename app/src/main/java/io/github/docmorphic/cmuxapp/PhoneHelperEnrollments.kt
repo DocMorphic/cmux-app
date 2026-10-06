@@ -14,16 +14,27 @@ internal object PhoneHelperEnrollments {
     private val http = okhttp3.OkHttpClient()
 
     /** Called only after the user confirms a displayed Mac offer and cloud push consent. */
-    suspend fun prepare(context: Context, rawOffer: String, team: NativeTeamScope, origin: String): String = withContext(Dispatchers.IO) {
+    suspend fun prepare(context: Context, review: PhoneHelperOfferReview, permits: () -> Boolean): String = withContext(Dispatchers.IO) {
         val store = NativeCredentialStore(context)
         var id: String? = null
         synchronized(store.accountStateLock) {
-            val token = checkNotNull(PhoneFcmTokens.snapshot(context)) { "Enable cloud push before pairing a helper" }
-            store.update { id = PhoneHelperEnrollmentState(it).prepare(rawOffer, team, origin, token).id }
+            check(permits()) { "Account or team changed" }
+            val token = PhoneFcmTokens.snapshot(context)
+            store.update { id = review.prepare(it, token, System.currentTimeMillis()).id }
         }
-        // A new offer must leave work even if a previous pass is about to finish.
+        // Leave a successor even when an older attempt is finishing.
         recover(context, replace = true)
         checkNotNull(id)
+    }
+    suspend fun cancel(context: Context, team: NativeTeamScope, id: String, permits: () -> Boolean) = withContext(Dispatchers.IO) {
+        val store = NativeCredentialStore(context)
+        synchronized(store.accountStateLock) {
+            check(permits())
+            store.update { state -> PhoneHelperEnrollmentState(state).apply {
+                pending().singleOrNull { it.id == id && it.team.login == team.login && it.team.userId == team.userId && it.team.teamId == team.teamId }
+                    ?.let(::remove)
+            } }
+        }
     }
     suspend fun recover(context: Context, replace: Boolean = false) = withContext(Dispatchers.IO) {
         val store = NativeCredentialStore(context)

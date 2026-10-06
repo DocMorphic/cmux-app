@@ -1,6 +1,55 @@
 # Android background push
 
 
+## Push settings and offer confirmation — 2026-10-06
+
+Native Settings now includes **Push Alerts**, a phone consent toggle, current
+setup status, repair actions and per-Mac pairing progress. This follows the
+status/toggle/repair organization in iOS `MobilePushSettingsContent.swift` and
+`MobilePushToggle.swift`, scoped to `186cec79781256867ad4516f0802118738bd2393`.
+That reference also has Mac forwarding, away/privacy controls and a test-alert
+pipeline; those remain Android work until the helper exposes authenticated host
+status/settings/test operations. This scoped read does not advance the global pin.
+
+Enabling the toggle explains encrypted delivery through Google's push service
+before authorizing token registration. The settings reflect installed Firebase
+configuration, account, Android permission, background preference, consent,
+provider cleanup/token readiness, native exchange, pending pairing and the saved
+registration receipt. An unconfigured build cannot enable cloud push. A valid
+receipt displays **Helper paired · delivery not yet verified**, not full delivery
+readiness. Token changes request fresh pairing until automatic renewal is added.
+
+A Mac helper's raw JSON offer can be scanned as a QR code with the existing Google
+scanner or pasted into a password input. Review validates the offer against the
+selected Mac, native peer, phone key and configured token project before showing
+the exact endpoint, full SHA-256 helper public-key fingerprint and expiry countdown.
+A separate confirmation starts durable enrollment; it rechecks the captured token,
+native enrollment epoch, phone identity and current account/team. Raw offers and
+review objects are kept only in memory before confirmation, never saved UI state,
+logs or exception messages. The dialog requests a secure Android window and the
+input disables keyboard autocorrection. Scanner callbacks are fenced against a
+closed/replaced sheet or account/team change.
+
+The screen observes account/token revisions while started and periodically updates
+expiry. Pending attempts expose cancellation scoped to their account/team and
+unique attempt ID. Cloud opt-out uses the existing token deletion/helper retirement
+path. All storage/crypto work runs off the UI thread. The unused raw-offer runtime
+entry point was removed: production initiation now requires a validated review.
+
+**25 JVM checks passed**, zero failures/errors/skips: six new setup/readiness and
+review checks, nine enrollment recovery checks and ten token lifecycle checks.
+Main and instrumentation Kotlin compilation passed. Three Compose interaction
+cases were added and compile; **they have not run yet**. They cover unconfigured
+consent gating, separate phone/Mac actions and pending cancellation presentation.
+Evidence: `captures/runtime/push-setup-ui/`.
+
+No APK, emulator, physical-device change or Firebase project was created. Live QR,
+consent, Keystore, WorkManager restart and visual/accessibility acceptance remain
+for an integration milestone. A configured Firebase build and provisioned Mac
+helper are still required before this flow can deliver real push alerts. Automatic
+renewal/revocation, host policy/source integration, Mac settings/test controls and
+actual Pixel provider/Doze/reply acceptance remain open.
+
 ## Durable enrollment recovery — 2026-10-06
 
 Android now commits an account-encrypted pending offer before sending enrollment
