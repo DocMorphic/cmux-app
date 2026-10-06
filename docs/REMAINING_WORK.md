@@ -25,6 +25,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Terminal attachment previews now retain a selected snapshot after a send clears
+  the chip, matching the separate selected value in iOS. Native encrypted files
+  and SSH bytes stay leased until dismissal, while terminal/account retirement
+  independently revokes the modal even after the draft list is empty. **31 JVM
+  checks passed** and Android tests compile. Three new storage/send-completion/
+  revocation cases are queued for the next combined milestone; no APK/AVD run
+  for this batch. See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#terminal-preview-lifetime-during-send--2026-10-06).
+  Next input audit: trace the iOS host modal callbacks and verify actual keyboard
+  behavior; its reducer clears prior focus intent rather than automatically
+  reopening the keyboard on dismissal.
+
 - Combined composer/appearance milestone: **five distinct Android cases now
   have unassisted passing evidence**, covering appearance acknowledgement recovery,
   task PDF page/file retention through Activity recreation, Open export lifetime,

@@ -33,9 +33,10 @@ internal fun NativeTerminalAttachmentStrip(repository: TerminalDraftRepository, 
     attachments: List<ComposerAttachment>, canRemove: Boolean, preparing: Boolean, modifier: Modifier = Modifier,
     beforePreview: () -> Unit) {
     val generation = repository.drafts.generation
-    ComposerAttachmentStrip(ComposerAttachmentPreviewOwner.Terminal(target, generation), repository,
+    ComposerAttachmentStrip(ComposerAttachmentPreviewOwner.Terminal(target, generation),
         attachments, canRemove, if (preparing) "Preparing…" else null, modifier, beforePreview,
         owns = { repository.drafts.ownsAttachment(target, it, generation) },
+        capture = { repository.preview(target, it, generation) },
         read = { repository.read(target, it, generation) },
         remove = { if (repository.drafts.ownsAttachment(target, it, generation)) repository.drafts.removeAttachment(target, it.id) })
 }
@@ -43,33 +44,53 @@ internal fun NativeTerminalAttachmentStrip(repository: TerminalDraftRepository, 
 @Composable
 internal fun SshTerminalAttachmentStrip(draft: SshComposerPool.Draft, attachments: List<ComposerAttachment>,
     canRemove: Boolean, preparing: Boolean, modifier: Modifier = Modifier, beforePreview: () -> Unit) {
-    ComposerAttachmentStrip(ComposerAttachmentPreviewOwner.Ssh(draft.previewBinding), draft,
+    ComposerAttachmentStrip(ComposerAttachmentPreviewOwner.Ssh(draft.previewBinding),
         attachments, canRemove, if (preparing) { if (draft.current.operation != null) "Sending…" else "Preparing…" } else null,
-        modifier, beforePreview, draft::ownsAttachment,
+        modifier, beforePreview, draft::ownsAttachment, draft::preview,
         read = { withContext(Dispatchers.Default) { draft.read(it) } }, remove = { draft.remove(it.id) })
 }
 
 @Composable
-private fun ComposerAttachmentStrip(owner: ComposerAttachmentPreviewOwner, source: Any,
+private fun ComposerAttachmentStrip(owner: ComposerAttachmentPreviewOwner,
     attachments: List<ComposerAttachment>, canRemove: Boolean, progress: String?, modifier: Modifier,
     beforePreview: () -> Unit, owns: (ComposerAttachment) -> Boolean,
-    read: suspend (ComposerAttachment) -> ByteArray, remove: (ComposerAttachment) -> Unit) {
+    capture: (ComposerAttachment) -> ComposerAttachmentSnapshot?, read: suspend (ComposerAttachment) -> ByteArray, remove: (ComposerAttachment) -> Unit) {
     var selected by rememberSaveable(owner) { mutableStateOf<String?>(null) }
     var presentation by rememberSaveable(owner) { mutableStateOf("") }
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = LocalFocusManager.current
-    attachments.singleOrNull { it.id == selected }?.takeIf(owns)?.let { attachment ->
-        ComposerAttachmentPreview(ComposerAttachmentPreviewIdentity(presentation, owner, attachment), source,
-            valid = { owns(attachment) }, read = { read(attachment) }, onDismiss = { selected = null })
+    val activity = LocalContext.current.attachmentPreviewActivity()
+    val model = rememberComposerAttachmentPreviewModel()
+    val selection by model.selections.state.collectAsState()
+    val retained = selection?.takeIf { it.identity.owner == owner }
+    // A new process can reopen a still-staged item. In-process recreation reuses its existing lease/file.
+    LaunchedEffect(model, owner, selected) {
+        if (selected != null && model.selections.state.value == null) attachments.singleOrNull { it.id == selected }?.let { item ->
+            capture(item)?.let { model.select(owner, it, presentation) }
+        }
     }
+    DisposableEffect(model, owner, activity) {
+        onDispose { if (activity?.isChangingConfigurations != true) model.dismissOwner(owner) }
+    }
+    retained?.let { retained ->
+        val active by retained.snapshot.active.collectAsState()
+        if (active) ComposerAttachmentPreview(retained.identity, retained.snapshot,
+            valid = { retained.snapshot.active.value }, read = retained.snapshot::read,
+            onDismiss = { selected = null; model.dismiss(retained.identity) })
+        else LaunchedEffect(retained) { selected = null; model.dismiss(retained.identity) }
+    }
+    if (attachments.isEmpty() && progress == null) return
     Row(modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         attachments.forEach { item ->
             key(item.id) {
                 ComposerAttachmentChip(item, owner, read, task = false, canPreview = owns(item), canRemove = canRemove && owns(item),
                     removeLabel = "Remove ${item.name}", onPreview = {
-                        beforePreview(); focus.clearFocus(); keyboard?.hide()
-                        presentation = UUID.randomUUID().toString(); selected = item.id
+                        capture(item)?.let { snapshot ->
+                            presentation = UUID.randomUUID().toString()
+                            model.select(owner, snapshot, presentation); selected = item.id
+                            beforePreview(); focus.clearFocus(); keyboard?.hide()
+                        }
                     }, onRemove = { remove(item) })
             }
         }

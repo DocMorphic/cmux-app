@@ -7,6 +7,33 @@ class TerminalDraftsTest {
     private val first = TerminalDrafts.Target("mac-a", "workspace", "surface")
     private val second = first.copy(surface = "other")
 
+    @Test fun previewLeaseSurvivesSendAndRemovalButDoesNotBecomeASavedDraft() {
+        val drafts = TerminalDrafts(); val item = ComposerAttachment(name = "send.txt", size = 4)
+        drafts.attach(first, item, drafts.generation)
+        val preview = checkNotNull(drafts.preview(first, item, drafts.generation))
+        val send = checkNotNull(drafts.begin(first))
+        drafts.finish(send, deliveredFiles = setOf(item.id))
+        assertTrue(drafts.state.value.isEmpty()); assertEquals(0, drafts.saved().length())
+        assertTrue(drafts.ownsPreview(preview)); assertTrue(preview.active.value)
+        assertEquals(setOf(item.id), drafts.previewAttachmentIds())
+        drafts.releasePreview(preview)
+        assertFalse(preview.active.value); assertFalse(drafts.ownsPreview(preview)); assertTrue(drafts.previewAttachmentIds().isEmpty())
+    }
+
+    @Test fun discardedTerminalAndAccountClearRevokeOnlyTheirSnapshotLeases() {
+        val drafts = TerminalDrafts(); val a = ComposerAttachment(name = "first.txt", size = 4)
+        val b = ComposerAttachment(name = "second.txt", size = 4)
+        drafts.attach(first, a, drafts.generation); drafts.attach(second, b, drafts.generation)
+        val firstPreview = checkNotNull(drafts.preview(first, a, drafts.generation))
+        val secondPreview = checkNotNull(drafts.preview(second, b, drafts.generation))
+        assertNull(drafts.preview(first, b, drafts.generation))
+        assertNull(drafts.preview(first, a.copy(size = 3), drafts.generation))
+        drafts.discard(first); assertFalse(firstPreview.active.value); assertTrue(secondPreview.active.value)
+        drafts.clear(); assertFalse(secondPreview.active.value); assertTrue(drafts.previewAttachmentIds().isEmpty())
+        drafts.attach(first, a, drafts.generation)
+        assertFalse(drafts.ownsPreview(firstPreview))
+    }
+
     @Test fun attachmentPreviewPermissionUsesExactTargetMetadataAndAccountGeneration() {
         val drafts = TerminalDrafts()
         val item = ComposerAttachment(name = "staged.txt", size = 4)

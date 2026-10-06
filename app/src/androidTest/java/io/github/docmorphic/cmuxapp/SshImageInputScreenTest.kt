@@ -87,6 +87,42 @@ class SshImageInputScreenTest {
         }
     }
 
+    @Test fun acknowledgedImageStaysVisibleUntilDoneClosesItsPreview() = previewDuringSend(false)
+    @Test fun accountEndDismissesAnAcknowledgedImagePreviewAndReclaimsItsBytes() = previewDuringSend(true)
+
+    private fun previewDuringSend(revokeOwner: Boolean) {
+        val bytes = photo.readBytes()
+        val attachment = ComposerAttachment(name = "sending.png", size = bytes.size, imageFormat = "png")
+        terminal.composer.attach(attachment, bytes); terminal.composer.edit("Send this image")
+        terminal.release = CompletableDeferred()
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshShellScreen(terminal, onBack = {})
+        } } }
+        compose.onNodeWithTag("ssh.shell.send").performClick()
+        compose.waitUntil(10_000) { terminal.images.size == 1 }
+        compose.onNodeWithContentDescription(attachment.name).performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Image preview sending.png").fetchSemanticsNodes().isNotEmpty() }
+        lateinit var file: File
+        compose.runOnIdle {
+            val model = androidx.lifecycle.ViewModelProvider(compose.activity)[ComposerAttachmentPreviewModel::class.java]
+            file = checkNotNull(model.controller.state.value.artifact).file
+            terminal.release!!.complete(Unit)
+        }
+        compose.waitUntil(10_000) { terminal.composer.current.attachments.isEmpty() && terminal.composer.current.operation == null }
+        compose.waitUntil(10_000) {
+            val bounds = compose.onNodeWithContentDescription("Image preview sending.png").fetchSemanticsNode().boundsInWindow
+            val screen = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try { screen.getPixel(bounds.center.x.toInt(), bounds.center.y.toInt()) == android.graphics.Color.CYAN }
+            finally { screen.recycle() }
+        }
+        assertArrayEquals(bytes, file.readBytes()); capture("ssh-preview-after-acknowledgement")
+        if (revokeOwner) compose.runOnIdle { pool.close() } else compose.onNodeWithText("Done").performClick()
+        compose.waitUntil(10_000) { !file.exists() &&
+            compose.onAllNodesWithContentDescription("Image preview sending.png").fetchSemanticsNodes().isEmpty() }
+        assertEquals(1, terminal.images.size)
+        assertEquals("", terminal.composer.current.text)
+    }
+
     @Test fun imageChipPreviewsExactStagedBytesAndDismissalKeepsTheUnsentDraft() {
         val bytes = photo.readBytes()
         val attachment = ComposerAttachment(name = "preview.png", size = bytes.size, imageFormat = "png")

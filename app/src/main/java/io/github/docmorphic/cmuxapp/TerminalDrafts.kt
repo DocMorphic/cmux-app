@@ -21,6 +21,26 @@ class TerminalDrafts(saved: JSONArray? = null) {
     val state = mutable.asStateFlow()
     @Volatile var generation: Long = 0; private set
 
+    internal class PreviewLease internal constructor(val target: Target, val attachment: ComposerAttachment,
+        val generation: Long) {
+        internal val alive = MutableStateFlow(true)
+        val active = alive.asStateFlow()
+    }
+    private val previews = mutableSetOf<PreviewLease>()
+    @Synchronized internal fun preview(target: Target, attachment: ComposerAttachment, expectedGeneration: Long): PreviewLease? {
+        if (!ownsAttachment(target, attachment, expectedGeneration)) return null
+        return PreviewLease(target, attachment, generation).also { previews += it }
+    }
+    @Synchronized internal fun ownsPreview(lease: PreviewLease): Boolean =
+        lease.generation == generation && lease in previews && lease.active.value
+    @Synchronized internal fun releasePreview(lease: PreviewLease) {
+        previews.remove(lease); lease.alive.value = false
+    }
+    @Synchronized internal fun previewAttachmentIds(): Set<String> = previews.mapTo(hashSetOf()) { it.attachment.id }
+    private fun revokePreviews(predicate: (PreviewLease) -> Boolean) {
+        previews.filter(predicate).forEach { it.alive.value = false; previews.remove(it) }
+    }
+
     @Synchronized fun attach(target: Target, attachment: ComposerAttachment, expectedGeneration: Long) {
         check(generation == expectedGeneration) { "Account changed while opening the attachment" }
         require(ComposerAttachment.read(attachment.json()) == attachment) { "Invalid attachment" }
@@ -75,9 +95,9 @@ class TerminalDrafts(saved: JSONArray? = null) {
                 current.attachments.filterNot { it.id in deliveredFiles } else current.attachments))
     }
 
-    @Synchronized fun clear() { generation++; mutable.value = emptyMap() }
+    @Synchronized fun clear() { generation++; revokePreviews { true }; mutable.value = emptyMap() }
 
-    @Synchronized fun discard(target: Target) { mutable.value = mutable.value - target }
+    @Synchronized fun discard(target: Target) { revokePreviews { it.target == target }; mutable.value = mutable.value - target }
 
     @Synchronized fun saved(): JSONArray = JSONArray().also { array ->
         mutable.value.forEach { (target, draft) ->

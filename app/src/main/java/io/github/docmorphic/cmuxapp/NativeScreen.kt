@@ -3005,12 +3005,10 @@ internal fun NativeScreen(
                                     modifier = Modifier.fillMaxWidth().height(48.dp).background(nativePanel))
                             }
                         } else {
-                            if (terminalDraft.attachments.isNotEmpty() || preparingAttachments) {
-                                draftTarget?.let { target -> NativeTerminalAttachmentStrip(draftRepository, target,
+                            draftTarget?.let { target -> NativeTerminalAttachmentStrip(draftRepository, target,
                                     terminalDraft.attachments, canRemove = true,
                                     preparing = preparingAttachments, modifier = Modifier.background(nativePanel),
                                     beforePreview = { rawKeyboardView?.finishComposition(); stopTerminalScrolling(); softwareKeyboard?.hide() }) }
-                            }
                             key(draftTarget) {
                                 Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Box {

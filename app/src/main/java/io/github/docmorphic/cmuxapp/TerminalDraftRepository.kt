@@ -58,6 +58,25 @@ class TerminalDraftRepository private constructor(context: Context) {
         }
     }
 
+    /** Pin metadata synchronously at the tap; disk reads remain on IO. A send may retire the chip meanwhile. */
+    internal fun preview(target: TerminalDrafts.Target, attachment: ComposerAttachment, generation: Long): ComposerAttachmentSnapshot? {
+        val lease = drafts.preview(target, attachment, generation) ?: return null
+        return object : ComposerAttachmentSnapshot {
+            override val attachment = lease.attachment
+            override val active = lease.active
+            override suspend fun read(): ByteArray = withContext(Dispatchers.IO) {
+                synchronized(storageLock) {
+                    check(drafts.ownsPreview(lease)) { "The terminal preview was closed." }
+                    files.read(attachment).also { check(drafts.ownsPreview(lease)) { "The terminal preview was closed." } }
+                }
+            }
+            override fun close() {
+                drafts.releasePreview(lease)
+                scope.launch { runCatching { save() } }
+            }
+        }
+    }
+
     private fun save() = synchronized(storageLock) {
         try {
             val saved = drafts.saved()
@@ -69,7 +88,7 @@ class TerminalDraftRepository private constructor(context: Context) {
                     for (item in 0 until attachments.length()) add(attachments.getJSONObject(item).getString("id"))
                 }
             }
-            files.retain(retained)
+            files.retain(retained + drafts.previewAttachmentIds())
             mutableError.value = null
         } catch (failure: Exception) {
             mutableError.value = "Could not save terminal drafts"

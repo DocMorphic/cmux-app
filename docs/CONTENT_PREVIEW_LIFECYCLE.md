@@ -1756,3 +1756,57 @@ was connected. Physical Mac/Pixel acceptance, real keyboard return/insets,
 process death, full format/visual/TalkBack comparisons, broader native/SSH
 recreation and preview behavior during an in-flight send remain open. The
 signed release and global upstream pins are unchanged.
+
+
+## Terminal preview lifetime during send — 2026-10-06
+
+The scoped iOS source at `186cec79781256867ad4516f0802118738bd2393` keeps
+`previewedAttachment` as a separate value in `TerminalComposerView`; its sheet
+materializes `attachment.data` in `TerminalComposerAttachmentPreviewSheet`.
+Clearing acknowledged pending attachments does not dismiss this selected sheet.
+Android previously resolved a selected ID only against the live chip list, so
+acknowledgement removed the modal along with the chip. This batch fixes that gap.
+
+Native and SSH previews now acquire a snapshot lease at the tap. The native
+repository keeps the existing encrypted payload while the lease is active and
+performs reads on IO; a normal send/removal may remove the draft metadata but
+cannot reclaim leased bytes. SSH retains its original in-memory payload and
+copies it off the UI thread when the viewer reads. No attachment byte array is
+copied into a Bundle, and the lease does not recreate a sent draft or resend data.
+
+A retained selection owns the snapshot independently of the chip strip. The
+strip's presentation owner stays mounted when the last chip disappears, without
+reserving an empty row's height. Dismissal/replacement releases the snapshot;
+account clear, explicit terminal discard and SSH binding retirement revoke it.
+Revocation has its own StateFlow, so the modal closes even if the draft list was
+already empty and therefore emits no further list change. A stale dismissal
+cannot clear a replacement. Destroyed selection owners reject late snapshots.
+Activity recreation retains the existing selection/controller; a fresh process
+can only reopen an item that is still staged. Resuming a sent snapshot after true
+process death is not implemented or claimed.
+
+Verification: **31 focused JVM checks passed** (3 selection, 10 preview controller,
+8 native draft, 10 SSH draft); main and instrumentation Kotlin compilation passed.
+New coverage proves send/removal retention, exact independent SSH bytes, no saved
+phantom draft, terminal/account revocation, retired-binding isolation, stale
+callbacks and selection-owner destruction. No APK or device run for this batch.
+
+Queued Android cases for the next combined milestone:
+
+- `NativeTerminalAttachmentSnapshotTest#encryptedPayloadSurvivesAcknowledgementUntilPreviewClosesAndLogoutRevokesReads`
+  checks real encrypted storage, durable-save reclamation, and revoked reads.
+- `SshImageInputScreenTest#acknowledgedImageStaysVisibleUntilDoneClosesItsPreview`
+  completes an upload while the sheet is open, checks a visible cyan pixel after
+  the last chip disappears, and verifies cleanup on Done.
+- `SshImageInputScreenTest#accountEndDismissesAnAcknowledgedImagePreviewAndReclaimsItsBytes`
+  covers independent revocation after the draft list is already empty.
+
+Keyboard audit observation: `TerminalInputSessionReducer.modalWillPresent`
+clears requested focus and resigns the current responder; `modalDidDismiss`
+reconciles current intent. The reducer does not unconditionally reopen the
+keyboard. No automatic-focus behavior was added based only on the dismissal
+callback name. The full host callback path and actual Gboard/modal lifecycle
+remain to be verified. Broader native/SSH rotation, task behavior during accepted
+navigation, format coverage and physical workflows remain open. Source receipts
+and logs are under `captures/runtime/composer-preview-send-lifetime/`; global
+upstream pins and the signed release remain unchanged.

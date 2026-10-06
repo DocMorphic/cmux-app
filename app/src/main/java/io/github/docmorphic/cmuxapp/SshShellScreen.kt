@@ -231,7 +231,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             }, modifier = Modifier.fillMaxWidth().height(36.dp).testTag("ssh.shell.keyboard"),
             onRelease = { it.dispose(); if (rawKeyboard === it) rawKeyboard = null })
         else {
-            if (draft.attachments.isNotEmpty() || preparing) SshTerminalAttachmentStrip(composer, draft.attachments,
+            SshTerminalAttachmentStrip(composer, draft.attachments,
                 canRemove = true, preparing = preparing,
                 beforePreview = { rawKeyboard?.finishComposition(); motion.stop(); keyboard?.hide() })
             Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {

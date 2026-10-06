@@ -24,12 +24,29 @@ import java.io.File
 internal class ComposerAttachmentPreviewModel : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val controller = ComposerAttachmentPreviewController(scope)
-    override fun onCleared() { controller.close(); scope.cancel() }
+    val selections = ComposerAttachmentSelections()
+    fun select(owner: ComposerAttachmentPreviewOwner, snapshot: ComposerAttachmentSnapshot, presentation: String) {
+        val previous = selections.state.value
+        if (selections.select(owner, snapshot, presentation) != null) previous?.let { controller.clear(it.identity) }
+    }
+    fun dismiss(identity: ComposerAttachmentPreviewIdentity) {
+        controller.clear(identity); selections.clear(identity)
+    }
+    fun dismissOwner(owner: ComposerAttachmentPreviewOwner) {
+        selections.state.value?.takeIf { it.identity.owner == owner }?.let { dismiss(it.identity) }
+    }
+    override fun onCleared() { controller.close(); selections.close(); scope.cancel() }
 }
-private fun Context.attachmentPreviewActivity(): Activity? = when (this) {
+internal fun Context.attachmentPreviewActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.takeUnless { it === this }?.attachmentPreviewActivity()
     else -> null
+}
+
+@Composable
+internal fun rememberComposerAttachmentPreviewModel(): ComposerAttachmentPreviewModel {
+    val owner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
+    return remember(owner) { ViewModelProvider(owner)[ComposerAttachmentPreviewModel::class.java] }
 }
 
 @Composable
@@ -46,8 +63,7 @@ internal fun ComposerAttachmentPreview(identity: ComposerAttachmentPreviewIdenti
     valid: () -> Boolean, read: suspend () -> ByteArray, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val activity = context.attachmentPreviewActivity()
-    val owner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
-    val model = remember(owner) { ViewModelProvider(owner)[ComposerAttachmentPreviewModel::class.java] }
+    val model = rememberComposerAttachmentPreviewModel()
     val controller = model.controller
     val state by controller.state.collectAsState()
     val attachment = identity.attachment
@@ -57,7 +73,7 @@ internal fun ComposerAttachmentPreview(identity: ComposerAttachmentPreviewIdenti
         controller.open(identity, File(context.applicationContext.cacheDir, "task-previews"), mime, valid, read)
     }
     DisposableEffect(controller, identity, activity) {
-        onDispose { if (activity?.isChangingConfigurations != true) controller.clear(identity) }
+        onDispose { if (activity?.isChangingConfigurations != true) model.dismiss(identity) }
     }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(
         usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
