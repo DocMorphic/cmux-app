@@ -84,6 +84,7 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
     var history by rememberSaveable { mutableStateOf(arrayListOf<Float>()) }
     var destination by rememberSaveable { mutableStateOf(arrayListOf<Float>()) }
     val density = LocalDensity.current.density
+    val gesture = remember(pdf) { PdfGestureAnchorState() }
     val selected = matches.getOrNull(matchIndex)
     fun inset(page: Int): Float = if (destination.firstOrNull()?.toInt() == page) destination.getOrElse(5) { 0f } else 0f
     fun navigate(page: Int, offsetPerWidth: Float, transform: PreviewZoomTransform = zoom, topInset: Float = 0f) {
@@ -109,18 +110,22 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
         navigate(page, if (y.isFinite()) y.coerceIn(0f, pdf.pageSizes[page].second.toFloat()) * zoom.scale / documentWidth else 0f)
     }
     fun transform(factor: Float, pan: Offset, centroid: Offset) {
-        if (pageWidth <= 0f) return
+        if (pageWidth <= 0f || !factor.isFinite() || factor <= 0f || !pan.x.isFinite() || !pan.y.isFinite() ||
+            !centroid.x.isFinite() || !centroid.y.isFinite()) return
         linkJob?.cancel()
         val before = zoom
         val next = before.transform(factor, pan.x / pageWidth, 0f, centroid.x / pageWidth - .5f, 0f, minimumScale = .125f)
-        val visible = scroll.layoutInfo.visibleItemsInfo
-        val anchor = visible.firstOrNull { centroid.y >= it.offset && centroid.y < it.offset + it.size } ?: visible.firstOrNull() ?: return
-        val oldInset = inset(anchor.index) * pageWidth
-        val within = (centroid.y - anchor.offset - oldInset).coerceAtLeast(0f)
-        val offset = within * next.scale / before.scale - centroid.y - pan.y
+        val anchor = (gesture.anchor ?: run {
+            val visible = scroll.layoutInfo.visibleItemsInfo
+            val item = visible.firstOrNull { centroid.y >= it.offset && centroid.y < it.offset + it.size }
+                ?: visible.lastOrNull { it.offset <= centroid.y } ?: visible.firstOrNull() ?: return
+            val within = (centroid.y - item.offset - inset(item.index) * pageWidth).coerceAtLeast(0f)
+            PdfGestureAnchor(item.index, within / before.scale, centroid.y)
+        }).move(pan.y)
+        gesture.anchor = anchor
         destination = arrayListOf() // Gesture scrolling owns the viewport after a destination jump.
         zoom = next
-        scroll.requestScrollToItem(anchor.index, offset.toInt())
+        scroll.requestScrollToItem(anchor.page, anchor.scrollOffset(next.scale).toInt())
     }
     fun open(link: PdfLinkTarget) {
         when (link) {
@@ -176,8 +181,9 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
     }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            IconButton(enabled = history.isNotEmpty(), onClick = ::returnToLocation) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to previous location")
+            IconButton(enabled = history.isNotEmpty(), onClick = ::returnToLocation,
+                modifier = Modifier.semantics { contentDescription = "Back to previous location" }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
             }
             TextButton(enabled = scroll.firstVisibleItemIndex > 0, onClick = { jump(scroll.firstVisibleItemIndex - 1) }) { Text("Previous page") }
             Text("${scroll.firstVisibleItemIndex + 1} / ${pdf.pageSizes.size}", fontSize = 12.sp)
@@ -215,7 +221,7 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
                         (scroll.firstVisibleItemScrollOffset * width / previousLayoutWidth).toInt())
                 previousLayoutWidth = width; pageWidth = width; viewportHeight = height
             }
-            LazyColumn(Modifier.fillMaxSize().pdfPanZoomGestures(zoom.scale, ::transform), state = scroll,
+            LazyColumn(Modifier.fillMaxSize().pdfPanZoomGestures(zoom.scale, { gesture.anchor = null }, ::transform), state = scroll,
                 contentPadding = PaddingValues(bottom = endPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(pdf.pageSizes.size, key = { it }) { index ->
                     Column {
@@ -225,8 +231,10 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
                                 val item = scroll.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
                                 if (item != null) {
                                     val focus = Offset(point.x, point.y + item.offset + inset(index) * pageWidth)
+                                    gesture.anchor = null
                                     transform((if (zoom.atMinimum) 2f else 1f) / zoom.scale,
                                         Offset(pageWidth / 2f, viewportHeight / 2f) - focus, focus)
+                                    gesture.anchor = null
                                 }
                             }, onLink = ::open, onText = { point -> selectionX = point.x; selectionY = point.y; textPage = index },
                             onPageText = { selectionX = -1f; selectionY = -1f; textPage = index })

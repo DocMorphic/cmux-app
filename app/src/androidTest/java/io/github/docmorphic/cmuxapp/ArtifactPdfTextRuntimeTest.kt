@@ -13,11 +13,12 @@ import org.junit.Test
 
 class ArtifactPdfTextRuntimeTest {
     /** Original two-page PDF with text plus external and internal annotations. */
-    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false, targetX: Int = 0, targetZoom: Float = 0f, targetDestination: String? = null, targetRotation: Int = 0): File {
+    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false, targetX: Int = 0, targetZoom: Float = 0f, targetDestination: String? = null, targetRotation: Int = 0, filledRectangle: Boolean = false): File {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val text = listOf("CMUX first needle", "CMUX second needle")
         val streams = text.mapIndexed { index, value -> "BT /F1 18 Tf 30 340 Td ($value) Tj ET" +
-            if (index == 1 && targetZoom > 0f) " q 0 1 0 rg $targetX 370 20 30 re f Q" else "" }
+            if (index == 1 && filledRectangle) " q 0 1 0 rg 150 200 100 200 re f Q"
+            else if (index == 1 && targetZoom > 0f) " q 0 1 0 rg $targetX 370 20 30 re f Q" else "" }
         val destination = targetDestination ?: "/XYZ $targetX 400 $targetZoom"
         val objects = listOf(
             "<< /Type /Catalog /Pages 2 0 R /Names << /Dests << /Names [(target) [4 0 R $destination]] >> >> >>",
@@ -177,6 +178,77 @@ class ArtifactPdfTextRuntimeTest {
             checkNotNull(device.wait(Until.findObject(By.desc("Back to previous location")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("1 / 2")), 10_000))
             assertFalse(checkNotNull(device.findObject(By.desc("Back to previous location"))).isEnabled)
+        } } finally { file.delete() }
+    }
+    @Test fun fitRectangleShowsTheWholeMagnifiedRegion() {
+        check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
+        val instrumentation = InstrumentationRegistry.getInstrumentation(); val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation)
+        val file = fixture(targetHeight = 600, targetDestination = "/FitR 150 200 250 400", filledRectangle = true)
+        val evidence = File(context.getExternalFilesDir(null), "pdf-destinations").apply { mkdirs() }
+        fun follow(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            node.actionList.firstOrNull { it.label?.toString() == "Go to page 2" }?.let { return node.performAction(it.id) }
+            return (0 until node.childCount).any { follow(node.getChild(it)) }
+        }
+        fun await(message: String, condition: () -> Boolean) {
+            val until = android.os.SystemClock.uptimeMillis() + 15_000
+            while (!condition()) {
+                check(android.os.SystemClock.uptimeMillis() < until) { message }
+                android.os.SystemClock.sleep(100)
+            }
+        }
+        fun awaitStable(message: String, condition: () -> Boolean) {
+            var stableSince = 0L
+            await(message) {
+                val now = android.os.SystemClock.uptimeMillis()
+                if (!condition()) { stableSince = 0L; false }
+                else { if (stableSince == 0L) stableSince = now; now - stableSince >= 350 }
+            }
+        }
+        fun greenBounds(name: String): android.graphics.Rect? {
+            val screenshot = File(evidence, name); device.takeScreenshot(screenshot)
+            val bitmap = android.graphics.BitmapFactory.decodeFile(screenshot.path) ?: return null
+            return try {
+                var left = bitmap.width; var right = -1; var top = bitmap.height; var bottom = -1
+                for (y in 0 until bitmap.height step 3) for (x in 0 until bitmap.width step 3) {
+                    val color = bitmap.getPixel(x, y)
+                    if (android.graphics.Color.green(color) > 230 && android.graphics.Color.red(color) < 30 && android.graphics.Color.blue(color) < 30) {
+                        left = minOf(left, x); right = maxOf(right, x); top = minOf(top, y); bottom = maxOf(bottom, y)
+                    }
+                }
+                if (right >= left && bottom >= top) android.graphics.Rect(left, top, right, bottom) else null
+            } finally { bitmap.recycle() }
+        }
+        fun visibleRegion(name: String): Boolean = greenBounds(name)?.let { bounds ->
+            bounds.width() > 400 && bounds.height() > 1000 && kotlin.math.abs(bounds.height().toFloat() / bounds.width() - 2f) < .03f &&
+                kotlin.math.abs(bounds.exactCenterX() - device.displayWidth / 2f) < 12f
+        } ?: false
+        try { ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
+            .putExtra("path", file.absolutePath).putExtra("route", ChangesPreviewRoute.PDF.name)
+            .putExtra("mime", "application/pdf")).use { scenario ->
+            await("No internal rectangle link") { follow(instrumentation.uiAutomation.rootInActiveWindow) }
+            awaitStable("Magnified rectangle was clipped or not centered") { visibleRegion("fit-rectangle.png") }
+            scenario.recreate()
+            awaitStable("Rectangle fitting did not survive recreation") { visibleRegion("fit-rectangle-restored.png") }
+            val fittedBounds = checkNotNull(greenBounds("fit-rectangle-restored.png"))
+            val fittedWidth = fittedBounds.width()
+            checkNotNull(device.findObject(By.desc("PDF page 2 of 2"))).pinchClose(.4f)
+            var reducedWidth = fittedWidth
+            awaitStable("Pinch did not reduce the document scale") {
+                val bounds = greenBounds("pinch-close.png")
+                reducedWidth = bounds?.width() ?: 0
+                reducedWidth in 100 until (fittedWidth * .8f).toInt() && bounds != null &&
+                    kotlin.math.abs(bounds.exactCenterY() - fittedBounds.exactCenterY()) < 60f
+            }
+            checkNotNull(device.findObject(By.desc("PDF page 2 of 2"))).pinchOpen(.4f)
+            awaitStable("Pinch did not magnify the document") { (greenBounds("pinch-open.png")?.width() ?: 0) > reducedWidth * 1.2f }
+            val bottom = checkNotNull(greenBounds("pinch-open.png")).bottom
+            repeat(2) { device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4,
+                device.displayWidth / 2, device.displayHeight / 3, 30) }
+            awaitStable("One-finger vertical scrolling was trapped by zoom") {
+                (greenBounds("zoomed-scroll.png")?.bottom ?: 0) < bottom - 100
+            }
         } } finally { file.delete() }
     }
     @Test fun searchNavigatesHighlightsAndPageTextCopiesAfterRecreation() {

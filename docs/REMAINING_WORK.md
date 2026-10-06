@@ -25,15 +25,26 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined media/PDF milestone: **13 distinct Android cases now have passing
+  evidence**, including actual PiP video pixels/cleanup, PDF XYZ/FitR pixels,
+  recreation/return, pinch focal-point retention, magnified vertical scrolling,
+  crop/rotation extraction, search/copy, short pages and Changes restoration.
+  Fixed return-control accessibility ownership and a pointer-up event with no
+  valid centroid that reset PDF scroll. Final focused run: **3/3 passed**.
+  Screenshots inspected; no final crash/ANR markers. Existing emulator and
+  Gradle stopped; no new AVD or signed promotion. PiP browser/account/system
+  controls, PDF bounding-box fit/selection and physical acceptance remain open.
+  See [the integration evidence](PDF_DESTINATIONS.md#combined-viewer-integration--2026-10-06).
+
 - PDF internal-link destinations now carry X/Y and XYZ zoom; the reader applies
   bounded magnification and keeps a saved return history. Restoring search
   results no longer overrides the reading location. Extraction, pixel zoom and
-  link/return Android checks are queued with PiP for the next integration run.
+  link/return Android checks passed in the combined milestone above.
   Main/instrumentation Kotlin compilation and **19 focused JVM cases passed**.
   Follow-up shared document zoom makes magnified pages fully scrollable, and
   implements Fit/FitH/FitV/FitR plus null-coordinate retention through crop/rotation.
   Main/instrumentation compilation and **24 focused JVM cases passed** for that
-  follow-up. Runtime acceptance is queued; FitB/FitBH/FitBV content bounding boxes,
+  follow-up. The listed runtime cases now pass; FitB/FitBH/FitBV content bounding boxes,
   selection handles, high-zoom quality and physical checks remain open. See
   [PDF_DESTINATIONS.md](PDF_DESTINATIONS.md).
 
@@ -41,9 +52,9 @@ and currently disabled; the upstream watcher is active on main with review issue
   with dedicated main/browser playback Activities, independent private file
   lifetime, account retirement, system controls and paused return bookmarks.
   Main and instrumentation Kotlin compilation and **15 JVM cases passed**.
-  Two new Android cases are compiled and queued for the next combined milestone;
-  actual PiP, browser handoff, lifecycle/track retention and physical acceptance
-  remain unverified. No APK/device run or additional AVD for this batch.
+  Both new Android cases now pass, including visible PiP video and file cleanup.
+  Browser handoff, broader lifecycle/track retention, system controls, account
+  retirement and physical acceptance remain unverified. No additional AVD.
   See [MEDIA_PICTURE_IN_PICTURE.md](MEDIA_PICTURE_IN_PICTURE.md).
 
 - Combined notice feed/UI milestone: **all 11 distinct Android cases now have

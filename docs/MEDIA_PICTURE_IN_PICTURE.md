@@ -55,3 +55,22 @@ Also check browser-process handoff, expansion/return bookmark and track retentio
 system playback actions, Home/close/rotation, account retirement, activity/process
 recreation and physical Pixel playback. Inspect visible frames and captions.
 No APK, emulator/device run or signed release is claimed by this batch.
+
+## Combined viewer integration — 2026-10-06
+
+Both PiP Android cases now pass on the existing Android 17/16 KiB emulator.
+The run verifies private component declarations, entry through the real video
+preview action, actual PiP mode, advancing playback, a visible gold/blue fixture
+frame, independent file lifetime after deleting the source and dismissing its
+preview, and file cleanup after closing playback. The initial screenshot was
+taken during the transition and was blank despite playback advancing; the
+strengthened test waits for both fixture colors before accepting rendering.
+The final screenshot visibly shows the video in the system PiP window.
+
+This is part of the [13-case viewer milestone](PDF_DESTINATIONS.md#combined-viewer-integration--2026-10-06).
+Evidence is in `captures/runtime/media-pdf-integration/`. The deliberate source
+deletion can make the underlying source preview unavailable; it tests ownership
+independence and is not a media-format acceptance result. No Pixel or signed
+release was used. Browser-process handoff, expansion/return/track retention,
+system-button interaction, account retirement and wider lifecycle acceptance
+remain open.

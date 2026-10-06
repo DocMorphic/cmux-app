@@ -73,7 +73,21 @@ class ArtifactMediaPipRuntimeTest {
                 await("Playback did not advance in PiP") { onPlayback { _, model ->
                     model.player.capture(); model.player.position > 250 && model.player.view!!.isPlaying
                 } }
-                device.takeScreenshot(File(evidence, "playing.png"))
+                await("PiP reported playback without a visible video frame") {
+                    val screenshot = File(evidence, "playing.png")
+                    device.takeScreenshot(screenshot)
+                    val pixels = android.graphics.BitmapFactory.decodeFile(screenshot.path) ?: return@await false
+                    try {
+                        var gold = 0; var blue = 0
+                        for (y in 0 until pixels.height step 3) for (x in 0 until pixels.width step 3) {
+                            val pixel = pixels.getPixel(x, y)
+                            val r = android.graphics.Color.red(pixel); val g = android.graphics.Color.green(pixel); val b = android.graphics.Color.blue(pixel)
+                            if (r in 195..245 && g in 130..190 && b in 40..110) gold++
+                            if (r in 10..60 && g in 50..110 && b in 100..160) blue++
+                        }
+                        gold > 100 && blue > 100
+                    } finally { pixels.recycle() }
+                }
                 onPlayback { _, model -> model.player.view!!.pause(); true }
                 assertTrue(onPlayback { _, model -> !model.player.playRequested && model.player.systemPlaybackOwner })
                 // The source Activity can close without destroying the PiP player's private bytes.

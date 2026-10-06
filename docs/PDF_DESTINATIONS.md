@@ -108,3 +108,43 @@ raster quality, renderer limits (0.125–8 fitted scale and bounded bitmap memor
 physical Pixel behavior and iOS visual comparison are not closed by compilation
 or pure geometry checks. Shared document zoom and null-coordinate retention are
 implemented but still require the queued runtime acceptance.
+
+## Combined viewer integration — 2026-10-06
+
+**13 distinct Android cases now have passing evidence** across the media/PDF
+milestone's initial and focused follow-up runs, on the sole existing Android 17
+emulator (API 37, 16 KiB, 1080×2400, density 420). This includes the eight original
+PDF extraction/search/link cases, the new rectangle/gesture case, two PiP cases,
+short/mixed PDF navigation and Changes image/PDF restoration.
+
+- XYZ and FitR rendered pixel sizes/positions survive recreation. FitR shows the
+  complete tall rectangle, centered; pinch close keeps its focal point, pinch
+  open magnifies it again, and one-finger vertical scrolling remains available.
+- Direct/named/GoTo destinations, fit modes and retained coordinates across
+  crop/rotation pass extraction checks. Search highlighting/copy, return history,
+  short pages, and retained Changes revision/file/page state pass their runs.
+- The first 12-case run had one failed return-control accessibility assertion.
+  Moving the description from its decorative icon onto the actionable button
+  makes the enabled/disabled state belong to the queried control. Four focused
+  cases then passed, including visible PiP frames and the new FitR pixel check.
+- Extending that FitR case to real gestures exposed a final-finger-lift bug.
+  A trace showed an unspecified centroid becoming a NaN scroll offset. The
+  implementation now preserves one page-point anchor throughout the gesture,
+  rejects nonfinite input and ignores pointer-up events without an active point.
+  Temporary tracing was removed. The final three-case run passed in **36.837 s**:
+  stable focal-point/zoom/scroll pixels, XYZ recreation/return, and short pages.
+  The earlier intermediate failures remain in the evidence; they are not counted
+  as successful runs.
+
+Builds took 64, 29, 17 (test APK), 34, 23 (diagnostic APK) and 25 seconds. Final
+DEX checks measured 724 PDF methods, largest 5,904 code units, and 3,511 native
+screen methods, largest 13,156; none meet/exceed the 16,383 rejection threshold.
+Final logcat contains no crash/ANR markers. Screenshots were inspected, not just
+DOM/state assertions. Full logs, screenshots, APK hashes and per-case results are
+in `captures/runtime/media-pdf-integration/verification.json` and its siblings.
+Gradle and the emulator were stopped; no additional AVD was created.
+
+This closes the listed fixture checks, not full PDFKit or physical parity.
+Bounding-box fit modes, selection handles/cross-page selection, broad rotation,
+large-text/TalkBack, high-zoom quality and real Pixel/Mac routes remain open.
+No signed release was promoted.
