@@ -8,6 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
+import java.util.UUID
 
 internal data class NativeMacIdentity(val deviceId: String, val buildTag: String?)
 internal data class NativeMacAppearance(val name: String? = null, val color: String? = null, val icon: String? = null) {
@@ -43,13 +44,16 @@ internal data class NativeMacAppearance(val name: String? = null, val color: Str
 
 internal data class NativeMacAppearances(val values: Map<NativeMacIdentity, NativeMacAppearance> = emptyMap(),
     val error: Boolean = false) {
-    fun get(deviceId: String, buildTag: String?) = values[NativeMacIdentity(deviceId, buildTag)] ?: NativeMacAppearance()
+    fun get(deviceId: String, buildTag: String?) = values[NativeMacIdentity(deviceId, buildTag)] ?: values.entries.singleOrNull {
+        canonicalMacDeviceId(it.key.deviceId) == canonicalMacDeviceId(deviceId) && it.key.buildTag == buildTag
+    }?.value ?: NativeMacAppearance()
     fun get(mac: NativeCredentialStore.PairedMac) = get(mac.deviceId, mac.instanceTag)
     fun name(mac: NativeCredentialStore.PairedMac) = get(mac).displayName(mac.name)
 }
 
 /** Appearance never modifies PairedMac, pairing origins, discovery records, or RPC destinations. */
-internal class NativeMacAppearanceStore(private val read: () -> String?, private val write: (String) -> Unit) {
+internal class NativeMacAppearanceStore(private val read: () -> String?, private val write: (String) -> Unit,
+    private val pendingUpgrades: () -> List<NativePairingAppearanceUpgrade> = { emptyList() }) {
     private val mutableState = MutableStateFlow(NativeMacAppearances())
     val state = mutableState.asStateFlow()
     init { reload() }
@@ -61,35 +65,89 @@ internal class NativeMacAppearanceStore(private val read: () -> String?, private
     fun update(identity: NativeMacIdentity, permits: () -> Boolean,
                transform: (NativeMacAppearance) -> NativeMacAppearance) = synchronized(lock) {
         check(permits()) { "Account or team changed. Reopen Computer Details." }
+        // Finish a committed upgrade before applying an edit/reset. Otherwise a
+        // delayed worker could restore the old name after the user cleared it.
+        pendingUpgrades().forEach { move -> adoptLegacy(move) { permits() && move in pendingUpgrades() } }
         require(identity.deviceId.isNotBlank() && identity.deviceId.length <= 128 && (identity.buildTag?.length ?: 0) <= 64)
         val values = load().toMutableMap()
-        val candidate = transform(values[identity] ?: NativeMacAppearance())
+        val canonical = identity.copy(deviceId = canonicalMacDeviceId(identity.deviceId))
+        val aliases = values.filterKeys { canonicalMacDeviceId(it.deviceId) == canonical.deviceId && it.buildTag == canonical.buildTag }
+        check(aliases.values.distinct().size <= 1) { "Conflicting computer appearances" }
+        val candidate = transform(aliases.values.firstOrNull() ?: NativeMacAppearance())
         val validated = NativeMacAppearance(NativeMacAppearance.name(candidate.name), NativeMacAppearance.color(candidate.color),
             NativeMacAppearance.icon(candidate.icon))
-        if (validated == NativeMacAppearance()) values.remove(identity) else values[identity] = validated
+        aliases.keys.forEach(values::remove)
+        if (validated != NativeMacAppearance()) values[canonical] = validated
         require(values.size <= 128) { "Too many saved computer appearances." }
         check(permits()) { "Account or team changed. Reopen Computer Details." }
         save(values)
     }
 
-    fun removeComputer(target: NativeComputerTarget, permits: () -> Boolean) = synchronized(lock) {
+    fun removeComputer(target: NativeComputerTarget, permits: () -> Boolean) = removeComputer(target, permits, { false })
+
+    fun removeComputer(target: NativeComputerTarget, permits: () -> Boolean, removeLegacy: () -> Boolean) = synchronized(lock) {
         check(permits()) { "Account session changed" }
+        val legacy = removeLegacy()
         val values = load().filterKeys {
-            canonicalMacDeviceId(it.deviceId) != canonicalMacDeviceId(target.deviceId) || it.buildTag != target.buildTag
+            canonicalMacDeviceId(it.deviceId) != canonicalMacDeviceId(target.deviceId) ||
+                (it.buildTag != target.buildTag && !(legacy && it.buildTag == null))
         }
         check(permits()) { "Account session changed" }
         save(values)
     }
 
-    private fun save(values: Map<NativeMacIdentity, NativeMacAppearance>) {
-        write(JSONArray(values.map { (key, value) -> JSONObject().put("deviceId", key.deviceId)
+    fun adoptLegacy(move: NativePairingAppearanceUpgrade, permits: () -> Boolean) = synchronized(lock) {
+        check(permits()) { "Computer upgrade changed" }
+        val document = loadDocument()
+        if (move.id in document.applied) return@synchronized
+        val values = document.values.toMutableMap()
+        val device = canonicalMacDeviceId(move.device)
+        val sources = values.filterKeys { canonicalMacDeviceId(it.deviceId) == device && it.buildTag == null }
+        // Duplicate UUID spellings may represent one value, but conflicting old
+        // customizations have no ordering evidence and must not be chosen arbitrarily.
+        check(sources.values.distinct().size <= 1) { "Conflicting older computer appearances" }
+        val destinationExists = values.keys.any { canonicalMacDeviceId(it.deviceId) == device && it.buildTag == move.build }
+        if (move.inherit && !destinationExists) sources.values.firstOrNull()?.let {
+            values[NativeMacIdentity(move.device, move.build)] = it
+        }
+        sources.keys.forEach(values::remove)
+        check(permits()) { "Computer upgrade changed" }
+        save(values, document.applied + move.id)
+    }
+
+    fun retainUpgradeReceipts(pending: () -> Set<String>, permits: () -> Boolean) = synchronized(lock) {
+        check(permits()) { "Account or team changed" }
+        val document = loadDocument()
+        val retained = document.applied.intersect(pending())
+        check(permits()) { "Account or team changed" }
+        if (retained != document.applied) save(document.values, retained)
+        else mutableState.value = NativeMacAppearances(document.values)
+    }
+
+    fun reportUpgradeFailure() = synchronized(lock) { mutableState.value = state.value.copy(error = true) }
+
+    private data class Document(val values: Map<NativeMacIdentity, NativeMacAppearance>, val applied: Set<String>)
+
+    private fun save(values: Map<NativeMacIdentity, NativeMacAppearance>, applied: Set<String> = loadDocument().applied) {
+        val array = JSONArray(values.map { (key, value) -> JSONObject().put("deviceId", key.deviceId)
             .put("buildTag", key.buildTag ?: JSONObject.NULL).put("name", value.name ?: JSONObject.NULL)
-            .put("color", value.color ?: JSONObject.NULL).put("icon", value.icon ?: JSONObject.NULL) }).toString())
+            .put("color", value.color ?: JSONObject.NULL).put("icon", value.icon ?: JSONObject.NULL) })
+        write(if (applied.isEmpty()) array.toString() else JSONObject().put("version", 1).put("values", array)
+            .put("appliedUpgrades", JSONArray(applied.sorted())).toString())
         mutableState.value = NativeMacAppearances(values)
     }
 
-    private fun load(): Map<NativeMacIdentity, NativeMacAppearance> {
-        val array = JSONArray(read() ?: "[]")
+    private fun load() = loadDocument().values
+
+    private fun loadDocument(): Document {
+        val text = read() ?: "[]"
+        val envelope = if (text.trimStart().startsWith("[")) null else JSONObject(text).also {
+            require(it.getInt("version") == 1)
+        }
+        val applied = envelope?.getJSONArray("appliedUpgrades")?.let { ids ->
+            (0 until ids.length()).map { ids.getString(it).also { id -> require(UUID.fromString(id).toString() == id) } }.toSet()
+        }.orEmpty()
+        val array = envelope?.getJSONArray("values") ?: JSONArray(text)
         require(array.length() <= 128)
         val result = mutableMapOf<NativeMacIdentity, NativeMacAppearance>()
         for (i in 0 until array.length()) {
@@ -101,7 +159,7 @@ internal class NativeMacAppearanceStore(private val read: () -> String?, private
             result[identity] = NativeMacAppearance(NativeMacAppearance.name(text("name")),
                 NativeMacAppearance.color(text("color")), NativeMacAppearance.icon(text("icon")))
         }
-        return result
+        return Document(result, applied)
     }
 
     companion object {
@@ -118,6 +176,7 @@ internal class NativeMacAppearanceStore(private val read: () -> String?, private
             val root = File(context.noBackupFilesDir, "computer-appearance")
             val file = AtomicFile(File(root, scopeFile(context.packageName, NativeAccount.PROJECT_ID, user, team)))
             stores.getOrPut(file.baseFile.absolutePath) {
+                val credentials = NativeCredentialStore(context.applicationContext)
                 NativeMacAppearanceStore(read = {
                     if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) file.openRead().use {
                         require(it.channel.size() <= 128 * 1024); it.readBytes().decodeToString()
@@ -127,6 +186,11 @@ internal class NativeMacAppearanceStore(private val read: () -> String?, private
                     val output = file.startWrite()
                     try { output.write(text.toByteArray()); file.finishWrite(output) }
                     catch (failure: Throwable) { file.failWrite(output); throw failure }
+                }, pendingUpgrades = {
+                    val saved = credentials.load()
+                    NativePairingAppearanceUpgrades.pending(saved, user, team).filter {
+                        NativePairingAppearanceUpgrades.current(saved, it)
+                    }
                 })
             }
         }

@@ -133,7 +133,16 @@ internal fun nativeComputerForgetFlow(runtime: NativeIrohRuntime, team: NativeTe
     cleanup = { rows -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         // Clear metadata first. A failed pairing commit leaves a retryable saved row.
         // Both stores are addressed by the captured owner, never the live display team.
-        appearance.removeComputer(target) { store.taskSession() == team.login }
+        var discarded = emptyList<NativePairingAppearanceUpgrade>()
+        store.update {
+            check(store.taskSession() == team.login) { "Account session changed" }
+            discarded = NativePairingAppearanceUpgrades.discard(it, team, target)
+        }
+        appearance.removeComputer(target, permits = { store.taskSession() == team.login }, removeLegacy = {
+            discarded.isNotEmpty() && store.pairedMacs().none {
+                canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(target.deviceId) && it.instanceTag == null
+            }
+        })
         connectionSettings.removeComputer(target) { store.taskSession() == team.login }
         store.forgetCapturedNativeMac(team, rows, target)
     } }

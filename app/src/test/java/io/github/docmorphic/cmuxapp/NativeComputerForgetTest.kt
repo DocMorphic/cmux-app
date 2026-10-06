@@ -145,7 +145,10 @@ class NativeComputerForgetTest {
         val id = "ABCDEF01-2345-6789-ABCD-0123456789AB"
         val keys = listOf(NativeMacIdentity(id, "default"), NativeMacIdentity(id.lowercase(), "default"),
             NativeMacIdentity(id, "debug"), NativeMacIdentity("other", "default"))
-        keys.forEach { key -> store.update(key, { true }) { NativeMacAppearance("Saved") } }
+        // Older files can contain both UUID spellings; new edits coalesce them.
+        disk = JSONArray(keys.map { JSONObject().put("deviceId", it.deviceId).put("buildTag", it.buildTag)
+            .put("name", "Saved").put("color", JSONObject.NULL).put("icon", JSONObject.NULL) }).toString()
+        store.reload()
         val removal = target.copy(deviceId = id)
         fail = true
         assertTrue(runCatching { store.removeComputer(removal) { true } }.isFailure)

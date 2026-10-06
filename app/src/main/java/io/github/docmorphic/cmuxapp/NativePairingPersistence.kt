@@ -155,6 +155,9 @@ internal object NativePairingPersistence {
         // Keep the exact grant id/source/address; only authenticated build metadata changes.
         learnedGrant?.let { grant -> TailscaleGrantStore({ state }, { it(state) }).save(team, grant) { true } }
         state.put("pairings", next).put("pairing_code", remembered.code)
+        if (legacy != null && legacyCandidates.size == 1) {
+            NativePairingAppearanceUpgrades.enqueue(state, team, remembered, inherit = exactMatches.isEmpty())
+        }
         NativeAttachTicketStore.prune(state)
         return remembered
     }

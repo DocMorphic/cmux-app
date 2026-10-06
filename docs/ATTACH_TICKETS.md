@@ -985,3 +985,51 @@ large `NativeScreen` method (44,301 instructions) and skipped frames. Investigat
 this performance evidence and reconcile the remaining old raw-launch fixtures;
 neither is closed by this milestone. Full pairing/notification/input/network
 acceptance, legacy metadata comparison and iOS UI parity remain open.
+
+## Legacy appearance metadata adoption (2026-10-06)
+
+Scoped comparison at `186cec79781256867ad4516f0802118738bd2393`:
+`MobilePairedMacStore.upsertRecord` claims an untagged row when no exact tagged
+row exists, and `MobilePairedMacStore+Records.moveMacRowScope` carries its custom
+name, color and icon. When the exact tagged row already exists, its customization
+wins and the unclaimed row is removed. This scope-move SQL does not copy
+`connection_method` or `direct_addresses`. Android connection preferences already
+require a known build; this change carries appearance, not new route authority.
+Global implemented/reviewed pins are unchanged.
+
+Android now records pending appearance adoption in the same encrypted transaction
+as the authenticated legacy pairing upgrade. A shared connection-runtime worker
+reconciles it on credential, team and foreground changes. It moves all three
+appearance fields into the authenticated build, leaving tagged sibling builds
+alone. An existing tagged pairing (including its default appearance) or existing
+tagged customization takes precedence. Multiple old untagged pairing records do
+not supply an arbitrary appearance donor. A new untagged record arriving before
+reconciliation also prevents that ambiguous transfer.
+
+Appearance and pairing storage are separate files. The appearance file therefore
+records an applied receipt atomically with the move; the credential receipt is
+acknowledged afterwards. A restart or failed acknowledgement cannot replay the
+old customization over a later reset. Edits settle committed pending moves before
+applying the user's changes. Forget disarms queued moves before deleting metadata,
+and also clears the old untagged appearance when no other legacy row owns it.
+An interrupted write keeps retryable work. A later successful read clears the
+transient appearance-error state. UUID spelling changes preserve the same
+appearance and field edits; opaque device IDs remain case-sensitive.
+
+The appearance reader accepts the original array format and a version-1 envelope
+containing values plus applied receipts. Once all receipts are acknowledged it
+returns to the array format. The normal account/team/application storage scope
+and appearance validation remain in place.
+
+Verification: **67 JVM tests passed**; main/instrumentation compilation passed
+in 16 s on the final run. Focused coverage exercises authenticated migration, both-store
+reload, existing tagged/default precedence, failed pairing and appearance writes,
+failed acknowledgement plus user reset, edits before the worker, account/sibling
+isolation, ambiguous old rows, Forget interleaving and UUID field preservation.
+The older UUID-removal regression still seeds duplicate spellings directly in a
+legacy file, because new edits now coalesce that identity. Android case
+`legacyAppearanceUpgradeResumesAfterKeystoreAcknowledgementFailure` is compiled
+for the next combined milestone, not yet executed. Local source snapshots, hashes
+and test logs: `captures/runtime/legacy-appearance-upgrade/`. No APK, emulator or
+physical-device run in this batch. Physical upgrade/restart acceptance, remaining
+metadata/route comparison and the wider connection matrix remain open.

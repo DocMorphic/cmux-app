@@ -206,6 +206,40 @@ class NativeTicketPairingRuntimeTest {
         } finally { store.clear(); context.deleteSharedPreferences(name) }
     }
 
+    @Test fun legacyAppearanceUpgradeResumesAfterKeystoreAcknowledgementFailure() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "legacy-appearance-${UUID.randomUUID()}"
+        val scopedOwner = owner.copy(teamId = name)
+        val store = NativeCredentialStore(context, name)
+        val file = android.util.AtomicFile(File(context.noBackupFilesDir, "computer-appearance/" +
+            NativeMacAppearanceStore.scopeFile(context.packageName, NativeAccount.PROJECT_ID, scopedOwner.userId, scopedOwner.teamId)))
+        val appearance = NativeMacAppearanceStore.create(context, scopedOwner)
+        try {
+            val public = "cmux-ios://attach?v=3&i=$peer&d=fixture-mac&ub=fixture-user&t=$name"
+            val old = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(public, "fixture-mac", "Old Mac"), scopedOwner)
+            store.update { it.put("task_session", scopedOwner.login).put("refresh_token", "synthetic-refresh")
+                .put("pairings", JSONArray().put(NativePairingRecords.encode(old))) }
+            val custom = NativeMacAppearance("Studio", "palette:2", "🚀")
+            appearance.update(NativeMacIdentity(old.deviceId, null), { true }) { custom }
+            val learned = store.rememberAuthenticatedMac(old.copy(instanceTag = "default"), scopedOwner, old) { true }
+            val restored = NativeCredentialStore(context, name)
+            assertThrows(IllegalStateException::class.java) {
+                NativePairingAppearanceUpgrades.reconcile(scopedOwner, restored::load, { error("Interrupted acknowledgement") }, appearance) { true }
+            }
+            appearance.reload()
+            assertEquals(custom, appearance.state.value.get(learned))
+            assertEquals(1, NativePairingAppearanceUpgrades.pending(restored.load(), scopedOwner).size)
+            appearance.update(NativeMacIdentity(old.deviceId, "default"), { true }) { NativeMacAppearance() }
+            NativePairingAppearanceUpgrades.reconcile(scopedOwner, restored::load, restored::update, appearance) { true }
+            appearance.reload()
+            assertEquals(NativeMacAppearance(), appearance.state.value.get(learned))
+            assertEquals(NativeMacAppearance(), appearance.state.value.get(old))
+            assertTrue(NativePairingAppearanceUpgrades.pending(NativeCredentialStore(context, name).load(), scopedOwner).isEmpty())
+        } finally {
+            store.clear(); context.deleteSharedPreferences(name); file.delete(); appearance.reload()
+        }
+    }
+
     @Test fun legacyRawBuildAndGrantCommitTogetherAndDiscardOldTicketAcrossKeystoreReload() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "legacy-raw-build-${UUID.randomUUID()}"

@@ -25,6 +25,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Authenticated legacy upgrades now preserve custom computer name/color/icon.
+  Pairing commits queue the move; atomic appearance receipts make cross-file
+  recovery safe through restart, failed acknowledgement and later edits/resets.
+  Exact tagged customization wins, sibling builds stay separate, and Forget
+  disarms queued work before cleanup. UUID spelling changes retain other edited
+  fields. **67 focused JVM checks passed**; main/instrumentation compilation
+  passed (16 s final run). The Android Keystore/appearance-reload case is compiled
+  and queued for the next combined
+  milestone. No APK/AVD run. See the dated appearance section in
+  [ATTACH_TICKETS.md](ATTACH_TICKETS.md).
+
 - NativeScreen compiler-size obstacle addressed: composition-local state and
   separate feed/terminal, foreground-effect and rendering groups reduce the
   largest debug project DEX method from **44,283 to 13,147 code units**. All

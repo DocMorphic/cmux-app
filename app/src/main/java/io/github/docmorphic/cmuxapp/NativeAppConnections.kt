@@ -153,6 +153,20 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
 
     init {
         scope.launch {
+            combine(teams.state, store.revisions, applicationActive) { team, _, _ -> team.scope }.collect { owner ->
+                if (owner == null || !teams.isCurrent(owner)) return@collect
+                val appearance = NativeMacAppearanceStore.create(appContext, owner)
+                try {
+                    NativePairingAppearanceUpgrades.reconcile(owner, store::load, store::update, appearance) {
+                        teams.isCurrent(owner)
+                    }
+                } catch (_: Exception) {
+                    currentCoroutineContext().ensureActive()
+                    appearance.reportUpgradeFailure()
+                }
+            }
+        }
+        scope.launch {
             combine(native.state, store.revisions) { directory, _ -> directory }.collect { directory ->
                 val owner = directory.account ?: return@collect
                 try {
