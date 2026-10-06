@@ -28,14 +28,15 @@ class CloudMachinesScreenTest {
         override suspend fun delete(id: String) { deletes += id; rows = rows.filterNot { it.id == id } }
         override fun close() {}
     }
-    private fun mount(service: Service, onPlans: (String?) -> Unit = {}) {
+    private fun mount(service: Service, machines: Map<String, CloudWorkspaceSnapshot> = emptyMap(),
+        onRetry: () -> Unit = {}, onPlans: (String?) -> Unit = {}) {
         compose.runOnUiThread {
             controller = CloudMachinesController(scope, service, object : CloudCreateJournal {
                 override suspend fun resolve(options: CloudMachineCreateOptions) = "fixture-create"
                 override suspend fun complete(key: String) {}
             }, { true }).also { it.refresh() }
         }
-        compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface { NativeCloudScreen(controller, {}, onPlans) } } }
+        compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface { NativeCloudScreen(controller, {}, onPlans, machines = machines, onRetryConnections = onRetry) } } }
     }
     @After fun stop() { compose.runOnUiThread { controller?.close(); scope.cancel() } }
     @Test fun creationUsesSelectedSizeAndShowsServerUsage() {
@@ -93,5 +94,30 @@ class CloudMachinesScreenTest {
         compose.onNodeWithContentDescription("Search").assertDoesNotExist()
         compose.onNodeWithText("Cloud").assertIsDisplayed().performClick()
         assertTrue(selectedCloud)
+    }
+
+    @Test fun fullSwipeOnlyRevealsDeleteAndDeletionStillRequiresConfirmation() {
+        val service = Service(); mount(service)
+        compose.onNodeWithTag("cloud.machine.vm").performTouchInput { swipeLeft() }
+        assertTrue(service.deletes.isEmpty())
+        compose.onNodeWithTag("cloud.swipe.vm.DELETE").assertIsDisplayed().performClick()
+        assertTrue(service.deletes.isEmpty())
+        compose.onNodeWithTag("cloud.delete.confirm").assertIsDisplayed().performClick()
+        compose.waitUntil(3000) { service.deletes.size == 1 }
+        assertEquals(listOf("vm"), service.deletes)
+    }
+    @Test fun failedMachineOffersRetryAndRefreshWithoutShowingPrivateDiagnostic() {
+        val service = Service(); var retries = 0
+        val snapshot = CloudWorkspaceSnapshot(service.rows.single(), failure =
+            CloudSessionFailure("private native diagnostic", kind = CloudFailureKind.LINK))
+        mount(service, mapOf("vm" to snapshot), onRetry = { retries++ })
+        compose.onNodeWithTag("cloud.connection.failure.vm").assertExists()
+        compose.onNodeWithText("Could not reach this machine's terminal service.").assertExists()
+        compose.onNodeWithText("private native diagnostic").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Actions for My machine").performClick()
+        compose.onNodeWithText("Try Again Now").performClick()
+        assertEquals(1, retries)
+        compose.onNodeWithText("Refresh").performClick()
+        assertEquals(2, retries); assertTrue(service.deletes.isEmpty())
     }
 }

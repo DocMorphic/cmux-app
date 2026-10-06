@@ -1184,3 +1184,56 @@ browser return/limit refresh and signed-in first-machine creation still require
 Pixel acceptance. Evidence: `captures/runtime/cloud-first-computer-entry/`.
 No APK rebuild, emulator or device operation occurred. Published signed APK 616
 is unchanged, and full parity remains unverified.
+
+
+### Machine actions, connection failures and refresh recovery — 2026-10-06
+
+Compared `CloudSectionView`/`CloudMachineRow` and `CloudSessionController` at the
+same scoped upstream `c2715faa`. iOS rows expose status colors, lifecycle action
+failures, machine connection failures with automatic-retry copy, an immediate
+retry menu action, context menus, and trailing swipe buttons. Full swipe does not
+execute an action; Delete presents confirmation. Pull-to-refresh reloads inventory
+and retries connections. The source's row retry asks the controller to retry failed
+connections, while terminal-specific retry can replace an individual link.
+
+Android now mounts `NativeCloudMachineRow` with pause/resume/delete actions in both
+its overflow/long-press menu and trailing swipe buttons. Swipes reveal controls
+only; full swipe never executes a mutation. Only one row stays revealed, Back/tap
+can dismiss it, and busy/unsupported lifecycle states disable mutation. Buttons
+and accessibility actions recheck current row state; the existing controller still
+validates current account, machine identity, lifecycle and in-flight actions.
+Delete routes through the existing confirmation and server-confirmed removal.
+Logical swipe direction follows layout direction; physical RTL/large-font checks
+remain unrun.
+
+The management screen now consumes account-owned workspace snapshots to show a
+running machine's connection failure and Try Again Now. Snapshot machine metadata
+must still match the displayed inventory row. Retry and pull/header refresh reach
+the expected workspace owner; stale callbacks cannot retry a replacement account.
+Bulk recovery retires failed machine links, retries a failed tunnel and refreshes
+workspace catalogs. Healthy links are not explicitly retired. The existing
+single-machine terminal retry is retained.
+
+Cloud failures now carry a stage and stable user copy, following the source's
+failure categories. API errors retain their status/action and expired-session
+priority; transport/tunnel/catalog errors get appropriate stage copy. Raw native
+or HTTP diagnostic details are no longer the management screen's explanation,
+and the Cloud workspace waiting pane uses the same user-facing reason. This does
+not yet establish complete error-copy coverage in every terminal/creation path.
+
+Verification: **41 JVM tests passed in six suites**, zero failures/errors/skips;
+main and Android test sources compile. Four new failure-copy tests verify stage
+context, server-action preservation, session-expiry precedence, and that local
+diagnostic strings stay separate from user copy. A new workspace-controller test
+verifies explicit refresh bypasses backoff and cancels the superseded retry timer.
+Existing tests cover independent link retirement, stale account/callback rejection,
+late cancellation, machine mutation admission and tunnel ownership. These checks
+do not exercise the Android view model on a device. Two more UI checks compile for
+swipe-to-confirm-delete and row/header retries without displaying raw diagnostics;
+they have not run. The final invocation took 10 seconds. Evidence:
+`captures/runtime/cloud-machine-actions/`.
+
+ADB still has no device. No APK rebuild, emulator, Cloud network request or remote
+machine mutation occurred. Pixel gesture/menu/TalkBack/RTL acceptance, real failed
+machine/tunnel recovery, native billing and broader Cloud source/UI acceptance
+remain open. The signed published APK remains 616; the overall goal is active.

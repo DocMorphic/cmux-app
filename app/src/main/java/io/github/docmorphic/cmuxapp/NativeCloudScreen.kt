@@ -30,9 +30,12 @@ private val cloudMuted = Color(0xFF9B9FA8)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun NativeCloudScreen(controller: CloudMachinesController?, onSettings: () -> Unit,
     onPlans: (String?) -> Unit, modifier: Modifier = Modifier, connectionState: CloudTunnelState? = null,
-    onRetryConnection: () -> Unit = {}, onBasics: (() -> Unit)? = null, vpnControl: (@Composable () -> Unit)? = null) {
+    onRetryConnection: () -> Unit = {}, onBasics: (() -> Unit)? = null, vpnControl: (@Composable () -> Unit)? = null,
+    machines: Map<String, CloudWorkspaceSnapshot> = emptyMap(), onRetryConnections: () -> Unit = {}) {
     key(controller) {
         val state = controller?.state?.collectAsState()?.value ?: CloudMachinesState()
+        val swipes = remember(controller) { CloudMachineSwipeCoordinator() }
+        fun refresh() { controller?.refresh(); onRetryConnections() }
         var createSheet by rememberSaveable { mutableStateOf(false) }
         var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
         LaunchedEffect(state.catalog.machines, deleteId) {
@@ -43,7 +46,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
                 IconButton(onClick = onSettings) { Icon(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp), tint = Color.Unspecified) }
                 Text("Cloud", Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 onBasics?.let { action -> TextButton(onClick = action, modifier = Modifier.testTag("cloud.basics")) { Text("Cloud basics") } }
-                TextButton(onClick = { controller?.refresh() }, enabled = controller != null) { Text("Refresh") }
+                TextButton(onClick = ::refresh, enabled = controller != null) { Text("Refresh") }
             }
             if (controller == null) {
                 Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -52,7 +55,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
                     TextButton(onClick = onSettings) { Text("Settings") }
                 }
             } else PullToRefreshBox(isRefreshing = state.phase == CloudCatalogPhase.LOADING && state.catalog.machines.isNotEmpty(),
-                onRefresh = controller::refresh, modifier = Modifier.weight(1f)) {
+                onRefresh = ::refresh, modifier = Modifier.weight(1f)) {
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     vpnControl?.let { controls -> item { controls() } }
                     connectionState?.takeIf { it.phase in setOf(CloudTunnelPhase.STARTING, CloudTunnelPhase.READY, CloudTunnelPhase.FAILED) }?.let { connection -> item {
@@ -83,37 +86,12 @@ private val cloudMuted = Color(0xFF9B9FA8)
                         Text("No Cloud machines yet. Create one below.", Modifier.padding(12.dp), color = cloudMuted)
                     }
                     items(state.catalog.machines, key = { it.id }) { machine ->
-                        var menu by remember { mutableStateOf(false) }
-                        val busy = machine.id in state.actions
-                        Column(Modifier.fillMaxWidth().background(cloudPanel, RoundedCornerShape(16.dp)).padding(16.dp)
-                            .testTag("cloud.machine.${machine.id}"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(painterResource(R.drawable.ic_workspace_cloud), null, Modifier.size(24.dp).padding(end = 4.dp), tint = cloudMuted)
-                                Column(Modifier.weight(1f).padding(start = 8.dp)) {
-                                    Text(machine.preferredName, fontWeight = FontWeight.SemiBold)
-                                    Text(when (machine.lifecycle) {
-                                        CloudMachineLifecycle.PROVISIONING -> "Starting"
-                                        CloudMachineLifecycle.RUNNING -> "Running"
-                                        CloudMachineLifecycle.PAUSED -> "Paused"
-                                        CloudMachineLifecycle.FAILED -> "Failed"
-                                        else -> machine.status
-                                    }, color = cloudMuted, fontSize = 13.sp)
-                                }
-                                if (busy) CircularProgressIndicator(Modifier.size(20.dp).testTag("cloud.busy.${machine.id}"))
-                                Box {
-                                    IconButton(onClick = { menu = true }, enabled = !busy) {
-                                        Icon(painterResource(R.drawable.ic_ssh_file_more), "Actions for ${machine.preferredName}")
-                                    }
-                                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                                        if (machine.lifecycle.canPause) DropdownMenuItem(text = { Text("Pause") }, onClick = { menu = false; controller.act(machine.id, CloudMachineAction.PAUSE) })
-                                        if (machine.lifecycle.canResume) DropdownMenuItem(text = { Text("Resume") }, onClick = { menu = false; controller.act(machine.id, CloudMachineAction.RESUME) })
-                                        if (machine.lifecycle.canDelete) DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { menu = false; deleteId = machine.id })
-                                    }
-                                }
-                            }
-                            machine.resources?.let { Text("${it.vcpus} vCPUs · ${it.memoryMb / 1024} GB RAM", color = cloudMuted, fontSize = 12.sp) }
-                            state.actionFailure?.takeIf { it.machineId == machine.id }?.let { CloudFailureText(it.failure) }
-                        }
+                        NativeCloudMachineRow(machine, machine.id in state.actions,
+                            actionFailure = state.actionFailure?.takeIf { it.machineId == machine.id },
+                            connectionFailure = machines[machine.id]?.takeIf { it.machine == machine && machine.lifecycle == CloudMachineLifecycle.RUNNING }?.failure,
+                            swipes = swipes, onRetry = onRetryConnections,
+                            onAction = { action -> if (action == CloudMachineAction.DELETE) deleteId = machine.id
+                                else controller.act(machine.id, action) })
                     }
                     state.failure?.let { failure -> item {
                         Column(Modifier.fillMaxWidth().background(cloudPanel, RoundedCornerShape(16.dp)).padding(16.dp)) {
@@ -143,7 +121,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
 }
 
 @Composable private fun CloudFailureText(failure: CloudSessionFailure) {
-    Text(if (failure.signedOut) "Sign in again to use Cloud." else failure.detail, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+    Text(failure.userMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
     failure.action?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 13.sp) }
 }
 

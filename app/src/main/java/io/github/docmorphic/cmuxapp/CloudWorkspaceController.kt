@@ -89,7 +89,7 @@ internal class CloudWorkspaceController(parent: CoroutineScope, private val isCu
                     } catch (failure: Exception) {
                         ensureActive()
                         if (!admitted(id, at)) return@launch
-                        publishRetained(machines.single { it.id == id }, CloudSessionFailure.classify(failure))
+                        publishRetained(machines.single { it.id == id }, CloudSessionFailure.classify(failure, CloudFailureKind.LINK))
                         failures = (failures + 1).coerceAtMost(5)
                         delay(retryDelay(failures))
                     }
@@ -133,7 +133,7 @@ internal class CloudWorkspaceController(parent: CoroutineScope, private val isCu
         } catch (failure: CancellationException) { throw failure }
         catch (failure: Exception) {
             if (admitted(id, at) && creationEpoch(id) == epoch) {
-                publishRetained(machines.single { it.id == id }, CloudSessionFailure.classify(failure))
+                publishRetained(machines.single { it.id == id }, CloudSessionFailure.classify(failure, CloudFailureKind.LINK))
                 refresh(id)
             }
             null

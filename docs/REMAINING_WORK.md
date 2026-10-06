@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud machine rows now expose connection failures, immediate retry, lifecycle
+  status colors, long-press/overflow actions and non-executing swipe reveals with
+  confirmed deletion. Refresh also reaches failed connections, retaining healthy
+  links. Stable failure copy replaces raw diagnostics in management/waiting views.
+  **41 JVM checks passed**; Android UI sources compile, including two new gesture/
+  retry checks. Physical gesture/accessibility/RTL and real recovery acceptance
+  remain. See `CLOUD_COMPANION.md` for source mapping and verification limits.
+
 - Accounts with no computers can now reach Cloud from the computer picker and
   return to Workspaces, matching the iOS first-computer tab scaffold. Cloud has
   account-scoped saveable tab state. Locked sizes open their specific plan;

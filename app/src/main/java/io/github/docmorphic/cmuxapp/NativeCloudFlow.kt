@@ -35,7 +35,8 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
 @Composable internal fun NativeCloudFlow(controller: CloudMachinesController?, onSettings: () -> Unit,
     onPlans: (String?) -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier,
     connectionState: CloudTunnelState? = null, onRetryConnection: () -> Unit = {},
-    progressStore: CloudOnboardingStore? = null, vpn: NativeCloudVpnRuntime? = null) {
+    progressStore: CloudOnboardingStore? = null, vpn: NativeCloudVpnRuntime? = null,
+    machines: Map<String, CloudWorkspaceSnapshot> = emptyMap(), onRetryConnections: () -> Unit = {}) {
     val context = LocalContext.current.applicationContext
     val store = remember(context, progressStore) { progressStore ?: run {
         val prefs = context.getSharedPreferences("native_onboarding", android.content.Context.MODE_PRIVATE)
@@ -48,7 +49,8 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
     val vpnControl: (@Composable () -> Unit)? = vpn?.let { runtime -> { NativeCloudVpnControl(runtime) } }
     Box(modifier.fillMaxSize()) {
         if (completed) NativeCloudScreen(controller, onSettings, onPlans, Modifier.fillMaxSize(), connectionState,
-            onRetryConnection, onBasics = { replay = true }, vpnControl = vpnControl)
+            onRetryConnection, onBasics = { replay = true }, vpnControl = vpnControl,
+            machines = machines, onRetryConnections = onRetryConnections)
         else NativeCloudIntroduction(false, error, onComplete = {
             runCatching { store.complete() }.onSuccess { completed = true; error = null }
                 .onFailure { error = it.message ?: "Could not save Cloud introduction progress. Try again." }

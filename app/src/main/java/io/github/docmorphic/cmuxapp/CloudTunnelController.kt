@@ -86,7 +86,7 @@ internal class CloudTunnelController<T : AutoCloseable>(
         // startup and must offer retry rather than strand a wanted lease in IDLE.
         val reason = if (failure is CancellationException)
             IllegalStateException("Cloud tunnel startup was interrupted") else failure
-        mutable.value = CloudTunnelState(CloudTunnelPhase.FAILED, CloudSessionFailure.classify(reason))
+        mutable.value = CloudTunnelState(CloudTunnelPhase.FAILED, CloudSessionFailure.classify(reason, CloudFailureKind.TUNNEL))
     }
     private fun stopLocked() {
         generation++

@@ -81,4 +81,23 @@ class CloudWorkspaceControllerTest {
             controller.refreshAll(); runCurrent(); assertEquals(2, requests)
         } finally { pending.complete(catalog()); controller.close() }
     }
+
+    @Test fun explicitRefreshBypassesFailureBackoffAndRetiresThePreviousRetryTimer() = runTest {
+        var failing = true; val reads = mutableListOf<Long>()
+        val controller = CloudWorkspaceController(this, { true }) {
+            reads += testScheduler.currentTime
+            if (failing) throw IOException("private transport diagnostic") else catalog()
+        }
+        try {
+            controller.setMachines(listOf(machine())); controller.setAvailable(true); runCurrent()
+            val failure = controller.state.value.getValue("vm_a").failure!!
+            assertEquals(CloudFailureKind.LINK, failure.kind)
+            assertFalse(failure.userReason.contains("private transport"))
+            advanceTimeBy(1000); failing = false; controller.refreshAll(); runCurrent()
+            assertEquals(listOf(0L, 1000L), reads)
+            assertEquals(NativeFeedAvailability.CONNECTED, controller.state.value.getValue("vm_a").availability)
+            assertNull(controller.state.value.getValue("vm_a").failure)
+            advanceTimeBy(60000); runCurrent(); assertEquals(2, reads.size)
+        } finally { controller.close() }
+    }
 }

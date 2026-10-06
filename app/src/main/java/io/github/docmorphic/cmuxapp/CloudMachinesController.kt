@@ -4,13 +4,26 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-internal data class CloudSessionFailure(val detail: String, val status: Int? = null, val action: String? = null, val signedOut: Boolean = false) {
+internal enum class CloudFailureKind { SIGNED_OUT, CONTROL_PLANE, TUNNEL, LINK, IDENTITY, OTHER }
+internal data class CloudSessionFailure(val detail: String, val status: Int? = null, val action: String? = null,
+    val signedOut: Boolean = false, val kind: CloudFailureKind = if (signedOut) CloudFailureKind.SIGNED_OUT
+        else if (status != null) CloudFailureKind.CONTROL_PLANE else CloudFailureKind.OTHER) {
     val retryable get() = !signedOut && (status == null || status >= 500 || status == 408 || status == 429)
+    val userMessage get() = when (if (signedOut) CloudFailureKind.SIGNED_OUT else kind) {
+        CloudFailureKind.SIGNED_OUT -> "Your session expired. Sign in again to reach your cloud machines."
+        CloudFailureKind.CONTROL_PLANE -> "The cloud service could not be reached. Try again in a moment."
+        CloudFailureKind.TUNNEL -> "Could not join your private network. Check your connection and try again."
+        CloudFailureKind.LINK -> "Could not reach this machine's terminal service."
+        CloudFailureKind.IDENTITY -> "This device is locked. Unlock it and try again."
+        CloudFailureKind.OTHER -> "Something went wrong. Try again."
+    }
+    val userReason get() = if (!signedOut && kind == CloudFailureKind.CONTROL_PLANE)
+        action?.takeIf { it.isNotBlank() } ?: userMessage else userMessage
     companion object {
-        fun classify(failure: Exception) = when (failure) {
+        fun classify(failure: Exception, fallback: CloudFailureKind = CloudFailureKind.OTHER) = when (failure) {
             is CloudNotSignedIn -> CloudSessionFailure(failure.message!!, signedOut = true)
             is CloudApiFailure -> CloudSessionFailure(failure.message.orEmpty(), failure.status, failure.action, failure.unauthorized)
-            else -> CloudSessionFailure(failure.message?.take(2048) ?: "Cloud is unavailable. Try again.")
+            else -> CloudSessionFailure(failure.message?.take(2048) ?: "Cloud is unavailable. Try again.", kind = fallback)
         }
     }
 }
@@ -82,7 +95,7 @@ internal class CloudMachinesController(
                 scheduleProvisioning()
             } catch (failure: Exception) {
                 if (failure is CancellationException || !current() || attempt != generation) return@launch
-                val reason = CloudSessionFailure.classify(failure)
+                val reason = CloudSessionFailure.classify(failure, CloudFailureKind.CONTROL_PLANE)
                 failures++
                 val retry = reason.retryable && failures < listRetryLimit
                 if (!(retry && failures == 1 && mutable.value.catalog.machines.isEmpty()))
@@ -134,7 +147,7 @@ internal class CloudMachinesController(
                 machine
             } catch (failure: Exception) {
                 if (failure is CancellationException || !current()) return@async null
-                mutable.value = mutable.value.copy(createFailure = CloudSessionFailure.classify(failure))
+                mutable.value = mutable.value.copy(createFailure = CloudSessionFailure.classify(failure, CloudFailureKind.CONTROL_PLANE))
                 // A timed-out create may already exist; reconcile, but never resubmit it automatically.
                 refresh()
                 null
@@ -164,7 +177,7 @@ internal class CloudMachinesController(
                 true
             } catch (failure: Exception) {
                 if (failure is CancellationException || !current()) return@async false
-                mutable.value = mutable.value.copy(actionFailure = CloudMachineActionFailure(id, action, CloudSessionFailure.classify(failure)))
+                mutable.value = mutable.value.copy(actionFailure = CloudMachineActionFailure(id, action, CloudSessionFailure.classify(failure, CloudFailureKind.CONTROL_PLANE)))
                 refresh()
                 false
             }

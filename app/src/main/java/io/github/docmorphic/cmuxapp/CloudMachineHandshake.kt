@@ -103,7 +103,7 @@ internal class CloudMachineHandshake<S : AutoCloseable>(
             } catch (failure: CancellationException) { throw failure }
             catch (failure: CloudApiFailure) {
                 if (failure.status == 404) error("Cloud invitation expired")
-                if (!CloudSessionFailure.classify(failure).retryable) throw failure
+                if (!CloudSessionFailure.classify(failure, CloudFailureKind.LINK).retryable) throw failure
             } catch (failure: CloudNotSignedIn) { throw failure }
             catch (_: Exception) { /* A transient approval read can be polled again. */ }
         }
@@ -114,7 +114,7 @@ internal class CloudMachineHandshake<S : AutoCloseable>(
             if (stopped) return
             stopped = true
             mutable.value = if (failure is CancellationException) CloudLinkState(CloudLinkPhase.CLOSED)
-                else CloudLinkState(CloudLinkPhase.FAILED, CloudSessionFailure.classify(failure))
+                else CloudLinkState(CloudLinkPhase.FAILED, CloudSessionFailure.classify(failure, CloudFailureKind.LINK))
             result.completeExceptionally(failure)
             session.also { session = null }
         }

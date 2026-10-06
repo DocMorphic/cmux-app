@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
     if (row == null || shown == null || row.workspace.terminals.none { it.id == shown.id }) {
         NativeWorkspaceWaitingPane(row?.workspace?.title ?: "Cloud workspace unavailable", onBack = model::leaveWorkspace,
             connected = snapshot?.availability == NativeFeedAvailability.CONNECTED,
-            connectionError = creationState?.failure ?: snapshot?.failure?.detail,
+            connectionError = creationState?.failure ?: snapshot?.failure?.userReason,
             onReconnect = { model.retryConnection(route.host.machineId, route.catalogOwner) })
     } else key(shown) {
         val state by shown.state.collectAsState()
