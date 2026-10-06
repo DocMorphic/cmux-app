@@ -73,6 +73,19 @@ def patch_android_pty(path):
     return {"originalSha256": original, "patchedSha256": digest(path)}
 
 
+def patch_android_errno(path):
+    original = digest(path)
+    replace_once(path, "    unsafe { *libc::__errno_location() = value };", '''    #[cfg(target_os = "android")]
+    unsafe { *libc::__errno() = value };
+    #[cfg(target_os = "linux")]
+    unsafe { *libc::__errno_location() = value };''')
+    replace_once(path, "    unsafe { *libc::__errno_location() }", '''    #[cfg(target_os = "android")]
+    { unsafe { *libc::__errno() } }
+    #[cfg(target_os = "linux")]
+    { unsafe { *libc::__errno_location() } }''')
+    return {"originalSha256": original, "patchedSha256": digest(path)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("source", "ghostty", "zig", "ndk", "output"):
@@ -91,6 +104,9 @@ def main():
     output.mkdir(parents=True, exist_ok=False)
     export(source, PIN, output / "source", ("cmux-tui", "LICENSE"))
     export(ghostty, GHOSTTY_PIN, output / "ghostty")
+    # cmux-tui-core include_str! paths expect the original root submodule layout.
+    # Reuse the same exported source; do not copy a second Ghostty tree.
+    (output / "source/ghostty").symlink_to("../ghostty", target_is_directory=True)
     workspace = output / "source/cmux-tui"
     toolchain = ndk / "toolchains/llvm/prebuilt/linux-x86_64"
     compiler = toolchain / "bin/aarch64-linux-android26-clang"
@@ -128,6 +144,7 @@ def main():
     patches["cmux-tui/crates/cmux-terminal-client/Cargo.toml"] = replace_once(manifest,
         'crate-type = ["staticlib", "rlib"]', 'crate-type = ["cdylib", "rlib"]')
     patches["cmux-tui/crates/cmux-pty/src/macos.rs"] = patch_android_pty(workspace / "crates/cmux-pty/src/macos.rs")
+    patches["cmux-tui/crates/cmux-tui-core/src/workspace_registry.rs"] = patch_android_errno(workspace / "crates/cmux-tui-core/src/workspace_registry.rs")
     # Use the upstream rust-toolchain.toml without a separately drifting workflow version.
     run("cargo", "build", "--locked", "--release", "--lib", "-p", "cmux-terminal-client",
         "--target", TARGET, "--jobs", "2", cwd=workspace, env=env)
