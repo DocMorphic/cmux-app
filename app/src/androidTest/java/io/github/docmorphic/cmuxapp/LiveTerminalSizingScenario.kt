@@ -132,7 +132,7 @@ internal class LiveTerminalSizingScenario(
             compose.waitUntil(15_000) { compose.onAllNodesWithText("Terminal disconnected").fetchSemanticsNodes().isNotEmpty() }
             awaitState { it.participants.none { row -> row.id == phoneId } }
             compose.onNode(hasSetTextAction()).assertIsNotEnabled()
-            compose.onNodeWithText("Send").assertIsNotEnabled()
+            compose.onNodeWithTag("native.composer.send").assertIsNotEnabled()
         }
         stage("explicit detach persists through workspace reopen")
         disconnect()

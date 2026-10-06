@@ -194,7 +194,7 @@ class LiveNativeUiCheck {
             stage = "send through production composer"
             // Framework text injection into the focused composer, not a claim of tapping Gboard keys.
             compose.onNode(hasSetTextAction()).performTextInput("printf '%s%s\\n' 'CMUX_UI_' '$suffix'")
-            compose.onNodeWithText("Send").assertIsEnabled().performClick()
+            compose.onNodeWithTag("native.composer.send").assertIsEnabled().performClick()
             fun markerLines(): Int = compose.onAllNodesWithTag("native-terminal").fetchSemanticsNodes()
                 .flatMap { it.config.getOrNull(SemanticsProperties.Text).orEmpty() }
                 .sumOf { text -> text.text.lineSequence().count { it.trim() == marker } }

@@ -5,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -79,10 +78,10 @@ internal fun ComposerDictationButton(controller: ComposerDictation, enabled: Boo
         ComposerDictation.Phase.STOPPING -> "Finish dictation"
         else -> "Start dictation"
     }
-    IconButton(onClick = {
+    ComposerIconButton(onClick = {
         when (state.phase) {
             ComposerDictation.Phase.IDLE -> {
-                val token = controller.request() ?: return@IconButton
+                val token = controller.request() ?: return@ComposerIconButton
                 beforeStart()
                 if (service.permissionGranted) controller.permission(token, true)
                 else if (permission == null) {
@@ -95,7 +94,7 @@ internal fun ComposerDictationButton(controller: ComposerDictation, enabled: Boo
             else -> controller.cancel()
         }
     }, enabled = state.locksField || (enabled && service.available && state.phase != ComposerDictation.Phase.CLOSED),
-        modifier = Modifier.testTag("composer.dictation").semantics {
+        active = state.locksField, modifier = Modifier.testTag("composer.dictation").semantics {
             stateDescription = when (state.phase) {
                 ComposerDictation.Phase.PERMISSION -> "Waiting for microphone permission"
                 ComposerDictation.Phase.STARTING -> "Starting dictation"

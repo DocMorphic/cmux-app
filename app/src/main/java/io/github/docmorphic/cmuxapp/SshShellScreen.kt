@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.IntSize
@@ -243,27 +244,30 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             SshTerminalAttachmentStrip(composer, draft.attachments,
                 canRemove = true, preparing = preparing,
                 beforePreview = { composerFocus.cancel(); dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); keyboard?.hide() })
-            Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (input.supportsImages) IconButton(onClick = {
+            Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.Bottom) {
+                if (input.supportsImages) ComposerIconButton(onClick = {
                     composerFocus.cancel(); dictation.cancel(); motion.stop(); focusManager.clearFocus(); keyboard?.hide()
                     pickerTarget = shell; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
                     enabled = canInput && !preparing && draft.operation == null,
-                    modifier = Modifier.testTag("ssh.shell.attach").semantics { contentDescription = "Attach image" }) { Text("+", fontSize = 24.sp) }
+                    modifier = Modifier.testTag("ssh.shell.attach").semantics { contentDescription = "Attach image" }) {
+                    Icon(painterResource(R.drawable.ic_composer_attachment), null, Modifier.size(20.dp))
+                }
                 ComposerDictationButton(dictation, enabled = canInput && !preparing && draft.operation == null,
                     beforeStart = { composerFocus.cancel(); motion.stop(); focusManager.clearFocus(); keyboard?.hide() })
                 RichContentEditor(owner = shell, enabled = !dictationState.locksField && canInput && input.supportsImages && draft.operation == null,
                     onContent = { input.paste(it, direct = false) }, onError = { message = it }) { pasteModifier ->
-                    OutlinedTextField(draft.text, { if (!dictationState.locksField) composer.edit(it) },
-                        Modifier.weight(1f).focusRequester(composerFocus.requester).then(pasteModifier).testTag("ssh.shell.composer"),
-                        placeholder = { Text("Message or command") }, maxLines = 14, readOnly = dictationState.locksField, enabled = canInput)
+                    TerminalComposerField(draft.text, { if (!dictationState.locksField) composer.edit(it) },
+                        onSend = {
+                            dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); scroll = 0.0
+                            composerFocus.request(); input.submit()
+                        }, canSend = canInput && !preparing && draft.operation == null && (draft.text.isNotEmpty() || draft.attachments.isNotEmpty()),
+                        sending = draft.operation != null, failed = draft.error != null,
+                        modifier = Modifier.weight(1f),
+                        editorModifier = Modifier.focusRequester(composerFocus.requester).then(pasteModifier).testTag("ssh.shell.composer"),
+                        sendModifier = Modifier.testTag("ssh.shell.send"),
+                        readOnly = dictationState.locksField, enabled = canInput)
                 }
-                TextButton(onClick = {
-                    dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); scroll = 0.0
-                    composerFocus.request(); input.submit()
-                },
-                    enabled = canInput && !preparing && draft.operation == null && (draft.text.isNotEmpty() || draft.attachments.isNotEmpty()),
-                    modifier = Modifier.testTag("ssh.shell.send")) { Text(if (draft.operation == null) "Send" else "Sending…") }
             }
         }
     }

@@ -105,7 +105,7 @@ class NativeIdentifiedInputTest {
         compose.onNodeWithText("Compose").performClick()
         compose.onNode(hasSetTextAction()).performTextInput("echo retained_composer")
         peer.dropReplyAfterMethod = "terminal.paste"
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         compose.waitUntil(10_000) { "terminal.paste" in peer.lostReplies }
         scenario.recreate()
         compose.waitUntil(20_000) {
@@ -133,7 +133,7 @@ class NativeIdentifiedInputTest {
         val image = ComposerAttachment(name = "rotation.png", size = bytes.size, imageFormat = "png")
         runBlocking { repository.attach(target, AttachmentFiles.Prepared(image, bytes), repository.drafts.generation) }
         peer.dropReplyAfterMethod = "terminal.paste_image"
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         compose.waitUntil(10_000) { "terminal.paste_image" in peer.lostReplies }
         scenario.recreate()
         compose.waitUntil(20_000) {

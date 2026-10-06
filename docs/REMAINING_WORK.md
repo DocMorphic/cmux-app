@@ -25,6 +25,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native/SSH terminal composers now share the iOS-style rounded message field
+  with inline arrow/spinner/failure control, bottom-aligned circular mic and
+  attachment controls, and 14-line growth. Main and instrumentation compilation
+  passed (36 s). Two layout/status cases and affected rich-paste/dictation checks
+  are queued for the next combined milestone; no new APK or runtime claim.
+  See [TERMINAL_COMPOSER_LAYOUT.md](TERMINAL_COMPOSER_LAYOUT.md).
+
 - Combined preview/dictation/media milestone: **all ten distinct queued Android
   cases now have passing evidence** across the initial and focused follow-up
   runs. Fixed visible keyboard return after dictation Send and kept attachment

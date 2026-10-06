@@ -351,7 +351,7 @@ class NativeFlowTest {
             .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.SetText))
         assertTrue(peer.requests.none { it.optString("method") == "terminal.paste" })
         screenshot("native-dictation-listening")
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
         compose.runOnIdle {
             assertTrue(speech.engines.single().closed)
@@ -414,7 +414,7 @@ class NativeFlowTest {
             .filter { it.optString("method") == "mobile.terminal.viewport" && !it.getJSONObject("params").optBoolean("clear") }
             .all { it.getJSONObject("params").getInt("viewport_rows") == initialRows })
         compose.onNodeWithText("The coroutine scope left the composition").assertDoesNotExist()
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
         val input = peer.requests.filter { it.optString("method") == "terminal.paste" }
         assertEquals(1, input.size)
@@ -459,10 +459,10 @@ class NativeFlowTest {
         peer.rejectNextPaste.set(true)
         val releasePaste = CountDownLatch(1)
         peer.releaseNextPaste = releasePaste
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         try {
             compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
-            compose.onNodeWithText("Sending…").assertIsNotEnabled()
+            compose.onNodeWithTag("native.composer.send").assertIsNotEnabled()
             val pending = TerminalDrafts(NativeCredentialStore(context, "native_terminal_drafts")
                 .load()?.optJSONArray("drafts"))
             assertTrue(pending.state.value.values.any { it.text == message && it.error != null })
@@ -476,7 +476,7 @@ class NativeFlowTest {
         assertDraft(message)
         assertEquals(1, peer.requests.count { it.optString("method") == "terminal.paste" })
         screenshot("composer-rejected-send")
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         compose.waitUntil(10_000) {
             peer.requests.count { it.optString("method") == "terminal.paste" } == 2 &&
                 TerminalDraftRepository.get(context).drafts.state.value.values.none { it.text == message }
@@ -520,7 +520,7 @@ class NativeFlowTest {
         peer.dropReplyAfterMethod = "terminal.paste"
         val oldClients = observedClients.toList()
         val oldReplays = peer.requests.count { it.optString("method") == "mobile.terminal.replay" }
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         compose.waitUntil(15_000) {
             TerminalDraftRepository.get(context).drafts.state.value.values.any {
                 it.text == command && it.error == TerminalDrafts.DELIVERY_UNCONFIRMED
@@ -543,7 +543,7 @@ class NativeFlowTest {
         screenshot("composer-lost-reply-reconnected")
         // A new explicit action succeeds; the earlier uncertain command never returns.
         compose.onNode(hasSetTextAction()).performTextReplacement("echo new_explicit_command")
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         compose.waitUntil(10_000) {
             peer.requests.count { it.optString("method") == "terminal.paste" } == 2 &&
                 TerminalDraftRepository.get(context).drafts.state.value.values.none { it.operation != null }
@@ -680,11 +680,11 @@ class NativeFlowTest {
         assertDraft("Explain these attachments")
         assertEquals(listOf(image, attachment), repo.drafts.state.value[target]!!.attachments)
         peer.rejectNextPaste.set(true)
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         compose.waitUntil(15_000) { repo.drafts.state.value[target]?.error != null }
         assertEquals(listOf(attachment), repo.drafts.state.value[target]!!.attachments)
         assertDraft("Explain these attachments")
-        compose.onNodeWithText("Send").performClick()
+        compose.onNodeWithTag("native.composer.send").performClick()
         compose.waitUntil(15_000) { repo.drafts.state.value[target] == null }
         assertDraft("")
         assertEquals(1, peer.requests.count { it.optString("method") == "terminal.paste_image" })
@@ -1216,10 +1216,10 @@ class NativeFlowTest {
             waitForTerminalFixture(15_000) { repository.drafts.state.value[target]?.attachments?.size == 1 }
             assertDraft("Explain this picture")
             assertTrue(peer.requests.none { it.optString("method") == "terminal.paste_image" })
-            waitForTerminalFixture(10_000) { compose.onAllNodesWithText("Send").fetchSemanticsNodes().any {
+            waitForTerminalFixture(10_000) { compose.onAllNodesWithTag("native.composer.send").fetchSemanticsNodes().any {
                 !it.config.contains(SemanticsProperties.Disabled)
             } }
-            compose.onNodeWithText("Send").performClick()
+            compose.onNodeWithTag("native.composer.send").performClick()
             waitForTerminalFixture(15_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
             val sent = peer.requests.filter { it.optString("method") in setOf("terminal.paste_image", "terminal.paste") }
             assertEquals(listOf("terminal.paste_image", "terminal.paste"), sent.map { it.getString("method") })

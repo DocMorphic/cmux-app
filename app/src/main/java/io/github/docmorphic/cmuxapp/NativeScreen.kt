@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -53,7 +52,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
@@ -3055,11 +3053,13 @@ internal fun NativeScreen(
                                     preparing = preparingAttachments, modifier = Modifier.background(nativePanel),
                                     beforePreview = ::leaveComposerInput) }
                             key(draftTarget) {
-                                Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.Bottom) {
                                     Box {
-                                        IconButton(onClick = { attachmentMenu = true },
+                                        ComposerIconButton(onClick = { attachmentMenu = true },
                                             enabled = !preparingAttachments && terminalDraft.operation == null,
-                                            modifier = Modifier.semantics { contentDescription = "Add attachment" }) { Text("+", fontSize = 24.sp) }
+                                            modifier = Modifier.semantics { contentDescription = "Add attachment" }) {
+                                            Icon(painterResource(R.drawable.ic_composer_attachment), null, Modifier.size(20.dp))
+                                        }
                                         DropdownMenu(attachmentMenu, onDismissRequest = { attachmentMenu = false }) {
                                             fun pick(images: Boolean) {
                                                 attachmentMenu = false
@@ -3084,25 +3084,24 @@ internal fun NativeScreen(
                                     ComposerDictationButton(dictation,
                                         enabled = terminalAttached && connectionReady && terminalDraft.operation == null && !preparingAttachments,
                                         beforeStart = { composerFocus.cancel(); stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide() })
+                                    val canSend = terminalAttached && client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
+                                        terminalDraft.operation == null && !preparingAttachments
                                     RichContentEditor(owner = draftTarget to client,
                                         enabled = !dictationState.locksField && terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments,
-                                        onContent = ::acceptTerminalPaste, onError = { error = it }) { pasteModifier ->
-                                        OutlinedTextField(terminalDraft.text, { text -> if (!dictationState.locksField) draftTarget?.let { drafts.edit(it, text) } },
-                                            Modifier.weight(1f).focusRequester(composerFocus.requester).testTag("native.composer").then(pasteModifier).onPreviewKeyEvent { event ->
+                                        onContent = ::acceptTerminalPaste, onError = { composerAttachmentError = it }) { pasteModifier ->
+                                        TerminalComposerField(terminalDraft.text,
+                                            { text -> if (!dictationState.locksField) draftTarget?.let { drafts.edit(it, text) } },
+                                            onSend = { sendComposer(submit = true) }, canSend = canSend,
+                                            sending = terminalDraft.operation != null, failed = terminalDraft.error != null,
+                                            modifier = Modifier.weight(1f),
+                                            editorModifier = Modifier.focusRequester(composerFocus.requester).testTag("native.composer").then(pasteModifier).onPreviewKeyEvent { event ->
                                                 val key = event.nativeKeyEvent
                                                 if (key.action == AndroidKeyEvent.ACTION_DOWN &&
                                                     key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
                                                     sendComposer(submit = true); true
                                                 } else false
-                                            }, minLines = 1, maxLines = 14, readOnly = dictationState.locksField,
-                                            placeholder = { Text("Message or command") },
-                                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
-                                            keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
-                                    }
-                                    val canSend = terminalAttached && client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
-                                        terminalDraft.operation == null && !preparingAttachments
-                                    TextButton(onClick = { sendComposer(submit = true) }, enabled = canSend) {
-                                        Text(if (terminalDraft.operation == null) "Send" else "Sending…")
+                                            }, readOnly = dictationState.locksField,
+                                            sendModifier = Modifier.testTag("native.composer.send"))
                                     }
                                 }
                             }
