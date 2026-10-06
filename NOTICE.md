@@ -467,3 +467,10 @@ https://github.com/TomRoush/PdfBox-Android, tag v2.0.27.0 /
 45da92629dad5b3c9887eceefecc89a1423f5457. License/notice texts are included in
 third_party/pdfbox-android and the in-app licenses. Rendering remains Android
 PdfRenderer. No embedded-file extraction or script execution is used.
+
+TerminalComposerDelivery.kt follows the explicit paste-submit acknowledgment
+contract in MobileTerminalPasteResponse, MobileTerminalInputResponse.swift,
+Packages/iOS/CmuxMobileRPC, cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android retains its existing draft ownership, queue and no-automatic-retry rules.

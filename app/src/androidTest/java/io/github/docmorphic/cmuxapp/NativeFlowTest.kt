@@ -3227,6 +3227,7 @@ internal class NativeFixturePeer : AutoCloseable {
     }
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
+        "terminal.paste" -> JSONObject().put("submitted", params.optString("submit_key") == "return")
         "mobile.browser.create" -> browserResponse?.invoke(method, params) ?: JSONObject()
         "mobile.browser.stream.start" -> browserResponse?.invoke(method, params) ?: JSONObject().put("panel_id", params.getString("panel_id"))
             .put("url", "https://cmux.com").put("title", "Browser fixture").put("can_go_back", false).put("can_go_forward", false).put("is_loading", false)

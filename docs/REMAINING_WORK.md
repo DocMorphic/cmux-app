@@ -25,6 +25,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Composer Send now requires explicit `submitted: true` before clearing its draft.
+  A refused, absent or malformed submit acknowledgment preserves text/files and
+  never retries automatically; Insert without Enter retains its existing behavior.
+  **18 focused JVM checks passed** and main/instrumentation compilation passed in
+  one 28-second run. No APK/device run; include composer acknowledgment UI in the
+  next terminal integration batch. See `TERMINAL_INPUT_DELIVERY.md`.
+
 - The terminal shortcut row now follows the newer iOS resting-edge and active-
   gesture geometry behavior, with a gradual leading fade. **17 focused JVM
   checks passed** and final main/instrumentation compilation passed. Two Android

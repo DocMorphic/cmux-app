@@ -49,7 +49,15 @@ suspend fun deliverTerminalComposer(
     // Removing a chip while an earlier upload waits must prevent its path being sent.
     val retained = uploaded.filter { (id, _) -> drafts.state.value[send.target]?.attachments?.any { it.id == id } == true }
     val text = ComposerAttachment.withPaths(retained.map { it.second }, send.text)
-    if (text.isNotEmpty()) currentClient().paste(send.target.workspace, send.target.surface, text, submit)
+    if (text.isNotEmpty()) {
+        val response = currentClient().paste(send.target.workspace, send.target.surface, text, submit)
+        // Pasting and pressing Enter are separate host operations. RPC success alone
+        // must not clear the draft when the requested submit key was not accepted.
+        // Never retry here: the text may already be present in the terminal.
+        check(!submit || response.opt("submitted") == true) {
+            "Submission was not confirmed. Check the terminal before sending again."
+        }
+    }
     checkCurrent()
     return retained.map { it.first }.toSet()
 }

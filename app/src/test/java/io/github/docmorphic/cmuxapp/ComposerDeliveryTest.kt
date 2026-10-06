@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -26,7 +27,7 @@ class ComposerDeliveryTest {
                 "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/report's data.txt")
                 "terminal.paste" -> {
                     if (rejectPaste) { rejectPaste = false; error("Rejected paste") }
-                    JSONObject()
+                    JSONObject().put("submitted", true)
                 }
                 else -> JSONObject()
             }
@@ -63,6 +64,53 @@ class ComposerDeliveryTest {
             assertEquals("return", paste.getString("submit_key"))
             assertEquals("workspace", paste.getString("workspace_id"))
             assertEquals("terminal", paste.getString("surface_id"))
+        }
+    }
+
+    @Test fun unconfirmedSubmitRetainsDraftAndUploadedFileWithoutRepeatingPaste() = runBlocking {
+        for (response in listOf(JSONObject().put("submitted", false), JSONObject(),
+            JSONObject().put("submitted", "true"), JSONObject().put("submitted", JSONObject.NULL))) {
+            val file = ComposerAttachment(name = "report.txt", size = 1)
+            val image = ComposerAttachment(name = "screen.png", size = 1, imageFormat = "png")
+            val drafts = TerminalDrafts().apply {
+                edit(target, "Review this")
+                attach(target, image, generation)
+                attach(target, file, generation)
+            }
+            Peer { request ->
+                if (request.getString("method") == "mobile.task.attachment.upload")
+                    JSONObject().put("path", "/tmp/report.txt") else response
+            }.use { peer ->
+                val client = peer.connect()
+                TerminalInputQueue(this) { error("Unexpected keyboard input") }.use { queue ->
+                    val send = drafts.begin(target)!!
+                    assertTrue(queueTerminalComposer(queue, drafts, send, {}) {
+                        deliverTerminalComposer(client, drafts, send, true, true, { byteArrayOf(1) }, {}, { true })
+                    })
+                    kotlinx.coroutines.withTimeout(3000) {
+                        queue.status.first { it.error != null }
+                    }
+                    val retained = TerminalDrafts(drafts.saved()).state.value.getValue(target)
+                    assertEquals("Review this", retained.text)
+                    assertEquals(listOf(file), retained.attachments) // Acknowledged image stays removed.
+                    assertEquals(TerminalDrafts.DELIVERY_UNCONFIRMED, retained.error)
+                    assertNull(drafts.state.value.getValue(target).operation)
+                    assertEquals(1, peer.requests.count { it.getString("method") == "terminal.paste" })
+                }
+            }
+        }
+    }
+
+    @Test fun pasteWithoutSubmitAcceptsResponseWithoutSubmitAcknowledgement() = runBlocking {
+        val drafts = TerminalDrafts().apply { edit(target, "Insert without Enter") }
+        Peer { JSONObject() }.use { peer ->
+            val send = drafts.begin(target)!!
+            val delivered = deliverTerminalComposer(peer.connect(), drafts, send, false, true,
+                { error("No attachment") }, {}, { true })
+            drafts.finish(send, deliveredFiles = delivered)
+            assertNull(drafts.state.value[target])
+            assertEquals(1, peer.requests.size)
+            assertEquals("none", peer.requests.single().getJSONObject("params").getString("submit_key"))
         }
     }
 

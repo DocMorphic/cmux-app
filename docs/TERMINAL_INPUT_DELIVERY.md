@@ -1,5 +1,28 @@
 # Identified terminal input — protocol, lanes and session sender
 
+## Composer submit acknowledgment — 2026-10-06
+
+Scoped source comparison: `MobileTerminalPasteResponse` in
+`Packages/iOS/CmuxMobileRPC/Sources/CmuxMobileRPC/MobileTerminalInputResponse.swift`,
+cmux `c2715faa02c260b07012bc0b386597cfb333021d`. Host paste acceptance does not
+guarantee acceptance of its separate submit key. Android notification replies
+already checked this; the shared terminal composer now requires the Boolean
+`submitted: true` when Send requests Enter. Missing/null/false/malformed values
+retain the draft and show the existing unconfirmed-delivery warning. No automatic
+retry or compensating Enter is sent, since text may already be on the terminal.
+Acknowledged images remain removed; unconfirmed text/file references remain.
+Insert without Enter and image-only delivery keep their existing semantics.
+
+Verification: **18 JVM cases passed** (ComposerDelivery 6, QueuedTerminalComposer 4,
+TerminalDrafts 8), zero failures/errors/skips. The new socket-backed queue case
+covers four unconfirmed responses, restored draft/file retention, removal of an
+acknowledged image and exactly one paste request per attempt. Successful Send and
+Insert without Enter are covered. Main/instrumentation compilation passed in the
+same 28-second invocation. The native Android fixture now returns the host submit
+acknowledgment. No APK/emulator/Pixel run or signed promotion; visible composer
+failure and reconnect checks remain queued for the next terminal integration
+batch. Evidence: `captures/runtime/composer-submit-ack/`. Global pin unchanged.
+
 **Physical duplicate retry follow-up (2026-10-02):** one Pixel/NIGHTLY test passed
 in 10.71 s. An identical identified command retried after a fresh native connection
 received DUPLICATE, the next sequence received APPLIED, and an ordered shell fence
