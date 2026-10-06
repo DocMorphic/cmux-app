@@ -1,6 +1,57 @@
 # Android background push
 
 
+## Helper enrollment handshake — source checkpoint, 2026-10-06
+
+The Node host and Android now share an initial-enrollment protocol. The host
+issues a bounded, short-lived offer containing an exact HTTPS endpoint, Firebase
+client identity, account/Mac scope, native/helper public descriptors and a random
+256-bit pairing secret. This secret belongs in a private pairing display, never
+logs or URL query parameters. The host must derive the offer from independently
+verified local authority; a network request cannot nominate its own Mac/account.
+
+Android checks the offer against its existing native peer, phone identity, login
+and current Firebase token snapshot. Its begin proof authenticates those fields
+with the offer secret. The host encrypts a fresh challenge using authenticated
+HPKE from the helper to the supplied phone public key. Android verifies the helper
+and full transcript before producing the challenge proof; therefore a host cannot
+register an unproven phone key, and Android cannot pin an unproven helper key.
+The host commits through `PushRegistrations` only after that proof and a fresh
+synchronous authority check. Its authenticated acknowledgment binds the resulting
+registration ID/generation; Android verifies it before calling the helper pin API
+inside the credential transaction.
+
+Transcripts use domain-separated, length-prefixed UTF-8 fields, including explicit
+null markers, avoiding Kotlin/Node JSON-escaping differences. Exact retries reuse
+the challenge and acknowledgment. A different request cannot reuse a locked offer.
+The host captures the current durable registration generation before encryption,
+so overlapping offers cannot overwrite a newer token on late completion. A fresh
+physical offer can recover a lost acknowledgment. Expiry, host revocation,
+cancellation or encryption failure cannot commit an enrollment. Pending offers
+are memory-only, capped at 16 by default and expire after two minutes (maximum
+five); host restart requires a new offer. `cancel` is a host-local operation, not
+an unauthenticated network route.
+
+**16 Node checks passed** on both Node22.16.0 and Node26.8.2, including the seven
+new protocol cases and existing registration-store tests. **15 JVM checks passed**
+(six enrollment and nine helper trust cases); main/instrumentation compilation
+passed. A test-only `JSONObject.similar` compile error was corrected to explicit
+field comparison. The committed interoperability fixture was generated offline
+using the production Node/CryptoKit sealer with published synthetic test keys;
+Kotlin reproduced its proofs, decrypted its challenge and verified its receipt.
+It includes no live account, endpoint, Firebase token or credential. Regenerate
+with `node scripts/update-push-enrollment-fixture.mjs` after building the existing
+`cmux-push-seal` adapter. Evidence: `captures/runtime/push-helper-enrollment/`.
+
+This is protocol logic, **not a deployed enrollment service**. Next: bounded HTTPS
+transport with redirects disabled, host authority/key provisioning, private offer
+presentation and Android confirmation UI, durable client handshake/receipt recovery,
+and authenticated automatic token renewal/revocation. Firebase configuration,
+notification subscription/policy, service lifecycle and real Pixel/provider/Doze
+acceptance remain open. No listener, cloud resource, actual enrollment, APK,
+emulator or signed release was created. No global parity pin changed.
+
+
 ## Independent helper sender trust — source checkpoint, 2026-10-06
 
 Android now supports a separately enrolled helper sender for each paired Mac,

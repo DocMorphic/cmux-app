@@ -338,6 +338,28 @@ and the original event is fresh. Process death after provider acceptance still
 has the existing at-least-once semantics. A helper must durably retain or replay
 source events not yet admitted; that source subscription lifecycle remains open.
 
+## Initial helper enrollment
+
+`PushEnrollment` in `enrollment.mjs` supplies `issue`, `begin`, `finish`, host-local
+`cancel` and `close`. It requires the existing encrypted `PushRegistrations`,
+CryptoKit sealer, and a synchronous `permits(offerWithoutSecret) === true` check
+against current independently verified host authority. No listener is installed.
+`issue` receives the fixed HTTPS endpoint `/v1/push/enroll`, Firebase project/client
+identity, expected Android package ID, account/Mac fields, native Mac descriptor
+and independent helper descriptor. It returns the private short-lived offer.
+
+`begin` verifies the pairing-secret proof and returns an authenticated HPKE
+challenge for the requested phone. `finish` verifies phone-key possession, commits
+with the captured registration generation, and returns an authenticated receipt.
+Only exact retries reuse the request. Android's `PhoneHelperEnrollment` checks
+current local identity/token state and performs the matching proof/confirmation
+before saving helper trust. See [the protocol checkpoint](../docs/PUSH_DELIVERY.md#helper-enrollment-handshake--source-checkpoint-2026-10-06)
+for verification and the remaining transport/UI/recovery/renewal work. Never expose
+`issue` or `cancel` as unauthenticated routes; never use a request-supplied account
+or key as its own authority. The future TLS handler must cap bodies before parsing,
+disable redirects on Android, and return only coarse errors. This component does
+not register with Firebase or supply a running forwarding service.
+
 ## Remaining end-to-end work
 
 1. Choose/provision the dedicated Firebase setup or establish official backend

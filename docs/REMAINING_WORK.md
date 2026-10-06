@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Initial helper enrollment now has matching Node/Android challenge proofs, real
+  HPKE key-possession checks, generation-safe registration commit and authenticated
+  acknowledgment before local helper pinning. **16 Node checks passed** on Node22/26;
+  **15 JVM checks passed**, including a CryptoKit-to-Kotlin fixture. HTTPS transport,
+  durable recovery, automatic renewal/revocation and confirmation UI remain open.
+  No live enrollment, APK or emulator run. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#helper-enrollment-handshake--source-checkpoint-2026-10-06).
+
 - Android now keeps independent helper sender pins alongside native Mac keys;
   incoming helper pushes reuse delivery/replay handling, while replies remain
   encrypted for the official Mac. Helper retirement fences actions and queued
