@@ -2682,6 +2682,7 @@ internal fun NativeScreen(
                     TextButton(onClick = { signOutCurrentAccount() },
                         modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
                     NativeAccountDeletionButton(browserLogin, deletionReceipt, accountDeletion::begin)
+                    if (connector == null) NativeAccountPlanSettings(account, accountTeams, teamState.scope)
                     }, computers = {
                     Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
                     TextButton(onClick = ::presentComputers, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.computers")) {

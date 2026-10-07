@@ -50,6 +50,7 @@ internal class CloudApiRequests(baseUrl: String = "https://cmux.com") {
         override fun toString() = "CloudOperation($method, redacted)"
     }
     fun list() = Operation("GET", listOf("api", "vm"))
+    fun accountPlan() = Operation("GET", listOf("api", "billing", "plan"))
     fun create(options: CloudMachineCreateOptions, key: String): Operation {
         require(key.isNotBlank() && key.none { it == '\r' || it == '\n' }) { "Missing Cloud creation identity" }
         val body = JSONObject().put("kind", options.kind.wire)
@@ -124,6 +125,7 @@ internal class CloudApi(
         if (synchronized(lock) { closed } || !isCurrent(owner)) throw CancellationException("Cloud account changed")
     }
     override suspend fun catalog() = CloudResponseDecoding.catalog(json(send(requests.list())))
+    suspend fun accountPlan() = AccountPlan.decode(json(send(requests.accountPlan())), owner.user)
     override suspend fun create(options: CloudMachineCreateOptions, idempotencyKey: String) =
         CloudResponseDecoding.machine(json(send(requests.create(options, idempotencyKey))))
     override suspend fun pause(id: String) { send(requests.pause(id)) }

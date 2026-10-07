@@ -627,3 +627,11 @@ Android renders inline Markdown as native Compose attributed text using
 commonmark-java and its GFM strikethrough extension 0.30.0 (BSD-2-Clause).
 The upstream license is bundled in assets/licenses/CommonMark.txt and listed in
 the in-app licenses dialog. No remote images or HTML are executed by this renderer.
+
+AccountPlan.kt and NativeAccountPlanSettings.kt adapt account plan presentation
+from MobileSettingsPlanSection.swift, MobilePlansView.swift and BillingPlanCopy.swift
+in Packages/iOS/CmuxMobileBilling, together with web/app/api/billing/plan/route.ts
+and the fixed Apple management destination in web/services/billing/apple/config.ts,
+at cmux revision 186cec79781256867ad4516f0802118738bd2393.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. Android uses the authenticated plan GET
+and external management pages; it does not implement StoreKit or Google Play purchases.
