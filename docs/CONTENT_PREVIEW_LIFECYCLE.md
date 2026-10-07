@@ -1840,3 +1840,64 @@ stopped. No Pixel interaction or signed-release promotion occurred.
 Detailed receipts: `captures/runtime/composer-integration/verification.json`,
 instrumentation/build logs, APK hashes, source hashes and inspected screenshots.
 The global upstream pins remain unchanged.
+
+
+## Pending Save picker after preview-process death — 2026-10-07
+
+Scoped source recheck at upstream `186cec79781256867ad4516f0802118738bd2393`:
+`ChatArtifactFileActionStore.materialize` stats/streams a correctly named local
+file, and `ChatArtifactFileActionPresentation` presents the system export picker,
+then removes that temporary file on completion. Those iOS sources do not prove
+Android process restoration; the following checks exercise Android's actual
+saved-state/result machinery and the existing production Save owners.
+
+Added an emulator-only, nonexported debug Activity in its own process. It mounts
+`CmuxTheme`/`FileSaveHost` and the production preview/actions. The instrumentation
+runner stays in the default process, while Android owns the remote Activity's
+real task and saved Bundle. The host records only generated-fixture identity,
+PID, restoration state and Save status. It never reads or resets credentials.
+The signed-APK verifier discovers it through the debug manifest inventory; all
+three inventory/exclusion unit checks passed.
+
+`FileSaveProcessDeathTest` waits for both the Activity's callbacks and
+system_server's `mHaveState=true` / `STOPPED` record behind the real DocumentsUI
+picker. It kills only that preview process, confirms its disappearance, removes
+the original generated file, then presses Save or Back in the still-open picker.
+Android must restore a new PID, the original task ID and a nonnull saved Bundle.
+
+**Both Android cases passed together in 55.148 seconds**, API 37 / 16 KiB:
+
+- Save completed through the normal result launcher, restored `FileSaveModel`,
+  main-process dispatch/worker and selected DocumentsUI destination. All
+  **204,800 bytes** matched the sealed snapshot after the original was removed.
+- Cancel returned to the restored preview, cleared its pending state and private
+  copy, and left a CANCELLED receipt with no destination or owned grant.
+- Both outcomes had no Save failure, removed the snapshot, and released owned
+  grant bookkeeping. Generated exported content was deleted before the restored
+  task closed, then the fixture task/process and receipts were removed. The
+  successful Save screenshot was inspected; its text is debug fixture status.
+
+The first build found a test-host declaration syntax error; the second found
+nullable task-info accesses in the test. Both were corrected and the third
+build produced the tested APKs. The first emulator exited with code 137 before
+installation completed. A second boot of the same AVD used 1,536 MiB rather than
+2,048 MiB. It accumulated system-component startup ANRs and a standalone
+uiautomator connection-timeout crash. An initial two-case run then failed to
+find Viewer actions because a remaining System UI ANR dialog covered the UI.
+After inspecting and dismissing that dialog and verifying the launcher hierarchy,
+the same APKs passed without rebuilding. There were no new crash/ANR events
+during the successful run; the crash buffer remained unchanged from its startup
+baseline. This is not a claim that the emulator boot was healthy.
+
+Local evidence: `captures/runtime/file-save-process/`; `run-second.txt` is the
+successful run. Original failures, startup images, event/crash baselines and
+final screenshots are retained. APK SHA-256:
+
+- Debug: `29f04611e4d7cd176e7ddd5c34773affed5866ff5c2b30f32a2fb414958d1297`
+- Test: `ccd452b2f1ac524572ade28fba4ab4ff580be59eb99e3e81c9d9f21622983dd2`
+
+The sole AVD was stopped and reaped; Gradle was stopped. No signed release
+changed. These cases close the generated pending-picker preview-process gate,
+not default-process/worker death during an interrupted large write, provider
+revocation, real browser-parent/main Files flows, or physical Pixel/Mac acceptance.
+Those remain required work. No production Save behavior changed in this batch.

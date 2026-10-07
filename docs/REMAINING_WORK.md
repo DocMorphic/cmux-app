@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Pending Save and Cancel now pass after an actual isolated preview-process kill
+  behind Android's real file picker: **two cases, 55.148 s**, with a new PID,
+  Android-restored Bundle/task and exact 204,800-byte saved output after deletion
+  of the original. This verifies the existing production Save path; it does not
+  close interrupted worker writes, provider revocation or physical/browser-parent
+  acceptance. Startup/first-attempt failures are preserved in
+  `CONTENT_PREVIEW_LIFECYCLE.md`. The sole AVD was stopped/reaped; no signed build.
+
 - Workbook previews now retain supported inline/shared rich-text formatting,
   including mixed colors, explicit style removal, underline/strike and super/subscript.
   **15 Node checks and the expanded Android viewer case (7.703 s) passed**;
