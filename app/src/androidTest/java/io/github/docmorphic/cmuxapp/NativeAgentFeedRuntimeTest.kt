@@ -69,6 +69,11 @@ class NativeAgentFeedRuntimeTest {
             UiDevice.getInstance(instrumentation).takeScreenshot(File(folder, "timeline.png"))
             search("Pick a color")
             compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").performScrollTo().performClick()
+            tab("Notifications").performClick()
+            compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").assertDoesNotExist()
+            tab("Feed").performClick()
+            compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").assertIsSelected()
+            assertTrue(peer.requests.none { it.optString("method") == "feed.question.reply" })
             compose.onNodeWithText("Send").performClick(); awaitMethod("feed.question.reply")
             assertEquals("Blue", peer.requests.last { it.optString("method") == "feed.question.reply" }
                 .getJSONObject("params").getJSONArray("selections").getString(0))
@@ -89,6 +94,9 @@ class NativeAgentFeedRuntimeTest {
             compose.onNodeWithTag("AgentFeedRow:stop").performTouchInput { longClick() }
             compose.onNodeWithText("Open tab").performClick(); awaitMethod("mobile.terminal.replay")
             assertEquals("workspace-1", peer.requests.last { it.optString("method") == "mobile.terminal.replay" }.getJSONObject("params").getString("workspace_id"))
+            compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
+            tab("Feed").assertIsSelected()
+            compose.onNodeWithText("Report ready").assertIsDisplayed()
         } finally {
             compose.activity.finish(); peer.close(); store.clear()
             context.getSharedPreferences("native_agent_feed_read", android.content.Context.MODE_PRIVATE).edit().clear().commit()

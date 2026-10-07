@@ -91,3 +91,50 @@ source hashes and screenshots (local, ignored by Git).
 Debug APK SHA-256: `914f8c52f7a52baa6ee30e12bd06807577fcb5e3abb1c89df81f7921dcebf71a`.
 Signed build **554** remains the current download; this batch awaits the next
 signed milestone. The draft PR and overall parity goal remain open.
+
+
+## Retained sidebar and Feed state — 2026-10-07
+
+Scoped source recheck: `WorkspaceShellView.swift` at
+`186cec79781256867ad4516f0802118738bd2393`. Its compact Feed navigation path
+returns to the Feed destination; regular layout retains a sidebar and shared
+detail. Android previously moved the live composition during reflow but discarded
+sidebar-local saved state when that composition was absent for a frame. Feed also
+lost inline question choices when switching primary tabs.
+
+`NativeWorkspaceShell` now owns a saved-state holder for its sidebar, inside the
+existing account/team owner key. Hiding it or opening a compact detail still
+removes its composition, focus and accessibility nodes; returning restores its
+saveable viewport and controls. Moving a still-visible detail during reflow keeps
+the same renderer. `NativeScreen` independently retains the Feed's saveable state
+across primary-tab switches under its account scope. Existing computer/request
+keys continue to separate destinations and invalidate changed questions.
+
+Verification on the sole API 37 / 16 KiB AVD, headless at 1,536 MiB:
+
+- Three shell cases passed in **16.363 s**. The new case scrolls to a lazy list's
+  draft, edits it, hides the sidebar and verifies composition disposal, restores
+  the saved screen while hidden, then shows the same viewport/draft. Compact
+  detail/list navigation also preserves it. Replacing the account resets both
+  the scroll position and text. Existing checks retain one AndroidView renderer
+  through reflow/tab/search and restore sidebar visibility with an empty detail.
+- The main `NativeScreen` Feed/socket-RPC scenario passed in **29.944 s**. It
+  chooses a question answer, switches to Notifications and back, verifies the
+  choice without a submission, then explicitly sends the expected answer. It
+  also covers permission and terminal reply RPCs, opens the target terminal and
+  returns with Back to the selected Feed tab and its search result.
+- The wide shell harness used 2400×1600 at 420 dpi; compact integration used the
+  original 1080×2400 at 420 dpi. Before/after settings match. Boot and final
+  ANR/crash event logs are empty. The Feed screenshot was visually inspected.
+- Debug/test build passed in 1 minute; the viewport-test refinement built in
+  4 seconds. No JVM logic changed, so no unrelated JVM suite was repeated.
+- Evidence: ignored `captures/runtime/sidebar-state-retention/`, including the
+  scoped source, logs, screenshot and APK receipt. Emulator/Gradle stopped and
+  the emulator process reaped. No new AVD, signed release or physical-device test.
+
+Saved-screen restoration is not proof of actual process death during an
+authenticated session. Pixel/Mac, broader owner changes, accessibility and full
+visual parity remain open. The source recheck also confirms unresolved navigation
+work: Feed in the separate browser sidebar, embedded Cloud content in the wide
+sidebar, and the source's Feed-replaces-Notifications display option. These are
+implementation requirements, not unavoidable Android limitations.

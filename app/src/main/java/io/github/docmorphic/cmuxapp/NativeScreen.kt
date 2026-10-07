@@ -730,6 +730,10 @@ internal fun NativeScreen(
             val agentEntries = remember(scopedFeedSources) { aggregateNativeAgentFeed(scopedFeedSources) }
             val agentNeedsInputCount = agentEntries.count { agentReadState.needsInput(it) }
             var agentNeedsInputOnly by rememberSaveable(agentReadOwner) { mutableStateOf(false) }
+            // Feed is removed when another primary tab or compact detail opens.
+            // Its local viewport, question choices and modal draft belong to
+            // this account, rather than to the lifetime of the visible list.
+            val agentFeedState = key(agentReadOwner) { rememberSaveableStateHolder() }
             var agentFilterMenu by remember { mutableStateOf(false) }
             val feedEntries = remember(scopedFeedSources, selectedOrigin, appearances) {
                 aggregateNativeFeed(scopedFeedSources, selectedOrigin, appearances::name)
@@ -3405,6 +3409,7 @@ internal fun NativeScreen(
                         }
                     }
                     if (agentFeedTab) {
+                        agentFeedState.SaveableStateProvider("feed") {
                         key(agentReadOwner, selectedComputerOrigin) {
                             NativeAgentFeedView(scopedFeedSources, search, agentNeedsInputOnly, agentReadState,
                                 onReadState = { agentReadState = it }, session = feedCoordinator::agentFeedSession,
@@ -3420,6 +3425,7 @@ internal fun NativeScreen(
                                         workspaceRoute = NativeWorkspaceRoute(owner.origin, workspace.id, terminalId = terminal?.id.takeIf { openTab })
                                     }
                                 })
+                        }
                         }
                     } else if (notificationTab) {
                         NativeNotificationFeedView(feedProjection, scopedFeedSources, unreadNotificationsOnly,

@@ -3,10 +3,13 @@ package io.github.docmorphic.cmuxapp
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -18,6 +21,47 @@ import org.junit.Test
 
 class NativeWorkspaceShellRuntimeTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun sidebarViewportAndDraftSurviveHiddenRestorationCompactDetailAndResetForNewOwner() {
+        var owner by mutableStateOf("account-a")
+        var width by mutableIntStateOf(1000)
+        var selected by mutableStateOf(true)
+        var disposed = 0
+        val restore = StateRestorationTester(compose)
+        restore.setContent { CmuxTheme {
+            NativeWorkspaceShell(owner, selected, modifier = Modifier.fillMaxSize(), widthDp = width, heightDp = 700,
+                sidebar = {
+                    DisposableEffect(Unit) { onDispose { disposed++ } }
+                    NativeWorkspaceSidebarToggle()
+                    LazyColumn(Modifier.weight(1f).testTag("retained.sidebar.list"), state = rememberLazyListState()) {
+                        items(20) { Text("Workspace $it", Modifier.fillMaxWidth().height(80.dp)) }
+                        item {
+                            var draft by rememberSaveable { mutableStateOf("") }
+                            TextField(draft, { draft = it }, label = { Text("Sidebar draft") })
+                        }
+                    }
+                }, detail = { NativeWorkspaceBackControl { Text("Back") }; Text("Detail") })
+        } }
+        compose.onNodeWithTag("retained.sidebar.list").performScrollToIndex(20)
+        compose.onNode(hasSetTextAction()).performTextInput("Unsubmitted answer")
+        compose.onNodeWithContentDescription("Hide sidebar").performClick()
+        compose.onNodeWithText("Unsubmitted answer").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(1, disposed) }
+        restore.emulateSavedInstanceStateRestore()
+        compose.onNodeWithTag("workspace.shell.sidebar").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Show sidebar").performClick()
+        compose.onNodeWithText("Unsubmitted answer").assertIsDisplayed()
+        compose.runOnIdle { width = 412 }
+        compose.onNodeWithText("Unsubmitted answer").assertDoesNotExist()
+        compose.runOnIdle { selected = false }
+        compose.onNodeWithText("Unsubmitted answer").assertIsDisplayed()
+        compose.runOnIdle { owner = "account-b" }
+        compose.onNodeWithText("Unsubmitted answer").assertDoesNotExist()
+        compose.onNodeWithText("Workspace 0").assertIsDisplayed()
+        compose.onNodeWithTag("retained.sidebar.list").performScrollToIndex(20)
+        compose.onNode(hasSetTextAction()).assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+    }
 
     @Test fun rendererAndDraftSurviveReflowSidebarToggleAndTabSearch() {
         var width by mutableIntStateOf(1000); var height by mutableIntStateOf(700)

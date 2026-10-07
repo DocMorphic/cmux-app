@@ -27,6 +27,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Sidebar viewport/drafts now survive hide/show and compact detail navigation;
+  Feed question choices survive primary-tab switches. Account replacement clears
+  retained sidebar state. **Four Android scenarios passed**, including the real
+  local socket-RPC main Feed flow and Back from its terminal. See
+  `WORKSPACE_SIDEBAR.md`. Separate-browser Feed, wide-sidebar Cloud and the
+  Feed-replaces-Notifications preference remain source-confirmed implementation
+  gaps. Emulator/Gradle stopped; physical acceptance and signed release remain.
+
 - Cloud now matches the source's fresh-input retry after an initial attachment
   failure: newly typed bytes can reconnect, while old unconfirmed input stays
   discarded. The shared composer and ordered lane use one admission rule.

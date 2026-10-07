@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,7 +31,10 @@ internal fun NativeWorkspaceShell(owner: Any?, hasDetail: Boolean, allowSplit: B
     key(owner) {
         val currentSidebar by rememberUpdatedState(sidebar)
         val currentDetail by rememberUpdatedState(detail)
-        val sidebarContent = remember { movableContentOf { Column(Modifier.fillMaxSize()) { currentSidebar() } } }
+        val sidebarState = rememberSaveableStateHolder()
+        val sidebarContent = remember { movableContentOf {
+            sidebarState.SaveableStateProvider("sidebar") { Column(Modifier.fillMaxSize()) { currentSidebar() } }
+        } }
         val detailContent = remember { movableContentOf { Column(Modifier.fillMaxSize()) { currentDetail() } } }
         var showSidebar by rememberSaveable { mutableStateOf(true) }
         val split = allowSplit && usesWorkspaceSidebar(widthDp, heightDp)

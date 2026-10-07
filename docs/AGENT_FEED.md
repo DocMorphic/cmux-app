@@ -383,3 +383,16 @@ text must not draw over the fixed Reply/Cancel toolbar.
   restoration batch also passed two cases in 26.939 s. Final quote and bottom/draft
   screenshots were visually inspected. The headless session's before/after event
   logs have no ANR/crash entries. Emulator and Gradle were stopped and reaped.
+
+
+### Retained tab/sidebar state — 2026-10-07
+
+Feed now has an account-owned saved-state holder outside its conditional primary
+navigation branch. Switching to Notifications and back preserves its local
+question choices, list state and modal draft state; the existing request/computer
+keys still invalidate changed targets. The adaptive shell likewise retains
+sidebar-local saveable state while hidden or behind a compact workspace. The
+main Feed/socket-RPC test verifies a selected question survives tab switching
+without submission and that terminal Back returns to Feed; shell checks cover
+viewport/draft restoration and account clearing. See `WORKSPACE_SIDEBAR.md` for
+all four passing cases, exact scope, evidence and outstanding navigation work.
