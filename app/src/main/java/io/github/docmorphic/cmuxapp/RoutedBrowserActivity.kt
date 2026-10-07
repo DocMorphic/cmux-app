@@ -35,7 +35,11 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
     val web = LocalBrowserWebOwner(app)
     private val mutable = MutableStateFlow(RoutedBrowserUi())
     val state = mutable.asStateFlow()
-    private val replies = mutableMapOf<Int, CompletableDeferred<Bundle>>()
+    private class PendingReply {
+        val answer = CompletableDeferred<Bundle>()
+        var payload: Bundle? = null
+    }
+    private val replies = mutableMapOf<Int, PendingReply>()
     private var ticket = 0
     private var requestId: String? = null
     private var service: Messenger? = null
@@ -65,7 +69,24 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
             Bundle().apply { putString("customize", RoutedSidebarCustomizationWire.save(command)) }).getString("customized"))) },
         readChanges = { key -> checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_CHANGES, Bundle().apply { putString("key", key) }).getString("changes")) },
         dropWorkspace = { command -> request(RoutedBrowserProtocol.SIDEBAR_DROP, Bundle().apply { putString("drop", RoutedSidebarDropWire.encode(command)) }); Unit })
-    private fun configureSidebar() = sidebar.configure(binding != null && state.value.sidebarAvailable && !state.value.retired, foreground)
+    val feed = RoutedAgentFeedController(viewModelScope,
+        fetch = { query ->
+            val response = request(RoutedBrowserProtocol.FEED_READ, Bundle().apply { putString("query", RoutedSidebarWire.query(query)) })
+            RoutedAgentFeedWire.snapshot(RoutedFeedPayload.read(checkNotNull(response.getParcelable<ParcelFileDescriptor>("feed_payload"))))
+        }, action = { command ->
+            val descriptor = RoutedFeedPayload.write(app, RoutedAgentFeedWire.command(command))
+            try { request(RoutedBrowserProtocol.FEED_ACTION, Bundle().apply { putParcelable("feed_payload", descriptor) }).getBoolean("accepted") }
+            finally { descriptor.close() }
+        }, text = { key ->
+            val response = request(RoutedBrowserProtocol.FEED_TEXT, Bundle().apply { putString("key", key) })
+            RoutedFeedPayload.read(checkNotNull(response.getParcelable<ParcelFileDescriptor>("feed_payload")))
+        }, select = { key, tab ->
+            checkNotNull(request(RoutedBrowserProtocol.FEED_SELECT, Bundle().apply { putString("key", key); putBoolean("tab", tab) }).getString("selection"))
+        })
+    private fun configureSidebar() {
+        val ready = binding != null && state.value.sidebarAvailable && !state.value.retired
+        sidebar.configure(ready, foreground); feed.configure(ready, foreground)
+    }
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {
             RoutedBrowserProtocol.RETIRE -> { mutable.value = state.value.copy(retired = true); configureSidebar() }
@@ -77,7 +98,15 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
                 sidebarAvailable = message.data.getBoolean("sidebar_available"), customization = message.data.getBundle("customization")?.let(RoutedWorkspaceCustomizationProtocol::draft))
                 configureSidebar()
             }
-            else -> replies.remove(message.arg1)?.complete(Bundle(message.data))
+            else -> {
+                val payload = Bundle(message.data)
+                val pending = replies.remove(message.arg1)
+                if (pending == null) payload.getParcelable<ParcelFileDescriptor>("feed_payload")?.close()
+                else {
+                    pending.payload = payload
+                    if (!pending.answer.complete(payload)) payload.getParcelable<ParcelFileDescriptor>("feed_payload")?.close()
+                }
+            }
         }
         true
     })
@@ -120,24 +149,27 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
     }
     private fun disconnected() {
         service = null
-        replies.values.forEach { it.completeExceptionally(IllegalStateException("Browser connection ended")) }; replies.clear()
+        replies.values.forEach { it.answer.completeExceptionally(IllegalStateException("Browser connection ended")) }; replies.clear()
         mutable.value = state.value.copy(retired = true)
         configureSidebar()
     }
     private suspend fun request(kind: Int, args: Bundle = Bundle()): Bundle {
         val peer = checkNotNull(service) { "Browser connection ended" }
         val serial = ++ticket
-        val answer = CompletableDeferred<Bundle>(); replies[serial] = answer
+        val pending = PendingReply(); val answer = pending.answer; replies[serial] = pending
+        var delivered = false
         args.putString(RoutedBrowserProtocol.EXTRA, requestId)
         try {
             peer.send(Message.obtain(null, kind).apply { arg1 = serial; data = args; replyTo = endpoint })
-            return withTimeout(if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE)) 120_000 else 20_000) { answer.await() }.also {
+            return (if (kind == RoutedBrowserProtocol.FEED_TEXT) answer.await() else withTimeout(if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE, RoutedBrowserProtocol.FEED_ACTION)) 120_000 else 20_000) { answer.await() }).also {
                 it.getString("failure")?.let { message -> throw IllegalStateException(message) }
+                delivered = true
             }
         } finally {
             replies.remove(serial)
-            if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_NOTIFICATION, RoutedBrowserProtocol.SIDEBAR_MUTATION, RoutedBrowserProtocol.SIDEBAR_DROP) && !answer.isCompleted) runCatching {
-                peer.send(Message.obtain(null, when (kind) { RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE -> RoutedBrowserProtocol.CANCEL_CUSTOMIZE; RoutedBrowserProtocol.SIDEBAR_MUTATION, RoutedBrowserProtocol.SIDEBAR_DROP -> RoutedBrowserProtocol.CANCEL_MUTATION; else -> RoutedBrowserProtocol.CANCEL_NOTIFICATION }).apply {
+            if (!delivered) pending.payload?.getParcelable<ParcelFileDescriptor>("feed_payload")?.close()
+            if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_NOTIFICATION, RoutedBrowserProtocol.SIDEBAR_MUTATION, RoutedBrowserProtocol.SIDEBAR_DROP, RoutedBrowserProtocol.FEED_ACTION, RoutedBrowserProtocol.FEED_TEXT) && !answer.isCompleted) runCatching {
+                peer.send(Message.obtain(null, when (kind) { RoutedBrowserProtocol.FEED_ACTION, RoutedBrowserProtocol.FEED_TEXT -> RoutedBrowserProtocol.CANCEL_FEED; RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE -> RoutedBrowserProtocol.CANCEL_CUSTOMIZE; RoutedBrowserProtocol.SIDEBAR_MUTATION, RoutedBrowserProtocol.SIDEBAR_DROP -> RoutedBrowserProtocol.CANCEL_MUTATION; else -> RoutedBrowserProtocol.CANCEL_NOTIFICATION }).apply {
                     arg1 = serial; data = Bundle().apply { putString(RoutedBrowserProtocol.EXTRA, requestId) }; replyTo = endpoint
                 })
             }
@@ -238,7 +270,8 @@ class RoutedBrowserActivity : ComponentActivity() {
                     controller.sidebar.previewChanges(key)?.let { ticket ->
                         startActivity(Intent(this@RoutedBrowserActivity, RoutedChangesActivity::class.java).putExtra("changes", ticket))
                     }
-                } }, onFinishSearch = ::finishSearch) }, detail = {
+                } }, onFinishSearch = ::finishSearch, feed = controller.feed, feedScope = id,
+                    onFeedNavigate = { leave("sidebar", selection = it) }) }, detail = {
                 val page = ui.surface?.state?.collectAsState()?.value
                 Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                     NativeWorkspaceBackControl { TextButton(onClick = { leave("back") }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") } }

@@ -26,6 +26,11 @@ internal object RoutedBrowserProtocol {
     const val SIDEBAR_EDITOR_CLOSE = 19
     const val SIDEBAR_CHANGES = 20
     const val SIDEBAR_DROP = 21
+    const val FEED_READ = 22
+    const val FEED_ACTION = 23
+    const val FEED_TEXT = 24
+    const val FEED_SELECT = 25
+    const val CANCEL_FEED = 26
     const val RETIRE = 100
     const val CONTEXT = 101
     const val EXTRA = "browser_request"

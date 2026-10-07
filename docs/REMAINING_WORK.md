@@ -27,12 +27,24 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The separate browser sidebar now has the shared Feed timeline, questions,
+  approvals, reply composer, full-message transport, read/triage actions and native
+  workspace/tab navigation. Its searches/filters and main-app Display preference
+  projection are wired; issued opaque keys revalidate the current owner and target.
+  Cancellation after an admitted write retains delivery uncertainty. **62 focused
+  JVM checks passed; four Android cases passed across the final checks**, including
+  the actual browser process with no WebView reload and the main socket-RPC flow.
+  Screenshot inspected; no ANR/crash events; sole 1,536 MiB emulator and Gradle stopped.
+  See `AGENT_FEED.md` for initial fixture-selector failures and exact scope. Remaining
+  browser work is broader large-message, process-death, live preference, filter/triage,
+  reconnect and accessibility acceptance; no signed APK or Pixel/Mac run in this batch.
+
 - Feed's timeline, row controls, reader and reply sheets now share a display-only
   model and action interface. The main screen resolves actions back to live Mac
   sessions; reused events cannot receive an old read completion. **24 focused JVM
   checks passed; eight Android scenarios passed before that final identity-guard
   refinement**. See `AGENT_FEED.md` for the exact receipts. This is groundwork for
-  the separate browser sidebar, which still needs its Feed IPC and navigation.
+  the separate browser sidebar, whose Feed IPC and navigation are implemented by the newer browser integration above.
   Emulator/Gradle stopped; no signed release or physical-device run.
 
 - Main navigation now follows iOS's default-hidden Notifications tab and persistent
@@ -41,7 +53,7 @@ and currently disabled; the upstream watcher is active on main with review issue
   passed**: settings/remount/defaults, existing Display layout, the main Feed/RPC
   flow, and legacy notification search/navigation. Screenshots inspected;
   emulator/Gradle stopped. Separate-browser Feed and that process's preference
-  integration remain open; see `AGENT_FEED.md`. No signed release or physical-device run.
+  integration are implemented by the newer browser integration above; see `AGENT_FEED.md`. No signed release or physical-device run.
 
 - Cloud now appears inside the wide workspace sidebar while the selected detail
   remains mounted; compact Cloud retains its full-page flow. Its introduction
@@ -49,8 +61,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   **Eight focused Android scenarios passed**, covering Cloud navigation,
   introduction restoration/replay, sidebar state and retained renderer/draft.
   Screenshots inspected; emulator stopped. See `WORKSPACE_SIDEBAR.md` for scope.
-  The Cloud native checkpoint also passed on current main (`9613e383`, run
-  `37612057611`), restoring and verifying the cached native artifact. Earlier
+  The Cloud native checkpoint also passed on main (`e90154ef`, run
+  `37617582848`), restoring and verifying the cached native artifact. Earlier
   failed runs predate the Android errno fix `819b6943`.
 
 - Sidebar viewport/drafts now survive hide/show and compact detail navigation;
@@ -58,8 +70,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   retained sidebar state. **Four Android scenarios passed**, including the real
   local socket-RPC main Feed flow and Back from its terminal. See
   `WORKSPACE_SIDEBAR.md`. Separate-browser Feed and its
-  Feed-replaces-Notifications preference integration remain source-confirmed implementation
-  gaps. Emulator/Gradle stopped; physical acceptance and signed release remain.
+  Feed-replaces-Notifications preference integration are implemented by the newer
+  browser integration above; broader lifecycle acceptance remains. Emulator/Gradle stopped; physical acceptance and signed release remain.
 
 - Cloud now matches the source's fresh-input retry after an initial attachment
   failure: newly typed bytes can reconnect, while old unconfirmed input stays

@@ -15,6 +15,9 @@ class RoutedBrowserHostService : Service() {
         val kind = message.what; val ticket = message.arg1; val args = Bundle(message.data)
         scope.launch {
             val result = Bundle()
+            var outgoingFeed: ParcelFileDescriptor? = null
+            val incomingFeed = args.getParcelable<ParcelFileDescriptor>("feed_payload")
+            try {
             try {
                 val entry = checkNotNull(RoutedBrowserSessions.live(args.getString(RoutedBrowserProtocol.EXTRA))) { "Browser session ended. Open it again from the workspace." }
                 if (kind == RoutedBrowserProtocol.OPEN) RoutedBrowserSessions.attach(entry, peer)
@@ -40,7 +43,7 @@ class RoutedBrowserHostService : Service() {
                                 RoutedWorkspaceCustomizationProtocol.draft(checkNotNull(args.getBundle("submitted"))))))
                         } finally { saves.remove(key) }
                     }
-                    RoutedBrowserProtocol.CANCEL_CUSTOMIZE, RoutedBrowserProtocol.CANCEL_NOTIFICATION, RoutedBrowserProtocol.CANCEL_MUTATION -> { saves[entry.id to ticket]?.cancel(); return@launch }
+                    RoutedBrowserProtocol.CANCEL_CUSTOMIZE, RoutedBrowserProtocol.CANCEL_NOTIFICATION, RoutedBrowserProtocol.CANCEL_MUTATION, RoutedBrowserProtocol.CANCEL_FEED -> { saves[entry.id to ticket]?.cancel(); return@launch }
                     RoutedBrowserProtocol.PREPARE -> result.putInt("port", RoutedBrowserSessions.prepare(entry, args.getString("url")))
                     RoutedBrowserProtocol.SNAPSHOT -> entry.destination.surface.remote(entry.attachment, RoutedBrowserProtocol.snapshot(args))
                     RoutedBrowserProtocol.FOREGROUND -> RoutedBrowserSessions.foreground(entry, args.getBoolean("active"), args.getBoolean("sidebar_visible"))
@@ -84,6 +87,27 @@ class RoutedBrowserHostService : Service() {
                         try { RoutedBrowserSessions.dropSidebar(entry, RoutedSidebarDropWire.decode(checkNotNull(args.getString("drop")))) }
                         finally { saves.remove(key) }
                     }
+                    RoutedBrowserProtocol.FEED_READ -> {
+                        val snapshot = RoutedBrowserSessions.readFeed(entry, RoutedSidebarWire.query(checkNotNull(args.getString("query"))))
+                        outgoingFeed = RoutedFeedPayload.write(this@RoutedBrowserHostService, RoutedAgentFeedWire.snapshot(snapshot))
+                        result.putParcelable("feed_payload", outgoingFeed)
+                    }
+                    RoutedBrowserProtocol.FEED_ACTION, RoutedBrowserProtocol.FEED_TEXT -> {
+                        val key = entry.id to ticket
+                        check(key !in saves) { "Feed operation already submitted" }
+                        saves[key] = currentCoroutineContext().job
+                        try {
+                            if (kind == RoutedBrowserProtocol.FEED_ACTION) result.putBoolean("accepted", RoutedBrowserSessions.feedAction(entry,
+                                RoutedAgentFeedWire.command(RoutedFeedPayload.read(checkNotNull(incomingFeed)))))
+                            else {
+                                val text = RoutedBrowserSessions.feedText(entry, RoutedAgentFeedWire.token(checkNotNull(args.getString("key"))))
+                                outgoingFeed = RoutedFeedPayload.write(this@RoutedBrowserHostService, text)
+                                result.putParcelable("feed_payload", outgoingFeed)
+                            }
+                        } finally { saves.remove(key) }
+                    }
+                    RoutedBrowserProtocol.FEED_SELECT -> result.putString("selection", RoutedBrowserSessions.selectFeed(entry,
+                        RoutedAgentFeedWire.token(checkNotNull(args.getString("key"))), args.getBoolean("tab")))
                     RoutedBrowserProtocol.SIDEBAR_SELECT -> result.putString("selection", RoutedBrowserSessions.selectSidebar(entry, checkNotNull(args.getString("key"))))
                     RoutedBrowserProtocol.DEBUG_LOGS -> {
                         check(BuildConfig.DEBUG) { "Debug logs unavailable" }
@@ -95,7 +119,9 @@ class RoutedBrowserHostService : Service() {
                 currentCoroutineContext().ensureActive()
                 result.putString("failure", failure.message ?: "Computer unavailable")
             }
-            runCatching { peer.send(Message.obtain(null, kind).apply { arg1 = ticket; data = result }) }
+            try { peer.send(Message.obtain(null, kind).apply { arg1 = ticket; data = result }) }
+            catch (_: Exception) { }
+            } finally { outgoingFeed?.close(); incomingFeed?.close() }
         }
         true
     })

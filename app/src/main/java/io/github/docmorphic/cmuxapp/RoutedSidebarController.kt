@@ -36,12 +36,12 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     private var initialized = false
     private var window = 100
     private var job: Job? = null
-    private val searchScope get() = if (state.value.query.notifications) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
+    private val searchScope get() = if (state.value.query.feed) NativeSearchScope.FEED else if (state.value.query.notifications) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
     fun initialize(query: RoutedSidebarQuery) {
         if (initialized) return
         initialized = true
         mutable.value = state.value.copy(query = query, search = NativeSearchState(
-            workspaceQuery = query.workspaceQuery, notificationQuery = query.notificationQuery))
+            workspaceQuery = query.workspaceQuery, notificationQuery = query.notificationQuery, feedQuery = query.feedQuery))
         restart()
     }
     fun configure(ready: Boolean, active: Boolean) {
@@ -58,7 +58,13 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     fun tab(notifications: Boolean) {
         val search = state.value.search.commit()
         mutable.value = state.value.copy(search = search)
-        query(state.value.query.copy(notifications = notifications, workspaceQuery = search.workspaceQuery, notificationQuery = search.notificationQuery))
+        query(state.value.query.copy(notifications = notifications, feed = false, workspaceQuery = search.workspaceQuery, notificationQuery = search.notificationQuery, feedQuery = search.feedQuery))
+    }
+    fun feedTab() {
+        val search = state.value.search.commit()
+        mutable.value = state.value.copy(search = search)
+        query(state.value.query.copy(notifications = false, feed = true, workspaceQuery = search.workspaceQuery,
+            notificationQuery = search.notificationQuery, feedQuery = search.feedQuery))
     }
     fun beginSearch() { mutable.value = state.value.copy(search = state.value.search.begin(searchScope)) }
     fun edit(value: String, generation: Long) {
@@ -73,7 +79,7 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     }
     fun more() { window = (window + 100).coerceAtMost(RoutedSidebarWire.MAX_ROWS); restart() }
     fun retry() { mutable.value = state.value.copy(actionError = null); restart() }
-    private fun editorVisible() = available && foreground && (visible || state.value.editor != null) && !state.value.query.notifications
+    private fun editorVisible() = available && foreground && (visible || state.value.editor != null) && state.value.query.workspaces
     suspend fun editWorkspace(key: String) {
         if (!editorVisible() || state.value.mutationBusy || state.value.editorLoading || state.value.editor != null ||
             state.value.snapshot?.rows?.any { it.key == key && it.canCustomize } != true) return
@@ -114,7 +120,7 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
         } finally { mutable.value = state.value.copy(mutationBusy = false) }
     }
     suspend fun groupMenu(key: String): RoutedSidebarGroupPage {
-        fun current() = available && foreground && visible && !state.value.query.notifications && !state.value.mutationBusy &&
+        fun current() = available && foreground && visible && state.value.query.workspaces && !state.value.mutationBusy &&
             state.value.snapshot?.rows?.any { it.key == key && RoutedSidebarMutationKind.MOVE_TO_GROUP in it.mutations } == true
         check(current()) { "Group menu is no longer available." }
         val first = readGroupMenu(key, null, 0)
@@ -133,7 +139,7 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
         return first.copy(next = null, choices = choices)
     }
     suspend fun sort(command: RoutedSidebarSort): Boolean = sortMutex.withLock {
-        if (!available || !foreground || !visible || state.value.query.notifications || state.value.query.computer != null) return@withLock false
+        if (!available || !foreground || !visible || !state.value.query.workspaces || state.value.query.computer != null) return@withLock false
         mutable.value = state.value.copy(saving = true, actionError = null)
         try {
             saveSort(command)
@@ -165,7 +171,7 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
         } finally { mutable.value = state.value.copy(notificationBusy = false) }
     }
     suspend fun mutate(command: RoutedSidebarMutation): Boolean {
-        if (state.value.mutationBusy || !available || !foreground || !visible || state.value.query.notifications) return false
+        if (state.value.mutationBusy || !available || !foreground || !visible || !state.value.query.workspaces) return false
         mutable.value = state.value.copy(mutationBusy = true, actionError = null)
         try {
             workspaceAction(command)
@@ -181,7 +187,7 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
         } finally { mutable.value = state.value.copy(mutationBusy = false) }
     }
     suspend fun drop(command: RoutedSidebarDrop): Boolean {
-        if (!available || !foreground || !visible || state.value.query.notifications || state.value.snapshot?.dragRevision != command.revision) return false
+        if (!available || !foreground || !visible || !state.value.query.workspaces || state.value.snapshot?.dragRevision != command.revision) return false
         mutable.value = state.value.copy(actionError = null)
         return try { dropWorkspace(command); restart(); true }
         catch (failure: Exception) {

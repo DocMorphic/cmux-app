@@ -3705,7 +3705,7 @@ internal fun NativeScreen(
                                 foregroundMac = macs.singleOrNull { it.code == connectedCode }, cloud = cloudSnapshots.values.toList()),
                             display = NativeDisplayPreferences.read(displayPreferences),
                             cloud = cloudSnapshots.values.flatMap { it.rows }, cloudAvailability = cloudSnapshots.mapValues { it.value.availability },
-                            cloudSelection = cloudRoute?.workspaceId)
+                            cloudSelection = cloudRoute?.workspaceId, agentReadState = agentReadState)
                     }
                 })
                 val sidebarInitial by rememberUpdatedState<() -> NativeSidebarPresentation>({
@@ -3713,7 +3713,8 @@ internal fun NativeScreen(
                     val ssh = sshSession?.hosts?.state?.value?.hosts?.singleOrNull { "ssh:${it.id}" == selectedComputerOrigin }
                     NativeSidebarPresentation(mac?.let { workspaceMacFilterId(it.deviceId, it.instanceTag) } ?: ssh?.let { workspaceSshFilterId(it.id) } ?: selectedCloudId?.let { CloudAddress(it).identifier },
                         notificationTab, searchState.text(NativeSearchScope.WORKSPACES), searchState.text(NativeSearchScope.NOTIFICATIONS),
-                        unreadWorkspacesOnly, unreadNotificationsOnly, workspaceFilter.machines, feedSession.projection, collapsedGroups)
+                        unreadWorkspacesOnly, unreadNotificationsOnly, workspaceFilter.machines, feedSession.projection, collapsedGroups,
+                        agentFeedTab, searchState.text(NativeSearchScope.FEED), agentNeedsInputOnly)
                 })
                 val sidebarAdopt by rememberUpdatedState<(NativeSidebarPresentation) -> Unit>({ presentation ->
                     if (sidebarCurrent()) {
@@ -3722,8 +3723,8 @@ internal fun NativeScreen(
                         selectedComputerOrigin = mac?.origin ?: ssh?.let { "ssh:${it.id}" }
                             ?: presentation.computer?.let(CloudAddress::parse)?.takeIf { it.component == null }?.identifier.orEmpty()
                         store.update { it.put("computer_selection", selectedComputerOrigin) }
-                        agentFeedTab = false; notificationTab = presentation.notifications
-                        searchState = searchState.commit().copy(workspaceQuery = presentation.workspaceQuery, notificationQuery = presentation.notificationQuery)
+                        agentFeedTab = presentation.feed; notificationTab = presentation.notifications; agentNeedsInputOnly = presentation.feedNeedsInputOnly
+                        searchState = searchState.commit().copy(workspaceQuery = presentation.workspaceQuery, notificationQuery = presentation.notificationQuery, feedQuery = presentation.feedQuery)
                         unreadNotificationsOnly = presentation.notificationUnread
                         workspaceFilter = NativeWorkspaceFilter(presentation.workspaceUnread, presentation.machines)
                         feedSession.projection = presentation.projection
@@ -3780,6 +3781,14 @@ internal fun NativeScreen(
                             screenResume.cancel(); workspaceRoute = null; inAppNotification = null
                             sshNavigation.open(login, row.host, first, remembered)
                         }
+                        is NativeSidebarTarget.Agent -> {
+                            val entry = target.entry
+                            check(store.visiblePairedMacs().contains(entry.source.mac) && connection.allowsSaved(entry.source.mac))
+                            cloudModel?.leaveWorkspace(); sshNavigation.leave(); screenResume.cancel(); inAppNotification = null
+                            agentFeedTab = true; notificationTab = false; cloudTab = false
+                            workspaceRoute = NativeWorkspaceRoute(entry.source.mac.origin, checkNotNull(entry.item.workspaceId),
+                                terminalId = entry.item.surfaceId.takeIf { target.tab })
+                        }
                         is NativeSidebarTarget.Notification -> {
                             cloudModel?.leaveWorkspace()
                             val entry = target.entry
@@ -3814,7 +3823,12 @@ internal fun NativeScreen(
                         }, refreshNotifications = {
                             check(currentOwner()) { "Sidebar account changed" }
                             feedCoordinator.refresh()
-                        }, history = feedSession.sidebarHistory, mutateWorkspace = { target, command, canSend ->
+                        }, agentSession = { if (currentOwner()) feedCoordinator.agentFeedSession(it) else null },
+                        readAgent = { entry, needs ->
+                            check(currentOwner()) { "Sidebar account changed" }
+                            agentReadState = if (needs == null) agentReadState.interacted(entry) else agentReadState.triage(entry, needs)
+                        }, refreshAgent = { check(currentOwner()); feedCoordinator.refresh() },
+                        history = feedSession.sidebarHistory, mutateWorkspace = { target, command, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }
                             val permitted = { currentOwner() && canSend() }
                             if (target.group) feedCoordinator.groupAction(target.mac, target.id, command.kind.verb, command.title, permitted)

@@ -84,10 +84,12 @@ internal class NativeAgentFeedSession(
         return try { operation.await() } finally { operation.cancel() }
     }
     private fun live(item: NativeAgentFeedItem): NativeAgentFeedItem =
-        state.value.snapshot?.items?.singleOrNull { it.id == item.id && it.workstream == item.workstream && it.requestId == item.requestId }
+        state.value.snapshot?.items?.singleOrNull { it.id == item.id && it.workstream == item.workstream && it.requestId == item.requestId &&
+            it.kind == item.kind && it.workspaceId == item.workspaceId && it.surfaceId == item.surfaceId && it.questions == item.questions }
             ?: error("This Feed item is no longer available")
 
-    suspend fun decide(item: NativeAgentFeedItem, decision: AgentFeedDecision): Boolean = owned {
+    suspend fun decide(item: NativeAgentFeedItem, decision: AgentFeedDecision, canSend: () -> Boolean = { true }): Boolean = owned {
+        check(canSend()) { "Feed is no longer visible" }
         val row = live(item)
         check(row.needsInput) { "This request is no longer pending" }
         val method = when (row.kind) {
@@ -113,7 +115,7 @@ internal class NativeAgentFeedSession(
         if (decision.selections.isNotEmpty()) params.put("selections", JSONArray(decision.selections))
         decision.feedback?.takeIf { it.isNotEmpty() }?.let { params.put("feedback", it) }
         send(row, null) {
-            request(method, params)
+            check(canSend()) { "Feed is no longer visible" }; request(method, params)
             currentCoroutineContext().ensureActive(); checkOwner()
             localDecisions[checkNotNull(row.requestId)] = decision
             mutableState.value = state.value.copy(snapshot = state.value.snapshot?.let { snapshot ->
@@ -122,10 +124,12 @@ internal class NativeAgentFeedSession(
             })
         }
     }
-    suspend fun terminalReply(item: NativeAgentFeedItem, text: String): Boolean = owned {
+    suspend fun terminalReply(item: NativeAgentFeedItem, text: String, canSend: () -> Boolean = { true }): Boolean = owned {
+        check(canSend()) { "Feed is no longer visible" }
         val row = live(item); val trimmed = text.trim()
         require(trimmed.isNotEmpty() && row.supportsTerminalReply && row.replyText == null && row.id !in localReplies)
         send(row, trimmed) {
+            check(canSend()) { "Feed is no longer visible" }
             val result = request("mobile.terminal.paste", JSONObject().put("workspace_id", row.workspaceId)
                 .put("surface_id", row.surfaceId).put("text", trimmed).put("submit_key", "return").put("feed_event_id", row.id))
             currentCoroutineContext().ensureActive(); checkOwner()
@@ -149,25 +153,31 @@ internal class NativeAgentFeedSession(
             refresh.request()
             return true
         } catch (error: Exception) {
+            // Leaving the browser can cancel an admitted write after the Mac received it.
+            // Retain uncertainty on the still-owned session instead of silently offering a clean retry.
+            if (job.isActive && admitted()) {
+                mutableState.value = state.value.copy(failures = state.value.failures +
+                    (row.id to AgentFeedFailure("Delivery could not be confirmed. Check the terminal before trying again.", AgentFeedDelivery.UNCONFIRMED, draft)))
+                refresh.request()
+            }
             currentCoroutineContext().ensureActive()
             if (error is CancellationException && error !is TimeoutCancellationException) throw error
             checkOwner()
-            mutableState.value = state.value.copy(failures = state.value.failures +
-                (row.id to AgentFeedFailure("Delivery could not be confirmed. Check the terminal before trying again.", AgentFeedDelivery.UNCONFIRMED, draft)))
             failed(error)
-            refresh.request()
             return false
         } finally { mutableState.value = state.value.copy(pending = state.value.pending - related) }
     }
-    suspend fun fullText(item: NativeAgentFeedItem): String = owned {
+    suspend fun fullText(item: NativeAgentFeedItem, canRead: () -> Boolean = { true }): String = owned {
+        check(canRead()) { "Feed is no longer visible" }
         live(item)
         val result = StringBuilder(); var byteCount = 0; var offset = 0; var version: Double? = null
         while (true) {
-            currentCoroutineContext().ensureActive(); checkOwner()
+            currentCoroutineContext().ensureActive(); checkOwner(); check(canRead()) { "Feed is no longer visible" }
             val params = JSONObject().put("item_id", item.id).put("offset", offset)
             version?.let { params.put("version", it) }
             val page = request("feed.text", params)
             currentCoroutineContext().ensureActive(); checkOwner()
+            check(canRead()) { "Feed is no longer visible" }
             val text = page.opt("text") as? String ?: error("Invalid Feed text")
             val nextVersion = (page.opt("version") as? Number)?.toDouble() ?: error("Invalid Feed version")
             val size = text.toByteArray(Charsets.UTF_8).size

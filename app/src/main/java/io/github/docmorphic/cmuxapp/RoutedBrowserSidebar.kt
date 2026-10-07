@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -29,8 +30,21 @@ import java.time.format.FormatStyle
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarController, ui: RoutedSidebarUi,
-    onOpen: (String) -> Unit, onChanges: (String) -> Unit, onFinishSearch: (Boolean) -> Unit) {
+    onOpen: (String) -> Unit, onChanges: (String) -> Unit, onFinishSearch: (Boolean) -> Unit,
+    feed: RoutedAgentFeedController? = null, feedScope: String = "browser-feed", onFeedNavigate: (String) -> Unit = {}) {
     DisposableEffect(controller) { controller.visible(true); onDispose { controller.visible(false) } }
+    val feedState = rememberSaveableStateHolder()
+    LaunchedEffect(ui.snapshot?.showsNotifications, ui.snapshot?.feedAvailable, ui.query.notifications, ui.query.feed) {
+        if (ui.snapshot?.feedAvailable == true && ui.snapshot.showsNotifications == false && ui.query.notifications) {
+            onFinishSearch(false); controller.feedTab()
+        } else if (ui.snapshot?.feedAvailable == false && ui.query.feed) controller.tab(false)
+    }
+    if (ui.query.feed && feed != null) {
+        feedState.SaveableStateProvider("feed") {
+            RoutedAgentFeedSidebar(controller, ui, feed, feedScope, onOpen, onFeedNavigate, onFinishSearch)
+        }
+        return
+    }
     var computers by remember { mutableStateOf(false) }
     var filters by remember { mutableStateOf(false) }
     var readAll by remember { mutableStateOf<RoutedSidebarReadAll?>(null) }
@@ -204,5 +218,8 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
     NativePrimaryNavigation(ui.query.notifications, ui.snapshot?.unread ?: 0, ui.search,
         onTab = { onFinishSearch(false); controller.tab(it) }, onBeginSearch = controller::beginSearch,
         onEdit = controller::edit, onSubmit = { onFinishSearch(false) }, onCancel = { onFinishSearch(true) }, sidebar = true,
-        onNewTask = actions[RoutedSidebarActionKind.NEW_TASK]?.let { action -> { onOpen(action.key) } })
+        onNewTask = actions[RoutedSidebarActionKind.NEW_TASK]?.let { action -> { onOpen(action.key) } },
+        agentFeedCount = ui.snapshot?.feedNeedsInput ?: 0,
+        onAgentFeed = if (ui.snapshot?.feedAvailable == true && feed != null) ({ onFinishSearch(false); controller.feedTab() }) else null,
+        showsNotifications = ui.snapshot?.showsNotifications ?: true)
 }

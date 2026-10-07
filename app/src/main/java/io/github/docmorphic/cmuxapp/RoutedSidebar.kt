@@ -36,12 +36,14 @@ internal data class RoutedSidebarQuery(val notifications: Boolean = false,
     val workspaceQuery: String = "", val notificationQuery: String = "", val computer: String? = null,
     val workspaceUnread: Boolean = false, val notificationUnread: Boolean = false,
     val machines: Set<String> = emptySet(), val expanded: Set<String> = emptySet(),
-    val groupExpansion: Map<String, Boolean> = emptyMap()) {
-    val text get() = if (notifications) notificationQuery else workspaceQuery
-    val unread get() = if (notifications) notificationUnread else workspaceUnread
-    fun withText(value: String) = if (notifications) copy(notificationQuery = NativeSearchText.boundQuery(value))
+    val groupExpansion: Map<String, Boolean> = emptyMap(),
+    val feed: Boolean = false, val feedQuery: String = "", val feedNeedsInputOnly: Boolean = false) {
+    val workspaces get() = !notifications && !feed
+    val text get() = if (feed) feedQuery else if (notifications) notificationQuery else workspaceQuery
+    val unread get() = if (feed) feedNeedsInputOnly else if (notifications) notificationUnread else workspaceUnread
+    fun withText(value: String) = if (feed) copy(feedQuery = NativeSearchText.boundQuery(value)) else if (notifications) copy(notificationQuery = NativeSearchText.boundQuery(value))
         else copy(workspaceQuery = NativeSearchText.boundQuery(value))
-    fun withUnread(value: Boolean) = if (notifications) copy(notificationUnread = value) else copy(workspaceUnread = value)
+    fun withUnread(value: Boolean) = if (feed) copy(feedNeedsInputOnly = value) else if (notifications) copy(notificationUnread = value) else copy(workspaceUnread = value)
 }
 internal sealed interface RoutedSidebarSort {
     data class Mode(val mode: NativeWorkspaceSortMode) : RoutedSidebarSort
@@ -53,7 +55,9 @@ internal data class RoutedSidebarSnapshot(val computers: List<RoutedSidebarCompu
     val sortMode: NativeWorkspaceSortMode? = null, val actions: List<RoutedSidebarAction> = emptyList(), val readAll: RoutedSidebarReadAll? = null,
     val canRefresh: Boolean = false, val expanded: Set<String> = emptySet(), val editorTicket: String? = null,
     val creation: List<RoutedSidebarCreateComputer> = emptyList(), val createGroup: String? = null,
-    val wrapTitles: Boolean = false, val previewLines: Int = 2, val dragRevision: String? = null) {
+    val wrapTitles: Boolean = false, val previewLines: Int = 2, val dragRevision: String? = null,
+    val feedAvailable: Boolean = false, val showsNotifications: Boolean = true, val feedNeedsInput: Int = 0,
+    val feedShowsTab: Boolean = false, val feedBubbleQuotes: Boolean = false) {
     init { require(previewLines in 1..2) }
 }
 internal data class RoutedSidebarPage(val revision: String, val snapshot: RoutedSidebarSnapshot,
@@ -77,6 +81,10 @@ internal interface RoutedSidebarHost {
     suspend fun notifications(command: RoutedSidebarNotification, query: RoutedSidebarQuery, canSend: () -> Boolean) {
         error("Notification actions are unavailable")
     }
+    fun feed(query: RoutedSidebarQuery): AgentFeedUiSnapshot = error("Feed is unavailable")
+    suspend fun feedAction(command: RoutedAgentFeedCommand, canSend: () -> Boolean): Boolean = error("Feed is unavailable")
+    suspend fun feedText(key: String, canSend: () -> Boolean): String = error("Feed is unavailable")
+    fun resolveFeed(key: String, tab: Boolean): (() -> Unit)? = null
     fun retain(): RoutedSidebarLease
 }
 internal class RoutedSidebarLease(private val setActive: (Boolean) -> Unit, private val release: () -> Unit) : AutoCloseable {
@@ -247,7 +255,8 @@ internal object RoutedSidebarWire {
         .put("notification_query", NativeSearchText.boundQuery(value.notificationQuery)).put("computer", value.computer)
         .put("workspace_unread", value.workspaceUnread).put("notification_unread", value.notificationUnread)
         .put("machines", JSONArray(value.machines.sorted())).put("expanded", JSONArray(value.expanded.sorted()))
-        .put("groups", JSONObject(value.groupExpansion)).toString())
+        .put("groups", JSONObject(value.groupExpansion)).put("feed", value.feed).put("feed_query", NativeSearchText.boundQuery(value.feedQuery))
+        .put("feed_needs_input", value.feedNeedsInputOnly).toString())
     fun query(value: String): RoutedSidebarQuery {
         val json = JSONObject(checked(value)); val expanded = json.optJSONArray("expanded") ?: JSONArray()
         val groups = json.optJSONObject("groups") ?: JSONObject()
@@ -257,7 +266,8 @@ internal object RoutedSidebarWire {
             if (json.isNull("computer")) null else token(json.getString("computer")),
             json.optBoolean("workspace_unread"), json.optBoolean("notification_unread"),
             keys(json.optJSONArray("machines") ?: JSONArray()).toSet(), keys(expanded, 10_000).toSet(),
-            groups.keys().asSequence().associate { token(it) to groups.getBoolean(it) })
+            groups.keys().asSequence().associate { token(it) to groups.getBoolean(it) },
+            json.optBoolean("feed"), NativeSearchText.boundQuery(json.optString("feed_query")), json.optBoolean("feed_needs_input")).also { require(!(it.feed && it.notifications)) }
     }
     private fun computers(value: List<RoutedSidebarComputer>) = JSONArray().also { array -> value.forEach {
         array.put(JSONObject().put("key", token(it.key)).put("name", it.name.bounded(64)).put("build", it.build?.bounded(32)))
@@ -275,6 +285,9 @@ internal object RoutedSidebarWire {
         .put("can_refresh", value.snapshot.canRefresh)
         .put("drag_revision", value.snapshot.dragRevision?.let(::token))
         .put("wrap_titles", value.snapshot.wrapTitles).put("preview_lines", value.snapshot.previewLines)
+        .put("feed_available", value.snapshot.feedAvailable).put("shows_notifications", value.snapshot.showsNotifications)
+        .put("feed_needs_input", value.snapshot.feedNeedsInput).put("feed_shows_tab", value.snapshot.feedShowsTab)
+        .put("feed_bubble_quotes", value.snapshot.feedBubbleQuotes)
         .put("editor", value.snapshot.editorTicket)
         .put("creation", RoutedSidebarCreationWire.encode(value.snapshot.creation))
         .put("create_group", value.snapshot.createGroup?.let(::token))
@@ -348,6 +361,8 @@ internal object RoutedSidebarWire {
                 RoutedSidebarCreationWire.decode(json.optJSONArray("creation") ?: JSONArray()),
                 if (json.isNull("create_group")) null else token(json.getString("create_group")),
                 json.optBoolean("wrap_titles"), if (json.has("preview_lines")) json.getInt("preview_lines") else 2,
-                if (json.isNull("drag_revision")) null else token(json.getString("drag_revision"))), offset, next, total)
+                if (json.isNull("drag_revision")) null else token(json.getString("drag_revision")),
+                json.optBoolean("feed_available"), json.optBoolean("shows_notifications", true), json.optInt("feed_needs_input").coerceAtLeast(0),
+                json.optBoolean("feed_shows_tab"), json.optBoolean("feed_bubble_quotes")), offset, next, total)
     }
 }

@@ -22,9 +22,9 @@ it did **not** implement the distinct agent workstream Feed.
 - The main navigation hides Notifications by default, with the source's persistent
   **Legacy Notifications Tab** Display switch to bring it back. Turning that off
   while Notifications is selected moves to Feed and commits the outgoing search;
-separate destination queries and Feed drafts are retained. This applies to
-  compact, wide and Cloud main navigation; the separate browser process still
-  needs its Feed destination and preference integration.
+  separate destination queries and Feed drafts are retained. This applies to
+  compact, wide and Cloud main navigation and now to the separate browser sidebar
+  through its shared timeline and main-process display preferences.
 - Only verified paired Macs advertising `feed.v1` get `feed.list` reads and a
   `feed.changed` subscription. Feed shares that Mac's existing authenticated
   connection. It has a separate refresh loop/revision watermark so notification
@@ -66,8 +66,8 @@ This implementation is not a declaration of full iOS Feed parity. The row
 presentation follow-up below adds native inline Markdown, source-specific content,
 swipe triage and Display settings. Remaining work includes expansion accessibility/RTL coverage
 and bubble-tail geometry, full-text and composer
-recreation, accessibility/large-text layout, and routed browser/sidebar Feed
-navigation. The dated runtime checks below cover specific fixture flows, not full
+recreation, accessibility/large-text layout, and broader routed browser/sidebar Feed lifecycle
+acceptance. The dated runtime checks below cover specific fixture flows, not full
 visual or physical acceptance.
 
 Physical Mac/Pixel acceptance remains open for every decision family, terminal
@@ -498,7 +498,8 @@ Verification:
 - Evidence: ignored `captures/runtime/feed-shared-timeline/`, with logs, XML results,
   composer screenshots/geometry and APK/source receipt.
 
-**Browser integration is still pending.** Next, extend its query/presentation and
+**At this checkpoint browser integration was still pending.** The following
+section supersedes that implementation gap. The next work was to extend its query/presentation and
 paged display projection with Feed, bridge decisions/triage/replies/reader loads
 through the main process with live account and issued-row checks, and preserve
 separate search, filters, drafts and destination adoption. Large full messages
@@ -506,3 +507,58 @@ need bounded transfers across the process boundary, rather than a single Binder
 bundle. Then apply the legacy-tab preference in that sidebar and verify the real
 browser process while retaining its active WebView. This refactor does not prove
 browser Feed, authenticated transport or physical parity.
+
+
+## Feed in the separate browser process — 2026-10-07
+
+The browser sidebar now mounts the shared timeline, question and approval controls,
+reply composer, full-message reader and row triage/navigation. Feed has separate
+search/filter state and saved UI state across primary-tab and sidebar switches.
+The browser reads the main app's Legacy Notifications Tab and Feed row preferences;
+turning off a selected legacy tab transfers selection to Feed. Returning to the
+main app adopts Feed selection, search and Needs Input filter.
+
+The main app remains the owner of authenticated sessions and read-state storage.
+The display projection uses salted opaque entry and owner keys. Pairing codes and
+session objects do not enter the browser process. Every command resolves an issued
+key against the current account, computer scope, request, questions and destination;
+prepared navigation is one-use and resolves the live destination again on return.
+Hiding/leaving the presentation cancels pending operations. A cancelled admitted
+write retains its unconfirmed-delivery warning and draft in the owning session;
+there is no automatic resend.
+
+Snapshots, reply commands and full messages cross Binder through bounded file
+descriptors backed by unlinked private cache files. The receiver rejects pipes,
+invalid UTF-8 and oversized payloads. Both endpoints close descriptors on normal
+completion, cancellation and orphaned replies. Full-message RPC paging retains the
+existing 8 MiB bound and version/offset checks. The display codec preserves already
+normalized model values, including locally recorded replies longer than RPC preview
+limits. Initial loading does not mount an empty authoritative timeline that could
+invalidate a restored composer.
+
+Verification is recorded in the ignored `captures/runtime/feed-browser-sidebar/`.
+The combined build passed **62 focused JVM cases** and produced debug/test APKs.
+All four targeted Android cases passed across the final checks:
+
+- Two payload cases: a 2 MB UTF-8 round trip after unlinking, descriptor closure on
+  success/pre-dispatch cancellation, and pipe rejection.
+- The existing main-screen real socket-RPC Feed flow passed on the integrated APK.
+- The actual separate-browser-process case passed in **237.047 seconds**: independent
+  Feed search, question choice retention across tab switches, exact question and
+  permission methods/parameters, expanded quote text loaded through the main app,
+  terminal reply acknowledgement/display, sidebar hide/show with no browser reload,
+  retained WebView draft, and native terminal destination/Feed-state adoption.
+  Two earlier fixture attempts exposed selector errors (the browser address field
+  instead of sidebar search, then the whole quote instead of its inline link).
+  Corrected selectors passed; no product changes were needed for those failures.
+
+The browser screenshot was inspected. Boot/intermediate/final ANR/crash event logs
+are empty. The sole headless API 37 / 16 KiB AVD used 1,536 MiB; its process was
+stopped/reaped and Gradle stopped. Large-payload testing is a descriptor round trip;
+the browser fixture's message is small. Large actual cross-process messages,
+process-death drafts, legacy-preference changes while browsing, offline/reconnect,
+all plan modes, filter/triage gestures and accessibility still need broader browser
+acceptance. The runtime reader check exercised expanded composer text, not every
+standalone reader lifecycle.
+Physical Mac/Pixel, production push, broad lifecycle/accessibility and signed-release
+gates remain open; this integration does not establish full parity.

@@ -13,6 +13,7 @@ internal sealed interface NativeSidebarTarget {
     data class Ssh(val row: SshFeedRow) : NativeSidebarTarget
     data class CreateCloud(val machineId: String) : NativeSidebarTarget
     data class Cloud(val row: CloudWorkspaceRow) : NativeSidebarTarget
+    data class Agent(val entry: NativeAgentFeedEntry, val tab: Boolean) : NativeSidebarTarget
     data class Notification(val entry: NativeFeedEntry) : NativeSidebarTarget
 }
 internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val ssh: List<SshFeedRow>,
@@ -22,11 +23,12 @@ internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val 
     val actions: Set<RoutedSidebarActionKind> = emptySet(), val pendingMoves: Map<String, Int> = emptyMap(),
     val creation: NativeSidebarCreation? = null, val display: NativeDisplayPreferences = NativeDisplayPreferences(),
     val cloud: List<CloudWorkspaceRow> = emptyList(), val cloudAvailability: Map<String, NativeFeedAvailability> = emptyMap(),
-    val cloudSelection: String? = null)
+    val cloudSelection: String? = null, val agentReadState: NativeAgentFeedReadState = NativeAgentFeedReadState(0.0))
 internal data class NativeSidebarPresentation(val computer: String? = null, val notifications: Boolean = false,
     val workspaceQuery: String = "", val notificationQuery: String = "", val workspaceUnread: Boolean = false,
     val notificationUnread: Boolean = false, val machines: Set<String> = emptySet(),
-    val projection: NativeFeedProjection = NativeFeedProjection(), val collapsedGroups: Map<String, Boolean> = emptyMap())
+    val projection: NativeFeedProjection = NativeFeedProjection(), val collapsedGroups: Map<String, Boolean> = emptyMap(),
+    val feed: Boolean = false, val feedQuery: String = "", val feedNeedsInputOnly: Boolean = false)
 
 /** Main-process history, retained with the feed session across parent recreation. */
 internal class NativeSidebarHistory {
@@ -54,7 +56,16 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val createWorkspaceGroup: (suspend (NativeCredentialStore.PairedMac, () -> Boolean) -> Unit)? = null,
     private val canCloseSsh: (SshFeedRow) -> Boolean = { false },
     private val closeSsh: (suspend (SshFeedRow, () -> Boolean) -> Unit)? = null,
-    private val readChanges: ((NativeCredentialStore.PairedMac, NativeWorkspace, () -> Boolean) -> WorkspaceChangesAccess)? = null) : RoutedSidebarHost {
+    private val readChanges: ((NativeCredentialStore.PairedMac, NativeWorkspace, () -> Boolean) -> WorkspaceChangesAccess)? = null,
+    private val agentSession: ((NativeCredentialStore.PairedMac) -> NativeAgentFeedSession?)? = null,
+    private val readAgent: ((NativeAgentFeedEntry, Boolean?) -> Unit)? = null,
+    private val refreshAgent: (suspend () -> Unit)? = null) : RoutedSidebarHost {
+    private val agent by lazy { if (agentSession != null && readAgent != null && refreshAgent != null)
+        NativeRoutedAgentFeed(input, { id(*it.toTypedArray()) }, ::computer, agentSession, readAgent, refreshAgent, navigate) else null }
+    override fun feed(query: RoutedSidebarQuery) = checkNotNull(agent) { "Feed unavailable" }.snapshot(query)
+    override suspend fun feedAction(command: RoutedAgentFeedCommand, canSend: () -> Boolean) = checkNotNull(agent).action(command, canSend)
+    override suspend fun feedText(key: String, canSend: () -> Boolean) = checkNotNull(agent).text(key, canSend)
+    override fun resolveFeed(key: String, tab: Boolean) = agent?.resolve(key, tab)
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
@@ -93,7 +104,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         } }.toMap()
         return RoutedSidebarQuery(state.notifications, state.workspaceQuery, state.notificationQuery,
             state.computer?.let(::computer), state.workspaceUnread, state.notificationUnread, state.machines.map(::computer).toSet(),
-            checkNotNull(history.requested), groups)
+            checkNotNull(history.requested), groups, state.feed, state.feedQuery, state.feedNeedsInputOnly)
     }
     private fun machines(value: NativeSidebarInput) = (value.sources.filter { it.workspaces.isNotEmpty() }.mapNotNull {
         workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag)
@@ -126,7 +137,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             project(aggregateNativeFeed(notificationSources(value, query), computerName = value.appearances::name), query, value),
             value.sources.flatMap { source -> source.groups.mapNotNull { item ->
                 query.groupExpansion[group(source, item.id)]?.let { WorkspaceListEntry.Header(source, item).key to !it }
-            } }.toMap()))
+            } }.toMap(), query.feed, NativeSearchText.boundQuery(query.feedQuery), query.feedNeedsInputOnly))
     }
 
     private fun notificationSources(value: NativeSidebarInput, query: RoutedSidebarQuery): List<NativeFeedSource> {
@@ -333,7 +344,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         is WorkspaceListEntry.Footer -> id("footer", entry.key)
     }
     private fun dragContext(value: NativeSidebarInput, query: RoutedSidebarQuery, checkPending: Boolean = true): DragContext? {
-        if (moveWorkspace == null || query.notifications || query.workspaceQuery.isNotBlank() ||
+        if (moveWorkspace == null || !query.workspaces || query.workspaceQuery.isNotBlank() ||
             filter(value, query).active || (query.computer == null && value.sort.mode == NativeWorkspaceSortMode.ACTIVITY)) return null
         val selected = query.computer?.let { key -> value.computers.singleOrNull { computer(it.id) == key }?.id }
         if (query.computer != null && selected == null) return null
@@ -401,7 +412,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         val unread = entries.count { !it.notification.isRead }
         val filter = filter(value, query)
         val projection = project(entries, query, value)
-        val rows = if (query.notifications) notifications(projection, value.locale) else workspaces(value,
+        val rows = if (query.feed) emptyList() else if (query.notifications) notifications(projection, value.locale) else workspaces(value,
             sources.filter { source -> filter.matches(workspaceMacFilterId(source.mac.deviceId, source.mac.instanceTag)?.let(::computer), true) },
             sshRows.filter { filter.matches(computer(workspaceSshFilterId(it.host.id)), it.workspace.hasUnread) },
             query, selected == null, filter.active, selection,
@@ -425,15 +436,18 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             }, filterMachines = if (query.computer == null) ordered.filter { it.id in machines(value) }
                 .map { RoutedSidebarComputer(computer(it.id), it.name, it.buildLabel) } else emptyList(),
             selectedMachines = filter.machines,
-            sortMode = value.sort.mode.takeIf { saveSort != null && query.computer == null && !query.notifications },
-            actions = RoutedSidebarActionKind.entries.filter { it in value.actions && (!query.notifications || it != RoutedSidebarActionKind.NEW_TASK) }
+            sortMode = value.sort.mode.takeIf { saveSort != null && query.computer == null && query.workspaces },
+            actions = RoutedSidebarActionKind.entries.filter { it in value.actions && (query.workspaces || it != RoutedSidebarActionKind.NEW_TASK) }
                 .map { RoutedSidebarAction(action(it), it) },
             readAll = if (query.notifications && validScope && unread > 0 && readAllNotifications != null)
                 RoutedSidebarReadAll(readAllKey(value, query), ordered.singleOrNull { it.id == selected }?.name ?: "All Computers") else null,
             canRefresh = query.notifications && refreshNotifications != null, expanded = expanded(projection),
-            creation = if (!query.notifications && validScope) creation(value, selected) else emptyList(),
-            createGroup = if (!query.notifications && validScope) groupCreate(value, selected) else null,
-            wrapTitles = value.display.wrapTitles, previewLines = value.display.previewLines, dragRevision = drag?.revision)
+            creation = if (query.workspaces && validScope) creation(value, selected) else emptyList(),
+            createGroup = if (query.workspaces && validScope) groupCreate(value, selected) else null,
+            wrapTitles = value.display.wrapTitles, previewLines = value.display.previewLines, dragRevision = drag?.revision,
+            feedAvailable = agent != null, showsNotifications = agent == null || !value.display.feedReplacesNotifications,
+            feedNeedsInput = aggregateNativeAgentFeed(sources).count { value.agentReadState.needsInput(it) },
+            feedShowsTab = value.display.feedShowsTab, feedBubbleQuotes = value.display.feedBubbleQuotes)
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
         query: RoutedSidebarQuery, all: Boolean, filtering: Boolean, selection: NativeSidebarSelection?, cloudRows: List<CloudWorkspaceRow>): List<RoutedSidebarRow> {

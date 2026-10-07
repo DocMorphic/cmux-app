@@ -70,6 +70,9 @@ class RoutedBrowserPresentationTest {
     private var sidebarAdopted: RoutedSidebarQuery? = null
     private var sidebarRows = listOf(RoutedSidebarRow("other", "workspace", "Other computer workspace", preview = "Remote preview"))
     private var sidebarAllows = true
+    private var browserFeedSession: NativeAgentFeedSession? = null
+    private var browserFeedRead = NativeAgentFeedReadState(0.0)
+    private val browserFeedWrites = CopyOnWriteArrayList<Pair<String, JSONObject>>()
     private var projectedSidebar: NativeRoutedSidebarHost? = null
     private var browserSidebarSelection: NativeSidebarSelection? = null
     private val openedCreation = CopyOnWriteArrayList<NativeSidebarTarget>()
@@ -136,6 +139,10 @@ class RoutedBrowserPresentationTest {
         }
         override fun current() = projectedSidebar?.current() ?: true
         override fun initialQuery() = projectedSidebar?.initialQuery() ?: RoutedSidebarQuery()
+        override fun feed(query: RoutedSidebarQuery) = checkNotNull(projectedSidebar).feed(query)
+        override suspend fun feedAction(command: RoutedAgentFeedCommand, canSend: () -> Boolean) = checkNotNull(projectedSidebar).feedAction(command, canSend)
+        override suspend fun feedText(key: String, canSend: () -> Boolean) = checkNotNull(projectedSidebar).feedText(key, canSend)
+        override fun resolveFeed(key: String, tab: Boolean) = checkNotNull(projectedSidebar).resolveFeed(key, tab)
         override fun changes(key: String) = checkNotNull(projectedSidebar).changes(key)
         override fun read(query: RoutedSidebarQuery) = if (projectedSidebar != null) projectedSidebar!!.read(query) else RoutedSidebarSnapshot(listOf(RoutedSidebarComputer("other-mac", "Other Mac")),
             if (query.notifications) listOf(RoutedSidebarRow("notice", "notification", "Remote notification", unread = true))
@@ -229,6 +236,32 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
+            if (scenarioName.startsWith("globalSidebarFeed")) {
+                val rows = NativeAgentFeedWire.decode(JSONObject("""{"revision":1,"items":[
+                    {"id":"permission","workstream_id":"one","source":"Claude","kind":"permissionRequest","status":"pending","request_id":"req-permission","created_at":200,"updated_at":200,"title":"Permission needed","tool_name":"Read","tool_input":"Inspect README","workspace_id":"workspace","surface_id":"terminal"},
+                    {"id":"question","workstream_id":"two","source":"Claude","kind":"question","status":"pending","request_id":"req-question","created_at":199,"updated_at":199,"title":"Pick a color","questions":[{"id":"color","prompt":"Which color?","options":[{"id":"blue-id","label":"Blue"},{"id":"red-id","label":"Red"}]}],"workspace_id":"workspace","surface_id":"terminal"},
+                    {"id":"stop","workstream_id":"three","source":"Claude","kind":"stop","status":"telemetry","created_at":198,"updated_at":198,"title":"Finished report","reason":"Report ready","full_text_preview":"Browser report preview","full_text_truncated":true,"workspace_id":"workspace","surface_id":"terminal"}
+                ]}"""))
+                browserFeedSession = NativeAgentFeedSession(owner, { sidebarAllows }, { method, params ->
+                    browserFeedWrites += method to JSONObject(params.toString())
+                    when (method) {
+                        "mobile.terminal.paste" -> JSONObject().put("submitted", true)
+                        "feed.text" -> JSONObject().put("text", "# Browser report\n\nFull message from the main app.").put("version", 1)
+                        else -> JSONObject()
+                    }
+                }, rows)
+                noticeSources = listOf(NativeFeedSource(NativeCredentialStore.PairedMac("fixture-feed-code", "A", "Mac A"),
+                    workspaces = listOf(workspace), availability = NativeFeedAvailability.CONNECTED, capabilities = setOf(AGENT_FEED_CAPABILITY)))
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-feed", {
+                    NativeSidebarInput(noticeSources.map { it.copy(agentFeed = checkNotNull(browserFeedSession).state.value) }, emptyList(),
+                        listOf(NativeSortComputer(workspaceMacFilterId("A", null)!!, "Mac A")), NativeWorkspaceSortState(),
+                        actions = RoutedSidebarActionKind.entries.toSet(), agentReadState = browserFeedRead)
+                }, { RoutedSidebarLease({}) {} }, { openedCreation += it },
+                    initial = { NativeSidebarPresentation(feed = true) }, adoptPresentation = { adoptedPresentation = it },
+                    agentSession = { browserFeedSession }, readAgent = { entry, needs ->
+                        browserFeedRead = if (needs == null) browserFeedRead.interacted(entry) else browserFeedRead.triage(entry, needs)
+                    }, refreshAgent = {})
+            }
             if (scenarioName.startsWith("globalSidebarChanges")) {
                 val binary = scenarioName == "globalSidebarChangesBinaryPreviewAndDraftSurviveBrowserParentRecreation"
                 val a = NativeCredentialStore.PairedMac("changes-a", "A", "Mac A")
@@ -1017,6 +1050,66 @@ class RoutedBrowserPresentationTest {
         }
     }
 
+    @Test fun globalSidebarFeedActionsAndDraftsPreserveBrowserAndReturnNativeDestination() = wideSidebar {
+        browser("Routed fixture ▾")
+        text("Keep draft").click()
+        until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        fun search(value: String) {
+            desc("Search").click()
+            var field: UiObject2? = null
+            until { field = device.findObjects(By.clazz("android.widget.EditText")).firstOrNull {
+                it.visibleBounds.centerX() < device.displayWidth * .45
+            }; field != null }
+            checkNotNull(field).text = value
+            device.pressEnter()
+        }
+        text("asked to use Read")
+        assertFalse(device.hasObject(By.textStartsWith("Notifications")))
+        search("Pick a color")
+        text("Blue").click()
+        text("Workspaces").click()
+        device.findObject(By.textStartsWith("Feed"))!!.click()
+        text("Send").click()
+        until { browserFeedWrites.any { it.first == "feed.question.reply" } }
+        assertEquals("Blue", browserFeedWrites.single { it.first == "feed.question.reply" }.second.getJSONArray("selections").getString(0))
+        search("Permission needed")
+        text("Allow Once").click()
+        until { browserFeedWrites.any { it.first == "feed.permission.reply" } }
+        assertEquals("once", browserFeedWrites.single { it.first == "feed.permission.reply" }.second.getString("mode"))
+        search("Finished report")
+        text("Reply").click()
+        val editor = checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000))
+        editor.text = "Continue from browser Feed"
+        device.pressBack()
+        val quote = checkNotNull(device.wait(Until.findObject(By.textContains("See more")), 5_000)).visibleBounds
+        // Inline link text is a subrange of the quote, not the whole accessibility node.
+        val density = context.resources.displayMetrics.density
+        device.click(quote.right - (12 * density).toInt(), quote.top + (8 * density).toInt())
+        until { browserFeedWrites.any { it.first == "feed.text" } }
+        assertTrue(device.wait(Until.hasObject(By.textContains("Full message from the main app.")), 5_000))
+        // The sheet closes without submitting; the retained page must still hold its draft.
+        text("Cancel").click()
+        desc("Hide sidebar").click(); desc("Show sidebar").click()
+        text("Reply").click()
+        checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000)).text = "Continue from browser Feed"
+        text("Reply").click()
+        until { browserFeedWrites.any { it.first == "mobile.terminal.paste" } }
+        assertEquals("Continue from browser Feed", browserFeedWrites.single { it.first == "mobile.terminal.paste" }.second.getString("text"))
+        text("Continue from browser Feed")
+        assertTrue(browserFeedWrites.any { it.first == "feed.text" })
+        assertEquals(loads, paths.count { it == "/start" })
+        assertTrue(desc("Choose terminal or pane").text?.startsWith("Draft ") == true)
+        capturePicker("browser-sidebar-feed-after-actions")
+        checkNotNull(device.wait(Until.findObject(By.textContains("Browser report preview")), 5_000)).longClick()
+        text("Open tab").click()
+        compose.waitForIdle(); text("Reopen fixture")
+        until { openedCreation.any { it is NativeSidebarTarget.Agent } }
+        val target = openedCreation.single() as NativeSidebarTarget.Agent
+        assertEquals("terminal", target.entry.item.surfaceId); assertTrue(target.tab)
+        assertTrue(adoptedPresentation?.feed == true)
+    }
+
     @Test fun globalSidebarNotificationsShareRowsMutateAndConfirmCapturedScopeWithoutReload() = wideSidebar {
         compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
         val picker = desc("Choose terminal or pane")
@@ -1398,7 +1491,7 @@ class RoutedBrowserPresentationTest {
     @After fun cleanup() {
         if (::network.isInitialized) main { network.close(); navigation.clear() }
         if (::network.isInitialized) runBlocking { delay(300) }
-        main { creationSsh?.close() }
+        main { creationSsh?.close(); browserFeedSession?.close() }
         owner.cancel()
         creationVault?.deleteRecursively()
         if (::server.isInitialized) server.shutdown()

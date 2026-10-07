@@ -30,6 +30,9 @@ internal object RoutedBrowserSessions {
         var sidebar: RoutedSidebarHost? = null) {
         var sidebarLease: RoutedSidebarLease? = null
         val sidebarExchange = RoutedSidebarExchange()
+        var feedIssued = emptySet<String>()
+        var feedComputer: String? = null
+        var feedSelection: Triple<String, String, Boolean>? = null
         val sidebarGroupExchange = RoutedSidebarGroupExchange()
         var sidebarEditor: RoutedSidebarCustomizationEditor? = null
         var changesCapture: Pair<String, RoutedChangesCapture>? = null
@@ -142,7 +145,7 @@ internal object RoutedBrowserSessions {
     fun sortSidebar(entry: Entry, command: RoutedSidebarSort) {
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible && entry.sidebar?.current() == true)
         val query = checkNotNull(entry.sidebarQuery)
-        check(!query.notifications && query.computer == null && entry.sidebarExchange.permitsSort(command)) {
+        check(query.workspaces && query.computer == null && entry.sidebarExchange.permitsSort(command)) {
             "Sidebar sort options changed. Refresh the list."
         }
         checkNotNull(entry.sidebar).sort(command)
@@ -164,7 +167,7 @@ internal object RoutedBrowserSessions {
         val host = checkNotNull(entry.sidebar)
         val computer = entry.sidebarQuery?.computer
         fun current() = live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
-            entry.sidebar?.owner == host.owner && host.current() && entry.sidebarQuery?.notifications == false &&
+            entry.sidebar?.owner == host.owner && host.current() && entry.sidebarQuery?.workspaces == true &&
             (command.kind != RoutedSidebarMutationKind.CREATE_GROUP || entry.sidebarQuery?.computer == computer)
         check(current() && entry.sidebarExchange.permitsMutation(command)) { "Workspace actions changed. Refresh the sidebar." }
         command.validate()
@@ -189,7 +192,7 @@ internal object RoutedBrowserSessions {
     fun groupMenu(entry: Entry, key: String, revision: String?, offset: Int): RoutedSidebarGroupPage {
         val host = checkNotNull(entry.sidebar)
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
-            host.current() && entry.sidebarQuery?.notifications == false && entry.sidebarExchange.permitsGroupMenu(key)) {
+            host.current() && entry.sidebarQuery?.workspaces == true && entry.sidebarExchange.permitsGroupMenu(key)) {
             "Group menu is no longer available. Refresh the sidebar."
         }
         return host.groupMenu(key, revision, offset).also { entry.sidebarGroupExchange.issue(key, it) }
@@ -197,7 +200,7 @@ internal object RoutedBrowserSessions {
     fun sidebarEditor(entry: Entry, key: String): RoutedSidebarCustomization {
         val host = checkNotNull(entry.sidebar)
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
-            host.current() && entry.sidebarQuery?.notifications == false && entry.sidebarExchange.permitsCustomization(key)) {
+            host.current() && entry.sidebarQuery?.workspaces == true && entry.sidebarExchange.permitsCustomization(key)) {
             "Workspace customization is no longer available. Refresh the sidebar."
         }
         check(!entry.sidebarMutationMutex.isLocked) { "A sidebar update is already in progress" }
@@ -210,7 +213,7 @@ internal object RoutedBrowserSessions {
         val host = checkNotNull(entry.sidebar)
         val editor = checkNotNull(entry.sidebarEditor) { "Workspace editor ended. Reopen Customize." }
         fun current() = live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
-            entry.sidebar?.owner == host.owner && host.current() && entry.sidebarQuery?.notifications == false &&
+            entry.sidebar?.owner == host.owner && host.current() && entry.sidebarQuery?.workspaces == true &&
             entry.sidebarEditor === editor && editor.current()
         check(current()) { "Workspace editor is no longer active." }
         check(entry.sidebarMutationMutex.tryLock()) { "A sidebar update is already in progress" }
@@ -240,11 +243,46 @@ internal object RoutedBrowserSessions {
         entry.changesCapture = null
         return pending.second.takeIf { it.current() }
     }
+    private fun feedCurrent(entry: Entry, host: RoutedSidebarHost): Boolean = live(entry.id) === entry &&
+        !entry.menuRetired && entry.foreground && entry.sidebarVisible && entry.sidebar?.owner == host.owner &&
+        host.current() && entry.sidebarQuery?.feed == true && entry.sidebarQuery?.computer == entry.feedComputer
+    fun readFeed(entry: Entry, query: RoutedSidebarQuery): AgentFeedUiSnapshot {
+        val host = checkNotNull(entry.sidebar)
+        check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible && host.current() && query.feed)
+        val result = host.feed(query)
+        entry.sidebarQuery = query; entry.feedComputer = query.computer; entry.feedIssued = result.entries.map { it.key }.toSet()
+        return result
+    }
+    private suspend fun <T> feedOperation(entry: Entry, key: String?, operation: suspend (RoutedSidebarHost, () -> Boolean) -> T): T = coroutineScope {
+        val host = checkNotNull(entry.sidebar)
+        fun current() = feedCurrent(entry, host) && (key == null || key in entry.feedIssued)
+        check(current()) { "Feed item or presentation changed. Refresh the Feed." }
+        val caller = currentCoroutineContext().job
+        val retirement = launch { while (current()) delay(50); caller.cancel(CancellationException("Feed presentation ended")) }
+        try { operation(host, ::current) } finally { retirement.cancel() }
+    }
+    suspend fun feedAction(entry: Entry, command: RoutedAgentFeedCommand): Boolean = feedOperation(entry, command.key) { host, current ->
+        host.feedAction(command, current)
+    }
+    suspend fun feedText(entry: Entry, key: String): String = feedOperation(entry, key) { host, current ->
+        host.feedText(key, current).also { check(current()) { "Feed presentation ended" } }
+    }
+    fun selectFeed(entry: Entry, key: String, tab: Boolean): String {
+        val host = checkNotNull(entry.sidebar)
+        check(feedCurrent(entry, host) && key in entry.feedIssued && host.resolveFeed(key, tab) != null) { "Feed destination changed" }
+        return java.util.UUID.randomUUID().toString().also { entry.feedSelection = Triple(it, key, tab) }
+    }
     fun selectSidebar(entry: Entry, key: String): String {
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible) { "Sidebar is not visible" }
         return entry.sidebarExchange.prepare(key) { entry.sidebar?.resolve(it) != null }
     }
     fun sidebarResult(entry: Entry, ticket: String?, host: RoutedSidebarHost?): (() -> Unit)? {
+        val feed = entry.feedSelection?.takeIf { it.first == ticket }
+        if (feed != null) {
+            entry.feedSelection = null
+            if (entry.menuRetired || entry.network.retired.isCompleted || host == null || entry.sidebar?.owner != host.owner || !host.current()) return null
+            return host.resolveFeed(feed.second, feed.third)
+        }
         val key = entry.sidebarExchange.consume(ticket) ?: return null
         if (entry.menuRetired || entry.network.retired.isCompleted || host == null || entry.sidebar?.owner != host.owner) return null
         return host.resolve(key)
@@ -260,6 +298,7 @@ internal object RoutedBrowserSessions {
     fun finished(entry: Entry) {
         if (entry.exited.isCompleted) return
         entry.sidebarEditor = null
+        entry.feedIssued = emptySet()
         entry.changesCapture = null; entry.changesOwner = null
         entry.death?.let { runCatching { entry.peer?.binder?.unlinkToDeath(it, 0) } }
         entry.surfaceWatch?.cancel(); entry.surfaceWatch = null
