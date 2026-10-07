@@ -7,17 +7,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.ui.res.painterResource
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,16 +111,21 @@ internal fun NativeAgentFeedRow(entry: AgentFeedUiEntry, model: NativeAgentFeedP
                         else -> Unit
                     }
                 } else if (item.supportsTerminalReply) {
-                    item.replyText?.let { reply ->
-                        model.replyReference?.let { FeedQuote(it, display.feedBubbleQuotes, user = false, lineLimit = 2) }
-                        Text("You replied", color = feedMuted, fontSize = 11.sp)
-                        AgentFeedMarkdownText(reply, Modifier.fillMaxWidth().background(Color(0xFF20354B), RoundedCornerShape(12.dp)).padding(12.dp), fontSize = 12)
-                    }
-                    if (item.replyText == null) TextButton(onClick = { dismiss(); onCompose("terminal") }, enabled = ready && !pending) {
-                        Text(if (failure != null) "Review reply" else "Reply", color = feedMuted, fontSize = 12.sp)
+                    item.replyText?.let { FeedReplyMarker(it, model.replyReference, display.feedBubbleQuotes) }
+                    if (failure != null && item.replyText == null && !pending) {
+                        FeedReplyFailure(failure, ready, item.workspaceId != null, {
+                            dismiss(); onCompose("terminal")
+                        }, { dismiss(); onOpen(item.surfaceId != null) })
+                    } else TextButton(onClick = { dismiss(); onCompose("terminal") }, enabled = ready && !pending && item.replyText == null,
+                        modifier = Modifier.testTag("AgentFeedReplyButton"), contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+                        if (pending) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 1.5.dp, color = feedMuted)
+                        else Icon(if (item.replyText == null) painterResource(R.drawable.ic_feed_reply) else painterResource(R.drawable.ic_menu_check),
+                            contentDescription = null, tint = feedMuted, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text(if (pending) "Sending…" else if (item.replyText != null) "Replied" else "Reply", color = feedMuted, fontSize = 12.sp)
                     }
                 }
-                failure?.let { Text(it.message, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                if (!item.supportsTerminalReply) failure?.let { Text(it.message, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
                 if (pending) LinearProgressIndicator(Modifier.fillMaxWidth())
                 DropdownMenu(menu, { menu = false }) {
                     if (ready && item.workspaceId != null) DropdownMenuItem(text = { Text("Open workspace") }, onClick = { menu = false; onOpen(false) })
@@ -129,12 +139,60 @@ internal fun NativeAgentFeedRow(entry: AgentFeedUiEntry, model: NativeAgentFeedP
 
 @Composable
 private fun FeedQuote(text: String, bubble: Boolean, user: Boolean, lineLimit: Int) {
-    if (bubble) Box(Modifier.fillMaxWidth(), contentAlignment = if (user) Alignment.CenterEnd else Alignment.CenterStart) {
-        val tint = if (user) feedAccent else feedMuted
-        AgentFeedMarkdownText(text, Modifier.fillMaxWidth(.9f).border(1.dp, tint.copy(alpha = .5f), RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 7.dp),
-            color = tint, lineLimit = lineLimit, fontSize = 12)
+    if (bubble) FeedBubble(user, filled = false) {
+        AgentFeedMarkdownText(text, color = if (user) feedAccent else feedMuted, lineLimit = lineLimit, fontSize = 12)
     } else Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.width(3.dp).fillMaxHeight().background(feedMuted.copy(alpha = .35f), RoundedCornerShape(1.5.dp)))
         AgentFeedMarkdownText(text, color = feedMuted, lineLimit = lineLimit, fontSize = 12)
+    }
+}
+
+@Composable
+internal fun FeedBubble(user: Boolean, filled: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val direction = LocalLayoutDirection.current
+    // Border's outline cache must be replaced when direction changes in-place.
+    val shape = remember(user, direction) { AgentFeedBubbleShape(trailing = user) }
+    val tint = if (user) feedAccent else feedMuted
+    Box(Modifier.fillMaxWidth().padding(start = if (user) 40.dp else 0.dp, end = if (user) 0.dp else 40.dp),
+        contentAlignment = if (user) Alignment.CenterEnd else Alignment.CenterStart) {
+        Box(modifier.widthIn(min = 32.dp).then(if (filled) Modifier.background(Color(0xFF007AFF), shape)
+            else Modifier.border(1.dp, tint.copy(alpha = if (user) .55f else .45f), shape))
+            .padding(start = if (user) 12.dp else 16.dp, end = if (user) 16.dp else 12.dp, top = 7.dp, bottom = 7.dp)) { content() }
+    }
+}
+
+@Composable
+internal fun FeedReplyMarker(reply: String, reference: String?, bubble: Boolean) {
+    if (bubble) FeedBubble(user = true, filled = true,
+        modifier = Modifier.testTag("AgentFeedSentBubble").clearAndSetSemantics { contentDescription = "You: $reply" }) {
+        AgentFeedMarkdownText(reply, color = Color.White, fontSize = 12)
+    } else Column(Modifier.padding(top = 2.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        reference?.let { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Icon(painterResource(R.drawable.ic_feed_reply), contentDescription = null, tint = feedMuted, modifier = Modifier.size(12.dp))
+            Text("Replying to “$it”", style = TextStyle(textDirection = TextDirection.Content), color = feedMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        } }
+        Row(Modifier.background(feedAccent.copy(alpha = .12f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("You", Modifier.alignByBaseline(), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+            AgentFeedMarkdownText(reply, Modifier.weight(1f, fill = false).alignByBaseline(), fontSize = 12)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FeedReplyFailure(failure: AgentFeedFailure, ready: Boolean, canOpen: Boolean, onRetry: () -> Unit, onOpen: () -> Unit) {
+    Column(Modifier.padding(top = 2.dp).testTag("AgentFeedReplyFailure"), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Icon(painterResource(R.drawable.ic_task_warning), contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+            Text(if (failure.delivery == AgentFeedDelivery.NOT_SENT) "Reply not sent."
+                else "Couldn’t confirm your reply was sent. Check the terminal before retrying.",
+                color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            TextButton(onClick = onRetry, enabled = ready && failure.draft != null) { Text("Try Again", fontSize = 12.sp) }
+            if (failure.delivery == AgentFeedDelivery.UNCONFIRMED && canOpen)
+                TextButton(onClick = onOpen, enabled = ready) { Text("Open Terminal", fontSize = 12.sp) }
+        }
     }
 }

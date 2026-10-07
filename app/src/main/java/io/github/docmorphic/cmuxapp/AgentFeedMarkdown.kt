@@ -2,18 +2,32 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
@@ -133,6 +147,7 @@ internal fun AgentFeedMarkdownText(markdown: String, modifier: Modifier = Modifi
     onLayout: ((TextLayoutResult) -> Unit)? = null) {
     val text = agentFeedAnnotatedText(markdown)
     Text(text, modifier, color = color, fontSize = fontSize.sp, maxLines = lineLimit,
+        style = LocalTextStyle.current.copy(textDirection = TextDirection.Content),
         fontFamily = if (monospaced) FontFamily.Monospace else null,
         overflow = TextOverflow.Ellipsis, onTextLayout = { onLayout?.invoke(it) })
 }
@@ -198,7 +213,7 @@ internal fun AgentFeedInlinePreview(text: String, hasMore: Boolean, lineLimit: I
         append("See more")
         pop()
     } }
-    val style = LocalTextStyle.current.merge(TextStyle(color = color, fontSize = fontSize.sp,
+    val style = LocalTextStyle.current.merge(TextStyle(color = color, fontSize = fontSize.sp, textDirection = TextDirection.Content,
         fontFamily = if (monospaced) FontFamily.Monospace else null))
     val measurer = rememberTextMeasurer(cacheSize = 16)
     BoxWithConstraints(modifier) {
@@ -216,6 +231,28 @@ internal fun AgentFeedInlinePreview(text: String, hasMore: Boolean, lineLimit: I
         // The expansion link has native link semantics, independently of row
         // navigation. At extreme font/width combinations let the control wrap
         // instead of clipping the only way to reach the full message.
-        Text(rendered.first, if (rendered.second) Modifier.heightIn(min = 48.dp) else Modifier, style = style)
+        var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+        Text(rendered.first, Modifier.fillMaxWidth().then(if (rendered.second) Modifier.heightIn(min = 48.dp) else Modifier), style = style,
+            onTextLayout = { layout = it })
+        // Text adds resolved link styles to its layout input, so annotations differ
+        // from our source even when offsets describe the same displayed string.
+        val measured = layout?.takeIf { it.layoutInput.text.text == rendered.first.text }
+        if (rendered.second && enabled && measured != null) {
+            val link = rendered.first.getLinkAnnotations(0, rendered.first.length)
+                .single { (it.item as? LinkAnnotation.Clickable)?.tag == "AgentFeedSeeMore" }
+            val boxes = (link.start until link.end).map(measured::getBoundingBox)
+            val bounds = androidx.compose.ui.geometry.Rect(boxes.minOf { it.left }, boxes.minOf { it.top },
+                boxes.maxOf { it.right }, boxes.maxOf { it.bottom })
+            val density = LocalDensity.current
+            // The text still owns pointer input and ordinary URL links. This virtual
+            // control exposes the expansion subrange to TalkBack and Switch Access.
+            Box(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset { IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt()) }
+                .size(with(density) { bounds.width.toDp() }, with(density) { bounds.height.toDp() })
+                .semantics(mergeDescendants = true) {
+                    role = Role.Button
+                    contentDescription = "See more"
+                    onClick(label = "See more") { latestMore(); true }
+                })
+        }
     }
 }

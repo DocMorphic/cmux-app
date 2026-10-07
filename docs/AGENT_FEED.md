@@ -64,10 +64,9 @@ it did **not** implement the distinct agent workstream Feed.
 
 This implementation is not a declaration of full iOS Feed parity. The row
 presentation follow-up below adds native inline Markdown, source-specific content,
-swipe triage and Display settings. Remaining work includes expansion accessibility/RTL coverage
-and bubble-tail geometry, full-text and composer
-recreation, accessibility/large-text layout, and broader routed browser/sidebar Feed lifecycle
-acceptance. The dated runtime checks below cover specific fixture flows, not full
+swipe triage and Display settings. Remaining work includes broader full-text and
+composer lifecycle, real TalkBack/RTL/large-text acceptance, and routed
+browser/sidebar lifecycle acceptance. The dated runtime checks below cover specific fixture flows, not full
 visual or physical acceptance.
 
 Physical Mac/Pixel acceptance remains open for every decision family, terminal
@@ -129,8 +128,9 @@ row tap/context menu instead of a repeated action bar on every event.
 
 `Show Tab in Feed` is a persistent Display preference, default off as on iOS.
 Quote bubbles follow the audited iOS debug option: editable/default-on in debug,
-absent/default-off in production; production uses the leading quote bar. Exact
-bubble-tail geometry and inline See-more placement still require visual refinement.
+absent/default-off in production; production uses the leading quote bar. The
+reply-row follow-up below adds the source bubble-tail geometry; later inline-text
+checks cover expansion placement and accessibility.
 
 Inline Markdown uses [commonmark-java 0.30.0](https://github.com/commonmark/commonmark-java/tree/commonmark-parent-0.30.0)
 with its strikethrough extension and an inline-only block adapter. Paragraph breaks,
@@ -562,3 +562,61 @@ acceptance. The runtime reader check exercised expanded composer text, not every
 standalone reader lifecycle.
 Physical Mac/Pixel, production push, broad lifecycle/accessibility and signed-release
 gates remain open; this integration does not establish full parity.
+
+
+## Reply row and expansion accessibility — 2026-10-07
+
+A scoped comparison with `AgentFeedRow.swift` and `AgentFeedBubbleShape.swift` at
+`186cec79781256867ad4516f0802118738bd2393` found visible gaps after browser Feed
+integration. Android now uses the source's continuous 4 dp tail / 18 dp corner
+bubble outline, 40 dp opposite-side inset and asymmetric content padding. Logical
+alignment and geometry mirror in RTL. Replacing the border outline cache when
+layout direction changes fixes a stale tail in an already-mounted row. Text uses
+content direction so English punctuation remains correctly ordered in an RTL
+shell. Quoted user prompts use outlined bubbles;
+recorded replies use filled trailing bubbles with a single “You: …” accessibility
+label and no duplicate reference quote. The production quote-bar style retains a
+one-line “Replying to …” reference and compact You/reply marker. Reply, Sending and
+Replied states include the outline arrow, progress indicator or checkmark.
+
+An unconfirmed terminal reply has explicit Try Again and Open Terminal controls.
+Try Again uses the existing saved-failure draft composer and does not resend.
+Open Terminal resolves the live Feed target through the same action interface.
+Offline or pending controls stay gated. Permission/plan/question delivery errors
+continue to use their existing failure state.
+
+Inline “See more” retains attributed text and pointer links, and now exposes an
+independent accessibility button over its measured substring. Its bounds use the
+actual text layout with physical positioning, including RTL, and disappear when
+expansion is disabled. This replaces the browser test's coordinate-derived tap
+with an accessibility-description lookup. It does not claim full TalkBack or
+Switch Access acceptance without a physical assistive-technology run.
+
+Verification:
+
+- Debug and test APK builds passed. Final integrated runtime: **9 tests passed in
+  98.483 seconds** on the sole API 37 / 16 KiB AVD, headless at 1,536 MiB.
+- Five inline-text cases cover grapheme/style/link retention, last-line expansion,
+  enlarged text/current callbacks, independent RTL accessibility/touch activation
+  without row navigation, disabled-action removal, and English punctuation in RTL.
+- Two reply-row cases cover reopening an uncertain draft without sending, exact
+  terminal destination, bubble/bar presentation, accessible sent label and direction
+  switching. Final LTR/RTL screenshots were visually inspected.
+- Main real socket-RPC Feed flow and actual separate-browser Feed flow passed. The
+  browser activates See more by accessibility description, sees the new reply label,
+  keeps its WebView draft without reloading, and returns to the exact terminal.
+  The final Android hierarchy exposes See more as a clickable, enabled node.
+- The first run had two failures: the overlay's guard compared annotated strings,
+  but Text adds resolved link styles. Comparing the displayed string fixes the guard.
+  Screenshot review separately found the stale RTL border cache and punctuation;
+  both were corrected. The next run passed seven cases but hit Android 17's stale
+  initial browser-title accessibility cache (paint was correct). The browser fixture
+  now refreshes its known provider node, as existing notification tests already do.
+  All initial logs/screenshots remain alongside final evidence.
+- Evidence: ignored `captures/runtime/feed-reply-rows/`. Empty boot/intermediate/final
+  ANR/crash event logs. Gradle stopped and the sole emulator process stopped/reaped.
+  No Pixel/Mac run, signed release or broader regression suite in this batch.
+
+Full Feed parity remains unproven. Physical assistive-technology, all locale/font
+combinations, long-message performance and broader account/lifecycle acceptance
+remain part of the project gates.

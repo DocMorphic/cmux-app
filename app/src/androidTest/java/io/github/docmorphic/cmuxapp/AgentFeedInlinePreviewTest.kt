@@ -7,6 +7,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -99,4 +101,34 @@ class AgentFeedInlinePreviewTest {
             assertEquals("A" + grapheme + "… See more", complete.text)
         }
     }
+    @Test fun expansionHasAnIndependentAccessibleActionInRtlAndDisappearsWhenDisabled() {
+        var enabled by mutableStateOf(true)
+        var opened = 0; var expanded = 0
+        compose.setContent { CmuxTheme { Surface {
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                Box(Modifier.width(240.dp).safeDrawingPadding().clickable { opened++ }) {
+                    AgentFeedInlinePreview("تقرير قصير", true, 2, enabled, { expanded++ })
+                }
+            }
+        } } }
+        compose.onNodeWithContentDescription("See more").assertHasClickAction().performClick()
+        compose.runOnIdle { assertEquals(1, expanded); assertEquals(0, opened); enabled = false }
+        compose.onNodeWithContentDescription("See more").assertDoesNotExist()
+        compose.runOnIdle { enabled = true }
+        val link = compose.onNodeWithContentDescription("See more")
+        link.performTouchInput { click() }
+        compose.runOnIdle { assertEquals(2, expanded); assertEquals(0, opened) }
+    }
+
+    @Test fun englishMarkdownKeepsTrailingPunctuationInAnRtlInterface() {
+        compose.setContent { CmuxTheme { Surface {
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                AgentFeedMarkdownText("**Thanks**, continue.", Modifier.width(240.dp).safeDrawingPadding())
+            }
+        } } }
+        val result = layout()
+        assertEquals("Thanks, continue.", result.layoutInput.text.text)
+        assertTrue(result.getBoundingBox(0).left < result.getBoundingBox(result.layoutInput.text.length - 1).left)
+    }
+
 }

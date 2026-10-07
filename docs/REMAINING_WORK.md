@@ -14,7 +14,7 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Agent Feed | Finish quote geometry and remaining composer visual details, broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
+| Agent Feed | Finish remaining composer visual details, broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
 | Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
@@ -26,6 +26,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- Feed reply rows now use the source's tailed quote/reply geometry, compact bar
+  references, Reply/Sending/Replied affordances and explicit uncertain-reply
+  Try Again/Open Terminal actions. Retrying opens the saved draft without sending.
+  See more is now an independent accessibility control; RTL outline-cache and
+  punctuation-order issues found in screenshots were fixed. **Nine final Android
+  cases passed in 98.483s**, including main socket RPC and the separate browser flow.
+  Final screenshots/hierarchy inspected; no ANR/crash events. See `AGENT_FEED.md` for
+  repaired initial failures and scope. Gradle/emulator stopped; no physical run or
+  signed release. Full locale/TalkBack, composer details and lifecycle acceptance remain.
 
 - The separate browser sidebar now has the shared Feed timeline, questions,
   approvals, reply composer, full-message transport, read/triage actions and native

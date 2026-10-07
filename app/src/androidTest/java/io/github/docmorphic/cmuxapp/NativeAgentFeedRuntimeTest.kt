@@ -103,7 +103,7 @@ class NativeAgentFeedRuntimeTest {
             compose.onNodeWithTag("AgentFeedComposeSend").performClick(); awaitMethod("mobile.terminal.paste")
             val paste = peer.requests.last { it.optString("method") == "mobile.terminal.paste" }.getJSONObject("params")
             assertEquals("stop", paste.getString("feed_event_id")); assertEquals("terminal-1", paste.getString("surface_id"))
-            compose.waitUntil(10_000) { compose.onAllNodesWithText("Run the next task").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(10_000) { compose.onAllNodes(hasText("Run the next task") or hasContentDescription("You: Run the next task")).fetchSemanticsNodes().isNotEmpty() }
             tab("Notifications").performClick()
             compose.onNodeWithText("Report ready").assertDoesNotExist()
             tab("Feed").performClick()

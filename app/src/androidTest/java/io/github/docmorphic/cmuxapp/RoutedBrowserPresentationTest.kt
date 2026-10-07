@@ -1051,7 +1051,10 @@ class RoutedBrowserPresentationTest {
     }
 
     @Test fun globalSidebarFeedActionsAndDraftsPreserveBrowserAndReturnNativeDestination() = wideSidebar {
-        browser("Routed fixture ▾")
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        // Refresh the live provider node; Android 17 can cache the initial Browser title after paint.
+        val picker = desc("Choose terminal or pane")
+        until { picker.text == "Routed fixture ▾" }
         text("Keep draft").click()
         until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
         val loads = paths.count { it == "/start" }
@@ -1082,10 +1085,7 @@ class RoutedBrowserPresentationTest {
         val editor = checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000))
         editor.text = "Continue from browser Feed"
         device.pressBack()
-        val quote = checkNotNull(device.wait(Until.findObject(By.textContains("See more")), 5_000)).visibleBounds
-        // Inline link text is a subrange of the quote, not the whole accessibility node.
-        val density = context.resources.displayMetrics.density
-        device.click(quote.right - (12 * density).toInt(), quote.top + (8 * density).toInt())
+        desc("See more").click()
         until { browserFeedWrites.any { it.first == "feed.text" } }
         assertTrue(device.wait(Until.hasObject(By.textContains("Full message from the main app.")), 5_000))
         // The sheet closes without submitting; the retained page must still hold its draft.
@@ -1096,7 +1096,7 @@ class RoutedBrowserPresentationTest {
         text("Reply").click()
         until { browserFeedWrites.any { it.first == "mobile.terminal.paste" } }
         assertEquals("Continue from browser Feed", browserFeedWrites.single { it.first == "mobile.terminal.paste" }.second.getString("text"))
-        text("Continue from browser Feed")
+        desc("You: Continue from browser Feed")
         assertTrue(browserFeedWrites.any { it.first == "feed.text" })
         assertEquals(loads, paths.count { it == "/start" })
         assertTrue(desc("Choose terminal or pane").text?.startsWith("Draft ") == true)
