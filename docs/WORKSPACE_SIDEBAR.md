@@ -179,5 +179,6 @@ failure, passing build/runtime logs, source excerpt, screenshots and receipt.
 These tests use the production shell and Cloud UI with a fixture catalog and
 placeholder AndroidView detail. They do not verify real Cloud transport, an
 authenticated main-screen Mac/Pixel workflow, OS window recreation, process death
-or full visual/accessibility parity. Separate-browser Feed and the
-Feed-replaces-Notifications option remain implementation work.
+or full visual/accessibility parity. Separate-browser Feed remains implementation
+work. The main Feed-replaces-Notifications option is implemented in the subsequent
+`AGENT_FEED.md` follow-up; the separate browser still needs that integration.

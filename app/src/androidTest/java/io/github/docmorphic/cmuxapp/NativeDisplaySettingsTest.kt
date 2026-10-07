@@ -3,6 +3,8 @@ package io.github.docmorphic.cmuxapp
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -20,6 +22,44 @@ import java.util.UUID
 
 class NativeDisplaySettingsTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun legacyNotificationsDefaultsOffPersistsAndControlsCompactAndSidebarTabs() {
+        val name = "display-feed-test-${UUID.randomUUID()}"
+        val preferences = compose.activity.getSharedPreferences(name, Context.MODE_PRIVATE)
+        var generation by mutableIntStateOf(0)
+        var sidebar by mutableStateOf(false)
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { key(generation) {
+                val display = rememberNativeDisplayPreferences(preferences)
+                Column {
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                        NativeDisplaySettings(preferences, display)
+                    }
+                    NativePrimaryNavigation(false, 3, NativeSearchState(), {}, {}, { _, _ -> }, {}, {},
+                        sidebar = sidebar, onAgentFeed = {}, showsNotifications = !display.feedReplacesNotifications)
+                }
+            } } } }
+            fun legacyTab() = compose.onNode(hasText("Notifications (3)") and isSelectable())
+            fun setting() = compose.onNodeWithTag("settings.legacy-notifications")
+            legacyTab().assertDoesNotExist()
+            setting().performScrollTo().assertIsOff().performClick()
+            legacyTab().assertIsDisplayed()
+            assertFalse(NativeDisplayPreferences.read(preferences).feedReplacesNotifications)
+            compose.runOnIdle { generation++; sidebar = true }
+            setting().performScrollTo().assertIsOn()
+            legacyTab().assertIsDisplayed()
+            setting().performClick()
+            legacyTab().assertDoesNotExist()
+            // Invalid persisted types use the upstream default and do not crash.
+            compose.runOnIdle {
+                preferences.edit().putString(NativeDisplayPreferences.feedReplacesNotificationsKey, "invalid").commit()
+                generation++
+            }
+            setting().performScrollTo().assertIsOff()
+            legacyTab().assertDoesNotExist()
+            assertTrue(NativeDisplayPreferences.read(preferences).feedReplacesNotifications)
+        } finally { compose.activity.deleteSharedPreferences(name) }
+    }
 
     @Test fun realRowsWrapAndReserveChosenPreviewHeightAndPreferencesSurviveRemount() {
         val name = "display-test-${UUID.randomUUID()}"

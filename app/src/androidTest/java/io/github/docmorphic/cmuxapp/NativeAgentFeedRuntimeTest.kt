@@ -27,6 +27,7 @@ class NativeAgentFeedRuntimeTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val store = NativeCredentialStore(context)
+        val preferences = context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE)
         val peer = NativeFixturePeer()
         val rows = JSONArray("""[
           {"id":"permission","workstream_id":"one","source":"Claude","kind":"permissionRequest","status":"pending","request_id":"req-permission","created_at":200,"updated_at":200,"title":"Permission needed","tool_name":"Read","tool_input":"Inspect README","workspace_id":"workspace-1","surface_id":"terminal-1"},
@@ -56,6 +57,7 @@ class NativeAgentFeedRuntimeTest {
         }
         fun awaitMethod(method: String) = compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == method } }
         try {
+            preferences.edit().remove(NativeDisplayPreferences.feedReplacesNotificationsKey).commit()
             store.clear(); store.update { it.put("refresh_token", "agent-feed-emulator-fixture").put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
             compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
                 NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
@@ -63,16 +65,31 @@ class NativeAgentFeedRuntimeTest {
                 })
             } } }
             awaitMethod("feed.list")
+            compose.onNode(hasText("Notifications", substring = true) and isSelectable()).assertDoesNotExist()
             tab("Feed").performClick()
             compose.onNodeWithText("asked to use Read").assertIsDisplayed()
             val folder = File(context.getExternalFilesDir(null), "agent-feed").apply { mkdirs() }
             UiDevice.getInstance(instrumentation).takeScreenshot(File(folder, "timeline.png"))
             search("Pick a color")
             compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").performScrollTo().performClick()
+            // The default hides Notifications. Opt in, then hide it while selected:
+            // Feed must return with its query and unanswered choice intact.
+            compose.runOnIdle { preferences.edit().putBoolean(NativeDisplayPreferences.feedReplacesNotificationsKey, false).commit() }
             tab("Notifications").performClick()
             compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").assertDoesNotExist()
-            tab("Feed").performClick()
+            compose.onNodeWithContentDescription("Search").performClick()
+            compose.onNode(hasSetTextAction()).performTextReplacement("legacy-only query")
+            compose.runOnIdle { preferences.edit().putBoolean(NativeDisplayPreferences.feedReplacesNotificationsKey, true).commit() }
+            tab("Feed").assertIsSelected()
+            compose.onNode(hasText("Notifications", substring = true) and isSelectable()).assertDoesNotExist()
             compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").assertIsSelected()
+            compose.runOnIdle { preferences.edit().putBoolean(NativeDisplayPreferences.feedReplacesNotificationsKey, false).commit() }
+            tab("Feed").assertIsSelected()
+            tab("Notifications").performClick()
+            compose.onNodeWithContentDescription("Search").performClick()
+            compose.onNode(hasSetTextAction()).assertTextContains("legacy-only query")
+            compose.onNode(hasSetTextAction()).performImeAction()
+            tab("Feed").performClick()
             assertTrue(peer.requests.none { it.optString("method") == "feed.question.reply" })
             compose.onNodeWithText("Send").performClick(); awaitMethod("feed.question.reply")
             assertEquals("Blue", peer.requests.last { it.optString("method") == "feed.question.reply" }
@@ -100,6 +117,7 @@ class NativeAgentFeedRuntimeTest {
         } finally {
             compose.activity.finish(); peer.close(); store.clear()
             context.getSharedPreferences("native_agent_feed_read", android.content.Context.MODE_PRIVATE).edit().clear().commit()
+            preferences.edit().remove(NativeDisplayPreferences.feedReplacesNotificationsKey).commit()
         }
     }
 }

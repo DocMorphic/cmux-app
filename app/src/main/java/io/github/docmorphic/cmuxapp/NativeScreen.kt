@@ -936,6 +936,12 @@ internal fun NativeScreen(
             val artifactRpc = remember(client, hostCapabilities) { client?.let { ArtifactRpc(it, hostCapabilities) } }
             val artifactPreferences = remember(context) { context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE) }
             val displayState = rememberNativeDisplayPreferences(artifactPreferences)
+            LaunchedEffect(displayState.feedReplacesNotifications, notificationTab, cloudTab) {
+                if (displayState.feedReplacesNotifications && notificationTab && !cloudTab) {
+                    // Preserve each destination's query when a now-hidden tab is replaced.
+                    finishSearch(); notificationTab = false; agentFeedTab = true
+                }
+            }
             val currentScrollbackRows by rememberUpdatedState(displayState.scrollbackRows)
             var folderTapEnabled by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("terminal-folder-tap", true)) }
             var showMissingArtifacts by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("show-missing-files", false)) }
@@ -3652,6 +3658,7 @@ internal fun NativeScreen(
                         onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) },
                         sidebar = isSidebar, onNewTask = { finishSearch(); newTaskDraft() },
                         agentFeedTab = agentFeedTab, agentFeedCount = agentNeedsInputCount,
+                        showsNotifications = !displayState.feedReplacesNotifications,
                         onAgentFeed = { if (!isSidebar) workspaceRoute = null; finishSearch(); notificationTab = false; agentFeedTab = true },
                         onCloud = cloudModel?.let { model -> { finishSearch(); cloudTab = true; model.activate() } })
                 }
@@ -3859,6 +3866,7 @@ internal fun NativeScreen(
                                 onTab = { cloudTab = false; finishSearch(); agentFeedTab = false; notificationTab = it },
                                 onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {},
                                 sidebar = LocalWorkspaceShellChrome.current.split, emptyComputers = noKnownComputers, agentFeedTab = agentFeedTab, agentFeedCount = agentNeedsInputCount,
+                                showsNotifications = !displayState.feedReplacesNotifications,
                                 onAgentFeed = { cloudTab = false; finishSearch(); notificationTab = false; agentFeedTab = true })
                         }
                     }

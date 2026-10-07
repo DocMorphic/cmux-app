@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 
 @OptIn(ExperimentalTestApi::class)
 class NativeLifecycleTest {
+    @get:Rule internal val legacyNotifications = LegacyNotificationsTestPreference()
     @get:Rule val compose = createEmptyComposeRule(effectContext = StandardTestDispatcher())
 
     @Test fun unfinishedTemplateFormSurvivesActivityRecreation() {

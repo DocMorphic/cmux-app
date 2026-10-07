@@ -44,7 +44,8 @@ internal fun NativePrimaryNavigation(
     sidebar: Boolean = false, onNewTask: (() -> Unit)? = null,
     cloudTab: Boolean = false, onCloud: (() -> Unit)? = null,
     emptyComputers: Boolean = false,
-    agentFeedTab: Boolean = false, agentFeedCount: Int = 0, onAgentFeed: (() -> Unit)? = null
+    agentFeedTab: Boolean = false, agentFeedCount: Int = 0, onAgentFeed: (() -> Unit)? = null,
+    showsNotifications: Boolean = true
 ) {
     val scope = if (agentFeedTab) NativeSearchScope.FEED else if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
     val label = if (agentFeedTab) "Search feed" else if (notificationTab) "Search notifications" else "Search workspaces"
@@ -79,7 +80,7 @@ internal fun NativePrimaryNavigation(
                     0, Modifier.weight(1f), sidebar) { onTab(false) }
                 if (!emptyComputers) onAgentFeed?.let { PrimaryTab("Feed", if (agentFeedCount > 0) "Feed ($agentFeedCount)" else "Feed",
                     R.drawable.ic_agent_feed, agentFeedTab && !cloudTab, agentFeedCount, Modifier.weight(1f), sidebar, it) }
-                if (!emptyComputers) PrimaryTab("Notifications", if (unreadCount > 0) "Notifications ($unreadCount)" else "Notifications",
+                if (!emptyComputers && showsNotifications) PrimaryTab("Notifications", if (unreadCount > 0) "Notifications ($unreadCount)" else "Notifications",
                     R.drawable.ic_feed_bell, notificationTab && !cloudTab && !agentFeedTab, unreadCount, Modifier.weight(1f), sidebar) { onTab(true) }
                 onCloud?.let { PrimaryTab("Cloud", "Cloud", R.drawable.ic_workspace_cloud, cloudTab, 0, Modifier.weight(1f), sidebar, it) }
             }

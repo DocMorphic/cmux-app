@@ -53,6 +53,7 @@ import java.util.concurrent.TimeUnit
 /** Runs the real Compose flow and framed RPC client against a local test peer. */
 @OptIn(ExperimentalTestApi::class)
 class NativeFlowTest {
+    @get:Rule internal val legacyNotifications = LegacyNotificationsTestPreference()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>(effectContext = StandardTestDispatcher())
     private lateinit var peer: NativeFixturePeer
     private var fixtureStarted = false

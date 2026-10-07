@@ -30,6 +30,7 @@ internal data class NativeDisplayPreferences(
     val hapticFeedbackEnabled: Boolean = true,
     val feedShowsTab: Boolean = false,
     val feedBubbleQuotes: Boolean = BuildConfig.DEBUG,
+    val feedReplacesNotifications: Boolean = true,
 ) {
     companion object {
         const val wrapKey = "wrap-workspace-titles"
@@ -40,6 +41,7 @@ internal data class NativeDisplayPreferences(
         const val hapticsKey = "haptic-feedback-enabled"
         const val feedTabKey = "show-tab-in-feed"
         const val feedBubblesKey = "feed-quote-bubbles"
+        const val feedReplacesNotificationsKey = "feed-replaces-notifications"
         fun read(preferences: SharedPreferences): NativeDisplayPreferences {
             val stored = preferences.all
             return NativeDisplayPreferences(
@@ -51,6 +53,7 @@ internal data class NativeDisplayPreferences(
                 stored[hapticsKey] as? Boolean ?: true,
                 stored[feedTabKey] as? Boolean ?: false,
                 BuildConfig.DEBUG && (stored[feedBubblesKey] as? Boolean ?: true),
+                stored[feedReplacesNotificationsKey] as? Boolean ?: true,
             )
         }
     }
@@ -83,6 +86,16 @@ internal fun NativeDisplaySettings(preferences: SharedPreferences, state: Native
         DisplayChoice("Preview Lines", if (state.previewLines == 1) "1 Line" else "2 Lines", "settings.preview-lines",
             listOf(1 to "1 Line", 2 to "2 Lines")) {
             preferences.edit().putInt(NativeDisplayPreferences.previewKey, it).apply()
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Legacy Notifications Tab")
+                Text("The Feed replaced Notifications. Turn this on to bring the legacy tab back.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(!state.feedReplacesNotifications, onCheckedChange = {
+                preferences.edit().putBoolean(NativeDisplayPreferences.feedReplacesNotificationsKey, !it).apply()
+            }, modifier = Modifier.testTag("settings.legacy-notifications").semantics { contentDescription = "Legacy Notifications Tab" })
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Show Tab in Feed", Modifier.weight(1f))

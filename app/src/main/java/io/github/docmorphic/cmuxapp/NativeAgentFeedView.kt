@@ -101,7 +101,7 @@ internal fun NativeAgentFeedView(
                         needsInputOnly -> "Nothing needs your input"
                         else -> "No agent activity yet"
                     }, fontWeight = FontWeight.SemiBold)
-                    Text("Agent requests and responses appear here. Notifications have their own tab.",
+                    Text("Agent requests and responses appear here.",
                         Modifier.padding(top = 8.dp), color = agentFeedMuted)
                 }
             }

@@ -19,6 +19,12 @@ it did **not** implement the distinct agent workstream Feed.
 
 - A primary Feed tab, with its own committed/draft/generation-bound search, the
   current computer selection, activity rows and All Activity / Needs Input filter.
+- The main navigation hides Notifications by default, with the source's persistent
+  **Legacy Notifications Tab** Display switch to bring it back. Turning that off
+  while Notifications is selected moves to Feed and commits the outgoing search;
+separate destination queries and Feed drafts are retained. This applies to
+  compact, wide and Cloud main navigation; the separate browser process still
+  needs its Feed destination and preference integration.
 - Only verified paired Macs advertising `feed.v1` get `feed.list` reads and a
   `feed.changed` subscription. Feed shares that Mac's existing authenticated
   connection. It has a separate refresh loop/revision watermark so notification
@@ -396,3 +402,51 @@ main Feed/socket-RPC test verifies a selected question survives tab switching
 without submission and that terminal Back returns to Feed; shell checks cover
 viewport/draft restoration and account clearing. See `WORKSPACE_SIDEBAR.md` for
 all four passing cases, exact scope, evidence and outstanding navigation work.
+
+## Legacy Notifications display preference — 2026-10-07
+
+Rechecked `MobileDisplaySettings.swift`, `MobileSettingsView.swift` and
+`WorkspaceShellView.swift` at scoped `186cec79781256867ad4516f0802118738bd2393`.
+The source defaults `feedReplacesNotifications` to true and exposes its inverse
+as the **Legacy Notifications Tab** switch. The shell hides that primary/sidebar
+button and moves an already selected Notifications destination to Feed.
+
+Android now persists the same default and switch behavior through the existing
+Display preferences. Main compact, wide and Cloud navigation receive the setting.
+Hiding a selected Notifications destination commits its active search, closes the
+keyboard and selects Feed. Re-enabling the tab does not change the current
+selection. Existing notification data, delivery and action paths are retained;
+notification-specific fixtures explicitly enable the legacy destination. Feed's
+empty-state copy no longer assumes that the old tab is always visible.
+
+Verification used the existing API 37 / 16 KiB AVD at 1,536 MiB headless:
+
+- **Four Android cases passed in 71.085 seconds.** The new settings case checks
+  default-hidden behavior, compact/sidebar button visibility, persistence across
+  remount, and invalid stored types falling back to the source default.
+- The main Feed/socket-RPC case checks default-hidden Notifications, chooses an
+  inline question answer, enables Notifications, starts an uncommitted search,
+  and hides the tab while that search is active. Feed returns selected with its
+  prior query and unanswered choice. Re-enabling Notifications exposes its saved
+  query. The case then completes the existing exact-label question, permission,
+  terminal reply, destination-open and Back checks.
+- Existing Display wrapping/preview behavior and the legacy notification search,
+  metadata matching, committed filters and destination navigation still pass.
+- Build passed in 2m22s; an incremental build including the corrected empty-state
+  copy passed in 21 seconds. No unrelated JVM/native suite or signed build.
+- Phone layout was 1080×2400 / 420 dpi. A persisted wide override from the previous
+  session was reset before these tests; final display output confirms no override.
+  Boot, intermediate and final ANR/crash event logs are empty. Settings fixture and
+  default Feed navigation screenshots were inspected. The settings screenshot is
+  an isolated component harness, not full Settings window/inset acceptance.
+- Evidence: ignored `captures/runtime/legacy-notifications/`, including exact source
+  excerpts, build/runtime logs, display output, screenshots and APK/source hashes.
+  Emulator and Gradle stopped; emulator process reaped. No physical Pixel connected.
+
+The separate browser sidebar still has only workspace/notification projections
+and a Boolean destination across its IPC query/presentation. It needs a full
+Feed projection, actions, reader/reply state, search, adoption and preference
+integration; hiding its Notifications button before adding Feed would remove a
+usable destination without supplying its replacement. This remains implementation
+work, not an Android platform limitation. Actual process death, accessibility,
+large text and full physical/source parity remain open.

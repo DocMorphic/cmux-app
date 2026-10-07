@@ -27,6 +27,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Main navigation now follows iOS's default-hidden Notifications tab and persistent
+  **Legacy Notifications Tab** Display switch. Hiding the selected tab returns to
+  Feed while preserving its draft and both search queries. **Four Android cases
+  passed**: settings/remount/defaults, existing Display layout, the main Feed/RPC
+  flow, and legacy notification search/navigation. Screenshots inspected;
+  emulator/Gradle stopped. Separate-browser Feed and that process's preference
+  integration remain open; see `AGENT_FEED.md`. No signed release or physical-device run.
+
 - Cloud now appears inside the wide workspace sidebar while the selected detail
   remains mounted; compact Cloud retains its full-page flow. Its introduction
   measures the actual column width and gives Back to the visible wide detail.
@@ -41,8 +49,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   Feed question choices survive primary-tab switches. Account replacement clears
   retained sidebar state. **Four Android scenarios passed**, including the real
   local socket-RPC main Feed flow and Back from its terminal. See
-  `WORKSPACE_SIDEBAR.md`. Separate-browser Feed and the
-  Feed-replaces-Notifications preference remain source-confirmed implementation
+  `WORKSPACE_SIDEBAR.md`. Separate-browser Feed and its
+  Feed-replaces-Notifications preference integration remain source-confirmed implementation
   gaps. Emulator/Gradle stopped; physical acceptance and signed release remain.
 
 - Cloud now matches the source's fresh-input retry after an initial attachment
