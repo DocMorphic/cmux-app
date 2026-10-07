@@ -450,3 +450,59 @@ integration; hiding its Notifications button before adding Feed would remove a
 usable destination without supplying its replacement. This remains implementation
 work, not an Android platform limitation. Actual process death, accessibility,
 large text and full physical/source parity remain open.
+
+## Shared timeline for the browser sidebar — 2026-10-07
+
+The main Feed UI previously depended directly on `NativeFeedSource` and concrete
+Mac sessions, so it could not be mounted in the separate browser process without
+replicating the UI or moving connection ownership. `AgentFeedTimeline` now consumes
+an `AgentFeedUiSnapshot` and `AgentFeedTimelineActions`. The snapshot contains
+renderable items, identities, labels, pending/error/read state and aggregate load
+status; it contains no paired-Mac object, credential code, RPC client or session.
+The browser adapter can supply opaque owner and entry identifiers.
+
+`NativeAgentFeedView` remains the main-process adapter. It keeps the existing
+aggregation, read-state storage and live sessions, projects their current display
+state, and resolves each action against the current item. The common timeline owns
+all existing list/filter/search behavior, inline decisions, quote/reply sheets,
+full-text reader and saved modal state. `NativeAgentFeedRow` and
+`AgentFeedReplySheet` consume the same display entries. Native modal callers retain
+compatible saved target/draft fields; the display path also checks the owner when
+matching a restored target.
+
+A final review tightened read completion: the adapter now ignores a completion if
+the event's owner/build, request, kind, workstream, destination or questions no
+longer match the displayed event. This prevents a late reader completion from
+marking an unrelated replacement event read under a reused ID. Decisions and
+replies use the same identity predicate, followed by the existing session's live
+ownership and pending-request checks.
+
+Verification:
+
+- Initial build and **23 JVM checks passed in 1m25s**, including four new display
+  projection/modal cases, five modal regressions and fourteen wire/session cases.
+- On the sole API 37 / 16 KiB AVD at 1,536 MiB, **eight Android cases passed in
+  113.025 seconds**: all five reply/reader tests, both question-control tests and
+  the real main-screen/local socket-RPC Feed flow. This covers saved drafts during
+  snapshot reload, account replacement, expanded quote/reader reload, the styled
+  1.1 MB quote's continuous scroll/restoration and toolbar clipping, plan revision
+  and approval mode, question paging/restoration, and exact question/permission/
+  terminal reply RPCs and destination/Back navigation. Screenshots inspected.
+- After the read-completion review, the final identity predicate and its regression
+  compiled and **24 JVM cases passed in 21 seconds**. The Android run predates
+  this final predicate extraction/read guard; it was not repeated. The recorded
+  APKs therefore represent the immediately preceding UI checkpoint, while the
+  final source hashes include the guard. No signed release was built.
+- Existing 1080×2400 / 420 dpi display, empty boot/intermediate/final ANR/crash event
+  logs, no extra AVD. Emulator and Gradle stopped; emulator process reaped. No Pixel.
+- Evidence: ignored `captures/runtime/feed-shared-timeline/`, with logs, XML results,
+  composer screenshots/geometry and APK/source receipt.
+
+**Browser integration is still pending.** Next, extend its query/presentation and
+paged display projection with Feed, bridge decisions/triage/replies/reader loads
+through the main process with live account and issued-row checks, and preserve
+separate search, filters, drafts and destination adoption. Large full messages
+need bounded transfers across the process boundary, rather than a single Binder
+bundle. Then apply the legacy-tab preference in that sidebar and verify the real
+browser process while retaining its active WebView. This refactor does not prove
+browser Feed, authenticated transport or physical parity.

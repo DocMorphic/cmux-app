@@ -41,37 +41,74 @@ internal fun NativeAgentFeedView(
     locale: Locale = Locale.getDefault(), display: NativeDisplayPreferences = NativeDisplayPreferences(),
     scopeKey: String = "feed", allowedMacs: Collection<NativeCredentialStore.PairedMac> = sources.map { it.mac }
 ) {
-    val entries = remember(sources) { aggregateNativeAgentFeed(sources) }
+    val nativeEntries = remember(sources) { aggregateNativeAgentFeed(sources) }
+    val currentNativeEntries by rememberUpdatedState(nativeEntries.associateBy { it.key })
+    val currentRead by rememberUpdatedState(readState)
+    val updateRead by rememberUpdatedState(onReadState)
+    val currentSession by rememberUpdatedState(session)
+    val currentOpen by rememberUpdatedState(onOpen)
+    val snapshot = agentFeedUiSnapshot(sources, nativeEntries, allowedMacs, readState, computerName)
+    val actions = remember {
+        object : AgentFeedTimelineActions {
+            private fun live(entry: AgentFeedUiEntry): NativeAgentFeedEntry {
+                val current = checkNotNull(currentNativeEntries[entry.key]) { "This Feed item is no longer available" }
+                check(entry.matchesIdentity(current)) { "This Feed item changed. Review it again before acting." }
+                return current
+            }
+            private fun session(entry: NativeAgentFeedEntry) = checkNotNull(currentSession(entry.source.mac)) {
+                "Connect to this computer to use Feed"
+            }
+            override suspend fun decide(entry: AgentFeedUiEntry, decision: AgentFeedDecision): Boolean =
+                live(entry).let { session(it).decide(entry.item, decision) }
+            override suspend fun reply(entry: AgentFeedUiEntry, text: String): Boolean =
+                live(entry).let { session(it).terminalReply(entry.item, text) }
+            override suspend fun fullText(entry: AgentFeedUiEntry): String =
+                live(entry).let { session(it).fullText(it.item) }
+            override fun read(entry: AgentFeedUiEntry, needsInput: Boolean?) {
+                val current = currentNativeEntries[entry.key]?.takeIf(entry::matchesIdentity) ?: return
+                updateRead(if (needsInput == null) currentRead.interacted(current) else currentRead.triage(current, needsInput))
+            }
+            override fun open(entry: AgentFeedUiEntry, tab: Boolean) { currentOpen(live(entry), tab) }
+        }
+    }
+    AgentFeedTimeline(snapshot, query, needsInputOnly, actions, onRefresh, modifier, locale, display, scopeKey)
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+internal fun AgentFeedTimeline(
+    snapshot: AgentFeedUiSnapshot, query: String, needsInputOnly: Boolean, actions: AgentFeedTimelineActions,
+    onRefresh: () -> Unit, modifier: Modifier = Modifier, locale: Locale = Locale.getDefault(),
+    display: NativeDisplayPreferences = NativeDisplayPreferences(), scopeKey: String = "feed"
+) {
+    val entries = snapshot.entries
     val currentEntries by rememberUpdatedState(entries.associateBy { it.key })
     val models = remember(entries.map { it.key to it.item }) { entries.associate { it.key to NativeAgentFeedPresentation.from(it.item) } }
     val now = remember { System.currentTimeMillis() / 1000.0 }
     val listState = rememberLazyListState()
     val swipes = remember { WorkspaceSwipeCoordinator() }
-    val currentSession by rememberUpdatedState(session)
-    val currentRead by rememberUpdatedState(readState)
-    val updateRead by rememberUpdatedState(onReadState)
+    val currentActions by rememberUpdatedState(actions)
     val scope = rememberCoroutineScope()
     var modal by rememberSaveable(stateSaver = agentFeedModalSaver) { mutableStateOf<AgentFeedModal?>(null) }
     var actionError by remember { mutableStateOf<String?>(null) }
-    val index = remember(entries, locale) { NativeSearchIndex(entries.map { it.key to it.item.searchFields(computerName(it.source.mac)) }, locale, notification = true) }
+    val index = remember(entries, locale) { NativeSearchIndex(entries.map { it.key to it.item.searchFields(it.computerName) }, locale, notification = true) }
     val matches = remember(index, query) { index.matches(query) }
-    val visible = remember(entries, models, matches, readState, needsInputOnly) {
-        entries.filter { it.item.notable && models[it.key]?.visible == true && it.key in matches && (!needsInputOnly || readState.needsInput(it)) }
+    val visible = remember(entries, models, matches, needsInputOnly) {
+        entries.filter { it.item.notable && models[it.key]?.visible == true && it.key in matches && (!needsInputOnly || it.needsInput) }
     }
     val held = listState.isScrollInProgress || swipes.activeKey != null
     val rendered = rememberWorkspacePresentationRows(visible, held) { it.key }
     WorkspaceViewportAnchorEffect(listState, rendered.map { it.key }, swipes.activeKey != null)
-    val connected = sources.any { it.availability == NativeFeedAvailability.CONNECTED && AGENT_FEED_CAPABILITY in it.capabilities }
-    val updating = sources.any { it.agentFeed.loading }
-    val noSupport = sources.isNotEmpty() && sources.all { it.availability == NativeFeedAvailability.CONNECTED && AGENT_FEED_CAPABILITY !in it.capabilities }
-    fun act(entry: NativeAgentFeedEntry, decision: AgentFeedDecision) {
+    val connected = snapshot.connected
+    val updating = snapshot.updating
+    val noSupport = snapshot.unsupported
+    fun act(entry: AgentFeedUiEntry, decision: AgentFeedDecision) {
         scope.launch {
             try {
                 val live = checkNotNull(currentEntries[entry.key]) { "This Feed item is no longer available" }
-                val active = checkNotNull(currentSession(live.source.mac)) { "Connect to this computer to answer" }
                 check(live.item.requestId == entry.item.requestId && live.item.kind == entry.item.kind &&
                     (decision.kind != "question" || live.item.questions == entry.item.questions)) { "This request changed. Review it again before answering." }
-                if (active.decide(entry.item, decision)) updateRead(currentRead.interacted(live))
+                if (currentActions.decide(entry, decision)) currentActions.read(live)
             } catch (error: Exception) { if (error is CancellationException) throw error; actionError = error.message }
         }
     }
@@ -87,7 +124,7 @@ internal fun NativeAgentFeedView(
                     TextButton(onClick = { actionError = null }) { Text("Dismiss") }
                 }
             }
-            if (sources.any { it.agentFeed.error != null }) item("refresh-error") {
+            if (snapshot.refreshFailed) item("refresh-error") {
                 TextButton(onClick = onRefresh, modifier = Modifier.padding(horizontal = 8.dp)) { Text("Activity could not refresh. Retry") }
             }
             if (visible.isEmpty()) item("empty") {
@@ -95,7 +132,7 @@ internal fun NativeAgentFeedView(
                     Text(when {
                         query.isNotBlank() -> "No matching activity"
                         noSupport -> "Update cmux on your Mac to use Feed"
-                        sources.isEmpty() -> "Connect a Mac to see agent activity"
+                        !snapshot.hasSources -> "Connect a Mac to see agent activity"
                         updating -> "Loading agent activity…"
                         !connected -> "Agent Feed is unavailable"
                         needsInputOnly -> "Nothing needs your input"
@@ -109,9 +146,9 @@ internal fun NativeAgentFeedView(
                 WorkspacePresentationRow(entry.key in currentEntries, { entry.key in currentEntries }) {
                     CompositionLocalProvider(LocalWorkspaceSwipeKey provides entry.key) {
                         NativeAgentFeedRow(entry, models[entry.key] ?: NativeAgentFeedPresentation.from(entry.item),
-                            readState.needsInput(entry), display, agentFeedTimeLabel(entry.item.createdAt, now, locale),
-                            onRead = { needs -> currentEntries[entry.key]?.let { updateRead(currentRead.triage(it, needs)) } },
-                            onOpen = { tab -> currentEntries[entry.key]?.let { updateRead(currentRead.interacted(it)); onOpen(it, tab) } },
+                            entry.needsInput, display, agentFeedTimeLabel(entry.item.createdAt, now, locale),
+                            onRead = { needs -> currentEntries[entry.key]?.let { currentActions.read(it, needs) } },
+                            onOpen = { tab -> currentEntries[entry.key]?.let { currentActions.read(it); currentActions.open(it, tab) } },
                             onCompose = { modal = AgentFeedModal.from(scopeKey, entry, it) }, onDecision = { act(entry, it) },
                             onFullText = { modal = AgentFeedModal.from(scopeKey, entry, "read") })
                     }
@@ -122,7 +159,7 @@ internal fun NativeAgentFeedView(
         }
     }
     modal?.let { target ->
-        when (target.status(scopeKey, allowedMacs, sources, currentEntries.values)) {
+        when (target.status(scopeKey, snapshot)) {
             AgentFeedModalStatus.GONE -> LaunchedEffect(target) { modal = null }
             AgentFeedModalStatus.WAITING -> AgentFeedWaitingSheet({ modal = null }, onRefresh)
             AgentFeedModalStatus.READY -> key(target.scope, target.key, target.mode) {
@@ -131,19 +168,18 @@ internal fun NativeAgentFeedView(
                 suspend fun load(): String {
                     val live = checkNotNull(currentEntries[target.key]) { "This Feed item is no longer available" }
                     check(target.matches(live)) { "This Feed item changed" }
-                    return checkNotNull(currentSession(live.source.mac)) { "Connect to this computer to read the message" }.fullText(live.item)
+                    return currentActions.fullText(live)
                 }
                 if (target.mode == "read") AgentFeedFullText(target, ::update, ::load,
-                    { updateRead(currentRead.interacted(entry)) }, { modal = null })
+                    { currentActions.read(entry) }, { modal = null })
                 else AgentFeedReplySheet(entry, target, ::update, ::load, { modal = null }) { decision, text ->
                     if (text == null) { checkNotNull(decision); act(entry, decision); modal = null }
                     else scope.launch {
                         try {
                             val live = checkNotNull(currentEntries[target.key]) { "This Feed item is no longer available" }
                             check(target.matches(live)) { "This Feed item changed. Review it before replying." }
-                            val active = checkNotNull(currentSession(live.source.mac)) { "Connect to this computer to reply" }
-                            if (active.terminalReply(live.item, text)) {
-                                updateRead(currentRead.interacted(live))
+                            if (currentActions.reply(live, text)) {
+                                currentActions.read(live)
                                 if (modal?.key == target.key && modal?.mode == target.mode) modal = null
                             }
                         } catch (error: Exception) { if (error is CancellationException) throw error; actionError = error.message }

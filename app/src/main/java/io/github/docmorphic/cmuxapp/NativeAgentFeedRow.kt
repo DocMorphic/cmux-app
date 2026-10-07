@@ -27,13 +27,13 @@ private val feedAccent = Color(0xFF76B9FF)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun NativeAgentFeedRow(entry: NativeAgentFeedEntry, model: NativeAgentFeedPresentation, needsInput: Boolean,
+internal fun NativeAgentFeedRow(entry: AgentFeedUiEntry, model: NativeAgentFeedPresentation, needsInput: Boolean,
     display: NativeDisplayPreferences, time: String, onRead: (Boolean) -> Unit, onOpen: (Boolean) -> Unit,
     onCompose: (String) -> Unit, onDecision: (AgentFeedDecision) -> Unit, onFullText: () -> Unit) {
     val item = entry.item
-    val ready = entry.source.availability == NativeFeedAvailability.CONNECTED && AGENT_FEED_CAPABILITY in entry.source.capabilities
-    val pending = item.id in entry.source.agentFeed.pending
-    val failure = entry.source.agentFeed.failures[item.id]
+    val ready = entry.connected
+    val pending = entry.pending
+    val failure = entry.failure
     var menu by remember { mutableStateOf(false) }
     NativeWorkspaceSwipeActions(entry.key, needsInput, true, false, onRead, {}, readLabel = "Done", unreadLabel = "Needs Input",
         leadingColor = if (needsInput) Color(0xFF007AFF) else Color(0xFFFF9500)) { dismiss, _ ->

@@ -88,7 +88,7 @@ class AgentFeedQuestionControlsTest {
         var triages = 0; var opened = 0
         compose.setContent { CmuxTheme { Surface { Column(Modifier.fillMaxSize().safeDrawingPadding()
             .verticalScroll(rememberScrollState())) {
-            NativeAgentFeedRow(entry, NativeAgentFeedPresentation.from(item), true, NativeDisplayPreferences(), "now",
+            NativeAgentFeedRow(entry.ui("Mac", true), NativeAgentFeedPresentation.from(item), true, NativeDisplayPreferences(), "now",
                 { triages++ }, { opened++ }, {}, {}, {})
         } } } }
         val pager = compose.onNodeWithTag("AgentFeedQuestionPager", useUnmergedTree = true)

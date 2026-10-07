@@ -48,13 +48,13 @@ internal fun AgentFeedWaitingSheet(onDismiss: () -> Unit, onRefresh: () -> Unit)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AgentFeedReplySheet(entry: NativeAgentFeedEntry, modal: AgentFeedModal,
+internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
     onChange: (AgentFeedModal) -> Unit, load: suspend () -> String, onDismiss: () -> Unit,
     onSubmit: (AgentFeedDecision?, String?) -> Unit) {
     val item = entry.item
     val model = remember(item) { NativeAgentFeedPresentation.from(item) }
-    val pending = item.id in entry.source.agentFeed.pending
-    val ready = entry.source.availability == NativeFeedAvailability.CONNECTED && AGENT_FEED_CAPABILITY in entry.source.capabilities
+    val pending = entry.pending
+    val ready = entry.connected
     var fullText by remember { mutableStateOf<CharSequence?>(null) }
     var failed by remember { mutableStateOf(false) }
     var attempt by remember { mutableIntStateOf(0) }
@@ -128,7 +128,7 @@ internal fun AgentFeedReplySheet(entry: NativeAgentFeedEntry, modal: AgentFeedMo
                 },
                 status = {
                     if (!ready) Text("Reconnect to send your reply.", color = Color(0xFF9CA3AF), modifier = Modifier.padding(top = 8.dp))
-                    entry.source.agentFeed.failures[item.id]?.let { Text(it.message, color = MaterialTheme.colorScheme.error) }
+                    entry.failure?.let { Text(it.message, color = MaterialTheme.colorScheme.error) }
                 })
         }
 

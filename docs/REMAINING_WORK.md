@@ -27,6 +27,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Feed's timeline, row controls, reader and reply sheets now share a display-only
+  model and action interface. The main screen resolves actions back to live Mac
+  sessions; reused events cannot receive an old read completion. **24 focused JVM
+  checks passed; eight Android scenarios passed before that final identity-guard
+  refinement**. See `AGENT_FEED.md` for the exact receipts. This is groundwork for
+  the separate browser sidebar, which still needs its Feed IPC and navigation.
+  Emulator/Gradle stopped; no signed release or physical-device run.
+
 - Main navigation now follows iOS's default-hidden Notifications tab and persistent
   **Legacy Notifications Tab** Display switch. Hiding the selected tab returns to
   Feed while preserving its draft and both search queries. **Four Android cases
