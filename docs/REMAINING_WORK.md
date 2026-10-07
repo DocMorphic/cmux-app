@@ -28,6 +28,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Actual browser Activity recreation now has a passing Feed composer/reader case
+  (**one Android test, 59.992 s**): unsent reply and expanded content survive,
+  Source mode stays selected, and screenshots show the reader at the same line.
+  The browser DOM survives without reloading. See `AGENT_FEED.md` for test scope
+  and pretest Launcher/GMS startup failures; no new crash/ANR events appeared.
+  Emulator and Gradle stopped. Process death, large IPC, live reconnect/revocation,
+  physical and accessibility acceptance remain open; no production change or release.
+
 - Task failures now distinguish draft-save, upload, host rejection and uncertain
   creation outcomes with the source-style title/message banner and a single polite
   accessibility announcement. Equivalent retries retain operation IDs; failed

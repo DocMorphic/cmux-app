@@ -698,3 +698,31 @@ Gradle and the sole headless 1,536 MiB emulator were stopped/reaped.
 These checks simulate snapshot reload in the shared timeline; they do not prove
 actual Pixel/Mac disconnection, OS process death, or this transition through the
 browser IPC. Those broader acceptance gates remain open. No signed APK was published.
+
+## Routed browser Feed recreation — 2026-10-07
+
+`RoutedBrowserPresentationTest#globalSidebarFeedModalsSurviveBrowserActivityRecreation`
+passed **one Android case in 59.992 seconds** on the existing API 37 / 16 KiB AVD
+at 1,536 MiB. No production change was needed. Font-scale changes caused two actual
+`RoutedBrowserActivity` relaunches, confirmed by system events, while its browser
+process remained alive. The bound service/PFD route reloaded the 160-line message.
+
+The expanded reply retained its unsent Unicode draft; the reader retained Source
+mode. Before/after screenshots show the reader at the same partially clipped
+Line 031 despite the font-size change. This anchor observation is visual evidence,
+not an automated pixel assertion. The composer helper scrolls to its draft, so the
+case does not establish exact composer viewport restoration. The browser DOM draft
+survived without another page load, no terminal paste was sent, and the browser
+presentation hold was released on exit.
+
+Debug/test builds succeeded (40 seconds, then an 8-second test-only rebuild after
+correcting a selector before the runtime run). The single runtime run passed.
+A Launcher crash and GMS startup ANR preceded testing; the baseline and final
+crash/ANR event logs were identical. Screenshots were inspected. Original font
+scale and display size were restored, and the emulator and Gradle were stopped.
+Local logs, screenshots, APK hashes and receipt are under
+`captures/runtime/browser-feed-restoration/` (ignored).
+
+This covers Activity recreation within a live browser process. OS process death,
+large IPC messages, live reconnect/revocation, physical Pixel/Mac workflows and
+broader accessibility acceptance remain open. No signed release was produced.

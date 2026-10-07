@@ -246,7 +246,10 @@ class RoutedBrowserPresentationTest {
                     browserFeedWrites += method to JSONObject(params.toString())
                     when (method) {
                         "mobile.terminal.paste" -> JSONObject().put("submitted", true)
-                        "feed.text" -> JSONObject().put("text", "# Browser report\n\nFull message from the main app.").put("version", 1)
+                        "feed.text" -> JSONObject().put("text", if (scenarioName == "globalSidebarFeedModalsSurviveBrowserActivityRecreation")
+                            "# Browser report\n\nFull message from the main app.\n\n" + (1..160).joinToString("\n") {
+                                "Line ${it.toString().padStart(3, '0')}: retained source reading position on the browser route."
+                            } else "# Browser report\n\nFull message from the main app.").put("version", 1)
                         else -> JSONObject()
                     }
                 }, rows)
@@ -1108,6 +1111,78 @@ class RoutedBrowserPresentationTest {
         val target = openedCreation.single() as NativeSidebarTarget.Agent
         assertEquals("terminal", target.entry.item.surfaceId); assertTrue(target.tab)
         assertTrue(adoptedPresentation?.feed == true)
+    }
+
+    @Test fun globalSidebarFeedModalsSurviveBrowserActivityRecreation() = wideSidebar {
+        val originalScale = device.executeShellCommand("settings get system font_scale").trim()
+        val firstScale = if (originalScale.toFloatOrNull() == 1.25f) "1.1" else "1.25"
+        fun events() = device.executeShellCommand("logcat -b events -d -v threadtime")
+            .lineSequence().filter { it.contains("RoutedBrowserActivity") && it.contains("relaunch") }.toSet()
+        fun restoreScale() = device.executeShellCommand(if (originalScale == "null") "settings delete system font_scale"
+            else "settings put system font_scale $originalScale")
+        fun expandedDraft(): UiObject2 {
+            until { device.hasObject(By.textContains("Line 160: retained source reading position")) }
+            repeat(12) {
+                device.findObject(By.clazz("android.widget.EditText"))?.let { return it }
+                checkNotNull(device.findObject(By.clazz("android.widget.ScrollView"))).fling(Direction.DOWN)
+            }
+            error("Expanded reply draft did not become visible")
+        }
+        fun searchReport() {
+            desc("Search").click()
+            var field: UiObject2? = null
+            until { field = device.findObjects(By.clazz("android.widget.EditText")).firstOrNull {
+                it.visibleBounds.centerX() < device.displayWidth * .45
+            }; field != null }
+            checkNotNull(field).text = "Finished report"
+            device.pressEnter()
+            text("Reply")
+        }
+        try {
+            compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+            val picker = desc("Choose terminal or pane")
+            until { picker.text == "Routed fixture ▾" }
+            text("Keep draft").click()
+            until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+            val loads = paths.count { it == "/start" }
+            searchReport()
+            text("Reply").click()
+            checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000)).text = "Keep my unsent browser reply 中"
+            device.pressBack()
+            desc("See more").click()
+            until { browserFeedWrites.any { it.first == "feed.text" } }
+            assertEquals("Keep my unsent browser reply 中", expandedDraft().text)
+            capturePicker("browser-feed-composer-before-recreation")
+            val before = events()
+            val reads = browserFeedWrites.count { it.first == "feed.text" }
+            device.executeShellCommand("settings put system font_scale $firstScale")
+            until { (events() - before).isNotEmpty() }
+            until { browserFeedWrites.count { it.first == "feed.text" } > reads }
+            assertEquals("Keep my unsent browser reply 中", expandedDraft().text)
+            assertTrue(browserFeedWrites.none { it.first == "mobile.terminal.paste" })
+            capturePicker("browser-feed-composer-after-recreation")
+            text("Cancel").click()
+            desc("See more").click()
+            text("Full message"); text("Source").click()
+            text("Formatted")
+            val scroll = checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.ScrollView")), 5_000))
+            scroll.scroll(Direction.DOWN, 1f); scroll.scroll(Direction.DOWN, 1f)
+            capturePicker("browser-feed-reader-before-recreation")
+            val beforeReader = events()
+            val readerReads = browserFeedWrites.count { it.first == "feed.text" }
+            restoreScale()
+            until { (events() - beforeReader).isNotEmpty() }
+            until { browserFeedWrites.count { it.first == "feed.text" } > readerReads }
+            text("Full message"); text("Formatted")
+            assertTrue(device.wait(Until.hasObject(By.textContains("Line 160: retained source reading position")), 5_000))
+            capturePicker("browser-feed-reader-after-recreation")
+            text("Done").click()
+            until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+            assertEquals("Recreation discarded the browser DOM", loads, paths.count { it == "/start" })
+            assertTrue(browserFeedWrites.none { it.first == "mobile.terminal.paste" })
+            device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+            until { holds.get() == 0 }
+        } finally { restoreScale() }
     }
 
     @Test fun globalSidebarNotificationsShareRowsMutateAndConfirmCapturedScopeWithoutReload() = wideSidebar {
