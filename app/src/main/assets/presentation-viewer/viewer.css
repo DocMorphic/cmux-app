@@ -1,0 +1,11 @@
+:root { color-scheme: dark; font: 16px system-ui, sans-serif; background: #202124; color: #eee; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+nav { position: sticky; top: 0; z-index: 20; background: #202124; padding: 10px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+button, input { font: inherit; color: #eee; background: #303238; border: 1px solid #70747c; border-radius: 8px; min-height: 44px; padding: 7px 10px; }
+button:disabled { opacity: .45; }
+input { width: 5em; }
+#status { margin: 0; flex-basis: 100%; font-size: 13px; color: #c4c7ce; }
+#status:empty { display: none; }
+#content { width: 100%; padding: 8px 0 20px; }
+#content [data-slide-index] { touch-action: pan-x pan-y pinch-zoom; }

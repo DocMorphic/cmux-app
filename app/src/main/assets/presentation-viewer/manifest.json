@@ -1,0 +1,14 @@
+{
+  "packages": {
+    "pptx-renderer": {
+      "version": "1.3.0",
+      "source": "https://registry.npmjs.org/@aiden0z/pptx-renderer/-/pptx-renderer-1.3.0.tgz",
+      "integrity": "sha512-VEXSn2vmdgTwWaw96bhsEyZiSxlrhF5O5dONI+dSBXmg1WH2XM9O1eyY2LFQ68J1SY+iZnE5BVgFGGX6iox9Og==",
+      "revision": "0cf5c194b4db2cf9f2531b6a7e24a61338caabf1",
+      "documentation": "https://github.com/aiden0z/pptx-renderer"
+    }
+  },
+  "files": {
+    "aiden0z-pptx-renderer.browser.es.js": "46b61afa1435de0c194f93324c9467ca392c891c6e07517727c8ffb5e51c376b"
+  }
+}

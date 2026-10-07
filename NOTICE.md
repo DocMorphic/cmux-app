@@ -657,3 +657,10 @@ Packages/iOS/CmuxMobileShellUI at cmux
 186cec79781256867ad4516f0802118738bd2393. Copyright Manaflow, Inc.;
 GPL-3.0-or-later. Android implements its own saved-state routing and current-store
 validation around that settings workflow.
+
+Offline PPTX preview uses the unmodified @aiden0z/pptx-renderer 1.3.0 standalone
+browser bundle (upstream 0cf5c194b4db2cf9f2531b6a7e24a61338caabf1),
+with its bundled dependencies. See app/src/main/assets/licenses/Pptx.txt and
+app/src/main/assets/presentation-viewer/manifest.json for license notices,
+corresponding-source links, provenance and hashes. Android's preview routing,
+asset shell, saved-state adapter and controls are project code.

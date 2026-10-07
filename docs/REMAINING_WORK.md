@@ -28,6 +28,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- PPTX now has an offline slide preview in the shared Files/Changes/attachment
+  viewer, with previous/next, slide jumps, internal links and saved slide position.
+  **25 JVM checks, five Python checks and three distinct Android format cases
+  passed**, with a strengthened PPTX paint check rerun and inspected screenshots.
+  All 18 vendor hashes match the debug APK. See `DOCUMENT_FORMATS.md` for initial
+  stale captures, library boundaries and remaining real-route/physical/Quick Look
+  comparison. Empty crash/ANR logs; emulator/Gradle stopped; no signed release.
+
 - Terminal shortcut editor routes now retain unfinished drafts across saved-state
   restoration; Mac and SSH/Cloud sheets save visibility. Removed actions cannot
   be resurrected by stale editors, and unreadable storage blocks their Save.

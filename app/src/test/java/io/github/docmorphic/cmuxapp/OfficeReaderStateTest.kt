@@ -12,7 +12,7 @@ class OfficeReaderStateTest {
         val restored = OfficeReaderState().apply { restore(state.save()) }
         assertEquals(3, restored.sheet); assertEquals(200, restored.row); assertEquals(64, restored.column)
         assertEquals(90f, restored.viewport.x); assertEquals(250f, restored.viewport.y); assertEquals(2f, restored.viewport.zoom)
-        assertEquals(8, state.save().size)
+        assertEquals(9, state.save().size)
     }
     @Test fun malformedCoordinatesAreBoundedBeforeTheyReachTheViewerUrl() {
         val state = OfficeReaderState()
@@ -29,4 +29,26 @@ class OfficeReaderStateTest {
         assertEquals(ChangesPreviewRoute.EXTERNAL, filePreviewRoute("binary", null, "book.xls"))
         assertEquals(ChangesPreviewRoute.EXTERNAL, filePreviewRoute("binary", null, "book.numbers"))
     }
+    @Test fun presentationLocationRestoresAndAcceptsTheOlderWorkbookState() {
+        val state = OfficeReaderState()
+        state.readPresentationState(JSONObject().put("slide", 17))
+        state.viewport.zoom = 1.75f
+        val restored = OfficeReaderState().apply { restore(state.save()) }
+        assertEquals(17, restored.slide); assertEquals(1.75f, restored.viewport.zoom)
+        restored.restore(state.save().take(8))
+        assertEquals(0, restored.slide); assertEquals(1.75f, restored.viewport.zoom)
+        restored.readPresentationState(JSONObject().put("slide", 999999))
+        assertEquals(2047, restored.slide)
+        restored.readPresentationState(JSONObject().put("slide", "1;script"))
+        assertEquals(0, restored.slide)
+    }
+    @Test fun presentationRoutingKeepsWirePrecedenceAndDoesNotClaimLegacyPowerPoint() {
+        assertEquals(ChangesPreviewRoute.PRESENTATION, filePreviewRoute("binary", null, "/work/DECK.PPTX"))
+        assertEquals(ChangesPreviewRoute.PRESENTATION, filePreviewRoute("binary", "${PresentationPreviewPolicy.MIME}; charset=utf-8", "download"))
+        assertEquals(ChangesPreviewRoute.TEXT, filePreviewRoute("text", null, "deck.pptx"))
+        assertEquals(ChangesPreviewRoute.IMAGE, filePreviewRoute("image", null, "deck.pptx"))
+        assertEquals(ChangesPreviewRoute.EXTERNAL, filePreviewRoute("binary", null, "deck.ppt"))
+        assertEquals(ChangesPreviewRoute.EXTERNAL, filePreviewRoute("binary", null, "deck.key"))
+    }
+
 }

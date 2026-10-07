@@ -108,6 +108,7 @@ internal class OfficeWebController(
                         "officeFailed" -> onFailure()
                         "markdownViewport" -> if (ready) binding?.geometry(message)
                         "workbookState" -> if (kind == OfficePreviewKind.WORKBOOK) state.readWorkbookState(message)
+                        "presentationState" -> if (kind == OfficePreviewKind.PRESENTATION) state.readPresentationState(message)
                     }
                 }
             }
@@ -146,7 +147,7 @@ internal class OfficeWebController(
                 if (!closed) { close(); onCrash() }; return true
             }
         }
-        web.loadUrl("$origin/shell.html#sheet=${state.sheet}&row=${state.row}&col=${state.column}")
+        web.loadUrl("$origin/shell.html#sheet=${state.sheet}&row=${state.row}&col=${state.column}&slide=${state.slide}")
         scope.launch { delay(30_000); if (!closed && !ready) onFailure() }
     }
     override fun close() {

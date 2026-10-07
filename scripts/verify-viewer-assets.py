@@ -10,7 +10,7 @@ def main():
     root = Path(__file__).resolve().parents[1] / "app/src/main/assets"
     failures = []
     checked = 0
-    for directory in ("raw-code", "markdown-viewer", "docx-viewer", "workbook-viewer"):
+    for directory in ("raw-code", "markdown-viewer", "docx-viewer", "workbook-viewer", "presentation-viewer"):
         folder = root / directory
         manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
         files = manifest["files"]

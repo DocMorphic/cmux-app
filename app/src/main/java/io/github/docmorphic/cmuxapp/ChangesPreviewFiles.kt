@@ -18,7 +18,7 @@ internal data class ChangesPreviewPolicy(val revisions: List<ChangesRevision>, v
         fun path(file: ChangedFile, revision: ChangesRevision) = if (revision == ChangesRevision.BASE) file.oldPath ?: file.path else file.path
     }
 }
-internal enum class ChangesPreviewRoute { IMAGE, PDF, MEDIA, TEXT, DOCX, WORKBOOK, EXTERNAL }
+internal enum class ChangesPreviewRoute { IMAGE, PDF, MEDIA, TEXT, DOCX, WORKBOOK, PRESENTATION, EXTERNAL }
 internal fun changesPreviewRoute(metadata: ChangesFileMetadata, path: String): ChangesPreviewRoute = filePreviewRoute(metadata.kind, metadata.mime, path)
 internal fun filePreviewRoute(kind: String, mimeType: String?, path: String): ChangesPreviewRoute {
     val extension = path.substringAfterLast('.', "").lowercase()
@@ -30,6 +30,7 @@ internal fun filePreviewRoute(kind: String, mimeType: String?, path: String): Ch
         kind == "text" || MarkdownPreviewPolicy.isMarkdown(path, mime) -> ChangesPreviewRoute.TEXT
         DocxPreviewPolicy.matches(path, mime) -> ChangesPreviewRoute.DOCX
         WorkbookPreviewPolicy.matches(path, mime) -> ChangesPreviewRoute.WORKBOOK
+        PresentationPreviewPolicy.matches(path, mime) -> ChangesPreviewRoute.PRESENTATION
         else -> ChangesPreviewRoute.EXTERNAL
     }
 }

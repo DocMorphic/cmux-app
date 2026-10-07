@@ -22,7 +22,8 @@ prove that every variant of those formats renders on a phone.
 | Text/source | Text viewer | Raw text, highlighting, search and reader controls | Broader encodings/large-file/physical acceptance |
 | DOCX | Quick Look candidate, runtime admission | **New offline Word renderer** in the shared preview component | Runtime rendering, text selection, zoom/restoration, real-route actions and Pixel acceptance |
 | XLSX | Quick Look candidate, runtime admission | **New offline workbook reader**, sheet selection and bounded grid navigation | Runtime formatting/navigation/restoration and Pixel checks; charts/drawings/conditional formatting and exact Quick Look layout remain open |
-| Legacy DOC, RTF, XLS, ODS, PPTX, Pages, Keynote, Numbers and other Quick Look content | Quick Look candidate when recognized, runtime admission | External Open/Share/Save fallback | In-app format implementation and matched format checks remain open; these are not declared unavoidable platform differences |
+| PPTX | Quick Look candidate, runtime admission | Offline PowerPoint renderer with slide navigation and saved position | Rendering/lifecycle evidence below; exact Quick Look layout and unsupported format variants remain open |
+| Legacy DOC, RTF, XLS, ODS, PPT, Pages, Keynote, Numbers and other Quick Look content | Quick Look candidate when recognized, runtime admission | External Open/Share/Save fallback | In-app format implementation and matched format checks remain open; these are not declared unavoidable platform differences |
 | Unknown binary/archive | Binary unless recognized as content | External Open/Share/Save | Exact eligibility/menu comparison still open |
 
 ## DOCX implementation
@@ -259,3 +260,70 @@ stopped, and the emulator process was reaped. APK SHA-256:
 - Test: `adb9c1a192a4eeb53a292d6c786e0eed59ef1193a489808ce3e7617acfa527d9`
 
 No signed release changed. Full format and physical parity remain unverified.
+
+## Offline PowerPoint preview — 2026-10-07
+
+Rechecked `ChatArtifactPreviewRouter.swift` at scoped cmux revision
+`186cec79781256867ad4516f0802118738bd2393`: recognized non-text content such as
+PPTX is a Quick Look candidate, followed by runtime admission. Android's shared
+Files/Changes/composer preview now routes PPTX extension or MIME to an offline
+presentation viewer, preserving image/PDF/media/text precedence and original-file
+Open/Share/Save. Legacy PPT and Apple Keynote remain external; this is not a claim
+that all Quick Look formats are implemented.
+
+The unmodified standalone browser bundle of
+[`@aiden0z/pptx-renderer` 1.3.0](https://github.com/aiden0z/pptx-renderer/tree/0cf5c194b4db2cf9f2531b6a7e24a61338caabf1)
+is pinned by npm SHA-512 integrity and asset SHA-256. It includes JSZip, ECharts
+and its font decompressor. Apache-2.0, MIT, MPL-2.0 and ECMA notices/source links
+are available in Open-source licenses. All 18 vendored viewer assets are covered
+by the source and packaged-APK verification scripts.
+
+The reader renders one slide at a time, with previous/next controls, a validated
+slide-number jump and in-deck links. The existing native WebView zoom/selection
+and viewport binding are reused. Only a bounded slide index and viewport enter
+saved state; older eight-field workbook locations still restore. Text, shapes,
+images, tables and charts are handled by the renderer; the exact feature scope
+and fidelity depend on the deck. Slide/node errors expose original-file actions
+instead of claiming complete rendering. No document service or upload is used.
+
+The existing Office ZIP snapshot checks apply before parsing, with additional
+JavaScript entry/expanded/media limits, two concurrent reads and deferred slide
+parsing. One unique local origin serves only bundled assets and its owned ZIP;
+remote requests, frames, objects and workers are blocked. Embedded bitmap/font
+URLs are allowed. The optional PDF.js fallback is disabled, so EMF content that
+requires an embedded PDF preview remains unsupported. Full EMF/WMF, animation,
+video behavior, notes, exact fonts and uncommon OOXML features require further
+comparison; these are open format gaps, not unavoidable platform differences.
+
+### PowerPoint verification
+
+**25 JVM checks passed** (Office state/routing 5, ZIP preparation 6, Changes file
+snapshots 7, artifact snapshots 7), and **five signed-verifier Python checks
+passed**. All 18 vendored hashes matched both source and the tested debug APK;
+the packaged PowerPoint adapter HTML/CSS/JS also matched source.
+
+The initial three-format Android batch passed in **38.838 seconds**: PPTX,
+DOCX and XLSX. The generated, self-authored PowerPoint fixture exercises Unicode
+text, an embedded red image, a table, a two-column chart, internal links, rejection
+of a JavaScript link/remote fetch, previous/next and validated slide jumps, and
+selected-slide restoration with Compose's saved-state harness.
+
+Inspection found the initial screenshot helper could capture a previous slide
+or loading frame despite the new DOM assertions. The test now waits for the
+WebView visual-state callback and two frame callbacks before capture, and verifies
+painted colored pixels inside the chart canvas in addition to the image pixel
+check. The strengthened PPTX case passed in **20.871 seconds**. Final screenshots
+visibly show the red image, the table and Q1/Q2 bars at 100/175, and restored
+slide 3. No production change was needed for that screenshot timing correction.
+The initial captures/logs are retained rather than presented as final evidence.
+
+Builds: 1m 30s for main/test APKs and JVM checks; 20s and 25s for test-only
+strengthening. The sole existing API 37 / 16 KiB AVD ran headless at 1,536 MiB.
+Both boots and test runs have empty crash/ANR event logs. Emulator and Gradle
+were stopped, and no signed release was published. Evidence, fixtures, JVM XML,
+APK hashes and screenshots: ignored `captures/runtime/presentation-preview/`.
+
+This proves these fixture behaviors in the shared preview component. Actual
+Files/Changes/composer remote routes, OS process death, physical zoom/selection,
+TalkBack, broad format fidelity and matched iOS Quick Look screenshots remain
+open. Neither passing DOM checks nor this small deck establish full PPTX parity.

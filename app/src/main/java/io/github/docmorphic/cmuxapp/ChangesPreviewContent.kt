@@ -82,6 +82,7 @@ internal fun FilePreviewContent(artifact: LocalFilePreview, remote: RemoteArtifa
                     ChangesPreviewRoute.TEXT -> ArtifactTextPreview(artifact, state, streaming)
                     ChangesPreviewRoute.DOCX -> OfficeFilePreview(artifact, OfficePreviewKind.WORD)
                     ChangesPreviewRoute.WORKBOOK -> OfficeFilePreview(artifact, OfficePreviewKind.WORKBOOK)
+                    ChangesPreviewRoute.PRESENTATION -> OfficeFilePreview(artifact, OfficePreviewKind.PRESENTATION)
                     ChangesPreviewRoute.EXTERNAL -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Preview unavailable", style = MaterialTheme.typography.titleMedium)
