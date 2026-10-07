@@ -1,5 +1,19 @@
 # Android background push
 
+## Explicit Firebase client build configuration — 2026-10-07
+
+Android builds now accept an explicit client configuration file through the
+pinned official Google Services plugin, with an optional GitHub build secret.
+Unconfigured builds stay unconfigured; all four SDK messaging/collection opt-outs
+remain false. **Both configured and subsequently unconfigured SDK runtime checks
+passed** on the existing emulator, with no enrollment/token created. Both variant
+client mappings, missing/mismatched configuration failures and workflow input
+handling were checked. See [FIREBASE_CONFIGURATION.md](FIREBASE_CONFIGURATION.md)
+for setup, exact evidence, pretest Play services ANR and limits. Emulator/Gradle
+stopped; no new AVD or signed release. No real Firebase project, provider token or
+helper deployment was created; production delivery and the pending Mac source
+decision remain open.
+
 
 ## Android settings and cleanup-storage integration — 2026-10-06
 

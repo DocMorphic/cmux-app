@@ -1,9 +1,27 @@
+import com.google.gms.googleservices.GoogleServicesTask
 import groovy.json.JsonSlurper
 import java.security.MessageDigest
 
 plugins {
     id("com.android.application")
+    id("com.google.gms.google-services") apply false
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// Only an explicitly supplied Android client configuration enables Firebase resources.
+// Standard google-services.json files elsewhere and gcloud's current project are ignored.
+val firebaseConfig = providers.gradleProperty("cmuxFirebaseConfig")
+    .orElse(providers.environmentVariable("CMUX_FIREBASE_CONFIG"))
+if (firebaseConfig.isPresent) {
+    val configuration = rootProject.file(firebaseConfig.get())
+    check(configuration.isFile) { "CMUX Firebase configuration file is missing." }
+    apply(plugin = "com.google.gms.google-services")
+    androidComponents.onVariants { variant ->
+        // Configure after the plugin registers each variant's default search paths.
+        tasks.named<GoogleServicesTask>("process${variant.name.replaceFirstChar { it.uppercase() }}GoogleServices").configure {
+            googleServicesJsonFiles.set(listOf(configuration))
+        }
+    }
 }
 
 // Keep official Java/resources, with the pinned JNI library rebuilt for RELRO.

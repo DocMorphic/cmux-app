@@ -75,6 +75,10 @@ eligible non-draft PR builds. Draft feature commits intentionally skip the build
 job. Scheduled APK builds are opt-in during feature-first development;
 see [build cadence](docs/ANDROID_TESTING.md#build-cadence).
 
+Optional background-push client configuration is documented in
+[Firebase configuration](docs/FIREBASE_CONFIGURATION.md). It requires an explicitly
+selected Android client file and does not configure production delivery by itself.
+
 ## Project choices
 
 - Kotlin and Jetpack Compose, with separate Iroh transport and Ghostty VT native modules.

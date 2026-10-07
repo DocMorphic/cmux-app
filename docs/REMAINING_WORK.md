@@ -28,6 +28,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Explicit Firebase client configuration now supports local and optional GitHub
+  builds. **Configured and unconfigured SDK checks both passed**, including removal
+  without cleaning the previous build; no enrollment/token was created. Both
+  variant IDs and invalid-input cases were checked. See `FIREBASE_CONFIGURATION.md`
+  for scope and the pretest Play services ANR. Emulator/Gradle stopped, no new AVD
+  or signed release. Real project/helper setup, token/worker/device delivery and
+  the Mac source decision remain open.
+
 - PPTX now has an offline slide preview in the shared Files/Changes/attachment
   viewer, with previous/next, slide jumps, internal links and saved slide position.
   **25 JVM checks, five Python checks and three distinct Android format cases

@@ -206,6 +206,24 @@ jobs:
           test -n "$KEYSTORE_PASSWORD"
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/cmux-app-release.p12"
           chmod 600 "$RUNNER_TEMP/cmux-app-release.p12"
+      - name: Configure Firebase when explicitly provisioned
+        env:
+          CMUX_FIREBASE_CONFIG_JSON: ${{ secrets.CMUX_FIREBASE_CONFIG_JSON }}
+        run: |
+          python3 - <<'PYCONFIG'
+          import json, os
+          from pathlib import Path
+          raw = os.environ.get('CMUX_FIREBASE_CONFIG_JSON', '')
+          if raw:
+              config = json.loads(raw)
+              if not isinstance(config, dict) or 'project_info' not in config or 'client' not in config or 'private_key' in config:
+                  raise ValueError('Provide an Android google-services.json configuration, not a service-account key')
+              target = Path(os.environ['RUNNER_TEMP']) / 'cmux-google-services.json'
+              target.write_text(raw)
+              target.chmod(0o600)
+              with open(os.environ['GITHUB_ENV'], 'a') as output:
+                  output.write('CMUX_FIREBASE_CONFIG=' + str(target) + '\n')
+          PYCONFIG
       - name: Test and build Android APKs
         env:
           CMUX_APP_RELEASE_KEYSTORE: ${{ runner.temp }}/cmux-app-release.p12
