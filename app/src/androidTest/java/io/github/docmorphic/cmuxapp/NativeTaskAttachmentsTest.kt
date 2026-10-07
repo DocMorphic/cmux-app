@@ -260,7 +260,7 @@ class NativeTaskAttachmentsTest {
             stableCreateTap("task-picker-before-send")
             try {
                 compose.waitUntil(5_000) { sent.size == 1 }
-                compose.waitUntil(15_000) { compose.onAllNodesWithText("Fixture rejection", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                compose.waitUntil(15_000) { compose.onAllNodesWithText("That Mac is not connected. Check your workspace list before retrying.").fetchSemanticsNodes().isNotEmpty() }
             } catch (failure: Throwable) {
                 println("Task first-send diagnostic: sends=${sent.size}, uploads=${peer.requests.count { it.optString("method") == "mobile.task.attachment.upload" }}")
                 compose.onRoot().printToLog("TaskRetryFixture"); throw failure

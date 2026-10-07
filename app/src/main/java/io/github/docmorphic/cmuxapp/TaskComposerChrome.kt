@@ -14,7 +14,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
+
+@Composable
+internal fun TaskComposerFailureBanner(failure: TaskComposerFailure) {
+    Row(Modifier.fillMaxWidth().background(Color(0x19FF9999), RoundedCornerShape(14.dp))
+        .semantics { liveRegion = LiveRegionMode.Polite }.padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(painterResource(R.drawable.ic_task_warning), contentDescription = null,
+            tint = Color(0xFFFF9999), modifier = Modifier.size(18.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(failure.title, color = Color(0xFFFF9999), style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.testTag("TaskComposerFailureTitle"))
+            Text(failure.message, color = Color(0xFFFF9999), style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.testTag("TaskComposerFailureMessage"))
+        }
+    }
+}
 
 /** iOS's 38-point visual surfaces with Android's 48-dp activation targets. */
 @Composable

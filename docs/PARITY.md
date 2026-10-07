@@ -12,6 +12,56 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Task failure presentation and recovery (2026-10-07)
+
+Scoped source at `186cec79781256867ad4516f0802118738bd2393`:
+`TaskComposerSheet+Policies.swift`, `TaskComposerFailureTitleStyle.swift`,
+`TaskComposerFailureBanner.swift` and `TaskComposerFailureRecoveryContent.swift`
+in `CmuxMobileShellUI`, and `MobileShellComposite+WorkspaceActions.swift`'s
+`workspaceMutationFailure` classification in `CmuxMobileShell`.
+
+Android now distinguishes the failed submission stage: durable draft saving,
+accepted-task refresh, group validation, attachment upload, task creation and
+creation-response decoding. Previously these all displayed raw exception text
+with the same workspace-check warning. Known host rejection codes now produce
+the source's actionable folder, authorization, busy, persistence and unsupported
+messages. Upload failures explicitly concern attachments; they do not imply a
+workspace was sent. Creation timeouts, lost connections, unknown outcomes and
+incomplete results remain **Task status unconfirmed**. A recovered connection
+whose write outcome is unknown has its own explanation. Unknown host rejections
+use a generic rejection message; protocol classification uses `Locale.ROOT`.
+
+The source-style rounded banner now presents both title and message for ordinary
+failures as well as accepted-task recovery. One polite accessibility live region
+announces each banner. Editing clears the visible issue; retry retains the same
+operation ID for an equivalent task. Errors during refresh or saving do not
+authorize Start Again; incomplete results do not navigate away or delete drafts.
+
+Verification:
+
+- **15 JVM checks passed**: six classification cases (including protocol locale,
+  stage boundaries, auth aliases, no raw diagnostic text, and unknown outcomes)
+  plus the nine existing request-identity/result-parsing cases.
+- Debug/test builds passed (initial 1m2s; final refinement 19s).
+- **Six Android cases passed together in 50.238s** on the sole existing Android
+  17 / 16 KiB, 1,536 MiB emulator. Two new local socket-RPC scenarios cover four
+  host error codes, explicit retries/edited request IDs, live-region semantics,
+  rejected upload retention and successful retry. Existing cases cover failed
+  refresh/persistence recovery gates, incomplete creation responses, failed
+  durable-save admission, and cancellation retaining a prior uncertain ID.
+- Three screenshots inspected: invalid directory, timeout and upload rejection.
+  All banner text, prompt and relevant attachment remain visible. The fixture
+  Activity's system bars are not evidence for production system-bar styling.
+- Evidence: `captures/runtime/task-failures/verification.json`, original logs,
+  JUnit XML and screenshots. Boot/final ANR and crash logs were empty. Emulator
+  and Gradle stopped; owned processes reaped. Existing tests that looked for raw
+  exception strings now expect the corresponding user-facing messages; the full
+  task suite was not run in this focused batch.
+
+Physical Pixel/Mac, TalkBack traversal, enlarged text/keyboard layouts and broader
+network/lifecycle acceptance remain open. This does not advance the global parity
+pin or publish a new signed release.
+
 ## Task preparation cancellation (2026-10-07)
 
 Scoped source: `TaskComposerSheet.swift` and `TaskComposerSheet+Policies.swift`

@@ -167,7 +167,7 @@ class NativeTaskModelsTest {
         state("Effort", "High")
         compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep this task")
         compose.onNodeWithContentDescription("Create Task").performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Mac did not return the created task workspace",
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("The Mac did not confirm the created workspace",
             substring = true).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Task prompt").assertTextContains("Keep this task")
         assertEquals(0, navigations)

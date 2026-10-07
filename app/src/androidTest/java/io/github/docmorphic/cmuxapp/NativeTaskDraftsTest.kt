@@ -139,7 +139,7 @@ class NativeTaskDraftsTest {
         compose.onNodeWithText("Pair this Mac again or update cmux to create tasks.").assertIsDisplayed()
         compose.runOnIdle { supported = true }
         compose.onNodeWithContentDescription("Create Task").performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Disk unavailable", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("cmux couldn’t save this draft safely. Reopen the composer and try again.").fetchSemanticsNodes().isNotEmpty() }
         assertEquals(0, attempts)
         compose.onNodeWithContentDescription("Task prompt").assertTextContains("Do not send without a saved retry ID")
         assertNotNull(repository.drafts.state.value.getValue(activeId).lastRequest)

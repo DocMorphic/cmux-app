@@ -28,6 +28,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Task failures now distinguish draft-save, upload, host rejection and uncertain
+  creation outcomes with the source-style title/message banner and a single polite
+  accessibility announcement. Equivalent retries retain operation IDs; failed
+  refresh/save does not unlock Start Again. **15 JVM checks and six Android cases
+  passed**, three screenshots inspected, no ANR/crash events; emulator/Gradle
+  stopped. See the task-failure section in `PARITY.md` for scope. Physical and
+  broader accessibility/lifecycle acceptance remain open; no signed release.
+
 - Task submission can now be cancelled during draft persistence or attachment
   upload, while Back stays locked after workspace creation is admitted. Draft
   choices appear after cancellation settles; prior uncertain operation IDs survive

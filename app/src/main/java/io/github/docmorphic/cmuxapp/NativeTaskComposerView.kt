@@ -3,7 +3,6 @@ package io.github.docmorphic.cmuxapp
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,7 +15,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
@@ -111,6 +109,8 @@ internal fun NativeTaskComposerView(
     var leavingPreparation by remember(editor) { mutableStateOf(false) }
     var error by remember(editor) { mutableStateOf(if (initialDraft.lastRequest != null && initialDraft.completedRequest == null)
         "Previous task status is unconfirmed. Check your workspace list before retrying." else null) }
+    var submissionIssue by remember(editor) { mutableStateOf<TaskComposerFailure?>(
+        TaskComposerFailure.restored.takeIf { initialDraft.lastRequest != null && initialDraft.completedRequest == null }) }
     var accepted by remember(editor) { mutableStateOf(false) }
     var dirty by remember(editor) { mutableStateOf(false) }
     var showDrafts by remember(editor) { mutableStateOf(false) }
@@ -232,10 +232,11 @@ internal fun NativeTaskComposerView(
             if (reconcile) checkNotNull(recovery).parameters()
             else submission.resolve(origin, checkNotNull(effectiveRequest) { "Enter a task prompt" })
         }.getOrElse { error = it.message; return }
-        busy = true; error = null
+        busy = true; error = null; submissionIssue = null
         focus.clearFocus(); keyboard?.hide()
         submissionJob = scope.launch {
             var transmitted = false
+            var stage = TaskComposerFailure.Stage.SAVING
             try {
                 check(requestIsCurrent()) { "Connection changed" }
                 // An explicit offline attempt saves local edits, but has not sent an
@@ -254,13 +255,16 @@ internal fun NativeTaskComposerView(
                 currentCoroutineContext().ensureActive()
                 check(requestIsCurrent()) { "Task session changed before submission" }
                 if (reconcile) {
+                    stage = TaskComposerFailure.Stage.REFRESHING
                     refreshWorkspaces()
                     currentCoroutineContext().ensureActive()
                     check(requestIsCurrent()) { "Connection changed while refreshing workspaces" }
                 }
+                stage = TaskComposerFailure.Stage.VALIDATING_GROUP
                 check(currentGroupCheck?.invoke(parameters.opt("group_id") as? String) ?: latestGroups.valid) {
                     "The selected group is no longer available. Choose another group or None."
                 }
+                stage = TaskComposerFailure.Stage.UPLOADING
                 val wire = TaskAttachments.prepareRequest(client, parameters, draft.attachments, supportsAttachments, reconcile,
                     read = { attachment -> checkNotNull(attachmentRepository) { "Attachment storage is unavailable" }.readAttachment(attachment) },
                     checkCurrent = {
@@ -271,9 +275,11 @@ internal fun NativeTaskComposerView(
                 check(requestIsCurrent()) { "Task session changed before creation" }
                 transmitted = true
                 submissionCommitted = true
+                stage = TaskComposerFailure.Stage.CREATING
                 val response = createTask(wire)
                 currentCoroutineContext().ensureActive()
                 check(requestIsCurrent()) { "Connection changed before the task could be opened" }
+                stage = TaskComposerFailure.Stage.READING_RESULT
                 TaskCreationResult.parse(response)
                 templateStore.recordSuccess(checkNotNull(draft.templateId), origin, parameters.optString("working_directory").takeIf { it.isNotBlank() })
                 collection.remove(editor)
@@ -301,7 +307,10 @@ internal fun NativeTaskComposerView(
                         if (saveFailure is CancellationException) throw saveFailure
                         error = "Could not save task recovery. Refresh before starting another task."
                     }
-                } else error = (failure.message ?: "Could not create task") + ". Check your workspace list before retrying."
+                } else {
+                    submissionIssue = TaskComposerFailure.from(failure, stage)
+                    error = submissionIssue?.message
+                }
             } finally {
                 if (!transmitted && !currentCoroutineContext().isActive && requestIsCurrent()) {
                     // Cancelled preparation did not create a workspace. Restore
@@ -482,19 +491,11 @@ internal fun NativeTaskComposerView(
                 if (supportsTaskCreation == false) Text("Pair this Mac again or update cmux to create tasks.",
                     color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
                 if (recoveryApplies) {
-                    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)
-                        .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }) {
-                        Row(Modifier.fillMaxWidth().background(Color(0x19FF9999), RoundedCornerShape(14.dp)).padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Icon(painterResource(R.drawable.ic_task_warning), contentDescription = null,
-                                tint = Color(0xFFFF9999), modifier = Modifier.size(18.dp))
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(if (error == null) "Task already accepted" else "Task status unconfirmed", color = Color(0xFFFF9999),
-                                    style = MaterialTheme.typography.titleSmall)
-                                Text(error ?: if (recoveryReady) TaskCompletedRecovery.MISSING_MESSAGE else TaskCompletedRecovery.REFRESH_MESSAGE,
-                                    color = Color(0xFFFF9999), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
+                    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                        TaskComposerFailureBanner(TaskComposerFailure(
+                            if (error == null) TaskComposerFailure.ACCEPTED else
+                                submissionIssue?.takeIf { it.message == error }?.title ?: TaskComposerFailure.UNCONFIRMED,
+                            error ?: if (recoveryReady) TaskCompletedRecovery.MISSING_MESSAGE else TaskCompletedRecovery.REFRESH_MESSAGE))
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { launchTask(reconcile = true) }, enabled = canEdit && hasSelectedMac && supportsTaskCreation != false,
                                 modifier = Modifier.weight(1f)) { Text(if (recoveryReady) "Refresh Again" else "Refresh Workspaces") }
@@ -502,8 +503,8 @@ internal fun NativeTaskComposerView(
                                 modifier = Modifier.weight(1f)) { Text("Start Again") }
                         }
                     }
-                } else if (error != null) Text(error.orEmpty(), color = Color(0xFFFF9999),
-                    modifier = Modifier.padding(bottom = 12.dp))
+                } else if (error != null) TaskComposerFailureBanner(
+                    submissionIssue?.takeIf { it.message == error } ?: TaskComposerFailure(TaskComposerFailure.FAILED, error.orEmpty()))
                 if (!groupSelection.valid) Text(if (groupSelection.pending) "Loading the selected Mac’s groups…" else "The selected group is unavailable. Open Task Options to choose another group or None.",
                     color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
 

@@ -643,3 +643,10 @@ at cmux revision 186cec79781256867ad4516f0802118738bd2393.
 Copyright Manaflow, Inc.; GPL-3.0-or-later. Android cancels and joins preparation
 before presenting its existing draft choices; it retains prior uncertain operation
 identities and rejects late transport results after the composer is removed.
+
+TaskComposerFailure.kt and the shared task failure banner adapt
+TaskComposerSheet+Policies.swift, TaskComposerFailureTitleStyle.swift,
+TaskComposerFailureBanner.swift and MobileShellComposite+WorkspaceActions.swift
+at cmux revision 186cec79781256867ad4516f0802118738bd2393.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. Android distinguishes persistence,
+upload, refresh and creation failures and uses Compose accessibility live regions.

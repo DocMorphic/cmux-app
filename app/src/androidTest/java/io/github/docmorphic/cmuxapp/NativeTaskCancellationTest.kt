@@ -127,7 +127,7 @@ class NativeTaskCancellationTest {
             repository.persistNow()
         }, create = { throw MobileRpcException("request_timeout", "Unconfirmed") })
         typeAndCreate()
-        waitFor("Unconfirmed. Check your workspace list before retrying.")
+        waitFor("The Mac did not respond in time. Check your workspace list before retrying.")
         val previous = repository.drafts.state.value.getValue(id).lastRequest
         assertNotNull(previous)
         compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Different task, cancelled before creation")
@@ -140,7 +140,7 @@ class NativeTaskCancellationTest {
         compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Preserve my task")
         compose.runOnIdle { holdSave = false }
         compose.onNodeWithContentDescription("Create Task").performClick()
-        waitFor("Unconfirmed. Check your workspace list before retrying.")
+        waitFor("The Mac did not respond in time. Check your workspace list before retrying.")
         assertEquals(2, requests.size)
         assertEquals(requests.first().getString("operation_id"), requests.last().getString("operation_id"))
     }

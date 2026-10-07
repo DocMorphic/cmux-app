@@ -128,12 +128,12 @@ class NativeTaskRecoveryTest {
         show(refresh = { if (failRefresh) throw MobileRpcException("already_completed", "List unavailable") }) { missing() }
         startTask()
         compose.onNodeWithText("Refresh Workspaces").performClick()
-        waitFor("List unavailable. Check your workspace list before retrying.")
+        waitFor("Couldn’t refresh the accepted task. Reconnect to the Mac and try again.")
         compose.onNodeWithText("Start Again").assertDoesNotExist()
         assertEquals(1, requests.size)
         failRefresh = false; failSave = true
         compose.onNodeWithText("Refresh Workspaces").performClick()
-        waitFor("fixture save failed. Check your workspace list before retrying.")
+        waitFor("cmux couldn’t save this draft safely. Reopen the composer and try again.")
         compose.onNodeWithText("Start Again").assertDoesNotExist()
         assertEquals(listOf("create", "refresh"), order)
         failSave = false
@@ -155,7 +155,7 @@ class NativeTaskRecoveryTest {
         compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Different task")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Refresh Workspaces").fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithContentDescription("Create Task").performClick()
-        waitFor("Unconfirmed. Check your workspace list before retrying.")
+        waitFor("The Mac did not respond in time. Check your workspace list before retrying.")
         assertNull(durable().completedRequest)
         assertNotEquals(oldId, requests.last().getString("operation_id"))
         compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Recover my task 中")
