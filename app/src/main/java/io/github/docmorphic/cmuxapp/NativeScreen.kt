@@ -3409,6 +3409,7 @@ internal fun NativeScreen(
                             NativeAgentFeedView(scopedFeedSources, search, agentNeedsInputOnly, agentReadState,
                                 onReadState = { agentReadState = it }, session = feedCoordinator::agentFeedSession,
                                 computerName = appearances::name, onRefresh = ::refreshFeed, modifier = Modifier.weight(1f), locale = searchLocale, display = displayState,
+                                scopeKey = agentReadOwner, allowedMacs = pairedMacs.filter { connection.allowsSaved(it) },
                                 onOpen = { entry, openTab ->
                                     val owner = store.visiblePairedMacs().singleOrNull { it == entry.source.mac && connection.allowsSaved(it) }
                                     val workspace = feedCoordinator.sources.value[owner?.origin]?.workspaces?.singleOrNull { it.id == entry.item.workspaceId }

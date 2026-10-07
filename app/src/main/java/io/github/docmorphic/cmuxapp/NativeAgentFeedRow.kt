@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -84,9 +85,20 @@ internal fun NativeAgentFeedRow(entry: NativeAgentFeedEntry, model: NativeAgentF
                             }
                         }
                         AgentFeedKind.PLAN -> FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Button(onClick = { dismiss(); onCompose("plan") }, enabled = ready && !pending) { Text("Review plan") }
+                            Button(onClick = { dismiss(); onDecision(item.planApproval()) }, enabled = ready && !pending) { Text("Approve") }
                             TextButton(onClick = { dismiss(); onCompose("revise") }, enabled = ready && !pending) { Text("Revise") }
                             TextButton(onClick = { dismiss(); onDecision(AgentFeedDecision("exit_plan", "deny")) }, enabled = ready && !pending) { Text("Deny") }
+                            var expanded by remember { mutableStateOf(false) }
+                            Box {
+                                TextButton(onClick = { dismiss(); expanded = true }, enabled = ready && !pending,
+                                    modifier = Modifier.semantics { contentDescription = "More approval modes" }) { Text("More") }
+                                DropdownMenu(expanded, { expanded = false }) {
+                                    agentFeedPlanModes.forEach { (mode, label) ->
+                                        DropdownMenuItem(text = { Text(label) }, enabled = ready && !pending,
+                                            onClick = { expanded = false; onDecision(AgentFeedDecision("exit_plan", mode)) })
+                                    }
+                                }
+                            }
                         }
                         AgentFeedKind.QUESTION -> AgentFeedQuestionControls(item, !pending, canSubmit = ready) {
                             dismiss(); onDecision(it)

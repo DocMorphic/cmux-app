@@ -204,3 +204,62 @@ real Mac/Pixel acceptance. No scope-wide parity claim follows from this batch.
   Corrected test APK: `5435190c896a02827e4f7de3c3e3cc904e5a6cd4e61909c1194da65e4eec5789`.
 - Sole existing AVD used at 2,048 MiB and stopped/reaped afterward; Gradle stopped.
   No Pixel was connected and no signed release was published.
+
+
+## Reply sheet, plan actions and modal restoration — 2026-10-07
+
+Plan rows now expose direct Approve, Revise, Deny and More approval modes as in
+`AgentFeedExitPlanControls`. Approve forwards the agent's preselected mode (or
+`manual` when absent); an unfamiliar advertised mode is not silently replaced.
+Explicit menu modes remain manual, autoAccept, bypassPermissions and ultraplan.
+The session admits an unfamiliar mode only when it equals the current event's
+advertised default, while retaining normal request/pending/owner checks.
+
+Terminal replies and plan feedback now use a bottom sheet with the quoted event,
+agent avatar, author/headline, six-line preview, thread line, Replying to label,
+focused multiline editor, keyboard Send and top Cancel/Reply/Send controls.
+See more reads the complete `feed.text` result through the authenticated session;
+it uses the bundled Markdown renderer rather than the 8 KiB timeline parser.
+An expansion can be retried after read failure and falls back to selectable source
+if the renderer fails. Sending still uses the existing single-flight session and
+ambiguous-delivery handling. Plan feedback uses manual mode plus feedback.
+
+`AgentFeedModal` saves only the account/team scope digest, exact Mac/build/event
+and request/workspace/surface identity, mode, draft and presentation flags. It
+never serializes pairing credentials or the loaded message. A recreated sheet
+waits for the still-authorized Mac's initial Feed snapshot; authoritative event
+removal, changed request/destination, successful terminal reply, resolved plan,
+Mac/build removal or account/team change clears it. Restoration never sends a
+reply automatically. Full-message reader mode and Markdown viewport coordinates
+are saveable; message bodies reload and are kept out of the Activity Bundle.
+
+This is not final visual or lifecycle acceptance. Expanded quotes currently use
+a 320 dp independently scrolling document viewport inside the composer, while
+iOS lays out its native Markdown in the outer scroll. Matching that continuous
+scroll behavior, source icon/chrome details, exact inline expansion geometry,
+TalkBack/large fonts, real process death during loading and actual account/Mac
+recovery remain open. A Compose saved-state fixture does not prove a physical
+process-death or authenticated production workflow.
+
+### Verification for reply/modal work
+
+- **40 focused JVM cases passed**, covering saved identity/draft encoding, scope/
+  removal/replacement fences, initial-snapshot waiting, preselected approval mode
+  forwarding and the existing Feed transport/projection/Markdown cases.
+- **All five Android cases passed in 58.916 s** on API37/16KiB: reply draft saved-
+  state restoration through snapshot reload with no auto-send, reader reload/raw
+  mode and account cleanup, plan revision feedback, explicit approval-mode menu,
+  and main-shell question/permission/terminal reply/navigation via loopback RPC.
+  The first four-case attempt had a duplicate-text test lookup failure; it is
+  retained with the corrected run, not counted as passing.
+- A blank early expansion screenshot exposed insufficient DOM/visual-callback
+  assertions. The strengthened test now checks the tail beyond 8 KiB and actual
+  light-text pixels within native WebView bounds, saving that exact bitmap. It
+  passed **one case in 12.465 s** on the unchanged app APK. The painted screenshot
+  visibly contains the expanded report; the reply screenshot shows the typed
+  draft and keyboard. No fixed rendering-latency claim follows from this result.
+- Evidence: `captures/runtime/agent-feed-composer/`, including all runs, early
+  frames, painted frame, geometry, 40 passing XML cases, build logs and APK hashes.
+  No ANR/crash events occurred. AVD and Gradle stopped; no signed release or Pixel
+  run. StateRestorationTester evidence does not replace actual process-death or
+  authenticated Mac/Pixel acceptance.

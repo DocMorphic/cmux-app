@@ -96,7 +96,8 @@ internal class NativeAgentFeedSession(
                 "feed.permission.reply"
             }
             AgentFeedKind.PLAN -> {
-                require(decision.kind == "exit_plan" && decision.mode in setOf("manual", "autoAccept", "bypassPermissions", "ultraplan", "deny"))
+                require(decision.kind == "exit_plan" && !decision.mode.isNullOrBlank() &&
+                    (decision.mode in setOf("manual", "autoAccept", "bypassPermissions", "ultraplan", "deny") || decision.mode == row.defaultMode))
                 "feed.exit_plan.reply"
             }
             AgentFeedKind.QUESTION -> {

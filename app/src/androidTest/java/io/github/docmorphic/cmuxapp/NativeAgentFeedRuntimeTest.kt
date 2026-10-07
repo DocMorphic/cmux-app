@@ -77,8 +77,8 @@ class NativeAgentFeedRuntimeTest {
             assertEquals("once", peer.requests.last { it.optString("method") == "feed.permission.reply" }.getJSONObject("params").getString("mode"))
             search("Finished report")
             compose.onNodeWithText("Reply", useUnmergedTree = true).performScrollTo().performClick()
-            compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput("Run the next task")
-            compose.onNodeWithText("Send").performClick(); awaitMethod("mobile.terminal.paste")
+            compose.onNodeWithTag("AgentFeedComposeDraft").performTextInput("Run the next task")
+            compose.onNodeWithTag("AgentFeedComposeSend").performClick(); awaitMethod("mobile.terminal.paste")
             val paste = peer.requests.last { it.optString("method") == "mobile.terminal.paste" }.getJSONObject("params")
             assertEquals("stop", paste.getString("feed_event_id")); assertEquals("terminal-1", paste.getString("surface_id"))
             compose.waitUntil(10_000) { compose.onAllNodesWithText("Run the next task").fetchSemanticsNodes().isNotEmpty() }

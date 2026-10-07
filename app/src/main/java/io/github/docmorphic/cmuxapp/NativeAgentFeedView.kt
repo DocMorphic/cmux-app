@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,7 +27,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-private data class AgentFeedCompose(val key: String, val mode: String)
+private val agentFeedModalSaver = Saver<AgentFeedModal?, String>(save = { it?.encode() }, restore = AgentFeedModal::decode)
 private val agentFeedMuted = Color(0xFF9CA3AF)
 private val agentFeedAccent = Color(0xFF76B9FF)
 
@@ -37,7 +38,8 @@ internal fun NativeAgentFeedView(
     readState: NativeAgentFeedReadState, onReadState: (NativeAgentFeedReadState) -> Unit,
     session: (NativeCredentialStore.PairedMac) -> NativeAgentFeedSession?, computerName: (NativeCredentialStore.PairedMac) -> String,
     onOpen: (NativeAgentFeedEntry, Boolean) -> Unit, onRefresh: () -> Unit, modifier: Modifier = Modifier,
-    locale: Locale = Locale.getDefault(), display: NativeDisplayPreferences = NativeDisplayPreferences()
+    locale: Locale = Locale.getDefault(), display: NativeDisplayPreferences = NativeDisplayPreferences(),
+    scopeKey: String = "feed", allowedMacs: Collection<NativeCredentialStore.PairedMac> = sources.map { it.mac }
 ) {
     val entries = remember(sources) { aggregateNativeAgentFeed(sources) }
     val currentEntries by rememberUpdatedState(entries.associateBy { it.key })
@@ -49,8 +51,7 @@ internal fun NativeAgentFeedView(
     val currentRead by rememberUpdatedState(readState)
     val updateRead by rememberUpdatedState(onReadState)
     val scope = rememberCoroutineScope()
-    var composer by remember { mutableStateOf<AgentFeedCompose?>(null) }
-    var reading by remember { mutableStateOf<String?>(null) }
+    var modal by rememberSaveable(stateSaver = agentFeedModalSaver) { mutableStateOf<AgentFeedModal?>(null) }
     var actionError by remember { mutableStateOf<String?>(null) }
     val index = remember(entries, locale) { NativeSearchIndex(entries.map { it.key to it.item.searchFields(computerName(it.source.mac)) }, locale, notification = true) }
     val matches = remember(index, query) { index.matches(query) }
@@ -111,8 +112,8 @@ internal fun NativeAgentFeedView(
                             readState.needsInput(entry), display, agentFeedTimeLabel(entry.item.createdAt, now, locale),
                             onRead = { needs -> currentEntries[entry.key]?.let { updateRead(currentRead.triage(it, needs)) } },
                             onOpen = { tab -> currentEntries[entry.key]?.let { updateRead(currentRead.interacted(it)); onOpen(it, tab) } },
-                            onCompose = { composer = AgentFeedCompose(entry.key, it) }, onDecision = { act(entry, it) },
-                            onFullText = { reading = entry.key })
+                            onCompose = { modal = AgentFeedModal.from(scopeKey, entry, it) }, onDecision = { act(entry, it) },
+                            onFullText = { modal = AgentFeedModal.from(scopeKey, entry, "read") })
                     }
                 }
                 HorizontalDivider(color = Color(0xFF292C31))
@@ -120,67 +121,48 @@ internal fun NativeAgentFeedView(
         }
         }
     }
-    composer?.let { compose ->
-        val entry = currentEntries[compose.key]
-        if (entry == null) LaunchedEffect(compose) { composer = null }
-        else key(compose) {
-            AgentFeedComposer(entry, compose.mode, onDismiss = { composer = null }, onSubmit = { decision, text ->
-                if (text == null) { checkNotNull(decision); act(entry, decision); composer = null }
-                else scope.launch {
-                    try {
-                        val live = checkNotNull(currentEntries[entry.key]) { "This Feed item is no longer available" }
-                        val active = checkNotNull(currentSession(live.source.mac)) { "Connect to this computer to reply" }
-                        if (active.terminalReply(live.item, text)) { updateRead(currentRead.interacted(live)); composer = null }
-                    } catch (error: Exception) { if (error is CancellationException) throw error; actionError = error.message }
+    modal?.let { target ->
+        when (target.status(scopeKey, allowedMacs, sources, currentEntries.values)) {
+            AgentFeedModalStatus.GONE -> LaunchedEffect(target) { modal = null }
+            AgentFeedModalStatus.WAITING -> AgentFeedWaitingSheet({ modal = null }, onRefresh)
+            AgentFeedModalStatus.READY -> key(target.scope, target.key, target.mode) {
+                val entry = checkNotNull(currentEntries[target.key])
+                fun update(next: AgentFeedModal) { if (modal?.key == target.key && modal?.mode == target.mode) modal = next }
+                suspend fun load(): String {
+                    val live = checkNotNull(currentEntries[target.key]) { "This Feed item is no longer available" }
+                    check(target.matches(live)) { "This Feed item changed" }
+                    return checkNotNull(currentSession(live.source.mac)) { "Connect to this computer to read the message" }.fullText(live.item)
                 }
-            })
-        }
-    }
-    reading?.let { key ->
-        val entry = currentEntries[key]
-        if (entry == null) LaunchedEffect(key) { reading = null }
-        else key(key) { AgentFeedFullText(entry, session, { updateRead(currentRead.interacted(entry)) }, { reading = null }) }
-    }
-}
-
-@Composable
-private fun AgentFeedComposer(entry: NativeAgentFeedEntry, mode: String, onDismiss: () -> Unit,
-    onSubmit: (AgentFeedDecision?, String?) -> Unit) {
-    val item = entry.item
-    var draft by rememberSaveable { mutableStateOf(entry.source.agentFeed.failures[item.id]?.draft.orEmpty()) }
-    var planMode by rememberSaveable { mutableStateOf(item.defaultMode?.takeIf { it in setOf("manual", "autoAccept", "bypassPermissions", "ultraplan") } ?: "manual") }
-    val pending = item.id in entry.source.agentFeed.pending
-    val ready = entry.source.availability == NativeFeedAvailability.CONNECTED && !pending
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(when (mode) { "terminal" -> "Reply to agent"; "revise" -> "Revise plan"; else -> "Approve plan" }) },
-        text = { Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (mode == "plan") {
-                AgentFeedMarkdownText(NativeAgentFeedPresentation.planText(item.plan) ?: item.planSummary ?: "Review this plan before approving.")
-                listOf("manual" to "Approve (manual edits)", "autoAccept" to "Approve, auto-accept edits",
-                    "bypassPermissions" to "Approve, bypass permissions", "ultraplan" to "Approve as ultraplan").forEach { (value, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(planMode == value, { planMode = value }, enabled = !pending); Text(label)
+                if (target.mode == "read") AgentFeedFullText(target, ::update, ::load,
+                    { updateRead(currentRead.interacted(entry)) }, { modal = null })
+                else AgentFeedReplySheet(entry, target, ::update, ::load, { modal = null }) { decision, text ->
+                    if (text == null) { checkNotNull(decision); act(entry, decision); modal = null }
+                    else scope.launch {
+                        try {
+                            val live = checkNotNull(currentEntries[target.key]) { "This Feed item is no longer available" }
+                            check(target.matches(live)) { "This Feed item changed. Review it before replying." }
+                            val active = checkNotNull(currentSession(live.source.mac)) { "Connect to this computer to reply" }
+                            if (active.terminalReply(live.item, text)) {
+                                updateRead(currentRead.interacted(live))
+                                if (modal?.key == target.key && modal?.mode == target.mode) modal = null
+                            }
+                        } catch (error: Exception) { if (error is CancellationException) throw error; actionError = error.message }
                     }
                 }
-            } else OutlinedTextField(draft, { draft = it }, minLines = 3, label = { Text(if (mode == "revise") "Requested changes" else "Message") }, enabled = !pending)
-            entry.source.agentFeed.failures[item.id]?.let { Text(it.message, color = MaterialTheme.colorScheme.error) }
-        } }, confirmButton = { TextButton(enabled = ready && when (mode) {
-            "plan" -> item.needsInput
-            else -> draft.isNotBlank()
-        }, onClick = { when (mode) {
-            "terminal" -> onSubmit(null, draft)
-            "plan" -> onSubmit(AgentFeedDecision("exit_plan", planMode), null)
-            else -> onSubmit(AgentFeedDecision("exit_plan", "manual", feedback = draft.trim()), null)
-        } }) { Text(if (pending) "Sending…" else "Send") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+            }
+        }
+    }
 }
 
 @Composable
-private fun AgentFeedFullText(entry: NativeAgentFeedEntry,
-    session: (NativeCredentialStore.PairedMac) -> NativeAgentFeedSession?, onRead: () -> Unit, onDismiss: () -> Unit) {
+private fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal) -> Unit,
+    load: suspend () -> String, onRead: () -> Unit, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf<String?>(null) }; var error by remember { mutableStateOf<String?>(null) }
-    var attempt by remember { mutableIntStateOf(0) }; var raw by remember { mutableStateOf(false) }
+    var attempt by remember { mutableIntStateOf(0) }
+    val viewport = rememberSaveable(saver = agentFeedViewportSaver) { MarkdownViewportState() }
     LaunchedEffect(attempt) {
         error = null
-        try { text = checkNotNull(session(entry.source.mac)) { "Connect to this computer to read the message" }.fullText(entry.item); onRead() }
+        try { text = load(); onRead() }
         catch (failure: Exception) { if (failure is CancellationException) throw failure; error = failure.message ?: "Could not load the message" }
     }
     Dialog(onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -188,14 +170,14 @@ private fun AgentFeedFullText(entry: NativeAgentFeedEntry,
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Full message", Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                    TextButton(onClick = { raw = !raw }, enabled = text != null) { Text(if (raw) "Formatted" else "Source") }
+                    TextButton(onClick = { onChange(modal.copy(raw = !modal.raw)) }, enabled = text != null) { Text(if (modal.raw) "Formatted" else "Source") }
                     TextButton(onClick = onDismiss) { Text("Done") }
                 }
                 when {
                     error != null -> Column(Modifier.padding(20.dp)) { Text(error!!); TextButton(onClick = { attempt++ }) { Text("Retry") } }
                     text == null -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                    raw -> SelectionContainer { Text(text!!, Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) }
-                    else -> MarkdownWebPreview(text!!, remember { MarkdownViewportState() }, onFailure = { raw = true })
+                    modal.raw -> SelectionContainer { Text(text!!, Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) }
+                    else -> MarkdownWebPreview(text!!, viewport, onFailure = { onChange(modal.copy(raw = true)) })
                 }
             }
         }

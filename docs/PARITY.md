@@ -6544,3 +6544,23 @@ See [AGENT_FEED.md](AGENT_FEED.md) and `captures/runtime/agent-feed-questions/`.
 AVD/Gradle stopped; no physical or signed release acceptance. Full parity remains
 open, including reply-composer presentation, reader/composer lifecycle, routed
 sidebar, accessibility and real host workflows.
+
+
+## 2026-10-07 — Feed reply sheet and restored modal targets
+
+Direct plan approval/default forwarding and the complete approval menu replace
+the intermediate approval dialog. Reply/revision sheets quote their event, expand
+full messages and support keyboard Send. Scoped saveable modal identity/draft
+waits for initial authorized snapshot reload and clears on scope/owner/request/
+destination removal or replacement. Reader mode/viewport persist without putting
+full message bodies or pairing credentials into the Activity Bundle.
+
+40 JVM cases and five Android scenarios (58.916 s) pass; the initial duplicate-
+quote fixture selector failure is retained. A stricter expansion case (12.465 s)
+checks complete DOM content and native-bounds screen pixels, then saves the exact
+painted bitmap. Its inspected screenshot shows readable full-report content;
+early callback-only screenshots were blank and are not treated as visual proof.
+Details/hashes: [AGENT_FEED.md](AGENT_FEED.md), `captures/runtime/agent-feed-composer/`.
+No ANR/crash events; AVD/Gradle stopped. Continuous outer-scroll expansion,
+remaining chrome, real process death, TalkBack/large-font and physical account/
+Mac/Pixel acceptance remain open. No signed release or global pin advancement.

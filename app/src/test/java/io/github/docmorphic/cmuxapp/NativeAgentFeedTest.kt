@@ -114,6 +114,17 @@ class NativeAgentFeedTest {
             assertEquals("manual", sent!!.getString("mode")); assertEquals("Include tests", sent!!.getString("feedback"))
         } finally { session.close() }
     }
+    @Test fun agentPreselectedFuturePlanModeIsForwardedWithoutSilentlyChoosingAnotherMode() = runBlocking {
+        val initial = NativeAgentFeedWire.decode(snapshot(1, row(kind = "exitPlan").put("default_mode", "future-mode")))
+        var sent: JSONObject? = null
+        val session = NativeAgentFeedSession(this, { true }, { _, params -> sent = params; JSONObject() }, initial)
+        try {
+            assertTrue(runCatching { session.decide(initial.items.single(), AgentFeedDecision("exit_plan", "unrelated-mode")) }.isFailure)
+            assertNull(sent)
+            assertTrue(session.decide(initial.items.single(), initial.items.single().planApproval()))
+            assertEquals("future-mode", sent!!.getString("mode"))
+        } finally { session.close() }
+    }
     @Test fun terminalReplyUsesExactEventAndNeverAutomaticallyRetriesAmbiguousInput() = runBlocking {
         val initial = NativeAgentFeedWire.decode(snapshot(1, row(kind = "stop")))
         val calls = mutableListOf<Pair<String, JSONObject>>()
