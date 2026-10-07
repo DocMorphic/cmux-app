@@ -68,10 +68,7 @@ class NativeAgentFeedRuntimeTest {
             val folder = File(context.getExternalFilesDir(null), "agent-feed").apply { mkdirs() }
             UiDevice.getInstance(instrumentation).takeScreenshot(File(folder, "timeline.png"))
             search("Pick a color")
-            compose.onNodeWithText("Answer", useUnmergedTree = true).performClick()
-            compose.onNode(isToggleable() and hasAnyAncestor(isDialog())).let {
-                compose.onAllNodes(isToggleable() and hasAnyAncestor(isDialog()))[0].performClick()
-            }
+            compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").performScrollTo().performClick()
             compose.onNodeWithText("Send").performClick(); awaitMethod("feed.question.reply")
             assertEquals("Blue", peer.requests.last { it.optString("method") == "feed.question.reply" }
                 .getJSONObject("params").getJSONArray("selections").getString(0))

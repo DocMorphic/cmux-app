@@ -68,7 +68,9 @@ internal fun NativeAgentFeedView(
             try {
                 val live = checkNotNull(currentEntries[entry.key]) { "This Feed item is no longer available" }
                 val active = checkNotNull(currentSession(live.source.mac)) { "Connect to this computer to answer" }
-                if (active.decide(live.item, decision)) updateRead(currentRead.interacted(live))
+                check(live.item.requestId == entry.item.requestId && live.item.kind == entry.item.kind &&
+                    (decision.kind != "question" || live.item.questions == entry.item.questions)) { "This request changed. Review it again before answering." }
+                if (active.decide(entry.item, decision)) updateRead(currentRead.interacted(live))
             } catch (error: Exception) { if (error is CancellationException) throw error; actionError = error.message }
         }
     }
@@ -147,28 +149,11 @@ private fun AgentFeedComposer(entry: NativeAgentFeedEntry, mode: String, onDismi
     val item = entry.item
     var draft by rememberSaveable { mutableStateOf(entry.source.agentFeed.failures[item.id]?.draft.orEmpty()) }
     var planMode by rememberSaveable { mutableStateOf(item.defaultMode?.takeIf { it in setOf("manual", "autoAccept", "bypassPermissions", "ultraplan") } ?: "manual") }
-    var selected by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
-    var custom by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    val answers = item.questions.map { it.answer(selected[it.id].orEmpty(), custom[it.id].orEmpty()) }
     val pending = item.id in entry.source.agentFeed.pending
     val ready = entry.source.availability == NativeFeedAvailability.CONNECTED && !pending
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(when (mode) { "terminal" -> "Reply to agent"; "question" -> "Answer questions"; "revise" -> "Revise plan"; else -> "Approve plan" }) },
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(when (mode) { "terminal" -> "Reply to agent"; "revise" -> "Revise plan"; else -> "Approve plan" }) },
         text = { Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (mode == "question") item.questions.forEach { question ->
-                AgentFeedMarkdownText(question.header ?: question.prompt)
-                if (question.header != null) AgentFeedMarkdownText(question.prompt)
-                question.options.forEach { option ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(option.id in selected[question.id].orEmpty(), onCheckedChange = { checked ->
-                            selected = selected + (question.id to if (checked) {
-                                if (question.multiSelect) selected[question.id].orEmpty() + option.id else setOf(option.id)
-                            } else selected[question.id].orEmpty() - option.id)
-                        }, enabled = !pending)
-                        Column { AgentFeedMarkdownText(option.label); option.description?.let { AgentFeedMarkdownText(it, color = agentFeedMuted, fontSize = 12) } }
-                    }
-                }
-                OutlinedTextField(custom[question.id].orEmpty(), { custom = custom + (question.id to it) }, label = { Text("Your own answer") }, enabled = !pending)
-            } else if (mode == "plan") {
+            if (mode == "plan") {
                 AgentFeedMarkdownText(NativeAgentFeedPresentation.planText(item.plan) ?: item.planSummary ?: "Review this plan before approving.")
                 listOf("manual" to "Approve (manual edits)", "autoAccept" to "Approve, auto-accept edits",
                     "bypassPermissions" to "Approve, bypass permissions", "ultraplan" to "Approve as ultraplan").forEach { (value, label) ->
@@ -179,14 +164,12 @@ private fun AgentFeedComposer(entry: NativeAgentFeedEntry, mode: String, onDismi
             } else OutlinedTextField(draft, { draft = it }, minLines = 3, label = { Text(if (mode == "revise") "Requested changes" else "Message") }, enabled = !pending)
             entry.source.agentFeed.failures[item.id]?.let { Text(it.message, color = MaterialTheme.colorScheme.error) }
         } }, confirmButton = { TextButton(enabled = ready && when (mode) {
-            "question" -> answers.isNotEmpty() && answers.all { it != null }
             "plan" -> item.needsInput
             else -> draft.isNotBlank()
         }, onClick = { when (mode) {
             "terminal" -> onSubmit(null, draft)
-            "question" -> onSubmit(AgentFeedDecision("question", selections = answers.filterNotNull()), null)
             "plan" -> onSubmit(AgentFeedDecision("exit_plan", planMode), null)
-            else -> onSubmit(AgentFeedDecision("exit_plan", "revise", feedback = draft.trim()), null)
+            else -> onSubmit(AgentFeedDecision("exit_plan", "manual", feedback = draft.trim()), null)
         } }) { Text(if (pending) "Sending…" else "Send") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }
 

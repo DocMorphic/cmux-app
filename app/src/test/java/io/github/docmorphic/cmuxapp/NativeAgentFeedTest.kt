@@ -80,6 +80,40 @@ class NativeAgentFeedTest {
             assertEquals(1, sends)
         } finally { session.close() }
     }
+    @Test fun changedQuestionContentCannotReceiveAnswersFromAnOlderVisibleRequest() = runBlocking {
+        val question = row(kind = "question").put("questions", JSONArray().put(JSONObject()
+            .put("id", "q").put("prompt", "Original prompt").put("options", JSONArray())))
+        val initial = NativeAgentFeedWire.decode(snapshot(1, question))
+        val changed = JSONObject(question.toString()).apply {
+            getJSONArray("questions").getJSONObject(0).put("prompt", "Replacement prompt")
+        }
+        var sends = 0
+        val session = NativeAgentFeedSession(this, { true }, { method, _ ->
+            if (method == "feed.list") snapshot(2, changed) else { sends++; JSONObject() }
+        }, initial)
+        try {
+            session.start(); awaitState { session.state.value.snapshot?.revision == 2L }
+            assertTrue(runCatching { session.decide(initial.items.single(), AgentFeedDecision("question", selections = listOf("Old answer"))) }.isFailure)
+            assertEquals(0, sends)
+            assertTrue(session.decide(session.state.value.snapshot!!.items.single(), AgentFeedDecision("question", selections = listOf("New answer"))))
+            assertEquals(1, sends)
+        } finally { session.close() }
+    }
+    @Test fun planRevisionUsesManualModeWithFeedbackAsOnIos() = runBlocking {
+        val initial = NativeAgentFeedWire.decode(snapshot(1, row(kind = "exitPlan")))
+        var sent: JSONObject? = null
+        val session = NativeAgentFeedSession(this, { true }, { method, params ->
+            if (method == "feed.list") snapshot(1, row(kind = "exitPlan")) else {
+                assertEquals("feed.exit_plan.reply", method); sent = params; JSONObject()
+            }
+        }, initial)
+        try {
+            assertTrue(runCatching { session.decide(initial.items.single(), AgentFeedDecision("exit_plan", "revise", feedback = "Include tests")) }.isFailure)
+            assertNull(sent)
+            assertTrue(session.decide(initial.items.single(), AgentFeedDecision("exit_plan", "manual", feedback = "Include tests")))
+            assertEquals("manual", sent!!.getString("mode")); assertEquals("Include tests", sent!!.getString("feedback"))
+        } finally { session.close() }
+    }
     @Test fun terminalReplyUsesExactEventAndNeverAutomaticallyRetriesAmbiguousInput() = runBlocking {
         val initial = NativeAgentFeedWire.decode(snapshot(1, row(kind = "stop")))
         val calls = mutableListOf<Pair<String, JSONObject>>()

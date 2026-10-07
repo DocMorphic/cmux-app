@@ -88,9 +88,8 @@ internal fun NativeAgentFeedRow(entry: NativeAgentFeedEntry, model: NativeAgentF
                             TextButton(onClick = { dismiss(); onCompose("revise") }, enabled = ready && !pending) { Text("Revise") }
                             TextButton(onClick = { dismiss(); onDecision(AgentFeedDecision("exit_plan", "deny")) }, enabled = ready && !pending) { Text("Deny") }
                         }
-                        AgentFeedKind.QUESTION -> {
-                            item.questions.firstOrNull()?.let { AgentFeedMarkdownText(it.prompt) }
-                            Button(onClick = { dismiss(); onCompose("question") }, enabled = ready && !pending && item.questions.isNotEmpty()) { Text("Answer") }
+                        AgentFeedKind.QUESTION -> AgentFeedQuestionControls(item, !pending, canSubmit = ready) {
+                            dismiss(); onDecision(it)
                         }
                         else -> Unit
                     }

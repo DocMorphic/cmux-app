@@ -8,7 +8,7 @@ This port is scoped to official iOS source at
 - `Packages/iOS/CmuxMobileRPC/Sources/CmuxMobileRPC/MobileAgentFeedListResponse.swift`
 - `Packages/iOS/CmuxMobileShellModel/Sources/CmuxMobileShellModel/MobileAgentFeedItem.swift`
 - `Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite+AgentFeed.swift`
-- `Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/AgentFeed{View,Row,Projection,RowModel,QuestionAnswerComposer}.swift`
+- `Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/AgentFeed{View,Row,Projection,RowModel,QuestionAnswerComposer,ReplyComposer,FullTextView}.swift`
 - `MobilePrimaryTab.swift`: Workspaces, Feed, Notifications, Cloud and Search.
 
 This does not advance the global upstream implementation/review pin. The previous
@@ -34,7 +34,7 @@ it did **not** implement the distinct agent workstream Feed.
   truncated-preview windows, scoped to the exact Mac build and workstream. Richer
   messages and recorded replies survive deduplication.
 - Permission modes once/always/deny/all/bypass; plan modes manual/autoAccept/
-  bypassPermissions/ultraplan/revise/deny; multi-question and multi-select answer
+  bypassPermissions/ultraplan/deny, with revision feedback using `manual`; multi-question and multi-select answer
   composition. Question answers submit human-readable labels in the displayed
   question order; custom text replaces preset choices.
 - Each action rechecks the live item, owner and pending state. Duplicate aliases
@@ -59,9 +59,10 @@ it did **not** implement the distinct agent workstream Feed.
 This implementation is not a declaration of full iOS Feed parity. The row
 presentation follow-up below adds native inline Markdown, source-specific content,
 swipe triage and Display settings. Remaining work includes exact inline See-more
-and bubble-tail geometry, inline question paging, full-text and composer
+and bubble-tail geometry, full-text and composer
 recreation, accessibility/large-text layout, and routed browser/sidebar Feed
-navigation. The changed rows still require Android runtime/visual verification.
+navigation. The dated runtime checks below cover specific fixture flows, not full
+visual or physical acceptance.
 
 Physical Mac/Pixel acceptance remains open for every decision family, terminal
 reply outcomes, events during reconnect, revoked account/team scope and Mac-build
@@ -148,3 +149,58 @@ explicit space/tab runs. Tests retain authored trailing spaces and formatting
 across blank lines. Logs, including earlier failures, and passing XML receipts are
 in `captures/runtime/agent-feed-presentation/`. No APK assembly, emulator or Pixel
 run was performed for this batch; the new row layout remains visually unverified.
+
+
+## Inline question controls and revision protocol — 2026-10-07
+
+`AgentFeedQuestionControls` now follows the source's inline one-question-at-a-time
+interaction. Multiple questions use a native horizontal pager with current-page
+natural height, Previous/Next, direct page indicators, answered count and a final
+Submit all answers button. Next remains available before answering; submission
+requires every question. A single question gets inline options and Send.
+Inactive pages hide accessibility descendants and disable their controls.
+
+Full-width preset controls implement single choice or multiple choice, show
+Markdown labels/descriptions and clear custom text on selection. Other… reveals
+a focused multiline field; typing there clears preset choices. Wire answers use
+trimmed custom text or labels in displayed option order, then question order.
+Pending requests disable paging, choices, typing and submission. Drafts and page
+position use Compose saved state under the row/request/question-content identity;
+changed requests/content start fresh. The main Feed's account/team and computer
+composition scope remains authoritative. Save-state behavior still needs broader
+real process/account lifecycle acceptance beyond local fixture checks.
+
+The source audit found that `AgentFeedReplyComposer.send()` sends plan revision
+feedback as `mode: manual`, not `mode: revise`. Android now uses `manual` with
+`feedback` and rejects the unsupported invented mode. A question decision also
+checks that the displayed question content still matches the current RPC snapshot
+before sending. This prevents old labels/custom answers from being submitted to
+a changed prompt with an otherwise reused request identity.
+
+The old all-questions dialog has been removed. Remaining Feed gaps include exact
+inline See-more/bubble geometry, reply-composer quote/thread presentation, reader
+and composer restoration, routed sidebar integration, large-text/TalkBack and
+real Mac/Pixel acceptance. No scope-wide parity claim follows from this batch.
+
+### Verification for inline questions
+
+- **34 focused JVM checks** passed; debug and instrumentation APKs built.
+- Three Android scenarios now have passing evidence on API37/16KiB: main-shell
+  Feed/RPC navigation and inline question submission, draft/page saved-state
+  restoration and gating, and nested horizontal paging with no row triage/open
+  side effects plus variable page height. The first run was **56.785 s**, with
+  two passing cases and one test-tag lookup failure; after a selector-only fix,
+  that remaining case passed in **4.04 s** on the identical application APK.
+- Screenshots of the main timeline and both question pages were visually
+  inspected: controls/text/footer are visible without clipping. This provides
+  initial runtime/visual evidence for the preceding row presentation batch too.
+  Full font/accessibility/geometry acceptance remains open.
+- Restored state used Compose `StateRestorationTester`; this is not an actual
+  app-process kill or real account/Mac acceptance. Event logs contain no ANR or
+  crash entries before or after these runs.
+- Evidence: `captures/runtime/agent-feed-questions/`, retaining the first failure,
+  both run receipts, build logs, XML results, screenshots and APK hashes.
+  Application SHA-256: `6b46e1d15051a8bd602bffa50a7a3fa2b8420970a45a2007df0c5d6215e9df31`.
+  Corrected test APK: `5435190c896a02827e4f7de3c3e3cc904e5a6cd4e61909c1194da65e4eec5789`.
+- Sole existing AVD used at 2,048 MiB and stopped/reaped afterward; Gradle stopped.
+  No Pixel was connected and no signed release was published.

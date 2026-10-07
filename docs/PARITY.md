@@ -6526,3 +6526,21 @@ new whitespace regression found document-parser normalization; the corrected
 inline adapter preserves blank lines, indentation and trailing spaces. No APK,
 emulator or Pixel run in this batch. Earlier Feed screenshots do not verify these
 new rows. Global upstream pins and last signed release remain unchanged.
+
+
+## 2026-10-07 — Inline Feed question paging and plan revision
+
+The former question dialog is replaced with native inline pages, source-matching
+option/custom-answer behavior, complete-answer gating, saved page/drafts and
+variable current-page height. Source review corrected plan revision RPC mode to
+`manual` with feedback; stale question content is checked before a decision write.
+
+34 focused JVM tests pass. Three distinct emulator scenarios have passing evidence
+across a 56.785 s first run (two pass, one unmerged-semantics test lookup failure)
+and a 4.04 s corrected pager case on the same application APK. Main-shell RPC flow,
+Compose state restoration/gating and pager-vs-row gesture admission were exercised;
+main timeline and both question pages were visually reviewed. No ANR/crash events.
+See [AGENT_FEED.md](AGENT_FEED.md) and `captures/runtime/agent-feed-questions/`.
+AVD/Gradle stopped; no physical or signed release acceptance. Full parity remains
+open, including reply-composer presentation, reader/composer lifecycle, routed
+sidebar, accessibility and real host workflows.

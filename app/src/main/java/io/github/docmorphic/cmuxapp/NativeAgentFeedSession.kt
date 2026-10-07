@@ -96,11 +96,11 @@ internal class NativeAgentFeedSession(
                 "feed.permission.reply"
             }
             AgentFeedKind.PLAN -> {
-                require(decision.kind == "exit_plan" && decision.mode in setOf("manual", "autoAccept", "bypassPermissions", "ultraplan", "revise", "deny"))
-                require(decision.mode != "revise" || !decision.feedback.isNullOrBlank())
+                require(decision.kind == "exit_plan" && decision.mode in setOf("manual", "autoAccept", "bypassPermissions", "ultraplan", "deny"))
                 "feed.exit_plan.reply"
             }
             AgentFeedKind.QUESTION -> {
+                check(row.questions == item.questions) { "This request changed. Review the questions again before answering." }
                 require(decision.kind == "question" && decision.selections.isNotEmpty() && decision.selections.all { it.isNotBlank() })
                 require(row.questions.isEmpty() || decision.selections.size == row.questions.size)
                 "feed.question.reply"

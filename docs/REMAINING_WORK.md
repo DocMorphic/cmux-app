@@ -14,7 +14,7 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Agent Feed | Finish exact inline See-more/quote geometry, question paging, composer/reader restoration and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
+| Agent Feed | Finish exact inline See-more/quote geometry, reply-composer presentation, composer/reader restoration and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
 | Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
@@ -27,12 +27,22 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Feed questions now use iOS-style inline paging, full-width options, custom
+  answers, current-page height, saved drafts and complete-answer gating. Request
+  changes reject stale answers, and plan revision now sends source-correct
+  `manual` mode plus feedback. **34 focused JVM tests** and all three distinct
+  Android scenarios have passing evidence (the initial nested-pager selector
+  failure was corrected and only that case rerun). Screenshots reviewed; no
+  ANR/crash events. The AVD and Gradle are stopped. See `AGENT_FEED.md` for exact
+  scope, receipts and remaining composer/reader/sidebar/physical requirements.
+
 - Agent Feed now has source-specific row content, native inline Markdown, brand
   avatars/compact times/quote treatment, Done / Needs Input swipes, accessible
   context navigation and persistent tab/quote display options. **30 focused JVM
   cases pass** and Android test sources compile. Runtime/visual acceptance of
-  these new rows remains pending; no APK/emulator/Pixel run in this batch.
-  Exact See-more/bubble geometry, inline question paging and restoration remain.
+  these new rows was initially pending; the subsequent inline-question batch
+  above now supplies initial fixture/visual evidence. Exact See-more/bubble
+  geometry, composer/reader presentation/restoration and physical gates remain.
 
 - The upstream audit found the missing **Agent Feed** primary tab. Android now
   implements its verified-Mac subscription/snapshot pipeline, main-tab timeline,
