@@ -82,7 +82,7 @@ Changing the emulator owner, grid dimensions, active screen or local/remote
 ownership clears the held offset; normal output retains its fractional component.
 The debug text inspection uses the same clipped-edge rows as the painter.
 
-The SSH/Cloud Ghostty snapshot currently exposes only retained history size,
+At this checkpoint the SSH/Cloud Ghostty snapshot exposed only retained history size,
 not a monotonic producer row-space identity. Its held position therefore remains
 a bounded distance from the bottom; preserving the exact content anchor while
 new output grows or evicts history is still open. The Mac render-grid anchor
@@ -109,3 +109,32 @@ The existing API 37/16 KB emulator ran with 1536 MiB and two virtual cores. No
 crash/ANR events appeared; emulator and Gradle were stopped. No new AVD or physical
 device install. Physical Pixel, real SSH/Cloud sessions and running-output
 content anchoring remain open. No signed release; published APK 616 is unchanged.
+
+## Holding SSH/Cloud content during output (2026-10-07, verification in progress)
+
+The pinned Ghostty C API at `edefce7785c9f439966c68588db1edbd6b435203`
+already supports `ghostty_terminal_grid_ref_track` and
+`ghostty_tracked_grid_ref_point`. A tracked reference follows actual terminal
+page mutations, including pruning of earlier rows, and explicitly expires when
+its content is discarded. The JNI owner now retains one reference to the first
+partially visible history row plus its fractional clip. This replaces distance-
+from-bottom arithmetic for SSH/Cloud history. Reading live or graphics snapshots
+does not replace the anchor; Latest and input release it.
+
+Grid reflow, screen activity (including primary→alternate→primary in a single
+byte batch), emulator replacement and a discarded referenced row invalidate the
+hold. Pixel metric changes without grid reflow keep it. Pins are owned and freed
+under the native registry lock; no pointers cross JNI. The view resolves current
+content position on output revisions and before the next gesture delta.
+
+The iOS reference for this behavior is `LocalPixelScrollHeldRebase.swift` at
+`b9c0111a67bf8daadc2e87bff402254bfd9a26fd`: undocked history holds content while
+live-bottom state follows new output. The Android implementation uses Ghostty's
+tracked cell contract because its pinned public scrollbar lacks those iOS
+cumulative row-push counters. This does not advance the global source pin.
+
+Native and app runtime checks are pending. The new tests cover content retention
+through output/pruning, fractional position, expiration/reset/reflow/close,
+batched screen switches, a held finger while output arrives and replacement
+emulators. Physical sessions and replay continuity remain open; replacing an
+emulator intentionally starts at live output. No signed release.

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 // IDs are never pointers and are never reused. The registry also fences a close
 // racing with JNI entry; Kotlin serializes each owner's operations separately.
@@ -19,6 +20,9 @@ typedef struct Terminal {
     bool reply_overflow;
     bool bell;
     GhosttySizeReportSize size;
+    GhosttyTrackedGridRef scroll_anchor;
+    uint64_t scroll_screen_activity;
+    double scroll_clip;
     struct Terminal *next;
 } Terminal;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -46,12 +50,19 @@ static Terminal *lookup(JNIEnv *env, jlong id) {
     return NULL;
 }
 static void dispose(Terminal *entry) {
+    ghostty_tracked_grid_ref_free(entry->scroll_anchor);
     ghostty_render_state_row_cells_free(entry->cells);
     ghostty_render_state_row_iterator_free(entry->rows);
     ghostty_render_state_free(entry->render);
     ghostty_terminal_free(entry->terminal);
     free(entry->replies);
     free(entry);
+}
+
+static void clear_scroll_anchor(Terminal *entry) {
+    ghostty_tracked_grid_ref_free(entry->scroll_anchor);
+    entry->scroll_anchor = NULL;
+    entry->scroll_clip = 0;
 }
 // Cached at library load so callbacks from any Java thread use the correct
 // application class loader. No borrowed Java or native pixel buffer escapes.
@@ -283,9 +294,75 @@ JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeResize)(JNIEnv *env, jobject self,
     if (entry && entry->reply_overflow) {
         fail(env, "java/lang/IllegalStateException", "Terminal reply limit exceeded; close this terminal");
     } else if (entry && ok(env, ghostty_terminal_resize(entry->terminal, cols, rows, width, height))) {
+        if (entry->size.columns != cols || entry->size.rows != rows) clear_scroll_anchor(entry);
         entry->size = (GhosttySizeReportSize){.columns = cols, .rows = rows, .cell_width = width, .cell_height = height};
         result = take_replies(env, entry);
     }
+    pthread_mutex_unlock(&lock);
+    return result;
+}
+
+// One owned pin per terminal holds the partially visible first row. It follows
+// Ghostty's actual page mutations, including pruning, without parsing output a
+// second time or assuming that a bounded history count is a monotonic counter.
+JNIEXPORT jdouble JNICALL JNI_METHOD(nativeHoldScrollback)(JNIEnv *env, jobject self,
+        jlong id, jdouble position) {
+    (void)self;
+    if (!isfinite(position) || position < 0) {
+        fail(env, "java/lang/IllegalArgumentException", "Invalid scrollback position"); return 0;
+    }
+    pthread_mutex_lock(&lock);
+    Terminal *entry = lookup(env, id);
+    double result = 0;
+    if (!entry) goto done;
+    if (position == 0) { clear_scroll_anchor(entry); goto done; }
+    size_t history = 0;
+    GhosttyTerminalScreen screen;
+    uint64_t activity = 0;
+    if (!ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBACK_ROWS, &history)) ||
+        !ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_ACTIVE_SCREEN, &screen)) ||
+        !ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_SCREEN_ACTIVITY, &activity))) goto done;
+    if (!history || screen != GHOSTTY_TERMINAL_SCREEN_PRIMARY) { clear_scroll_anchor(entry); goto done; }
+    if (history > INT32_MAX) {
+        fail(env, "java/lang/IllegalStateException", "Ghostty history count exceeds limit"); goto done;
+    }
+    position = fmin(position, (double)history);
+    size_t offset = (size_t)ceil(position);
+    GhosttyPoint point = {.tag = GHOSTTY_POINT_TAG_SCREEN, .value.coordinate = {.x = 0, .y = history - offset}};
+    GhosttyResult tracked = entry->scroll_anchor
+        ? ghostty_tracked_grid_ref_set(entry->scroll_anchor, entry->terminal, point)
+        : ghostty_terminal_grid_ref_track(entry->terminal, point, &entry->scroll_anchor);
+    if (!ok(env, tracked)) goto done;
+    entry->scroll_screen_activity = activity;
+    entry->scroll_clip = (double)offset - position;
+    result = position;
+done:
+    pthread_mutex_unlock(&lock);
+    return result;
+}
+
+JNIEXPORT jdouble JNICALL JNI_METHOD(nativeScrollbackPosition)(JNIEnv *env, jobject self, jlong id) {
+    (void)self;
+    pthread_mutex_lock(&lock);
+    Terminal *entry = lookup(env, id);
+    double result = 0;
+    if (!entry || !entry->scroll_anchor) goto done;
+    size_t history = 0;
+    GhosttyTerminalScreen screen;
+    uint64_t activity = 0;
+    if (!ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBACK_ROWS, &history)) ||
+        !ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_ACTIVE_SCREEN, &screen)) ||
+        !ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_SCREEN_ACTIVITY, &activity))) goto done;
+    if (screen != GHOSTTY_TERMINAL_SCREEN_PRIMARY || activity != entry->scroll_screen_activity) {
+        clear_scroll_anchor(entry); goto done;
+    }
+    GhosttyPointCoordinate point;
+    GhosttyResult resolved = ghostty_tracked_grid_ref_point(entry->scroll_anchor, GHOSTTY_POINT_TAG_SCREEN, &point);
+    if (resolved == GHOSTTY_NO_VALUE) { clear_scroll_anchor(entry); goto done; }
+    if (!ok(env, resolved)) goto done;
+    if (point.y >= history) { clear_scroll_anchor(entry); goto done; }
+    result = fmax(0, (double)(history - point.y) - entry->scroll_clip);
+done:
     pthread_mutex_unlock(&lock);
     return result;
 }

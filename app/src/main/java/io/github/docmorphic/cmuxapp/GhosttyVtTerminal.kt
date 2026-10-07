@@ -10,6 +10,7 @@ class GhosttyVtTerminal(columns: Int, rows: Int, private val onReply: ((ByteArra
     private var dirty = false
     private var cellWidth = 0
     private var cellHeight = 0
+    private var heldScrollPosition = 0.0
     private val graphicsFrames = LinkedHashMap<Int, TerminalGraphicsDisplay.Snapshot>()
     private var live: GhosttyFrame
     private var liveLines: List<List<RenderGrid.Span>>
@@ -48,6 +49,16 @@ class GhosttyVtTerminal(columns: Int, rows: Int, private val onReply: ((ByteArra
     }
 
     fun inputModes() = engine.inputModes()
+    fun holdScrollback(position: Double): Double {
+        require(position.isFinite() && position >= 0)
+        heldScrollPosition = if (closed) position.coerceAtMost(historyLineCount.toDouble())
+            else engine.holdScrollback(position)
+        return heldScrollPosition
+    }
+    fun scrollbackPosition(): Double {
+        if (!closed) heldScrollPosition = engine.scrollbackPosition()
+        return heldScrollPosition
+    }
     fun mouse(action: Int, button: Int, cell: TerminalGeometry.Cell): ByteArray =
         engine.mouse(action, button, cell.column.coerceIn(0, columns - 1), cell.row.coerceIn(0, rows - 1))
 
@@ -74,6 +85,7 @@ class GhosttyVtTerminal(columns: Int, rows: Int, private val onReply: ((ByteArra
 
     override fun close() {
         if (closed) return
+        scrollbackPosition()
         closed = true
         engine.close()
     }

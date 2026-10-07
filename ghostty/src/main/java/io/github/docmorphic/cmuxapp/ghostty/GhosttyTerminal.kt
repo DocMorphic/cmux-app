@@ -56,6 +56,19 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
         return GhosttyFrame.decode(nativeSnapshot(handle, scrollOffset))
     }
 
+    /** Hold a content row plus its fractional clip; zero resumes following output. */
+    @Synchronized fun holdScrollback(position: Double): Double {
+        check(handle != 0L) { "Ghostty terminal is closed" }
+        require(position.isFinite() && position >= 0)
+        return nativeHoldScrollback(handle, position)
+    }
+
+    /** Resolve the held row after output/pruning. An invalidated anchor returns to live output. */
+    @Synchronized fun scrollbackPosition(): Double {
+        check(handle != 0L) { "Ghostty terminal is closed" }
+        return nativeScrollbackPosition(handle)
+    }
+
     /** Owned pixels and geometry; reading history does not move the live viewport. */
     @Synchronized fun graphicsSnapshot(scrollOffset: Int = 0): GhosttyGraphicsFrame {
         check(handle != 0L) { "Ghostty terminal is closed" }
@@ -81,6 +94,8 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     private external fun nativeInputModes(handle: Long): Int
     private external fun nativeMouse(handle: Long, action: Int, button: Int, column: Int, row: Int): ByteArray?
     private external fun nativeSnapshot(handle: Long, scrollOffset: Int): ByteArray
+    private external fun nativeHoldScrollback(handle: Long, position: Double): Double
+    private external fun nativeScrollbackPosition(handle: Long): Double
     private external fun nativeGraphicsSnapshot(handle: Long, scrollOffset: Int, cachedGenerations: LongArray): ByteArray
     private external fun nativeDestroy(handle: Long)
     private external fun nativeActiveHandles(): Int

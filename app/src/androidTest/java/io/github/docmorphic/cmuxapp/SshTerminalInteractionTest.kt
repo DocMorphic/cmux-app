@@ -6,6 +6,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.Lifecycle
@@ -24,7 +25,7 @@ class SshTerminalInteractionTest {
         override val id = "interaction-test"
         override val title = "Interaction fixture"
         override val state = MutableStateFlow(SshShellState(SshShellPhase.RUNNING))
-        override val display = GhosttyVtTerminal(80, 24)
+        override var display = GhosttyVtTerminal(80, 24)
         val sent = mutableListOf<ByteArray>()
         var accept = true
         override fun send(text: String, paste: Boolean) = sendBytes(text.toByteArray())
@@ -38,6 +39,12 @@ class SshTerminalInteractionTest {
         }
         fun output(text: String) {
             display.append(text.toByteArray()); state.value = state.value.copy(revision = state.value.revision + 1)
+        }
+        fun replace(text: String) {
+            val old = display
+            display = GhosttyVtTerminal(old.columns, old.rows)
+            old.close()
+            output(text)
         }
         override fun close() { state.value = state.value.copy(phase = SshShellPhase.ENDED); display.close() }
     }
@@ -193,11 +200,41 @@ class SshTerminalInteractionTest {
             val after = edges(afterBitmap)
             assertTrue("A 3px drag must move painted row boundaries by 3px: $before -> $after",
                 before.drop(1).dropLast(1).all { old -> after.any { kotlin.math.abs(it - old - 3) <= 1 } })
+            val textBefore = compose.onNode(hasText("history 100", substring = true))
+                .fetchSemanticsNode().config[SemanticsProperties.Text]
+            compose.runOnIdle { terminal.output((151..183).joinToString("") { "\r\nnew output $it" }) }
+            val heldAfterOutput = capture()
+            save(heldAfterOutput, "held-output.png")
+            assertEquals("Output must leave the held history in the same pixels", after, edges(heldAfterOutput))
+            assertEquals(textBefore, compose.onNode(hasText("history 100", substring = true))
+                .fetchSemanticsNode().config[SemanticsProperties.Text])
+            node.performTouchInput { moveBy(Offset(0f, 2f), 100) }
+            val continued = edges(capture())
+            assertTrue("The next drag must continue from the content anchor", after.drop(1).dropLast(1)
+                .all { old -> continued.any { kotlin.math.abs(it - old - 2) <= 1 } })
             node.performTouchInput { advanceEventTime(200); up() }
             compose.runOnIdle { assertTrue(terminal.sent.isEmpty()); terminal.output("\u001b[?1049h") }
             compose.onNodeWithText("Latest").assertDoesNotExist()
             compose.runOnIdle { terminal.output("\u001b[?1049l") }
             compose.onNodeWithText("Latest").assertDoesNotExist()
+        } finally { compose.activityRule.scenario.close(); terminal.close() }
+    }
+
+    @Test fun replacementEmulatorDropsOldAnchorAndNextGestureTargetsNewHistory() {
+        val terminal = Terminal()
+        try {
+            show(terminal)
+            compose.runOnIdle { terminal.output((1..150).joinToString("\r\n") { "original $it" }) }
+            compose.onNodeWithTag("ssh.shell.terminal").performTouchInput { swipeDown(durationMillis = 350) }
+            compose.onNodeWithText("Latest").assertExists()
+            compose.runOnIdle { terminal.replace((1..150).joinToString("\r\n") { "replacement $it" }) }
+            compose.onNodeWithText("Latest").assertDoesNotExist()
+            compose.onNodeWithTag("ssh.shell.terminal").performTouchInput { swipeDown(durationMillis = 350) }
+            compose.onNodeWithText("Latest").assertExists()
+            compose.onNode(hasText("replacement", substring = true)).assertExists()
+            compose.runOnIdle { assertTrue(terminal.display.scrollbackPosition() > 0); assertTrue(terminal.sent.isEmpty()) }
+            compose.onNodeWithText("Latest").performClick()
+            compose.runOnIdle { assertEquals(0.0, terminal.display.scrollbackPosition(), 0.0) }
         } finally { compose.activityRule.scenario.close(); terminal.close() }
     }
 }

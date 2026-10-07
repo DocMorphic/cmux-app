@@ -83,6 +83,67 @@ class GhosttyTerminalTest {
         }
     }
 
+    @Test fun contentAnchorFollowsOutputPreservesFractionAndReadSnapshotsDoNotMoveIt() {
+        GhosttyTerminal(16, 3).use { terminal ->
+            terminal.write((0..12).joinToString("\r\n") { "row$it" })
+            assertEquals(2.25, terminal.holdScrollback(2.25), 0.0)
+            val held = terminal.snapshot(3).text(0)
+            terminal.write("\r\nrow13\r\nrow14")
+            assertEquals(4.25, terminal.scrollbackPosition(), 0.0)
+            assertEquals(held, terminal.snapshot(5).text(0))
+            terminal.snapshot(); terminal.graphicsSnapshot()
+            assertEquals(4.25, terminal.scrollbackPosition(), 0.0)
+            terminal.holdScrollback(0.0)
+            terminal.write("\r\nrow15")
+            assertEquals(0.0, terminal.scrollbackPosition(), 0.0)
+            assertThrows(IllegalArgumentException::class.java) { terminal.holdScrollback(Double.NaN) }
+            assertThrows(IllegalArgumentException::class.java) { terminal.holdScrollback(-.5) }
+        }
+    }
+
+    @Test fun anchorSurvivesPruningOfEarlierRowsAndExpiresWhenItsContentIsDiscarded() {
+        GhosttyTerminal(16, 3, scrollbackBytes = 64 * 1024).use { terminal ->
+            terminal.write((0..2999).joinToString("\r\n") { "row$it" })
+            val history = terminal.snapshot().historyRows
+            assertTrue("Fixture must fill bounded history: $history", history in 20 until 2900)
+            terminal.holdScrollback(10.25)
+            val held = terminal.snapshot(11).text(0)
+            terminal.write((3000..3039).joinToString("", transform = { "\r\nrow$it" }))
+            val position = terminal.scrollbackPosition()
+            assertEquals(50.25, position, 0.0)
+            assertEquals(held, terminal.snapshot(kotlin.math.ceil(position).toInt()).text(0))
+            terminal.write((3040..6999).joinToString("", transform = { "\r\nrow$it" }))
+            assertEquals(0.0, terminal.scrollbackPosition(), 0.0)
+            terminal.holdScrollback(1.5)
+            assertEquals(1.5, terminal.scrollbackPosition(), 0.0)
+        }
+    }
+
+    @Test fun anchorNeverResurrectsAcrossBatchedScreenSwitchClearResizeOrClose() {
+        val terminal = GhosttyTerminal(16, 3)
+        try {
+            fun hold() {
+                terminal.write((0..20).joinToString("\r\n") { "row$it" })
+                assertEquals(2.5, terminal.holdScrollback(2.5), 0.0)
+            }
+            hold()
+            terminal.write("\u001b[?1049h\u001b[?1049l")
+            assertEquals(0.0, terminal.scrollbackPosition(), 0.0)
+            hold()
+            terminal.write("\u001b[3J")
+            assertEquals(0.0, terminal.scrollbackPosition(), 0.0)
+            hold()
+            terminal.resize(16, 3, 12, 24) // Cell metrics alone do not reflow rows.
+            assertEquals(2.5, terminal.scrollbackPosition(), 0.0)
+            terminal.resize(18, 4, 12, 24)
+            assertEquals(0.0, terminal.scrollbackPosition(), 0.0)
+            hold()
+        } finally { terminal.close() }
+        assertThrows(IllegalStateException::class.java) { terminal.scrollbackPosition() }
+        assertThrows(IllegalStateException::class.java) { terminal.holdScrollback(1.0) }
+        terminal.close()
+    }
+
     @Test fun alternateScreenModesThemeAndErasedBackgroundRoundTrip() {
         GhosttyTerminal(12, 3).use { terminal ->
             terminal.write("primary\u001b[?1h\u001b[?2004h\u001b[?5h\u001b[?1049h\u001b[Halt")

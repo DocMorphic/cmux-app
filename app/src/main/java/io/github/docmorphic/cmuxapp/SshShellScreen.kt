@@ -99,21 +99,27 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     } }
     val interactions = remember(orderedTerminal) { SshTerminalInteraction(orderedTerminal) }
     val localScroll = interactions.ownsLocalScrollback()
-    // A held viewport belongs to this emulator and grid. Reflow, screen changes
-    // and mouse capture invalidate it; ordinary output keeps fractional motion.
-    var scroll by remember(shell) {
-        mutableDoubleStateOf(0.0)
+    // Output has its own revision. Local gestures invalidate the same native
+    // content anchor, even when output has moved it since the previous gesture.
+    var scrollRevision by remember(shell) { mutableIntStateOf(0) }
+    val scroll = remember(display, state.revision, scrollRevision, localScroll) {
+        if (localScroll) display.scrollbackPosition() else 0.0
+    }
+    fun scrollTo(position: Double): Double {
+        val result = shell.display.holdScrollback(position)
+        scrollRevision++
+        return result
     }
     // Focus is a current lifecycle signal, not deferred typing. Focus-out must
     // reach the provider even when a disposed view cancels a pending paste.
     ObserveSshTerminalFocus(remember(shell) { SshTerminalInteraction(shell) }, available)
     val motion = rememberTerminalScrollMotion(shell.id, shell)
-    LaunchedEffect(shell, display.columns, display.rows, display.activeScreen, localScroll) {
-        motion.stop(); scroll = 0.0
+    LaunchedEffect(shell, display, display.columns, display.rows, display.activeScreen, localScroll) {
+        motion.stop(); scrollTo(0.0)
     }
     fun write(text: String, paste: Boolean = false): Boolean {
         if (!canInput) return false
-        motion.stop(); scroll = 0.0
+        motion.stop(); scrollTo(0.0)
         return input.send(text, paste)
     }
     fun key(event: android.view.KeyEvent): Boolean {
@@ -143,15 +149,15 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     fun scrollTerminal(rows: Double, cell: TerminalGeometry.Cell): Boolean {
         if (reconnecting) return false
         val remote = interactions.scroll(rows, cell)
-        if (remote == true) scroll = 0.0
+        if (remote == true) scrollTo(0.0)
         return remote ?: run {
-            val previous = scroll
-            scroll = TerminalScrollViewport.at(scroll + rows, display.historyLineCount, display.activeScreen).position
-            scroll != previous
+            val currentDisplay = shell.display
+            val previous = currentDisplay.scrollbackPosition()
+            val next = TerminalScrollViewport.at(previous + rows, currentDisplay.historyLineCount, currentDisplay.activeScreen).position
+            scrollTo(next) != previous
         }
     }
     LaunchedEffect(shell, viewport, cells) { viewport?.let { shell.resize(it.columns, it.rows, cells) } }
-    LaunchedEffect(state.revision) { scroll = scroll.coerceIn(0.0, display.historyLineCount.toDouble()) }
     snapshot?.let { TerminalTextSheet(it) { snapshot = null } }
     if (shortcuts) TerminalToolbarSettings(toolbar) { shortcuts = false }
     Column(Modifier.fillMaxSize().testTag("ssh.shell")) {
@@ -205,10 +211,10 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                 }, onLongPress = { showText() }) }
                 .terminalScrollGestures(motion, geometry,
                     0, display.activeScreen, linePath = !localScroll, enabled = !reconnecting,
-                    onScroll = ::scrollTerminal),
+                    onScroll = { rows, cell -> scrollTerminal(rows, cell) }),
                 scrollPosition = scroll)
             if (state.phase == SshShellPhase.OPENING) CircularProgressIndicator(Modifier.align(Alignment.Center))
-            if (scroll > 0) TextButton(onClick = { motion.stop(); scroll = 0.0 }, modifier = Modifier.align(Alignment.BottomEnd)) { Text("Latest") }
+            if (scroll > 0) TextButton(onClick = { motion.stop(); scrollTo(0.0) }, modifier = Modifier.align(Alignment.BottomEnd)) { Text("Latest") }
             TerminalZoomOverlay(zoom, preferences, foreground = Color(0xFFE0E5EB), background = Color(0xFF111316), modifier = Modifier.align(Alignment.Center))
         }
         inputStatus.error?.let { error ->
@@ -278,7 +284,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                     onContent = { input.paste(it, direct = false) }, onError = { message = it }) { pasteModifier ->
                     TerminalComposerField(draft.text, { if (!dictationState.locksField) composer.edit(it) },
                         onSend = {
-                            dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); scroll = 0.0
+                            dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); scrollTo(0.0)
                             composerFocus.request(); input.submit()
                         }, canSend = canInput && !preparing && draft.operation == null && (draft.text.isNotEmpty() || draft.attachments.isNotEmpty()),
                         sending = draft.operation != null, failed = draft.error != null,
