@@ -113,9 +113,14 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     // Focus is a current lifecycle signal, not deferred typing. Focus-out must
     // reach the provider even when a disposed view cancels a pending paste.
     ObserveSshTerminalFocus(remember(shell) { SshTerminalInteraction(shell) }, available)
-    val motion = rememberTerminalScrollMotion(shell.id, shell)
+    val motion = rememberTerminalScrollMotion(shell.id, display)
     LaunchedEffect(shell, display, display.columns, display.rows, display.activeScreen, localScroll) {
         motion.stop(); scrollTo(0.0)
+    }
+    LaunchedEffect(display, state.revision) {
+        // A pin can expire inside one output batch without a visible screen
+        // change (e.g. enter and leave alternate). Do not fling from live output.
+        if (scroll == 0.0) motion.stop()
     }
     fun write(text: String, paste: Boolean = false): Boolean {
         if (!canInput) return false
