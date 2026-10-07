@@ -39,3 +39,36 @@ with ZipFile(output, 'w') as archive:
         entry = ZipInfo(name, (2026, 1, 1, 0, 0, 0)); entry.compress_type = ZIP_STORED
         archive.writestr(entry, text.encode())
 print(output)
+
+# A second authored fixture exercises presentation metadata rather than altering the data fixture.
+styled = content.replace('xmlns:number=', 'xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:number=', 1)
+styled = styled.replace('<office:automatic-styles>', '''<office:automatic-styles>
+ <style:style style:name="heading" style:family="table-cell" style:parent-style-name="base"><style:table-cell-properties fo:background-color="#17365D" fo:border="1pt solid #FFFFFF"/><style:paragraph-properties fo:text-align="center"/></style:style>
+ <style:style style:name="wide" style:family="table-column"><style:table-column-properties style:column-width="2in"/></style:style>
+ <style:style style:name="numeric" style:family="table-column"><style:table-column-properties style:column-width="1.5in"/></style:style>
+ <style:style style:name="tall" style:family="table-row"><style:table-row-properties style:row-height="36pt"/></style:style>
+ <style:style style:name="footer" style:family="table-cell"><style:text-properties fo:font-weight="bold" fo:color="#005500"/><style:table-cell-properties fo:background-color="#CCFFCC"/></style:style>
+ <style:style style:name="hiddenChild" style:family="table" style:parent-style-name="hiddenBase"/>
+''', 1)
+styled = styled.replace('<table:table table:name="Résumé">', '''<table:table table:name="Résumé">
+ <table:table-column table:style-name="wide"/><table:table-column table:style-name="numeric"/><table:table-column table:visibility="collapse"/>''', 1)
+styled = styled.replace('<table:table-row><table:table-cell office:value-type="string" table:number-columns-spanned="2">', '<table:table-row table:style-name="tall"><table:table-cell table:style-name="heading" office:value-type="string" table:number-columns-spanned="2">', 1)
+styled = styled.replace('<text:p>$1,234.50</text:p></table:table-cell></table:table-row>', '<text:p>$1,234.50</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>Hidden column</text:p></table:table-cell></table:table-row>', 1)
+styled = styled.replace('table:number-rows-repeated="3"', 'table:number-rows-repeated="3" table:visibility="filter"', 1)
+styled = styled.replace('  </table:table>\n  <table:table table:name="Details">', '''   <table:table-row-group table:display="false"><table:table-row><table:table-cell office:value-type="string"><text:p>Hidden group</text:p></table:table-cell></table:table-row></table:table-row-group>
+   <table:table-row table:default-cell-style-name="footer"><table:table-cell office:value-type="string"><text:p>Visible footer</text:p></table:table-cell></table:table-row>
+  </table:table>
+  <table:table table:name="Details">''', 1)
+styled = styled.replace(' </office:spreadsheet>', ''' <table:table table:name="Hidden" table:style-name="hiddenChild"><table:table-row><table:table-cell office:value-type="string"><text:p>Hidden sheet</text:p></table:table-cell></table:table-row></table:table>
+ </office:spreadsheet>''', 1)
+styles = '''<office:document-styles xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" office:version="1.2"><office:styles>
+<style:default-style style:family="table-cell"><style:text-properties fo:font-size="12pt"/></style:default-style>
+<style:style style:name="base" style:family="table-cell"><style:text-properties fo:font-size="16pt" fo:font-weight="bold" fo:color="#FFFFFF"/></style:style>
+<style:style style:name="hiddenBase" style:family="table"><style:table-properties table:display="false"/></style:style>
+</office:styles></office:document-styles>'''
+output = output.with_name('open-document-styled.ods')
+with ZipFile(output, 'w') as archive:
+    for name, text in [('mimetype', 'application/vnd.oasis.opendocument.spreadsheet'), ('content.xml', styled), ('styles.xml', styles), ('META-INF/manifest.xml', manifest.replace('</manifest:manifest>', '<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/></manifest:manifest>'))]:
+        entry = ZipInfo(name, (2026, 1, 1, 0, 0, 0)); entry.compress_type = ZIP_STORED
+        archive.writestr(entry, text.encode())
+print(output)

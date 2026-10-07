@@ -23,7 +23,7 @@ prove that every variant of those formats renders on a phone.
 | DOCX | Quick Look candidate, runtime admission | **New offline Word renderer** in the shared preview component | Runtime rendering, text selection, zoom/restoration, real-route actions and Pixel acceptance |
 | XLSX | Quick Look candidate, runtime admission | **New offline workbook reader**, sheet selection and bounded grid navigation | Runtime formatting/navigation/restoration and Pixel checks; charts/drawings/conditional formatting and exact Quick Look layout remain open |
 | PPTX | Quick Look candidate, runtime admission | Offline PowerPoint renderer with slide navigation and saved position | Rendering/lifecycle evidence below; exact Quick Look layout and unsupported format variants remain open |
-| ODS | Quick Look candidate when recognized, runtime admission | In-app workbook data preview, sheet navigation and saved position | Broader authored formatting, hidden rows/sheets, charts/drawings and matched Quick Look/Pixel acceptance remain open |
+| ODS | Quick Look candidate when recognized, runtime admission | In-app workbook preview with visibility, basic styles, dimensions, navigation and saved position | Broader authored formatting, charts/drawings and matched Quick Look/Pixel acceptance remain open |
 | Legacy DOC, RTF, XLS, PPT, Pages, Keynote, Numbers and other Quick Look content | Quick Look candidate when recognized, runtime admission | External Open/Share/Save fallback | In-app format implementation and matched format checks remain open; these are not declared unavoidable platform differences |
 | Unknown binary/archive | Binary unless recognized as content | External Open/Share/Save | Exact eligibility/menu comparison still open |
 
@@ -361,8 +361,8 @@ workbook with two sheets, Unicode, currency, a cached formula, repeated values,
 a merge, internal/blocked links and XML-looking literal text. No user documents
 or third-party workbook content are used.
 
-Remaining ODS work: full authored font/fill/border/size/rich-text/conditional
-formatting, hidden-sheet/row/column behavior, charts/drawings, encrypted files,
+At this initial checkpoint the remaining ODS work included authored formatting
+and hidden content (partly addressed below), charts/drawings, encrypted files,
 broader LibreOffice variants, real Files/Changes/attachment routes, OS process
 recovery and matched iOS/Pixel acceptance. These are unfinished implementation
 and verification, not declared Android platform limitations.
@@ -390,3 +390,68 @@ The sole existing API37/16KiB emulator ran headlessly with 1536 MiB. Crash/ANR
 logs were empty; Gradle and the emulator were stopped and reaped. Evidence and
 APK hashes are in ignored `captures/runtime/ods-preview/`. No physical-device
 install, new AVD, signing change or signed release was produced.
+
+## ODS visibility and presentation metadata — 2026-10-07
+
+The bundled SheetJS parser does not populate ODS visibility, row/column dimensions
+or most cell-style metadata. The local viewer now projects these from the already
+validated `content.xml` and `styles.xml`, using the bundled CFB ZIP reader and
+browser XML parser. This is an app-owned adapter; vendor bytes remain unchanged.
+The implementation follows the [OASIS ODF 1.3 schema](https://docs.oasis-open.org/office/OpenDocument/v1.3/OpenDocument-v1.3-part3-schema.html),
+including sections 19.619 (cell defaults), 19.621 (group visibility), 19.754
+(row/column visibility) and 20.416 (table display).
+
+- Hidden sheets are omitted from the picker, restored hidden sheet indices fall
+  back to a visible sheet, and links cannot open hidden sheets.
+- Collapsed/filtered rows and columns and hidden row/column groups are omitted
+  while retaining original coordinates. Repeated definitions stay as intervals;
+  navigation skips an entire hidden interval without expanding every row.
+- Named, automatic, inherited and default styles are resolved by family. Explicit
+  cell styles take precedence over row defaults, then column defaults. Cyclic or
+  excessively deep inheritance fails the preview instead of looping.
+- Supported presentation includes ordinary font size/family/weight/style, text
+  color, cell fill, underline/strike, alignment/wrapping, simple borders, absolute
+  row heights and column widths. Typed color/length/enum values are mapped to
+  allowlisted CSS properties; document markup and arbitrary CSS are not injected.
+- The existing viewport state and range navigation remain shared with XLSX.
+  Restoring a preview reloads its metadata before displaying cells. Paging now
+  seeks visible coordinates in both directions and disables controls when only
+  hidden tail rows/columns remain. Previous paging can cross a large hidden
+  interval directly instead of landing on successive empty ranges.
+
+The fixture generator now also creates `open-document-styled.ods`, containing
+an inherited white-on-blue heading, absolute dimensions, filtered repeated rows,
+a hidden column/group/sheet and a row-default footer style. Basic presentation
+support does not close the complete ODS format gate: rich text runs, percentage
+font inheritance, automatic/minimum row sizing, advanced borders and formatting,
+charts/drawings, encrypted documents and broad LibreOffice/Quick Look comparisons
+remain unfinished. The earlier clipping and physical/live-route limits still apply.
+
+Verification: **17 JVM checks** and **25 Node checks passed**. The initial
+48-second debug/test build was followed by **three passing Android cases in
+38.306 s**: styled ODS visibility/dimensions/inheritance/restoration, original ODS
+data/link/restoration and XLSX rich-style/range restoration. The styled screenshot
+was inspected and shows the inherited white-on-blue heading, correctly sized
+columns, missing filtered rows/hidden column/group, and green row-default footer.
+That boot had a Play services ANR before instrumentation and no new test-time
+crash/ANR event.
+
+Screenshot review also found the Next columns button enabled when only a hidden
+column remained. Paging was corrected, a regression for hidden tails and reverse
+paging over a million-row hidden interval passed in Node, and the Android fixture
+now asserts the final disabled state. The final debug/test build passed in 18s.
+All 18 vendor hashes and the four workbook shell/adapter files matched the final
+APK. **The final Android recheck is pending:** two attempts on the second boot
+ended with `Process crashed` before any test started. Event logs show app startup
+ANRs along with startup ANRs in system/Google apps and activity-service dump
+timeouts. The second attempt followed confirmed termination of the first and
+used unchanged APKs. These failures do not establish that cold startup is healthy
+or that the final paging fix has passed on Android.
+
+Evidence is retained in ignored `captures/runtime/ods-presentation/`: initial
+passing results/screenshot, final build and Node results, both failed attempts,
+event/system logs and APK hashes. The sole existing emulator was stopped/reaped;
+Gradle is stopped. No new AVD, phone install or signed release was produced. Next
+run the already compiled `WorkbookPreviewRuntimeTest` against the final APK when
+the emulator is stable (or use the physical-device acceptance path), then continue
+the broader format/real-route/Pixel gates.

@@ -28,6 +28,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- ODS now respects hidden sheets, collapsed/filtered rows and columns, grouped
+  visibility, basic inherited cell styles and authored dimensions. Paging skips
+  hidden ranges in both directions. **17 JVM and 25 Node checks passed**; three
+  Android cases passed before the final paging correction. The final Android
+  recheck remains pending after two app-startup ANRs on an unstable emulator boot;
+  no test started in either attempt. See `DOCUMENT_FORMATS.md` for scope/evidence.
+  Emulator/Gradle stopped; no phone install or signed release.
+
 - ODS spreadsheets now open inside the shared workbook viewer with saved values,
   cached formulas, merged/repeated cells, sheet navigation and saved position.
   Expanded repetitions are checked before decoding. **17 JVM, 17 Node and two

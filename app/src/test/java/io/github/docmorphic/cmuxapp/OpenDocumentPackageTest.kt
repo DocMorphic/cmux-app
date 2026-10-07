@@ -29,7 +29,8 @@ class OpenDocumentPackageTest {
         assertFalse(root.walkTopDown().any { it.name == "document.zip" })
     }
     @Test fun odsFixtureHasOwnedVerifiedContentsAndCleanup() {
-        val original = File("src/androidTest/assets/workbook/open-document.ods")
+        for (name in listOf("open-document.ods", "open-document-styled.ods")) {
+        val original = File("src/androidTest/assets/workbook/$name")
         val prepared = OfficePreviewPackage.prepare(original, temporary.newFolder())
         val snapshot = prepared.file
         prepared.use {
@@ -42,6 +43,7 @@ class OpenDocumentPackageTest {
             } }
         }
         assertFalse(snapshot.exists())
+        }
     }
     @Test fun repeatedPopulatedCellsAndTextHaveIndependentBudgets() {
         reject("""<table:table-row table:number-rows-repeated="1000"><table:table-cell table:number-columns-repeated="1000"><text:p>x</text:p></table:table-cell></table:table-row>""")

@@ -19,7 +19,7 @@
   }
   function sheets(book) {
     return book.SheetNames.map((name, index) => ({name, index}))
-      .filter(item => !book.Workbook?.Sheets?.[item.index]?.Hidden && book.Sheets[item.name]);
+      .filter(item => !book.Workbook?.Sheets?.[item.index]?.Hidden && book.Sheets[item.name] && !book.Sheets[item.name]['!ods']?.hidden);
   }
   function read(bytes) {
     const book = XLSX.read(bytes, {type: 'array', dense: false, bookFiles: true, bookVBA: false,
@@ -29,6 +29,27 @@
     if (!sheets(book).length) throw new Error('No visible worksheets');
     return book;
   }
+  function axisInfo(sheet, axis, index) {
+    const ranges = sheet['!ods']?.[axis];
+    if (!ranges) return sheet[axis === 'rows' ? '!rows' : '!cols']?.[index];
+    let lo=0, hi=ranges.length-1;
+    while (lo<=hi) {
+      const mid=(lo+hi)>>>1, info=ranges[mid];
+      if(index<info.start) hi=mid-1; else if(index>info.end) lo=mid+1; else return info;
+    }
+    return undefined;
+  }
+  function seekVisible(sheet, axis, start, minimum, maximum, direction, count = 1) {
+    let found = null;
+    for(let at=start;at>=minimum && at<=maximum;at+=direction) {
+      const info=axisInfo(sheet,axis,at);
+      if(info?.hidden) {
+        const edge=direction>0 ? info.end : info.start;
+        if(Number.isInteger(edge) && (direction>0 ? edge>=at : edge<=at)) at=edge;
+      } else { found=at; if(--count===0) break; }
+    }
+    return found;
+  }
   function windowFor(book, index, row = 0, col = 0) {
     const visible = sheets(book);
     const chosen = visible.find(item => item.index === index) || visible[0];
@@ -37,8 +58,13 @@
     row = Math.min(Math.max(integer(row, MAX_ROW) ? row : 0, bounds.s.r), bounds.e.r);
     col = Math.min(Math.max(integer(col, MAX_COL) ? col : 0, bounds.s.c), bounds.e.c);
     const rows = [], cols = [];
-    for (let r = row; r <= bounds.e.r && rows.length < ROWS; r++) if (!sheet['!rows']?.[r]?.hidden) rows.push(r);
-    for (let c = col; c <= bounds.e.c && cols.length < COLS; c++) if (!sheet['!cols']?.[c]?.hidden) cols.push(c);
+    for (const [axis,start,end,limit,result] of [['rows',row,bounds.e.r,ROWS,rows],['cols',col,bounds.e.c,COLS,cols]]) {
+      for(let at=start;at<=end && result.length<limit;at++) {
+        const info=axisInfo(sheet,axis,at);
+        if(!info?.hidden) result.push(at);
+        else if(Number.isInteger(info.end) && info.end>=at) at=info.end;
+      }
+    }
     const merged = new Map(), covered = new Set();
     const merges = sheet['!merges'] || [];
     if (merges.length > 4096) throw new Error('Too many merged ranges');
@@ -55,7 +81,11 @@
       }
       merged.set(key, {rowSpan: rr.length, colSpan: cc.length, address: XLSX.utils.encode_cell(merge.s)});
     }
-    return {chosen, sheet, bounds, rows, cols, row, col, merged, covered, empty: !sheet['!ref']};
+    return {chosen, sheet, bounds, rows, cols, row, col, merged, covered, empty: !sheet['!ref'],
+      previousRow:seekVisible(sheet,'rows',row-1,bounds.s.r,bounds.e.r,-1,ROWS),
+      nextRow:seekVisible(sheet,'rows',(rows.at(-1) ?? row)+1,bounds.s.r,bounds.e.r,1),
+      previousColumn:seekVisible(sheet,'cols',col-1,bounds.s.c,bounds.e.c,-1,COLS),
+      nextColumn:seekVisible(sheet,'cols',(cols.at(-1) ?? col)+1,bounds.s.c,bounds.e.c,1)};
   }
   function text(cell) {
     if (!cell) return '';
@@ -157,5 +187,5 @@
       return {text: content, style: css};
     });
   }
-  return {read, sheets, range, windowFor, text, link, style, color, cellAddress, destination, richText, children, ROWS, COLS};
+  return {axisInfo, read, sheets, range, windowFor, text, link, style, color, cellAddress, destination, richText, children, ROWS, COLS};
 });

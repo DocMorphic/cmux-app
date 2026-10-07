@@ -202,7 +202,42 @@ class WorkbookPreviewRuntimeTest {
         compose.waitUntil(5000) { js("window.__odsBlocked") == "true" }
     }
 
-    private fun capturePaintedOdsCell(address: String, output: String) {
+
+    @Test fun openDocumentPresentationHonorsHiddenContentDimensionsAndInheritedCellStyles() {
+        file = File(compose.activity.cacheDir, "open-document-styled.ods")
+        InstrumentationRegistry.getInstrumentation().context.assets.open("workbook/open-document-styled.ods").use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                FilePreviewContent(LocalFilePreview(file, file.length(), WorkbookPreviewPolicy.ODS_MIME, ChangesPreviewRoute.WORKBOOK))
+            }
+        } } }
+        ready()
+        assertEquals("true", js("""
+            (() => {
+              const title = document.querySelector('[data-cell="A1"]'), style = getComputedStyle(title);
+              const width = address => document.querySelector('[data-cell="'+address+'"]').getBoundingClientRect().width;
+              const footer = getComputedStyle(document.querySelector('[data-cell="A12"]'));
+              return [...document.getElementById('sheets').options].map(o=>o.textContent).join('|') === 'Résumé|Details' &&
+                !document.querySelector('[data-cell="A4"]') && !document.querySelector('[data-cell="A5"]') &&
+                !document.querySelector('[data-cell="A6"]') && !document.querySelector('[data-cell="C2"]') &&
+                !document.querySelector('[data-cell="A11"]') && !document.getElementById('content').textContent.includes('Hidden') &&
+                document.getElementById('right').disabled && document.getElementById('down').disabled &&
+                style.backgroundColor === 'rgb(23, 54, 93)' && style.color === 'rgb(255, 255, 255)' &&
+                style.fontWeight === '700' && style.textAlign === 'center' && parseFloat(style.fontSize) > 21 &&
+                Math.abs(width('A2') - 192) < 1 && Math.abs(width('B2') - 144) < 1 &&
+                title.parentElement.getBoundingClientRect().height >= 48 &&
+                footer.backgroundColor === 'rgb(204, 255, 204)' && footer.fontWeight === '700';
+            })()
+        """.trimIndent()))
+        capturePaintedOdsCell("A1", "ods-styled.png", blue = true)
+        compose.waitForIdle(); restoration.emulateSavedInstanceStateRestore(); ready()
+        assertEquals("true", js("document.getElementById('sheets').options.length === 2 && !document.querySelector('[data-cell=\"C2\"]') && getComputedStyle(document.querySelector('[data-cell=\"A1\"]')).backgroundColor === 'rgb(23, 54, 93)'"))
+    }
+
+    private fun capturePaintedOdsCell(address: String, output: String, blue: Boolean = false) {
         val drawn = CountDownLatch(1)
         compose.runOnUiThread {
             val view = checkNotNull(web(compose.activity.window.decorView))
@@ -225,8 +260,13 @@ class WorkbookPreviewRuntimeTest {
             var ink=0; var paper=0
             for(y in top until bottom) for(x in left until right) {
                 val color=image.getPixel(x,y)
-                if(Color.red(color)<80 && Color.green(color)<80 && Color.blue(color)<80) ink++
-                if(Color.red(color)>240 && Color.green(color)>240 && Color.blue(color)>240) paper++
+                if (blue) {
+                    if(Color.red(color)>220 && Color.green(color)>220 && Color.blue(color)>220) ink++
+                    if(Color.red(color) in 15..35 && Color.green(color) in 45..65 && Color.blue(color) in 83..103) paper++
+                } else {
+                    if(Color.red(color)<80 && Color.green(color)<80 && Color.blue(color)<80) ink++
+                    if(Color.red(color)>240 && Color.green(color)>240 && Color.blue(color)>240) paper++
+                }
             }
             assertTrue("Expected painted cell, ink=$ink paper=$paper",ink>30 && paper>500)
             compose.activity.openFileOutput(output,Context.MODE_PRIVATE).use { image.compress(Bitmap.CompressFormat.PNG,100,it) }

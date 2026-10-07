@@ -5,7 +5,15 @@
   try {
     const response = await fetch('document.zip', {credentials: 'omit', cache: 'no-store'});
     if (!response.ok) throw new Error('Document unavailable');
-    const book = model.read(await response.arrayBuffer());
+    const bytes = await response.arrayBuffer(), book = model.read(bytes);
+    if (book.bookType === 'ods') {
+      const parts = CmuxOdsPresentation.documents(bytes, XLSX.CFB, source => {
+        const xml = new DOMParser().parseFromString(source, 'application/xml');
+        if (xml.getElementsByTagName('parsererror').length) throw new Error('Invalid ODS XML');
+        return xml;
+      });
+      CmuxOdsPresentation.apply(book, parts.content, parts.styles);
+    }
     if (book.bookType === 'ods' || book.Directory?.charts?.length || book.Directory?.drawings?.length) {
       const note = document.getElementById('limitations'); note.hidden = false;
       note.textContent = book.bookType === 'ods' ? 'Some formatting, charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.' : 'Charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.';
@@ -84,7 +92,7 @@
         rowNumbers.style.width = '52px'; columns.appendChild(rowNumbers);
         let tableWidth = 52;
         for (const c of next.cols) {
-          const col = element('col'), metadata = next.sheet['!cols']?.[c];
+          const col = element('col'), metadata = model.axisInfo(next.sheet, 'cols', c);
           const width = metadata?.wpx ?? (Number(metadata?.wch) * 7 + 10);
           const columnWidth = Number.isFinite(width) ? Math.min(800, Math.max(32, width)) : 110;
           col.style.width = columnWidth + 'px'; tableWidth += columnWidth; columns.appendChild(col);
@@ -97,7 +105,7 @@
         let runBudget = 16000; // Shared strings can otherwise multiply into millions of DOM nodes.
         for (const r of next.rows) {
           const tr = element('tr'), th = element('th', r + 1); th.scope = 'row'; tr.appendChild(th);
-          const height = next.sheet['!rows']?.[r]?.hpt;
+          const height = model.axisInfo(next.sheet, 'rows', r)?.hpt;
           if (Number.isFinite(height)) tr.style.height = Math.min(600, Math.max(12, height)) + 'pt';
           for (const c of next.cols) {
             const key = `${r}:${c}`, merge = next.merged.get(key);
@@ -107,7 +115,8 @@
             if (merge) { td.rowSpan = merge.rowSpan; td.colSpan = merge.colSpan; }
             if (source?.t === 'n') td.className = 'number';
             const target = model.link(source), label = model.text(source);
-            const styleIndex = indices.get(address) || 0, cellStyle = model.style(book, styleIndex);
+            const styleIndex = indices.get(address) || 0, sourcePosition = XLSX.utils.decode_cell(address);
+            const cellStyle = next.sheet['!ods']?.cellStyle(sourcePosition.r,sourcePosition.c) || model.style(book, styleIndex);
             const decoration = cellStyle.textDecoration || (target ? 'underline' : '');
             // Decorations on ancestors cannot be canceled by a run's explicit u=none/strike=0.
             delete cellStyle.textDecoration;
@@ -139,10 +148,10 @@
         table.appendChild(body);
         content.replaceChildren(next.empty ? element('p', 'This worksheet is empty.') : table);
         current = next; selector.value = next.chosen.index; memories.set(next.chosen.index, {row: next.row, col: next.col});
-        document.getElementById('left').disabled = next.col <= next.bounds.s.c;
-        document.getElementById('up').disabled = next.row <= next.bounds.s.r;
-        document.getElementById('right').disabled = !next.cols.length || next.cols.at(-1) >= next.bounds.e.c;
-        document.getElementById('down').disabled = !next.rows.length || next.rows.at(-1) >= next.bounds.e.r;
+        document.getElementById('left').disabled = next.previousColumn == null;
+        document.getElementById('up').disabled = next.previousRow == null;
+        document.getElementById('right').disabled = next.nextColumn == null;
+        document.getElementById('down').disabled = next.nextRow == null;
         document.getElementById('range').textContent = next.empty ? 'Empty worksheet' : !next.rows.length || !next.cols.length ?
           'No visible cells in this range.' : `Rows ${next.rows[0] + 1}–${next.rows.at(-1) + 1} · Columns ${XLSX.utils.encode_col(next.cols[0])}–${XLSX.utils.encode_col(next.cols.at(-1))}`;
         error.textContent = '';
@@ -151,9 +160,9 @@
       } catch (_) { error.textContent = 'This worksheet range can’t be displayed. Choose another sheet or cell.'; if (!current) throw new Error('No readable range'); }
     }
     selector.addEventListener('change', () => { const index = Number(selector.value), position = memories.get(index); render(index, position?.row, position?.col); });
-    for (const [id, dr, dc] of [['up', -1, 0], ['down', 1, 0], ['left', 0, -1], ['right', 0, 1]]) document.getElementById(id).addEventListener('click', () => {
-      render(current.chosen.index, dr > 0 ? current.rows.at(-1) + 1 : current.row + dr * model.ROWS,
-        dc > 0 ? current.cols.at(-1) + 1 : current.col + dc * model.COLS);
+    for (const [id,key,rowAxis] of [['up','previousRow',true],['down','nextRow',true],['left','previousColumn',false],['right','nextColumn',false]]) document.getElementById(id).addEventListener('click', () => {
+      const coordinate=current[key];
+      if(coordinate != null) render(current.chosen.index,rowAxis ? coordinate : current.row,rowAxis ? current.col : coordinate);
     });
     const go = () => { const point = model.destination(document.getElementById('address').value.trim(), book, current.chosen.index);
       if (point) render(point.sheet, point.row, point.col); else error.textContent = 'Enter a cell address, such as B12.'; };
