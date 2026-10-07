@@ -28,12 +28,20 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- SSH/Cloud primary history now uses pixel-precise scrolling; mouse-capturing
+  programs retain whole-row wheel input. Grid/screen/ownership changes clear the
+  held viewport, reconnect stops gestures, and boundaries stop momentum. **Eight
+  JVM and five Android terminal checks passed**, including a painted 3px drag.
+  The pending three workbook cases also passed. See `TERMINAL_PIXEL_SCROLL.md`
+  for the initial regression, fixture corrections and remaining running-output
+  anchor/physical gates. No crash/ANR events; emulator/Gradle stopped, no release.
+
 - ODS now respects hidden sheets, collapsed/filtered rows and columns, grouped
   visibility, basic inherited cell styles and authored dimensions. Paging skips
   hidden ranges in both directions. **17 JVM and 25 Node checks passed**; three
-  Android cases passed before the final paging correction. The final Android
-  recheck remains pending after two app-startup ANRs on an unstable emulator boot;
-  no test started in either attempt. See `DOCUMENT_FORMATS.md` for scope/evidence.
+  Android cases initially passed before the final paging correction. **All three
+  passed again with the paging correction** in the later SSH scrolling batch.
+  Earlier app-startup ANRs are retained in the evidence; see `DOCUMENT_FORMATS.md`.
   Emulator/Gradle stopped; no phone install or signed release.
 
 - ODS spreadsheets now open inside the shared workbook viewer with saved values,

@@ -64,7 +64,6 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     var rawKeyboard by remember { mutableStateOf<TerminalKeyboardView?>(null) }
     RetireTerminalInputOnBackground(rawKeyboard)
     var modifiers by remember { mutableStateOf(TerminalInputModifiers()) }
-    var scroll by remember(shell.id) { mutableDoubleStateOf(0.0) }
     val fallbackDrafts = remember(shell) { SshComposerPool() }
     val composer = remember(shell) { shell.composer ?: fallbackDrafts.open(shell.id) }
     val drafts by composer.state.collectAsState()
@@ -99,10 +98,19 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         override fun sendBytes(bytes: ByteArray) = input.sendBytes(bytes)
     } }
     val interactions = remember(orderedTerminal) { SshTerminalInteraction(orderedTerminal) }
+    val localScroll = interactions.ownsLocalScrollback()
+    // A held viewport belongs to this emulator and grid. Reflow, screen changes
+    // and mouse capture invalidate it; ordinary output keeps fractional motion.
+    var scroll by remember(shell) {
+        mutableDoubleStateOf(0.0)
+    }
     // Focus is a current lifecycle signal, not deferred typing. Focus-out must
     // reach the provider even when a disposed view cancels a pending paste.
     ObserveSshTerminalFocus(remember(shell) { SshTerminalInteraction(shell) }, available)
     val motion = rememberTerminalScrollMotion(shell.id, shell)
+    LaunchedEffect(shell, display.columns, display.rows, display.activeScreen, localScroll) {
+        motion.stop(); scroll = 0.0
+    }
     fun write(text: String, paste: Boolean = false): Boolean {
         if (!canInput) return false
         motion.stop(); scroll = 0.0
@@ -137,7 +145,9 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         val remote = interactions.scroll(rows, cell)
         if (remote == true) scroll = 0.0
         return remote ?: run {
-            scroll = (scroll + rows).coerceIn(0.0, display.historyLineCount.toDouble()); true
+            val previous = scroll
+            scroll = TerminalScrollViewport.at(scroll + rows, display.historyLineCount, display.activeScreen).position
+            scroll != previous
         }
     }
     LaunchedEffect(shell, viewport, cells) { viewport?.let { shell.resize(it.columns, it.rows, cells) } }
@@ -148,7 +158,9 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         Row(Modifier.fillMaxWidth().testTag("ssh.shell.identity.${shell.id}"), verticalAlignment = Alignment.CenterVertically) {
             NativeWorkspaceBackControl { TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }) { Text("Back") } }
             Box(Modifier.weight(1f)) {
-                CompositionLocalProvider(LocalDebugTerminalText provides { RenderGrid.plainText(display.visibleLines(scroll.toInt())) }) {
+                CompositionLocalProvider(LocalDebugTerminalText provides {
+                    RenderGrid.plainText(TerminalScrollViewport.at(scroll, display.historyLineCount, display.activeScreen).lines(display))
+                }) {
                 if (panePicker != null) panePicker(::showText)
                 else {
                     val target = SshWorkspaceTarget.Shell(shell.id)
@@ -192,7 +204,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                     showKeyboard()
                 }, onLongPress = { showText() }) }
                 .terminalScrollGestures(motion, geometry,
-                    0, display.activeScreen, linePath = true, enabled = true,
+                    0, display.activeScreen, linePath = !localScroll, enabled = !reconnecting,
                     onScroll = ::scrollTerminal),
                 scrollPosition = scroll)
             if (state.phase == SshShellPhase.OPENING) CircularProgressIndicator(Modifier.align(Alignment.Center))

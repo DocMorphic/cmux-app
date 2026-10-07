@@ -455,3 +455,13 @@ Gradle is stopped. No new AVD, phone install or signed release was produced. Nex
 run the already compiled `WorkbookPreviewRuntimeTest` against the final APK when
 the emulator is stable (or use the physical-device acceptance path), then continue
 the broader format/real-route/Pixel gates.
+
+Follow-up verification on 2026-10-07: all three `WorkbookPreviewRuntimeTest`
+cases passed with the final paging correction during the combined SSH scrolling
+run. The inspected styled ODS screenshot shows the disabled next-column and
+next-row controls, authored dimensions/colors and omitted hidden content. The
+combined run took 53.122 s and had two SSH scrolling failures; those are recorded
+separately and do not turn this into an all-green run. Workbook cases each
+returned success. Evidence: `captures/runtime/ssh-pixel-scroll/runtime.txt` and
+`ods-styled.png`. This closes the pending ODS fixture recheck, not the physical,
+live-route or complete format-fidelity gates.

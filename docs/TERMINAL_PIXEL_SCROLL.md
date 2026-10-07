@@ -63,3 +63,49 @@ Pixel/Mac drag/fling, keyboard resize, running-output reading, and TUI acceptanc
 remain required. This adds smooth local primary scrolling; it does not finish
 Ghostty rendering fidelity, inline graphics, full terminal modes or the broader
 terminal parity checklist. Published signed build 157 is unchanged.
+
+## SSH and Cloud local history (2026-10-07)
+
+Scoped source: upstream `b9c0111a67bf8daadc2e87bff402254bfd9a26fd`,
+`Packages/iOS/CmuxMobileTerminal/Sources/CmuxMobileTerminal/GhosttySurfaceView.swift`,
+especially `ownsLocalPrimaryScreenScroll` and `flushPendingScrollIfNeeded`.
+Locally emulated primary screens with history and no mouse capture use the pixel
+path; TUI wheel events use accumulated whole rows and bounded momentum. This
+review does not advance the global upstream pin.
+
+The shared Android `SshShellScreen` previously forced every drag/fling onto the
+whole-row path. It now selects pixel motion for local primary history. Mouse
+capture and alternate screens keep the existing ordered remote wheel encoding.
+Non-finite deltas are rejected before either route. Ended primary history remains
+readable. Motion stops at a history boundary and is disabled during reconnect.
+Changing the emulator owner, grid dimensions, active screen or local/remote
+ownership clears the held offset; normal output retains its fractional component.
+The debug text inspection uses the same clipped-edge rows as the painter.
+
+The SSH/Cloud Ghostty snapshot currently exposes only retained history size,
+not a monotonic producer row-space identity. Its held position therefore remains
+a bounded distance from the bottom; preserving the exact content anchor while
+new output grows or evicts history is still open. The Mac render-grid anchor
+described above already has a stronger producer identity contract.
+
+Verification: **eight JVM checks passed**, and the final **five Android terminal
+cases passed in 25.798 s**. The actual screen test holds a finger down, moves it
+three pixels and verifies the painted row boundaries move three pixels (within
+one pixel of raster rounding); it also verifies no remote bytes and clears the
+held position on alternate-screen entry/exit. Existing cases cover mouse capture,
+ordered wheel/click bytes, focus lifecycle, arrow modes and ended-shell history.
+Screenshots were inspected. The three workbook cases also passed in the initial
+combined run, closing the previous pending ODS paging recheck.
+
+The first run caught stale gesture state after initial grid resize. Keeping one
+scroll-state object per emulator and resetting its value on grid/mode changes
+fixed that regression. The pixel assertion then needed corrections for the
+horizontal letterbox and antialiased boundary pixels; original failures and
+diagnostic logs remain in ignored `captures/runtime/ssh-pixel-scroll/` alongside
+the passing run, screenshots, builds and APK hashes. Temporary diagnostic logging
+was removed before the final app build.
+
+The existing API 37/16 KB emulator ran with 1536 MiB and two virtual cores. No
+crash/ANR events appeared; emulator and Gradle were stopped. No new AVD or physical
+device install. Physical Pixel, real SSH/Cloud sessions and running-output
+content anchoring remain open. No signed release; published APK 616 is unchanged.

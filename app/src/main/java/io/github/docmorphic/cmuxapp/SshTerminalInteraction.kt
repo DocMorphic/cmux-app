@@ -4,6 +4,10 @@ package io.github.docmorphic.cmuxapp
 internal class SshTerminalInteraction(private val terminal: SshTerminal) {
     private fun ready() = terminal.state.value.phase == SshShellPhase.RUNNING
 
+    /** Ended primary history remains readable; a running mouse client owns its wheel. */
+    fun ownsLocalScrollback(): Boolean = terminal.display.activeScreen == "primary" &&
+        (!ready() || !terminal.display.inputModes().mouseTracking)
+
     fun click(cell: TerminalGeometry.Cell): Boolean {
         if (!ready()) return false
         val display = terminal.display
@@ -16,11 +20,11 @@ internal class SshTerminalInteraction(private val terminal: SshTerminal) {
 
     /** Null means primary scrollback belongs to the phone; false stops motion. */
     fun scroll(rows: Double, cell: TerminalGeometry.Cell): Boolean? {
-        val display = terminal.display
-        if (!ready()) return if (display.activeScreen == "primary") null else false
-        val modes = display.inputModes()
-        if (!modes.mouseTracking && display.activeScreen == "primary") return null
         if (!rows.isFinite() || kotlin.math.abs(rows) > 4096) return false
+        val display = terminal.display
+        if (ownsLocalScrollback()) return null
+        if (!ready()) return false
+        val modes = display.inputModes()
         val count = kotlin.math.abs(rows).toInt()
         if (count == 0) return true
         val packet = when {
