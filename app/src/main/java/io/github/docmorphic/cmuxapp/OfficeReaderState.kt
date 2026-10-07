@@ -4,8 +4,9 @@ import org.json.JSONObject
 
 internal object WorkbookPreviewPolicy {
     const val MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    fun matches(path: String, mime: String?) = path.substringAfterLast('/').substringAfterLast('.', "").equals("xlsx", true) ||
-        mime?.substringBefore(';')?.trim()?.equals(MIME, true) == true
+    const val ODS_MIME = "application/vnd.oasis.opendocument.spreadsheet"
+    fun matches(path: String, mime: String?) = path.substringAfterLast('/').substringAfterLast('.', "").lowercase() in setOf("xlsx", "ods") ||
+        mime?.substringBefore(';')?.trim()?.lowercase() in setOf(MIME, ODS_MIME)
 }
 
 internal object PresentationPreviewPolicy {

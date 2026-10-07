@@ -24,7 +24,7 @@
   function read(bytes) {
     const book = XLSX.read(bytes, {type: 'array', dense: false, bookFiles: true, bookVBA: false,
       cellHTML: false, cellStyles: true, cellFormula: true, cellText: true, cellNF: true});
-    if (book.bookType !== 'xlsx' || !book.SheetNames.length || book.SheetNames.length > 2048) throw new Error('Unsupported workbook');
+    if (!['xlsx', 'ods'].includes(book.bookType) || !book.SheetNames.length || book.SheetNames.length > 2048) throw new Error('Unsupported workbook');
     for (const name of book.SheetNames) if (book.Sheets[name]?.['!ref']) range(book.Sheets[name]['!ref']);
     if (!sheets(book).length) throw new Error('No visible worksheets');
     return book;

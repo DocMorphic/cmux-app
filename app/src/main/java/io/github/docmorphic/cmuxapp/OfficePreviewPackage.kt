@@ -46,6 +46,8 @@ internal class OfficePreviewPackage private constructor(val file: File, private 
                 var total = 0L
                 var elements = 0
                 val names = mutableSetOf<String>()
+                var odsMime = false
+                var odsSpreadsheet = false
                 ZipFile(source).use { zip ->
                     check(zip.size() in 1..limits.entries) { "This Office document contains too many parts." }
                     ZipOutputStream(output.outputStream()).use { target ->
@@ -79,9 +81,12 @@ internal class OfficePreviewPackage private constructor(val file: File, private 
                             }
                             val crc = CRC32().apply { update(bytes) }.value
                             check(bytes.size.toLong() == entry.size && crc == entry.crc) { "This Office document is damaged." }
-                            if (xml) validateXml(bytes, limits, checkActive) { elements++; check(elements <= limits.elements) {
+                            if (name == "mimetype") odsMime = bytes.contentEquals(WorkbookPreviewPolicy.ODS_MIME.toByteArray())
+                            val ods = if (name == "content.xml") OpenDocumentBudget(limits.elements, limits.expandedBytes) else null
+                            if (xml) validateXml(bytes, limits, checkActive, ods) { elements++; check(elements <= limits.elements) {
                                 "This Office document is too complex to preview."
                             } }
+                            if (ods != null) odsSpreadsheet = ods.spreadsheet
                             // STORED avoids a second decompression and recreates all lengths/CRCs from actual bytes.
                             target.putNextEntry(ZipEntry(name).apply {
                                 method = ZipEntry.STORED; size = bytes.size.toLong(); compressedSize = size; this.crc = crc
@@ -90,7 +95,8 @@ internal class OfficePreviewPackage private constructor(val file: File, private 
                         }
                     }
                 }
-                check("[Content_Types].xml" in names && "_rels/.rels" in names) { "This file is not a Office document." }
+                check(("[Content_Types].xml" in names && "_rels/.rels" in names) ||
+                    (odsMime && odsSpreadsheet && "META-INF/manifest.xml" in names)) { "This file is not a supported Office document." }
                 checkActive()
                 return OfficePreviewPackage(output, lease)
             } catch (failure: Throwable) {
@@ -98,15 +104,17 @@ internal class OfficePreviewPackage private constructor(val file: File, private 
             }
         }
 
-        private fun validateXml(bytes: ByteArray, limits: OfficePackageLimits, checkActive: () -> Unit, element: () -> Unit) {
+        private fun validateXml(bytes: ByteArray, limits: OfficePackageLimits, checkActive: () -> Unit, ods: OpenDocumentBudget?, element: () -> Unit) {
             var depth = 0
             val handler = object : DefaultHandler2() {
                 override fun startDTD(name: String?, publicId: String?, systemId: String?) { throw SAXException("Document types are not supported in Office previews.") }
                 override fun resolveEntity(publicId: String?, systemId: String?): InputSource { throw SAXException("External entities are not supported.") }
                 override fun startElement(uri: String?, localName: String?, qName: String?, attributes: Attributes?) {
                     checkActive(); element(); check(++depth <= limits.depth) { "This Office document is too deeply nested." }
+                    ods?.start(uri.orEmpty(), localName.orEmpty(), checkNotNull(attributes))
                 }
-                override fun endElement(uri: String?, localName: String?, qName: String?) { depth-- }
+                override fun endElement(uri: String?, localName: String?, qName: String?) { ods?.end(localName.orEmpty()); depth-- }
+                override fun characters(ch: CharArray, start: Int, length: Int) { ods?.text(length) }
                 override fun fatalError(error: org.xml.sax.SAXParseException) { throw error }
                 override fun error(error: org.xml.sax.SAXParseException) { throw error }
             }

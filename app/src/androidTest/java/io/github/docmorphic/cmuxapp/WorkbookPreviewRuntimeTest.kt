@@ -167,4 +167,70 @@ class WorkbookPreviewRuntimeTest {
         restoration.emulateSavedInstanceStateRestore(); ready()
         assertEquals("true", js("document.querySelector('[data-cell=\"AJ205\"]').textContent === 'Last visible cell'"))
     }
+    @Test fun openDocumentRendersRepeatedCellsAndRestoresInternalLinkDestination() {
+        file = File(compose.activity.cacheDir, "open-document.ods")
+        InstrumentationRegistry.getInstrumentation().context.assets.open("workbook/open-document.ods").use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                FilePreviewContent(LocalFilePreview(file, file.length(), WorkbookPreviewPolicy.ODS_MIME,
+                    filePreviewRoute("binary", WorkbookPreviewPolicy.ODS_MIME, file.name)))
+            }
+        } } }
+        ready()
+        assertEquals("true", js("""
+            (() => document.getElementById('sheets').options.length === 2 &&
+                document.querySelector('[data-cell="A1"]').colSpan === 2 &&
+                document.querySelector('[data-cell="A1"]').textContent === 'OpenDocument 日本語' &&
+                document.querySelector('[data-cell="B2"]').textContent === '${'$'}1,234.50' &&
+                document.querySelector('[data-cell="B3"]').textContent === '2469' &&
+                ['A4','B4','A5','B5','A6','B6'].every(a => document.querySelector('[data-cell="'+a+'"]').textContent === '7') &&
+                !document.querySelector('[data-cell="A8"] a') && !window.__unsafeOds &&
+                document.querySelector('[data-cell="A9"]').textContent === '<script>unsafe</script>' &&
+                !document.querySelector('#content script') && !document.getElementById('limitations').hidden)()
+        """.trimIndent()))
+        capturePaintedOdsCell("A1", "ods-sheet.png")
+        js("document.querySelector('[data-cell=\"A7\"] a').click();")
+        compose.waitUntil(5000) { js("document.getElementById('sheets').value === '1' && document.querySelector('[data-cell=\"B2\"]').textContent === 'Restored ODS cell'") == "true" }
+        compose.waitForIdle()
+        restoration.emulateSavedInstanceStateRestore(); ready()
+        assertEquals("true", js("document.getElementById('sheets').value === '1' && document.querySelector('[data-cell=\"B2\"]').textContent === 'Restored ODS cell'"))
+        capturePaintedOdsCell("B2", "ods-restored.png")
+        js("window.__odsBlocked=false; fetch('https://example.invalid/ods').then(r=>window.__odsBlocked=r.status===403).catch(()=>window.__odsBlocked=true);")
+        compose.waitUntil(5000) { js("window.__odsBlocked") == "true" }
+    }
+
+    private fun capturePaintedOdsCell(address: String, output: String) {
+        val drawn = CountDownLatch(1)
+        compose.runOnUiThread {
+            val view = checkNotNull(web(compose.activity.window.decorView))
+            view.postVisualStateCallback(1, object : WebView.VisualStateCallback() {
+                override fun onComplete(requestId: Long) { view.postOnAnimation { view.postOnAnimation { drawn.countDown() } } }
+            })
+        }
+        assertTrue(drawn.await(10, TimeUnit.SECONDS))
+        val geometry = JSONObject(js("""(() => {const r=document.querySelector('[data-cell="$address"]').getBoundingClientRect();return {width:visualViewport.width,x:r.x,y:r.y,w:r.width,h:r.height};})()""") ?: "{}")
+        val origin = IntArray(2); var scale = 0.0; var width = 0; var height = 0
+        compose.runOnUiThread { checkNotNull(web(compose.activity.window.decorView)).let {
+            it.getLocationOnScreen(origin); width=it.width; height=it.height; scale=width/geometry.getDouble("width")
+        } }
+        val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        try {
+            val left=(origin[0]+geometry.getDouble("x")*scale+3).toInt().coerceAtLeast(origin[0])
+            val right=(origin[0]+(geometry.getDouble("x")+geometry.getDouble("w"))*scale-3).toInt().coerceAtMost(minOf(image.width,origin[0]+width))
+            val top=(origin[1]+geometry.getDouble("y")*scale+3).toInt().coerceAtLeast(origin[1])
+            val bottom=(origin[1]+(geometry.getDouble("y")+geometry.getDouble("h"))*scale-3).toInt().coerceAtMost(minOf(image.height,origin[1]+height))
+            var ink=0; var paper=0
+            for(y in top until bottom) for(x in left until right) {
+                val color=image.getPixel(x,y)
+                if(Color.red(color)<80 && Color.green(color)<80 && Color.blue(color)<80) ink++
+                if(Color.red(color)>240 && Color.green(color)>240 && Color.blue(color)>240) paper++
+            }
+            assertTrue("Expected painted cell, ink=$ink paper=$paper",ink>30 && paper>500)
+            compose.activity.openFileOutput(output,Context.MODE_PRIVATE).use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
+        } finally { image.recycle() }
+    }
+
 }

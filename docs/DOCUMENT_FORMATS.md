@@ -23,7 +23,8 @@ prove that every variant of those formats renders on a phone.
 | DOCX | Quick Look candidate, runtime admission | **New offline Word renderer** in the shared preview component | Runtime rendering, text selection, zoom/restoration, real-route actions and Pixel acceptance |
 | XLSX | Quick Look candidate, runtime admission | **New offline workbook reader**, sheet selection and bounded grid navigation | Runtime formatting/navigation/restoration and Pixel checks; charts/drawings/conditional formatting and exact Quick Look layout remain open |
 | PPTX | Quick Look candidate, runtime admission | Offline PowerPoint renderer with slide navigation and saved position | Rendering/lifecycle evidence below; exact Quick Look layout and unsupported format variants remain open |
-| Legacy DOC, RTF, XLS, ODS, PPT, Pages, Keynote, Numbers and other Quick Look content | Quick Look candidate when recognized, runtime admission | External Open/Share/Save fallback | In-app format implementation and matched format checks remain open; these are not declared unavoidable platform differences |
+| ODS | Quick Look candidate when recognized, runtime admission | In-app workbook data preview, sheet navigation and saved position | Broader authored formatting, hidden rows/sheets, charts/drawings and matched Quick Look/Pixel acceptance remain open |
+| Legacy DOC, RTF, XLS, PPT, Pages, Keynote, Numbers and other Quick Look content | Quick Look candidate when recognized, runtime admission | External Open/Share/Save fallback | In-app format implementation and matched format checks remain open; these are not declared unavoidable platform differences |
 | Unknown binary/archive | Binary unless recognized as content | External Open/Share/Save | Exact eligibility/menu comparison still open |
 
 ## DOCX implementation
@@ -135,8 +136,9 @@ pivots or every Excel style variant. Rich text runs are implemented in the later
 or drawings displays an Open-original notice. The large-sheet window controls
 are an Android implementation choice whose UI/interaction parity is unverified.
 These gaps are tracked as remaining work, not unavoidable platform differences.
-Legacy XLS, XLSB, XLSM, ODS and Numbers are not newly advertised or routed merely
-because the parsing library can read them.
+At this checkpoint legacy XLS, XLSB, XLSM, ODS and Numbers were not newly
+advertised merely because the parsing library can read them. ODS is now routed
+by the later implementation below; the other formats remain open.
 
 Checkpoint verification: **23 JVM checks passed** (three location/routing cases
 plus the 20 previous archive/file cases), with zero failures/errors/skips. **Ten
@@ -327,3 +329,64 @@ This proves these fixture behaviors in the shared preview component. Actual
 Files/Changes/composer remote routes, OS process death, physical zoom/selection,
 TalkBack, broad format fidelity and matched iOS Quick Look screenshots remain
 open. Neither passing DOM checks nor this small deck establish full PPTX parity.
+
+## OpenDocument spreadsheets — 2026-10-07
+
+ODS files now enter the shared workbook preview by extension or normalized MIME,
+with existing image/text/PDF precedence preserved. This reuses the pinned,
+unmodified SheetJS 0.20.3 bundle and the existing local-only document origin;
+no new library, remote document service or original-file rewrite was added.
+The official [format documentation](https://docs.sheetjs.com/docs/miscellany/formats/)
+describes ODS support as focused on data extraction, not complete formatting.
+
+The viewer handles the ODS model without assuming OOXML package directories.
+It shows saved values (including number display and cached formulas), repeated
+cells, merged regions, Unicode and internal sheet links. Existing sheet selection,
+bounded range navigation, zoom/selection and saved sheet/window position apply.
+Literal cell strings remain text and unsupported link protocols remain inert.
+An ODS notice explains that some formatting, charts and drawings are omitted;
+the existing original Open/Share/Save actions remain available.
+
+ZIP admission now recognizes an ODS MIME part plus spreadsheet body and package
+manifest. CRC/size/name/XML/DTD checks still apply. A streaming XML pass bounds
+row/cell repeats, spans and repeated text before JavaScript decoding: up to
+200,000 materialized cells and 67,108,864 UTF-16 code units of repeated
+text/attributes under the default limits. Empty repeated tails retain coordinates without being charged as populated
+cells. Legacy UOS aliases, ambiguous/invalid counts, overflow and oversize spans
+are rejected. Failed admission releases the owned snapshot. The original file is
+kept for export. Limits can exclude larger valid files and are not a parity claim.
+
+`scripts/generate-ods-fixture.py` creates the self-authored deterministic test
+workbook with two sheets, Unicode, currency, a cached formula, repeated values,
+a merge, internal/blocked links and XML-looking literal text. No user documents
+or third-party workbook content are used.
+
+Remaining ODS work: full authored font/fill/border/size/rich-text/conditional
+formatting, hidden-sheet/row/column behavior, charts/drawings, encrypted files,
+broader LibreOffice variants, real Files/Changes/attachment routes, OS process
+recovery and matched iOS/Pixel acceptance. These are unfinished implementation
+and verification, not declared Android platform limitations.
+
+Verification for this batch: **17 JVM cases** (six ODS admission/routing, six
+existing Office-package and five reader-state cases), **17 Node model cases**
+(including two ODS cases) and **two Android workbook cases passed in 21.690 s**,
+with no skipped cases. Both debug/test APK builds passed; a final 16-second
+incremental build included the completed repetition checks after the initial
+2m 40s integration build. All 18 vendor hashes matched the debug APK, and both
+modified workbook adapters matched packaged bytes.
+
+The Android run covered ODS displayed values/merge/repeated cells, literal text,
+blocked links/network requests, internal-link navigation and saved-state reload
+of sheet/window, plus the existing XLSX rich-format/range-restoration regression.
+Paint checks waited for WebView visual state and checked ink on the displayed
+cells. The two ODS screenshots were inspected: the first shows the merged title,
+currency and repeated rows; the second shows Details at B2 after restoration.
+Long text is clipped by the existing fixed-width cell presentation, so the latter
+screenshot alone does not prove that the complete cell string is visible; the
+DOM assertion separately verifies its value. These are component/saved-state
+fixtures, not OS process death or a live remote-file route.
+
+The sole existing API37/16KiB emulator ran headlessly with 1536 MiB. Crash/ANR
+logs were empty; Gradle and the emulator were stopped and reaped. Evidence and
+APK hashes are in ignored `captures/runtime/ods-preview/`. No physical-device
+install, new AVD, signing change or signed release was produced.

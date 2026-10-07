@@ -140,3 +140,25 @@ test('generated real workbook keeps shared and inline rich strings, links and es
   assert.deepEqual(model.link(b.Sheets.Summary.A12), {internal:'Details!B2'});
   assert.deepEqual(b.Directory.strs, ['/xl/sharedStrings.xml']);
 });
+
+test('ODS reads authored Unicode, cached formulas, number display and repeated cells', () => {
+  const b = model.read(readFileSync(new URL('../../app/src/androidTest/assets/workbook/open-document.ods', import.meta.url)));
+  const s = b.Sheets['Résumé'];
+  assert.equal(b.bookType, 'ods');
+  assert.deepEqual(model.sheets(b).map(s => s.name), ['Résumé', 'Details']);
+  assert.equal(model.text(s.A1), 'OpenDocument 日本語');
+  assert.equal(model.text(s.B2), '$1,234.50');
+  assert.equal(s.B3.f, 'B2*2'); assert.equal(model.text(s.B3), '2469');
+  for (const cell of ['A4', 'B4', 'A5', 'B5', 'A6', 'B6']) assert.equal(model.text(s[cell]), '7');
+  assert.equal(model.text(s.A10), 'A   B');
+  assert.deepEqual(model.windowFor(b, 0).merged.get('0:0'), {rowSpan:1,colSpan:2,address:'A1'});
+});
+test('ODS keeps literal text and applies the shared link and destination policy', () => {
+  const b = model.read(readFileSync(new URL('../../app/src/androidTest/assets/workbook/open-document.ods', import.meta.url)));
+  assert.equal(model.text(b.Sheets['Résumé'].A9), '<script>unsafe</script>');
+  assert.equal(model.link(b.Sheets['Résumé'].A8), null);
+  const link = model.link(b.Sheets['Résumé'].A7);
+  assert.deepEqual(link, {internal:'Details!B2'});
+  assert.deepEqual(model.destination(link.internal,b,0), {sheet:1,row:1,col:1});
+  assert.equal(model.text(model.windowFor(b,1,1,1).sheet.B2), 'Restored ODS cell');
+});

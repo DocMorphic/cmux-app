@@ -28,6 +28,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- ODS spreadsheets now open inside the shared workbook viewer with saved values,
+  cached formulas, merged/repeated cells, sheet navigation and saved position.
+  Expanded repetitions are checked before decoding. **17 JVM, 17 Node and two
+  Android workbook cases passed**; ODS screenshots inspected and XLSX regression
+  passed. See `DOCUMENT_FORMATS.md` for remaining formatting/hidden-content and
+  live-route/Pixel gaps. Empty crash/ANR logs; emulator/Gradle stopped; no release.
+
 - Explicit Firebase client configuration now supports local and optional GitHub
   builds. **Configured and unconfigured SDK checks both passed**, including removal
   without cleaning the previous build; no enrollment/token was created. Both

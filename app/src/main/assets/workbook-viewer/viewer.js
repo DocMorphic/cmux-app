@@ -6,9 +6,9 @@
     const response = await fetch('document.zip', {credentials: 'omit', cache: 'no-store'});
     if (!response.ok) throw new Error('Document unavailable');
     const book = model.read(await response.arrayBuffer());
-    if (book.Directory.charts.length || book.Directory.drawings.length) {
+    if (book.bookType === 'ods' || book.Directory?.charts?.length || book.Directory?.drawings?.length) {
       const note = document.getElementById('limitations'); note.hidden = false;
-      note.textContent = 'Charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.';
+      note.textContent = book.bookType === 'ods' ? 'Some formatting, charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.' : 'Charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.';
     }
     const memories = new Map(), styleIndices = new Map(), richCells = new Map();
     const nodes = (node, name) => Array.from(node.getElementsByTagNameNS('*', name));
@@ -27,7 +27,7 @@
       }
       return parts.join('/');
     }
-    const main = book.Directory.workbooks[0].replace(/^\/+/, '');
+    const main = (book.Directory?.workbooks?.[0] || '').replace(/^\/+/, '');
     const mainXml = xml(main), relationshipPath = main.replace(/([^/]+)$/, '_rels/$1.rels');
     const rels = xml(relationshipPath);
     const paths = new Map();
@@ -37,8 +37,8 @@
       nodes(mainXml, 'sheet').forEach(n => paths.set(n.getAttribute('name'), relations.get(n.getAttribute('r:id') ||
         n.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'))));
     }
-    const stylesXml = xml(book.Directory.style || ''), borders = stylesXml ? nodes(stylesXml, 'border') : [];
-    const stringsXml = xml(book.Directory.strs?.[0] || '');
+    const stylesXml = xml(book.Directory?.style || ''), borders = stylesXml ? nodes(stylesXml, 'border') : [];
+    const stringsXml = xml(book.Directory?.strs?.[0] || '');
     const sharedStrings = stringsXml ? model.children(stringsXml.documentElement, 'si') : [];
     function cellStyles(name) {
       if (styleIndices.has(name)) return styleIndices.get(name);
