@@ -110,7 +110,7 @@ crash/ANR events appeared; emulator and Gradle were stopped. No new AVD or physi
 device install. Physical Pixel, real SSH/Cloud sessions and running-output
 content anchoring remain open. No signed release; published APK 616 is unchanged.
 
-## Holding SSH/Cloud content during output (2026-10-07, verification in progress)
+## Holding SSH/Cloud content during output (2026-10-07)
 
 The pinned Ghostty C API at `edefce7785c9f439966c68588db1edbd6b435203`
 already supports `ghostty_terminal_grid_ref_track` and
@@ -133,8 +133,31 @@ live-bottom state follows new output. The Android implementation uses Ghostty's
 tracked cell contract because its pinned public scrollbar lacks those iOS
 cumulative row-push counters. This does not advance the global source pin.
 
-Native and app runtime checks are pending. The new tests cover content retention
-through output/pruning, fractional position, expiration/reset/reflow/close,
-batched screen switches, a held finger while output arrives and replacement
-emulators. Physical sessions and replay continuity remain open; replacing an
-emulator intentionally starts at live output. No signed release.
+Verification:
+
+- **15 JVM checks passed** (eight scroll checks and seven native snapshot decoder
+  checks), and debug/app-test/native-test APKs built successfully.
+- **14 Ghostty Android checks passed in 0.369 s**, including retained content
+  through growth and detected pruning, fractional position, expiration, reset,
+  reflow, close and primary→alternate→primary inside one output batch. The first
+  pruning fixture did not fill Ghostty's minimum page capacity; it now uses an
+  80-column grid and requires an observed drop in retained rows before checking
+  that the tracked content and fractional position survived.
+- **Six app Android checks passed in 46.152 s**. A held finger remains in place
+  while 33 new lines arrive: the visible text and painted boundaries stay the
+  same. The next 2px motion continues from that anchor. Replacing the emulator
+  clears the old position and the next gesture scrolls the replacement's content.
+  Wheel/click/focus routing and alternate-screen behavior still pass.
+- Screenshots inspected; native/app ELF LOAD/RELRO and APK ZIP alignment pass
+  for 16 KB pages. No crash/ANR events appeared on the existing API37 emulator
+  (1536 MiB, two cores). Gradle and emulator were stopped; no new AVD or phone
+  install. Only the emulator's standalone Ghostty test package was replaced
+  after its previous CI signature differed from this local test build.
+
+GitHub initially rejected pushes/workflow dispatch with HTTP 500. The native
+core and binding were built locally with verified Zig 0.16.0 and NDK r28c; later
+pushes succeeded. No cloud build is claimed for these commits. Evidence and
+original failure logs are in ignored `captures/runtime/terminal-content-anchor/`.
+Physical SSH/Cloud sessions and replay continuity remain open; replacing an
+emulator intentionally starts at live output. No signed release; APK 616 remains
+the last published release.

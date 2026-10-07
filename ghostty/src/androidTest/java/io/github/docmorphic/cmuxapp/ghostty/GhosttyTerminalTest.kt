@@ -102,17 +102,27 @@ class GhosttyTerminalTest {
     }
 
     @Test fun anchorSurvivesPruningOfEarlierRowsAndExpiresWhenItsContentIsDiscarded() {
-        GhosttyTerminal(16, 3, scrollbackBytes = 64 * 1024).use { terminal ->
+        GhosttyTerminal(80, 3, scrollbackBytes = 64 * 1024).use { terminal ->
             terminal.write((0..2999).joinToString("\r\n") { "row$it" })
             val history = terminal.snapshot().historyRows
             assertTrue("Fixture must fill bounded history: $history", history in 20 until 2900)
             terminal.holdScrollback(10.25)
             val held = terminal.snapshot(11).text(0)
-            terminal.write((3000..3039).joinToString("", transform = { "\r\nrow$it" }))
+            var pushed = 0
+            var previousHistory = history
+            var pruned = false
+            while (!pruned && pushed < 4096) {
+                terminal.write((3000 + pushed until 3008 + pushed).joinToString("") { "\r\nrow$it" })
+                pushed += 8
+                val nextHistory = terminal.snapshot().historyRows
+                pruned = nextHistory < previousHistory + 8
+                previousHistory = nextHistory
+            }
+            assertTrue("Fixture must actually prune rows before checking its anchor", pruned)
             val position = terminal.scrollbackPosition()
-            assertEquals(50.25, position, 0.0)
+            assertEquals(10.25 + pushed, position, 0.0)
             assertEquals(held, terminal.snapshot(kotlin.math.ceil(position).toInt()).text(0))
-            terminal.write((3040..6999).joinToString("", transform = { "\r\nrow$it" }))
+            terminal.write((8000..15999).joinToString("", transform = { "\r\nrow$it" }))
             assertEquals(0.0, terminal.scrollbackPosition(), 0.0)
             terminal.holdScrollback(1.5)
             assertEquals(1.5, terminal.scrollbackPosition(), 0.0)

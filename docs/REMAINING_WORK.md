@@ -28,6 +28,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- SSH/Cloud history now holds a native tracked content reference while output
+  grows or earlier rows are pruned, preserving the fractional position. Latest,
+  reflow, screen changes, expired content and emulator replacement release it.
+  **15 JVM, 14 native Android and six app Android checks passed**, including the
+  visible held-finger/output case and replacement routing. See
+  `TERMINAL_PIXEL_SCROLL.md` for the corrected pruning fixture, local native
+  build and scope. 16 KB alignment passed; no crash/ANR events; emulator/Gradle
+  stopped. Physical sessions and replay continuity remain open; no signed release.
+
 - SSH/Cloud primary history now uses pixel-precise scrolling; mouse-capturing
   programs retain whole-row wheel input. Grid/screen/ownership changes clear the
   held viewport, reconnect stops gestures, and boundaries stop momentum. **Eight
