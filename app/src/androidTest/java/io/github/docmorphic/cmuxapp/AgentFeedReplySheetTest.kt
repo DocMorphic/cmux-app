@@ -15,12 +15,10 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import android.webkit.WebView
+import android.widget.TextView
+import android.widget.ScrollView
 import android.view.View
-import android.view.ViewGroup
 import android.view.inspector.WindowInspector
 
 class AgentFeedReplySheetTest {
@@ -38,51 +36,75 @@ class AgentFeedReplySheetTest {
         100.0, 100.0, workspaceId = "workspace", surfaceId = "terminal", reason = "Preview of the report", fullTextTruncated = true)
     private val plan = stop.copy(id = "plan", kind = AgentFeedKind.PLAN, status = AgentFeedStatus.PENDING,
         requestId = "plan-request", reason = null, plan = "A proposed plan", defaultMode = "autoAccept", fullTextTruncated = false)
-    private fun capture(name: String) {
+    private fun capture(name: String, checkQuoteClipping: Boolean = false) {
         compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
         val i = InstrumentationRegistry.getInstrumentation()
         val folder = java.io.File(i.targetContext.getExternalFilesDir(null), "agent-feed-composer").apply { mkdirs() }
+        compose.waitUntil(8_000) { hasAppWindowFocus() }
+        val toolbarGap = android.graphics.Rect()
+        if (checkQuoteClipping) compose.runOnUiThread {
+            val view = scroll()
+            val location = IntArray(2); view.getLocationOnScreen(location)
+            val density = view.resources.displayMetrics.density
+            // The middle of the fixed toolbar contains no controls. Scrolled
+            // text must not escape its viewport and paint into this gap.
+            toolbarGap.set(location[0] + view.width / 3, location[1] - (24 * density).toInt(),
+                location[0] + view.width * 2 / 3, location[1] - (4 * density).toInt())
+        }
         i.uiAutomation.takeScreenshot().let { bitmap ->
-            java.io.File(folder, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+            try {
+                java.io.File(folder, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                if (checkQuoteClipping) {
+                    var ink = 0
+                    for (y in toolbarGap.top until toolbarGap.bottom step 2)
+                        for (x in toolbarGap.left until toolbarGap.right step 2) {
+                            val pixel = bitmap.getPixel(x, y)
+                            if (android.graphics.Color.red(pixel) > 110 && android.graphics.Color.green(pixel) > 110 &&
+                                android.graphics.Color.blue(pixel) > 110) ink++
+                        }
+                    assertTrue("Quoted text painted over the toolbar: $ink bright samples", ink < 10)
+                }
+            } finally { bitmap.recycle() }
         }
     }
-    private fun web(view: View): WebView? = when (view) {
-        is WebView -> view
-        is ViewGroup -> (0 until view.childCount).firstNotNullOfOrNull { web(view.getChildAt(it)) }
-        else -> null
+    // Inspect this process's actual window focus. Accessibility's active-root
+    // query can return null during window transitions; an external ANR dialog
+    // takes focus away from every application window.
+    private fun hasAppWindowFocus(): Boolean {
+        val focused = AtomicBoolean(false)
+        compose.runOnUiThread { focused.set(WindowInspector.getGlobalWindowViews().any { it.hasWindowFocus() }) }
+        return focused.get()
+    }
+    private fun quote(): TextView? = WindowInspector.getGlobalWindowViews()
+        .firstNotNullOfOrNull { it.findViewWithTag<TextView>("AgentFeedExpandedQuote") }
+    private fun scroll(): ScrollView = WindowInspector.getGlobalWindowViews()
+        .firstNotNullOf { it.findViewWithTag<ScrollView>("AgentFeedComposeScroll") }
+    private fun scrollToDraft() {
+        compose.runOnUiThread { scroll().scrollTo(0, scroll().getChildAt(0).height) }
+        compose.waitUntil(5_000) { compose.onNodeWithTag("AgentFeedComposeDraft").isDisplayed() }
     }
     private fun awaitRenderedQuote() {
         compose.waitUntil(30_000) {
-            val ready = AtomicBoolean(false); val latch = CountDownLatch(1)
-            compose.runOnUiThread {
-                val web = WindowInspector.getGlobalWindowViews().firstNotNullOfOrNull { web(it) }
-                if (web == null) latch.countDown() else web.evaluateJavascript(
-                    "document.getElementById('content')?.innerText.includes('TAIL_MARKER') === true") { result ->
-                    if (result != "true") latch.countDown() else web.postVisualStateCallback(1, object : WebView.VisualStateCallback() {
-                        override fun onComplete(id: Long) { ready.set(true); latch.countDown() }
-                    })
-                }
-            }
-            latch.await(5, TimeUnit.SECONDS) && ready.get()
+            val ready = AtomicBoolean(false)
+            compose.runOnUiThread { ready.set(quote()?.let { it.isShown && it.text.endsWith("TAIL_MARKER") && it.height > 0 } == true) }
+            ready.get()
         }
+        compose.runOnUiThread { scroll().scrollTo(0, 0) }
+        compose.waitForIdle()
     }
     private fun assertQuotePaint() {
         val info = java.util.concurrent.atomic.AtomicReference<String>()
         val bounds = java.util.concurrent.atomic.AtomicReference<android.graphics.Rect>()
-        val latch = CountDownLatch(1)
         compose.runOnUiThread {
-            val web = WindowInspector.getGlobalWindowViews().firstNotNullOfOrNull { web(it) }!!
-            val rect = android.graphics.Rect(); web.getGlobalVisibleRect(rect); bounds.set(rect)
-            val android = "width=${web.width},height=${web.height},scroll=${web.scrollY},visible=$rect,alpha=${web.alpha},shown=${web.isShown}"
-            web.evaluateJavascript("JSON.stringify({width:innerWidth,height:innerHeight,scrollY,body:document.body.getBoundingClientRect().toJSON(),content:document.getElementById('content').getBoundingClientRect().toJSON(),color:getComputedStyle(document.getElementById('content')).color,html:document.getElementById('content').innerHTML.slice(0,250)})") {
-                info.set(android + "\n" + it); latch.countDown()
-            }
+            val view = quote()!!
+            val rect = android.graphics.Rect(); view.getGlobalVisibleRect(rect); bounds.set(rect)
+            info.set("width=${view.width},height=${view.height},scroll=${scroll().scrollY},visible=$rect,shown=${view.isShown},length=${view.text.length},lines=${view.lineCount}")
         }
-        assertTrue(latch.await(5, TimeUnit.SECONDS))
         val i = InstrumentationRegistry.getInstrumentation()
         java.io.File(i.targetContext.getExternalFilesDir(null), "agent-feed-composer/quote-geometry.txt").writeText(info.get())
         val box = bounds.get()
         compose.waitUntil(8_000) {
+            if (!hasAppWindowFocus()) return@waitUntil false
             i.uiAutomation.takeScreenshot().let { bitmap ->
                 var ink = 0
                 for (y in box.top.toInt().coerceAtLeast(0) until box.bottom.toInt().coerceAtMost(bitmap.height) step 2)
@@ -96,12 +118,19 @@ class AgentFeedReplySheetTest {
             }
         }
     }
-    private inner class Fixture(items: List<NativeAgentFeedItem>) : AutoCloseable {
+    private inner class Fixture(items: List<NativeAgentFeedItem>, val fullBody: String = "Full report\n\n" + "long body ".repeat(1000) + "TAIL_MARKER") : AutoCloseable {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         val requests = CopyOnWriteArrayList<Pair<String, JSONObject>>()
         val session = NativeAgentFeedSession(scope, { true }, { method, params ->
             requests += method to params
-            if (method == "feed.text") JSONObject().put("text", "Full report\n\n" + "long body ".repeat(1000) + "TAIL_MARKER").put("version", 1)
+            if (method == "feed.text") {
+                // Fixtures use ASCII; real transport tests cover UTF-8 page boundaries.
+                val start = params.getInt("offset")
+                val end = (start + 16384).coerceAtMost(fullBody.length)
+                JSONObject().put("text", fullBody.substring(start, end)).put("version", 1).apply {
+                    if (end < fullBody.length) put("next_offset", end)
+                }
+            }
             else JSONObject().put("submitted", true)
         }, NativeAgentFeedSnapshot(1, items))
         var loaded by mutableStateOf(true)
@@ -144,12 +173,12 @@ class AgentFeedReplySheetTest {
             val restoration = StateRestorationTester(compose)
             restoration.setContent { fixture.Content() }
             compose.onNodeWithText("Reply", useUnmergedTree = true).performClick()
-            compose.onNode(hasText("See more", substring = true) and hasAnyAncestor(hasTestTag("AgentFeedReplySheet")), useUnmergedTree = true).clickInlineMore()
-            compose.waitUntil(10_000) { compose.onAllNodesWithTag("AgentFeedExpandedQuote").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNode(hasText("See more", substring = true) and hasAnyAncestor(hasTestTag("AgentFeedComposerPreviewContent")), useUnmergedTree = true).clickInlineMore()
             awaitRenderedQuote()
             capture("expanded-quote")
             assertQuotePaint()
-            compose.onNodeWithTag("AgentFeedComposeDraft").performTextInput("Private draft")
+            scrollToDraft()
+            compose.onNodeWithTag("AgentFeedComposeDraft").assertIsDisplayed().performTextInput("Private draft")
             compose.runOnIdle { fixture.account = "account-b" }
             compose.onNodeWithTag("AgentFeedReplySheet").assertDoesNotExist()
             compose.onNodeWithText("See more", substring = true, useUnmergedTree = true).clickInlineMore()
@@ -163,11 +192,48 @@ class AgentFeedReplySheetTest {
             compose.runOnIdle { assertTrue(fixture.requests.none { it.first == "mobile.terminal.paste" }) }
         }
     }
+    @Test fun longQuoteUsesOneScrollAreaAndRestoresPositionAndDraftAfterReload() {
+        val body = "**" + "long body ".repeat(110_000) + "end**TAIL_MARKER"
+        Fixture(listOf(stop), body).use { fixture ->
+            val restoration = StateRestorationTester(compose)
+            restoration.setContent { fixture.Content() }
+            compose.onNodeWithText("Reply", useUnmergedTree = true).performClick()
+            compose.onNodeWithTag("AgentFeedComposeDraft").performTextInput("Keep this draft")
+            compose.onNode(hasText("See more", substring = true) and hasAnyAncestor(hasTestTag("AgentFeedComposerPreviewContent")), useUnmergedTree = true).clickInlineMore()
+            awaitRenderedQuote()
+            compose.runOnUiThread {
+                val full = quote()!!
+                assertEquals(body.length - 4, full.text.length)
+                assertTrue("Body must exceed Compose's packed-constraint height", full.height > 262143)
+                assertEquals(0, full.scrollY)
+                val spans = full.text as android.text.Spanned
+                assertTrue(spans.getSpans(0, 10, android.text.style.StyleSpan::class.java).any { it.style == android.graphics.Typeface.BOLD })
+            }
+            scrollToDraft()
+            compose.onNodeWithTag("AgentFeedComposeDraft").assertIsDisplayed().assertTextContains("Keep this draft")
+            capture("continuous-quote-bottom", checkQuoteClipping = true)
+            var savedY = 0
+            compose.runOnUiThread { scroll().scrollTo(0, 1200); savedY = scroll().scrollY }
+            restoration.emulateSavedInstanceStateRestore()
+            compose.waitUntil(30_000) {
+                val ready = AtomicBoolean(false)
+                compose.runOnUiThread { ready.set(quote()?.let {
+                    it.text.endsWith("TAIL_MARKER") && it.height > 262143 && scroll().scrollY == savedY
+                } == true) }
+                ready.get()
+            }
+            compose.runOnUiThread { assertEquals(savedY, scroll().scrollY) }
+            scrollToDraft()
+            compose.onNodeWithTag("AgentFeedComposeDraft").assertIsDisplayed().assertTextContains("Keep this draft")
+            compose.runOnIdle { assertTrue(fixture.requests.none { it.first == "mobile.terminal.paste" }) }
+        }
+    }
+
     @Test fun planRevisionUsesQuotedSheetAndManualFeedback() {
         Fixture(listOf(plan)).use { fixture ->
             compose.setContent { fixture.Content() }
             compose.onNodeWithText("Revise", useUnmergedTree = true).performClick()
-            compose.onNode(hasText("A proposed plan") and hasAnyAncestor(hasTestTag("AgentFeedReplySheet")), useUnmergedTree = true).assertIsDisplayed()
+            compose.onNode(hasText("A proposed plan") and hasAnyAncestor(hasTestTag("AgentFeedComposerPreviewContent")), useUnmergedTree = true).assertIsDisplayed()
             compose.onNodeWithTag("AgentFeedComposeDraft").performTextInput("Include rollback")
             compose.onNodeWithTag("AgentFeedComposeSend").performClick()
             compose.waitUntil(10_000) { fixture.requests.any { it.first == "feed.exit_plan.reply" } }

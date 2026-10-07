@@ -50,7 +50,8 @@ internal object AgentFeedMarkdown {
             override fun create() = InlineContentParser { state ->
                 val scanner = state.scanner()
                 val start = scanner.position()
-                while (scanner.peek() == ' ' || scanner.peek() == '\t') scanner.next()
+                while (scanner.peek() != Scanner.END && scanner.peek() != '\n' &&
+                    scanner.peek() !in "\\`*_~[]!<>&") scanner.next()
                 // Keep authored whitespace that CommonMark's ordinary text parser trims.
                 ParsedInline.of(org.commonmark.node.Text(scanner.getSource(start, scanner.position()).content), scanner.position())
             }
@@ -70,12 +71,22 @@ internal object AgentFeedMarkdown {
         cache[source] = runs
         return runs
     }
+    // Full messages are already bounded by feed.text's 8 MiB transport limit.
+    // Do not put these bodies in the row cache or apply the 8 KiB preview cap.
+    fun parseFull(markdown: String): List<AgentMarkdownRun> = parseSource(markdown)
+
     private fun parseSource(source: String): List<AgentMarkdownRun> {
+        if (source.none { it in "\\`*_~[]!<>&" }) return listOf(AgentMarkdownRun(source, AgentMarkdownStyle()))
         val runs = mutableListOf<AgentMarkdownRun>()
+        val pending = StringBuilder()
+        var pendingStyle = AgentMarkdownStyle()
+        fun flush() {
+            if (pending.isNotEmpty()) { runs += AgentMarkdownRun(pending.toString(), pendingStyle); pending.setLength(0) }
+        }
         fun append(text: String, style: AgentMarkdownStyle) {
             if (text.isEmpty()) return
-            if (runs.lastOrNull()?.style == style) runs[runs.lastIndex] = runs.last().copy(text = runs.last().text + text)
-            else runs += AgentMarkdownRun(text, style)
+            if (style != pendingStyle) { flush(); pendingStyle = style }
+            pending.append(text)
         }
         val start = source.indexOfFirst { !it.isWhitespace() }.takeIf { it >= 0 } ?: source.length
         val end = source.indexOfLast { !it.isWhitespace() } + 1
@@ -111,6 +122,7 @@ internal object AgentFeedMarkdown {
             }
             append(source.substring(end), plain)
         }
+        flush()
         return runs.toList()
     }
 }

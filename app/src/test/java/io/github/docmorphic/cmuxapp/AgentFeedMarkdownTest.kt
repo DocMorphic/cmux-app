@@ -32,4 +32,19 @@ class AgentFeedMarkdownTest {
         assertEquals(first, AgentFeedMarkdown.parse("**unfinished _and_ `text"))
         assertEquals(" \n\n ", AgentFeedMarkdown.parse(" \n\n ").joinToString("") { it.text })
     }
+    @Test fun fullMessagesKeepFormattingAcrossPreviewLimitAndBlankLines() {
+        val body = "long word ".repeat(2000) + "\n\nTAIL"
+        val runs = AgentFeedMarkdown.parseFull("**" + body + "** [site](https://cmux.com)")
+        assertEquals(body + " site", runs.joinToString("") { it.text })
+        assertTrue(runs.first().style.bold)
+        assertTrue(runs.first().text.endsWith("TAIL"))
+        assertEquals("https://cmux.com", runs.last().style.link)
+    }
+    @Test fun fullTransportLimitIsNotCappedOrAddedToPreviewCache() {
+        val body = "word ".repeat(1_677_718) + "TAIL"
+        val runs = AgentFeedMarkdown.parseFull("**" + body + "**")
+        assertEquals(body, runs.single().text)
+        assertTrue(runs.single().style.bold)
+        assertTrue(AgentFeedMarkdown.parse(body).sumOf { it.text.length } <= 8192)
+    }
 }

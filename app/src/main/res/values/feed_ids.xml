@@ -1,0 +1,8 @@
+<resources>
+    <item type="id" name="feed_compose_avatar" />
+    <item type="id" name="feed_compose_heading" />
+    <item type="id" name="feed_compose_preview" />
+    <item type="id" name="feed_compose_replying" />
+    <item type="id" name="feed_compose_draft" />
+    <item type="id" name="feed_compose_status" />
+</resources>

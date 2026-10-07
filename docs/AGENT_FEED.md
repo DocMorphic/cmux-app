@@ -307,3 +307,79 @@ coverage, scrolling performance and physical Mac/Pixel acceptance remain open.
 - Evidence: `captures/runtime/agent-feed-inline/` (ignored), with build/test logs,
   screenshots, event logs and exact final APK hashes. Emulator stopped and reaped;
   Gradle stopped. No new signed APK or physical-host acceptance is claimed.
+
+## Continuous composer quote — 2026-10-07
+
+The composer now uses one Android `ScrollView` for the quoted message and the
+reply draft. Expanded text is a native `TextView`, using the same inline-only
+Markdown model as iOS; the quote no longer has a nested WebView/scroll area or a
+320 dp height limit. Existing Compose controls are hosted inside this scroll
+container with stable view IDs. The draft remains in the scoped modal state,
+and the scroll offset is saved separately from the body. Full text is reloaded
+through the authenticated session after restoration.
+
+Full-message Markdown parsing runs off the UI thread, bypasses the row cache and
+8 KiB preview cap, preserves styles across blank lines, and accumulates adjacent
+runs with a string builder. Ordinary text after whitespace is consumed as a run,
+avoiding a temporary AST node for every word in a long paragraph. Plain messages
+have a direct path. URL spans retain the existing allowed-scheme policy.
+
+The draft avatar now uses the platform person-circle icon, and the editor has no
+underline, matching the source composer structure. The generic full-message
+reader keeps its existing Markdown renderer and source toggle.
+
+Text metrics are prepared on `Dispatchers.Default` with `PrecomputedTextCompat`.
+Native wrapping uses simple line breaking without hyphenation. On API 35+, the
+quote explicitly uses advance widths instead of glyph bounds, with drawing room
+at both edges for overhangs; see the
+[TextView API](https://developer.android.com/reference/android/widget/TextView#setUseBoundsForWidth(boolean)).
+A captured Android 17 main-thread trace identified `GreedyLineBreaker` /
+`StyleRun::getBounds` as the stall in a very large styled paragraph. The quoted
+row also disables baseline alignment to avoid measuring its weighted text column
+at an unbounded provisional width.
+
+New composers focus the editor. A restored expanded composer resumes its saved
+reading position; tapping the draft focuses the editor again. Focus-driven smooth
+scrolling is disabled so an old animation cannot overwrite an explicit restored
+position. User drag/fling scrolling remains native, and dragging dismisses the
+keyboard.
+
+
+The scroll offset is owned above the sheet window, so screen saved-state
+restoration can recover it before the authenticated body reload completes. The
+native viewport is clipped at both the Android and Compose boundaries; scrolled
+text must not draw over the fixed Reply/Cancel toolbar.
+
+### Verification and limits
+
+- Six Markdown JVM checks passed, including a styled paragraph near the 8 MiB
+  transport limit. This is parser evidence, not a maximum-size Android rendering
+  or latency claim. Debug and test APKs built.
+- The Android fixture renders a styled 1.1 MB paragraph as a native quote over
+  262,143 pixels tall, reaches the draft in the same scroll area, retains bold
+  spans and the complete tail, then reloads the body after saved-state restoration
+  and recovers both the reading offset and draft without sending a reply.
+- The initial runs caught invalid native tag use and a real native text-layout
+  stall; the captured main-thread trace informed the wrapping changes above.
+  The stalled debug process was manually stopped. Later runs exposed focus-driven
+  scrolling and lost state inside the temporary sheet window; both were fixed.
+  Fixture errors (an invalid Markdown delimiter and asynchronous smooth-scroll
+  assertion) were corrected without dropping the full-body/draft requirements.
+- The first emulator session also had launcher/System UI ANR dialogs covering
+  screenshots. Those frames are not visual proof. The same existing AVD was
+  restarted headless at 1,536 MiB; no second AVD was created. The screenshot checks
+  now require app window focus. A subsequent visual review found text escaping
+  above the scroll viewport; the final test also checks toolbar pixels.
+- Real process death, maximum-size on-device rendering, enlarged-font/RTL/TalkBack
+  traversal, touch/fling and IME behavior, and authenticated Pixel/Mac acceptance
+  remain open. No signed release was produced.
+- Raw failures, native stack, final screenshots, build logs, APK hashes and test
+  receipts are retained in ignored `captures/runtime/agent-feed-continuous/`.
+
+- Final corrected batch: **five Android composer cases passed in 45.540 s** on
+  the existing API 37 / 16 KiB AVD, including plan/manual feedback, draft/snapshot
+  restoration, approval modes, quote/reader/account clearing, and the long quote
+  with toolbar clipping and saved-position restoration. The preceding targeted
+  restoration batch also passed two cases in 26.939 s. Final quote and bottom/draft
+  screenshots were visually inspected. The headless session's before/after event
+  logs have no ANR/crash entries. Emulator and Gradle were stopped and reaped.
