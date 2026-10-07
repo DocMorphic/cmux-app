@@ -16,6 +16,8 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -76,11 +78,13 @@ internal fun AgentFeedReplySheet(entry: NativeAgentFeedEntry, modal: AgentFeedMo
                 }
             }
             Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(16.dp)) {
-                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.width(40.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        FeedComposerAvatar(item.source, model.author)
-                        Box(Modifier.width(2.dp).weight(1f).heightIn(min = 18.dp).background(Color(0xFF45494F)))
-                    }
+                // Draw the thread after ordinary measurement. Intrinsic sizing cannot
+                // measure width-aware previews (or future virtualized full messages).
+                Row(Modifier.heightIn(min = 58.dp).drawBehind {
+                    drawLine(Color(0xFF45494F), Offset(20.dp.toPx(), 40.dp.toPx()),
+                        Offset(20.dp.toPx(), size.height), strokeWidth = 2.dp.toPx())
+                }, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FeedComposerAvatar(item.source, model.author)
                     Column(Modifier.weight(1f).padding(bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(model.author, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)

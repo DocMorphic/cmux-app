@@ -24,6 +24,14 @@ import android.view.ViewGroup
 import android.view.inspector.WindowInspector
 
 class AgentFeedReplySheetTest {
+    private fun SemanticsNodeInteraction.clickInlineMore() {
+        val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        val layout = layouts.single()
+        val offset = layout.layoutInput.text.text.lastIndexOf("See more")
+        performTouchInput { click(layout.getBoundingBox(offset + 2).center) }
+    }
+
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val mac = NativeCredentialStore.PairedMac("fixture", "mac", "Mac", instanceTag = "build")
     private val stop = NativeAgentFeedItem("stop", "turn", "Claude", AgentFeedKind.STOP, AgentFeedStatus.TELEMETRY,
@@ -136,7 +144,7 @@ class AgentFeedReplySheetTest {
             val restoration = StateRestorationTester(compose)
             restoration.setContent { fixture.Content() }
             compose.onNodeWithText("Reply", useUnmergedTree = true).performClick()
-            compose.onNode(hasText("See more") and hasAnyAncestor(hasTestTag("AgentFeedReplySheet")), useUnmergedTree = true).performClick()
+            compose.onNode(hasText("See more", substring = true) and hasAnyAncestor(hasTestTag("AgentFeedReplySheet")), useUnmergedTree = true).clickInlineMore()
             compose.waitUntil(10_000) { compose.onAllNodesWithTag("AgentFeedExpandedQuote").fetchSemanticsNodes().isNotEmpty() }
             awaitRenderedQuote()
             capture("expanded-quote")
@@ -144,7 +152,7 @@ class AgentFeedReplySheetTest {
             compose.onNodeWithTag("AgentFeedComposeDraft").performTextInput("Private draft")
             compose.runOnIdle { fixture.account = "account-b" }
             compose.onNodeWithTag("AgentFeedReplySheet").assertDoesNotExist()
-            compose.onNodeWithText("See more", useUnmergedTree = true).performClick()
+            compose.onNodeWithText("See more", substring = true, useUnmergedTree = true).clickInlineMore()
             compose.onNodeWithText("Source").performClick()
             compose.onNodeWithText("TAIL_MARKER", substring = true).assertExists()
             val reads = fixture.requests.count { it.first == "feed.text" }

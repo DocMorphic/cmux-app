@@ -58,7 +58,7 @@ it did **not** implement the distinct agent workstream Feed.
 
 This implementation is not a declaration of full iOS Feed parity. The row
 presentation follow-up below adds native inline Markdown, source-specific content,
-swipe triage and Display settings. Remaining work includes exact inline See-more
+swipe triage and Display settings. Remaining work includes expansion accessibility/RTL coverage
 and bubble-tail geometry, full-text and composer
 recreation, accessibility/large-text layout, and routed browser/sidebar Feed
 navigation. The dated runtime checks below cover specific fixture flows, not full
@@ -263,3 +263,47 @@ process-death or authenticated production workflow.
   No ANR/crash events occurred. AVD and Gradle stopped; no signed release or Pixel
   run. StateRestorationTester evidence does not replace actual process-death or
   authenticated Mac/Pixel acceptance.
+
+
+## Inline expansion follow-up — 2026-10-07
+
+Feed output/tool previews and collapsed composer quotes now measure the rendered
+Markdown using the available width and current font settings. They reserve space
+on the final visible line for an inline `… See more` action. Text shortened by the
+host exposes the same action even when the received preview fits. Prefix slicing
+preserves Markdown spans and URL annotations; Android ICU character boundaries
+keep emoji sequences, flags and combining marks intact. The expansion uses a
+separate native Compose link action, and callbacks stay current after recomposition.
+Disabled previews have no expansion link action.
+
+The preview has a 48 dp minimum height when expandable. When an extreme font/width
+combination cannot fit even the control within the requested line count, the
+control wraps instead of becoming inaccessible through clipping. The composer
+thread line is drawn after normal measurement; it no longer requests unsupported
+intrinsic measurements from the width-aware preview.
+
+Verification for this change is recorded below. Continuous outer scrolling for
+expanded composer messages, bubble tails/avatar details, full TalkBack and RTL
+coverage, scrolling performance and physical Mac/Pixel acceptance remain open.
+
+### Verification
+
+- Four existing Markdown JVM cases passed; debug and instrumentation APKs built.
+- The first Android batch passed three preview cases and exposed a real composer
+  failure: its intrinsic-size thread layout was incompatible with the width-aware
+  preview. Replacing that parent layout with a line drawn after measurement fixed
+  the issue. The original failed run (four cases, one failure, 37.602 s) is retained.
+- The corrected batch passed **four cases in 35.677 s** on the existing API 37 /
+  16 KiB AVD (`cmux_api37_16k`, 2,048 MiB). It checked last-line placement,
+  Markdown/link preservation, expansion without triggering row navigation,
+  host-shortened previews, 2x font scale at 90 dp width, updated callbacks,
+  disabled expansion, composed Unicode boundaries, and real composer/reader
+  expansion with complete text, painted pixels, restoration and account clearing.
+- Final preview and expanded-composer screenshots were visually inspected.
+  The quote still uses the previously documented nested 320 dp viewport.
+- Startup produced System UI / Google-service ANRs and a launcher crash before
+  instrumentation. Event logs did not gain new ANR/crash entries during either
+  test run. These environment failures are retained alongside test results.
+- Evidence: `captures/runtime/agent-feed-inline/` (ignored), with build/test logs,
+  screenshots, event logs and exact final APK hashes. Emulator stopped and reaped;
+  Gradle stopped. No new signed APK or physical-host acceptance is claimed.

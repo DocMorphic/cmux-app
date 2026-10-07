@@ -2,6 +2,9 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -14,6 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Constraints
+import android.icu.text.BreakIterator
 import org.commonmark.ext.gfm.strikethrough.Strikethrough
 import org.commonmark.ext.gfm.strikethrough.StrikethroughExtension
 import org.commonmark.node.*
@@ -113,9 +119,17 @@ internal object AgentFeedMarkdown {
 internal fun AgentFeedMarkdownText(markdown: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified,
     lineLimit: Int = Int.MAX_VALUE, monospaced: Boolean = false, fontSize: Int = 14,
     onLayout: ((TextLayoutResult) -> Unit)? = null) {
+    val text = agentFeedAnnotatedText(markdown)
+    Text(text, modifier, color = color, fontSize = fontSize.sp, maxLines = lineLimit,
+        fontFamily = if (monospaced) FontFamily.Monospace else null,
+        overflow = TextOverflow.Ellipsis, onTextLayout = { onLayout?.invoke(it) })
+}
+
+@Composable
+private fun agentFeedAnnotatedText(markdown: String): AnnotatedString {
     val context = LocalContext.current
     val runs = remember(markdown) { AgentFeedMarkdown.parse(markdown) }
-    val text = remember(runs, context) { buildAnnotatedString {
+    return remember(runs, context) { buildAnnotatedString {
         runs.forEach { run ->
             val style = run.style
             val index = pushStyle(SpanStyle(fontWeight = FontWeight.Bold.takeIf { style.bold },
@@ -133,16 +147,63 @@ internal fun AgentFeedMarkdownText(markdown: String, modifier: Modifier = Modifi
             append(run.text); pop(index)
         }
     } }
-    Text(text, modifier, color = color, fontSize = fontSize.sp, maxLines = lineLimit,
-        fontFamily = if (monospaced) FontFamily.Monospace else null,
-        overflow = TextOverflow.Ellipsis, onTextLayout = { onLayout?.invoke(it) })
+}
+
+/** Cut rendered text, retaining Markdown spans/links and whole Unicode graphemes. */
+internal fun agentFeedCollapsedText(complete: AnnotatedString, visibleEnd: Int,
+    suffix: AnnotatedString, fits: (AnnotatedString) -> Boolean): AnnotatedString {
+    val characters = BreakIterator.getCharacterInstance(java.util.Locale.ROOT).apply { setText(complete.text) }
+    fun boundary(index: Int): Int = if (characters.isBoundary(index)) index else characters.preceding(index)
+    var cut = boundary(visibleEnd.coerceIn(0, complete.length))
+    while (true) {
+        // Trim whole graphemes so a whitespace + combining mark is never split.
+        while (cut > 0) {
+            val previous = characters.preceding(cut)
+            if (!complete.text.substring(previous, cut).all(Char::isWhitespace)) break
+            cut = previous
+        }
+        val candidate = complete.subSequence(0, cut) + suffix
+        if (cut == 0 || fits(candidate)) return candidate
+        // The initial layout already locates the final visible line. Reserving
+        // room for the control requires only a few short backwards probes.
+        cut = boundary((cut - 8).coerceAtLeast(0))
+    }
 }
 
 @Composable
 internal fun AgentFeedInlinePreview(text: String, hasMore: Boolean, lineLimit: Int, enabled: Boolean,
-    onMore: () -> Unit, color: Color = Color.Unspecified, monospaced: Boolean = false, fontSize: Int = 14) {
-    var overflow by remember(text, lineLimit) { mutableStateOf(false) }
-    AgentFeedMarkdownText(text, color = color, lineLimit = lineLimit, monospaced = monospaced, fontSize = fontSize,
-        onLayout = { overflow = it.hasVisualOverflow })
-    if (hasMore || overflow) androidx.compose.material3.TextButton(onClick = onMore, enabled = enabled) { Text("See more") }
+    onMore: () -> Unit, color: Color = Color.Unspecified, monospaced: Boolean = false, fontSize: Int = 14,
+    modifier: Modifier = Modifier) {
+    val complete = agentFeedAnnotatedText(text)
+    val latestMore by rememberUpdatedState(onMore)
+    val linkColor = Color(0xFF76B9FF).let { if (enabled) it else it.copy(alpha = .38f) }
+    val suffix = remember(enabled, linkColor) { buildAnnotatedString {
+        append("… ")
+        if (enabled) pushLink(LinkAnnotation.Clickable("AgentFeedSeeMore",
+            styles = TextLinkStyles(style = SpanStyle(color = linkColor)),
+            linkInteractionListener = { latestMore() }))
+        else pushStyle(SpanStyle(color = linkColor))
+        append("See more")
+        pop()
+    } }
+    val style = LocalTextStyle.current.merge(TextStyle(color = color, fontSize = fontSize.sp,
+        fontFamily = if (monospaced) FontFamily.Monospace else null))
+    val measurer = rememberTextMeasurer(cacheSize = 16)
+    BoxWithConstraints(modifier) {
+        val width = constraints.maxWidth
+        val rendered = remember(complete, suffix, hasMore, lineLimit, width, style, measurer) {
+            val bounds = Constraints(maxWidth = width)
+            fun measure(value: AnnotatedString) = measurer.measure(value, style,
+                constraints = bounds, maxLines = lineLimit.coerceAtLeast(1), overflow = TextOverflow.Clip)
+            val full = measure(complete)
+            val expand = hasMore || full.hasVisualOverflow
+            val collapsed = if (expand) agentFeedCollapsedText(complete,
+                full.getLineEnd(full.lineCount - 1), suffix) { !measure(it).hasVisualOverflow } else complete
+            collapsed to expand
+        }
+        // The expansion link has native link semantics, independently of row
+        // navigation. At extreme font/width combinations let the control wrap
+        // instead of clipping the only way to reach the full message.
+        Text(rendered.first, if (rendered.second) Modifier.heightIn(min = 48.dp) else Modifier, style = style)
+    }
 }
