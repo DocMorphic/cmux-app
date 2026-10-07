@@ -42,6 +42,7 @@ internal val LocalWorkspaceSwipeKey = compositionLocalOf<String?> { null }
 internal fun NativeWorkspaceSwipeActions(
     workspaceId: String, hasUnread: Boolean, canRead: Boolean, canClose: Boolean,
     onRead: (unread: Boolean) -> Unit, onClose: () -> Unit,
+    readLabel: String = "Mark as Read", unreadLabel: String = "Mark as Unread", leadingColor: Color = Color(0xFF007AFF),
     content: @Composable (dismissIfOpen: () -> Boolean, actions: WorkspaceSwipeActions) -> Unit
 ) {
     val fallback = remember { WorkspaceSwipeCoordinator() }
@@ -112,7 +113,7 @@ internal fun NativeWorkspaceSwipeActions(
         if (displayed != 0f) {
             val leading = displayed > 0
             // A button exists only for the exposed side; hidden actions aren't TalkBack targets.
-            Box(Modifier.matchParentSize().background(if (leading) Color(0xFF007AFF) else Color(0xFFFF3B30))) {
+            Box(Modifier.matchParentSize().background(if (leading) leadingColor else Color(0xFFFF3B30))) {
                 Box(Modifier.align(if (leading) Alignment.CenterStart else Alignment.CenterEnd)
                     .width(104.dp).fillMaxHeight()
                     .testTag("workspace.swipe.action:$workspaceId")
@@ -123,7 +124,7 @@ internal fun NativeWorkspaceSwipeActions(
                             else if (!leading && shownActions.canClose && latestCanClose) latestClose()
                         }
                     }.padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                    Text(if (leading) if (shownActions.hasUnread) "Mark as Read" else "Mark as Unread" else "Delete",
+                    Text(if (leading) if (shownActions.hasUnread) readLabel else unreadLabel else "Delete",
                         color = Color.White, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }

@@ -197,6 +197,8 @@ dependencies {
     implementation("androidx.core:core:1.12.0")
     implementation("androidx.collection:collection:1.5.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.commonmark:commonmark:0.30.0")
+    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.30.0")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("com.google.firebase:firebase-messaging:25.0.1")
     // FCM resolves 1.1.7, whose arm64 counter library has a 4 KiB RELRO end.

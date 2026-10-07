@@ -64,7 +64,7 @@ class NativeAgentFeedRuntimeTest {
             } } }
             awaitMethod("feed.list")
             tab("Feed").performClick()
-            compose.onNodeWithText("Permission needed").assertIsDisplayed()
+            compose.onNodeWithText("asked to use Read").assertIsDisplayed()
             val folder = File(context.getExternalFilesDir(null), "agent-feed").apply { mkdirs() }
             UiDevice.getInstance(instrumentation).takeScreenshot(File(folder, "timeline.png"))
             search("Pick a color")
@@ -84,12 +84,13 @@ class NativeAgentFeedRuntimeTest {
             compose.onNodeWithText("Send").performClick(); awaitMethod("mobile.terminal.paste")
             val paste = peer.requests.last { it.optString("method") == "mobile.terminal.paste" }.getJSONObject("params")
             assertEquals("stop", paste.getString("feed_event_id")); assertEquals("terminal-1", paste.getString("surface_id"))
-            compose.waitUntil(10_000) { compose.onAllNodesWithText("You replied: Run the next task").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Run the next task").fetchSemanticsNodes().isNotEmpty() }
             tab("Notifications").performClick()
-            compose.onNodeWithText("Finished report").assertDoesNotExist()
+            compose.onNodeWithText("Report ready").assertDoesNotExist()
             tab("Feed").performClick()
-            compose.onNodeWithText("Finished report").assertIsDisplayed()
-            compose.onNodeWithText("Open tab").performScrollTo().performClick(); awaitMethod("mobile.terminal.replay")
+            compose.onNodeWithText("Report ready").assertIsDisplayed()
+            compose.onNodeWithTag("AgentFeedRow:stop").performTouchInput { longClick() }
+            compose.onNodeWithText("Open tab").performClick(); awaitMethod("mobile.terminal.replay")
             assertEquals("workspace-1", peer.requests.last { it.optString("method") == "mobile.terminal.replay" }.getJSONObject("params").getString("workspace_id"))
         } finally {
             compose.activity.finish(); peer.close(); store.clear()

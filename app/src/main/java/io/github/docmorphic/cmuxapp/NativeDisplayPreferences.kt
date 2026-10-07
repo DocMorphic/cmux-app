@@ -28,6 +28,8 @@ internal data class NativeDisplayPreferences(
     val showAltScreenNotice: Boolean = true,
     val useFullTerminalHeight: Boolean = false,
     val hapticFeedbackEnabled: Boolean = true,
+    val feedShowsTab: Boolean = false,
+    val feedBubbleQuotes: Boolean = BuildConfig.DEBUG,
 ) {
     companion object {
         const val wrapKey = "wrap-workspace-titles"
@@ -36,6 +38,8 @@ internal data class NativeDisplayPreferences(
         const val altScreenNoticeKey = "show-alt-screen-notice"
         const val fullTerminalHeightKey = "use-full-terminal-height"
         const val hapticsKey = "haptic-feedback-enabled"
+        const val feedTabKey = "show-tab-in-feed"
+        const val feedBubblesKey = "feed-quote-bubbles"
         fun read(preferences: SharedPreferences): NativeDisplayPreferences {
             val stored = preferences.all
             return NativeDisplayPreferences(
@@ -45,6 +49,8 @@ internal data class NativeDisplayPreferences(
                 stored[altScreenNoticeKey] as? Boolean ?: true,
                 stored[fullTerminalHeightKey] as? Boolean ?: false,
                 stored[hapticsKey] as? Boolean ?: true,
+                stored[feedTabKey] as? Boolean ?: false,
+                BuildConfig.DEBUG && (stored[feedBubblesKey] as? Boolean ?: true),
             )
         }
     }
@@ -77,6 +83,16 @@ internal fun NativeDisplaySettings(preferences: SharedPreferences, state: Native
         DisplayChoice("Preview Lines", if (state.previewLines == 1) "1 Line" else "2 Lines", "settings.preview-lines",
             listOf(1 to "1 Line", 2 to "2 Lines")) {
             preferences.edit().putInt(NativeDisplayPreferences.previewKey, it).apply()
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Show Tab in Feed", Modifier.weight(1f))
+            Switch(state.feedShowsTab, onCheckedChange = { preferences.edit().putBoolean(NativeDisplayPreferences.feedTabKey, it).apply() },
+                modifier = Modifier.testTag("settings.feed-tab").semantics { contentDescription = "Show Tab in Feed" })
+        }
+        if (BuildConfig.DEBUG) Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Feed Quote Bubbles", Modifier.weight(1f))
+            Switch(state.feedBubbleQuotes, onCheckedChange = { preferences.edit().putBoolean(NativeDisplayPreferences.feedBubblesKey, it).apply() },
+                modifier = Modifier.testTag("settings.feed-bubbles").semantics { contentDescription = "Feed Quote Bubbles" })
         }
         val numbers = NumberFormat.getIntegerInstance()
         DisplayChoice("Terminal Scrollback", "${numbers.format(state.scrollbackRows)} Rows", "settings.scrollback",

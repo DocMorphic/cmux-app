@@ -617,3 +617,12 @@ browser includes WireGuard.txt and Apache-2.0.txt. Source/artifact provenance an
 linked module versions are recorded in third_party/wireguard/inventory.json.
 NativeCloudVpnPlatform/Service/Runtime/Control provide Android lifecycle, consent,
 notifications and account integration around that library.
+
+Agent Feed row presentation, visibility, tool/plan extraction, resolution labels,
+relative time, quote treatment and swipe semantics follow AgentFeedRowModel.swift,
+AgentFeedRow.swift, AgentFeedView.swift and MobileRelativeActivity.swift in cmux at
+186cec79781256867ad4516f0802118738bd2393. Copyright Manaflow, Inc.; GPL-3.0-or-later.
+Android renders inline Markdown as native Compose attributed text using
+commonmark-java and its GFM strikethrough extension 0.30.0 (BSD-2-Clause).
+The upstream license is bundled in assets/licenses/CommonMark.txt and listed in
+the in-app licenses dialog. No remote images or HTML are executed by this renderer.

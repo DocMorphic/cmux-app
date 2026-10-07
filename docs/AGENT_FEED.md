@@ -56,13 +56,12 @@ it did **not** implement the distinct agent workstream Feed.
 
 ## Acceptance still required
 
-This implementation is not a declaration of full iOS Feed parity. Follow-up work
-must cover the specialized iOS inline Markdown/decision/todo presentations, exact
-headline/output extraction and empty-content rules, swipe triage, display settings
-for quote bubbles and tab labels, multi-question paging, full-text and composer
+This implementation is not a declaration of full iOS Feed parity. The row
+presentation follow-up below adds native inline Markdown, source-specific content,
+swipe triage and Display settings. Remaining work includes exact inline See-more
+and bubble-tail geometry, inline question paging, full-text and composer
 recreation, accessibility/large-text layout, and routed browser/sidebar Feed
-navigation. The main tab currently uses a compact text excerpt with the formatted
-full-message reader; it is not the finished iOS inline presentation.
+navigation. The changed rows still require Android runtime/visual verification.
 
 Physical Mac/Pixel acceptance remains open for every decision family, terminal
 reply outcomes, events during reconnect, revoked account/team scope and Mac-build
@@ -100,3 +99,52 @@ source audit, signed delivery and other project completion gates remain open.
   Test APK: `03246041b32d237b46a9cf37f435d2542d87110633591012de9ac0f076f935af`.
   Gradle stopped before the runtime check; emulator stopped and reaped afterward.
   No signed APK was published and no physical device was available to ADB.
+
+## Row presentation follow-up — 2026-10-07
+
+The next source batch replaces the generic title/body fallback with the iOS
+presentation rules: source-normalized author names, no redundant finished-turn
+headline, workspace/cwd and optional tab, compact relative times, question preview
+suppression, kind-specific output and quote selection, readable tool payloads,
+old/double-encoded plan extraction, friendly decisions and reply-reference snippets.
+Empty non-notable rows do not mount; todo activity follows iOS's checklist-update
+headline (the source does not provide editable checklist controls in this row).
+Tool/plan JSON envelopes are not shown as raw transport data. Truncated snippets
+retain complete grapheme clusters using the existing task text helper.
+
+Rows now have the existing agent-brand avatars, leading unread dots, a 40 dp avatar
+gutter, three-line quote treatment, eight-line output and two-line tool previews.
+Leading swipes use Done / Needs Input, retaining the existing full-swipe, RTL,
+single-open-row and viewport-hold behavior. Explicit context-menu/TalkBack actions
+provide triage and destination navigation. The Done action only changes local
+triage, leaving a pending approval actionable. Destination actions move into the
+row tap/context menu instead of a repeated action bar on every event.
+
+`Show Tab in Feed` is a persistent Display preference, default off as on iOS.
+Quote bubbles follow the audited iOS debug option: editable/default-on in debug,
+absent/default-off in production; production uses the leading quote bar. Exact
+bubble-tail geometry and inline See-more placement still require visual refinement.
+
+Inline Markdown uses [commonmark-java 0.30.0](https://github.com/commonmark/commonmark-java/tree/commonmark-parent-0.30.0)
+with its strikethrough extension and an inline-only block adapter. Paragraph breaks,
+block markers and outer whitespace are preserved while emphasis, strong emphasis,
+code, escapes/entities, strike and links become native text runs. It does not create
+WebViews per row, fetch images, or execute HTML. Link activation uses the same
+http/https/mailto/tel policy as the existing full document viewer. A bounded 512-entry
+cache serves repeated row text. The upstream Android test project targets API19
+with AGP bytecode backports; this project's minSdk remains 26. No broad platform
+compatibility claim is made from compilation alone.
+
+These refinements have their own verification scope. The earlier 108.102 s emulator
+receipt proves the preceding row implementation, not this changed presentation.
+
+
+Verification for this follow-up: **30 focused JVM cases passed** (Feed model,
+projection, Markdown, presentation, routed Display and shared swipe policies),
+and `compileDebugAndroidTestKotlin` succeeded. The Markdown regression caught
+blank-line/indentation normalization in CommonMark's document parser; the adapter
+now gives the inline parser original lines through one synthetic block, with
+explicit space/tab runs. Tests retain authored trailing spaces and formatting
+across blank lines. Logs, including earlier failures, and passing XML receipts are
+in `captures/runtime/agent-feed-presentation/`. No APK assembly, emulator or Pixel
+run was performed for this batch; the new row layout remains visually unverified.

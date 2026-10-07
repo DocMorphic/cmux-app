@@ -6511,3 +6511,18 @@ with the same APKs after an initial app-binding startup ANR. No new ANR/crash
 events occurred in the passing attempt. Screenshot and both attempts are retained
 in `captures/runtime/agent-feed/`; limitations and APK hashes are in AGENT_FEED.md.
 The sole AVD was stopped/reaped and no signed release was produced.
+
+
+## 2026-10-07 — Agent Feed row presentation
+
+Source-specific author/headline/output/quote/tool/decision projection, grapheme
+snippets, compact timestamps, agent avatars, native inline Markdown, Done / Needs
+Input swipes, context/accessibility navigation and persistent Feed Display options
+are implemented against the same scoped iOS candidate. See [AGENT_FEED.md](AGENT_FEED.md)
+for details and remaining geometry, question paging, lifecycle and physical gates.
+
+30 focused JVM cases passed and Android instrumentation sources compiled. The
+new whitespace regression found document-parser normalization; the corrected
+inline adapter preserves blank lines, indentation and trailing spaces. No APK,
+emulator or Pixel run in this batch. Earlier Feed screenshots do not verify these
+new rows. Global upstream pins and last signed release remain unchanged.
