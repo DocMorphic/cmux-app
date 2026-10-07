@@ -28,6 +28,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- SSH/Cloud direct clipboard and IME image paste now return held history to the
+  prompt, alongside typing and composer submission. Staging, raw mouse/wheel
+  packets, rejected/retired input and late acknowledgements after a newer scroll
+  preserve the viewport. **12 input and two screen Android checks passed**;
+  see `TERMINAL_PIXEL_SCROLL.md` for scope, corrected test assertions and initial
+  emulator boot ANRs. No physical-device run or signed release.
+
 - SSH/Cloud history now holds a native tracked content reference while output
   grows or earlier rows are pruned, preserving the fractional position. Latest,
   reflow, screen changes, expired content and emulator replacement release it.

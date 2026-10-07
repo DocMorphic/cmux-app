@@ -71,8 +71,20 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     val scope = rememberCoroutineScope()
     val attachmentFiles = remember(context) { AttachmentFiles(context) }
     val available by rememberUpdatedState(shell.acceptsUserInput(state.phase) && !reconnecting)
+    val display = shell.display
+    val motion = rememberTerminalScrollMotion(shell.id, display)
+    // Output has its own revision. Local gestures invalidate the same native
+    // content anchor, even when output has moved it since the previous gesture.
+    var scrollRevision by remember(shell) { mutableIntStateOf(0) }
+    fun scrollTo(position: Double): Double {
+        val result = shell.display.holdScrollback(position)
+        scrollRevision++
+        return result
+    }
+    val revealInput by rememberUpdatedState<() -> Unit>({ motion.stop(); scrollTo(0.0) })
     val input = remember(shell, composer) {
-        SshTerminalInput(shell, composer, scope, { available }) { uri -> attachmentFiles.prepare(uri, image = true) }
+        SshTerminalInput(shell, composer, scope, { available }, onUserInput = { revealInput() },
+            inputGeneration = { scrollRevision }) { uri -> attachmentFiles.prepare(uri, image = true) }
     }
     val inputStatus by input.queue.status.collectAsState()
     val pasteMessage by input.message.collectAsState()
@@ -88,7 +100,6 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     var message by remember { mutableStateOf<String?>(null) }
     val hardware = remember(shell.id) { TerminalHardwareInput() }
     val focus = remember { FocusRequester() }
-    val display = shell.display
     val canInput = available && inputStatus.error == null && !inputStatus.closed
     val dictation = rememberComposerDictation(composer, enabled = canInput && !direct && !preparing && draft.operation == null,
         readText = { composer.current.text }, writeText = { composer.edit(it) }, isCurrent = composer::isActive)
@@ -99,21 +110,12 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     } }
     val interactions = remember(orderedTerminal) { SshTerminalInteraction(orderedTerminal) }
     val localScroll = interactions.ownsLocalScrollback()
-    // Output has its own revision. Local gestures invalidate the same native
-    // content anchor, even when output has moved it since the previous gesture.
-    var scrollRevision by remember(shell) { mutableIntStateOf(0) }
     val scroll = remember(display, state.revision, scrollRevision, localScroll) {
         if (localScroll) display.scrollbackPosition() else 0.0
-    }
-    fun scrollTo(position: Double): Double {
-        val result = shell.display.holdScrollback(position)
-        scrollRevision++
-        return result
     }
     // Focus is a current lifecycle signal, not deferred typing. Focus-out must
     // reach the provider even when a disposed view cancels a pending paste.
     ObserveSshTerminalFocus(remember(shell) { SshTerminalInteraction(shell) }, available)
-    val motion = rememberTerminalScrollMotion(shell.id, display)
     LaunchedEffect(shell, display, display.columns, display.rows, display.activeScreen, localScroll) {
         motion.stop(); scrollTo(0.0)
     }
@@ -124,7 +126,6 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     }
     fun write(text: String, paste: Boolean = false): Boolean {
         if (!canInput) return false
-        motion.stop(); scrollTo(0.0)
         return input.send(text, paste)
     }
     fun key(event: android.view.KeyEvent): Boolean {
@@ -289,7 +290,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                     onContent = { input.paste(it, direct = false) }, onError = { message = it }) { pasteModifier ->
                     TerminalComposerField(draft.text, { if (!dictationState.locksField) composer.edit(it) },
                         onSend = {
-                            dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); scrollTo(0.0)
+                            dictation.cancel(); rawKeyboard?.finishComposition()
                             composerFocus.request(); input.submit()
                         }, canSend = canInput && !preparing && draft.operation == null && (draft.text.isNotEmpty() || draft.attachments.isNotEmpty()),
                         sending = draft.operation != null, failed = draft.error != null,

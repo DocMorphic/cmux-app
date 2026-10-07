@@ -16,8 +16,11 @@ class SshTerminalInputTest {
         override val state = MutableStateFlow(SshShellState(SshShellPhase.RUNNING))
         override val display = GhosttyVtTerminal(80, 24)
         val writes = mutableListOf<ByteArray>()
+        var accept = true
+        var acknowledgement: CompletableDeferred<Unit>? = null
+        override suspend fun submitText(text: String): Boolean { acknowledgement?.await(); return send(text) }
         override fun send(text: String, paste: Boolean) = sendBytes((if (paste) TerminalKeyEncoding.paste(text, display.bracketedPaste) else text).toByteArray())
-        override fun sendBytes(bytes: ByteArray): Boolean { writes += bytes.copyOf(); return true }
+        override fun sendBytes(bytes: ByteArray): Boolean { if (!accept) return false; writes += bytes.copyOf(); return true }
         override fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics) {}
         override fun close() { state.value = state.value.copy(phase = SshShellPhase.ENDED); display.close() }
     }
@@ -25,6 +28,73 @@ class SshTerminalInputTest {
         listOf(TerminalPasteContent.Item.Attachment(Uri.parse("content://fixture/image.png"), true)), release)
     private fun prepared(value: Int = 7) = AttachmentFiles.Prepared(
         ComposerAttachment(name = "image.png", size = 2, imageFormat = "png"), byteArrayOf(value.toByte(), 9))
+
+    @Test fun onlyAcceptedUserTextAndImagePathsRevealThePrompt() = runBlocking {
+        withContext(Dispatchers.Main) {
+            val pool = SshComposerPool(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            val terminal = Terminal(pool) { _, _ -> "/image.png" }; var reveals = 0
+            val input = SshTerminalInput(terminal, terminal.composer, scope, { true },
+                onUserInput = { reveals++ }) { prepared() }
+            fun text(value: String) = TerminalPasteContent(listOf(TerminalPasteContent.Item.Text(value)))
+            try {
+                assertTrue(input.sendBytes(byteArrayOf(27, 91, 65))); input.queue.awaitIdle()
+                assertEquals(0, reveals)
+                assertTrue(input.paste(text("draft"), false)); input.queue.awaitIdle()
+                assertTrue(input.paste(content(), false)); input.queue.awaitIdle()
+                assertEquals(0, reveals)
+                assertTrue(input.submit()); input.queue.awaitIdle()
+                assertEquals(2, reveals) // Uploaded path, then submitted text.
+                assertTrue(input.paste(text("clipboard"), true)); input.queue.awaitIdle()
+                assertTrue(input.paste(content(), true)); input.queue.awaitIdle()
+                assertTrue(input.send("typed")); input.queue.awaitIdle()
+                assertEquals(5, reveals)
+                assertTrue(input.paste(text(""), true)); input.queue.awaitIdle()
+                assertEquals(5, reveals)
+                terminal.accept = false
+                assertTrue(input.send("rejected"))
+                withTimeout(3000) { while (input.queue.status.value.error == null) yield() }
+                assertEquals(5, reveals); assertNotNull(input.queue.status.value.error)
+            } finally { input.close(); terminal.close(); pool.close(); scope.cancel() }
+        }
+    }
+
+    @Test fun delayedSubmissionAcknowledgementPreservesNewerScroll() = runBlocking {
+        withContext(Dispatchers.Main) {
+            val pool = SshComposerPool(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            val terminal = Terminal(pool) { _, _ -> "/image.png" }
+            var generation = 0; var reveals = 0
+            val input = SshTerminalInput(terminal, terminal.composer, scope, { true },
+                onUserInput = { reveals++ }, inputGeneration = { generation }) { prepared() }
+            try {
+                terminal.acknowledgement = CompletableDeferred()
+                terminal.composer.edit("waiting")
+                assertTrue(input.submit()); yield()
+                generation++
+                terminal.acknowledgement!!.complete(Unit); input.queue.awaitIdle()
+                assertEquals(0, reveals)
+                assertEquals(listOf("waiting\r"), terminal.writes.map { it.decodeToString() })
+                assertTrue(input.send("new typing")); input.queue.awaitIdle()
+                assertEquals(1, reveals)
+            } finally { input.close(); terminal.close(); pool.close(); scope.cancel() }
+        }
+    }
+
+    @Test fun retiredUploadCannotRevealAnotherViewsPrompt() = runBlocking {
+        withContext(Dispatchers.Main) {
+            val pool = SshComposerPool(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            val uploading = CompletableDeferred<Unit>(); var current = true; var reveals = 0
+            val terminal = Terminal(pool) { _, _ -> uploading.await(); "/image.png" }
+            val input = SshTerminalInput(terminal, terminal.composer, scope, { current },
+                onUserInput = { reveals++ }) { prepared() }
+            try {
+                assertTrue(input.paste(content(), true)); yield()
+                assertEquals(0, reveals)
+                current = false; uploading.complete(Unit)
+                withTimeout(3000) { while (input.queue.status.value.error == null) yield() }
+                assertEquals(0, reveals); assertTrue(terminal.writes.isEmpty())
+            } finally { input.close(); terminal.close(); pool.close(); scope.cancel() }
+        }
+    }
 
     @Test fun composerSkipsUnreadableMiddleImageAndUploadsReadableImagesInOrder() = runBlocking {
         withContext(Dispatchers.Main) {

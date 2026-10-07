@@ -161,3 +161,35 @@ original failure logs are in ignored `captures/runtime/terminal-content-anchor/`
 Physical SSH/Cloud sessions and replay continuity remain open; replacing an
 emulator intentionally starts at live output. No signed release; APK 616 remains
 the last published release.
+
+
+## SSH/Cloud input reveals the prompt — 2026-10-07
+
+Compared `GhosttySurfaceView.handleUserProducedInput` and its scroll-generation
+fence at cmux `b9c0111a67bf8daadc2e87bff402254bfd9a26fd`. This scoped comparison
+does not advance the global parity pin. The iOS surface returns to live output
+for explicit typing/paste and cancels deceleration.
+
+Android now handles this in the shared SSH/Cloud input lane: accepted keyboard
+text, direct clipboard text, uploaded image paths and submitted composer text
+release held history and stop motion. Empty input, attachment/text staging,
+rejected delivery, retired views and mouse/wheel packets do not reveal the
+prompt. A delayed Cloud submission acknowledgement cannot override a newer
+local scroll. The screen callback uses the current display/motion after replacement.
+
+Verification: both APKs built; **12 input Android checks passed in 0.554 s**,
+including upload ordering, rejection/retirement and delayed acknowledgement.
+**Two screen checks passed** in the preceding 14-case run: direct clipboard and
+IME image paste return held history to live output; composer staging preserves
+history until Send. That initial run failed two new lower-level test assertions
+because they awaited successful queue completion after deliberately causing a
+queue error. Corrected tests wait for the expected failure state before checking
+that no reveal/input occurred; production code did not change after that run.
+
+The first emulator boot, concurrent with compilation, logged system-service
+ANRs before app testing. It was stopped and restarted after Gradle stopped;
+that boot completed in 18.443 s and the test run logged no crash/ANR events.
+Only the existing API37 AVD (1536 MiB, two cores) was used. Logs, including failed
+attempts, are retained in ignored `captures/runtime/input-follow-prompt/`.
+No physical-device acceptance or signed release is claimed; APK 616 remains
+the published release.

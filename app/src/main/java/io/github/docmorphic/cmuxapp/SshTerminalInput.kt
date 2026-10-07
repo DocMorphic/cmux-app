@@ -14,6 +14,8 @@ internal class SshTerminalInput(
     private val composer: SshComposerPool.Draft,
     scope: CoroutineScope,
     private val current: () -> Boolean,
+    private val onUserInput: () -> Unit = {},
+    private val inputGeneration: () -> Int = { 0 },
     private val prepare: suspend (android.net.Uri) -> AttachmentFiles.Prepared,
 ) : AutoCloseable {
     private val upload = terminal.imageUpload
@@ -24,8 +26,13 @@ internal class SshTerminalInput(
     val queue = TerminalInputQueue(scope) { entry ->
         guard()
         check(entry.rawBytes?.let(terminal::sendBytes) ?: terminal.send(entry.text, entry.paste))
+        // Mouse/wheel packets share ordering, but must not cancel a running fling.
+        if (entry.rawBytes == null && entry.text.isNotEmpty()) revealInput()
     }
     private fun allowed() = !closed && current() && composer.isActive() && terminal.acceptsUserInput()
+    private fun revealInput(generation: Int = inputGeneration()) {
+        if (allowed() && generation == inputGeneration()) onUserInput()
+    }
     private fun guard() { check(allowed()) { "The paste target changed. Paste again in the intended terminal." } }
     private fun report(error: Exception) {
         failure.value = when (error) {
@@ -60,8 +67,10 @@ internal class SshTerminalInput(
                 for (item in content.items) {
                     guard()
                     when (item) {
-                        is TerminalPasteContent.Item.Text -> if (direct) check(terminal.send(item.value, paste = true))
-                            else composer.edit(composer.current.text + item.value)
+                        is TerminalPasteContent.Item.Text -> if (direct) {
+                            check(terminal.send(item.value, paste = true))
+                            if (item.value.isNotEmpty()) revealInput()
+                        } else composer.edit(composer.current.text + item.value)
                         is TerminalPasteContent.Item.Attachment -> {
                             if (!item.image) {
                                 failure.value = "This SSH composer accepts images only. Add documents using Files."
@@ -96,6 +105,7 @@ internal class SshTerminalInput(
         val path = checkNotNull(upload) { "Image paste is unavailable" }(bytes, format)
         guard()
         check(terminal.send(SshFilePaths.shellWord(path) + if (separate) " " else "")) { "Image path delivery was not confirmed" }
+        revealInput()
     }
 
     fun submit(): Boolean {
@@ -122,8 +132,13 @@ internal class SshTerminalInput(
                 }
                 guard()
                 // Images-only sends never execute a shell command.
-                if (submitted.text.isNotEmpty()) check(terminal.submitText(
-                    TerminalKeyEncoding.paste(submitted.text, terminal.display.bracketedPaste) + "\r"))
+                if (submitted.text.isNotEmpty()) {
+                    // A Cloud acknowledgement must not undo a newer local scroll.
+                    val generation = inputGeneration()
+                    check(terminal.submitText(
+                        TerminalKeyEncoding.paste(submitted.text, terminal.display.bracketedPaste) + "\r"))
+                    revealInput(generation)
+                }
                 completed = true
             } catch (error: Exception) {
                 if (error !is CancellationException) failure.value = "Could not send the draft. Check the terminal before sending again."

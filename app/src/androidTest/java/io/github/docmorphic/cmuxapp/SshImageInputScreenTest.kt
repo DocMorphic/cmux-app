@@ -88,6 +88,67 @@ class SshImageInputScreenTest {
         }
     }
 
+    private fun holdHistory() {
+        compose.runOnIdle {
+            terminal.display.append((1..150).joinToString("\r\n") { "History row $it" }.toByteArray())
+            terminal.display.holdScrollback(12.5)
+            terminal.state.value = terminal.state.value.copy(revision = terminal.state.value.revision + 1)
+        }
+        compose.onNodeWithText("Latest").assertIsDisplayed()
+    }
+
+    @Test fun directClipboardAndImeImageReturnHeldHistoryToPrompt() {
+        val clipboard = compose.activity.getSystemService(ClipboardManager::class.java)
+        val previous = clipboard.primaryClip
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().imePadding()) {
+                SshShellScreen(terminal, onBack = {})
+            } } }
+            compose.onNodeWithText("Keyboard").performClick()
+            compose.waitUntil(10_000) {
+                androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                    ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+            }
+            holdHistory()
+            compose.runOnIdle { clipboard.setPrimaryClip(ClipData.newPlainText("Fixture", "clipboard text")) }
+            compose.onNodeWithContentDescription("Paste").performScrollTo().performClick()
+            compose.waitUntil(5000) { terminal.writes.isNotEmpty() }
+            compose.onNodeWithText("Latest").assertDoesNotExist()
+            holdHistory()
+            compose.runOnIdle {
+                terminal.release = CompletableDeferred()
+                val view = checkNotNull(keyboard(compose.activity.window.decorView))
+                assertTrue(checkNotNull(view.onCreateInputConnection(EditorInfo())).commitContent(image(), 0, null))
+            }
+            compose.waitUntil(10_000) { terminal.images.size == 1 }
+            compose.onNodeWithText("Latest").assertIsDisplayed()
+            compose.runOnIdle { terminal.release!!.complete(Unit) }
+            compose.waitUntil(10_000) { terminal.writes.size == 2 }
+            compose.onNodeWithText("Latest").assertDoesNotExist()
+            compose.runOnIdle {
+                assertEquals(0.0, terminal.display.scrollbackPosition(), 0.0)
+                assertEquals(listOf("clipboard text", "'/fixture/image.png'"), terminal.writes.map { it.decodeToString() })
+            }
+        } finally { compose.runOnIdle { previous?.let(clipboard::setPrimaryClip) ?: clipboard.clearPrimaryClip() } }
+    }
+
+    @Test fun stagingKeepsHistoryUntilComposerSends() {
+        val clipboard = compose.activity.getSystemService(ClipboardManager::class.java)
+        val previous = clipboard.primaryClip
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { SshShellScreen(terminal, onBack = {}) } } }
+            holdHistory()
+            compose.runOnIdle { clipboard.setPrimaryClip(ClipData.newPlainText("Fixture", "draft text")) }
+            compose.onNodeWithContentDescription("Paste").performScrollTo().performClick()
+            compose.waitUntil(5000) { terminal.composer.current.text == "draft text" }
+            compose.onNodeWithText("Latest").assertIsDisplayed()
+            compose.runOnIdle { assertTrue(terminal.writes.isEmpty()) }
+            compose.onNodeWithTag("ssh.shell.send").performClick()
+            compose.waitUntil(5000) { terminal.writes.isNotEmpty() }
+            compose.onNodeWithText("Latest").assertDoesNotExist()
+        } finally { compose.runOnIdle { previous?.let(clipboard::setPrimaryClip) ?: clipboard.clearPrimaryClip() } }
+    }
+
     @Test fun attachmentMenuConsumesOnlyImagesAndNeverExecutesClipboardText() {
         val clipboard = compose.activity.getSystemService(ClipboardManager::class.java)
         val previous = clipboard.primaryClip
