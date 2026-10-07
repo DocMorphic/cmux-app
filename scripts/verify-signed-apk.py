@@ -25,22 +25,34 @@ def verify_debug_fixture_exclusion(source, apk_manifest):
         raise ValueError("Debug manifest has no application")
     names = []
     for component in application:
-        if component.tag not in ("activity", "activity-alias"):
+        if component.tag not in ("activity", "activity-alias", "provider", "service", "receiver"):
             continue
         name = component.get("{http://schemas.android.com/apk/res/android}name")
         if not name or name != name.strip() or "${" in name:
-            raise ValueError("Debug activity has an unresolved name")
+            raise ValueError("Debug component has an unresolved name")
         if name.startswith("."):
             name = "io.github.docmorphic.cmuxapp" + name
         elif "." not in name:
             name = "io.github.docmorphic.cmuxapp." + name
         names.append(name)
     if not names or len(set(names)) != len(names):
-        raise ValueError("Debug activity inventory is empty or duplicated")
+        raise ValueError("Debug component inventory is empty or duplicated")
     leaked = [name for name in names if name in apk_manifest]
     if leaked:
         raise ValueError("Debug fixture exclusion failed: " + ", ".join(leaked))
     return names
+
+
+def verify_packaged_viewer_assets(assets_root, archive):
+    checked = 0
+    for directory in ("raw-code", "markdown-viewer", "docx-viewer", "workbook-viewer"):
+        files = json.loads((assets_root / directory / "manifest.json").read_text(encoding="utf-8"))["files"]
+        entries = files.items() if isinstance(files, dict) else ((x["asset"], x["sha256"]) for x in files)
+        for name, expected in entries:
+            if hashlib.sha256(archive.read(f"assets/{directory}/{name}")).hexdigest() != expected:
+                raise ValueError(f"Packaged viewer asset mismatch: {directory}/{name}")
+            checked += 1
+    return checked
 
 
 def main():
@@ -91,19 +103,12 @@ def main():
     require("io.github.docmorphic.cmuxapp.CmuxApplication" in manifest, "Diagnostics Application missing")
     require(not re.search(r"android:debuggable[^\n]*=\(type 0x12\)0xffffffff", manifest), "APK is debuggable")
     fixtures = verify_debug_fixture_exclusion((root / "app/src/debug/AndroidManifest.xml").read_text(), manifest)
-    checked = 0
     with zipfile.ZipFile(apk) as archive:
-        for directory in ("raw-code", "markdown-viewer"):
-            files = json.loads((root / "app/src/main/assets" / directory / "manifest.json").read_text())["files"]
-            entries = files.items() if isinstance(files, dict) else ((x["asset"], x["sha256"]) for x in files)
-            for name, expected in entries:
-                require(hashlib.sha256(archive.read(f"assets/{directory}/{name}")).hexdigest() == expected,
-                    f"Packaged viewer asset mismatch: {directory}/{name}")
-                checked += 1
-    require(checked == 14, "Expected fourteen pinned viewer assets")
+        checked = verify_packaged_viewer_assets(root / "app/src/main/assets", archive)
+    require(checked == 17, "Expected seventeen pinned viewer assets")
     receipt = {"version": args.version, "sha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
         "bytes": apk.stat().st_size, "signer": SIGNER, "viewer_assets": checked,
-        "native_libraries": 19, "debug_fixture_activities_excluded": len(fixtures)}
+        "native_libraries": 19, "debug_fixture_components_excluded": len(fixtures)}
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(receipt, indent=2))
 

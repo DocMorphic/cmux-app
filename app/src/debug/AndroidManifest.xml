@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <provider android:name=".FileSaveWorkerTestProvider" android:exported="false"
+            android:authorities="${applicationId}.file-save-fixture" android:process=":file_save_provider" />
         <!-- Keep the bare Compose test harness alive while a font-scale change
              recreates the real routed browser and Changes Activities. -->
         <activity android:name="androidx.activity.ComponentActivity" android:configChanges="fontScale" />

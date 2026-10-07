@@ -809,3 +809,31 @@ adb -s emulator-5554 shell am instrument -w -r \
 
 Status code `2` records process-transition evidence; test starts/results still use
 `1`/`0`. Require the final `OK (3 tests)` and inspect all status codes for failures.
+
+
+## Interrupting the actual Save worker process
+
+With the current debug and Android-test APKs installed on the existing emulator,
+run from the repository root:
+
+```sh
+python3 scripts/check-file-save-process.py --serial emulator-5554 --output captures/runtime/file-save-worker-process/new-run
+```
+
+Pass `--adb /absolute/path/to/adb` if needed. This runner deliberately kills the
+debug app's main process after its real worker reaches a generated partial-write
+gate. It refuses physical-device serials/non-emulator system properties and
+requires no pending user saves. Do not run it during another app/device test.
+It preserves account data, checks recovery against the sealed copy, then removes
+only its generated provider bytes and Save receipt. It does not create an AVD,
+build/install an APK, or publish a release.
+
+The interruption stage is expected to report a terminated instrumentation
+process. The JSON marker and the original PID disappearing establish that stage;
+recovery and cleanup must each report a passing test. A timeout leaves the
+on-device phase potentially running: inspect the saved fixture UUID, process and
+logs before retrying. Failures retain evidence and may require the explicitly
+gated `FileSaveWorkerProcessTest#cleanFixture` method with
+`fileSaveWorkerPhase=cleanup` and the same `fileSaveWorkerFixture` UUID, after
+confirming the old phase has ended. Ordinary instrumentation does not invoke the
+intentional kill because the methods require their explicit phase arguments.
