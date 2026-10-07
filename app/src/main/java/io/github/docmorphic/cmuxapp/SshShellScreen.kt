@@ -13,6 +13,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -84,7 +85,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             uris.map { TerminalPasteContent.Item.Attachment(it, true) }), direct = false)
     }
     var snapshot by remember { mutableStateOf<TerminalTextSnapshot?>(null) }
-    var shortcuts by remember { mutableStateOf(false) }
+    var shortcuts by rememberSaveable(shell.id) { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val hardware = remember(shell.id) { TerminalHardwareInput() }
     val focus = remember { FocusRequester() }

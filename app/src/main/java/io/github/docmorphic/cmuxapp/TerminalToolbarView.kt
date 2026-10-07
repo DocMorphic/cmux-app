@@ -125,8 +125,14 @@ internal fun TerminalToolbarView(layout: TerminalToolbarLayout, modifiers: Termi
 
 @Composable
 internal fun TerminalToolbarSettings(store: TerminalToolbarStore, onDismiss: () -> Unit) {
-    var editing by remember { mutableStateOf<TerminalToolbarAction?>(null) }
-    var adding by remember { mutableStateOf(false) }
+    // Persist the route, not an obsolete copy of a stored action. Field drafts have
+    // their own saved state; deleting an action elsewhere retires its editor.
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var adding by rememberSaveable { mutableStateOf(false) }
+    val editing = store.layout.actions.firstOrNull { it.id == editingId }
+    LaunchedEffect(editingId, editing, store.error) {
+        if (editingId != null && editing == null && store.error == null) editingId = null
+    }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
             Column {
@@ -137,7 +143,7 @@ internal fun TerminalToolbarSettings(store: TerminalToolbarStore, onDismiss: () 
                 Text("Choose buttons to show. Hold and drag a row to reorder it.", Modifier.padding(16.dp))
                 store.error?.let { Text(it, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
                     TextButton(onClick = store::reload) { Text("Retry") } }
-                ToolbarShortcutList(store.layout, store.error == null, Modifier.weight(1f), store::save) { editing = it }
+                ToolbarShortcutList(store.layout, store.error == null, Modifier.weight(1f), store::save) { editingId = it.id }
                 Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     TextButton(onClick = { adding = true }, enabled = store.error == null && store.layout.actions.size < 128) { Text("Add Custom Action") }
                     TextButton(onClick = { store.save(store.layout.reset()) }) { Text("Reset to Defaults") }
@@ -146,8 +152,14 @@ internal fun TerminalToolbarSettings(store: TerminalToolbarStore, onDismiss: () 
         }
     }
     if (adding || editing != null) TerminalToolbarActionEditor(editing,
-        onSave = { store.save(store.layout.save(it)); editing = null; adding = false },
-        onDismiss = { editing = null; adding = false })
+        canSave = store.error == null && (editing != null || store.layout.actions.size < 128),
+        onSave = { action ->
+            val exists = store.layout.actions.any { it.id == action.id }
+            if (store.error == null && (if (adding) store.layout.actions.size < 128 else exists)) {
+                store.save(store.layout.save(action)); editingId = null; adding = false
+            }
+        },
+        onDismiss = { editingId = null; adding = false })
 }
 
 @Composable
@@ -215,16 +227,17 @@ private fun ToolbarShortcutList(layout: TerminalToolbarLayout, enabled: Boolean,
 }
 
 @Composable
-private fun TerminalToolbarActionEditor(existing: TerminalToolbarAction?, onSave: (TerminalToolbarAction) -> Unit, onDismiss: () -> Unit) {
+private fun TerminalToolbarActionEditor(existing: TerminalToolbarAction?, canSave: Boolean, onSave: (TerminalToolbarAction) -> Unit, onDismiss: () -> Unit) {
     var title by rememberSaveable(existing?.id) { mutableStateOf(existing?.title.orEmpty()) }
     var text by rememberSaveable(existing?.id) { mutableStateOf(existing?.text?.removeSuffix("\n").orEmpty()) }
     var run by rememberSaveable(existing?.id) { mutableStateOf(existing?.text?.endsWith("\n") ?: true) }
     val id = rememberSaveable(existing?.id) { existing?.id ?: java.util.UUID.randomUUID().toString() }
     val action = TerminalToolbarAction(id, title.trim(), text + if (run) "\n" else "")
-    val valid = text.isNotEmpty() && runCatching { action.validate() }.isSuccess
+    val valid = canSave && text.isNotEmpty() && runCatching { action.validate() }.isSuccess
     AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Add Action" else "Edit Action") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(title, { title = it }, label = { Text("Button label") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                 modifier = Modifier.testTag("shortcut-action-title"))
             OutlinedTextField(text, { text = it }, label = { Text("Sends") }, minLines = 2, maxLines = 6,
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),

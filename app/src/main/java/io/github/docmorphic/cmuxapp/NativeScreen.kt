@@ -274,6 +274,7 @@ internal fun NativeScreen(
         var permissionOwner by rememberSaveable { mutableStateOf<String?>(null) }
         var permissionForOnboarding by rememberSaveable { mutableStateOf(false) }
         var showSettings by rememberSaveable(signedIn) { mutableStateOf(false) }
+        var showShortcuts by rememberSaveable(signedIn) { mutableStateOf(false) }
         var computersOwner by remember(signedIn) { mutableStateOf<NativeComputerMenuOwner?>(null) }
         LaunchedEffect(showSettings) { if (!showSettings) computersOwner = null }
         var showReconnectList by rememberSaveable(signedIn) { mutableStateOf(false) }
@@ -1024,7 +1025,6 @@ internal fun NativeScreen(
                 }
             }
 
-            var showShortcuts by remember(draftTarget, client) { mutableStateOf(false) }
             if (showShortcuts) TerminalToolbarSettings(toolbarStore) { showShortcuts = false }
             var inputModifiers by remember(draftTarget, client) { mutableStateOf(TerminalInputModifiers()) }
             var directTyping by remember(draftTarget) { mutableStateOf(false) }

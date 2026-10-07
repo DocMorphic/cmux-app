@@ -2,6 +2,51 @@
 
 Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 
+## Custom-action editor restoration — 2026-10-07
+
+Scoped source recheck: `TerminalShortcutsSettingsView.swift` and
+`CustomToolbarActionEditorView.swift` in `Packages/iOS/CmuxMobileShellUI` at
+`186cec79781256867ad4516f0802118738bd2393`. The iOS editor seeds label/text/Return
+separately, trims only the label, removes one trailing LF when seeding, and saves
+only on explicit confirmation. Android already followed those text semantics,
+but its non-saveable add/edit route could disappear even though the draft fields
+had saved state.
+
+Android now saves the editor route and resolves an edited action by its stable ID
+from current storage. The Mac sheet's visibility survives connection replacement
+and saved-state restoration; the shared SSH/Cloud terminal sheet saves visibility
+for its terminal ID. Label autocorrection is disabled as in the source editor.
+Draft text and Run after typing retain their existing saved state. Saving remains
+an explicit settings action and never executes the command.
+
+Deleting an action through another settings owner retires its open editor instead
+of resurrecting a stale copy on Save. A storage decode failure prevents an open
+editor from overwriting the unreadable value. Save also rechecks the current
+custom-action count and edited ID, so stale clicks cannot bypass those conditions.
+The source review is scoped; it does not advance the global parity pin or prove
+all lifecycle, accessibility and physical keyboard workflows.
+
+### Verification for editor restoration
+
+**Seven JVM checks and seven Android cases passed**. The debug/test APK build and
+JVM run took 1m 4s; the Android batch completed in **93.127 seconds** on the sole
+existing API 37 / 16 KiB AVD at 1,536 MiB headless. Four new saved-state cases cover
+new/edited Unicode and multiline drafts, Return choice, explicit save, Cancel,
+retained ID/order/visibility, external deletion and unreadable storage. These use
+Compose's saved-state restoration harness; they do not simulate OS process death
+or prove real Mac/SSH parent navigation restoration.
+
+Both previously compiled toolbar geometry cases now pass: resting trailing-edge
+retention after viewport shrink/custom-action insertion and held-contact deferral.
+The existing full NativeScreen/local RPC workflow also passes drag/hide/reset,
+custom-action creation/editing, and exact modifier-free terminal input. Its two
+screenshots were inspected. Boot and final crash/ANR event logs are empty. Emulator
+and Gradle were stopped; no new virtual device or signed release was created.
+
+Local logs, screenshots, JVM XML and APK hashes are in ignored
+`captures/runtime/toolbar-restoration/`. Pixel/Mac, actual process recovery,
+TalkBack, large-text and broader layout/gesture acceptance remain open.
+
 ## Shortcut-row geometry follow-up — 2026-10-06
 
 Scoped comparison of `TerminalInputTextView.swift`,

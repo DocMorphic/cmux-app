@@ -28,6 +28,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Terminal shortcut editor routes now retain unfinished drafts across saved-state
+  restoration; Mac and SSH/Cloud sheets save visibility. Removed actions cannot
+  be resurrected by stale editors, and unreadable storage blocks their Save.
+  **Seven JVM checks and seven Android cases passed** (93.127 s Android), including
+  the real app's local-RPC macro flow and previously pending toolbar geometry
+  cases. See `TERMINAL_SHORTCUTS.md` for exact restoration scope and remaining
+  physical/process/accessibility gates. Screenshots inspected; no crash/ANR events;
+  emulator/Gradle stopped. No signed release.
+
 - Actual browser Activity recreation now has a passing Feed composer/reader case
   (**one Android test, 59.992 s**): unsent reply and expanded content survive,
   Source mode stays selected, and screenshots show the reader at the same line.

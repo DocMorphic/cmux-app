@@ -650,3 +650,10 @@ TaskComposerFailureBanner.swift and MobileShellComposite+WorkspaceActions.swift
 at cmux revision 186cec79781256867ad4516f0802118738bd2393.
 Copyright Manaflow, Inc.; GPL-3.0-or-later. Android distinguishes persistence,
 upload, refresh and creation failures and uses Compose accessibility live regions.
+
+Terminal shortcut editing and label input behavior were rechecked against
+TerminalShortcutsSettingsView.swift and CustomToolbarActionEditorView.swift in
+Packages/iOS/CmuxMobileShellUI at cmux
+186cec79781256867ad4516f0802118738bd2393. Copyright Manaflow, Inc.;
+GPL-3.0-or-later. Android implements its own saved-state routing and current-store
+validation around that settings workflow.
