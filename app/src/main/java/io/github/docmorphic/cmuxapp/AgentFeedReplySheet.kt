@@ -36,11 +36,12 @@ internal val agentFeedViewportSaver = listSaver<MarkdownViewportState, Any>(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AgentFeedWaitingSheet(onDismiss: () -> Unit, onRefresh: () -> Unit) {
+internal fun AgentFeedWaitingSheet(onDismiss: () -> Unit, onRefresh: () -> Unit, reader: Boolean = false) {
     ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Waiting for this Mac’s Feed", fontWeight = FontWeight.SemiBold)
-            Text("Your draft will reopen when this computer reconnects and the message is available.")
+            Text(if (reader) "This message will reopen when this computer reconnects and the message is available."
+                else "Your draft will reopen when this computer reconnects and the message is available.")
             Row { TextButton(onRefresh) { Text("Retry") }; TextButton(onDismiss) { Text("Cancel") } }
         }
     }

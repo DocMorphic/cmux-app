@@ -660,3 +660,41 @@ builds passed; Gradle and the sole 1,536 MiB emulator were stopped and reaped.
 These are emulator fixtures and Compose saved-state restoration, not a physical
 Pixel/Mac or OS process-death run. Broader rendered/source reflow, accessibility and
 full Feed acceptance remain open.
+
+## Retaining the open modal through snapshot reload — 2026-10-07
+
+The main and browser timelines now retain the open reader/composer's saveable UI
+inside a modal-owned state holder while waiting for its authorized Mac snapshot.
+Previously, the READY-to-WAITING transition disposed the scroll state even though
+the modal target and draft survived. The holder lives across this transition and
+can itself be restored while waiting. Full messages are loaded again, and their
+prior load coroutines are cancelled when the content leaves composition.
+
+Closing the sheet or invalidating its account/target discards the holder. Opening
+the same item later starts a fresh reading/composing session. Existing ownership
+and target checks still decide whether a reloaded snapshot can reopen the modal;
+waiting does not send anything. The waiting message now describes a message for
+readers and a draft for composers.
+
+Verification: debug/test APKs built successfully. The initial nine-case run took
+128.976 seconds: all six existing composer/reader and real socket-RPC Feed cases
+passed, while three new cases failed on test assumptions. The two composer cases
+matched both the timeline and sheet's See more controls; their selectors now scope
+to the composer preview. The reader correctly discarded its selected range on
+close, but Android initialized a collapsed cursor at zero rather than minus one;
+the assertion now checks for no range at the native initial position. No app-code
+change was needed for those three failures.
+
+The corrected **three cases passed in 39.548 seconds**, giving passing evidence
+for all nine distinct scenarios across the runs. They save/restore while WAITING,
+reload full text, restore the expanded quote offset/draft and Source offset/selection,
+verify fresh reopening and account invalidation, and assert no unintended terminal
+paste. The restored composer screenshot was inspected. The waiting-screen screenshot
+was captured during the transition and is retained but does not establish final
+sheet paint; that copy is covered by the displayed-node assertion. Evidence:
+ignored `captures/runtime/feed-reconnect/`. Boot and final ANR/crash logs are empty.
+Gradle and the sole headless 1,536 MiB emulator were stopped/reaped.
+
+These checks simulate snapshot reload in the shared timeline; they do not prove
+actual Pixel/Mac disconnection, OS process death, or this transition through the
+browser IPC. Those broader acceptance gates remain open. No signed APK was published.

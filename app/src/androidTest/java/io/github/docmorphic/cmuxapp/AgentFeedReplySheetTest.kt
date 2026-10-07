@@ -238,6 +238,108 @@ class AgentFeedReplySheetTest {
         }
     }
 
+    @Test fun reconnectRestoresExpandedComposerPositionAndDraftEvenWhenSavedWhileWaiting() {
+        Fixture(listOf(stop)).use { fixture ->
+            val restoration = StateRestorationTester(compose)
+            restoration.setContent { fixture.Content() }
+            compose.onNodeWithText("Reply", useUnmergedTree = true).performClick()
+            compose.onNodeWithTag("AgentFeedComposeDraft").performTextInput("Keep the reconnect draft")
+            compose.onNode(hasContentDescription("See more") and hasAnyAncestor(hasTestTag("AgentFeedComposerPreviewContent")), useUnmergedTree = true).performClick()
+            awaitRenderedQuote()
+            var y = 0
+            compose.runOnUiThread { scroll().scrollTo(0, 1200); y = scroll().scrollY; assertTrue(y > 0) }
+            val loads = fixture.requests.count { it.first == "feed.text" }
+            compose.runOnIdle { fixture.loaded = false }
+            compose.onNodeWithText("Waiting for this Mac’s Feed").assertIsDisplayed()
+            restoration.emulateSavedInstanceStateRestore()
+            compose.runOnIdle { fixture.loaded = true }
+            compose.waitUntil(15_000) {
+                val restored = AtomicBoolean(false)
+                compose.runOnUiThread { restored.set(quote()?.let {
+                    it.isShown && it.text.endsWith("TAIL_MARKER") && scroll().scrollY == y
+                } == true) }
+                restored.get()
+            }
+            assertTrue(fixture.requests.count { it.first == "feed.text" } > loads)
+            capture("reconnected-composer")
+            scrollToDraft()
+            compose.onNodeWithTag("AgentFeedComposeDraft").assertTextContains("Keep the reconnect draft")
+            compose.runOnIdle { assertTrue(fixture.requests.none { it.first == "mobile.terminal.paste" }) }
+            compose.onNodeWithText("Cancel").performClick()
+            compose.onNodeWithText("Reply", useUnmergedTree = true).performClick()
+            compose.onNodeWithTag("AgentFeedComposeDraft").assert(SemanticsMatcher.expectValue(
+                androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+            compose.onNode(hasContentDescription("See more") and hasAnyAncestor(hasTestTag("AgentFeedComposerPreviewContent")), useUnmergedTree = true).assertExists()
+            compose.runOnUiThread { assertFalse(quote()?.isShown == true) }
+        }
+    }
+
+    @Test fun reconnectRestoresReaderSourceSelectionButClosingDiscardsTheReadingSession() {
+        Fixture(listOf(stop)).use { fixture ->
+            val restoration = StateRestorationTester(compose)
+            restoration.setContent { fixture.Content() }
+            fun reader() = WindowInspector.getGlobalWindowViews()
+                .firstNotNullOfOrNull { it.findViewWithTag<AgentFeedSourceScroll>("AgentFeedSourceScroll") }
+            compose.onNodeWithContentDescription("See more").performClick()
+            compose.onNodeWithText("Source").performClick()
+            awaitReaderSource()
+            var y = 0
+            compose.runOnUiThread {
+                val view = checkNotNull(reader())
+                view.scrollTo(0, 1200); y = view.scrollY; assertTrue(y > 0)
+                android.text.Selection.setSelection(view.body.text as android.text.Spannable, 210, 230)
+            }
+            val loads = fixture.requests.count { it.first == "feed.text" }
+            compose.runOnIdle { fixture.loaded = false }
+            compose.onNodeWithText("This message will reopen when this computer reconnects and the message is available.").assertIsDisplayed()
+            capture("waiting-reader")
+            restoration.emulateSavedInstanceStateRestore()
+            compose.runOnIdle { fixture.loaded = true }
+            compose.waitUntil(15_000) {
+                val restored = AtomicBoolean(false)
+                compose.runOnUiThread { restored.set(reader()?.let {
+                    it.body.text.endsWith("TAIL_MARKER") && it.scrollY == y &&
+                        it.body.selectionStart == 210 && it.body.selectionEnd == 230
+                } == true) }
+                restored.get()
+            }
+            assertTrue(fixture.requests.count { it.first == "feed.text" } > loads)
+            compose.onNodeWithText("Done").performClick()
+            compose.onNodeWithContentDescription("See more").performClick()
+            compose.onNodeWithText("Source").performClick()
+            awaitReaderSource()
+            compose.runOnUiThread {
+                val view = reader()!!
+                assertEquals(0, view.scrollY)
+                // A focused selectable TextView may have a collapsed cursor at
+                // zero; either native initial state has no old selected range.
+                assertEquals(view.body.selectionStart, view.body.selectionEnd)
+                assertTrue(view.body.selectionStart <= 0)
+            }
+        }
+    }
+
+    @Test fun accountChangeWhileWaitingDiscardsRetainedComposerAndNeverSends() {
+        Fixture(listOf(stop)).use { fixture ->
+            compose.setContent { fixture.Content() }
+            compose.onNodeWithText("Reply", useUnmergedTree = true).performClick()
+            compose.onNodeWithTag("AgentFeedComposeDraft").performTextInput("Only for account A")
+            compose.onNode(hasContentDescription("See more") and hasAnyAncestor(hasTestTag("AgentFeedComposerPreviewContent")), useUnmergedTree = true).performClick()
+            awaitRenderedQuote()
+            compose.runOnIdle { fixture.loaded = false }
+            compose.onNodeWithText("Waiting for this Mac’s Feed").assertIsDisplayed()
+            compose.runOnIdle { fixture.account = "account-b" }
+            compose.onNodeWithText("Waiting for this Mac’s Feed").assertDoesNotExist()
+            compose.runOnIdle { fixture.loaded = true }
+            compose.onNodeWithTag("AgentFeedReplySheet").assertDoesNotExist()
+            compose.onNodeWithText("Reply", useUnmergedTree = true).performClick()
+            compose.onNodeWithTag("AgentFeedComposeDraft").assert(SemanticsMatcher.expectValue(
+                androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+            compose.onNode(hasContentDescription("See more") and hasAnyAncestor(hasTestTag("AgentFeedComposerPreviewContent")), useUnmergedTree = true).assertExists()
+            compose.runOnIdle { assertTrue(fixture.requests.none { it.first == "mobile.terminal.paste" }) }
+        }
+    }
+
     @Test fun planRevisionUsesQuotedSheetAndManualFeedback() {
         Fixture(listOf(plan)).use { fixture ->
             compose.setContent { fixture.Content() }

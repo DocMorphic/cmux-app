@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -156,30 +157,36 @@ internal fun AgentFeedTimeline(
         }
     }
     modal?.let { target ->
-        when (target.status(scopeKey, snapshot)) {
-            AgentFeedModalStatus.GONE -> LaunchedEffect(target) { modal = null }
-            AgentFeedModalStatus.WAITING -> AgentFeedWaitingSheet({ modal = null }, onRefresh)
-            AgentFeedModalStatus.READY -> key(target.scope, target.key, target.mode) {
-                val entry = checkNotNull(currentEntries[target.key])
-                fun update(next: AgentFeedModal) { if (modal?.key == target.key && modal?.mode == target.mode) modal = next }
-                suspend fun load(): String {
-                    val live = checkNotNull(currentEntries[target.key]) { "This Feed item is no longer available" }
-                    check(target.matches(live)) { "This Feed item changed" }
-                    return currentActions.fullText(live)
-                }
-                if (target.mode == "read") AgentFeedFullText(target, ::update, ::load,
-                    { currentActions.read(entry) }, { modal = null })
-                else AgentFeedReplySheet(entry, target, ::update, ::load, { modal = null }) { decision, text ->
-                    if (text == null) { checkNotNull(decision); act(entry, decision); modal = null }
-                    else scope.launch {
-                        try {
-                            val live = checkNotNull(currentEntries[target.key]) { "This Feed item is no longer available" }
-                            check(target.matches(live)) { "This Feed item changed. Review it before replying." }
-                            if (currentActions.reply(live, text)) {
-                                currentActions.read(live)
-                                if (modal?.key == target.key && modal?.mode == target.mode) modal = null
-                            }
-                        } catch (error: Exception) { if (error is CancellationException) throw error; actionError = error.message }
+        key(target.scope, target.key, target.mode) {
+            // Keep only this open modal's saved UI while an authorized snapshot
+            // reloads. Closing it or changing accounts destroys the holder, so a
+            // later opening starts fresh. Message bodies and load jobs are not saved.
+            val modalState = rememberSaveableStateHolder()
+            when (target.status(scopeKey, snapshot)) {
+                AgentFeedModalStatus.GONE -> LaunchedEffect(target) { modal = null }
+                AgentFeedModalStatus.WAITING -> AgentFeedWaitingSheet({ modal = null }, onRefresh, reader = target.mode == "read")
+                AgentFeedModalStatus.READY -> modalState.SaveableStateProvider("content") {
+                    val entry = checkNotNull(currentEntries[target.key])
+                    fun update(next: AgentFeedModal) { if (modal?.key == target.key && modal?.mode == target.mode) modal = next }
+                    suspend fun load(): String {
+                        val live = checkNotNull(currentEntries[target.key]) { "This Feed item is no longer available" }
+                        check(target.matches(live)) { "This Feed item changed" }
+                        return currentActions.fullText(live)
+                    }
+                    if (target.mode == "read") AgentFeedFullText(target, ::update, ::load,
+                        { currentActions.read(entry) }, { modal = null })
+                    else AgentFeedReplySheet(entry, target, ::update, ::load, { modal = null }) { decision, text ->
+                        if (text == null) { checkNotNull(decision); act(entry, decision); modal = null }
+                        else scope.launch {
+                            try {
+                                val live = checkNotNull(currentEntries[target.key]) { "This Feed item is no longer available" }
+                                check(target.matches(live)) { "This Feed item changed. Review it before replying." }
+                                if (currentActions.reply(live, text)) {
+                                    currentActions.read(live)
+                                    if (modal?.key == target.key && modal?.mode == target.mode) modal = null
+                                }
+                            } catch (error: Exception) { if (error is CancellationException) throw error; actionError = error.message }
+                        }
                     }
                 }
             }

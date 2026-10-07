@@ -27,6 +27,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Open Feed readers/composers retain saved UI through an authorized snapshot's
+  waiting state, including restoration while waiting. Closing or changing accounts
+  discards the state; reopening starts fresh. **Nine distinct Android scenarios
+  have passing evidence across two runs**, including the existing socket-RPC Feed
+  flow and three corrected reconnect/lifecycle cases. See `AGENT_FEED.md` for the
+  initial test-selector/cursor failures, screenshot limits and exact scope.
+  Empty ANR/crash logs; emulator/Gradle stopped. Actual device/network, browser IPC
+  reconnect and OS process-death acceptance remain open; no signed release.
+
 - Feed Source view now supports native selection and long messages beyond Compose's
   text-height limit, retaining its character anchor and selection through mode
   switches and saved-state reload without saving full bodies into the Activity Bundle.
