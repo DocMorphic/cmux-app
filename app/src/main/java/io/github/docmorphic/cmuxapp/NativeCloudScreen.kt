@@ -48,6 +48,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
                 Text("Cloud", Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 onBasics?.let { action -> TextButton(onClick = action, modifier = Modifier.testTag("cloud.basics")) { Text("Cloud basics") } }
                 TextButton(onClick = ::refresh, enabled = controller != null) { Text("Refresh") }
+                NativeWorkspaceSidebarToggle()
             }
             if (controller == null) {
                 Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

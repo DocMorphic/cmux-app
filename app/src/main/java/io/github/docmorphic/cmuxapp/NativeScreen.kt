@@ -744,7 +744,8 @@ internal fun NativeScreen(
                 pairedMacs.singleOrNull { it.ownsOrigin(localBrowser.key.computerId) }
                 else pairedMacs.singleOrNull { it.code == code }
             ObserveNativeNotificationSelection(lifecycle,
-                if (cloudTab || displayedTab == null || browserLogin == null || visibleNotificationMac == null ||
+                if ((cloudTab && !usesWorkspaceSidebar(configuration.screenWidthDp, configuration.screenHeightDp)) ||
+                    displayedTab == null || browserLogin == null || visibleNotificationMac == null ||
                     (pendingPairingCode != null || ticketProposal != null) || screenResume.pending != null || showSshComputers || showLicenses) null
                 else NativeNotificationSelection(browserLogin, visibleNotificationMac.origin, displayedTab.first.workspaceId,
                     displayedTab.second?.takeIf { it.kind == NativeWorkspaceTabKind.TERMINAL }?.id))
@@ -3841,6 +3842,26 @@ internal fun NativeScreen(
                             selectedWorkspace?.let { workspace -> workspaceSourceForPane()?.let { createTerminal(it, workspace) } }
                         }
                     }
+                    val cloudContent: @Composable ColumnScope.() -> Unit = {
+                        Column(Modifier.weight(1f).fillMaxWidth()) {
+                            Column(Modifier.weight(1f).fillMaxWidth()) {
+                                cloudTabState.SaveableStateProvider("cloud") {
+                                    NativeCloudFlow(cloudController, onSettings = { showSettings = true }, onBack = { cloudTab = false },
+                                        onPlans = { plan -> runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(cloudPlansUrl(plan)))) }
+                                            .onFailure { android.widget.Toast.makeText(context, "No browser is available to open cmux.com/pricing", android.widget.Toast.LENGTH_LONG).show() } },
+                                        modifier = Modifier.fillMaxSize(), connectionState = cloudTunnelState,
+                                        onRetryConnection = { cloudTunnel?.retry() }, vpn = sharedConnections?.cloudVpn,
+                                        machines = allCloudSnapshots, connectionFailures = cloudConnectionFailures,
+                                        onRetryConnections = { cloudModel?.let { model -> cloudWorkspaces?.let(model::retryConnections) } })
+                                }
+                            }
+                            NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
+                                onTab = { cloudTab = false; finishSearch(); agentFeedTab = false; notificationTab = it },
+                                onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {},
+                                sidebar = LocalWorkspaceShellChrome.current.split, emptyComputers = noKnownComputers, agentFeedTab = agentFeedTab, agentFeedCount = agentNeedsInputCount,
+                                onAgentFeed = { cloudTab = false; finishSearch(); notificationTab = false; agentFeedTab = true })
+                        }
+                    }
                     when {
                         !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
                             onLicenses = { showLicenses = true }, macPolicy = displayPolicy, onSignedIn = { signedIn = true; error = null })
@@ -3850,33 +3871,17 @@ internal fun NativeScreen(
                         showSettings && computersOwner != null -> computersContent()
                         showSettings -> settingsContent()
                         showTaskComposer -> taskComposerContent()
-                        cloudTab && cloudModel != null -> Column(Modifier.weight(1f).fillMaxWidth()) {
-                            BackHandler { cloudTab = false }
-                            Column(Modifier.weight(1f).fillMaxWidth()) {
-                                cloudTabState.SaveableStateProvider("cloud") {
-                                    NativeCloudFlow(cloudController, onSettings = { showSettings = true }, onBack = { cloudTab = false },
-                                        onPlans = { plan -> runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(cloudPlansUrl(plan)))) }
-                                            .onFailure { android.widget.Toast.makeText(context, "No browser is available to open cmux.com/pricing", android.widget.Toast.LENGTH_LONG).show() } },
-                                        modifier = Modifier.fillMaxSize(), connectionState = cloudTunnelState,
-                                        onRetryConnection = { cloudTunnel?.retry() }, vpn = sharedConnections?.cloudVpn,
-                                        machines = allCloudSnapshots, connectionFailures = cloudConnectionFailures,
-                                        onRetryConnections = { cloudWorkspaces?.let(cloudModel::retryConnections) })
-                                }
-                            }
-                            NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
-                                onTab = { cloudTab = false; finishSearch(); agentFeedTab = false; notificationTab = it },
-                                onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {},
-                                emptyComputers = noKnownComputers, agentFeedTab = agentFeedTab, agentFeedCount = agentNeedsInputCount,
-                                onAgentFeed = { cloudTab = false; finishSearch(); notificationTab = false; agentFeedTab = true })
-                        }
                         else -> NativeWorkspaceShell(owner = browserLogin to teamState.scope,
                             hasDetail = cloudRoute != null || sshRoute != null || screenResume.pending != null || localBrowser != null ||
                                 selectedWorkspace != null || selectedTerminal != null || selectedBrowser != null ||
-                                selectedChangesWorkspace != null || showWorkspaceReconnect,
-                            allowSplit = !showWorkspaceReconnect,
+                                selectedChangesWorkspace != null || (showWorkspaceReconnect && !cloudTab),
+                            allowSplit = cloudTab || !showWorkspaceReconnect,
+                            showSidebarInCompact = cloudTab && cloudModel != null,
                             onSearchBack = if (searchState.active != null) ({ finishSearch(cancel = true) }) else null,
                             onSidebarHidden = if (searchState.active != null) ({ finishSearch() }) else null,
-                            modifier = Modifier.weight(1f).fillMaxWidth(), sidebar = workspaceListContent) {
+                            modifier = Modifier.weight(1f).fillMaxWidth(), sidebar = {
+                                if (cloudTab && cloudModel != null) cloudContent() else workspaceListContent()
+                            }) {
                             when {
                         cloudRoute != null && cloudModel != null -> NativeCloudTerminalPane(cloudModel, cloudRoute, cloudSnapshots[cloudRoute.host.machineId])
                         sshRoute != null && sshSession != null -> key(sshRoute.login, sshRoute.host.id, sshRoute.target) {

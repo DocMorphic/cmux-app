@@ -136,5 +136,48 @@ Saved-screen restoration is not proof of actual process death during an
 authenticated session. Pixel/Mac, broader owner changes, accessibility and full
 visual parity remain open. The source recheck also confirms unresolved navigation
 work: Feed in the separate browser sidebar, embedded Cloud content in the wide
-sidebar, and the source's Feed-replaces-Notifications display option. These are
+sidebar (implemented in the follow-up below), and the source's Feed-replaces-Notifications display option. These are
 implementation requirements, not unavoidable Android limitations.
+
+## Cloud in the shared sidebar — 2026-10-07
+
+Scoped source: `WorkspaceShellView.swift` at
+`186cec79781256867ad4516f0802118738bd2393`, particularly `splitSidebar` and its
+Cloud `makeEmbeddedView()` branch. Android now puts Cloud in the existing wide
+sidebar instead of replacing the entire workspace shell. The detail composition
+and its existing controller ownership remain in place. Compact layout can select
+Cloud's sidebar content ahead of an existing detail, then return to that detail
+with Back. Cloud's existing saved-state holder still owns its introduction and
+sheet state across primary-tab changes.
+
+The Cloud header/introduction expose the shared sidebar toggle. The introduction
+chooses its layout from its actual available width, so a tablet's narrow sidebar
+gets one column. Embedded Cloud does not consume Back intended for the visible
+detail; compact Cloud and modal introduction replay keep their own Back behavior.
+Visible detail notification tracking now also remains active beside wide Cloud.
+
+Verification on the existing API 37 / 16 KiB AVD, headless at 1,536 MiB:
+
+- **Eight Android cases passed in 258.131 seconds**: two new Cloud/sidebar
+  scenarios, three Cloud onboarding regressions and three existing shell cases.
+- The new fixture verifies the same AndroidView instance and unsent draft through
+  Workspaces/Cloud and sidebar hide/show, compact Cloud hiding the detail and
+  Back returning to its retained draft. The second verifies introduction progress
+  across reflow, accessible VPN copy, wide Back reaching the detail and compact
+  Back paging/exiting without marking the introduction complete.
+- Existing cases cover introduction save failure/retry, saved-screen restoration,
+  replay, sidebar viewport/draft restoration, account reset and renderer retention.
+- Wide display: 2400×1600 / 420 dpi. Original 1080×2400 / 420 dpi restored. Boot,
+  mid-run and final ANR/crash event logs contain no entries. Cloud sidebar and
+  introduction screenshots were inspected. Emulator and Gradle stopped/reaped.
+- The initial build caught missing catalog fixture arguments; those were fixed.
+  Final debug/test APK build passed in 1m06s. Only indentation changed afterward.
+  No extra AVD, native rebuild or signed release.
+
+Evidence: ignored `captures/runtime/cloud-sidebar/`, including original build
+failure, passing build/runtime logs, source excerpt, screenshots and receipt.
+These tests use the production shell and Cloud UI with a fixture catalog and
+placeholder AndroidView detail. They do not verify real Cloud transport, an
+authenticated main-screen Mac/Pixel workflow, OS window recreation, process death
+or full visual/accessibility parity. Separate-browser Feed and the
+Feed-replaces-Notifications option remain implementation work.

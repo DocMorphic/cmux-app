@@ -26,6 +26,7 @@ internal val LocalWorkspaceShellChrome = compositionLocalOf { WorkspaceShellChro
 internal fun NativeWorkspaceShell(owner: Any?, hasDetail: Boolean, allowSplit: Boolean = true,
     modifier: Modifier = Modifier, widthDp: Int = LocalConfiguration.current.screenWidthDp,
     heightDp: Int = LocalConfiguration.current.screenHeightDp,
+    showSidebarInCompact: Boolean = false,
     onSearchBack: (() -> Unit)? = null, onSidebarHidden: (() -> Unit)? = null,
     sidebar: @Composable ColumnScope.() -> Unit, detail: @Composable ColumnScope.() -> Unit) {
     key(owner) {
@@ -41,8 +42,8 @@ internal fun NativeWorkspaceShell(owner: Any?, hasDetail: Boolean, allowSplit: B
         val visible = split && showSidebar
         val chrome = WorkspaceShellChrome(split, visible) { showSidebar = !visible }
         val hidden by rememberUpdatedState(onSidebarHidden)
-        LaunchedEffect(split, visible, hasDetail) {
-            if ((split && !visible) || (!split && hasDetail)) hidden?.invoke()
+        LaunchedEffect(split, visible, hasDetail, showSidebarInCompact) {
+            if ((split && !visible) || (!split && hasDetail && !showSidebarInCompact)) hidden?.invoke()
         }
         CompositionLocalProvider(LocalWorkspaceShellChrome provides chrome) {
             if (split) Row(modifier.testTag("workspace.shell.split")) {
@@ -54,7 +55,7 @@ internal fun NativeWorkspaceShell(owner: Any?, hasDetail: Boolean, allowSplit: B
                     if (hasDetail) detailContent() else NativeWorkspaceSelectionPlaceholder()
                 }
             } else Box(modifier.testTag("workspace.shell.stack")) {
-                if (hasDetail) detailContent() else sidebarContent()
+                if (hasDetail && !showSidebarInCompact) detailContent() else sidebarContent()
             }
             // Register when search starts, after any already-mounted detail handler.
             // A permanently registered disabled callback could precede a later-opened pane.

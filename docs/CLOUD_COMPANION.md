@@ -1488,3 +1488,20 @@ across the two runs; the two already-passing Cloud cases were not repeated.
 Initial and final logs are retained. Boot, first-run and final event logs contain
 no ANR/crash entries. Emulator and Gradle were stopped; no new AVD was created.
 The Pixel was absent from ADB, so real Cloud/Pixel acceptance remains open.
+
+### Shared wide sidebar and checkpoint status — 2026-10-07
+
+Cloud now embeds in the shared wide workspace sidebar while the visible detail
+stays mounted. Compact Cloud keeps its full-page navigation; the introduction
+uses the actual column width, and Back ownership follows the active layout.
+Eight focused Android cases passed. See `WORKSPACE_SIDEBAR.md` for exact fixture,
+visual and restoration evidence and remaining physical/account gates.
+
+The reported native checkpoint failure was inspected: run `37449713438` failed
+because upstream remote filesystem code called Linux `libc::__errno_location`
+on Android. Commit `819b6943` already patched that Android errno path and four
+subsequent checkpoint runs passed. A fresh main run on `9613e383` also passed:
+[37612057611](https://github.com/DocMorphic/cmux-app/actions/runs/37612057611).
+It restored the complete checkpoint cache, verified it and uploaded the artifact;
+it did not perform a fresh native compilation. Historical failures remain in
+GitHub's run history. No additional native-code or workflow change was needed.

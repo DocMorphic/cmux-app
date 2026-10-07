@@ -27,11 +27,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud now appears inside the wide workspace sidebar while the selected detail
+  remains mounted; compact Cloud retains its full-page flow. Its introduction
+  measures the actual column width and gives Back to the visible wide detail.
+  **Eight focused Android scenarios passed**, covering Cloud navigation,
+  introduction restoration/replay, sidebar state and retained renderer/draft.
+  Screenshots inspected; emulator stopped. See `WORKSPACE_SIDEBAR.md` for scope.
+  The Cloud native checkpoint also passed on current main (`9613e383`, run
+  `37612057611`), restoring and verifying the cached native artifact. Earlier
+  failed runs predate the Android errno fix `819b6943`.
+
 - Sidebar viewport/drafts now survive hide/show and compact detail navigation;
   Feed question choices survive primary-tab switches. Account replacement clears
   retained sidebar state. **Four Android scenarios passed**, including the real
   local socket-RPC main Feed flow and Back from its terminal. See
-  `WORKSPACE_SIDEBAR.md`. Separate-browser Feed, wide-sidebar Cloud and the
+  `WORKSPACE_SIDEBAR.md`. Separate-browser Feed and the
   Feed-replaces-Notifications preference remain source-confirmed implementation
   gaps. Emulator/Gradle stopped; physical acceptance and signed release remain.
 
