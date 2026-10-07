@@ -70,8 +70,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     val draft = drafts[composer.target] ?: TerminalDrafts.Draft()
     val scope = rememberCoroutineScope()
     val attachmentFiles = remember(context) { AttachmentFiles(context) }
-    val available by rememberUpdatedState((state.phase == SshShellPhase.RUNNING ||
-        (shell.acceptsInputWhileOpening && state.phase == SshShellPhase.OPENING)) && !reconnecting)
+    val available by rememberUpdatedState(shell.acceptsUserInput(state.phase) && !reconnecting)
     val input = remember(shell, composer) {
         SshTerminalInput(shell, composer, scope, { available }) { uri -> attachmentFiles.prepare(uri, image = true) }
     }

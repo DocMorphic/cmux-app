@@ -15,6 +15,8 @@ internal interface SshTerminal : AutoCloseable {
     val imageUpload: SshImageUpload? get() = null
     val transportLabel: String get() = "SSH"
     val acceptsInputWhileOpening: Boolean get() = false
+    /** A fresh keystroke can retry a failed attachment without replaying old input. */
+    val retriesAttachmentOnInput: Boolean get() = false
     fun send(text: String, paste: Boolean = false): Boolean
     /** Composer submissions can wait for transport admission without blocking raw keyboard input. */
     suspend fun submitText(text: String): Boolean = send(text)
@@ -23,4 +25,11 @@ internal interface SshTerminal : AutoCloseable {
     fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics)
     fun visible(visible: Boolean) {}
     suspend fun currentDirectory(): String? = null
+}
+
+/** Shared by the controls and ordered lane so visible input cannot be silently refused. */
+internal fun SshTerminal.acceptsUserInput(phase: SshShellPhase = state.value.phase): Boolean = when (phase) {
+    SshShellPhase.RUNNING -> true
+    SshShellPhase.OPENING -> acceptsInputWhileOpening
+    SshShellPhase.ENDED -> retriesAttachmentOnInput
 }

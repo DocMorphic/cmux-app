@@ -26,7 +26,7 @@ internal class NativeCloudTerminalLink(private val session: CloudNativeSession) 
 }
 internal enum class CloudAttachmentPhase { IDLE, CONNECTING, READY, FAILED, EXITED, CLOSED }
 internal data class CloudAttachmentState(val terminalId: String? = null, val phase: CloudAttachmentPhase = CloudAttachmentPhase.IDLE,
-    val pendingBytes: Int = 0, val failure: CloudSessionFailure? = null)
+    val pendingBytes: Int = 0, val failure: CloudSessionFailure? = null, val retryOnInput: Boolean = false)
 
 /** One machine's single native attachment slot, independent of view collectors.
  * Blocking attach runs on an independent worker. Its serial slot and native token
@@ -74,7 +74,7 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
             if (mutable.value.terminalId != null && mutable.value.phase != CloudAttachmentPhase.EXITED) startLocked()
         } else {
             cancelLocked(); clearPending(); appliedGrid = null
-            mutable.value = mutable.value.copy(phase = if (mutable.value.terminalId == null) CloudAttachmentPhase.IDLE else CloudAttachmentPhase.CONNECTING, pendingBytes = 0, failure = null)
+            mutable.value = mutable.value.copy(phase = if (mutable.value.terminalId == null) CloudAttachmentPhase.IDLE else CloudAttachmentPhase.CONNECTING, pendingBytes = 0, failure = null, retryOnInput = false)
         }
     }
     fun replay() = synchronized(lock) {
@@ -85,9 +85,14 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
     fun send(bytes: ByteArray): Boolean = enqueue(bytes)
     private fun enqueue(bytes: ByteArray, receipt: CompletableDeferred<Boolean>? = null): Boolean = synchronized(lock) {
         val limit = if (mutable.value.phase == CloudAttachmentPhase.READY) LIVE_INPUT_LIMIT else INPUT_LIMIT
-        if (!allowed() || mutable.value.terminalId == null || mutable.value.phase in setOf(CloudAttachmentPhase.FAILED, CloudAttachmentPhase.EXITED) ||
+        if (!allowed() || mutable.value.terminalId == null || mutable.value.phase == CloudAttachmentPhase.EXITED ||
+            (mutable.value.phase == CloudAttachmentPhase.FAILED && (!mutable.value.retryOnInput || !available)) ||
             bytes.size > limit - pendingBytes || pending.size >= 256) return@synchronized false
         if (bytes.isEmpty()) { receipt?.complete(true); return@synchronized true }
+        // Like iOS ensureAttached, fresh typing retries an attachment that never
+        // landed. The failed attempt's pending bytes were discarded by fail();
+        // only this newly admitted input can cross the replacement attachment.
+        if (mutable.value.phase == CloudAttachmentPhase.FAILED) startLocked()
         pending.addLast(Input(bytes.copyOf(), receipt)); pendingBytes += bytes.size
         mutable.value = mutable.value.copy(pendingBytes = pendingBytes)
         signal?.trySend(Unit); true
@@ -125,7 +130,7 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
         val at = generation
         val terminal = checkNotNull(mutable.value.terminalId)
         val wake = Channel<Unit>(Channel.CONFLATED); signal = wake
-        mutable.value = mutable.value.copy(phase = CloudAttachmentPhase.CONNECTING, failure = null)
+        mutable.value = mutable.value.copy(phase = CloudAttachmentPhase.CONNECTING, failure = null, retryOnInput = false)
         val task = CoroutineScope(nativeDispatcher).launch(start = CoroutineStart.LAZY) {
             var link: CloudTerminalLink? = null
             var attachment: Long? = null
@@ -189,7 +194,7 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
                     } finally { commands.cancel() }
                 }
             } catch (failure: Exception) {
-                fail(at, CloudSessionFailure.classify(failure, CloudFailureKind.LINK))
+                fail(at, CloudSessionFailure.classify(failure, CloudFailureKind.LINK), retryOnInput = attachment == null)
             } catch (_: LinkageError) {
                 fail(at, CloudSessionFailure("Cloud native runtime is unavailable", kind = CloudFailureKind.LINK))
             } finally {
@@ -202,10 +207,10 @@ internal class CloudTerminalAttachment(parent: CoroutineScope, private val isCur
         }
         worker = task; task.start()
     }
-    private fun fail(at: Long, failure: CloudSessionFailure) = synchronized(lock) {
+    private fun fail(at: Long, failure: CloudSessionFailure, retryOnInput: Boolean = false) = synchronized(lock) {
         if (admitted(at)) {
             clearPending(); repaint?.cancel(); repaint = null
-            mutable.value = mutable.value.copy(phase = CloudAttachmentPhase.FAILED, pendingBytes = 0, failure = failure)
+            mutable.value = mutable.value.copy(phase = CloudAttachmentPhase.FAILED, pendingBytes = 0, failure = failure, retryOnInput = retryOnInput)
         }
     }
     private fun scheduleRepaint(at: Long) {

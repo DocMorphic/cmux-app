@@ -67,6 +67,61 @@ class CloudTerminalAttachmentTest {
             assertFalse(refused.await()); assertEquals(CloudAttachmentPhase.FAILED, owner.state.value.phase)
         } finally { owner.close(); runCurrent() }
     }
+    @Test fun freshInputRetriesFailedAttachAndOnlyNewInputIsDeliveredAfterTheSavedGrid() = runTest {
+        val link = Link()
+        var attempts = 0
+        link.attachWork = { if (++attempts == 1) throw java.io.IOException("attachment unavailable") }
+        val owner = CloudTerminalAttachment(this, { true }, { link }, { _, _ -> }, StandardTestDispatcher(testScheduler))
+        try {
+            owner.select("term_a"); owner.resize(93, 31)
+            val old = async { owner.sendAndAwait("old-unconfirmed".toByteArray()) }
+            runCurrent(); owner.setAvailable(true); runCurrent()
+            assertFalse(old.await()); assertEquals(CloudAttachmentPhase.FAILED, owner.state.value.phase)
+            assertTrue(owner.state.value.retryOnInput); assertEquals(0, owner.state.value.pendingBytes)
+            advanceTimeBy(60_000); runCurrent(); assertEquals(1, attempts)
+            val fresh = async { owner.sendAndAwait("fresh-command".toByteArray()) }
+            runCurrent(); assertTrue(fresh.await())
+            assertEquals(listOf("attach:term_a", "attach:term_a", "resize:93:31", "input:fresh-command"), link.calls.toList())
+            assertEquals(CloudAttachmentPhase.READY, owner.state.value.phase)
+            assertFalse(owner.state.value.retryOnInput); assertNull(owner.state.value.failure)
+        } finally { owner.close(); runCurrent() }
+    }
+    @Test fun failedInitialConnectionRetriesOnceForFreshTypingButNotEmptyOrOversizedInput() = runTest {
+        val link = Link(); val retry = CompletableDeferred<CloudTerminalLink>(); var attempts = 0
+        val owner = CloudTerminalAttachment(this, { true }, {
+            if (++attempts == 1) throw java.io.IOException("dial unavailable")
+            retry.await()
+        }, { _, _ -> }, StandardTestDispatcher(testScheduler))
+        try {
+            owner.select("term_a"); owner.setAvailable(true); runCurrent()
+            assertTrue(owner.state.value.retryOnInput)
+            assertTrue(owner.send(byteArrayOf())); assertFalse(owner.send(ByteArray(CloudTerminalAttachment.INPUT_LIMIT + 1)))
+            runCurrent(); assertEquals(1, attempts)
+            assertTrue(owner.send("a".toByteArray())); assertTrue(owner.send("b".toByteArray()))
+            runCurrent(); assertEquals(2, attempts)
+            assertEquals(CloudAttachmentPhase.CONNECTING, owner.state.value.phase)
+            assertEquals(2, owner.state.value.pendingBytes)
+            retry.complete(link); runCurrent()
+            assertEquals(listOf("attach:term_a", "input:a", "input:b"), link.calls.toList())
+        } finally { owner.close(); runCurrent() }
+    }
+    @Test fun retiredAccountCannotRestartFailedAttachmentAndNativeRuntimeFailureRequiresExplicitRecovery() = runTest {
+        var current = true; var attempts = 0
+        val owner = CloudTerminalAttachment(this, { current }, {
+            attempts++; throw java.io.IOException("fixture")
+        }, { _, _ -> }, StandardTestDispatcher(testScheduler))
+        try {
+            owner.select("term_a"); owner.setAvailable(true); runCurrent()
+            current = false
+            assertFalse(owner.send("stale".toByteArray())); runCurrent(); assertEquals(1, attempts)
+        } finally { owner.close(); runCurrent() }
+        val missing = CloudTerminalAttachment(this, { true }, { throw UnsatisfiedLinkError("fixture") },
+            { _, _ -> }, StandardTestDispatcher(testScheduler))
+        try {
+            missing.select("term_a"); missing.setAvailable(true); runCurrent()
+            assertFalse(missing.state.value.retryOnInput); assertFalse(missing.send("no-native-runtime".toByteArray()))
+        } finally { missing.close(); runCurrent() }
+    }
     @Test fun timedOutOrCancelledComposerInputIsRemovedBeforeAConnectionCanSendIt() = runTest {
         val link = Link()
         val owner = CloudTerminalAttachment(this, { true }, { link }, { _, _ -> }, StandardTestDispatcher(testScheduler))

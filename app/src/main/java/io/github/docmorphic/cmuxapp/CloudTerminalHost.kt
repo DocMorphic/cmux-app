@@ -86,6 +86,7 @@ internal class CloudRenderedTerminal(private var terminal: NativeTerminal, val r
     override val title get() = terminal.title
     override val transportLabel = "Cloud"
     override val acceptsInputWhileOpening = true
+    override val retriesAttachmentOnInput get() = !closed && current() && attachment.state.value.retryOnInput
     override val display = GhosttyVtTerminal(80, 24)
     override val bells = TerminalBellSignal()
     private val reducer = CloudTerminalOutputReducer()

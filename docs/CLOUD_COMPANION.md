@@ -1426,3 +1426,65 @@ loop. Android's existing catalog loop and explicit reconnect/fresh-catalog and
 mount/replay paths cover those mechanisms. No autonomous terminal retry timer
 was added from this audit. Real transport recovery and next-input behavior still
 need end-to-end comparison; this scoped read does not close those gates.
+
+
+### Fresh-input recovery after failed attachment — 2026-10-07
+
+A further read of `CloudWorkspaceBridge.externalHostSendInput` / `ensureAttached`
+at scoped `c2715faa02c260b07012bc0b386597cfb333021d` found a missing Android path.
+iOS attempts attachment before accepting a new keystroke; after a failed attach
+has cleared its ownership entry, fresh input can start another attempt. Android
+previously refused all input in FAILED and disabled its shared composer.
+
+Android now distinguishes failure before an attachment token exists from a
+failure in an established stream. A fresh, nonempty, bounded input after an
+initial dial/attach failure starts one new attachment. Concurrent fresh keystrokes
+share it, retain order, and follow the remembered viewport. There is no timed
+attachment retry. The failed attempt's buffered input and pending receipts are
+retired; only newly submitted bytes are eligible for the replacement connection.
+Empty or oversized input cannot trigger a dial. Account, foreground/catalog and
+single-slot ownership guards remain in effect.
+
+The shared terminal UI has an opt-in capability for this Cloud behavior. Its
+composer/keyboard remain usable after a recoverable attach failure, while the
+classified error and explicit Reconnect action remain visible. A successful
+attach clears the failure through the existing reporting adapter. Other terminal
+providers keep their existing input rules. An established stream's failed send,
+resize or output, a native-library load error, an exited process or an already
+uncertain composer submission still requires explicit recovery; this change does
+not automatically resend a draft or previously accepted input.
+
+Verification: **17 JVM checks passed**, zero failures/errors/skips (attachment
+15, reporting adapter 2), and main/test compilation passed in 41 seconds. New
+cases cover fresh-input recovery after attach/dial failure, the lack of timer
+retries, rejected empty/oversized retry triggers, remembered-grid ordering,
+coalesced input, discarded prior receipts, stale-account rejection and missing
+native runtime. Existing send-failure/non-replay, attachment serialization,
+background/selection/exit and machine-error reporting cases still pass. Debug and
+instrumentation APKs built in 29 seconds. Android results are recorded below.
+
+Evidence: ignored `captures/runtime/cloud-input-retry/`. This source/fixture
+checkpoint does not establish real Cloud enrollment, authenticated daemon
+recovery, physical keyboard/Gboard behavior, VPN/Tailscale transitions or full
+parity. No Cloud account mutation, VM creation, peer enrollment, VPN activation,
+or signed release was performed.
+
+
+Android verification used the existing API 37 / 16 KiB AVD at 1,536 MiB headless.
+The first three-case Cloud run passed the renderer/selection and explicit
+reconnect regressions, but the new submission case timed out: the visible
+composer admitted typing while `SshTerminalInput` still rejected ENDED. The
+controls and ordered lane now share `SshTerminal.acceptsUserInput`; passive mouse
+and focus reports continue to require a running session.
+
+After that correction and a 41-second rebuild, the affected Cloud case plus all
+nine existing `SshTerminalInputTest` cases passed: **10 tests, 7.537 seconds**.
+The Cloud case checks the visible classified error and Reconnect action, enabled
+composer, one exact fresh command sent without invoking Reconnect, cleared error
+on success and rejected background input. The input cases cover paste/upload
+ordering, partial failure and explicit resumption, draft edits, grant cleanup and
+account/view retirement. All three selected Cloud cases thus have passing results
+across the two runs; the two already-passing Cloud cases were not repeated.
+Initial and final logs are retained. Boot, first-run and final event logs contain
+no ANR/crash entries. Emulator and Gradle were stopped; no new AVD was created.
+The Pixel was absent from ADB, so real Cloud/Pixel acceptance remains open.

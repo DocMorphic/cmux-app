@@ -23,8 +23,10 @@ class CloudTerminalScreenTest {
         private val events = ConcurrentHashMap<Long, Channel<CloudTerminalOutput>>()
         val input = CopyOnWriteArrayList<Pair<Long, String>>()
         var beforeSend: (String) -> Unit = {}
+        @Volatile var attachFails = false
         @Volatile var live = 0L
         override fun attach(terminal: String): Long {
+            if (attachFails) throw java.io.IOException("fixture attach failure")
             val token = counter.incrementAndGet()
             events[token] = Channel(Channel.UNLIMITED)
             live = token
@@ -41,6 +43,38 @@ class CloudTerminalScreenTest {
         override suspend fun output(attachment: Long) = events.getValue(attachment).receive()
     }
     @After fun stop() { compose.runOnIdle { host?.close(); lifetime.cancel() } }
+    @Test fun failedAttachmentKeepsComposerUsableAndNewSubmissionReconnectsWithoutExplicitRetry() {
+        val link = Link().apply { attachFails = true }
+        val machine = CloudMachine("fixture", "fixture", "running", "Cloud fixture", null, null)
+        val catalog = CloudWorkspaceCatalog(listOf(CloudWorkspaceSummary("ws_a", "Workspace")),
+            listOf(CloudTerminalSummary("term_a", "First", "ws_a")))
+        val snapshot = CloudWorkspaceSnapshot(machine, catalog, NativeFeedAvailability.CONNECTED, true)
+        val row = snapshot.rows.single()
+        lateinit var terminal: CloudRenderedTerminal
+        compose.runOnUiThread {
+            host = CloudTerminalHost(lifetime, machine.id, { true }, { link }).also {
+                it.reconcile(snapshot, true, true)
+                terminal = it.select(row.workspace, row.workspace.terminals.single())
+            }
+        }
+        compose.setContent { CmuxTheme { Surface { SshShellScreen(terminal, onReconnect = {
+            fail("Fresh input must not require the explicit Reconnect action")
+        }, onBack = {}) } } }
+        compose.waitUntil(5000) { terminal.state.value.phase == SshShellPhase.ENDED }
+        compose.onNodeWithText("Could not reach this machine's terminal service.").assertIsDisplayed()
+        compose.onNodeWithTag("ssh.shell.reconnect").assertIsDisplayed()
+        compose.onNodeWithTag("ssh.shell.composer").assertIsEnabled().performTextInput("new command")
+        compose.runOnIdle { link.attachFails = false }
+        compose.onNodeWithTag("ssh.shell.send").assertIsEnabled().performClick()
+        compose.waitUntil(5000) { terminal.state.value.phase == SshShellPhase.RUNNING && link.input.any { it.second == "new command\r" } }
+        assertEquals(1, link.input.count { it.second == "new command\r" })
+        compose.onNodeWithText("Could not reach this machine's terminal service.").assertDoesNotExist()
+        compose.runOnIdle {
+            host!!.reconcile(snapshot, false, false)
+            assertFalse(terminal.retriesAttachmentOnInput)
+            assertFalse(terminal.send("background"))
+        }
+    }
     @Test fun explicitReconnectWaitsForNewVerifiedCatalogAndKeepsTheSelectedDisplay() {
         val link = Link()
         val machine = CloudMachine("fixture", "fixture", "running", "Cloud fixture", null, null)
