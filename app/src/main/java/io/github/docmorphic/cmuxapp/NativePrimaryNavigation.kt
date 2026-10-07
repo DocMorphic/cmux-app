@@ -43,10 +43,11 @@ internal fun NativePrimaryNavigation(
     onSubmit: () -> Unit, onCancel: () -> Unit,
     sidebar: Boolean = false, onNewTask: (() -> Unit)? = null,
     cloudTab: Boolean = false, onCloud: (() -> Unit)? = null,
-    emptyComputers: Boolean = false
+    emptyComputers: Boolean = false,
+    agentFeedTab: Boolean = false, agentFeedCount: Int = 0, onAgentFeed: (() -> Unit)? = null
 ) {
-    val scope = if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
-    val label = if (notificationTab) "Search notifications" else "Search workspaces"
+    val scope = if (agentFeedTab) NativeSearchScope.FEED else if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
+    val label = if (agentFeedTab) "Search feed" else if (notificationTab) "Search notifications" else "Search workspaces"
     val query = search.text(scope)
     val active = !emptyComputers && !cloudTab && search.active == scope
     Row(Modifier.fillMaxWidth().padding(horizontal = if (sidebar) 8.dp else 18.dp, vertical = 10.dp),
@@ -74,10 +75,12 @@ internal fun NativePrimaryNavigation(
             else NavigationCircle(R.drawable.ic_primary_close, "Cancel search", onCancel)
         } else {
             Row(Modifier.weight(1f).then(if (sidebar) Modifier else Modifier.navigationSurface().padding(4.dp))) {
-                PrimaryTab("Workspaces", "Workspaces", R.drawable.ic_primary_workspaces, !notificationTab && !cloudTab,
+                PrimaryTab("Workspaces", "Workspaces", R.drawable.ic_primary_workspaces, !notificationTab && !cloudTab && !agentFeedTab,
                     0, Modifier.weight(1f), sidebar) { onTab(false) }
+                if (!emptyComputers) onAgentFeed?.let { PrimaryTab("Feed", if (agentFeedCount > 0) "Feed ($agentFeedCount)" else "Feed",
+                    R.drawable.ic_agent_feed, agentFeedTab && !cloudTab, agentFeedCount, Modifier.weight(1f), sidebar, it) }
                 if (!emptyComputers) PrimaryTab("Notifications", if (unreadCount > 0) "Notifications ($unreadCount)" else "Notifications",
-                    R.drawable.ic_feed_bell, notificationTab && !cloudTab, unreadCount, Modifier.weight(1f), sidebar) { onTab(true) }
+                    R.drawable.ic_feed_bell, notificationTab && !cloudTab && !agentFeedTab, unreadCount, Modifier.weight(1f), sidebar) { onTab(true) }
                 onCloud?.let { PrimaryTab("Cloud", "Cloud", R.drawable.ic_workspace_cloud, cloudTab, 0, Modifier.weight(1f), sidebar, it) }
             }
             if (!emptyComputers && !cloudTab && sidebar) {

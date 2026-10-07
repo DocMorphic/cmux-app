@@ -6492,3 +6492,22 @@ The current download is build 157. Evidence and inspected fixture screenshots ar
 in `captures/changes/`. This is an integration preview: advanced artifact/text
 viewing, terminal Files gallery, remaining terminal/transport/settings/notification parity,
 and physical Pixel/Mac acceptance remain open.
+
+
+## 2026-10-07 — Agent Feed primary-tab port
+
+The scoped source audit at `186cec79781256867ad4516f0802118738bd2393` found
+that official iOS has a distinct `feed.v1` agent workstream Feed. Android's previous
+notification/workspace feed did not cover it. The new main Feed tab, wire/session
+implementation, search, triage, decision composers, terminal replies, destination
+navigation and full-text reader are mapped in [AGENT_FEED.md](AGENT_FEED.md).
+
+78 focused JVM cases pass (11 wire/session, 5 projection/read-state, 54 coordinator,
+8 search), and debug/test APKs build. Global upstream references are unchanged.
+Full Feed presentation/lifecycle/sidebar/physical acceptance remains open.
+
+The main-shell Android Feed flow also passed one case in 108.102 s on API37/16KiB
+with the same APKs after an initial app-binding startup ANR. No new ANR/crash
+events occurred in the passing attempt. Screenshot and both attempts are retained
+in `captures/runtime/agent-feed/`; limitations and APK hashes are in AGENT_FEED.md.
+The sole AVD was stopped/reaped and no signed release was produced.

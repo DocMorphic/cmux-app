@@ -3085,6 +3085,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var browserResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var browserCreationSupported = false
     @Volatile var changesResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var agentFeedResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var todoSupported = false
     val rejectNextTodo = AtomicBoolean(false)
     @Volatile var todoResponse: ((String, JSONObject) -> JSONObject)? = null
@@ -3227,6 +3228,8 @@ internal class NativeFixturePeer : AutoCloseable {
     }
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
+        "feed.list", "feed.text", "feed.permission.reply", "feed.question.reply", "feed.exit_plan.reply", "mobile.terminal.paste" ->
+            agentFeedResponse?.invoke(method, params) ?: JSONObject()
         "terminal.paste" -> JSONObject().put("submitted", params.optString("submit_key") == "return")
         "mobile.browser.create" -> browserResponse?.invoke(method, params) ?: JSONObject()
         "mobile.browser.stream.start" -> browserResponse?.invoke(method, params) ?: JSONObject().put("panel_id", params.getString("panel_id"))
@@ -3260,6 +3263,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 if (workspaceMetadataSupported) it.put(WORKSPACE_METADATA_CAPABILITY)
                 if (workspaceChangesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)
                 if (browserCreationSupported) it.put("browser.stream.v1").put("browser.stream.create.v1")
+                if (agentFeedResponse != null) it.put(AGENT_FEED_CAPABILITY)
                 if (todoSupported) it.put("todo.v1")
                 if (panelArtifactsSupported) it.put("panel.artifact.v1").put("surface.focus.v1")
                 if (artifactsSupported) it.put("terminal.artifact.v1").put("chat.artifact.gallery.v1").put("terminal.artifact.list.v1")

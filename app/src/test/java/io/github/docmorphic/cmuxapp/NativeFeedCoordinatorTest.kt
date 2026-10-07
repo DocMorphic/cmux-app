@@ -11,6 +11,32 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun agentFeedCapabilitySharesVerifiedConnectionAndRetiresExactOwner() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            a.agentFeedSupported = true
+            var connects = 0
+            val coordinator = NativeFeedCoordinator(this, { connects++; if (it.deviceId == "a") a.connect() else b.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.agentFeed?.snapshot != null &&
+                    coordinator.sources.value[mac("b").origin]?.hasWorkspaceSnapshot == true }
+                assertEquals(2, connects)
+                val session = checkNotNull(coordinator.agentFeedSession(mac("a")))
+                assertNull(coordinator.agentFeedSession(mac("b")))
+                assertTrue(b.requests.none { it.optString("method") == "feed.list" })
+                assertTrue(a.requests.any { it.optString("method") == "mobile.events.subscribe" &&
+                    it.getJSONObject("params").getJSONArray("topics").toString().contains("\"feed.changed\"") })
+                assertTrue(b.requests.none { it.optString("method") == "mobile.events.subscribe" &&
+                    it.getJSONObject("params").getJSONArray("topics").toString().contains("\"feed.changed\"") })
+                coordinator.retainMacs(listOf(mac("b")))
+                assertNull(coordinator.agentFeedSession(mac("a")))
+                assertFalse(coordinator.sources.value.containsKey(mac("a").origin))
+                assertTrue(runCatching { session.fullText(NativeAgentFeedItem("x", "w", "agent", AgentFeedKind.STOP,
+                    AgentFeedStatus.TELEMETRY, 1.0, 1.0)) }.isFailure)
+            } finally { coordinator.close() }
+        } }
+    }
+
     @Test fun identityRefreshClosesOldFeedBeforeSubscribingAndReconcilesNewRecord() = runBlocking {
         FeedPeer("a").use { peer ->
             val old = mac("a")
@@ -1149,6 +1175,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     @Volatile var overrideFeedRevision: Int? = null
     @Volatile var forceUnread = false
     @Volatile var powerSupported = false
+    @Volatile var agentFeedSupported = false
     @Volatile var rowActionsSupported = true
     var ticket: MobileAttachTicketContext? = null
     @Volatile var accountMutationsSupported = true
@@ -1201,6 +1228,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                             if (newGroupCreationSupported) it.put("workspace.group_create.v1")
                             if (rowActionsSupported) it.put("workspace.actions.v1").put("workspace.read_state.v1").put("workspace.close.v1")
                             if (powerSupported) it.put("caffeine.control.v1")
+                            if (agentFeedSupported) it.put(AGENT_FEED_CAPABILITY)
                             if (changesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)
                             if (artifactsSupported) it.put("terminal.artifact.v1").put("chat.artifact.gallery.v1")
                             if (panelArtifactsSupported) it.put("panel.artifact.v1")
@@ -1227,6 +1255,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                         if (!rejectWorkspaceAction && request.getJSONObject("params").optString("action") == "rename")
                             workspaceTitle = request.getJSONObject("params").getString("title")
                     }
+                    "feed.list" -> JSONObject().put("revision", 1).put("items", JSONArray())
                     "notification.feed.list" -> JSONObject().put("revision", overrideFeedRevision ?: revision)
                         .put("notifications", JSONArray().put(JSONObject().put("id", "shared").put("workspace_id", "w")
                             .put("created_at", 1).put("is_read", if (forceUnread) false else read)))

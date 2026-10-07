@@ -6,6 +6,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NativeSearchTest {
+    @Test fun agentFeedSearchKeepsOtherQueriesAndRejectsPreviousKeyboardGeneration() {
+        val first = NativeSearchState(workspaceQuery = "workspace", notificationQuery = "alert").begin(NativeSearchScope.FEED)
+        val edited = first.edit("  permission  ", NativeSearchScope.FEED, first.generation)
+        val switched = edited.begin(NativeSearchScope.NOTIFICATIONS)
+        assertEquals("permission", switched.feedQuery)
+        assertEquals("workspace", switched.workspaceQuery)
+        assertEquals("alert", switched.draft)
+        assertEquals(switched, switched.edit("stale", NativeSearchScope.FEED, first.generation))
+        assertEquals("", switched.clear(NativeSearchScope.FEED).feedQuery)
+        assertEquals("alert", switched.clear(NativeSearchScope.FEED).notificationQuery)
+    }
+
     @Test fun scopesKeepTheirOwnCommittedQueriesAndCancelOnlyCurrentScope() {
         var state = NativeSearchState().begin(NativeSearchScope.WORKSPACES)
         state = state.edit("  project  ", NativeSearchScope.WORKSPACES, state.generation).commit()

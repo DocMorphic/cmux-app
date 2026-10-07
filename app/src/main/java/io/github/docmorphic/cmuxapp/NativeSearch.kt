@@ -3,17 +3,18 @@ package io.github.docmorphic.cmuxapp
 import java.text.Normalizer
 import java.util.Locale
 
-enum class NativeSearchScope { WORKSPACES, NOTIFICATIONS }
+enum class NativeSearchScope { WORKSPACES, NOTIFICATIONS, FEED }
 
 /** The iOS coordinator's separate committed queries and generation-bound editing session. */
 data class NativeSearchState(
     val workspaceQuery: String = "", val notificationQuery: String = "",
-    val active: NativeSearchScope? = null, val draft: String = "", val generation: Long = 0
+    val active: NativeSearchScope? = null, val draft: String = "", val generation: Long = 0, val feedQuery: String = ""
 ) {
     fun text(scope: NativeSearchScope): String = if (active == scope) draft else committed(scope)
     private fun committed(scope: NativeSearchScope) = when (scope) {
         NativeSearchScope.WORKSPACES -> workspaceQuery
         NativeSearchScope.NOTIFICATIONS -> notificationQuery
+        NativeSearchScope.FEED -> feedQuery
     }
     fun begin(scope: NativeSearchScope): NativeSearchState = if (active == scope) this else commit().let {
         it.copy(active = scope, draft = it.committed(scope), generation = generation + 1)
@@ -29,6 +30,7 @@ data class NativeSearchState(
     private fun withQuery(scope: NativeSearchScope, value: String) = when (scope) {
         NativeSearchScope.WORKSPACES -> copy(workspaceQuery = value)
         NativeSearchScope.NOTIFICATIONS -> copy(notificationQuery = value)
+        NativeSearchScope.FEED -> copy(feedQuery = value)
     }
 }
 

@@ -312,16 +312,17 @@ internal fun NativeScreen(
         }
         var notifications by remember(code) { mutableStateOf<List<NativeNotification>>(emptyList()) }
         var notificationTab by rememberSaveable(signedIn) { mutableStateOf(false) }
+        var agentFeedTab by rememberSaveable(signedIn) { mutableStateOf(false) }
         var cloudTab by rememberSaveable(signedIn) { mutableStateOf(false) }
         LaunchedEffect(incomingCode, incomingNotificationRoute) {
-            if (incomingCode != null || incomingNotificationRoute != null) cloudTab = false
+            if (incomingCode != null || incomingNotificationRoute != null) { cloudTab = false; agentFeedTab = false }
         }
         var searchState by rememberSaveable(signedIn, stateSaver = listSaver(
-            save = { state: NativeSearchState -> state.commit().let { listOf(it.workspaceQuery, it.notificationQuery) } },
+            save = { state: NativeSearchState -> state.commit().let { listOf(it.workspaceQuery, it.notificationQuery, it.feedQuery) } },
             restore = { NativeSearchState(workspaceQuery = NativeSearchText.boundQuery(it[0]),
-                notificationQuery = NativeSearchText.boundQuery(it[1])) }
+                notificationQuery = NativeSearchText.boundQuery(it[1]), feedQuery = NativeSearchText.boundQuery(it.getOrElse(2) { "" })) }
         )) { mutableStateOf(NativeSearchState()) }
-        val searchScope = if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
+        val searchScope = if (agentFeedTab) NativeSearchScope.FEED else if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
         val search = searchState.text(searchScope).trim()
         val notificationQuery = searchState.text(NativeSearchScope.NOTIFICATIONS).trim()
         fun finishSearch(cancel: Boolean = false) {
@@ -718,6 +719,18 @@ internal fun NativeScreen(
             val scopedFeedSources = remember(visibleFeedSources, selectedOrigin, selectedSshComputer, selectedCloudId) {
                 visibleFeedSources.filter { selectedCloudId == null && selectedSshComputer == null && (selectedOrigin == null || it.mac.origin == selectedOrigin) }
             }
+            val agentReadPrefs = remember(context) { context.getSharedPreferences("native_agent_feed_read", android.content.Context.MODE_PRIVATE) }
+            val agentReadOwner = remember(browserLogin, teamState.scope) {
+                java.security.MessageDigest.getInstance("SHA-256").digest(org.json.JSONArray(listOf(browserLogin, teamState.scope?.toString())).toString().toByteArray())
+                    .joinToString("") { "%02x".format(it) }
+            }
+            var agentReadState by remember(agentReadOwner) { mutableStateOf(NativeAgentFeedReadState.decode(
+                agentReadPrefs.getString(agentReadOwner, null), System.currentTimeMillis() / 1000.0)) }
+            LaunchedEffect(agentReadOwner, agentReadState) { agentReadPrefs.edit().putString(agentReadOwner, agentReadState.encode()).apply() }
+            val agentEntries = remember(scopedFeedSources) { aggregateNativeAgentFeed(scopedFeedSources) }
+            val agentNeedsInputCount = agentEntries.count { agentReadState.needsInput(it) }
+            var agentNeedsInputOnly by rememberSaveable(agentReadOwner) { mutableStateOf(false) }
+            var agentFilterMenu by remember { mutableStateOf(false) }
             val feedEntries = remember(scopedFeedSources, selectedOrigin, appearances) {
                 aggregateNativeFeed(scopedFeedSources, selectedOrigin, appearances::name)
             }
@@ -3282,7 +3295,7 @@ internal fun NativeScreen(
                     val isSidebar = sidebarChrome.split
                     @Composable fun ListTitle(modifier: Modifier) {
                         Column(modifier) {
-                            Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                            Text(if (agentFeedTab) "Feed" else if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                             Text(selectedCloudId?.let { selectedCloudComputer?.machine?.preferredName ?: "Cloud computer unavailable" }
                                 ?: selectedSshComputer?.name ?: selectedComputer?.let(appearances::name) ?: "All Computers", color = nativeMuted,
                                 fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -3314,7 +3327,18 @@ internal fun NativeScreen(
                             cloud = cloudSnapshots.values.toList(), selectedCloud = selectedCloudId,
                             canSelectCloud = ::canSelectCloud, onSelectCloud = ::selectCloudComputer)
                         if (isSidebar) Spacer(Modifier.weight(1f)) else ListTitle(Modifier.weight(1f))
-                        if (notificationTab) {
+                        if (agentFeedTab) {
+                            Box {
+                                IconButton(onClick = { agentFilterMenu = true }) {
+                                    Icon(painterResource(if (agentNeedsInputOnly) R.drawable.ic_feed_filter_active else R.drawable.ic_feed_filter),
+                                        "Feed filter", tint = if (agentNeedsInputOnly) nativeAccent else nativeMuted, modifier = Modifier.size(23.dp))
+                                }
+                                DropdownMenu(agentFilterMenu, { agentFilterMenu = false }) {
+                                    DropdownMenuItem(text = { Text("All Activity") }, onClick = { agentNeedsInputOnly = false; agentFilterMenu = false })
+                                    DropdownMenuItem(text = { Text("Needs Input ($agentNeedsInputCount)") }, onClick = { agentNeedsInputOnly = true; agentFilterMenu = false })
+                                }
+                            }
+                        } else if (notificationTab) {
                             if (feedEntries.any { !it.notification.isRead }) IconButton(
                                 onClick = {
                                     pendingReadAllOrigin = selectedOrigin
@@ -3373,14 +3397,30 @@ internal fun NativeScreen(
 
                         }
                     }
-                    if ((busy || sshCreationBusy || creatingGroup || cloudCreationBusy) && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    if (selectedCloudId == null && allCloudSnapshots.isEmpty() && client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()) {
+                    if ((busy || sshCreationBusy || creatingGroup || cloudCreationBusy) && !notificationTab && !agentFeedTab) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if (selectedCloudId == null && allCloudSnapshots.isEmpty() && client == null && !busy && !notificationTab && !agentFeedTab && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()) {
                         Column(Modifier.padding(horizontal = 18.dp)) {
                             Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
                             TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
                         }
                     }
-                    if (notificationTab) {
+                    if (agentFeedTab) {
+                        key(agentReadOwner, selectedComputerOrigin) {
+                            NativeAgentFeedView(scopedFeedSources, search, agentNeedsInputOnly, agentReadState,
+                                onReadState = { agentReadState = it }, session = feedCoordinator::agentFeedSession,
+                                computerName = appearances::name, onRefresh = ::refreshFeed, modifier = Modifier.weight(1f), locale = searchLocale,
+                                onOpen = { entry, openTab ->
+                                    val owner = store.visiblePairedMacs().singleOrNull { it == entry.source.mac && connection.allowsSaved(it) }
+                                    val workspace = feedCoordinator.sources.value[owner?.origin]?.workspaces?.singleOrNull { it.id == entry.item.workspaceId }
+                                    val terminal = workspace?.terminals?.singleOrNull { it.id == entry.item.surfaceId }
+                                    if (owner == null || workspace == null || openTab && terminal == null) error = "This Feed destination is no longer available."
+                                    else {
+                                        finishSearch(); inAppNotification = null
+                                        workspaceRoute = NativeWorkspaceRoute(owner.origin, workspace.id, terminalId = terminal?.id.takeIf { openTab })
+                                    }
+                                })
+                        }
+                    } else if (notificationTab) {
                         NativeNotificationFeedView(feedProjection, scopedFeedSources, unreadNotificationsOnly,
                             notificationQuery.isNotBlank(), feedRefreshing, notificationNow, searchLocale, Modifier.weight(1f),
                             onOpen = { entry ->
@@ -3598,14 +3638,16 @@ internal fun NativeScreen(
                         }
                     }
                     NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
-                        onTab = { if (!isSidebar) workspaceRoute = null; finishSearch(); notificationTab = it },
+                        onTab = { if (!isSidebar) workspaceRoute = null; finishSearch(); agentFeedTab = false; notificationTab = it },
                         onBeginSearch = { searchState = searchState.begin(searchScope) },
                         onEdit = { value, generation -> searchState = searchState.edit(value, searchScope, generation) },
                         onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) },
                         sidebar = isSidebar, onNewTask = { finishSearch(); newTaskDraft() },
+                        agentFeedTab = agentFeedTab, agentFeedCount = agentNeedsInputCount,
+                        onAgentFeed = { if (!isSidebar) workspaceRoute = null; finishSearch(); notificationTab = false; agentFeedTab = true },
                         onCloud = cloudModel?.let { model -> { finishSearch(); cloudTab = true; model.activate() } })
                 }
-                val showWorkspaceReconnect = selectedCloudId == null && allCloudSnapshots.isEmpty() && ((cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
+                val showWorkspaceReconnect = !agentFeedTab && selectedCloudId == null && allCloudSnapshots.isEmpty() && ((cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
                             (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()))))
                 val customizePane: ((NativeWorkspace) -> Unit)? = workspaceSourceForPane()?.takeIf { it.canCustomizeWorkspace() }?.let { source ->
                     { workspace -> customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, source.mac, workspace.id) }
@@ -3665,7 +3707,7 @@ internal fun NativeScreen(
                         selectedComputerOrigin = mac?.origin ?: ssh?.let { "ssh:${it.id}" }
                             ?: presentation.computer?.let(CloudAddress::parse)?.takeIf { it.component == null }?.identifier.orEmpty()
                         store.update { it.put("computer_selection", selectedComputerOrigin) }
-                        notificationTab = presentation.notifications
+                        agentFeedTab = false; notificationTab = presentation.notifications
                         searchState = searchState.commit().copy(workspaceQuery = presentation.workspaceQuery, notificationQuery = presentation.notificationQuery)
                         unreadNotificationsOnly = presentation.notificationUnread
                         workspaceFilter = NativeWorkspaceFilter(presentation.workspaceUnread, presentation.machines)
@@ -3815,9 +3857,10 @@ internal fun NativeScreen(
                                 }
                             }
                             NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
-                                onTab = { cloudTab = false; finishSearch(); notificationTab = it },
+                                onTab = { cloudTab = false; finishSearch(); agentFeedTab = false; notificationTab = it },
                                 onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {},
-                                emptyComputers = noKnownComputers)
+                                emptyComputers = noKnownComputers, agentFeedTab = agentFeedTab, agentFeedCount = agentNeedsInputCount,
+                                onAgentFeed = { cloudTab = false; finishSearch(); notificationTab = false; agentFeedTab = true })
                         }
                         else -> NativeWorkspaceShell(owner = browserLogin to teamState.scope,
                             hasDetail = cloudRoute != null || sshRoute != null || screenResume.pending != null || localBrowser != null ||

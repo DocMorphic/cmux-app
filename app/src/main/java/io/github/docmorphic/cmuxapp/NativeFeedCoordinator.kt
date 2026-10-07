@@ -30,6 +30,7 @@ internal class NativeFeedCoordinator(
         var changes: WorkspaceChangesSummarySession? = null
         var changesListEvent = false
         var power: NativeMacPowerSession? = null
+        var agentFeed: NativeAgentFeedSession? = null
     }
     private val handles = mutableMapOf<String, Handle>()
     private val revisions = mutableMapOf<String, NativeFeedRevision>()
@@ -64,6 +65,11 @@ internal class NativeFeedCoordinator(
         return handle.power?.takeIf { current(handle, client) && handle.verified }
     }
 
+    /** Return only the exact pairing's live, capability-admitted Feed session. */
+    fun agentFeedSession(mac: NativeCredentialStore.PairedMac): NativeAgentFeedSession? =
+        handles[mac.origin]?.takeIf { it.mac == mac && current(it) && it.verified &&
+            it.client?.isClosed == false && AGENT_FEED_CAPABILITY in it.capabilities }?.agentFeed
+
     /** Drop retired computers even while paused, without dialing the retained set. */
     fun retainMacs(macs: List<NativeCredentialStore.PairedMac>) {
         val allowed = macs.filter(isAllowed).associateBy { it.origin }
@@ -74,13 +80,14 @@ internal class NativeFeedCoordinator(
 
     fun pause() {
         handles.keys.toList().forEach(::remove)
-        mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE, keepAwake = null, changes = emptyMap()) }
+        mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE, keepAwake = null, changes = emptyMap(),
+            agentFeed = source.agentFeed.copy(loading = false, pending = emptySet())) }
     }
     override fun close() { pause(); mutableSources.value = emptyMap(); revisions.clear() }
     private fun remove(origin: String) {
         // The monitor's finally releases its client after bounded stream cleanup.
         // Closing here would prevent unsubscribe while another consumer keeps the wire alive.
-        handles.remove(origin)?.let { cancelBorrowedOperations(it); it.changes?.close(); it.job?.cancel(); it.refresh.close() }
+        handles.remove(origin)?.let { cancelBorrowedOperations(it); it.changes?.close(); it.agentFeed?.close(); it.job?.cancel(); it.refresh.close() }
     }
     private fun cancelBorrowedOperations(handle: Handle) {
         handle.borrowedOperations.toList().forEach { it.cancel(CancellationException("Borrowed computer connection changed")) }
@@ -177,6 +184,21 @@ internal class NativeFeedCoordinator(
                     } }
                     val summaryFailure = CompletableDeferred<Exception>()
                     val summaryDisconnect = launch { throw summaryFailure.await() }
+                    val agentFeed = if (AGENT_FEED_CAPABILITY in capabilities) NativeAgentFeedSession(this,
+                        admitted = { current(handle, client) && handle.verified && !client.isClosed },
+                        request = { method, params -> client.request(method, params) },
+                        initial = mutableSources.value[handle.mac.origin]?.agentFeed?.snapshot,
+                        fatal = { failure -> summaryFailure.complete(failure) }).also { session ->
+                        handle.agentFeed = session
+                    } else null
+                    val agentFeedUpdates = agentFeed?.let { session -> launch(start = CoroutineStart.UNDISPATCHED) {
+                        session.state.collect { state ->
+                            if (current(handle, client) && handle.verified) mutableSources.value[handle.mac.origin]?.let {
+                                publish(handle, it.copy(agentFeed = state))
+                            }
+                        }
+                    } }
+                    val topics = FEED_TOPICS + if (agentFeed != null) listOf("feed.changed") else emptyList()
                     if (WORKSPACE_CHANGES_CAPABILITY in capabilities) {
                         handle.changes = WorkspaceChangesSummarySession(this,
                             admitted = { current(handle, client) && handle.verified && !client.isClosed },
@@ -195,7 +217,9 @@ internal class NativeFeedCoordinator(
                         launch { observePower(handle, client, build) } else null
                     val events = launch(start = CoroutineStart.UNDISPATCHED) {
                         client.events.collect { event ->
-                            if (event.topic == "notification.feed.changed") {
+                            if (event.topic == "feed.changed") {
+                                agentFeed?.changed(event.payload)
+                            } else if (event.topic == "notification.feed.changed") {
                                 val revision = event.payload.optLong("revision", -1)
                                 if (revision < 0 || handle.revision.observe(revision)) handle.refresh.request()
                             } else if (event.topic in FEED_TOPICS) {
@@ -213,9 +237,11 @@ internal class NativeFeedCoordinator(
                     }
                     val stream = UUID.randomUUID().toString()
                     try {
-                        client.subscribe(FEED_TOPICS, stream)
+                        client.subscribe(topics, stream)
+                        agentFeed?.start()
                         handle.refresh.run { fetch(handle, client) }
                     } finally {
+                        agentFeed?.close(); agentFeedUpdates?.cancel()
                         power?.cancel(); events.cancel(); disconnect.cancel(); summaryDisconnect.cancel()
                         withContext(NonCancellable) {
                             if (!client.isClosed) withTimeoutOrNull(750) { runCatching { client.unsubscribe(stream) } }
@@ -230,8 +256,10 @@ internal class NativeFeedCoordinator(
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
                     error = failure.message ?: "Computer unavailable", keepAwake = null, changes = emptyMap(),
+                    agentFeed = if (NativePanelCachePolicy.retains(failure)) source.agentFeed.copy(loading = false, pending = emptySet())
+                        else NativeAgentFeedState(error = "Feed access is no longer authorized"),
                     panelCacheToken = source.panelCacheToken.takeIf { NativePanelCachePolicy.retains(failure) }))
-            } finally { handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBorrowedOperations(handle); active?.close(); handle.client = null }
+            } finally { handle.agentFeed?.close(); handle.agentFeed = null; handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBorrowedOperations(handle); active?.close(); handle.client = null }
             handle.refresh.awaitRequest(10_000)
         }
     }
@@ -581,6 +609,7 @@ internal class NativeFeedCoordinator(
     suspend fun refresh() = withContext(scope.coroutineContext.minusKey(Job)) {
         handles.values.toList().map { handle -> async {
             val client = handle.client
+            handle.agentFeed?.refresh()
             if (client == null || !handle.verified) handle.refresh.request()
             else try { if (!fetch(handle, client)) handle.refresh.request(); handle.changes?.request(force = true) } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
