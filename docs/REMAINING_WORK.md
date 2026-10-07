@@ -27,6 +27,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Feed Source view now supports native selection and long messages beyond Compose's
+  text-height limit, retaining its character anchor and selection through mode
+  switches and saved-state reload without saving full bodies into the Activity Bundle.
+  **Five focused Android cases passed**, including composer/reader and browser Feed
+  integration. The corrected long-source screenshot check passed after recovering
+  from emulator startup System UI ANRs; the final 14,000th line is visibly rendered.
+  See `AGENT_FEED.md` for exact runs and retained initial evidence. Emulator/Gradle
+  stopped; no physical verification, OS process-death check or signed release.
+
 - Feed reply rows now use the source's tailed quote/reply geometry, compact bar
   references, Reply/Sending/Replied affordances and explicit uncertain-reply
   Try Again/Open Terminal actions. Retrying opens the saved draft without sending.

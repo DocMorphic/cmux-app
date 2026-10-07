@@ -77,6 +77,15 @@ class AgentFeedReplySheetTest {
     }
     private fun quote(): TextView? = WindowInspector.getGlobalWindowViews()
         .firstNotNullOfOrNull { it.findViewWithTag<TextView>("AgentFeedExpandedQuote") }
+    private fun awaitReaderSource() {
+        compose.waitUntil(10_000) {
+            val ready = AtomicBoolean(false)
+            compose.runOnUiThread { ready.set(WindowInspector.getGlobalWindowViews().any {
+                it.findViewWithTag<TextView>("AgentFeedSourceBody")?.text?.endsWith("TAIL_MARKER") == true
+            }) }
+            ready.get()
+        }
+    }
     private fun scroll(): ScrollView = WindowInspector.getGlobalWindowViews()
         .firstNotNullOf { it.findViewWithTag<ScrollView>("AgentFeedComposeScroll") }
     private fun scrollToDraft() {
@@ -183,12 +192,12 @@ class AgentFeedReplySheetTest {
             compose.onNodeWithTag("AgentFeedReplySheet").assertDoesNotExist()
             compose.onNodeWithText("See more", substring = true, useUnmergedTree = true).clickInlineMore()
             compose.onNodeWithText("Source").performClick()
-            compose.onNodeWithText("TAIL_MARKER", substring = true).assertExists()
+            awaitReaderSource()
             val reads = fixture.requests.count { it.first == "feed.text" }
             restoration.emulateSavedInstanceStateRestore()
             compose.waitUntil(10_000) { fixture.requests.count { it.first == "feed.text" } > reads }
             compose.onNodeWithText("Formatted").assertIsDisplayed()
-            compose.onNodeWithText("TAIL_MARKER", substring = true).assertExists()
+            awaitReaderSource()
             compose.runOnIdle { assertTrue(fixture.requests.none { it.first == "mobile.terminal.paste" }) }
         }
     }

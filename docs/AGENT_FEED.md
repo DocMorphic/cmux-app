@@ -620,3 +620,43 @@ Verification:
 Full Feed parity remains unproven. Physical assistive-technology, all locale/font
 combinations, long-message performance and broader account/lifecycle acceptance
 remain part of the project gates.
+
+## Full-message Source reading — 2026-10-07
+
+Rechecked `AgentFeedReplyComposer.swift` and `AgentFeedFullTextView.swift` at the
+scoped source revision `186cec79781256867ad4516f0802118738bd2393`. The source reader
+loads complete event text, exposes explicit retry, and cancels work when dismissed.
+Android keeps its existing formatted Markdown view and optional Source view.
+
+The Source branch previously mounted one Compose Text and a branch-local scroll
+state. Switching through Formatted discarded that position; sufficiently tall
+messages also exceeded Compose's packed text measurement constraints. It now uses
+a selectable native TextView inside a clipped ScrollView. A saved character anchor,
+fractional line offset and selection belong to the reader, outside the mode branch
+and nested dialog. The message is reloaded; neither the Compose saver nor native
+view hierarchy saves its contents into the Activity Bundle. The source view uses
+simple paragraph wrapping and content-based text direction, as the expanded quote
+already does. This change also reaches the shared reader in the browser sidebar.
+
+The first focused Android run passed **five cases in 90.931 seconds**: three reader
+cases plus the composer/account-change/reader flow and actual separate-browser Feed
+flow. Reader cases cover mode-switch position/selection without another load,
+14,000-line complete text above the Compose height limit, saved-state reload and
+selection restoration, native hierarchy exclusion, retry/read marking and dismissal
+cancellation. Screenshot review caught a capture taken before the final native
+scroll painted; the fixture now waits for drawing before taking visual evidence.
+The original screenshot is retained and is not evidence of the final line painting.
+
+The corrected single-case run passed in 17.903 seconds, but its screenshot was
+covered by a System UI ANR dialog. Second-boot event logs show System UI/Google
+service startup ANRs at 15:27:43–15:28:21, before that test started at 15:28:56.
+After choosing Wait and confirming the launcher recovered, the same APK/test
+passed again in **9.928 seconds**. Its final screenshot visibly shows line 14,000
+and `TAIL_MARKER`, with no dialog. No new ANR/crash events appeared during that
+repeat; the initial five-case run had empty ANR/crash logs. All original and final
+evidence is retained in ignored `captures/runtime/feed-reader/`. Both debug/test
+builds passed; Gradle and the sole 1,536 MiB emulator were stopped and reaped.
+
+These are emulator fixtures and Compose saved-state restoration, not a physical
+Pixel/Mac or OS process-death run. Broader rendered/source reflow, accessibility and
+full Feed acceptance remain open.

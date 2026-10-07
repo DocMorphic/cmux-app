@@ -5,9 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -191,11 +188,12 @@ internal fun AgentFeedTimeline(
 }
 
 @Composable
-private fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal) -> Unit,
+internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal) -> Unit,
     load: suspend () -> String, onRead: () -> Unit, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf<String?>(null) }; var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
     val viewport = rememberSaveable(saver = agentFeedViewportSaver) { MarkdownViewportState() }
+    val sourcePosition = rememberSaveable(saver = AgentFeedSourcePosition.Saver) { AgentFeedSourcePosition() }
     LaunchedEffect(attempt) {
         error = null
         try { text = load(); onRead() }
@@ -212,7 +210,7 @@ private fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal) 
                 when {
                     error != null -> Column(Modifier.padding(20.dp)) { Text(error!!); TextButton(onClick = { attempt++ }) { Text("Retry") } }
                     text == null -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                    modal.raw -> SelectionContainer { Text(text!!, Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) }
+                    modal.raw -> AgentFeedSourceReader(text!!, sourcePosition)
                     else -> MarkdownWebPreview(text!!, viewport, onFailure = { onChange(modal.copy(raw = true)) })
                 }
             }
