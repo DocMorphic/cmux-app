@@ -26,8 +26,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -104,6 +106,9 @@ internal fun NativeTaskComposerView(
     val currentContext by rememberUpdatedState(isCurrent)
     val createdCallback by rememberUpdatedState(onCreated)
     var busy by remember { mutableStateOf(false) }
+    var submissionJob by remember(editor) { mutableStateOf<Job?>(null) }
+    var submissionCommitted by remember(editor) { mutableStateOf(false) }
+    var leavingPreparation by remember(editor) { mutableStateOf(false) }
     var error by remember(editor) { mutableStateOf(if (initialDraft.lastRequest != null && initialDraft.completedRequest == null)
         "Previous task status is unconfirmed. Check your workspace list before retrying." else null) }
     var accepted by remember(editor) { mutableStateOf(false) }
@@ -123,7 +128,8 @@ internal fun NativeTaskComposerView(
     val latestGroups by rememberUpdatedState(groupSelection)
     val currentGroupCheck by rememberUpdatedState(groupIsCurrent)
     var preparingAttachments by remember(editor) { mutableStateOf(false) }
-    val canEdit = !busy && !accepted && !preparingAttachments
+    val canEdit = !busy && !accepted && !preparingAttachments && !leavingPreparation
+    val canLeave = !leavingPreparation && (!busy || (submissionJob?.isActive == true && !submissionCommitted))
     val currentCanEdit by rememberUpdatedState(canEdit)
     // A draft opened during the very first handshake initially has only the
     // pairing-code identity. Adopt the verified Mac once that handshake finishes.
@@ -149,9 +155,25 @@ internal fun NativeTaskComposerView(
         edit { it.selecting(selected, templateStore.state.value.suggestedDirectory(selected, origin, directories.firstOrNull())) }
     }
     fun leave() {
-        if (busy) return
-        focus.clearFocus(); keyboard?.hide()
-        if (dirty && !accepted) confirmLeave = true else onBack()
+        // Recheck live state too: a tap can arrive before the disabled button is
+        // recomposed at the preparation/creation boundary.
+        if (leavingPreparation || (busy && (submissionJob?.isActive != true || submissionCommitted))) return
+        fun presentLeave() {
+            focus.clearFocus(); keyboard?.hide()
+            if (dirty && !accepted) confirmLeave = true else onBack()
+        }
+        if (!busy) { presentLeave(); return }
+        // Uploads and durable draft preparation can be stopped. Once creation is
+        // admitted, keep dismissal locked until its result/uncertainty is known.
+        val preparing = submissionJob ?: return
+        leavingPreparation = true
+        preparing.cancel()
+        scope.launch {
+            try {
+                preparing.join()
+                if (currentContext() && collection.isCurrent(editor)) presentLeave()
+            } finally { leavingPreparation = false }
+        }
     }
     fun saveThen(action: () -> Unit) {
         if (busy) return
@@ -200,7 +222,7 @@ internal fun NativeTaskComposerView(
     }.getOrNull()
     val recoveryApplies = recovery?.appliesTo(origin, effectiveRequest) == true
     fun launchTask(reconcile: Boolean = false, startAgain: Boolean = false) {
-        if (busy || accepted || preparingAttachments || supportsTaskCreation == false || !hasSelectedMac || !groupSelection.valid) return
+        if (busy || accepted || preparingAttachments || leavingPreparation || supportsTaskCreation == false || !hasSelectedMac || !groupSelection.valid) return
         if (reconcile && !recoveryApplies) return
         if (!reconcile && recoveryApplies && !(startAgain && recoveryReady)) return
         val requestConnectionToken = connectionToken
@@ -212,7 +234,7 @@ internal fun NativeTaskComposerView(
         }.getOrElse { error = it.message; return }
         busy = true; error = null
         focus.clearFocus(); keyboard?.hide()
-        scope.launch {
+        submissionJob = scope.launch {
             var transmitted = false
             try {
                 check(requestIsCurrent()) { "Connection changed" }
@@ -248,6 +270,7 @@ internal fun NativeTaskComposerView(
                 currentCoroutineContext().ensureActive()
                 check(requestIsCurrent()) { "Task session changed before creation" }
                 transmitted = true
+                submissionCommitted = true
                 val response = createTask(wire)
                 currentCoroutineContext().ensureActive()
                 check(requestIsCurrent()) { "Connection changed before the task could be opened" }
@@ -279,7 +302,21 @@ internal fun NativeTaskComposerView(
                         error = "Could not save task recovery. Refresh before starting another task."
                     }
                 } else error = (failure.message ?: "Could not create task") + ". Check your workspace list before retrying."
-            } finally { busy = false }
+            } finally {
+                if (!transmitted && !currentCoroutineContext().isActive && requestIsCurrent()) {
+                    // Cancelled preparation did not create a workspace. Restore
+                    // the prior retry/recovery anchor (which may itself be
+                    // uncertain), without dropping prompt or attachment edits.
+                    collection.editIfCurrent(editor) { it.copy(
+                        lastRequest = draft.lastRequest, lastRequestOrigin = draft.lastRequestOrigin,
+                        completedRequest = draft.completedRequest, completedOrigin = draft.completedOrigin
+                    ) }
+                    submission.restore(draft.lastRequestOrigin ?: origin, draft.lastRequest?.let(::JSONObject))
+                    flushDrafts()
+                }
+                submissionCommitted = false
+                busy = false
+            }
         }
     }
     LaunchedEffect(client, modelKey) {
@@ -414,7 +451,7 @@ internal fun NativeTaskComposerView(
     val layout: @Composable (@Composable () -> Unit, @Composable () -> Unit, (TerminalPasteContent) -> Boolean) -> Unit = { attachmentStrip, attachmentPicker, receiveAttachment ->
         Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {
             Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { leave() }, enabled = !busy) {
+                IconButton(onClick = { leave() }, enabled = canLeave) {
                     Icon(painterResource(R.drawable.ic_task_back), "Back to workspaces", Modifier.size(22.dp))
                 }
                 Text(draft.workspaceName.trim().ifEmpty { directory.trim().takeIf { it.isNotEmpty() }?.let(TaskDirectoryPaths::name) ?: "New Task" },

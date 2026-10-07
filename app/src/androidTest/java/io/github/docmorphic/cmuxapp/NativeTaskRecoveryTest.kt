@@ -38,7 +38,9 @@ class NativeTaskRecoveryTest {
     @Before fun start() {
         peer = NativeFixturePeer()
         client = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
-        runBlocking { client.connect() }
+        // Match production admission: connecting alone does not authorize a
+        // workspace mutation; discover the authenticated host capability first.
+        runBlocking { client.connect(); client.hostStatus() }
     }
     @After fun close() { compose.activity.finish(); client.close(); peer.close() }
     private fun show(composerClient: () -> MobileRpcClient = { client },

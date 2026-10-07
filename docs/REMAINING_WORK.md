@@ -28,6 +28,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Task submission can now be cancelled during draft persistence or attachment
+  upload, while Back stays locked after workspace creation is admitted. Draft
+  choices appear after cancellation settles; prior uncertain operation IDs survive
+  cancelling an edited request and reverting it. **Six distinct Android scenarios
+  have passing evidence across two runs**; the two older recovery fixtures needed
+  host-capability discovery before mutation. See the task-preparation section in
+  `PARITY.md` for exact scope. No physical workflow, process-death acceptance or
+  signed release is established by these checks; emulator and Gradle are stopped.
+
 - Settings now has native personal-plan status, billing-source labels, retry,
   refresh and fixed web/Apple management links. Team coverage avoids personal
   offers, and returning from an opened page refreshes status. **16 distinct JVM

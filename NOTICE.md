@@ -635,3 +635,11 @@ and the fixed Apple management destination in web/services/billing/apple/config.
 at cmux revision 186cec79781256867ad4516f0802118738bd2393.
 Copyright Manaflow, Inc.; GPL-3.0-or-later. Android uses the authenticated plan GET
 and external management pages; it does not implement StoreKit or Google Play purchases.
+
+Task preparation cancellation and committed-submission dismissal policy in
+NativeTaskComposerView.kt follow TaskComposerSheet.swift and
+TaskComposerSheet+Policies.swift in Packages/iOS/CmuxMobileShellUI/TaskComposer
+at cmux revision 186cec79781256867ad4516f0802118738bd2393.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. Android cancels and joins preparation
+before presenting its existing draft choices; it retains prior uncertain operation
+identities and rejects late transport results after the composer is removed.

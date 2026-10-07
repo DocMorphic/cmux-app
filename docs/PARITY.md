@@ -12,6 +12,53 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Task preparation cancellation (2026-10-07)
+
+Scoped source: `TaskComposerSheet.swift` and `TaskComposerSheet+Policies.swift`
+under `Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/TaskComposer`
+at `186cec79781256867ad4516f0802118738bd2393`. The source separates preparation
+from committed workspace creation and locks dismissal only after commitment.
+This scoped comparison does not advance the global parity pin.
+
+Android previously blocked Back throughout submission. It now cancels and joins
+draft persistence/attachment upload before showing Save Draft / Delete Draft /
+Keep Editing. Keeping the editor open requires an explicit new submission; it
+does not restart the cancelled upload automatically. Once creation is admitted,
+both toolbar and system Back remain locked until a result or failure. A live
+state check covers taps arriving before the button's disabled state recomposes.
+
+Cancelled preparation restores the prior request and completed-recovery anchors,
+including the in-memory retry identity, while keeping prompt and attachments.
+This prevents an edited-but-cancelled attempt from replacing an earlier uncertain
+operation ID. Owner/connection checks prevent a cancelled old session from
+installing state into a replacement. Parent removal after commitment retains
+the uncertain request and ignores the late response.
+
+Verification on the sole existing Android 17 / 16 KiB emulator, 1,536 MiB RAM:
+
+- Debug and test APK builds passed (initial 1m29s; final implementation 16s).
+- All four `NativeTaskCancellationTest` cases passed in the initial six-case run:
+  cancel during saving then explicit retry; real socket upload cancellation,
+  durable draft/attachment preservation and late-reply rejection; cancel an edited
+  retry then revert and reuse the old uncertain ID; committed Back lock and a
+  non-cooperative late result after parent removal.
+- That initial run (62.367s) failed the two existing `NativeTaskRecoveryTest`
+  cases when they attempted real workspace creation. Their setup connected
+  without calling `hostStatus()`, so current mutation admission rejected creation.
+  The fixture now discovers the authenticated capability as production does;
+  admission checks and assertions remain intact. After the test-only rebuild
+  (21s), both refresh/recover and confirmed-start-again cases passed in **16.356s**.
+- Thus six distinct scenarios have passing evidence across the two runs, not
+  six passes in one run. Original logs are retained under
+  `captures/runtime/task-cancellation/`; `verification.json` records final APKs
+  and scope. Boot and final ANR/crash event logs were empty. Emulator and Gradle
+  were stopped and owned sessions reaped.
+
+These checks use local fixture RPC and injected persistence/creation delays.
+They do not establish physical Pixel/Mac, OS process-death or network-transition
+acceptance, nor a new signed release. Broader task UI/accessibility and lifecycle
+requirements remain in `REMAINING_WORK.md`.
+
 ## Screen composition compiler-size checkpoint (2026-10-06)
 
 The debug NativeScreen method now measures 13,147 code units, down from 44,283

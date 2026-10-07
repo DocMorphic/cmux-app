@@ -3078,6 +3078,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var workspaceCreationResponse: (() -> JSONObject)? = null
     private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile var releaseTaskModels: CountDownLatch? = null
+    @Volatile var releaseTaskUpload: CountDownLatch? = null
     @Volatile var taskModelsResponse: JSONObject? = null
     @Volatile var taskModelErrorCode: String? = null
     @Volatile var directoryResponse: ((String, JSONObject) -> JSONObject)? = null
@@ -3315,7 +3316,9 @@ internal class NativeFixturePeer : AutoCloseable {
                 }
             }
         }
-        "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt")
+        "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt").also {
+            releaseTaskUpload?.await(30, java.util.concurrent.TimeUnit.SECONDS)
+        }
         "notification.feed.mark_read", "notification.feed.mark_unread" -> JSONObject().also {
             val ids = params.getJSONArray("notification_ids")
             for (index in 0 until ids.length()) {

@@ -30,6 +30,13 @@ internal class TaskSubmissionIdentity {
         divergent = null
     }
 
+    /** Cancelled preparation must not retire an earlier, possibly accepted request. */
+    fun restore(origin: String, parameters: JSONObject?) {
+        baseline = null
+        divergent = null
+        parameters?.let { submitted(origin, it) }
+    }
+
     /** A completed host operation must never become the normal retry baseline again. */
     fun retire(origin: String, parameters: JSONObject): JSONObject =
         JSONObject(parameters.toString()).put("operation_id", UUID.randomUUID().toString()).also { submitted(origin, it) }
