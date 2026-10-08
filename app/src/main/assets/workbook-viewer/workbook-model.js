@@ -21,9 +21,11 @@
     return book.SheetNames.map((name, index) => ({name, index}))
       .filter(item => !book.Workbook?.Sheets?.[item.index]?.Hidden && book.Sheets[item.name] && !book.Sheets[item.name]['!ods']?.hidden);
   }
-  function read(bytes) {
-    const book = XLSX.read(bytes, {type: 'array', dense: false, bookFiles: true, bookVBA: false,
-      cellHTML: false, cellStyles: true, cellFormula: true, cellText: true, cellNF: true});
+  const readOptions = () => ({dense: false, bookFiles: true, bookVBA: false,
+    cellHTML: false, cellStyles: true, cellFormula: true, cellText: true, cellNF: true});
+  function read(bytes) { return validate(XLSX.read(bytes, {...readOptions(), type:'array'})); }
+  function readArchive(archive) { return validate(XLSX.parse_zip(archive,readOptions())); }
+  function validate(book) {
     if (!['xlsx', 'ods'].includes(book.bookType) || !book.SheetNames.length || book.SheetNames.length > 2048) throw new Error('Unsupported workbook');
     for (const name of book.SheetNames) if (book.Sheets[name]?.['!ref']) range(book.Sheets[name]['!ref']);
     if (!sheets(book).length) throw new Error('No visible worksheets');
@@ -187,5 +189,5 @@
       return {text: content, style: css};
     });
   }
-  return {axisInfo, read, sheets, range, windowFor, text, link, style, color, cellAddress, destination, richText, children, ROWS, COLS};
+  return {axisInfo, read, readArchive, sheets, range, windowFor, text, link, style, color, cellAddress, destination, richText, children, ROWS, COLS};
 });

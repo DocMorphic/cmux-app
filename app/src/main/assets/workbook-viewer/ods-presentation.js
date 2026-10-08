@@ -5,6 +5,8 @@
 })(globalThis, function() {
   'use strict';
   const ns = {
+    text:'urn:oasis:names:tc:opendocument:xmlns:text:1.0',
+    xlink:'http://www.w3.org/1999/xlink',
     office:'urn:oasis:names:tc:opendocument:xmlns:office:1.0',
     table:'urn:oasis:names:tc:opendocument:xmlns:table:1.0',
     style:'urn:oasis:names:tc:opendocument:xmlns:style:1.0',
@@ -63,6 +65,17 @@
     }
     return null;
   }
+  function linkTarget(value) {
+    if (!value || value.length > 8192 || !value.startsWith('#')) return value || '';
+    let fragment;
+    try { fragment = decodeURIComponent(value.slice(1)); } catch (_) { return ''; }
+    // ODF cell fragments use Sheet.Cell, including quoted/dotted sheet names.
+    // Translate only a final cell address; leave unsupported named targets inert.
+    const match = /^(.*)\.(\$?[A-Z]{1,3}\$?[1-9][0-9]{0,6})$/i.exec(fragment);
+    if (!match) return '#' + fragment;
+    const sheet = match[1].replace(/^\$/,'');
+    return '#' + (sheet ? sheet + '!' : '') + match[2];
+  }
   function apply(book, content, styles) {
     const definitions = new Map(), defaults = new Map(), fonts = new Map(), cache = new Map();
     for (const document of [styles, content].filter(Boolean)) {
@@ -85,6 +98,66 @@
       const result = Object.assign({}, defaults.get(family)?.properties,
         definition?.parent ? resolve(family,definition.parent,visiting) : {}, definition?.properties);
       visiting.delete(id); cache.set(id,result); return result;
+    }
+    // Keep inert text/style data, never DOM nodes or document HTML. Repeated
+    // cells share this projection; rendering spends a separate visible-run budget.
+    let remainingRuns = 200000;
+    function rich(cell) {
+      const paragraphs = children(cell,'text',['p','h']);
+      if (!paragraphs.length) return null;
+      const runs = []; let failed = false, count = 0;
+      function add(text, properties, href) {
+        if (!text || failed) return;
+        count += text.length;
+        if (runs.length >= 4096 || count > 1048576 || remainingRuns <= 0) { failed = true; return; }
+        runs.push({text,properties,href}); remainingRuns--;
+      }
+      for (const [index, paragraph] of paragraphs.entries()) {
+        if (index) add('\n',{},'');
+        let started = false, pending = null;
+        function literal(value, properties, href) {
+          // ODF 6.1.2 collapses XML whitespace across span boundaries. Explicit
+          // text:s/tab/line-break elements remain distinct and preserve spacing.
+          for (const part of value.split(/([ \t\r\n]+)/)) {
+            if (!part) continue;
+            if (/^[ \t\r\n]+$/.test(part)) { if (started && !pending) pending = {properties,href}; }
+            else {
+              if (pending) add(' ',pending.properties,pending.href);
+              pending = null; add(part,properties,href); started = true;
+            }
+          }
+        }
+        function explicit(text, properties, href) {
+          if (pending) add(' ',pending.properties,pending.href);
+          pending = null; add(text,properties,href); started = true;
+        }
+        function visit(node, properties, href, depth) {
+          if (failed) return;
+          if (depth > 32) { failed = true; return; }
+          if (node.nodeType === 3 || node.nodeType === 4) { literal(node.nodeValue || '',properties,href); return; }
+          if (node.namespaceURI !== ns.text) return;
+          const name = node.localName;
+          if (name === 's') {
+            const value = attr(node,'text','c') || '1', count = Number(value);
+            if (!/^\d+$/.test(value) || !Number.isSafeInteger(count) || count < 1 || count > 1048576) { failed = true; return; }
+            explicit(' '.repeat(count),properties,href); return;
+          }
+          if (name === 'tab' || name === 'line-break') { explicit(name === 'tab' ? '\t' : '\n',properties,href); return; }
+          if (!['p','h','span','a','meta','meta-field','ruby','ruby-base'].includes(name)) {
+            // Unsupported fields stay with the parser's saved-value fallback;
+            // never accidentally append annotation, ruby gloss or script bodies.
+            if (!['ruby-text','bookmark','bookmark-start','bookmark-end','reference-mark','reference-mark-start','reference-mark-end'].includes(name)) failed = true;
+            return;
+          }
+          const family = name === 'p' || name === 'h' ? 'paragraph' : 'text';
+          const styleName = attr(node,'text','style-name');
+          const next = styleName ? {...properties,...resolve(family,styleName)} : properties;
+          const link = name === 'a' ? linkTarget(attr(node,'xlink','href')) : href;
+          for (const child of Array.from(node.childNodes || [])) visit(child,next,link,depth+1);
+        }
+        visit(paragraph,{},'',0);
+      }
+      return failed ? null : runs;
     }
     const falseValue = value => value === 'false' || value === '0';
     const hidden = node => ['collapse','filter'].includes(attr(node,'table','visibility'));
@@ -121,7 +194,7 @@
             for (const cell of children(node,'table',['table-cell','covered-table-cell'])) {
               const first = info.cells.length ? info.cells.at(-1).end+1 : 0, copies = repeat(cell,'number-columns-repeated',16384);
               if (first+copies>16384) throw new Error('Spreadsheet columns exceed the preview range');
-              info.cells.push({start:first,end:first+copies-1,style:attr(cell,'table','style-name')});
+              info.cells.push({start:first,end:first+copies-1,style:attr(cell,'table','style-name'),runs:rich(cell)});
             }
           }
           ranges.push(info);
@@ -136,10 +209,22 @@
         if (!cssCache.has(styleName)) cssCache.set(styleName,css(resolve('table-cell',styleName),fonts));
         return {...cssCache.get(styleName)};
       };
+      meta.cellRuns = (row, column, maxRuns = 4096) => {
+        const rowInfo = lookup(meta.rows,row), columnInfo = lookup(meta.cols,column);
+        const cell = lookup(rowInfo?.cells || [],column);
+        if (!cell?.runs || cell.runs.length > maxRuns) return null;
+        const base = resolve('table-cell',cell.style || rowInfo?.defaultStyle || columnInfo?.defaultStyle || '');
+        return cell.runs.map(run => {
+          const presentation = css({...base,...run.properties},fonts), style = {};
+          for (const key of ['color','fontSize','fontFamily','fontWeight','fontStyle','textDecoration'])
+            if (presentation[key] != null) style[key] = presentation[key];
+          return {text:run.text,style,href:run.href};
+        });
+      };
       sheet['!ods'] = meta;
     }
   }
-  function documents(bytes, CFB, parse) {
+  function documents(bytes, CFB, parse, serialize) {
     const archive = CFB.read(new Uint8Array(bytes),{type:'array'}), prefix = archive.FullPaths[0];
     function read(name, required) {
       const at = archive.FullPaths.indexOf(prefix+name);
@@ -148,7 +233,24 @@
       const encoding = data[0]===0xff && data[1]===0xfe ? 'utf-16le' : data[0]===0xfe && data[1]===0xff ? 'utf-16be' : 'utf-8';
       return parse(new TextDecoder(encoding,{fatal:true}).decode(new Uint8Array(data)));
     }
-    return {content:read('content.xml',true), styles:read('styles.xml',false)};
+    const result = {content:read('content.xml',true), styles:read('styles.xml',false)};
+    if (serialize) {
+      let changed = false;
+      for (const row of all(result.content,'table','table-row')) {
+        if (!row.childNodes.length) {
+          // SheetJS advances rows on the closing token and misses <table-row/>.
+          // A comment forces an explicit closing tag without adding a cell/value.
+          row.appendChild(result.content.createComment('empty row')); changed = true;
+        }
+      }
+      if (changed) {
+        const entry = archive.FileIndex[archive.FullPaths.indexOf(prefix+'content.xml')];
+        entry.content = new TextEncoder().encode(serialize(result.content));
+        entry.size = entry.content.length;
+        result.normalizedArchive = archive;
+      }
+    }
+    return result;
   }
-  return {apply,documents,lookup,css,length,ns};
+  return {apply,documents,lookup,css,length,linkTarget,ns};
 });

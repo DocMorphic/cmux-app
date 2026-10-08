@@ -72,3 +72,25 @@ with ZipFile(output, 'w') as archive:
         entry = ZipInfo(name, (2026, 1, 1, 0, 0, 0)); entry.compress_type = ZIP_STORED
         archive.writestr(entry, text.encode())
 print(output)
+
+rich = styled.split(' <office:body>')[0].replace('</office:automatic-styles>', '''
+ <style:style style:name="boldRun" style:family="text"><style:text-properties fo:font-weight="bold" fo:color="#C00000"/></style:style>
+ <style:style style:name="italicRun" style:family="text"><style:text-properties fo:font-style="italic"/></style:style>
+ <style:style style:name="plainRun" style:family="text"><style:text-properties fo:font-weight="normal" fo:color="#000000"/></style:style>
+ <style:style style:name="wrapped" style:family="table-cell"><style:table-cell-properties fo:wrap-option="wrap"/></style:style>
+ </office:automatic-styles>''') + '''<office:body><office:spreadsheet>
+ <table:table table:name="Rich">
+ <table:table-column table:style-name="wide" table:default-cell-style-name="wrapped"/>
+ <table:table-row><table:table-cell office:value-type="string"><text:p>Rich ODS 日本語</text:p></table:table-cell></table:table-row>
+ <table:table-row><table:table-cell office:value-type="string"><text:p>Normal <text:span text:style-name="boldRun">bold <text:span text:style-name="italicRun">both</text:span><text:span text:style-name="plainRun"> plain</text:span></text:span> end</text:p></table:table-cell></table:table-row>
+ <table:table-row><table:table-cell office:value-type="string"><text:p><text:a xlink:href="#Details.B2">Inside</text:a> + <text:a xlink:href="https://example.com">Outside</text:a> <text:a xlink:href="javascript:window.__unsafeOds=true">Blocked</text:a></text:p></table:table-cell></table:table-row>
+ <table:table-row><table:table-cell office:value-type="string"><text:p>A<text:s text:c="3"/>B<text:tab/>C<text:line-break/>D</text:p><text:p>日本語 &lt;script&gt;literal&lt;/script&gt;</text:p></table:table-cell></table:table-row>
+ </table:table>
+ <table:table table:name="Details"><table:table-row/><table:table-row><table:table-cell/><table:table-cell office:value-type="string"><text:p>Rich link target</text:p></table:table-cell></table:table-row></table:table>
+ </office:spreadsheet></office:body></office:document-content>'''
+output = output.with_name('open-document-rich.ods')
+with ZipFile(output, 'w') as archive:
+    for name, text in [('mimetype', 'application/vnd.oasis.opendocument.spreadsheet'), ('content.xml', rich), ('styles.xml', styles), ('META-INF/manifest.xml', manifest.replace('</manifest:manifest>', '<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/></manifest:manifest>'))]:
+        entry = ZipInfo(name, (2026, 1, 1, 0, 0, 0)); entry.compress_type = ZIP_STORED
+        archive.writestr(entry, text.encode())
+print(output)

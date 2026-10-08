@@ -465,3 +465,48 @@ separately and do not turn this into an all-green run. Workbook cases each
 returned success. Evidence: `captures/runtime/ssh-pixel-scroll/runtime.txt` and
 `ods-styled.png`. This closes the pending ODS fixture recheck, not the physical,
 live-route or complete format-fidelity gates.
+
+
+## ODS rich cell text — 2026-10-08
+
+The shared workbook viewer now projects nested ODF text spans, paragraph breaks,
+explicit spaces/tabs/line breaks and per-span links from validated `content.xml`.
+Named/inherited text styles are layered on the existing cell/row/column style.
+Bold, italic, colors, font properties and explicit decoration resets survive
+within a cell. Multiple links keep their own destinations; surrounding text and
+blocked link schemes remain plain. Internal links use existing sheet/range
+navigation and saved position. Numeric/formula values remain the saved display;
+no formula execution or remote data fetch was added.
+
+Whitespace follows ODF 1.3 section 6.1.2 across span boundaries, with explicit
+text:s/tab/line-break interpreted separately; nested spans and links follow
+6.1.7–6.1.8 in the [OASIS schema specification](https://docs.oasis-open.org/office/OpenDocument/v1.3/OpenDocument-v1.3-part3-schema.html).
+Annotations and ruby glosses do not enter the cell body. Unsupported fields,
+overdeep rich content or exceeded rich-text limits retain the existing parser's
+saved-value fallback. The renderer uses text nodes and typed, allowlisted styles;
+no document HTML/CSS is inserted. Vendor assets remain unchanged.
+
+Repeated cells share projected metadata. Rich-text limits are 4,096 runs and
+1 MiB of text per authored cell, 200,000 projected runs per workbook and the
+existing 16,000 rendered runs per visible range. These are preview limits, not
+claims of complete ODS fidelity. Percentage font inheritance, automatic/minimum
+row sizing, advanced borders, field-specific rendering, charts/drawings and
+matched Quick Look/physical acceptance remain open.
+
+Internal ODF cell fragments are translated to the shared address form, including
+quoted/dotted sheet names, URI escapes, absolute coordinates and current-sheet
+references. Runtime testing also exposed the bundled parser skipping self-closing
+empty rows. The adapter gives those rows explicit closing tags in its in-memory
+validated archive and reparses through the same workbook validation. Original
+files and vendor code remain unchanged; subsequent values keep their authored
+coordinates. The rich fixture deliberately retains the empty row so its link
+must land on B2 after restoration.
+
+Verification: **31 Node checks and four Android workbook cases passed** (Android
+21.488 s). The batch covers rich ODS styles/whitespace/links/restoration, existing
+ODS data/visibility/dimensions and XLSX rich-style/navigation restoration. The
+painted rich-cell screenshot was inspected. Initial Android runs caught the ODF
+link-address mismatch and skipped empty row; both failures are retained with the
+final pass in ignored `captures/runtime/ods-rich-text/`. No crash/ANR events were
+logged. The sole API37 AVD used 1,536 MiB/two cores; emulator and Gradle stopped.
+No physical-device verification or signed release; APK 616 remains published.

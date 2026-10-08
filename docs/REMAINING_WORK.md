@@ -1,6 +1,6 @@
 # Remaining work for iOS parity
 
-Updated 2026-10-07. **The goal is active and full parity is unverified.** This is
+Updated 2026-10-08. **The goal is active and full parity is unverified.** This is
 the current completion checklist; dated entries in [PARITY.md](PARITY.md) preserve
 the detailed evidence and history. A passing fixture or signed APK does not close
 a physical workflow gate. These are work areas, not equal-sized progress units.
@@ -27,6 +27,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- ODS rich cell spans now retain nested styles, authored whitespace and separate
+  links through restoration. Internal addresses are normalized, and self-closing
+  empty rows no longer shift later values. **31 Node and four Android checks
+  passed**; screenshot inspected, no crash/ANR events. See `DOCUMENT_FORMATS.md`
+  for the initial link/row failures, preview limits and remaining format parity.
+  Emulator/Gradle stopped; no phone run or signed release.
 
 - SSH/Cloud direct clipboard and IME image paste now return held history to the
   prompt, alongside typing and composer submission. Staging, raw mouse/wheel

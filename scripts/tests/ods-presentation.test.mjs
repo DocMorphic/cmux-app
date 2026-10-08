@@ -10,7 +10,7 @@ const {ns}=ods;
 function node(tag, attrs={}, children=[]) {
   const [prefix,localName]=tag.split(':');
   const attributes=Object.entries(attrs).map(([key,value])=>{const [p,localName]=key.split(':');return {namespaceURI:ns[p],localName,value}});
-  return {namespaceURI:ns[prefix],localName,children,attributes,
+  return {namespaceURI:ns[prefix],localName,children,childNodes:children,attributes,
     getAttributeNS(uri,name){return attributes.find(a=>a.namespaceURI===uri && a.localName===name)?.value ?? null},
     getElementsByTagNameNS(uri,name){return children.flatMap(n=>[...(n.namespaceURI===uri && n.localName===name?[n]:[]),...n.getElementsByTagNameNS(uri,name)])}};
 }
@@ -96,4 +96,61 @@ test('paging skips hidden tails and previous pages cross a million-row hidden in
   assert.equal(last.previousRow,0);assert.equal(last.previousColumn,0);assert.equal(last.nextColumn,null);
   const hiddenTail=model.windowFor(b,0,1048575,2);
   assert.deepEqual(hiddenTail.cols,[]);assert.equal(hiddenTail.previousColumn,0);assert.equal(hiddenTail.nextColumn,null);
+});
+
+const txt=value=>({nodeType:3,nodeValue:value,getElementsByTagNameNS(){return []}});
+const paragraph=(parts)=>node('text:p',{},parts);
+const styledCell=(parts,attrs={})=>node('table:table-cell',attrs,parts);
+const richBook=(parts,styles=[],attrs={})=>{const b=book();ods.apply(b,content([table('Main',[row({},[styledCell(parts,attrs)])])],styles));return b.Sheets.Main['!ods'];};
+test('nested ODF spans inherit cell styles and explicitly reset decoration without changing saved text',()=>{
+  const m=richBook([paragraph([txt(' Parent '),node('text:span',{'text:style-name':'bold'},[
+    txt('bold '),node('text:span',{'text:style-name':'reset'},[txt('plain')])]),txt(' tail ')])],[
+    style('base','table-cell',[prop('text-properties',{'fo:color':'#123456','style:text-underline-style':'solid'})]),
+    style('bold','text',[prop('text-properties',{'fo:font-weight':'bold'})]),
+    style('reset','text',[prop('text-properties',{'fo:font-weight':'normal','style:text-underline-style':'none','fo:font-style':'italic'})])
+  ],{'table:style-name':'base'});
+  const runs=m.cellRuns(0,0);assert.equal(runs.map(r=>r.text).join(''),'Parent bold plain tail');
+  assert.equal(runs.find(r=>r.text==='bold').style.fontWeight,'700');
+  assert.deepEqual(runs.find(r=>r.text==='plain').style,{color:'#123456',fontWeight:'400',fontStyle:'italic',textDecoration:'none'});
+  assert.equal(runs[0].style.textDecoration,'underline');
+});
+test('ODF whitespace crosses span boundaries while explicit spaces, tabs, line breaks and paragraphs survive',()=>{
+  const m=richBook([paragraph([txt('  A \n'),node('text:span',{},[txt('  B  ')]),node('text:s',{'text:c':'3'}),txt('C'),node('text:tab'),txt('D'),node('text:line-break'),txt('E   ')]),paragraph([txt('日本語')])]);
+  assert.equal(m.cellRuns(0,0).map(r=>r.text).join(''),'A B    C\tD\nE\n日本語');
+});
+test('individual links retain their own destination and unsafe targets remain inert',()=>{
+  const m=richBook([paragraph([node('text:a',{'xlink:href':'#Main.A1'},[txt('internal')]),txt(' + '),
+    node('text:a',{'xlink:href':'https://example.com'},[txt('external')]),
+    node('text:a',{'xlink:href':'javascript:alert(1)'},[txt('blocked')]),txt('<script>literal</script>')])]);
+  const runs=m.cellRuns(0,0);
+  assert.deepEqual(model.link({l:{Target:runs.find(r=>r.text==='internal').href}}),{internal:'Main!A1'});
+  assert.deepEqual(model.link({l:{Target:runs.find(r=>r.text==='external').href}}),{external:'https://example.com'});
+  assert.equal(model.link({l:{Target:runs.find(r=>r.text==='blocked').href}}),null);
+  assert.equal(runs.at(-1).text,'<script>literal</script>');
+});
+test('rich repeats remain compact and excessive depth, expansion or visible runs use the saved-value fallback',()=>{
+  const b=book();ods.apply(b,content([table('Main',[row({'table:number-rows-repeated':'1000'},[
+    styledCell([paragraph([txt('Repeat')])],{'table:number-columns-repeated':'1000'})])])]));
+  const m=b.Sheets.Main['!ods'];assert.equal(m.rows.length,1);assert.equal(m.rows[0].cells.length,1);
+  assert.equal(m.cellRuns(999,999)[0].text,'Repeat');assert.equal(m.cellRuns(0,0,0),null);
+  assert.equal(richBook([paragraph([node('text:s',{'text:c':'999999999'})])]).cellRuns(0,0),null);
+  let deep=txt('deep');for(let i=0;i<34;i++)deep=node('text:span',{},[deep]);
+  assert.equal(richBook([paragraph([deep])]).cellRuns(0,0),null);
+});
+test('annotations and ruby glosses are excluded; unsupported fields keep the existing saved display',()=>{
+  const m=richBook([paragraph([txt('Base'),node('office:annotation',{},[paragraph([txt('secret note')])]),
+    node('text:ruby',{},[node('text:ruby-base',{},[txt('字')]),node('text:ruby-text',{},[txt('gloss')])])])]);
+  assert.equal(m.cellRuns(0,0).map(r=>r.text).join(''),'Base字');
+  assert.equal(richBook([paragraph([node('text:date',{},[txt('today')])])]).cellRuns(0,0),null);
+});
+
+test('ODF cell links normalize quoted, dotted, encoded and current-sheet coordinates',()=>{
+  const b=book();b.SheetNames.push("Résumé.a'b");b.Sheets["Résumé.a'b"]={'!ref':'A1:B3'};
+  const target=ods.linkTarget("#'R%C3%A9sum%C3%A9.a''b'.$B$3");
+  assert.equal(target,"#'Résumé.a''b'!$B$3");
+  assert.deepEqual(model.destination(model.link({l:{Target:target}}).internal,b,0),{sheet:2,row:2,col:1});
+  assert.deepEqual(model.destination(ods.linkTarget('#.$A$1').slice(1),b,0),{sheet:0,row:0,col:0});
+  assert.equal(ods.linkTarget('#$Main.A1'),'#Main!A1');
+  assert.equal(ods.linkTarget('#bad%ZZ.A1'),'');
+  assert.equal(ods.linkTarget('https://example.com/a.b'),'https://example.com/a.b');
 });

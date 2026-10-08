@@ -5,13 +5,15 @@
   try {
     const response = await fetch('document.zip', {credentials: 'omit', cache: 'no-store'});
     if (!response.ok) throw new Error('Document unavailable');
-    const bytes = await response.arrayBuffer(), book = model.read(bytes);
+    const bytes = await response.arrayBuffer();
+    let book = model.read(bytes);
     if (book.bookType === 'ods') {
       const parts = CmuxOdsPresentation.documents(bytes, XLSX.CFB, source => {
         const xml = new DOMParser().parseFromString(source, 'application/xml');
         if (xml.getElementsByTagName('parsererror').length) throw new Error('Invalid ODS XML');
         return xml;
-      });
+      }, xml => new XMLSerializer().serializeToString(xml));
+      if (parts.normalizedArchive) book = model.readArchive(parts.normalizedArchive);
       CmuxOdsPresentation.apply(book, parts.content, parts.styles);
     }
     if (book.bookType === 'ods' || book.Directory?.charts?.length || book.Directory?.drawings?.length) {
@@ -114,30 +116,34 @@
             const td = element('td'); td.dataset.cell = address;
             if (merge) { td.rowSpan = merge.rowSpan; td.colSpan = merge.colSpan; }
             if (source?.t === 'n') td.className = 'number';
-            const target = model.link(source), label = model.text(source);
             const styleIndex = indices.get(address) || 0, sourcePosition = XLSX.utils.decode_cell(address);
-            const cellStyle = next.sheet['!ods']?.cellStyle(sourcePosition.r,sourcePosition.c) || model.style(book, styleIndex);
+            const ods = next.sheet['!ods'];
+            const cellStyle = ods?.cellStyle(sourcePosition.r,sourcePosition.c) || model.style(book, styleIndex);
+            const odsRuns = runBudget > 0 ? ods?.cellRuns(sourcePosition.r,sourcePosition.c,runBudget) : null;
+            const target = odsRuns ? null : model.link(source), label = model.text(source);
             const decoration = cellStyle.textDecoration || (target ? 'underline' : '');
             // Decorations on ancestors cannot be canceled by a run's explicit u=none/strike=0.
             delete cellStyle.textDecoration;
+            function attachLink(node, link) {
+              node.href = link.external || '#';
+              if (link.internal) node.addEventListener('click', event => {
+                event.preventDefault(); const point = model.destination(link.internal, book, next.chosen.index);
+                if (point) render(point.sheet, point.row, point.col); else error.textContent = 'This link destination is unavailable.';
+              });
+            }
             const textHost = element(target ? 'a' : 'span');
-            if (target) textHost.style.textDecoration = 'none';
-            const runs = runBudget > 0 ? model.richText(richCells.get(next.chosen.name)?.get(address), book, decoration, runBudget) : null;
+            if (target) { textHost.style.textDecoration = 'none'; attachLink(textHost,target); }
+            const runs = odsRuns || (runBudget > 0 ? model.richText(richCells.get(next.chosen.name)?.get(address), book, decoration, runBudget) : null);
             if (runs) runBudget -= runs.length;
-            if (runs && runs.map(run => run.text).join('') === label) {
+            if (runs && (odsRuns || runs.map(run => run.text).join('') === label)) {
               for (const run of runs) {
-                const span = element('span', run.text); span.className = 'rich-run';
-                Object.assign(span.style, run.style); textHost.appendChild(span);
+                const link = odsRuns ? model.link({l:{Target:run.href}}) : null;
+                const span = element(link ? 'a' : 'span', run.text); span.className = 'rich-run';
+                Object.assign(span.style, run.style); if (link) attachLink(span,link);
+                textHost.appendChild(span);
               }
             } else {
               const span = element('span', label); span.style.textDecoration = decoration || 'none'; textHost.appendChild(span);
-            }
-            if (target) {
-              textHost.href = target.external || '#';
-              if (target.internal) textHost.addEventListener('click', event => {
-                event.preventDefault(); const point = model.destination(target.internal, book, next.chosen.index);
-                if (point) render(point.sheet, point.row, point.col); else error.textContent = 'This link destination is unavailable.';
-              });
             }
             td.appendChild(textHost);
             Object.assign(td.style, cellStyle); applyBorder(td, styleIndex);

@@ -237,6 +237,43 @@ class WorkbookPreviewRuntimeTest {
         assertEquals("true", js("document.getElementById('sheets').options.length === 2 && !document.querySelector('[data-cell=\"C2\"]') && getComputedStyle(document.querySelector('[data-cell=\"A1\"]')).backgroundColor === 'rgb(23, 54, 93)'"))
     }
 
+    @Test fun openDocumentRichRunsKeepStylesWhitespaceSeparateLinksAndRestoration() {
+        file = File(compose.activity.cacheDir, "open-document-rich.ods")
+        InstrumentationRegistry.getInstrumentation().context.assets.open("workbook/open-document-rich.ods").use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                FilePreviewContent(LocalFilePreview(file, file.length(), WorkbookPreviewPolicy.ODS_MIME, ChangesPreviewRoute.WORKBOOK))
+            }
+        } } }
+        ready()
+        val check = """
+            (() => {
+              const cell = document.querySelector('[data-cell="A2"]');
+              const run = text => [...cell.querySelectorAll('.rich-run')].find(n=>n.textContent===text);
+              const links = [...document.querySelectorAll('[data-cell="A3"] a')];
+              return cell.textContent === 'Normal bold both plain end' &&
+                getComputedStyle(run('bold')).fontWeight === '700' &&
+                getComputedStyle(run('both')).fontWeight === '700' && getComputedStyle(run('both')).fontStyle === 'italic' &&
+                getComputedStyle(run('plain')).fontWeight === '400' &&
+                getComputedStyle(run('bold')).color === 'rgb(192, 0, 0)' &&
+                document.querySelector('[data-cell="A4"]').textContent === 'A   B\tC\nD\n日本語 <script>literal</script>' &&
+                links.length === 2 && links[0].textContent === 'Inside' && links[1].textContent === 'Outside' &&
+                links[1].href === 'https://example.com/' && !window.__unsafeOds && !document.querySelector('#content script');
+            })()
+        """.trimIndent()
+        assertEquals("true", js(check))
+        capturePaintedOdsCell("A2", "ods-rich.png")
+        compose.waitForIdle(); restoration.emulateSavedInstanceStateRestore(); ready()
+        assertEquals("true", js(check))
+        js("document.querySelector('[data-cell=\"A3\"] a').click()")
+        compose.waitUntil(5000) { js("document.getElementById('sheets').value === '1' && document.querySelector('[data-cell=\"B2\"]')?.textContent === 'Rich link target'") == "true" }
+        compose.waitForIdle(); restoration.emulateSavedInstanceStateRestore(); ready()
+        assertEquals("true", js("document.getElementById('sheets').value === '1' && document.querySelector('[data-cell=\"B2\"]')?.textContent === 'Rich link target'"))
+    }
+
     private fun capturePaintedOdsCell(address: String, output: String, blue: Boolean = false) {
         val drawn = CountDownLatch(1)
         compose.runOnUiThread {
