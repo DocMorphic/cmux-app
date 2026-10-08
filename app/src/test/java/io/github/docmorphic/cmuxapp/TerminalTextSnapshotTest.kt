@@ -16,6 +16,15 @@ class TerminalTextSnapshotTest {
         }
     }
 
+    @Test fun logicalLineCapMatchesTrailingWhitespaceAndPreservesInternalSpaces() {
+        assertEquals(TerminalTextSnapshot("a\nb  ", false, 2), TerminalTextSnapshot.capped("a\nb  \n \n\t\n", 2))
+        assertEquals(TerminalTextSnapshot("\nb", true, 2), TerminalTextSnapshot.capped("old\n\nb\n", 2))
+        assertEquals(TerminalTextSnapshot("", false, 1), TerminalTextSnapshot.capped(" \n\t\n", 1))
+        assertEquals(TerminalTextSnapshot("λ中👩‍💻", true, 1), TerminalTextSnapshot.capped("old\nλ中👩‍💻", 1))
+        val long = "x".repeat(300_000)
+        assertEquals(TerminalTextSnapshot(long, true, 1), TerminalTextSnapshot.capped("old\n$long\n", 1))
+    }
+
     @Test fun smallRecentCaptureDoesNotReadTheEntireScrollback() {
         val display = Display((0 until 20_024).map { "Line $it" }, 24)
         val snapshot = TerminalTextSnapshot.capture(display, 7)

@@ -2,8 +2,49 @@ package io.github.docmorphic.cmuxapp
 
 import org.junit.Assert.*
 import org.junit.Test
+import kotlinx.coroutines.launch
 
 class TerminalTextCaptureTest {
+    @Test fun nativeExportKeepsSoftWrappedCommandsLogicalAndDoesNotMoveHeldHistory() = kotlinx.coroutines.runBlocking<Unit> {
+        GhosttyVtTerminal(20, 4).use { terminal ->
+            val command = "printf '" + "λ中".repeat(30) + "'"
+            terminal.append(("old\r\n\u001b[31m" + command + "\u001b[0m\r\nnext\r\n").toByteArray())
+            terminal.holdScrollback(2.5)
+            val before = terminal.scrollbackPosition()
+            val captured = terminalTextSource(terminal) { true }.read()
+            assertEquals("old\n$command\nnext", captured.text)
+            assertFalse(captured.truncated)
+            assertEquals(before, terminal.scrollbackPosition(), 0.0)
+            terminal.append("\u001b[?1049h\u001b[2J\u001b[HEditor λ 中".toByteArray())
+            assertEquals("Editor λ 中", terminalTextSource(terminal) { true }.read().text)
+        }
+    }
+
+    @Test fun atomicNativeExportKeepsOneOutputGenerationAndFencesClose() = kotlinx.coroutines.runBlocking<Unit> {
+        val terminal = io.github.docmorphic.cmuxapp.ghostty.GhosttyTerminal(40, 6)
+        try {
+            val writer = launch(kotlinx.coroutines.Dispatchers.Default) {
+                repeat(100) { n -> terminal.append(("\u001b[2J\u001b[H" + List(5) { "Generation $n" }.joinToString("\r\n")).toByteArray()) }
+            }
+            repeat(30) {
+                val lines = TerminalTextSnapshot.capped(terminal.copyText()).text.lines().filter { it.isNotEmpty() }
+                assertTrue("A text read mixed output generations", lines.distinct().size <= 1)
+            }
+            writer.join()
+            terminal.close()
+            assertThrows(IllegalStateException::class.java) { terminal.copyText() }
+        } finally { terminal.close() }
+    }
+
+    @Test fun nativeLogicalBudgetKeepsLatestFiveThousandLines() = kotlinx.coroutines.runBlocking<Unit> {
+        GhosttyVtTerminal(32, 24).use { terminal ->
+            terminal.append((0 until 7000).joinToString("\r\n") { "Line $it λ 中" }.toByteArray())
+            val captured = terminalTextSource(terminal) { true }.read()
+            assertEquals((2000..6999).joinToString("\n") { "Line $it λ 中" }, captured.text)
+            assertTrue(captured.truncated)
+        }
+    }
+
     @Test fun nativeGhosttyRecentCopyIsBoundedAndLeavesLiveViewportUntouched() {
         GhosttyVtTerminal(32, 24).use { terminal ->
             terminal.append((0 until 7_000).joinToString("\r\n") { "Line $it λ 中" }.toByteArray())

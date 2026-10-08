@@ -28,6 +28,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native terminal View as Text now copies logical lines through Ghostty, preserving
+  wrapped commands without inserting visual-row newlines. Capture/capping/text
+  measurement run off-main; pending reads are fenced on replacement/dismissal,
+  and the title contrast is corrected. **Six JVM and seven Android checks passed**;
+  final screenshot and 16 KB alignment verified, no crash/ANR events. See
+  `TERMINAL_TEXT_COPY.md` for fixture corrections, scope and remaining acceptance.
+  Emulator/Gradle stopped; no physical run or signed release.
+
 - ODS rich cell spans now retain nested styles, authored whitespace and separate
   links through restoration. Internal addresses are normalized, and self-closing
   empty rows no longer shift later values. **31 Node and four Android checks

@@ -3,6 +3,25 @@ package io.github.docmorphic.cmuxapp
 /** Immutable local capture: opening the copy sheet never makes a Mac RPC. */
 data class TerminalTextSnapshot(val text: String, val truncated: Boolean, val lineBudget: Int) {
     companion object {
+        /** Match iOS's logical-line cap without allocating a String for every old line. */
+        fun capped(text: String, lineBudget: Int = 5000): TerminalTextSnapshot {
+            require(lineBudget > 0)
+            var end = text.length
+            while (end > 0) {
+                val start = text.lastIndexOf('\n', end - 1) + 1
+                if ((start until end).any { !text[it].isWhitespace() }) break
+                end = (start - 1).coerceAtLeast(0)
+            }
+            if (end == 0) return TerminalTextSnapshot("", false, lineBudget)
+            var start = end
+            repeat(lineBudget) {
+                val newline = text.lastIndexOf('\n', start - 1)
+                if (newline < 0) return TerminalTextSnapshot(text.substring(0, end), false, lineBudget)
+                start = newline
+            }
+            return TerminalTextSnapshot(text.substring(start + 1, end), true, lineBudget)
+        }
+
         fun capture(grid: TerminalDisplay, lineBudget: Int = 5000): TerminalTextSnapshot {
             require(lineBudget > 0)
             val rows = grid.rows
@@ -33,4 +52,23 @@ data class TerminalTextSnapshot(val text: String, val truncated: Boolean, val li
             }
         }
     }
+}
+
+
+/** Captured display identity never follows selection/replay to another engine. */
+internal class TerminalTextSource(val current: () -> Boolean, val read: suspend () -> TerminalTextSnapshot)
+
+internal fun terminalTextSource(display: TerminalDisplay, current: () -> Boolean): TerminalTextSource {
+    if (display is GhosttyVtTerminal) {
+        val reader = display.textReader()
+        return TerminalTextSource(current) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                TerminalTextSnapshot.capped(reader())
+            }
+        }
+    }
+    // Compatibility grids are mutable UI-owned row models. Freeze those on their
+    // owner thread; native byte terminals use the independent atomic path above.
+    val captured = TerminalTextSnapshot.capture(display)
+    return TerminalTextSource(current) { captured }
 }

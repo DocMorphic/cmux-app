@@ -95,7 +95,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         if (target === shell && uris.isNotEmpty()) input.paste(TerminalPasteContent(
             uris.map { TerminalPasteContent.Item.Attachment(it, true) }), direct = false)
     }
-    var snapshot by remember { mutableStateOf<TerminalTextSnapshot?>(null) }
+    var snapshot by remember(shell) { mutableStateOf<TerminalTextSource?>(null) }
     var shortcuts by rememberSaveable(shell.id) { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val hardware = remember(shell.id) { TerminalHardwareInput() }
@@ -139,7 +139,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         return write(value)
     }
     fun showKeyboard() { if (canInput) { dictation.cancel(); motion.stop(); direct = true; rawKeyboard?.showKeyboard() } }
-    fun showText() { dictation.cancel(); motion.stop(); keyboard?.hide(); snapshot = TerminalTextSnapshot.capture(display) }
+    fun showText() { dictation.cancel(); motion.stop(); keyboard?.hide(); val target = shell.display; snapshot = terminalTextSource(target) { shell.display === target } }
     BackHandler { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }
     DisposableEffect(shell, input) { onDispose {
         rawKeyboard?.dispose(); motion.stop(); input.close(); fallbackDrafts.close()

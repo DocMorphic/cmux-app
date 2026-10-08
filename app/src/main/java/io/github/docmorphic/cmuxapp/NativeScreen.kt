@@ -913,8 +913,12 @@ internal fun NativeScreen(
             val scrollOffset = scrollViewport.rowOffset
             val terminalMotion = rememberTerminalScrollMotion(draftTarget, client)
             fun stopTerminalScrolling() { terminalMotion.stop(); scrollInteractionEpoch++; cancelQueuedScroll?.invoke() }
-            var textSnapshot by remember(draftTarget, client) { mutableStateOf<TerminalTextSnapshot?>(null) }
-            fun openTerminalText() { stopTerminalScrolling(); textSnapshot = TerminalTextSnapshot.capture(grid) }
+            var textSnapshot by remember(draftTarget, client) { mutableStateOf<TerminalTextSource?>(null) }
+            fun openTerminalText() {
+                stopTerminalScrolling()
+                val target = grid
+                textSnapshot = terminalTextSource(target) { grid === target }
+            }
             textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
             val retainedPanel = rememberNativePanel(feedSession, browserLogin, teamState.scope, pairedMacs, code,
                 selectedWorkspace, selectedSurface, showSettings || showTaskComposer || sshRoute != null || localBrowser != null || selectedChangesWorkspace != null)

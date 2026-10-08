@@ -456,6 +456,39 @@ static uint32_t style_color(GhosttyStyleColor color, const GhosttyRenderStateCol
     return UINT32_MAX;
 }
 
+// Copy plain text atomically without materializing per-cell colors/styles in JNI.
+// Soft wraps are unwrapped; explicit line breaks remain copyable command boundaries.
+JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeCopyText)(JNIEnv *env, jobject self, jlong id) {
+    (void)self;
+    pthread_mutex_lock(&lock);
+    Terminal *entry = lookup(env, id);
+    GhosttyFormatter formatter = NULL;
+    uint8_t *text = NULL;
+    jbyteArray result = NULL;
+    if (!entry) goto done;
+    GhosttyFormatterTerminalOptions options = GHOSTTY_INIT_SIZED(GhosttyFormatterTerminalOptions);
+    options.emit = GHOSTTY_FORMATTER_FORMAT_PLAIN;
+    options.unwrap = true;
+    options.trim = true;
+    if (!ok(env, ghostty_formatter_terminal_new(NULL, &formatter, entry->terminal, options))) goto done;
+    size_t length = 0;
+    GhosttyResult measured = ghostty_formatter_format_buf(formatter, NULL, 0, &length);
+    if (measured != GHOSTTY_SUCCESS && measured != GHOSTTY_OUT_OF_SPACE) { ok(env, measured); goto done; }
+    if (length > MAX_BYTES) {
+        fail(env, "java/lang/IllegalStateException", "Terminal text exceeds the copy limit"); goto done;
+    }
+    text = malloc(length ? length : 1);
+    if (!text) { fail(env, "java/lang/OutOfMemoryError", "Could not allocate terminal text"); goto done; }
+    if (!ok(env, ghostty_formatter_format_buf(formatter, text, length, &length))) goto done;
+    result = (*env)->NewByteArray(env, (jsize)length);
+    if (result) (*env)->SetByteArrayRegion(env, result, 0, (jsize)length, (const jbyte *)text);
+done:
+    free(text);
+    ghostty_formatter_free(formatter);
+    pthread_mutex_unlock(&lock);
+    return result;
+}
+
 JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeSnapshot)(JNIEnv *env, jobject self, jlong id, jint offset) {
     (void)self;
     if (offset < 0) { fail(env, "java/lang/IllegalArgumentException", "Negative scroll offset"); return NULL; }

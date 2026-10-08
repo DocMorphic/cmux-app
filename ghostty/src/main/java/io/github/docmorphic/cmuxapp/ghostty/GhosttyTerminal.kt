@@ -56,6 +56,12 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
         return GhosttyFrame.decode(nativeSnapshot(handle, scrollOffset))
     }
 
+    /** Atomic, owned active-screen text, including history and logical soft wraps. */
+    @Synchronized fun copyText(): String {
+        check(handle != 0L) { "Ghostty terminal is closed" }
+        return nativeCopyText(handle).decodeToString(throwOnInvalidSequence = true)
+    }
+
     /** Hold a content row plus its fractional clip; zero resumes following output. */
     @Synchronized fun holdScrollback(position: Double): Double {
         check(handle != 0L) { "Ghostty terminal is closed" }
@@ -93,6 +99,7 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     private external fun nativeResize(handle: Long, columns: Int, rows: Int, cellWidth: Int, cellHeight: Int): ByteArray?
     private external fun nativeInputModes(handle: Long): Int
     private external fun nativeMouse(handle: Long, action: Int, button: Int, column: Int, row: Int): ByteArray?
+    private external fun nativeCopyText(handle: Long): ByteArray
     private external fun nativeSnapshot(handle: Long, scrollOffset: Int): ByteArray
     private external fun nativeHoldScrollback(handle: Long, position: Double): Double
     private external fun nativeScrollbackPosition(handle: Long): Double

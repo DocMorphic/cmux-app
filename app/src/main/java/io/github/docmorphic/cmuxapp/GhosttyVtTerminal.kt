@@ -83,6 +83,14 @@ class GhosttyVtTerminal(columns: Int, rows: Int, private val onReply: ((ByteArra
         return snapshot
     }
 
+    /** Capture the owner on its UI thread; native reads then run off-main under
+     * the engine's lifetime lock. Closed displays expose only retained paint data. */
+    internal fun textReader(): () -> String {
+        if (!closed) return engine::copyText
+        val retained = RenderGrid.plainText(liveLines)
+        return { retained }
+    }
+
     override fun close() {
         if (closed) return
         scrollbackPosition()
