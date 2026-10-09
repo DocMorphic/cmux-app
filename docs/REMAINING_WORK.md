@@ -28,14 +28,23 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Interrupted creation now keeps an account/team-scoped notice through terminal
+  reconnect, with a saved Dismiss action and the app's dark-grey styling.
+  **12 JVM and three actual Android process-restoration tests passed**, followed
+  by a final workspace/process/screenshot recheck after the color correction.
+  No duplicate create RPCs or crash/ANR events occurred; Android restored the same
+  task into distinct UI processes. See `WORKSPACE_SELECTION.md` for exact scope.
+  Emulator/Gradle stopped; real Mac/Pixel acceptance remains open; signed 616 unchanged.
+
 - Ordinary native workspace/group-destination and terminal creation now survive
   Activity recreation through a retained session and a saved waiter, without
   replaying a mutation. Leaving the destination rejects late automatic navigation;
   process loss reports an uncertain result. **12 JVM and seven Android checks
   passed** after fixing a stale busy-flag callback caught by the startup regression.
   See `WORKSPACE_SELECTION.md` for scope, initial emulator ANRs and evidence.
-  Final run had no crash/ANR events; emulator/Gradle stopped. Physical and actual
-  process-death acceptance remain open; signed APK 616 is unchanged.
+  Final run had no crash/ANR events; emulator/Gradle stopped. The process-loss
+  follow-up above covers Android restoration; physical acceptance remains open.
+  Signed APK 616 is unchanged.
 
 - Native terminal View as Text now copies logical lines through Ghostty, preserving
   wrapped commands without inserting visual-row newlines. Capture/capping/text

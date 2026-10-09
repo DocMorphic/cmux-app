@@ -495,7 +495,7 @@ internal fun NativeScreen(
         fun beginNativeCreation(mac: NativeCredentialStore.PairedMac, workspaceId: String? = null, groupId: String? = null) {
             val login = browserLogin ?: return
             val id = nativeCreation.begin(login, mac, workspaceId, groupId, teamState.scope) ?: return
-            creationNavigation.begin(id, login, browserNavigationContext() + selectedComputerOrigin)
+            creationNavigation.begin(id, login, browserNavigationContext() + selectedComputerOrigin, teamState.scope)
             workspaceTabs.cancel()
         }
         fun createTerminal(source: NativeFeedSource, workspace: NativeWorkspace) {
@@ -554,12 +554,12 @@ internal fun NativeScreen(
                 creationNavigation.reconcile(browserLogin, nativeCreationState,
                     browserNavigationContext() + selectedComputerOrigin,
                     admitted = { request -> request.team == teamState.scope && feedSession.allowsCreation(request) },
-                    completed = nativeCreation::clearCompleted) { request, destination ->
+                    completed = nativeCreation::clearCompleted, team = teamState.scope) { request, destination ->
                     inAppNotification = null; error = null
                     workspaceRoute = NativeWorkspaceRoute(request.mac.origin, destination.workspace.id,
                         terminalId = destination.terminalId, createdWorkspace = destination.workspace,
                         createdAtMillis = android.os.SystemClock.elapsedRealtime())
-                }?.let { error = it }
+                }
             }
         }
 
@@ -3930,6 +3930,7 @@ internal fun NativeScreen(
                             }
                         }
                     }
+                    if (signedIn) NativeCreationNoticeBanner(creationNavigation.noticeFor(browserLogin, teamState.scope), creationNavigation::dismissNotice)
                     val visibleError = error ?: connectionError.takeIf { sshRoute == null && (selectedTerminal != null || selectedBrowser != null || (workspaceSources.isEmpty() && sshTargets.isEmpty())) }
                     if (signedIn && visibleError != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically) {

@@ -103,6 +103,83 @@ class WorkspaceProcessRestorationTest {
             putInt("restored_task", restoredTaskId)
         })
     }
+    private val uncertainCreation = "Creation may have completed. Check your workspaces before trying again."
+
+    private fun pendingWorkspaceCreate(gate: java.util.concurrent.CountDownLatch) {
+        peer.workspaceCreationResponse = {
+            val created = JSONObject("""{"id":"interrupted-workspace","title":"Created after interruption",
+                "terminals":[{"id":"interrupted-terminal","title":"Recovered shell"}]}""")
+            val updated = JSONObject(peer.customWorkspaceListing.toString())
+            updated.getJSONArray("workspaces").put(created); peer.customWorkspaceListing = updated
+            check(gate.await(60, java.util.concurrent.TimeUnit.SECONDS)) { "Creation response was never released" }
+            JSONObject().put("created_workspace_id", "interrupted-workspace")
+                .put("created_terminal_id", "interrupted-terminal").put("workspaces", JSONArray().put(created))
+        }
+        launch(open = false)
+        val create = checkNotNull(device.wait(Until.findObject(By.desc("New Workspace").enabled(true)), 20_000))
+        create.click()
+        waitUntil { calls("workspace.create").size == 1 && peer.customWorkspaceListing!!.getJSONArray("workspaces").length() == 2 }
+    }
+
+    @Test fun unacknowledgedWorkspaceCreateSurvivesProcessLossWithoutAnotherMutation() {
+        val gate = java.util.concurrent.CountDownLatch(1)
+        try {
+            pendingWorkspaceCreate(gate)
+            killAndRestore { gate.countDown() }
+            text(uncertainCreation); text("Created after interruption")
+            assertFalse("An unacknowledged result must not invent a destination", device.hasObject(By.text("Recovered shell ▾")))
+            assertTrue(calls("mobile.terminal.replay").isEmpty())
+            text("Created after interruption").click(); text("Recovered shell ▾")
+            waitUntil { calls("mobile.terminal.replay").isNotEmpty() }
+            text(uncertainCreation) // Successful replay must not erase creation uncertainty.
+            val captures = File(context.getExternalFilesDir(null), "native-creation-process").apply { mkdirs() }
+            assertTrue(device.takeScreenshot(File(captures, "recovered-creation-notice.png")))
+            text("Dismiss").click(); assertTrue(device.wait(Until.gone(By.text(uncertainCreation)), 5000))
+            killAndRestore(); text("Recovered shell ▾")
+            assertFalse("Dismissal must survive another process restoration", device.hasObject(By.text(uncertainCreation)))
+            assertEquals(1, calls("workspace.create").size)
+            assertTrue(calls("terminal.create").isEmpty())
+        } finally { gate.countDown() }
+    }
+
+    @Test fun unacknowledgedTerminalCreateRestoresItsWorkspaceWithoutResending() {
+        val gate = java.util.concurrent.CountDownLatch(1)
+        peer.terminalCreationResponse = { params ->
+            assertEquals("workspace-1", params.getString("workspace_id"))
+            listing(terminals = """[{"id":"interrupted-terminal","title":"Recovered shell"}]""")
+            check(gate.await(60, java.util.concurrent.TimeUnit.SECONDS)) { "Creation response was never released" }
+            JSONObject(peer.customWorkspaceListing.toString()).put("created_terminal_id", "interrupted-terminal")
+        }
+        try {
+            listing(terminals = "[]"); launch(); text("Waiting for workspace panes…")
+            text("New terminal").click()
+            waitUntil { calls("terminal.create").size == 1 && peer.customWorkspaceListing!!.getJSONArray("workspaces")
+                .getJSONObject(0).getJSONArray("terminals").length() == 1 }
+            killAndRestore { gate.countDown() }
+            text(uncertainCreation); text("Recovered shell ▾")
+            assertEquals(1, calls("terminal.create").size)
+            assertTrue(calls("workspace.create").isEmpty())
+            description("Back to workspaces").click(); text("Process workspace")
+        } finally { gate.countDown() }
+    }
+
+    @Test fun changedLoginDiscardsAnInterruptedCreationWaiterAfterProcessDeath() {
+        val gate = java.util.concurrent.CountDownLatch(1)
+        try {
+            pendingWorkspaceCreate(gate)
+            killAndRestore {
+                gate.countDown()
+                store.clear(); store.update { it.put("refresh_token", "replacement-creation-login").put("pairing_code", code) }
+                store.rememberMac(code, "fixture-mac", "Fixture Mac"); store.taskSession()
+            }
+            text("Process workspace"); text("Created after interruption")
+            assertFalse(device.hasObject(By.text(uncertainCreation)))
+            assertFalse(device.hasObject(By.text("Recovered shell ▾")))
+            assertEquals(1, calls("workspace.create").size)
+            assertTrue(calls("terminal.create").isEmpty())
+        } finally { gate.countDown() }
+    }
+
     private fun openCustomizationDraft() {
         peer.workspaceMetadataSupported = true
         peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0)

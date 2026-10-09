@@ -116,8 +116,47 @@ class NativeWorkspaceCreationTest {
         val f = Fixture(backgroundScope); val nav = NativeCreationNavigation()
         nav.begin(f.coordinator.begin("login", mac, groupId = "private-group")!!, "login", context)
         val saved = JSONObject(nav.save())
-        assertEquals(setOf("version", "id", "login"), saved.keys().asSequence().toSet())
+        assertEquals(setOf("version", "id", "login", "user", "team", "notice", "notice_login", "notice_user", "notice_team"), saved.keys().asSequence().toSet())
         val corrupt = NativeCreationNavigation("{bad json")
         assertNull(corrupt.take(f.coordinator)); f.coordinator.clear()
     }
+    @Test fun uncertaintyNoticeSurvivesIdleReconciliationRestorationAndExplicitDismissal() {
+        val nav = NativeCreationNavigation()
+        nav.begin("request", "login", context)
+        nav.reconcile("login", NativeCreationState.Idle, context, { true }, {}) { _, _ -> fail("No response") }
+        val restored = NativeCreationNavigation(nav.save())
+        assertEquals(NativeCreationNotice.LOST_RESULT, restored.noticeFor("login"))
+        assertNull(restored.reconcile("login", NativeCreationState.Idle, context, { true }, {}) { _, _ -> fail() })
+        assertEquals(NativeCreationNotice.LOST_RESULT, restored.noticeFor("login"))
+        restored.dismissNotice()
+        assertNull(NativeCreationNavigation(restored.save()).noticeFor("login"))
+    }
+
+    @Test fun noticeAndWaiterCannotCrossAccountOrTeamEvenBeforeTheReconciliationEffect() {
+        val team = NativeTeamScope("login", "user", "team", 1)
+        for (next in listOf(team.copy(login = "other"), team.copy(userId = "other"), team.copy(teamId = "other"))) {
+            val nav = NativeCreationNavigation()
+            nav.begin("request", "login", context, team)
+            val pending = NativeCreationNavigation(nav.save())
+            assertNull(pending.reconcile(next.login, NativeCreationState.Idle, context, { true }, {}, next) { _, _ -> fail() })
+            assertNull(pending.noticeFor(next.login, next))
+            nav.reconcile("login", NativeCreationState.Idle, context, { true }, {}, team) { _, _ -> fail() }
+            val ready = NativeCreationNavigation(nav.save())
+            assertNull(ready.noticeFor(next.login, next))
+            ready.reconcile(next.login, NativeCreationState.Idle, context, { true }, {}, next) { _, _ -> fail() }
+            assertNull(ready.noticeFor("login", team))
+        }
+    }
+
+    @Test fun restoredNoticeUsesStableTeamIdentityAndRejectsArbitraryMessages() {
+        val team = NativeTeamScope("login", "user", "team", 1)
+        val nav = NativeCreationNavigation(); nav.begin("request", "login", context, team)
+        nav.reconcile("login", NativeCreationState.Idle, context, { true }, {}, team) { _, _ -> fail() }
+        assertEquals(NativeCreationNotice.LOST_RESULT, NativeCreationNavigation(nav.save()).noticeFor("login", team.copy(generation = 2)))
+        val invalid = JSONObject(nav.save()).put("notice", "untrusted text")
+        assertNull(NativeCreationNavigation(invalid.toString()).noticeFor("login", team))
+        val legacy = NativeCreationNavigation("""{"version":1,"id":"request","login":"login"}""")
+        assertNotNull(legacy.reconcile("login", NativeCreationState.Idle, context, { true }, {}) { _, _ -> fail() })
+    }
+
 }

@@ -706,3 +706,52 @@ Verification on 2026-10-09:
   The Pixel was absent. Physical Mac/Pixel acceptance and actual process-death
   verification remain open; the saved-waiter process-loss check here is JVM only.
   Published signed APK 616 is unchanged.
+
+## Process-loss creation notice (2026-10-09)
+
+Follow-up to the ordinary-creation checkpoint above: the interrupted-create
+message now has its own saved state, independent of connection errors. Successful
+terminal replay used to clear the shared `error` field; it must not erase an
+unresolved creation outcome. The notice remains visible until dismissed or a new
+explicit creation starts. Dismissal survives process restoration. It has no
+Reconnect button and never submits a creation request.
+
+The saved waiter/notice now includes opaque login, user and team identifiers plus
+a fixed notice enum. Current account/team ownership is checked before rendering,
+including before the reconciliation effect runs. Changing that owner discards the
+old waiter and notice. A process restart may change the team's in-memory generation
+without changing the stable identity. No RPC command, credentials, peer error text
+or returned workspace payload is stored.
+
+The emulator process fixture uses the production `MainActivity` through a debug-only
+subclass with a local synthetic Mac connector. The Mac commits the workspace or
+terminal while holding its response. Android saves the stopped task bundle, the
+fixture kills only the dedicated UI process, and Android restores the same task in
+a new process. The instrumentation process and fixture Mac remain alive throughout.
+Tests assert distinct UI PIDs, a retained Android bundle and unchanged mutation
+counts, then open the actual workspace from the refreshed list. They also verify
+notice retention after terminal replay, dismissal followed by a second process
+restart, and a replacement account discarding the old waiter.
+
+Verification:
+
+- **12 JVM tests passed**, including durable notice/dismissal state, account/user/
+  team rejection before presentation, stable team identity across generations,
+  legacy saved waiter decoding and rejection of arbitrary notice text.
+- **Three Android process tests passed in 45.181 seconds**, exercising workspace
+  creation, terminal creation and replacement login. After replacing Material's
+  default purple notice background with the app's dark grey, the workspace case
+  passed again on the final APK in **27.569 seconds**, including both process
+  restarts and saved dismissal. The final screenshot was inspected for readable
+  text, the Dismiss action and consistency with the terminal controls.
+- Both runs had empty crash/ANR event output. The same existing AVD was used with
+  boot animation disabled; no additional virtual device was created. Emulator
+  and Gradle were stopped after verification.
+- Ignored evidence: `captures/runtime/native-creation-process/` contains original
+  and final screenshots, build/JVM/runtime logs, distinct restored process/task
+  records and APK/source hashes. The first tested APK hash was read from the
+  emulator's installed package before replacing it with the final color change.
+
+This closes the synthetic Android process-death creation gate. Real Mac/Pixel
+network loss and process-death acceptance remain open. No host-side exactly-once
+protocol is inferred from these tests, and published signed APK 616 is unchanged.
