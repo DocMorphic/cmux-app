@@ -155,15 +155,41 @@ class ArtifactVideoGeometryRuntimeTest {
                 revealForGesture()
                 val downTime = SystemClock.uptimeMillis()
                 fun touch(action: Int) {
+                    File(evidence, "held-touch.log").appendText("${SystemClock.uptimeMillis()} inject action=$action\n")
                     val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action,
                         mute.centerX().toFloat(), mute.centerY().toFloat(), 0).apply { source = android.view.InputDevice.SOURCE_TOUCHSCREEN }
-                    try { assertTrue(instrumentation.uiAutomation.injectInputEvent(event, true)) }
+                    try { assertTrue(instrumentation.uiAutomation.injectInputEvent(event, true))
+                        File(evidence, "held-touch.log").appendText("${SystemClock.uptimeMillis()} injected action=$action\n") }
                     finally { event.recycle() }
                 }
                 touch(MotionEvent.ACTION_DOWN)
                 try {
                     Thread.sleep(3500)
-                    assertTrue("Controls disappeared under a held finger", device.hasObject(By.desc("Hide playback controls")))
+                    val shown = device.hasObject(By.desc("Hide playback controls"))
+                    File(evidence, "held-touch.log").appendText("${SystemClock.uptimeMillis()} controlsShown=$shown before release\n")
+                    // Capture before UP: the button click on release can reveal
+                    // the controls again and conceal the actual held-touch failure.
+                    val heldScreenshot = File(evidence, "held-touch.png")
+                    assertTrue(device.takeScreenshot(heldScreenshot))
+                    val heldBitmap = checkNotNull(BitmapFactory.decodeFile(heldScreenshot.path))
+                    try {
+                        // An accessibility tree alone cannot establish that the
+                        // controls actually remained painted during the hold.
+                        for (bounds in listOf(mute, transportButton)) {
+                            var textPixels = 0
+                            for (y in bounds.top until bounds.bottom) for (x in bounds.left until bounds.right) {
+                                val pixel = heldBitmap.getPixel(x, y)
+                                if (Color.red(pixel) > 220 && Color.green(pixel) > 220 && Color.blue(pixel) > 220) textPixels++
+                            }
+                            assertTrue("Held control text disappeared at $bounds", textPixels > 30)
+                        }
+                    } finally { heldBitmap.recycle() }
+                    device.dumpWindowHierarchy(File(evidence, "held-touch.xml"))
+                    val cleared = Build.VERSION.SDK_INT >= 34 && instrumentation.uiAutomation.clearCache()
+                    val freshShown = device.hasObject(By.desc("Hide playback controls"))
+                    File(evidence, "held-touch.log").appendText("${SystemClock.uptimeMillis()} cacheCleared=$cleared freshControlsShown=$freshShown before release\n")
+                    device.dumpWindowHierarchy(File(evidence, "held-touch-fresh.xml"))
+                    assertTrue("Controls unavailable under a held finger in the refreshed accessibility tree", freshShown)
                 } finally { touch(MotionEvent.ACTION_UP) }
                 var sameView: ArtifactMediaView? = null
                 read { view, _ -> sameView = view; true }

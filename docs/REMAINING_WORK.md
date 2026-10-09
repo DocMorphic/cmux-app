@@ -31,13 +31,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 - Fullscreen media now uses controls over the fitted video, with playback
   auto-hide, menu/gesture/accessibility guards and a shared expanded PiP layout.
-  **Compilation and the audio controls regression passed; comprehensive video
-  verification is still failing.** The latest normal-graphics run had a black
-  paused fullscreen frame and missed the OS PiP Expand button. A software-graphics
-  rerun painted fullscreen but failed held-touch visibility. See
-  `CONTENT_PREVIEW_LIFECYCLE.md` for all attempts and the exact continuation.
+  **The comprehensive video and actual OS PiP-return cases passed together in
+  143.871 seconds with software graphics.** Before-release captures and fresh
+  accessibility queries isolated the held-touch failure to a stale automation
+  tree; the test now also checks painted control pixels. PiP uses settled system
+  window bounds and fresh menu nodes, preserving bookmark/French tracks/speed/mute
+  through return and recreation. Earlier hardware/normal-graphics black frames
+  remain unverified on Pixel. The final paused expanded-player capture lacked a
+  caption cue although resumed playback showed it; paused-seek cue freshness is
+  an explicit next check. See `CONTENT_PREVIEW_LIFECYCLE.md` for all attempts.
   The sole emulator and Gradle are stopped; no Pixel or signed release was used.
-  Signed 635 predates this batch. Fullscreen UI parity is not established.
+  Signed 635 predates this batch. Matched iOS UI and physical acceptance remain open.
 
 - Video rotation now preserves paused bookmarks instead of replacing them with
   a destroyed surface's zero position. **Three Android media cases passed**:

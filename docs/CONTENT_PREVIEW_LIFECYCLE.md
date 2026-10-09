@@ -1,5 +1,67 @@
 # Content preview lifecycle
 
+## Fullscreen media runtime diagnosis — 2026-10-10
+
+The latest held-touch failure was traced before releasing the finger. Controls
+remained painted, the parent received DOWN and stayed pressed, and no hide timer
+fired during that hold. The automation cache nevertheless returned the previous
+Show-controls tree. Clearing that cache while the finger was still down returned
+Hide-controls and all buttons. The screenshot independently contained the Mute,
+Pause and Exit text (786, 875 and 1,929 white pixels in their observed bounds).
+This identifies a stale test-side accessibility snapshot for this failure; it
+does not establish physical TalkBack acceptance. Android documents the public
+[UiAutomation.clearCache](https://developer.android.com/reference/android/app/UiAutomation#clearCache())
+API used for the fresh query. The temporary app trace contained only control
+state and has been removed; production player code is unchanged in this recheck.
+
+With the fresh query, the comprehensive video case passed: native aspect-fit
+pixels across rotation, fullscreen and recreation; open menus and held touch;
+auto-hide without replacing the player; pause/background/bookmark restoration;
+and portrait captions without transport overlap. That two-case run took 140.313
+seconds and still failed PiP's later audio-menu tap. Its evidence is in
+`captures/runtime/media-overlay/fresh-tree/` and
+`captures/media-overlay-android-fresh-tree.log`.
+
+The PiP harness had used the decor's old fullscreen coordinates. Android's
+actual compact window was `[439,1955][1038,2295]`; the harness now waits for that
+window and taps its center, then uses the real OS Expand button immediately.
+Fresh menu queries also avoid stale fullscreen/PiP node geometry. The subsequent
+PiP-only run passed in 28.297 seconds, returning 12,000 ms, French audio/subtitles,
+1.5× and mute through Done and source recreation. Native selected audio was
+track 2, the French caption was visibly painted after resuming, resumed frames
+passed pixel checks, and the independent playback copy was deleted. Evidence:
+`captures/runtime/media-overlay/pip-fresh/` and
+`captures/media-overlay-android-pip-fresh.log`.
+
+The first combined run without app tracing passed video but missed Expand in
+134.135 seconds. Its window rectangle was `[176,880][1063,2262]`, captured during
+the entry animation; the settled window in the failure screenshot was much lower.
+The harness now requires the actual PiP rectangle to match the fixture's 16:9
+aspect ratio and remain unchanged for at least 500 ms before tapping. It records
+the intermediate rectangles rather than substituting a programmatic expansion.
+
+**The final combined run passed both cases in 143.871 seconds.** This APK contains
+no temporary app tracing. The held-touch test asserts painted control text and
+records cached/fresh trees before UP; PiP restores its previous idle timeout.
+The window settled at `[440,1959][1038,2295]` for 623 ms before the real tap.
+The restored source retained 12,000 ms, French audio/caption selection, 1.5× and
+mute, and visibly rendered French captions and video on resuming. Screenshots
+were inspected. No crash/ANR events appeared in this run's event log. Evidence:
+`captures/media-overlay-android-stable.log`, `captures/media-overlay-stable-*.log`
+and `captures/runtime/media-overlay/stable/`. Final app/test builds succeeded
+in 26/18 seconds. Debug APK SHA-256:
+`2c2af1e8d8e2f8918b6c7ff39bfa61b2cb3aabad18b4abcbd7226dc51c20b9c8`;
+test APK: `9d60e9deb7cdf19aa21e738e369f65e92468afed14185c0f75c1a988611c4505`.
+Only the existing AVD with software graphics was used. Gradle and the emulator
+did not overlap and both were stopped; no Pixel or signed release was used.
+
+The final paused expanded-player screenshot did **not** contain the selected
+French cue at 12 seconds, although resumed playback rendered it. Paused-seek
+caption freshness needs an explicit rendered assertion and iOS comparison before
+media acceptance closes. Normal/hardware graphics, physical routes/codecs,
+enlarged text and TalkBack also remain acceptance gates. The older failures below
+remain historical evidence; signed 635 predates the fullscreen implementation.
+
 ## Fullscreen media controls — 2026-10-10
 
 Fullscreen playback now fits the native video surface to the available window.

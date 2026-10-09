@@ -37,6 +37,9 @@ class ArtifactMediaPipReturnRuntimeTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
+        val configurator = Configurator.getInstance()
+        val previousIdleTimeout = configurator.waitForIdleTimeout
+        configurator.setWaitForIdleTimeout(0)
         val source = File(context.cacheDir, "pip-return.mp4")
         instrumentation.context.assets.open("media/tracks.mp4").use { input -> source.outputStream().use(input::copyTo) }
         val evidence = File(context.getExternalFilesDir(null), "media-pip-return").apply { deleteRecursively(); mkdirs() }
@@ -47,7 +50,17 @@ class ArtifactMediaPipReturnRuntimeTest {
             while (SystemClock.elapsedRealtime() < end) { if (condition()) return; Thread.sleep(100) }
             fail(message)
         }
-        fun find(selector: BySelector) = checkNotNull(device.wait(Until.findObject(selector), 10_000)) { "Missing $selector" }
+        fun find(selector: BySelector): UiObject2 {
+            val end = SystemClock.elapsedRealtime() + 10_000
+            do {
+                // With idle waits disabled, refresh fullscreen/PiP nodes instead
+                // of reusing stale geometry observed in the API 37 guest.
+                if (Build.VERSION.SDK_INT >= 34) instrumentation.uiAutomation.clearCache()
+                device.findObject(selector)?.let { return it }
+                Thread.sleep(100)
+            } while (SystemClock.elapsedRealtime() < end)
+            error("Missing $selector")
+        }
         fun choose(menu: String, label: String) { find(By.desc(menu)).click(); find(By.text(label)).click() }
         fun onPlayback(block: (MediaPlaybackActivity, ArtifactPlaybackModel) -> Boolean): Boolean {
             var result = false
@@ -97,24 +110,38 @@ class ArtifactMediaPipReturnRuntimeTest {
                         model.player.view?.seekComplete() == true && model.player.view?.currentPosition in 7_700..8_400
                 } }
                 assertNotEquals(source.absolutePath, owned!!.absolutePath)
-                dump("floating")
                 val bounds = Rect()
-                assertTrue(onPlayback { activity, _ ->
-                    val decor = activity.window.decorView
-                    val location = IntArray(2)
-                    decor.getLocationOnScreen(location)
-                    bounds.set(location[0], location[1], location[0] + decor.width, location[1] + decor.height)
-                    File(evidence, "floating-bounds.txt").writeText(bounds.toString())
-                    !bounds.isEmpty
-                })
+                val previousBounds = Rect()
+                var stableSince = SystemClock.elapsedRealtime()
+                // The decor's logical bounds can remain fullscreen during the
+                // system transition. Use the actual on-screen PiP window.
+                await("System did not report a compact PiP window", timeout = 45_000) {
+                    if (Build.VERSION.SDK_INT >= 34) instrumentation.uiAutomation.clearCache()
+                    bounds.setEmpty()
+                    instrumentation.uiAutomation.windows.firstOrNull {
+                        it.isInPictureInPictureMode && it.root?.packageName == context.packageName
+                    }?.getBoundsInScreen(bounds)
+                    val now = SystemClock.elapsedRealtime()
+                    val compact = !bounds.isEmpty && bounds.width() < device.displayWidth && bounds.height() < device.displayHeight &&
+                        kotlin.math.abs(bounds.width().toDouble() / bounds.height() - 16.0 / 9) < .05
+                    if (!compact || bounds != previousBounds) stableSince = now
+                    previousBounds.set(bounds)
+                    File(evidence, "window-transition.log").appendText("time=$now bounds=${bounds.toShortString()} compact=$compact stableMs=${now - stableSince}\n")
+                    // Intermediate animation rectangles can already be smaller
+                    // than fullscreen but their centers miss the settled window.
+                    compact && now - stableSince >= 500
+                }
+                dump("floating")
+                File(evidence, "floating-bounds.txt").writeText(bounds.toString())
                 device.click(bounds.centerX(), bounds.centerY())
-                dump("system-controls")
                 // The OS supplies this button; do not replace expansion with a direct lifecycle callback.
+                // Its transient menu can hide while screenshots/idle waits run.
                 find(By.desc("Expand")).click()
                 await("System expansion did not leave PiP") { onPlayback { activity, model ->
                     !activity.isInPictureInPictureMode && model.player.prepared
                 } }
                 find(By.text("Done"))
+                dump("expanded-ready")
                 choose("Audio tracks", "French")
                 await("Expanded player did not prepare after selecting audio") { onPlayback { _, model -> model.player.prepared } }
                 choose("Subtitle tracks", "French")
@@ -176,6 +203,7 @@ class ArtifactMediaPipReturnRuntimeTest {
         finally {
             instrumentation.runOnMainSync { playback?.finish() }
             source.delete()
+            configurator.setWaitForIdleTimeout(previousIdleTimeout)
         }
     }
 }
