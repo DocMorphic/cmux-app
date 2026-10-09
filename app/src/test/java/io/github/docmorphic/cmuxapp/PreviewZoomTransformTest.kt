@@ -44,4 +44,32 @@ class PreviewZoomTransformTest {
         assertEquals(value, value.transform(1f, Float.POSITIVE_INFINITY, 0f))
         assertEquals(value, value.transform(0f, 0f, 0f))
     }
+
+    @Test fun imageFocalPointSurvivesPortraitLandscapeAndReturn() {
+        val portrait = PreviewZoomTransform().doubleTap(-.3f, 0f)
+        val landscape = portrait.reframeImage(1000, 2000, 2000, 1000, 1.5f)
+        // The image fills 75% of the landscape width, versus all of portrait width.
+        assertEquals(.9f * .75f, landscape.x, .0001f)
+        assertEquals(.2f, .5f - landscape.x / (landscape.scale * .75f), .0001f)
+        assertEquals(portrait.x, landscape.reframeImage(2000, 1000, 1000, 2000, 1.5f).x, .0001f)
+        assertEquals(portrait.scale, landscape.scale, .0001f)
+    }
+
+    @Test fun tallImageVerticalFocalPointAndBoundariesSurviveResizing() {
+        val landscape = PreviewZoomTransform(3f, 0f, -.6f)
+        val portrait = landscape.reframeImage(2000, 1000, 1000, 2000, .75f)
+        assertEquals(-.4f, portrait.y, .0001f)
+        assertEquals(.7f, .5f - portrait.y / (portrait.scale * (2f / 3f)), .0001f)
+        val bounded = PreviewZoomTransform(3f, 1f, 0f).reframeImage(2000, 1000, 1000, 2000, .75f)
+        assertEquals(1f, bounded.x, .0001f)
+        assertEquals(PreviewZoomTransform(), PreviewZoomTransform().reframeImage(1000, 2000, 2000, 1000, 1.5f))
+    }
+
+    @Test fun unmeasuredOrInvalidImageGeometryKeepsSavedTransform() {
+        val value = PreviewZoomTransform(3f, .6f, -.2f)
+        assertEquals(value, value.reframeImage(0, 1000, 2000, 1000, 1.5f))
+        assertEquals(value, value.reframeImage(1000, 2000, 0, 1000, 1.5f))
+        assertEquals(value, value.reframeImage(1000, 2000, 2000, 1000, Float.NaN))
+        assertEquals(value, value.reframeImage(1000, 2000, 2000, 1000, 0f))
+    }
 }

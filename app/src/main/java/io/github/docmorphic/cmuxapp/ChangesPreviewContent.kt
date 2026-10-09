@@ -98,6 +98,7 @@ internal fun FilePreviewContent(artifact: LocalFilePreview, remote: RemoteArtifa
 @Composable
 internal fun PreviewZoom(modifier: Modifier = Modifier, onLongPress: ((Offset) -> Unit)? = null, doubleTapScale: Float = 3f,
     onContentTap: ((Offset) -> Unit)? = null, onContentLongPress: ((Offset) -> Unit)? = null, resetGeneration: Int = 0,
+    imageAspect: Float? = null,
     content: @Composable (Modifier) -> Unit) {
     var position by rememberSaveable(stateSaver = listSaver<PreviewZoomTransform, Float>(
         save = { listOf(it.scale, it.x, it.y) },
@@ -105,8 +106,10 @@ internal fun PreviewZoom(modifier: Modifier = Modifier, onLongPress: ((Offset) -
     )) { mutableStateOf(PreviewZoomTransform()) }
     var lastReset by rememberSaveable { mutableIntStateOf(resetGeneration) }
     LaunchedEffect(resetGeneration) { if (lastReset != resetGeneration) { position = PreviewZoomTransform(); lastReset = resetGeneration } }
-    var width by remember { mutableIntStateOf(0) }
-    var height by remember { mutableIntStateOf(0) }
+    // Retain the old geometry alongside the transform across Activity recreation.
+    // The next layout can then reproject an image's saved focal point after rotation.
+    var width by rememberSaveable { mutableIntStateOf(0) }
+    var height by rememberSaveable { mutableIntStateOf(0) }
     val latestLongPress by rememberUpdatedState(onLongPress)
     val latestContentTap by rememberUpdatedState(onContentTap)
     val latestContentLongPress by rememberUpdatedState(onContentLongPress)
@@ -116,7 +119,10 @@ internal fun PreviewZoom(modifier: Modifier = Modifier, onLongPress: ((Offset) -
             centroid.x / width - .5f, centroid.y / height - .5f)
     }
     val transform = rememberTransformableState { zoom, pan, _ -> applyTransform(zoom, pan) }
-    Box(modifier.clipToBounds().onSizeChanged { width = it.width; height = it.height }
+    Box(modifier.clipToBounds().onSizeChanged {
+        imageAspect?.let { aspect -> position = position.reframeImage(width, height, it.width, it.height, aspect) }
+        width = it.width; height = it.height
+    }
         .pointerInput(Unit) {
             // Claim touch transforms before AndroidView/pager handlers consume the
             // movement. At minimum zoom, leave one-finger swipes to the parent.
@@ -196,7 +202,8 @@ private fun ChangesImagePreview(artifact: LocalFilePreview, remote: RemoteArtifa
         PreviewZoom(Modifier.fillMaxSize().semantics {
             contentDescription = "Image preview ${file.name}"
             if (actions.enabled) onLongClick(label = "Image actions") { menuAnchor = Offset.Zero; true }
-        }, onLongPress = { point -> if (actions.enabled) menuAnchor = point }) { modifier ->
+        }, onLongPress = { point -> if (actions.enabled) menuAnchor = point },
+            imageAspect = drawable?.let { it.intrinsicWidth.toFloat() / it.intrinsicHeight }) { modifier ->
             AndroidView(factory = { ImageView(it).apply { scaleType = ImageView.ScaleType.FIT_CENTER } }, modifier = modifier,
                 update = { view -> if (view.drawable !== drawable) { (view.drawable as? Animatable)?.stop(); view.setImageDrawable(drawable); (drawable as? Animatable)?.start() } },
                 onRelease = { (it.drawable as? Animatable)?.stop(); it.setImageDrawable(null) })

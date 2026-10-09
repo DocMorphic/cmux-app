@@ -57,6 +57,8 @@ class ArtifactImageGesturesTest {
                 if (matched) return
                 Thread.sleep(75)
             }
+            device.takeScreenshot(File(output, "color-failure.png"))
+            device.dumpWindowHierarchy(File(output, "color-failure.xml"))
             fail("Expected image color $color at viewport center")
         }
         fun doubleTap(fraction: Float) {
@@ -88,6 +90,17 @@ class ArtifactImageGesturesTest {
             doubleTap(.2f); colorAtCenter(Color.GREEN)
             scenario.recreate(); colorAtCenter(Color.GREEN)
             device.takeScreenshot(File(output, "off-center-recreated.png"))
+            scenario.onActivity { it.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
+            await("Preview did not rotate to landscape") { device.displayWidth > device.displayHeight }
+            await("Image viewport did not finish landscape layout") { find(image).visibleBounds.let { it.width() > it.height() } }
+            device.waitForIdle()
+            colorAtCenter(Color.GREEN)
+            device.takeScreenshot(File(output, "off-center-landscape.png"))
+            scenario.recreate(); colorAtCenter(Color.GREEN)
+            scenario.onActivity { it.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
+            await("Preview did not return to portrait") { device.displayHeight > device.displayWidth }
+            colorAtCenter(Color.GREEN)
+            device.takeScreenshot(File(output, "off-center-portrait-return.png"))
             doubleTap(.5f); colorAtCenter(Color.RED)
             menu(); device.takeScreenshot(File(output, "context-menu.png")); find(By.text("Share")).click()
             await("Share was not dispatched") { shares.get() == 1 }

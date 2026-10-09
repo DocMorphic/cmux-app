@@ -1,5 +1,40 @@
 # Content preview lifecycle
 
+## Image focal point across rotation — 2026-10-09
+
+The image gesture test now exercises portrait → landscape → portrait and an
+additional recreation while landscape. The first run failed its visible green
+stripe assertion after rotating a 3× off-center image (28.001 s). The prior
+same-size recreation check passed. This exposed saved pan fractions that tracked
+the viewport rather than the aspect-fitted image: changing the letterboxing moved
+the image point at the center.
+
+The viewer now saves its previous measured size with its zoom transform and
+reprojects pan using the old/new fitted image extents when layout changes. Scale
+and bounded pan remain intact; unmeasured/invalid geometry is ignored. This path
+is enabled for images only. **Nine geometry JVM tests passed**, including both
+axes, orientation round-trip, boundaries, minimum zoom and invalid dimensions.
+The debug/test APK build succeeded. The expanded Android gesture case **passed
+in 25.521 s**: visible stripe pixels stay centered through rotation, landscape
+recreation and portrait return; double-tap reset, image menu contents, Share/Save
+dispatch and exact clipboard image bytes also pass. Landscape and portrait-return
+screenshots were inspected. The installed APK hash matches the rebuilt debug APK.
+
+The original failing run had a System UI startup ANR before instrumentation and
+no new crash/ANR events during the test. A later boot hit system/Google startup
+ANRs and stopped before instrumentation began; it supplied no test result. The
+final boot/run had no crash/ANR events. Only the existing AVD was used, and both
+the emulator and Gradle are stopped. No physical Pixel was connected.
+
+Scoped source reference: `ChatArtifactZoomableImageView.swift` at
+`f4b1509054949eaad5d695569ad443c4c18ed68d`, SHA-256
+`c91a6f0afcdcb857ed0522ad98713d3f55bb67f927636262660e6032c66dd98c`.
+It uses an aspect-fit image constrained to its zooming viewport; this review does
+not establish every UIKit rotation/animation behavior. The global parity pin is
+unchanged. Evidence: `captures/runtime/image-rotation/` and
+`captures/image-rotation-fixed-build.log`. Signed build 635 predates this fix.
+PDF/video rotation, accessibility and physical Pixel/Mac acceptance remain open.
+
 ## Combined PDF/notification runtime milestone — 2026-10-06
 
 The clean `ca00fde` source built debug/test APKs in 80 seconds. The existing API37

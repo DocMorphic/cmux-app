@@ -18,6 +18,19 @@ internal data class PreviewZoomTransform(val scale: Float = 1f, val x: Float = 0
         if (!atMinimum) PreviewZoomTransform()
         else bounded(targetScale, -focalX * targetScale, -focalY * targetScale)
 
+    /** Preserve the image point at the viewport center when aspect-fit letterboxing changes. */
+    fun reframeImage(oldWidth: Int, oldHeight: Int, width: Int, height: Int, imageAspect: Float): PreviewZoomTransform {
+        if (oldWidth <= 0 || oldHeight <= 0 || width <= 0 || height <= 0 ||
+            !imageAspect.isFinite() || imageAspect <= 0f) return this
+        fun fit(w: Int, h: Int): Pair<Float, Float> {
+            val viewportAspect = w.toFloat() / h
+            return minOf(1f, imageAspect / viewportAspect) to minOf(1f, viewportAspect / imageAspect)
+        }
+        val before = fit(oldWidth, oldHeight)
+        val after = fit(width, height)
+        return bounded(scale, x * after.first / before.first, y * after.second / before.second)
+    }
+
     /** Inverse of the centered graphics layer; returns document fractions, not screen pixels. */
     fun contentPoint(px: Float, py: Float, width: Int, height: Int): Pair<Float, Float>? {
         if (width <= 0 || height <= 0 || !px.isFinite() || !py.isFinite() || !scale.isFinite() || scale <= 0) return null

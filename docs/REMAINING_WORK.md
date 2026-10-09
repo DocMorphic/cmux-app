@@ -28,6 +28,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Image zoom now preserves the viewed focal point when rotation changes
+  aspect-fit letterboxing. **Nine JVM checks and the expanded Android gesture
+  case passed**, including landscape recreation, portrait return, reset and
+  image file actions. Screenshots inspected; emulator/Gradle stopped. See
+  `CONTENT_PREVIEW_LIFECYCLE.md` for the original failure and startup ANRs.
+  Signed build 635 predates this fix; physical acceptance remains open.
+
 - Signed milestone [635](https://github.com/DocMorphic/cmux-app/actions/runs/37922453797)
   at `5888cd68` **passed**: Cloud native checkpoint, unit/APK build, signed-package
   verification and six release class-loading checks on Android 17 ART. The
