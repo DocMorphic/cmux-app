@@ -142,7 +142,7 @@ jobs:
           python3 scripts/build-graphics-path-android.py --ndk "$ANDROID_HOME/ndk/28.2.13676358" --output build/graphics-path-android
       - name: Restore Android Ghostty binding
         id: ghostty-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             build/ghostty-vt-android/manifest.json
@@ -166,6 +166,16 @@ jobs:
           tar -xJf "$RUNNER_TEMP/zig.tar.xz" -C "$RUNNER_TEMP"
           python3 scripts/build-ghostty-vt-android.py --source native/ghostty --zig "$RUNNER_TEMP/zig-x86_64-linux-0.16.0/zig" --ndk "$ANDROID_HOME/ndk/28.2.13676358" --output build/ghostty-vt-android
           python3 scripts/build-ghostty-jni-android.py --core build/ghostty-vt-android --ndk "$ANDROID_HOME/ndk/28.2.13676358"
+      - name: Save verified Ghostty binding before APK integration
+        if: steps.ghostty-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/ghostty-vt-android/manifest.json
+            build/ghostty-vt-android/jni-manifest.json
+            build/ghostty-vt-android/jniLibs
+            build/ghostty-vt-android/notices
+          key: ${{ steps.ghostty-cache.outputs.cache-primary-key }}
       - name: Restore simulator video decoder
         id: simulator-cache
         uses: actions/cache@v4

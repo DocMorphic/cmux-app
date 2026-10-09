@@ -37,6 +37,10 @@ and currently disabled; the upstream watcher is active on main with review issue
   all 18 pinned viewer hashes match.** Verification diagnostics will now be kept
   even when the APK check fails. This does not establish a signed release; the
   corrected CI milestone must complete, including release ART checks.
+  Follow-up: Ghostty's verified output is now cached immediately after its native
+  build, so a later APK verification failure does not discard that reusable work.
+  Run 634 started before this cache-policy follow-up and remains the active
+  corrected packaging milestone at `8de0d9c2`.
 
 - Feed snapshot decoding now runs off the UI thread with cooperative cancellation,
   current-owner/revision admission and live local decision overlays. **82 focused
