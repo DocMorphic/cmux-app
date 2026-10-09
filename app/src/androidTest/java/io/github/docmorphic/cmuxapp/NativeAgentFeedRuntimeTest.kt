@@ -71,9 +71,8 @@ class NativeAgentFeedRuntimeTest {
             val folder = File(context.getExternalFilesDir(null), "agent-feed").apply { mkdirs() }
             UiDevice.getInstance(instrumentation).takeScreenshot(File(folder, "timeline.png"))
             search("Pick a color")
-            compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").performScrollTo().performClick()
             // The default hides Notifications. Opt in, then hide it while selected:
-            // Feed must return with its query and unanswered choice intact.
+            // Feed must return with its query and question preview intact.
             compose.runOnIdle { preferences.edit().putBoolean(NativeDisplayPreferences.feedReplacesNotificationsKey, false).commit() }
             tab("Notifications").performClick()
             compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").assertDoesNotExist()
@@ -82,7 +81,7 @@ class NativeAgentFeedRuntimeTest {
             compose.runOnIdle { preferences.edit().putBoolean(NativeDisplayPreferences.feedReplacesNotificationsKey, true).commit() }
             tab("Feed").assertIsSelected()
             compose.onNode(hasText("Notifications", substring = true) and isSelectable()).assertDoesNotExist()
-            compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").assertIsSelected()
+            compose.onNodeWithTag("AgentFeedQuestionAnswer").assertIsDisplayed()
             compose.runOnIdle { preferences.edit().putBoolean(NativeDisplayPreferences.feedReplacesNotificationsKey, false).commit() }
             tab("Feed").assertIsSelected()
             tab("Notifications").performClick()
@@ -91,7 +90,9 @@ class NativeAgentFeedRuntimeTest {
             compose.onNode(hasSetTextAction()).performImeAction()
             tab("Feed").performClick()
             assertTrue(peer.requests.none { it.optString("method") == "feed.question.reply" })
-            compose.onNodeWithText("Send").performClick(); awaitMethod("feed.question.reply")
+            compose.onNodeWithTag("AgentFeedQuestionAnswer").performClick()
+            compose.onNodeWithTag("AgentFeedQuestionOption:color:blue-id").performScrollTo().performClick()
+            compose.onNodeWithTag("AgentFeedQuestionSubmit").performClick(); awaitMethod("feed.question.reply")
             assertEquals("Blue", peer.requests.last { it.optString("method") == "feed.question.reply" }
                 .getJSONObject("params").getJSONArray("selections").getString(0))
             search("Permission needed")

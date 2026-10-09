@@ -664,3 +664,12 @@ with its bundled dependencies. See app/src/main/assets/licenses/Pptx.txt and
 app/src/main/assets/presentation-viewer/manifest.json for license notices,
 corresponding-source links, provenance and hashes. Android's preview routing,
 asset shell, saved-state adapter and controls are project code.
+
+The Agent Feed compact question preview, all-question answer sheet, retained custom
+answer modes and release quote-bubble defaults in `AgentFeedQuestionControls.kt`,
+`AgentFeedQuestionSheet.kt`, `AgentFeedQuestionDrafts.kt` and
+`NativeDisplayPreferences.kt` follow the corresponding `AgentFeedQuestion*` and
+`MobileDisplaySettings` sources in `Packages/iOS/CmuxMobileShellUI` at cmux
+`f4b1509054949eaad5d695569ad443c4c18ed68d`. Copyright Manaflow, Inc.;
+GPL-3.0-or-later. Android adds saved-draft content identity checks and scroll
+viewport handling for its modal window and keyboard.

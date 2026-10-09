@@ -175,6 +175,9 @@ internal fun AgentFeedTimeline(
                     }
                     if (target.mode == "read") AgentFeedFullText(target, ::update, ::load,
                         { currentActions.read(entry) }, { modal = null })
+                    else if (target.mode == "question") AgentFeedQuestionSheet(entry, target, ::update, { modal = null }) {
+                        act(entry, it); modal = null
+                    }
                     else AgentFeedReplySheet(entry, target, ::update, ::load, { modal = null }) { decision, text ->
                         if (text == null) { checkNotNull(decision); act(entry, decision); modal = null }
                         else scope.launch {

@@ -105,8 +105,8 @@ internal fun NativeAgentFeedRow(entry: AgentFeedUiEntry, model: NativeAgentFeedP
                                 }
                             }
                         }
-                        AgentFeedKind.QUESTION -> AgentFeedQuestionControls(item, !pending, canSubmit = ready) {
-                            dismiss(); onDecision(it)
+                        AgentFeedKind.QUESTION -> AgentFeedQuestionControls(item, !pending) {
+                            dismiss(); onCompose("question")
                         }
                         else -> Unit
                     }

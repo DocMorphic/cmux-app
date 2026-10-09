@@ -1469,6 +1469,18 @@ and currently disabled; the upstream watcher is active on main with review issue
   for real Mac/Pixel acceptance; continue independent development while awaiting it.
 - Use only the existing AVD and stop it after testing. No extra virtual devices.
 
+## Latest Agent Feed question port — 2026-10-09
+
+Scoped to upstream `f4b1509054949eaad5d695569ad443c4c18ed68d`: the shared native/browser
+Feed now opens an all-question sheet from a compact preview, preserves inactive
+custom text, restores drafts only for the same ordered prompts, and defaults quote
+bubbles on in release builds. Measured viewport changes keep the focused answer
+above the keyboard. Seventeen JVM checks and four Android feature cases passed;
+see `AGENT_FEED.md` for run evidence, initial failures and visual verification.
+This does not advance the global source pin or close physical, browser-process,
+process-death or signed-release gates. Interactive keyboard drag dismissal remains
+to compare/port. The Pixel was absent; signed 616 unchanged.
+
 ## How completion is recorded
 
 For each row, link the exact source revision, checks and runtime evidence in the

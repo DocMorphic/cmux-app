@@ -726,3 +726,76 @@ Local logs, screenshots, APK hashes and receipt are under
 This covers Activity recreation within a live browser process. OS process death,
 large IPC messages, live reconnect/revocation, physical Pixel/Mac workflows and
 broader accessibility acceptance remain open. No signed release was produced.
+
+## All-question answer sheet — 2026-10-09
+
+Scoped source: `manaflow-ai/cmux` commit
+`f4b1509054949eaad5d695569ad443c4c18ed68d`, specifically
+`AgentFeedQuestionControls`, `AgentFeedQuestionComposer`, `AgentFeedQuestionCard`,
+`AgentFeedQuestionOptionRow`, `AgentFeedQuestionCustomAnswerRow`,
+`AgentFeedQuestionAnswerBuilder`, and `MobileDisplaySettings` under
+`Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/`.
+This does not advance the overall parity pin or claim the remaining upstream
+Feed analytics, scroll-performance, task-picker, or privacy changes are ported.
+
+The shared native/browser timeline now shows a compact first-prompt preview and
+an Answer action. Its sheet presents all questions vertically, progress, answered
+indicators, single/multiple selections with leading controls, and an always-visible
+custom answer. Submit sends ordered labels or trimmed custom text only after
+all prompts are answered and the source is connected with no pending action.
+Focus or selecting the custom control activates that mode and clears presets;
+selecting presets retains the inactive custom text. Single choices stay selected
+when tapped again. Keyboard/field height changes bring the focused editor into view.
+
+The saved modal includes answer state and a SHA-256 digest of the ordered prompt,
+header, option and selection-mode content. It does not save the remote prompt
+bodies. Authorized snapshot loading retains the draft; changed request/content,
+account/owner removal, resolved events and cancellation invalidate it. Both Feed
+presentations use the same sheet and existing transport ownership checks.
+Quote bubbles now default to enabled in every build and honor the stored setting;
+the existing debug-only A/B switch remains, as in the iOS source.
+
+Verification: **17 focused JVM tests passed**, covering answer modes/order,
+codec migration and request/content/owner identity. Debug/test APKs built.
+The final feature run passed **four Android cases in 101.475 seconds**, covering
+all-question completion, retained inactive custom text, blank focused answers,
+o-option questions, offline/pending gating, WAITING saved-state restoration,
+changed-prompt/cancel invalidation, release-setting persistence behavior, and
+real socket-RPC submission of labels. The display-setting code
+is unconditional across build variants; no new release APK was built.
+
+The initial Android attempt failed one assertion because it counted the visible
+placeholder as an answer. Screenshots also exposed a System UI ANR overlay even
+though semantic interactions could succeed. The test now requires actual window
+focus, stable IME geometry and full editor bounds above the keyboard. Earlier
+boots recorded System UI/Google service ANRs and a Launcher crash; those logs are
+retained. The earlier 88.520-second feature run had empty crash/ANR logs. The
+final run followed an emulator System UI restart; its before/after crash/ANR logs
+are identical, with no new events during the run.
+
+Keyboard screenshot inspection exposed missing scroll-follow when the modal
+consumed IME insets. The sheet now reacts to the **measured scroll viewport** and
+editor height, matching iOS's focused-answer geometry handling. Capture polling
+also waits for stable editor geometry and flushes Compose after native IME
+settlement. A settled follow-up exposed an intermittent focus/draft transition;
+updates now reduce synchronously against the latest local answer state and skip
+no-op persistence, so delayed IME callbacks cannot restore older modes. Submit
+recomputes the current answers when tapped. The test explicitly verifies focus
+when switching to an empty answer. This is why earlier keyboard
+screenshots, although retained, are not accepted as final visual proof.
+
+A repeat of the previously intermittent case passed in **17.777 seconds** on the
+same final app/test APKs. The final preview, sheet and stable-keyboard screenshots
+were inspected; the editor is fully visible above the IME, with geometry recorded
+alongside the image. Installed APK hashes match the local build outputs. No new
+crash/ANR events appeared during either final run. Emulator and Gradle were stopped.
+
+Evidence is under ignored `captures/runtime/feed-question-sheet/`, including
+original attempts, JVM XML, runtime logs, installed APK hashes and screenshots.
+These checks use the existing API 37 / 16 KiB AVD, requested at 1,536 MiB/2 cores;
+the image reports about 4 GiB guest memory despite that request. No additional
+AVD was created. Physical Pixel/Mac, question-specific browser IPC/recreation,
+OS process death and a signed release remain unverified by this batch. The iOS
+interactive drag-to-dismiss keyboard gesture still needs an Android comparison/port;
+this batch establishes resize/focus following, not that gesture.
+Signed build 616 is unchanged.

@@ -29,7 +29,7 @@ internal data class NativeDisplayPreferences(
     val useFullTerminalHeight: Boolean = false,
     val hapticFeedbackEnabled: Boolean = true,
     val feedShowsTab: Boolean = false,
-    val feedBubbleQuotes: Boolean = BuildConfig.DEBUG,
+    val feedBubbleQuotes: Boolean = true,
     val feedReplacesNotifications: Boolean = true,
 ) {
     companion object {
@@ -52,7 +52,7 @@ internal data class NativeDisplayPreferences(
                 stored[fullTerminalHeightKey] as? Boolean ?: false,
                 stored[hapticsKey] as? Boolean ?: true,
                 stored[feedTabKey] as? Boolean ?: false,
-                BuildConfig.DEBUG && (stored[feedBubblesKey] as? Boolean ?: true),
+                stored[feedBubblesKey] as? Boolean ?: true,
                 stored[feedReplacesNotificationsKey] as? Boolean ?: true,
             )
         }

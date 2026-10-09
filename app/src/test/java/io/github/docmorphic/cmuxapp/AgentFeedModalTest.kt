@@ -40,6 +40,24 @@ class AgentFeedModalTest {
         assertFalse(value.encode().contains("private-token")); assertFalse(value.encode().contains("Output"))
         assertNull(AgentFeedModal.decode("broken")); assertNull(AgentFeedModal.decode(value.copy(mode = "unknown").encode()))
     }
+    @Test fun questionDraftIsBoundToOrderedContentEvenWhenServerReusesTheRequestId() {
+        val prompt = AgentFeedQuestion("q", "Heading", "Private prompt", false,
+            listOf(AgentFeedOption("a", "First", "Description"), AgentFeedOption("b", "Second", null)))
+        val pending = entry.copy(item = item.copy(kind = AgentFeedKind.QUESTION, status = AgentFeedStatus.PENDING,
+            requestId = "request", questions = listOf(prompt)))
+        val modal = AgentFeedModal.from("account-team", pending, "question")
+            .copy(draft = AgentFeedQuestionDrafts().write(prompt, "Answer").encode())
+        assertEquals(modal, AgentFeedModal.decode(modal.encode()))
+        assertTrue(modal.matches(pending)); assertFalse(modal.encode().contains("Private prompt"))
+        val changed = listOf(prompt.copy(prompt = "New prompt"), prompt.copy(header = "New heading"),
+            prompt.copy(multiSelect = true), prompt.copy(options = prompt.options.reversed()),
+            prompt.copy(options = listOf(prompt.options.first().copy(description = "Changed"))))
+        changed.forEach { assertFalse(modal.matches(pending.copy(item = pending.item.copy(questions = listOf(it))))) }
+        assertFalse(modal.matches(pending.copy(item = pending.item.copy(requestId = "next"))))
+        assertFalse(modal.matches(pending.copy(item = pending.item.copy(status = AgentFeedStatus.RESOLVED))))
+        assertFalse(modal.matches(pending.copy(item = pending.item.copy(questions = emptyList()))))
+        assertEquals(AgentFeedModalStatus.WAITING, status(value = modal))
+    }
     @Test fun approvalUsesTheAgentsPreselectedSupportedModeAndExposesEverySourceMode() {
         assertEquals("manual", item.planApproval().mode)
         assertEquals("future-mode", item.copy(defaultMode = "future-mode").planApproval().mode)
