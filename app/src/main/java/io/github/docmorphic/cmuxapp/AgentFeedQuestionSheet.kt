@@ -32,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun AgentFeedQuestionSheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
     onChange: (AgentFeedModal) -> Unit, onDismiss: () -> Unit, onSubmit: (AgentFeedDecision) -> Unit) {
@@ -71,7 +71,8 @@ internal fun AgentFeedQuestionSheet(entry: AgentFeedUiEntry, modal: AgentFeedMod
                         disabledContainerColor = Color(0xFF282C32), disabledContentColor = Color(0xFF737983)),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) { Text("Submit") }
             }
-            Column(Modifier.weight(1f).fillMaxWidth().onSizeChanged { viewportHeight = it.height }.verticalScroll(scroll).testTag("AgentFeedQuestionScroll")
+            Column(Modifier.weight(1f).fillMaxWidth().onSizeChanged { viewportHeight = it.height }
+                .imeNestedScroll().verticalScroll(scroll).testTag("AgentFeedQuestionScroll")
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

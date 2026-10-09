@@ -796,8 +796,8 @@ These checks use the existing API 37 / 16 KiB AVD, requested at 1,536 MiB/2 core
 the image reports about 4 GiB guest memory despite that request. No additional
 AVD was created. Physical Pixel/Mac, question-specific browser IPC/recreation,
 OS process death and a signed release remain unverified by this batch. The iOS
-interactive drag-to-dismiss keyboard gesture still needs an Android comparison/port;
-this batch establishes resize/focus following, not that gesture.
+interactive drag-to-dismiss keyboard gesture was not covered by that batch;
+the follow-up below adds and verifies it on the existing Android emulator.
 Signed build 616 is unchanged.
 
 ## Background snapshot decoding (2026-10-09)
@@ -826,3 +826,28 @@ workflow or signed release was performed for this batch; the active signed
 milestone run 633 uses earlier `7a5ff354` sources. The iOS stop-reason cache,
 scroll instrumentation/analytics, remaining privacy changes and physical Feed
 performance still require comparison and acceptance; the global pin is unchanged.
+
+## Interactive question-sheet keyboard (2026-10-09)
+
+The question sheet now follows `AgentFeedQuestionComposer.swift`'s
+`scrollDismissesKeyboard(.interactively)` at the same scoped `f4b1509` source.
+Its scrolling content participates in Android's native IME animation controller
+through [Compose keyboard dragging](https://developer.android.com/develop/ui/compose/system/keyboard-animations).
+Typed answers, selected options, the submit action and the sheet remain intact
+while the keyboard is dragged down and reopened.
+
+The existing three question-sheet regressions passed. A new physical-touch
+instrumentation case initially timed out while checking root insets for a partial
+animation; its corrected measurement uses the rendered scroll viewport plus
+screenshots. It **passed in 27.195 seconds** on the same application APK,
+including a held partial drag, complete hide, retained answers, an undismissed
+sheet and reopening the editor. The initial viewport was 1,208 px high; during the
+held gesture it was 1,519 px high, with an initial 883 px IME. Partial, hidden and
+reopened screenshots were inspected. The first run's boot service ANRs preceded
+the test; the final run's before/after crash/ANR logs are identical.
+
+Evidence: ignored `captures/runtime/agent-feed-keyboard/` and
+`captures/agent-feed-keyboard-*.log`. The existing emulator and Gradle were
+stopped. No additional AVD was created. This is API 37 emulator evidence;
+physical Pixel/Mac acceptance, broader gesture/accessibility behavior and a
+successful signed milestone remain open.

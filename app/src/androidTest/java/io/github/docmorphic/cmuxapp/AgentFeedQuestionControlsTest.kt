@@ -90,6 +90,73 @@ class AgentFeedQuestionControlsTest {
     private fun option(question: String, option: String) = compose.onNodeWithTag("AgentFeedQuestionOption:$question:$option")
     private fun editor(question: String) = compose.onNodeWithTag("AgentFeedQuestionOtherText:$question")
 
+    @Test fun draggingKeyboardKeepsSheetAndAnswersAndCanReopenEditor() {
+        val entry = entry()
+        var modal by mutableStateOf(AgentFeedModal.from("account", entry, "question"))
+        var dismissed = 0
+        compose.setContent { CmuxTheme { Surface {
+            AgentFeedQuestionSheet(entry, modal, { modal = it }, { dismissed++ }, {})
+        } } }
+        option("color", "blue").performScrollTo().performClick()
+        editor("checks").performScrollTo().performClick().performTextInput("Keep my answer 👩🏽‍💻")
+        capture("keyboard-drag-before", keyboard = true)
+        fun imeHeight(): Int {
+            var height = 0
+            compose.runOnUiThread {
+                val view = WindowInspector.getGlobalWindowViews().firstOrNull { it.hasWindowFocus() }
+                height = view?.let(ViewCompat::getRootWindowInsets)?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0
+            }
+            return height
+        }
+        val shown = imeHeight()
+        assertTrue(shown > 300)
+        val bounds = compose.onNodeWithTag("AgentFeedQuestionScroll").fetchSemanticsNode().boundsInWindow
+        val x = bounds.center.x; val startY = bounds.top + 60f
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val downTime = android.os.SystemClock.uptimeMillis()
+        var y = startY
+        fun touch(action: Int) {
+            val event = android.view.MotionEvent.obtain(downTime, android.os.SystemClock.uptimeMillis(), action, x, y, 0)
+            event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+            try { assertTrue(instrumentation.uiAutomation.injectInputEvent(event, true)) }
+            finally { event.recycle() }
+        }
+        var pressed = false
+        try {
+            touch(android.view.MotionEvent.ACTION_DOWN); pressed = true
+            // Give the native IME animation controller time to take ownership, then hold a partial drag.
+            for (step in 1..12) {
+                y = startY + shown * .4f * step / 12
+                touch(android.view.MotionEvent.ACTION_MOVE); android.os.SystemClock.sleep(24)
+            }
+            // Root insets do not reliably expose intermediate animation geometry.
+            // The rendered scroll viewport follows each intermediate frame.
+            fun viewportHeight() = compose.onNodeWithTag("AgentFeedQuestionScroll").fetchSemanticsNode().boundsInWindow.height
+            capture("keyboard-drag-partial")
+            java.io.File(instrumentation.targetContext.getExternalFilesDir(null), "agent-feed-questions/keyboard-drag-metrics.txt")
+                .writeText("shown=$shown initialViewport=$bounds partialViewport=" + viewportHeight())
+            compose.waitUntil(3_000) { viewportHeight() > bounds.height + 30 && viewportHeight() < bounds.height + shown - 30 }
+            val partial = viewportHeight()
+            assertTrue(partial > bounds.height + 30 && partial < bounds.height + shown - 30)
+            compose.runOnIdle { assertEquals(0, dismissed) }
+            for (step in 1..18) {
+                y = startY + shown * (.4f + .8f * step / 18)
+                touch(android.view.MotionEvent.ACTION_MOVE); android.os.SystemClock.sleep(24)
+            }
+            touch(android.view.MotionEvent.ACTION_UP); pressed = false
+            compose.waitUntil(5_000) { imeHeight() == 0 && viewportHeight() > bounds.height + shown * .8f }
+            compose.onNodeWithText("Answer questions").assertIsDisplayed()
+            compose.runOnIdle { assertEquals(0, dismissed) }
+            assertEquals(listOf("Blue", "Keep my answer 👩🏽‍💻"), AgentFeedQuestionDrafts.decode(modal.draft)?.answers(questions))
+            capture("keyboard-drag-hidden")
+        } finally {
+            if (pressed) touch(android.view.MotionEvent.ACTION_CANCEL)
+        }
+        editor("checks").performScrollTo().performClick().assertIsFocused()
+        capture("keyboard-drag-reopened", keyboard = true)
+        editor("checks").assertTextContains("Keep my answer 👩🏽‍💻")
+    }
+
     @Test fun allPromptSheetRetainsInactiveCustomAnswersAndGatesSubmission() {
         var entry by mutableStateOf(entry())
         var modal by mutableStateOf(AgentFeedModal.from("account", entry, "question"))
