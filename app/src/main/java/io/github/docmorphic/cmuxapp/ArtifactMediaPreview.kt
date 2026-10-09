@@ -181,7 +181,13 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
     }
     fun selectCaption(preference: String) { trackController?.selectCaption(preference) }
     fun capturePosition() {
-        if (!released && state.view === this && state.prepared && !seeking) state.position = currentPosition.coerceAtLeast(0)
+        if (!released && state.view === this && state.prepared && !seeking) {
+            // VideoView returns zero after its SurfaceHolder releases the player.
+            // Rotation can destroy that surface before our save/release callback.
+            // Read the prepared native owner; a released player has no new bookmark.
+            player?.let { current -> runCatching { current.currentPosition }.getOrNull() }
+                ?.takeIf { it >= 0 }?.let { state.position = it }
+        }
         publishPlayback()
     }
     private fun publishPlayback() {

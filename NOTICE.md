@@ -1,5 +1,11 @@
 # Attribution
 
+Video-preview rendering and lifetime comparison follows
+`Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMediaView.swift`
+at cmux `f4b1509054949eaad5d695569ad443c4c18ed68d`
+(Manaflow, Inc., GPL-3.0-or-later). Android retains its own native player,
+bookmark, audio-focus and lifecycle implementation.
+
 Native panel retention distinguishes rejected admission from lifecycle closes
 using cmux's shared `IrxProtocol.swift` at
 `f4b1509054949eaad5d695569ad443c4c18ed68d` (Manaflow, Inc., GPL-3.0-or-later).

@@ -29,6 +29,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Video rotation now preserves paused bookmarks instead of replacing them with
+  a destroyed surface's zero position. **Three Android media cases passed**:
+  real-video geometry/rotation/fullscreen/background, plus existing lifecycle
+  and speed/seek/mute regressions. Five video states have visible pixel evidence;
+  screenshots inspected and emulator/Gradle stopped. See
+  `CONTENT_PREVIEW_LIFECYCLE.md` for the initial harness error and actual rotation
+  failure. Persistent landscape controls still need AVKit presentation comparison;
+  broader codecs, real routes and Pixel acceptance remain open. Signed 635 predates it.
+
 - Cached panels now invalidate on typed native admission rejection, including
   wrapped revocation/trust failures, while preserving valid lifecycle/wire-loss
   reading state. **Eight JVM and three Android cases passed**, followed by a
@@ -58,11 +67,11 @@ and currently disabled; the upstream watcher is active on main with review issue
   physical Pixel/Mac acceptance remains open.
 
 - The reported Cloud native workflow was rechecked. A fresh standalone run on
-  main `164f8246` **passed**:
-  [37982024987](https://github.com/DocMorphic/cmux-app/actions/runs/37982024987).
-  It verified and uploaded the source-keyed cached checkpoint; no fresh native
-  compilation occurred. The last failed standalone run remains `37449713438`,
-  fixed by `819b6943`, followed by ten successes before this recheck. Signed
+  main `deba9da2` **passed**:
+  [37992138102](https://github.com/DocMorphic/cmux-app/actions/runs/37992138102).
+  It verified 756 artifacts and uploaded the source-keyed cached checkpoint;
+  no fresh native compilation occurred. The last failed standalone run remains
+  `37449713438`, fixed by `819b6943`. Signed
   integration 635 also passed. See `CLOUD_COMPANION.md`; physical Cloud
   acceptance remains open.
 

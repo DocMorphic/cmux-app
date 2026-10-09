@@ -1,5 +1,75 @@
 # Content preview lifecycle
 
+## Video surface rotation and visible geometry — 2026-10-09
+
+The scoped iOS source
+`Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMediaView.swift`
+at `f4b1509054949eaad5d695569ad443c4c18ed68d` hosts an AVPlayerViewController,
+sets `.resizeAspect`, and pauses/releases its player on dismantling. Source
+SHA-256: `a3d4533995547f50ffae8efdd007a6c2a44f18ae6926e905c8c040a2237f36b9`.
+This is a scoped rendering/lifetime comparison, not a new global parity pin.
+
+The new actual-video check exposed a rotation failure: a paused 15-second
+bookmark became zero and the landscape surface stayed black. `VideoView` can
+return zero after surface destruction releases its internal player, before our
+save/release callback. Position capture now reads the prepared native owner;
+an invalid/released owner cannot replace the retained bookmark. Explicit seek
+and Restart still set their intended positions.
+
+The initial geometry assertion also had a harness error: globally scanning for
+the fixture's blue pixels included antialiased blue control text. The inspected
+portrait screenshot already had a correct 16:9 frame. Measurement now scans the
+native surface bounds and requires visible video pixels, the expected aspect
+ratio and filling one viewport dimension. After correcting that assertion, the
+unmodified app failed the rotation/bookmark check; the production fix then passed.
+Both failed runs and their screenshots remain in ignored captures.
+
+**All three Android cases passed together in 258.531 seconds** on the existing
+API 37 / 16 KiB AVD:
+
+- `ArtifactVideoGeometryRuntimeTest`: the original 320×180, 120-second H.264
+  track fixture paints in portrait, landscape, fullscreen, fullscreen recreation
+  and portrait return. The paused 15-second bookmark survives rotation and
+  fullscreen; active playback survives recreation. Backgrounding pauses video,
+  and foreground/portrait return remains paused at the stopped bookmark.
+  Playback-position and Restart controls remain present and enabled.
+- Existing audio lifecycle regression: paused/active recreation, background
+  pause, saved paused return, Restart and released-player shutdown.
+- Existing media-control regression: speed, skip, scrub, mute, fullscreen,
+  active recreation and return to inline with the retained bookmark.
+
+Inspected screenshots and measured frame ratios:
+
+| State | Painted frame | Ratio | Position |
+| --- | --- | --- | --- |
+| Portrait | 1080×608 | 1.7763 | 15,000 ms |
+| Landscape | 464×262 | 1.7710 | 15,000 ms |
+| Fullscreen | 912×514 | 1.7743 | 15,000 ms |
+| Fullscreen recreation | 912×514 | 1.7743 | 17,228 ms, playing |
+| Portrait return | 1080×608 | 1.7763 | 18,360 ms, paused |
+
+The two-pixel sampling grid accounts for the one-pixel expansion beyond the
+native surface edge; the assertion allows that measurement tolerance. Before/
+after event logs contain no `am_crash` or `am_anr` entries. Initial combined APK
+build: 43 seconds; corrected test-only build: 17 seconds; production-fix build:
+23 seconds. Gradle was stopped before each emulator start; the sole existing
+AVD was reused and stopped afterwards. No other AVD was created.
+
+Evidence: `captures/video-geometry-*.log`, scoped source
+`captures/ChatArtifactMediaView-f4.swift`, and
+`captures/runtime/video-geometry/{initial,corrected,fixed}/`. Final debug APK
+SHA-256: `0c56baa7e356b438690820b248474ee7bccc17dfe5f991b50a2fff772760e495`;
+test APK: `933d8bcaa7dd6387ecdf1983725ee3247eaa5e559e302d27946a9764b69c6a52`.
+Earlier failure captures remain in `initial` and `corrected`; `fixed` contains
+the final five geometry states and the rerun media lifecycle/control evidence.
+
+No Pixel was attached, no remote artifact was fetched, and no signed APK was
+published. Signed 635 predates this change. Codec coverage, dynamic video-size
+changes, real Files/panel/browser routes, system-player control presentation and
+auto-hide, enlarged text, and Pixel acceptance remain open. The landscape
+screenshots show substantial space used by persistent controls; geometry and
+lifecycle success do not establish AVKit UI parity.
+
 ## Native cache rejection and live panel changes — 2026-10-09
 
 The panel cache policy previously classified every `IOException` as a recoverable
