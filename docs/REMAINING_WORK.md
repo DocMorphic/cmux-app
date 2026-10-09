@@ -77,8 +77,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   physical Pixel/Mac acceptance remains open.
 
 - The reported Cloud native workflow was rechecked. A fresh standalone run on
-  main `1584367e` **passed**:
-  [37998201683](https://github.com/DocMorphic/cmux-app/actions/runs/37998201683).
+  main `0b58a302` **passed**:
+  [38001133689](https://github.com/DocMorphic/cmux-app/actions/runs/38001133689).
   It verified 756 artifacts / 410 notice components and uploaded the source-keyed cached checkpoint;
   no fresh native compilation occurred. The last failed standalone run remains
   `37449713438`, fixed by `819b6943`. Signed

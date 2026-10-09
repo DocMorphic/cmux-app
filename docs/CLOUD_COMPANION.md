@@ -1511,12 +1511,12 @@ GitHub's run history. No additional native-code or workflow change was needed.
 The reported workflow was checked again: its last failed run remains
 `37449713438`, with the Linux-only `libc::__errno_location` error already fixed
 by `819b6943`. Subsequent standalone checkpoint runs passed. A fresh run
-on main `1584367e` also **passed**:
-[37998201683](https://github.com/DocMorphic/cmux-app/actions/runs/37998201683).
+on main `0b58a302` also **passed**:
+[38001133689](https://github.com/DocMorphic/cmux-app/actions/runs/38001133689).
 It restored the complete source-keyed checkpoint, verified 756 artifacts and
 410 notice components, and
 uploaded them; it did not recompile native sources. Log:
-`captures/cloud-native-main-1584367e.log`. The signed Android integration run
+`captures/cloud-native-main-0b58a302.log`. The signed Android integration run
 [635](https://github.com/DocMorphic/cmux-app/actions/runs/37922453797) also passed.
 Historical red runs remain visible; no new native fix was needed for this report.
 These CI results do not close real-account or physical Cloud acceptance.
