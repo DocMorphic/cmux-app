@@ -28,6 +28,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The reported Cloud native workflow was rechecked. A fresh standalone run on
+  main `164f8246` **passed**:
+  [37982024987](https://github.com/DocMorphic/cmux-app/actions/runs/37982024987).
+  It verified and uploaded the source-keyed cached checkpoint; no fresh native
+  compilation occurred. The last failed standalone run remains `37449713438`,
+  fixed by `819b6943`, followed by ten successes before this recheck. Signed
+  integration 635 also passed. See `CLOUD_COMPANION.md`; physical Cloud
+  acceptance remains open.
+
 - Feed completion previews now collapse Unicode whitespace like the scoped iOS
   source, including nonbreaking/em spaces, and reuse normalization across unchanged
   snapshots. Each main/browser presentation retains only its current stop reasons.
