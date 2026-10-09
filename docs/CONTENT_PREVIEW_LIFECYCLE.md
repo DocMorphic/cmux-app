@@ -1,5 +1,67 @@
 # Content preview lifecycle
 
+## Native cache rejection and live panel changes — 2026-10-09
+
+The panel cache policy previously classified every `IOException` as a recoverable
+wire loss. Typed Irx admission rejections inherit from that class, so a revoked
+grant could leave the cached-content token alive. Rejected grants, identity and
+protocol admission now invalidate that token. Explicit rejection/trust causes
+also override an outer IO wrapper; cyclic or excessively deep cause chains are
+not retained. No exception message is interpreted as an authorization decision.
+
+The scoped shared `IrxProtocol.swift` at
+`f4b1509054949eaad5d695569ad443c4c18ed68d` distinguishes admission result codes
+from lifecycle closes and from its automatic-redial stop list. Source review
+corrected the first policy draft, which also rejected the lifecycle codes
+`superseded`/`user-requested`. Those lifecycle closes now retain already downloaded
+content; admission timeout remains recoverable, while the six grant/identity/
+protocol rejections invalidate it. Live RPC admission is never retained by this
+cache policy. Source SHA-256:
+`c3e1cdbb90970a4cac5510488d6b8bccf03627d37bad4e8848ebf4a294e6a4c0`.
+
+**Eight focused JVM checks passed**, covering all close-code categories,
+wrapped rejection/trust failures, ordinary wire loss, bounded cause inspection
+and coordinator behavior. The coordinator case starts with verified panel
+admission, rejects its reconnect through a wrapped native revocation, then
+verifies that an identical fresh host listing gets a different cache token:
+old callbacks cannot regain admission. Existing wire-loss retention, rejected
+snapshot and descriptor identity cases also pass.
+
+The debug/test APK batch built successfully in 71 seconds. An earlier invocation
+failed on Gradle option ordering before any tasks/tests ran; both logs are kept.
+**Three Android cases passed in 38.152 seconds** on the existing API 37 AVD:
+
+- Injected native revocation during a cached feed restart removes the displayed
+  panel, deletes its private bytes and rejects the retired presentation.
+- Existing ordinary disconnect/recreation/reconnect preserves rendered Markdown
+  reading geometry, then invalidates correctly on title refresh and revocation.
+- On the actual main panel route, the same surface and unchanged title switch
+  from rendered Markdown to plain text, then a PNG at a new path and back to
+  Markdown. Each replacement releases the old private file and owner. Image
+  recreation preserves it with exactly three fetches so far; returning to
+  Markdown makes the fourth. The image's visible green pixels are asserted.
+
+The initial plain-text screenshot caught a loading frame even though its logical
+text assertion passed. The stronger case now waits for native layout/drawing and
+asserts screenshot ink within the text view. It **passed in 14.146 seconds** on
+the same production APK after a test-only rebuild: 10,179 text pixels in
+`Rect(0, 336 - 1080, 617)`. Corrected plain text, image recreation, returned
+Markdown and rejected-panel screenshots were inspected. Both runs' before/after
+event logs contain no crash/ANR entries. The installed production APK matches
+the rebuilt debug APK hash `cbd49e36b6eeb136f9f068bc534b9a53441ff32adbc2560ae14945882c510341`.
+
+Panel rendering was compared with `PanelFileSurfaceView.swift` at the same scoped
+revision (SHA-256 `727a8ee5626660518bc38ebde1560708bb6fea52faa53c67ff6569f05c0465ce`).
+The global parity pin remains unchanged. Evidence: ignored
+`captures/panel-native-rejection-*.log`,
+`captures/IrxProtocol-f4-panel-cache.swift` and
+`captures/runtime/panel-native-rejection/`, including initial and corrected
+screenshots, JUnit XML, native-source capture and APK receipts. Gradle and the
+sole emulator were stopped; no new AVD was created. These are injected-transport
+Android checks, not physical Irx/Mac/Pixel acceptance. Broader file kinds, decoder
+errors, real host updates/revocation and signed upgrade acceptance remain open;
+signed 635 predates this batch.
+
 ## Typed native file failures — 2026-10-09
 
 Scoped iOS reference: `MobileChatArtifactFailureClassifier.swift`,

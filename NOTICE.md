@@ -1,5 +1,11 @@
 # Attribution
 
+Native panel retention distinguishes rejected admission from lifecycle closes
+using cmux's shared `IrxProtocol.swift` at
+`f4b1509054949eaad5d695569ad443c4c18ed68d` (Manaflow, Inc., GPL-3.0-or-later).
+Android preserves its existing account, descriptor and connection admission
+checks and bounds inspection of native rejection causes.
+
 Native file-failure classification in `ArtifactPreviewFailure.kt` follows
 `MobileChatArtifactFailureClassifier.swift`, `ChatArtifactFailurePresentation.swift`
 and `MarkdownSurfaceModel.swift` at cmux

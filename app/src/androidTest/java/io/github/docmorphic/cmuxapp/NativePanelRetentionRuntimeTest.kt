@@ -1,6 +1,9 @@
 package io.github.docmorphic.cmuxapp
 
 import android.os.Build
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
@@ -9,6 +12,9 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.*
 import java.io.File
+import java.io.IOException
+import java.io.ByteArrayOutputStream
+import io.github.docmorphic.cmuxapp.iroh.IrxWire
 import java.util.Base64
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -23,6 +29,7 @@ class NativePanelRetentionRuntimeTest {
     private val context = instrumentation.targetContext
     private val device = UiDevice.getInstance(instrumentation)
     @Volatile private var reconnectGate: CompletableDeferred<Unit>? = null
+    @Volatile private var reconnectFailure: Throwable? = null
     private fun screenshot(name: String) {
         val dir = File(context.getExternalFilesDir(null), "panel-retention").apply { mkdirs() }
         assertTrue(device.takeScreenshot(File(dir, "$name.png")))
@@ -66,10 +73,11 @@ class NativePanelRetentionRuntimeTest {
                 .getJSONArray("surfaces").getJSONObject(0).put("kind", kind)
             NativeLifecycleTestActivity.connector = NativeConnector { _, _ ->
                 reconnectGate?.await()
+                reconnectFailure?.let { throw it }
                 MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture" }).also { it.connect() }
             }
             ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use { body(peer, it) }
-        } finally { reconnectGate?.complete(Unit); reconnectGate = null; NativeLifecycleTestActivity.connector = null; credentials.clear() } }
+        } finally { reconnectGate?.complete(Unit); reconnectGate = null; reconnectFailure = null; NativeLifecycleTestActivity.connector = null; credentials.clear() } }
     }
     private fun response(peer: NativeFixturePeer, text: String, beforeFetch: () -> Unit = {}) {
         peer.artifactResponse = { method, params ->
@@ -93,6 +101,89 @@ class NativePanelRetentionRuntimeTest {
         runBlocking { withTimeout(15_000) { withContext(Dispatchers.Main) { coordinator.refreshWorkspaceLists(listOf(mac)) } } }
         peer.pushTerminalEvent("workspace.list.changed", JSONObject())
         await("Refreshed panel was not selected") { scenario.panel()?.target?.title == title }
+    }
+
+    private fun changePanel(peer: NativeFixturePeer, scenario: ActivityScenario<NativeLifecycleTestActivity>, kind: String, path: String) {
+        peer.customWorkspaceListing = JSONObject(peer.customWorkspaceListing!!.toString()).also {
+            it.getJSONArray("workspaces").getJSONObject(0).getJSONArray("surfaces").getJSONObject(0)
+                .put("kind", kind).put("file_path", path)
+        }
+        val coordinator = scenario.session().coordinator
+        val mac = scenario.read { coordinator.sources.value.values.single().mac }
+        runBlocking { withTimeout(15_000) { withContext(Dispatchers.Main) { coordinator.refreshWorkspaceLists(listOf(mac)) } } }
+        peer.pushTerminalEvent("workspace.list.changed", JSONObject())
+        await("Current panel kind/path not selected") { scenario.panel()?.target?.let { it.kind == kind && it.path == path } == true }
+    }
+
+    @Test fun livePanelKindAndPathChangesReplaceTheRendererAndReleaseOldBytesWithoutATitleChange() = fixture { peer, scenario ->
+        val original = "# Original panel\n\nA Markdown panel changed into a plain file."
+        response(peer, original); find(By.text("Panel workspace")).click()
+        await("Original Markdown missing") { js(scenario, "document.querySelector('#content h1')?.textContent === 'Original panel'") == "true" }
+        painted(scenario, "live-kind-markdown")
+        val markdown = checkNotNull(scenario.panel()); val firstFile = checkNotNull(markdown.preview.state.value.artifact).file
+        changePanel(peer, scenario, "filePreview", "/fixture/extensionless")
+        await("File kind did not replace the Markdown renderer") { scenario.read {
+            it.window.decorView.webPreview() == null && it.window.decorView.textPreview()?.textView?.text?.toString() == original
+        } }
+        val plain = checkNotNull(scenario.panel()); assertNotSame(markdown, plain)
+        assertEquals(markdown.target.title, plain.target.title); assertFalse(markdown.current())
+        await("Kind change retained old bytes") { !firstFile.exists() }; paintedText(scenario, "live-kind-plain-file")
+        assertEquals(2, fetches(peer))
+        val plainFile = checkNotNull(plain.preview.state.value.artifact).file
+        val pixels = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }
+        val encoded = ByteArrayOutputStream().also { assertTrue(pixels.compress(Bitmap.CompressFormat.PNG, 100, it)) }.toByteArray()
+        pixels.recycle()
+        peer.artifactResponse = { method, params ->
+            check(params.getString("path") == "/fixture/changing.png")
+            if (method.endsWith("stat")) JSONObject().put("exists", true).put("is_directory", false)
+                .put("kind", "image").put("mime_type", "image/png").put("size", encoded.size)
+            else JSONObject().put("offset", 0).put("total_size", encoded.size).put("eof", true)
+                .put("data_b64", Base64.getEncoder().encodeToString(encoded))
+        }
+        changePanel(peer, scenario, "filePreview", "/fixture/changing.png")
+        find(By.desc("Image preview changing.png")); device.waitForIdle()
+        await("Path change retained old bytes") { !plainFile.exists() }
+        assertFalse(plain.current()); assertEquals(3, fetches(peer))
+        scenario.recreate(); find(By.desc("Image preview changing.png")); assertEquals(3, fetches(peer))
+        screenshot("live-path-image-recreated")
+        val captured = BitmapFactory.decodeFile(File(context.getExternalFilesDir(null), "panel-retention/live-path-image-recreated.png").absolutePath)
+        try {
+            val bounds = find(By.desc("Image preview changing.png")).visibleBounds
+            val color = captured.getPixel(bounds.centerX(), bounds.centerY())
+            assertTrue("Image was not visibly green", Color.green(color) > 220 && Color.red(color) < 40 && Color.blue(color) < 40)
+        } finally { captured.recycle() }
+        val imageOwner = checkNotNull(scenario.panel()); val imageFile = checkNotNull(imageOwner.preview.state.value.artifact).file
+        response(peer, "# Returned Markdown\n\nA fresh document on the same surface.")
+        changePanel(peer, scenario, "markdown", "/fixture/extensionless")
+        await("Markdown renderer did not return") { js(scenario, "document.querySelector('#content h1')?.textContent === 'Returned Markdown'") == "true" }
+        await("Image bytes retained after returning to Markdown") { !imageFile.exists() }
+        assertFalse(imageOwner.current()); assertEquals(4, fetches(peer))
+        assertEquals(markdown.target.title, scenario.panel()?.target?.title)
+        painted(scenario, "live-kind-returned-markdown")
+    }
+
+    @Test fun nativeRevocationDuringReconnectDiscardsRenderedPanelAndItsPrivateFile() = fixture { peer, scenario ->
+        response(peer, "# Native rejection\n\nDo not retain this document after revoked admission.")
+        find(By.text("Panel workspace")).click()
+        await("Initial panel missing") { js(scenario, "document.querySelector('#content h1')?.textContent === 'Native rejection'") == "true" }
+        val owner = checkNotNull(scenario.panel()); val file = checkNotNull(owner.preview.state.value.artifact).file
+        reconnectGate = CompletableDeferred(); peer.disconnectClients()
+        await("Feed did not disconnect") { scenario.session().coordinator.sources.value[owner.mac.origin]?.availability == NativeFeedAvailability.OFFLINE }
+        assertTrue(file.exists()); assertTrue(owner.access.cachedCurrent())
+        reconnectFailure = IOException("native rejection wrapper", IrxWire.AdmissionRejected(IrxWire.CloseCode.REVOKED))
+        // Restart the feed's monitor with its cached snapshot retained. A refresh
+        // caller would wait for verified admission while this dial is rejected.
+        scenario.onActivity { activity ->
+            val coordinator = ViewModelProvider(activity)[NativeFeedSession::class.java].coordinator
+            coordinator.pause(); coordinator.updateMacs(listOf(owner.mac))
+        }
+        reconnectGate!!.complete(Unit); reconnectGate = null
+        await("Native rejection retained cached admission") { scenario.session().coordinator.sources.value[owner.mac.origin]?.panelCacheToken == null }
+        find(By.text("Preview unavailable"))
+        await("Native rejection retained private bytes") { !file.exists() && scenario.panel() == null }
+        assertFalse(owner.current()); assertFalse(owner.access.cachedCurrent())
+        assertNull(scenario.read { it.window.decorView.webPreview() }); assertEquals(1, fetches(peer))
+        screenshot("native-revocation-panel-discarded")
     }
 
     @Test fun markdownPanelFailuresKeepTheirMeaningAcrossRecreationAndRetry() = fixture { peer, scenario ->
@@ -218,6 +309,34 @@ class NativePanelRetentionRuntimeTest {
         scenario.onActivity { it.window.decorView.webPreview()!!.postVisualStateCallback(0,
             object : android.webkit.WebView.VisualStateCallback() { override fun onComplete(id: Long) { done.countDown() } }) }
         assertTrue(done.await(5, TimeUnit.SECONDS)); Thread.sleep(350); screenshot(name)
+    }
+
+    private fun paintedText(scenario: ActivityScenario<NativeLifecycleTestActivity>, name: String) {
+        await("Plain text did not finish layout") { scenario.read { activity ->
+            activity.window.decorView.textPreview()?.textView?.let {
+                it.isShown && it.width > 0 && it.height > 0 && it.layout != null
+            } == true
+        } }
+        val done = CountDownLatch(1)
+        scenario.onActivity { activity ->
+            val view = checkNotNull(activity.window.decorView.textPreview()).textView
+            view.postOnAnimation { view.postOnAnimation { done.countDown() } }
+        }
+        assertTrue(done.await(5, TimeUnit.SECONDS)); device.waitForIdle(); screenshot(name)
+        val bounds = scenario.read { activity -> android.graphics.Rect().also {
+            assertTrue(checkNotNull(activity.window.decorView.textPreview()).textView.getGlobalVisibleRect(it))
+        } }
+        val captured = BitmapFactory.decodeFile(File(context.getExternalFilesDir(null), "panel-retention/$name.png").absolutePath)
+        try {
+            var ink = 0
+            for (y in bounds.top.coerceAtLeast(0) until bounds.bottom.coerceAtMost(captured.height))
+                for (x in bounds.left.coerceAtLeast(0) until bounds.right.coerceAtMost(captured.width)) {
+                    val color = captured.getPixel(x, y)
+                    if (Color.red(color) > 100 && Color.green(color) > 100 && Color.blue(color) > 100) ink++
+                }
+            assertTrue("Plain text content was not visibly painted ($ink pixels)", ink > 100)
+            File(context.getExternalFilesDir(null), "panel-retention/$name-paint.txt").writeText("bounds=$bounds ink=$ink")
+        } finally { captured.recycle() }
     }
 
     @Suppress("DEPRECATION")

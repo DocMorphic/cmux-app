@@ -29,6 +29,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cached panels now invalidate on typed native admission rejection, including
+  wrapped revocation/trust failures, while preserving valid lifecycle/wire-loss
+  reading state. **Eight JVM and three Android cases passed**, followed by a
+  stronger visible-text recheck. The actual main route changes Markdown/plain
+  file/image/path and returns to Markdown without a title change; old private
+  bytes are deleted and image recreation does not refetch. Screenshots and pixel
+  checks verified; emulator/Gradle stopped. See `CONTENT_PREVIEW_LIFECYCLE.md` for
+  the original loading-frame capture and exact evidence. Physical host updates,
+  native revocation and signed upgrade remain open; signed 635 predates it.
+
 - Native file previews now retain typed Irx/Iroh admission, control and HTTP
   failure reasons, including expired or revoked access. Transparent native
   wrappers are inspected with bounds; unknown errors remain generic. **28

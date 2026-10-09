@@ -7,6 +7,8 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.net.ServerSocket
 import java.net.Socket
+import java.io.IOException
+import io.github.docmorphic.cmuxapp.iroh.IrxWire
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -105,6 +107,45 @@ class NativeFeedCoordinatorTest {
                 assertFalse(access.cachedCurrent()); assertFalse(access.current())
                 assertTrue(runCatching { access.rpc.stat(target.authorization, target.path) }.isFailure)
                 assertNotNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+            } finally { coordinator.close() }
+        }
+    }
+
+    @Test fun nativeReconnectRejectionRetiresCachedAdmissionAndFreshVerificationCannotResurrectIt() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.panelArtifactsSupported = true
+            val target = NativePanelTarget("w", "panel", "/note.md", "markdown", "Notes")
+            peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","surfaces":[{"surface_id":"panel","kind":"markdown","title":"Notes","file_path":"/note.md"}]}]}""")
+            var rejection: Throwable? = null
+            val coordinator = NativeFeedCoordinator(this, {
+                rejection?.let { throw it }; peer.connect()
+            }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                val original = checkNotNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+                val originalToken = checkNotNull(coordinator.sources.value[mac("a").origin]?.panelCacheToken)
+                // A normal pause retains reading bytes while closing the live admission.
+                coordinator.pause(); assertTrue(original.cachedCurrent()); assertFalse(original.current())
+                rejection = IOException("native wrapper", IrxWire.AdmissionRejected(IrxWire.CloseCode.REVOKED))
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.let {
+                    it.availability == NativeFeedAvailability.OFFLINE && it.panelCacheToken == null
+                } == true }
+                assertFalse(original.cachedCurrent()); assertFalse(original.current())
+                assertTrue(runCatching { original.rpc.stat(target.authorization, target.path) }.isFailure)
+                assertNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+                // Returning the same listing after independent verification produces a
+                // new cache admission. Old callbacks cannot regain authority.
+                rejection = null; coordinator.pause(); coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.let {
+                    it.availability == NativeFeedAvailability.CONNECTED && it.panelCacheToken != null
+                } == true }
+                assertNotSame(originalToken, coordinator.sources.value[mac("a").origin]?.panelCacheToken)
+                assertFalse(original.cachedCurrent()); assertFalse(original.current())
+                val replacement = checkNotNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+                assertTrue(replacement.current()); assertTrue(replacement.cachedCurrent())
+                assertEquals("a", replacement.rpc.stat(target.authorization, target.path).getString("owner"))
             } finally { coordinator.close() }
         }
     }
