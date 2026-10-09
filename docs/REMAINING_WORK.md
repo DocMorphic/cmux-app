@@ -1,6 +1,6 @@
 # Remaining work for iOS parity
 
-Updated 2026-10-09. **The goal is active and full parity is unverified.** This is
+Updated 2026-10-10. **The goal is active and full parity is unverified.** This is
 the current completion checklist; dated entries in [PARITY.md](PARITY.md) preserve
 the detailed evidence and history. A passing fixture or signed APK does not close
 a physical workflow gate. These are work areas, not equal-sized progress units.
@@ -29,13 +29,23 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Fullscreen media now uses controls over the fitted video, with playback
+  auto-hide, menu/gesture/accessibility guards and a shared expanded PiP layout.
+  **Compilation and the audio controls regression passed; comprehensive video
+  verification is still failing.** The latest normal-graphics run had a black
+  paused fullscreen frame and missed the OS PiP Expand button. A software-graphics
+  rerun painted fullscreen but failed held-touch visibility. See
+  `CONTENT_PREVIEW_LIFECYCLE.md` for all attempts and the exact continuation.
+  The sole emulator and Gradle are stopped; no Pixel or signed release was used.
+  Signed 635 predates this batch. Fullscreen UI parity is not established.
+
 - Video rotation now preserves paused bookmarks instead of replacing them with
   a destroyed surface's zero position. **Three Android media cases passed**:
   real-video geometry/rotation/fullscreen/background, plus existing lifecycle
   and speed/seek/mute regressions. Five video states have visible pixel evidence;
   screenshots inspected and emulator/Gradle stopped. See
   `CONTENT_PREVIEW_LIFECYCLE.md` for the initial harness error and actual rotation
-  failure. Persistent landscape controls still need AVKit presentation comparison;
+  failure. The fullscreen overlay batch above supersedes the persistent controls;
   broader codecs, real routes and Pixel acceptance remain open. Signed 635 predates it.
 
 - Cached panels now invalidate on typed native admission rejection, including
@@ -67,9 +77,9 @@ and currently disabled; the upstream watcher is active on main with review issue
   physical Pixel/Mac acceptance remains open.
 
 - The reported Cloud native workflow was rechecked. A fresh standalone run on
-  main `deba9da2` **passed**:
-  [37992138102](https://github.com/DocMorphic/cmux-app/actions/runs/37992138102).
-  It verified 756 artifacts and uploaded the source-keyed cached checkpoint;
+  main `1584367e` **passed**:
+  [37998201683](https://github.com/DocMorphic/cmux-app/actions/runs/37998201683).
+  It verified 756 artifacts / 410 notice components and uploaded the source-keyed cached checkpoint;
   no fresh native compilation occurred. The last failed standalone run remains
   `37449713438`, fixed by `819b6943`. Signed
   integration 635 also passed. See `CLOUD_COMPANION.md`; physical Cloud

@@ -395,7 +395,17 @@ internal fun ChangesMediaPreview(file: File) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ArtifactMediaContent(file: File, state: ArtifactMediaState, modifier: Modifier = Modifier,
-    showControls: Boolean = true, pipBusy: Boolean = false, onPictureInPicture: (() -> Unit)? = null, onFullscreen: () -> Unit) {
+    showControls: Boolean = true, pipBusy: Boolean = false, onPictureInPicture: (() -> Unit)? = null,
+    fullscreenLabel: String = "Exit fullscreen", onFullscreen: () -> Unit) {
+    if (state.fullscreen) ArtifactMediaFullscreenContent(file, state, modifier, showControls, pipBusy,
+        onPictureInPicture, fullscreenLabel, onFullscreen)
+    else ArtifactInlineMediaContent(file, state, modifier, showControls, pipBusy, onPictureInPicture, onFullscreen)
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ArtifactInlineMediaContent(file: File, state: ArtifactMediaState, modifier: Modifier,
+    showControls: Boolean, pipBusy: Boolean, onPictureInPicture: (() -> Unit)?, onFullscreen: () -> Unit) {
     var speedMenu by remember { mutableStateOf(false) }
     var scrub by remember { mutableStateOf<Float?>(null) }
     var resumeAfterScrub by remember { mutableStateOf(false) }

@@ -8,6 +8,7 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.SystemClock
 import android.view.View
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.view.inspector.WindowInspector
 import androidx.lifecycle.Lifecycle
@@ -33,7 +34,12 @@ class ArtifactVideoGeometryRuntimeTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
-        val evidence = File(context.getExternalFilesDir(null), "video-geometry").apply { mkdirs() }
+        val configurator = Configurator.getInstance()
+        val previousIdleTimeout = configurator.waitForIdleTimeout
+        // Continuously changing playback timestamps never become idle. Await
+        // specific visible states instead of spending the overlay timeout idling.
+        configurator.setWaitForIdleTimeout(0)
+        val evidence = File(context.getExternalFilesDir(null), "video-geometry").apply { deleteRecursively(); mkdirs() }
         val file = File(context.cacheDir, "geometry.mp4")
         instrumentation.context.assets.open("media/tracks.mp4").use { input -> file.outputStream().use(input::copyTo) }
         fun await(message: String, predicate: () -> Boolean) {
@@ -42,6 +48,13 @@ class ArtifactVideoGeometryRuntimeTest {
             fail(message)
         }
         fun find(selector: BySelector) = checkNotNull(device.wait(Until.findObject(selector), 10_000)) { "Missing $selector" }
+        fun revealForGesture() {
+            await("Controls did not hide before the next gesture") { device.hasObject(By.desc("Show playback controls")) }
+            // Tree traversal can consume the entire three-second timeout on a
+            // busy guest. Tap the observed backdrop and transport coordinates.
+            device.click(device.displayWidth / 2, device.displayHeight * 2 / 3)
+            Thread.sleep(100)
+        }
         try { ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
             .putExtra("path", file.absolutePath).putExtra("route", ChangesPreviewRoute.MEDIA.name)
             .putExtra("mime", "video/mp4")).use { scenario ->
@@ -57,6 +70,14 @@ class ArtifactVideoGeometryRuntimeTest {
             }
             fun position(): Int { var value = -1; read { view, _ -> value = view.currentPosition; true }; return value }
             fun frame(name: String) {
+                var fullscreen = false
+                var playing = false
+                read { view, state -> fullscreen = state.fullscreen; playing = view.isPlaying; true }
+                if (fullscreen && device.hasObject(By.desc("Hide playback controls"))) {
+                    val bounds = find(By.desc("Hide playback controls")).visibleBounds
+                    // Tap between the center transport buttons and the bottom timeline.
+                    device.click(bounds.centerX(), bounds.top + bounds.height() * 2 / 3)
+                }
                 val screenshot = File(evidence, "$name.png")
                 var viewport = Rect(); var painted = Rect(); var colors = 0
                 await("Video frame did not paint for $name") {
@@ -89,8 +110,14 @@ class ArtifactVideoGeometryRuntimeTest {
                 assertEquals("Video stretched or cropped in $name: $painted in $viewport", 16.0 / 9, ratio, .025)
                 assertTrue("Painted frame exceeds viewport", Rect(viewport).apply { inset(-3, -3) }.contains(painted))
                 assertTrue("Video underfills its viewport", abs(painted.width() - viewport.width()) < 4 || abs(painted.height() - viewport.height()) < 4)
-                find(By.desc("Playback position"))
-                find(By.text("Restart").enabled(true))
+                if (fullscreen) {
+                    assertTrue("Fullscreen should fit the whole display", painted.height() > device.displayHeight * .8 || painted.width() > device.displayWidth * .8)
+                    if (!playing) find(By.desc("Show playback controls")).click()
+                }
+                if (!fullscreen || !playing) {
+                    find(By.desc("Playback position"))
+                    find(By.text("Restart").enabled(true))
+                }
             }
             try {
                 find(By.text("Play").enabled(true)).click()
@@ -106,11 +133,59 @@ class ArtifactVideoGeometryRuntimeTest {
                 device.wait(Until.findObject(By.pkg("com.android.systemui").text("Got it")), 1500)?.click()
                 await("Fullscreen lost bookmark") { read { view, state -> state.prepared && !view.isPlaying && abs(view.currentPosition - 15_000) < 400 } }
                 frame("fullscreen")
-                find(By.text("Play").enabled(true)).click()
+                device.takeScreenshot(File(evidence, "fullscreen-controls.png"))
+                // An open menu must not disappear when the playback timer expires.
+                val transportButton = find(By.text("Play").enabled(true)).visibleBounds
+                val speedButton = find(By.desc("Playback speed")).visibleBounds
+                val captionButton = find(By.desc("Subtitle tracks")).visibleBounds
+                val mute = find(By.text("Mute")).visibleBounds
+                device.click(transportButton.centerX(), transportButton.centerY())
                 await("Fullscreen did not play") { read { view, _ -> view.isPlaying } }
+                revealForGesture()
+                device.click(speedButton.centerX(), speedButton.centerY())
+                find(By.text("1.5×"))
+                device.takeScreenshot(File(evidence, "speed-menu.png"))
+                Thread.sleep(3500)
+                find(By.text("1.5×")).click()
+                revealForGesture()
+                device.click(captionButton.centerX(), captionButton.centerY()); find(By.text("English")).click()
+                find(By.text("CMUX ENGLISH CUE"))
+                revealForGesture()
+                device.click(captionButton.centerX(), captionButton.centerY()); find(By.text("Off")).click()
+                revealForGesture()
+                val downTime = SystemClock.uptimeMillis()
+                fun touch(action: Int) {
+                    val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action,
+                        mute.centerX().toFloat(), mute.centerY().toFloat(), 0).apply { source = android.view.InputDevice.SOURCE_TOUCHSCREEN }
+                    try { assertTrue(instrumentation.uiAutomation.injectInputEvent(event, true)) }
+                    finally { event.recycle() }
+                }
+                touch(MotionEvent.ACTION_DOWN)
+                try {
+                    Thread.sleep(3500)
+                    assertTrue("Controls disappeared under a held finger", device.hasObject(By.desc("Hide playback controls")))
+                } finally { touch(MotionEvent.ACTION_UP) }
+                var sameView: ArtifactMediaView? = null
+                read { view, _ -> sameView = view; true }
+                await("Fullscreen controls did not hide while playing") { device.hasObject(By.desc("Show playback controls")) }
+                assertFalse(device.hasObject(By.text("Restart")))
+                assertTrue("Hiding controls replaced/stopped the player", read { view, _ -> view === sameView && view.isPlaying })
+                revealForGesture()
+                // Use the real transport coordinates already observed in this
+                // layout, without another accessibility traversal before tapping.
+                device.click(transportButton.centerX(), transportButton.centerY())
+                await("Visible transport did not pause playback") { read { view, _ -> !view.isPlaying } }
+                val paused = position(); Thread.sleep(3500)
+                find(By.text("Play").enabled(true))
+                assertTrue(read { view, _ -> !view.isPlaying && abs(view.currentPosition - paused) < 100 })
+                // Leave enough fixture duration for recreation/rotation even on
+                // a slow guest; this also verifies an explicit paused seek.
+                read { view, _ -> view.seekTo(15_000); true }
+                await("Paused seek before recreation failed") { position() in 14_700..15_400 }
+                find(By.text("Play").enabled(true)).click()
                 val before = position(); val started = SystemClock.elapsedRealtime()
                 scenario.recreate()
-                await("Recreation lost video playback") { read { view, state -> state.prepared && view.isPlaying && view.currentPosition >= before - 400 && view.currentPosition <= before + SystemClock.elapsedRealtime() - started + 1500 } }
+                await("Recreation lost video playback") { read { view, state -> state.prepared && view.isPlaying && state.speed == 1.5f && view.currentPosition >= before - 400 && view.currentPosition <= before + (SystemClock.elapsedRealtime() - started) * 1.5 + 1500 } }
                 frame("fullscreen-recreated")
                 scenario.moveToState(Lifecycle.State.CREATED)
                 assertTrue("Background left video running", read { view, _ -> !view.isPlaying })
@@ -122,11 +197,36 @@ class ArtifactVideoGeometryRuntimeTest {
                 scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
                 await("Portrait return lost bookmark") { device.displayWidth < device.displayHeight && read { view, state -> state.prepared && !view.isPlaying && abs(view.currentPosition - stopped) < 400 } }
                 frame("portrait-return")
+                find(By.text("Fullscreen")).click(); find(By.text("Exit fullscreen"))
+                val portraitTransport = find(By.text("Play").enabled(true)).visibleBounds
+                val portraitCaptions = find(By.desc("Subtitle tracks")).visibleBounds
+                device.click(portraitTransport.centerX(), portraitTransport.centerY())
+                revealForGesture()
+                device.click(portraitCaptions.centerX(), portraitCaptions.centerY()); find(By.text("English")).click()
+                find(By.text("CMUX ENGLISH CUE"))
+                revealForGesture()
+                device.click(portraitTransport.centerX(), portraitTransport.centerY())
+                await("Portrait transport did not pause") { read { view, _ -> !view.isPlaying } }
+                val caption = find(By.text("CMUX ENGLISH CUE")).visibleBounds
+                val transport = find(By.text("Play")).visibleBounds
+                assertFalse("Portrait captions overlap playback controls", Rect.intersects(caption, transport))
+                device.takeScreenshot(File(evidence, "portrait-fullscreen-caption.png"))
+                device.dumpWindowHierarchy(File(evidence, "portrait-fullscreen-caption.xml"))
+                frame("portrait-fullscreen")
                 assertTrue(read { _, state -> state.failure == null && state.controlFailure == null })
             } catch (failure: Throwable) {
+                read { view, state ->
+                    val bounds = Rect(); view.getGlobalVisibleRect(bounds)
+                    File(evidence, "failure.json").writeText(JSONObject().put("bounds", bounds.toShortString())
+                        .put("width", view.width).put("height", view.height).put("shown", view.isShown)
+                        .put("prepared", state.prepared).put("playing", view.isPlaying).put("position", view.currentPosition)
+                        .put("bookmark", state.position).put("videoWidth", state.videoWidth).put("videoHeight", state.videoHeight)
+                        .put("failure", state.failure).toString())
+                    true
+                }
                 device.takeScreenshot(File(evidence, "failure.png")); device.dumpWindowHierarchy(File(evidence, "failure.xml"))
                 throw failure
             } finally { scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED } }
-        } } finally { file.delete() }
+        } } finally { file.delete(); configurator.setWaitForIdleTimeout(previousIdleTimeout) }
     }
 }

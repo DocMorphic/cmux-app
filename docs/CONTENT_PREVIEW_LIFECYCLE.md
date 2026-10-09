@@ -1,5 +1,86 @@
 # Content preview lifecycle
 
+## Fullscreen media controls — 2026-10-10
+
+Fullscreen playback now fits the native video surface to the available window.
+The title/actions, transport buttons and timeline overlay that surface instead
+of reducing its layout height. The inline player keeps its existing layout;
+the expanded PiP activity shares the fullscreen controls and its Done action.
+The native view remains mounted when controls hide and when PiP hides them.
+
+During prepared playback, controls hide after three seconds without interaction.
+A tap reveals them. Pause, failures, an open speed/track menu, scrubbing, a held
+finger, keyboard focus or touch exploration keep controls available. The timer
+uses Android's accessibility timeout recommendation and rechecks the current
+interaction generation before hiding. Captions sit above the transparent tap
+target for accessibility traversal and lift only where the timeline overlaps
+the aspect-fit frame. PiP controls hide as soon as entry is requested; rejection
+restores them and reports the existing error.
+
+The scoped `ChatArtifactMediaView.swift` source at `f4b15090` still supplies
+the rendering/lifetime comparison recorded below. Its AVPlayerViewController
+uses system controls; Apple's [AVKit documentation](https://developer.apple.com/documentation/avkit/avplayerviewcontroller/showsplaybackcontrols)
+describes controls over the video. Android's three-second timeout is an Android
+implementation choice, not measured evidence of Apple's exact timing or UI.
+
+Earlier runs exposed a black frame after hiding controls, disappearing menus,
+and an accessibility assertion that could
+not reach a visibly painted caption. The native view now sits outside control
+subcomposition/visibility, menu state propagates immediately, the delayed hide
+rechecks current interaction, and captions render above the tap target. The
+caption failure screenshot showed the actual English cue; no decoder change
+was made to satisfy that assertion.
+
+The subsequent run passed the open-menu and held-touch checks and the audio
+speed/seek/mute regression. It then missed Pause after a reveal; the failure
+capture shows healthy active playback at 94,858 ms with controls hidden. The
+harness now waits for specific UI states without idle waits and uses the
+already observed transport coordinates for that time-sensitive tap. A PiP
+entry check also exhausted its 15-second deadline while the system transition
+was still running after preparing the exact 8-second bookmark. That one check
+now allows 45 seconds while requiring actual PiP and the unchanged bookmark.
+These failures remain in ignored captures; the final rerun is recorded below.
+
+Shortening idle waits alone did not make the timed gestures reliable. Later
+tests therefore measure control coordinates while paused, then use real taps
+after the hidden state is observed. A subsequent held-touch failure exposed a
+mixed accessibility snapshot: its XML announced Show playback controls while
+also containing the rendered buttons. The backdrop label/action and rendered
+buttons now share one composed visibility value. A touch on the still-rendered
+overlay refreshes visibility before a pending hide can remove it.
+
+One cold-guest attempt never reached a test: Google services, Photos and the
+instrumented app timed out during startup. Its event log is retained separately
+from the warm retry's actual assertion failure. No Android crash result is
+counted as a test pass, and no phone/app data was cleared.
+
+**This batch's comprehensive video check is still failing.** On the latest APK,
+the three-case run took 298.195 seconds: the audio speed/seek/mute/fullscreen
+regression passed, video failed to paint the paused fullscreen frame, and PiP
+entered but the harness missed the system Expand button. The emulator logged
+EGL context/window errors. A rerun using the same AVD with `-no-window -gpu
+swiftshader` painted portrait, landscape and fullscreen and reached both track
+menus, but failed the held-touch assertion in 79.173 seconds. Changing graphics
+backends has not isolated the black-frame cause; the held-touch behavior also
+needs further diagnosis. Earlier PiP return passes do not close the latest run.
+
+Builds succeeded; the final production/test APK build took 24 seconds. Debug
+APK SHA-256: `bb0ddff87abb7b146ebe8e0237c3f0e862cca8f46a17c317ae391be9a215c595`;
+test APK: `2cdbbdefa3f3c13c6c5c374d5f33c82dcb588385ec133f8c69458a4daea218a3`.
+Evidence is in `captures/media-overlay-*.log` and
+`captures/runtime/media-overlay/`, including `snapshot-fix` and `software`.
+Only the existing API 37 / 16 KiB AVD was used; Gradle and emulator runs did not
+overlap, and the emulator was stopped afterward. The requested 1536 MiB guest
+still clamps to approximately 4 GiB; no additional AVD was created. No Pixel was
+attached and no signed APK was published. Signed 635 predates this batch.
+
+Continue by tracing press/cancellation and timer transitions around the failed
+held touch, checking whether rendered controls and accessibility agree before
+release, then completing the remaining video/recreation/portrait-caption steps.
+The PiP harness must act on the OS Expand button before its transient menu hides;
+do not count programmatic expansion as equivalent evidence. Hardware graphics,
+physical codecs/routes, enlarged text and TalkBack remain acceptance gates.
+
 ## Video surface rotation and visible geometry — 2026-10-09
 
 The scoped iOS source

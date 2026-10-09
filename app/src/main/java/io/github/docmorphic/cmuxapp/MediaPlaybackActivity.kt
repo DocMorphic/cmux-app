@@ -74,12 +74,8 @@ open class MediaPlaybackActivity : ComponentActivity() {
             }
             Surface(Modifier.fillMaxSize(), color = Color.Black, contentColor = Color.White) {
                 Column(if (compact) Modifier.fillMaxSize() else Modifier.fillMaxSize().safeDrawingPadding()) {
-                    if (!compact) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
-                        Text(checkNotNull(model.entry).files.file.name, Modifier.weight(1f).padding(vertical = 12.dp), maxLines = 1)
-                        TextButton(onClick = ::finishPlayback) { Text("Done") }
-                    }
                     ArtifactMediaContent(checkNotNull(model.entry).files.file, state, Modifier.weight(1f),
-                        showControls = !compact, onPictureInPicture = { enterPip() }, onFullscreen = ::finishPlayback)
+                        showControls = !compact, onPictureInPicture = { enterPip() }, fullscreenLabel = "Done", onFullscreen = ::finishPlayback)
                 }
             }
         } }
@@ -116,8 +112,14 @@ open class MediaPlaybackActivity : ComponentActivity() {
     }
     internal fun enterPip() {
         if (!canPip) return
+        // Hide app controls as soon as the transition is requested, including
+        // Android versions without the transition-state callback.
+        enteringPip = true
         val accepted = runCatching { enterPictureInPictureMode(params(false)) }.getOrDefault(false)
-        if (!accepted) model.player.controlFailure = "Picture-in-picture isn't available. You can keep watching here."
+        if (!accepted) {
+            enteringPip = false
+            model.player.controlFailure = "Picture-in-picture isn't available. You can keep watching here."
+        }
     }
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()

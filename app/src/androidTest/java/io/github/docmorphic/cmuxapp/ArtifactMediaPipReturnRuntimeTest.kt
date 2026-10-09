@@ -39,11 +39,11 @@ class ArtifactMediaPipReturnRuntimeTest {
         val device = UiDevice.getInstance(instrumentation)
         val source = File(context.cacheDir, "pip-return.mp4")
         instrumentation.context.assets.open("media/tracks.mp4").use { input -> source.outputStream().use(input::copyTo) }
-        val evidence = File(context.getExternalFilesDir(null), "media-pip-return").apply { mkdirs() }
+        val evidence = File(context.getExternalFilesDir(null), "media-pip-return").apply { deleteRecursively(); mkdirs() }
         var playback: MediaPlaybackActivity? = null
         var owned: File? = null
-        fun await(message: String, condition: () -> Boolean) {
-            val end = SystemClock.elapsedRealtime() + 15_000
+        fun await(message: String, timeout: Long = 15_000, condition: () -> Boolean) {
+            val end = SystemClock.elapsedRealtime() + timeout
             while (SystemClock.elapsedRealtime() < end) { if (condition()) return; Thread.sleep(100) }
             fail(message)
         }
@@ -85,8 +85,14 @@ class ArtifactMediaPipReturnRuntimeTest {
                 read { view, _ -> view.seekTo(8_000); true }
                 await("Source bookmark was not applied") { read { view, _ -> view.seekComplete() && view.currentPosition in 7_700..8_400 } }
                 find(By.text("Picture in picture")).click()
-                await("Player did not enter PiP with the source bookmark") { onPlayback { activity, model ->
+                // The system transition can exceed 15 seconds in the shared API
+                // 37 guest. Still require actual PiP and the exact paused bookmark.
+                await("Player did not enter PiP with the source bookmark", timeout = 45_000) { onPlayback { activity, model ->
                     owned = model.entry?.files?.file
+                    File(evidence, "entry-state.log").appendText("time=${SystemClock.elapsedRealtime()} pip=${activity.isInPictureInPictureMode} prepared=${model.player.prepared} " +
+                        "position=${model.player.view?.currentPosition} bookmark=${model.player.position} " +
+                        "seeking=${model.player.view?.seekComplete()} size=${model.player.view?.width}x${model.player.view?.height} " +
+                        "failure=${model.player.failure}\n")
                     activity.isInPictureInPictureMode && model.player.prepared &&
                         model.player.view?.seekComplete() == true && model.player.view?.currentPosition in 7_700..8_400
                 } }
