@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
@@ -17,7 +18,9 @@ import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import android.widget.TextView
-import android.widget.ScrollView
+import androidx.core.widget.NestedScrollView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import android.view.View
 import android.view.inspector.WindowInspector
 
@@ -86,8 +89,8 @@ class AgentFeedReplySheetTest {
             ready.get()
         }
     }
-    private fun scroll(): ScrollView = WindowInspector.getGlobalWindowViews()
-        .firstNotNullOf { it.findViewWithTag<ScrollView>("AgentFeedComposeScroll") }
+    private fun scroll(): NestedScrollView = WindowInspector.getGlobalWindowViews()
+        .firstNotNullOf { it.findViewWithTag<NestedScrollView>("AgentFeedComposeScroll") }
     private fun scrollToDraft() {
         compose.runOnUiThread { scroll().scrollTo(0, scroll().getChildAt(0).height) }
         compose.waitUntil(5_000) { compose.onNodeWithTag("AgentFeedComposeDraft").isDisplayed() }
@@ -154,6 +157,124 @@ class AgentFeedReplySheetTest {
                 scopeKey = account, allowedMacs = listOf(mac)) } }
         }
         override fun close() { session.close(); scope.cancel() }
+    }
+    @Test fun delayedEditorCallbacksCannotCollapseExpandedQuoteOrRestoreAnOldDraft() {
+        val entry = AgentFeedUiEntry("row", mac.agentFeedUiOwner(), stop, "Mac", true, false, null, true)
+        var modal by mutableStateOf(AgentFeedModal.from("account", entry, "terminal").copy(draft = "Retained reply"))
+        var sends = 0
+        compose.setContent { CmuxTheme { Surface {
+            AgentFeedReplySheet(entry, modal, { modal = it }, { "Expanded message\nTAIL_MARKER" }, {}, { _, _ -> sends++ })
+        } } }
+        val oldEditorCallback = compose.onNodeWithTag("AgentFeedComposeDraft").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.SetText].action!!
+        // Publish expansion and deliver an unchanged native edit before Compose
+        // has rerendered the editor. The old callback must not revert the modal.
+        compose.runOnUiThread {
+            modal = modal.copy(expanded = true)
+            assertTrue(oldEditorCallback(androidx.compose.ui.text.AnnotatedString("Retained reply")))
+        }
+        compose.runOnIdle { assertTrue(modal.expanded); assertEquals("Retained reply", modal.draft) }
+        awaitRenderedQuote()
+        compose.runOnUiThread {
+            assertTrue(oldEditorCallback(androidx.compose.ui.text.AnnotatedString("Updated after expanding")))
+        }
+        compose.runOnIdle {
+            assertTrue(modal.expanded); assertEquals("Updated after expanding", modal.draft)
+            assertEquals(0, sends)
+        }
+    }
+
+    @Test fun retiredScrollCannotOverwriteTheSavedReadingPosition() {
+        val position = ComposerScrollPosition()
+        var visible by mutableStateOf(true)
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            if (visible) AgentFeedComposerScroll(Modifier.fillMaxSize(), "Quoted line\n".repeat(500), false,
+                position, avatar = { Text("A") }, heading = { Text("Agent") }, preview = {},
+                replying = { Text("Replying to agent") }, draft = { Text("Retained draft") }, status = {})
+        } } }
+        compose.waitUntil(5_000) {
+            var ready = false
+            compose.runOnUiThread { ready = scroll().getChildAt(0).height > scroll().height + 300 }
+            ready
+        }
+        lateinit var retired: NestedScrollView
+        var saved = 0
+        compose.runOnUiThread {
+            retired = scroll(); retired.scrollTo(0, 300); saved = position.y
+            assertEquals(300, saved)
+        }
+        compose.runOnIdle { visible = false }
+        compose.waitForIdle()
+        compose.runOnUiThread {
+            retired.scrollTo(0, 0)
+            assertEquals("A retired native callback changed the retained offset", saved, position.y)
+        }
+    }
+
+    @Test fun keyboardDragKeepsQuotedMessageAndDraftAndCanReopenEditor() {
+        Fixture(listOf(stop), "Expanded quote\n" + "Readable report line\n".repeat(100) + "TAIL_MARKER").use { fixture ->
+            compose.setContent { fixture.Content() }
+            compose.onNodeWithText("Reply", useUnmergedTree = true).performClick()
+            compose.onNodeWithTag("AgentFeedComposeDraft").performTextInput("Keep this reply 👩🏽‍💻")
+            compose.onNode(hasText("See more", substring = true) and hasAnyAncestor(hasTestTag("AgentFeedComposerPreviewContent")), useUnmergedTree = true).clickInlineMore()
+            awaitRenderedQuote()
+            fun imeHeight(): Int {
+                var height = 0
+                compose.runOnUiThread {
+                    val view = WindowInspector.getGlobalWindowViews().firstOrNull { it.hasWindowFocus() }
+                    height = view?.let(ViewCompat::getRootWindowInsets)?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0
+                }
+                return height
+            }
+            fun viewportHeight(): Int {
+                var height = 0
+                compose.runOnUiThread { height = scroll().height }
+                return height
+            }
+            compose.waitUntil(10_000) { hasAppWindowFocus() && imeHeight() > 300 }
+            compose.waitForIdle()
+            capture("reply-keyboard-before")
+            val shown = imeHeight(); val initialHeight = viewportHeight()
+            val bounds = android.graphics.Rect()
+            compose.runOnUiThread { assertTrue(scroll().getGlobalVisibleRect(bounds)) }
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val downTime = android.os.SystemClock.uptimeMillis()
+            val x = bounds.centerX().toFloat(); val startY = bounds.top + 60f
+            var y = startY
+            fun touch(action: Int) {
+                val event = android.view.MotionEvent.obtain(downTime, android.os.SystemClock.uptimeMillis(), action, x, y, 0)
+                event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+                try { assertTrue(instrumentation.uiAutomation.injectInputEvent(event, true)) }
+                finally { event.recycle() }
+            }
+            var pressed = false
+            try {
+                touch(android.view.MotionEvent.ACTION_DOWN); pressed = true
+                for (step in 1..12) {
+                    y = startY + shown * .4f * step / 12
+                    touch(android.view.MotionEvent.ACTION_MOVE); android.os.SystemClock.sleep(24)
+                }
+                capture("reply-keyboard-partial")
+                java.io.File(instrumentation.targetContext.getExternalFilesDir(null), "agent-feed-composer/reply-keyboard-metrics.txt")
+                    .writeText("ime=$shown initial=$initialHeight partial=" + viewportHeight())
+                compose.waitUntil(3_000) { viewportHeight() > initialHeight + 30 && viewportHeight() < initialHeight + shown - 30 }
+                for (step in 1..18) {
+                    y = startY + shown * (.4f + .8f * step / 18)
+                    touch(android.view.MotionEvent.ACTION_MOVE); android.os.SystemClock.sleep(24)
+                }
+                touch(android.view.MotionEvent.ACTION_UP); pressed = false
+                compose.waitUntil(5_000) { imeHeight() == 0 && viewportHeight() > initialHeight + shown * .7f }
+                compose.onNodeWithTag("AgentFeedReplySheet").assertIsDisplayed()
+                compose.onNodeWithTag("AgentFeedComposeDraft").assertTextContains("Keep this reply 👩🏽‍💻")
+                assertTrue(quote()!!.text.endsWith("TAIL_MARKER"))
+                capture("reply-keyboard-hidden")
+            } finally { if (pressed) touch(android.view.MotionEvent.ACTION_CANCEL) }
+            scrollToDraft()
+            compose.onNodeWithTag("AgentFeedComposeDraft").performClick().assertIsFocused()
+            compose.waitUntil(5_000) { imeHeight() > 300 }
+            capture("reply-keyboard-reopened")
+            compose.runOnIdle { assertTrue(fixture.requests.none { it.first == "mobile.terminal.paste" }) }
+        }
     }
     @Test fun draftSurvivesRestorationWhileSnapshotReloadsAndOnlyExplicitReplySends() {
         Fixture(listOf(stop)).use { fixture ->
@@ -253,12 +374,18 @@ class AgentFeedReplySheetTest {
             compose.onNodeWithText("Waiting for this Mac’s Feed").assertIsDisplayed()
             restoration.emulateSavedInstanceStateRestore()
             compose.runOnIdle { fixture.loaded = true }
-            compose.waitUntil(15_000) {
+            var geometry = "expected=$y"
+            try { compose.waitUntil(15_000) {
                 val restored = AtomicBoolean(false)
                 compose.runOnUiThread { restored.set(quote()?.let {
+                    geometry = "expected=$y scroll=${scroll().scrollY} viewport=${scroll().height} body=${it.height} length=${it.text.length} shown=${it.isShown} focus=${scroll().findFocus()?.javaClass?.simpleName}"
                     it.isShown && it.text.endsWith("TAIL_MARKER") && scroll().scrollY == y
                 } == true) }
                 restored.get()
+            } } finally {
+                val folder = java.io.File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "agent-feed-composer")
+                folder.mkdirs(); java.io.File(folder, "reconnect-geometry.txt").writeText(geometry)
+                capture("reconnect-position-check")
             }
             assertTrue(fixture.requests.count { it.first == "feed.text" } > loads)
             capture("reconnected-composer")

@@ -28,6 +28,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Reply composition now fills the sheet and supports interactive keyboard
+  dragging while retaining quote/draft state. Native view release and disposed
+  editor callbacks are fenced; unchanged edits no longer copy a stale modal.
+  **All 11 Android reply-sheet cases passed**, including exact reconnect offset,
+  held-drag/hide/reopen, long quote restoration and account changes. Screenshots
+  inspected; emulator/Gradle stopped. See `AGENT_FEED.md` for the earlier
+  intermittent failures and final evidence. Signed 635 predates this batch;
+  physical Pixel/Mac acceptance remains open.
+
 - The reported Cloud native workflow was rechecked. A fresh standalone run on
   main `164f8246` **passed**:
   [37982024987](https://github.com/DocMorphic/cmux-app/actions/runs/37982024987).

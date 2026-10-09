@@ -56,6 +56,18 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
     val model = remember(item) { NativeAgentFeedPresentation.from(item) }
     val pending = entry.pending
     val ready = entry.connected
+    // Native IME callbacks can arrive before the parent recomposes. Reduce them
+    // against the latest local modal so a stale draft callback cannot collapse
+    // an expanded quote or restore an older draft during reconnect.
+    var editing by remember(modal.scope, modal.key, modal.mode) { mutableStateOf(modal) }
+    val editorActive = remember(modal.scope, modal.key, modal.mode) { java.util.concurrent.atomic.AtomicBoolean(true) }
+    DisposableEffect(editorActive) { onDispose { editorActive.set(false) } }
+    editing = modal
+    fun update(reduce: (AgentFeedModal) -> AgentFeedModal) {
+        if (!editorActive.get()) return
+        val next = reduce(editing)
+        if (next != editing) { editing = next; onChange(next) }
+    }
     var fullText by remember { mutableStateOf<CharSequence?>(null) }
     var failed by remember { mutableStateOf(false) }
     var attempt by remember { mutableIntStateOf(0) }
@@ -68,8 +80,8 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
     val textMetrics = remember(context, density) { TextViewCompat.getTextMetricsParams(agentFeedQuoteTextView(context)) }
     val canSend = ready && !pending && modal.draft.isNotBlank() && modal.matches(entry)
     fun send() { if (canSend) {
-        if (modal.mode == "terminal") onSubmit(null, modal.draft.trim())
-        else onSubmit(AgentFeedDecision("exit_plan", "manual", feedback = modal.draft.trim()), null)
+        if (editing.mode == "terminal") onSubmit(null, editing.draft.trim())
+        else onSubmit(AgentFeedDecision("exit_plan", "manual", feedback = editing.draft.trim()), null)
     } }
     LaunchedEffect(modal.expanded, attempt) {
         if (!modal.expanded) return@LaunchedEffect
@@ -83,7 +95,7 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
         catch (error: Exception) { if (error is CancellationException) throw error; failed = true }
     }
     ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().imePadding().testTag("AgentFeedReplySheet")) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).imePadding().testTag("AgentFeedReplySheet")) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onDismiss) { Text("Cancel") }
@@ -91,7 +103,7 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
                     Text(if (pending) "Sending…" else if (modal.mode == "terminal") "Reply" else "Send")
                 }
             }
-            AgentFeedComposerScroll(Modifier.fillMaxWidth().weight(1f, fill = false), fullText,
+            AgentFeedComposerScroll(Modifier.fillMaxWidth().weight(1f), fullText,
                 loadingExpanded = modal.expanded && fullText == null && !failed,
                 position = scrollPosition,
                 avatar = { FeedComposerAvatar(item.source, model.author) },
@@ -105,7 +117,7 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
                     if (fullText == null) model.output?.let { preview ->
                         when {
                             !modal.expanded -> AgentFeedInlinePreview(preview, item.fullTextTruncated, 6, ready,
-                                { onChange(modal.copy(expanded = true)) }, color = Color(0xFF9CA3AF))
+                                { update { it.copy(expanded = true) } }, color = Color(0xFF9CA3AF))
                             failed -> TextButton(onClick = { attempt++ }, enabled = ready) { Text("Couldn't load the full message. Try again") }
                             else -> LinearProgressIndicator(Modifier.fillMaxWidth())
                         }
@@ -119,7 +131,7 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
                     LaunchedEffect(Unit) { if (!modal.expanded) focus.requestFocus() }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                         Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(40.dp))
-                        TextField(modal.draft, { onChange(modal.copy(draft = it)) }, enabled = !pending,
+                        TextField(editing.draft, { text -> update { it.copy(draft = text) } }, enabled = !pending,
                             placeholder = { Text(if (modal.mode == "terminal") "Reply to agent…" else "What should change?") },
                             minLines = 3, maxLines = 12, modifier = Modifier.weight(1f).focusRequester(focus).testTag("AgentFeedComposeDraft"),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { send() }),

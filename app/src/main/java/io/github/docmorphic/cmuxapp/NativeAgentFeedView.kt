@@ -168,7 +168,11 @@ internal fun AgentFeedTimeline(
                 AgentFeedModalStatus.WAITING -> AgentFeedWaitingSheet({ modal = null }, onRefresh, reader = target.mode == "read")
                 AgentFeedModalStatus.READY -> modalState.SaveableStateProvider("content") {
                     val entry = checkNotNull(currentEntries[target.key])
-                    fun update(next: AgentFeedModal) { if (modal?.key == target.key && modal?.mode == target.mode) modal = next }
+                    fun update(next: AgentFeedModal) {
+                        val current = modal
+                        if (current?.scope == target.scope && current.key == target.key && current.mode == target.mode &&
+                            next.scope == current.scope && next.key == current.key && next.mode == current.mode) modal = next
+                    }
                     suspend fun load(): String {
                         val live = checkNotNull(currentEntries[target.key]) { "This Feed item is no longer available" }
                         check(target.matches(live)) { "This Feed item changed" }

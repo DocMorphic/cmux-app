@@ -11,7 +11,6 @@ import androidx.core.text.PrecomputedTextCompat
 import androidx.core.widget.TextViewCompat
 import android.text.method.LinkMovementMethod
 import android.text.style.*
-import android.view.MotionEvent
 import android.view.View
 import android.widget.*
 import androidx.compose.runtime.*
@@ -19,7 +18,9 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.imeNestedScroll
+import androidx.core.widget.NestedScrollView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.platform.testTag
@@ -68,18 +69,8 @@ internal class ComposerScrollPosition(var y: Int = 0) {
         val Saver = Saver<ComposerScrollPosition, Int>({ it.y }, { ComposerScrollPosition(it) })
     }
 }
-private class ComposerScrollView(context: Context) : ScrollView(context) {
+private class ComposerScrollView(context: Context) : NestedScrollView(context) {
     var displayedBody: CharSequence? = null
-    var dismissKeyboard: (() -> Unit)? = null
-    private var dismissedForDrag = false
-    override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) dismissedForDrag = false
-        val intercept = super.onInterceptTouchEvent(event)
-        if (intercept && event.actionMasked == MotionEvent.ACTION_MOVE && !dismissedForDrag) {
-            dismissedForDrag = true; dismissKeyboard?.invoke()
-        }
-        return intercept
-    }
     var restoreY: Int? = null
     var saveScroll: ((Int) -> Unit)? = null
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
@@ -94,6 +85,7 @@ private class ComposerScrollView(context: Context) : ScrollView(context) {
 
 /** One native scroll container avoids Compose's finite text-height constraints.
  * Only the full body is a TextView; the existing controls retain their Compose state. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AgentFeedComposerScroll(modifier: Modifier, fullText: CharSequence?, loadingExpanded: Boolean,
     position: ComposerScrollPosition,
@@ -107,8 +99,9 @@ internal fun AgentFeedComposerScroll(modifier: Modifier, fullText: CharSequence?
     val currentDraft by rememberUpdatedState(draft)
     val currentStatus by rememberUpdatedState(status)
     val density = LocalDensity.current
-    val keyboard = LocalSoftwareKeyboardController.current
-    AndroidView(modifier = modifier.clipToBounds(), factory = { context ->
+    // NestedScrollView dispatches child scroll deltas through AndroidView to
+    // Compose's native IME animation controller, including a held partial drag.
+    AndroidView(modifier = modifier.imeNestedScroll().clipToBounds(), factory = { context ->
         fun dp(value: Int) = (value * density.density).toInt()
         fun part(viewId: Int, content: @Composable () -> Unit) = ComposeView(context).apply {
             id = viewId
@@ -152,7 +145,6 @@ internal fun AgentFeedComposerScroll(modifier: Modifier, fullText: CharSequence?
             restoreY = position.y
         }
     }, update = { scroll ->
-        scroll.dismissKeyboard = { keyboard?.hide() }
         val body = scroll.findViewWithTag<TextView>("AgentFeedExpandedQuote")
         // Do not replace text on draft keystrokes or reset selection/focus.
         if (scroll.displayedBody !== fullText) {
@@ -167,5 +159,10 @@ internal fun AgentFeedComposerScroll(modifier: Modifier, fullText: CharSequence?
         // finishes. Its temporary loading layout must not overwrite saved scroll.
         scroll.saveScroll = if (loadingExpanded) null else { y -> position.y = y }
         if (loadingExpanded) scroll.restoreY = null
+    }, onRelease = { scroll ->
+        // Native layout/focus callbacks may finish after the sheet leaves composition.
+        // A retired view must not overwrite the position retained for reconnect.
+        scroll.saveScroll = null
+        scroll.restoreY = null
     })
 }

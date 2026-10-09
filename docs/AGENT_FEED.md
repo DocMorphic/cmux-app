@@ -890,3 +890,50 @@ Evidence: ignored `captures/agent-feed-stop-reason*-jvm.log`,
 or Pixel run was performed for this batch. Signed 635 predates this change.
 Broader Unicode/grapheme equivalence, physical Feed performance, remaining
 privacy/analytics source changes and full Feed acceptance remain open.
+
+## Reply-sheet keyboard and callback lifecycle (2026-10-09)
+
+Scoped source: `AgentFeedReplyComposer.swift` at
+`f4b1509054949eaad5d695569ad443c4c18ed68d`, SHA-256
+`fe3b1a61a97b2bed7d6e54035bc7bd03cbe266c9ccb4dc94f523240c6cc4b694`.
+The iOS sheet fills its available height and uses
+`scrollDismissesKeyboard(.interactively)`. The global parity pin is unchanged.
+
+Android's quoted-message composer now fills the sheet and uses AndroidX
+`NestedScrollView` inside `AndroidView` with `imeNestedScroll()`, replacing the
+abrupt keyboard-hide call on each intercepted move. The existing large native
+TextView remains the full-message renderer. Native child scroll deltas reach
+Compose's IME animation controller through the documented
+[AndroidView nested-scroll bridge](https://developer.android.com/develop/ui/compose/touch-input/scroll/nested-scroll-modifiers).
+Resolved AndroidX Core is 1.19.0; no new dependency was required.
+
+Removed native scroll views stop publishing saved offsets. Reply edits reduce
+against the latest local modal, skip unchanged drafts and ignore callbacks after
+the editor is disposed; parent admission checks the current account scope as well
+as row/mode. This addresses stale callback paths that could overwrite a retained
+expanded flag or reading position. Drafts are not automatically submitted.
+
+The initial full run passed eight of nine cases, but reconnect restoration timed
+out. The diagnostic isolated case and a keyboard/reconnect sequence then passed;
+adding the removed-scroll guard alone still left the full run at nine of ten.
+Its screenshot and native geometry showed an absent quote (`body=0`, `length=0`,
+`shown=false`, `scroll=0`), rather than merely a shifted offset. These results
+motivated the editor reducer and disposal guard; the intermittent failure's
+precise originating callback was not traced.
+
+The final debug/test APK build succeeded. **All 11 Android cases passed in
+105.422 seconds**, including a held partial keyboard drag, complete hide/reopen
+with a Unicode draft, exact reconnect position, delayed editor callback ordering,
+removed-view callback suppression, plan feedback, account change, explicit-send
+admission and a continuous quote taller than 262,143 px. Held-drag viewport grew
+from 1,208 to 1,509 px with an initial 883 px IME. Reconnect restored exactly
+1,200 px with the visible complete 10,024-character/8,729 px body. Partial,
+reopened and reconnect screenshots were inspected. Before/after event logs have
+no crash/ANR entries.
+
+Evidence: ignored `captures/feed-reply-keyboard-*.log` and
+`captures/runtime/feed-reply-keyboard/`, including initial failures, isolated
+checks, source/dependency evidence, final APK hashes and `complete.log`/`complete/`.
+Gradle and the existing API 37 emulator were stopped; no additional AVD was
+created. Physical Pixel/Mac gestures, accessibility and real transport acceptance
+remain open. Signed 635 predates this batch.
