@@ -41,7 +41,8 @@ internal fun preferredTaskDirectories(workspaces: List<NativeWorkspace>, selecte
 
 internal data class TaskTemplateState(
     val entries: List<TaskTemplate> = TaskTemplate.defaults(), val lastTemplateId: String? = null,
-    val lastOrigin: String? = null, val recent: Map<String, List<TaskRecentDirectory>> = emptyMap()
+    val lastOrigin: String? = null, val recent: Map<String, List<TaskRecentDirectory>> = emptyMap(),
+    val pickers: Map<String, TaskPickerPreferences> = emptyMap()
 ) {
     fun selected(id: String? = null) = entries.firstOrNull { it.id == id }
         ?: entries.firstOrNull { it.id == lastTemplateId } ?: entries.first()
@@ -51,6 +52,7 @@ internal data class TaskTemplateState(
             ?: recent[origin]?.firstOrNull()?.path ?: "~"
     fun json(): JSONObject = JSONObject().put("version", 1).put("entries", JSONArray(entries.map { it.json() }))
         .put("last_template", lastTemplateId).put("last_origin", lastOrigin)
+        .put("pickers", JSONObject().also { out -> pickers.forEach { (origin, value) -> out.put(origin, value.json()) } })
         .put("recent", JSONObject().also { out -> recent.forEach { (origin, rows) -> out.put(origin,
             JSONArray(rows.map { JSONObject().put("path", it.path).put("last_used", it.lastUsedAt).put("uses", it.useCount) })) } })
 }
@@ -89,6 +91,9 @@ internal class TaskTemplates(saved: JSONObject? = null) {
         }
     }
     @Synchronized fun apply(change: TaskTemplateChange) { mutable.value = preview(change) }
+    @Synchronized fun rememberPickers(draft: TaskDraft) {
+        if (!closed) mutable.value = mutable.value.rememberingPickers(draft)
+    }
     @Synchronized fun recordSuccess(templateId: String, origin: String, directory: String?, now: Long = System.currentTimeMillis()) {
         if (closed) return
         val previous = mutable.value
@@ -120,7 +125,9 @@ internal class TaskTemplates(saved: JSONObject? = null) {
                     (0 until rows.length()).map { rows.getJSONObject(it).let { row ->
                         TaskRecentDirectory(row.getString("path"), row.getLong("last_used"), row.getLong("uses").coerceAtLeast(1)) } }
                         .filter { it.path.isNotBlank() }.distinctBy { it.path }.sortedByDescending { it.lastUsedAt }.take(20)
-                })
+                }, saved.optJSONObject("pickers")?.let { preferences ->
+                    preferences.keys().asSequence().associateWith { TaskPickerPreferences.read(preferences.getJSONObject(it)) }
+                }.orEmpty())
         }
     }
 }

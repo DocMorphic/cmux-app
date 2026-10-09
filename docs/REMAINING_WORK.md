@@ -28,6 +28,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Task picker choices now persist separately for each paired Mac, including
+  Stable/Nightly, and restore in fresh tasks and explicit Mac switches. A manually
+  chosen folder no longer follows a different Mac; first-handshake input and
+  existing drafts remain intact. **36 JVM and four Android checks passed**,
+  screenshots inspected; see the per-Mac task picker section in `PARITY.md`.
+  No new crash/ANR events during testing; emulator/Gradle stopped. Real Pixel/Mac
+  switching remains open. Signed milestone run 633 targets the earlier
+  `7a5ff354` source and does not include this batch.
+
 - Interrupted creation now keeps an account/team-scoped notice through terminal
   reconnect, with a saved Dismiss action and the app's dark-grey styling.
   **12 JVM and three actual Android process-restoration tests passed**, followed

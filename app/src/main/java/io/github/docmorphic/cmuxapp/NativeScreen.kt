@@ -2777,10 +2777,9 @@ internal fun NativeScreen(
                             val target = requireNotNull(pairedMacs.singleOrNull { it.ownsOrigin(nextOrigin) }) { "This Mac is no longer paired" }
                             val snapshot = workspaceSources.firstOrNull { it.mac.origin == nextOrigin && it.availability == NativeFeedAvailability.CONNECTED }
                             val currentDraft = checkNotNull(repository.drafts.state.value[editor.id])
-                            val templates = repository.templates.state.value
-                            val nextDirectory = templates.suggestedDirectory(templates.selected(currentDraft.templateId), nextOrigin,
-                                snapshot?.let { preferredTaskDirectories(it.workspaces, null).firstOrNull() })
-                            repository.selectMac(editor, nextOrigin, target.name, nextDirectory)
+                            val openDirectory = snapshot?.let { preferredTaskDirectories(it.workspaces, null).firstOrNull() }
+                            repository.selectMac(editor, nextOrigin, target.name, openDirectory,
+                                adoptingIdentity = selectedTaskMac == null && currentDraft.origin == pairingOrigin(code))
                             check(signedIn && taskDraftRepository === repository && pairedMacs.any { it.ownsOrigin(nextOrigin) }) { "Task account or Mac changed" }
                             selectComputer(target)
                         },

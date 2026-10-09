@@ -12,6 +12,42 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Per-Mac task picker restoration (2026-10-09)
+
+Scoped source: `TaskComposerSheet.swift` and
+`TaskComposerSheet+PickerPreferences.swift` under
+`Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/TaskComposer` at
+`f4b1509054949eaad5d695569ad443c4c18ed68d`. The latest upstream diff in these
+files refactors template lookup; this port closes an older Android behavior gap
+identified by comparing the complete source. The global parity pin is unchanged.
+
+Agent/template, explicit or Default model, cached default model, effort, manual
+folder and group now persist per exact paired-Mac origin in the existing encrypted
+account task repository. New tasks restore that Mac's choices without inheriting
+prompt, workspace title, attachments or operation identity. Existing drafts keep
+their own choices. Stable/Nightly origins stay independent.
+
+Switching Macs saves the departing choices and durably restores the target's
+choices before publishing the owner change. A valid remembered template wins,
+followed by the prior template, last successful template and first template;
+models/effort restore only for a matching template. Deleted templates cannot
+restore their models. Automatic folders are recomputed; a typed folder on another
+Mac cannot follow the switch. Restored group IDs remain subject to the existing
+live-inventory validation. A first verified handshake identifies the same pending
+Mac and preserves in-progress input. Retired editors and replaced accounts cannot
+publish a switch; submission recovery remains pinned to its original origin.
+
+**36 focused JVM checks passed** (six new preference checks plus templates,
+directories and draft regressions). **Four Android checks passed in 47.378 s**:
+encrypted two-Mac round-trip/stale-editor rejection; first-handshake adoption and
+failed account transaction; a fresh composer restoring visible Codex/model/folder
+with an empty prompt; and existing-draft recreation. Both screenshots were
+inspected. Evidence is ignored under `captures/runtime/task-picker-preferences/`
+and `captures/task-picker-preferences-*.log`. A Google Play services boot ANR
+preceded testing; the before/after crash/ANR logs are identical. The existing
+emulator and Gradle were stopped. No physical Pixel/Mac run, real account switch,
+or new signed APK is claimed by these checks.
+
 ## Task failure presentation and recovery (2026-10-07)
 
 Scoped source at `186cec79781256867ad4516f0802118738bd2393`:

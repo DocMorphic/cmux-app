@@ -134,7 +134,8 @@ class TaskDirectoriesTest {
             lastRequest = retired.toString(), completedRequest = request.toString()) }
         val moved = drafts.state.value.getValue(id).onMac("second", "Second", "/second")
         drafts.retarget(editor, moved)
-        assertFalse(drafts.isCurrent(editor)); assertNull(moved.groupId); assertEquals("/typed", moved.directory)
+        assertFalse(drafts.isCurrent(editor)); assertNull(moved.groupId); assertEquals("/second", moved.directory)
+        assertFalse(moved.didEditDirectory)
         val restored = TaskDrafts(drafts.saved()).state.value.getValue(id)
         assertEquals("second", restored.origin); assertEquals("first", restored.lastRequestOrigin); assertEquals("first", restored.completedOrigin)
         val recovery = TaskCompletedRecovery(restored.completedOrigin!!, restored.completedRequest!!)

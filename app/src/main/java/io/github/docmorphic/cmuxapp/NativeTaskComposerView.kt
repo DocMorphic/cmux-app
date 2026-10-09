@@ -82,7 +82,8 @@ internal fun NativeTaskComposerView(
         collection.begin(activeId, origin, macName, suggested).also { editor ->
             collection.edit(editor) { current ->
                 val missingTemplate = existing?.templateId != null && templates.entries.none { it.id == existing.templateId }
-                current.selecting(template, if (existing != null && !missingTemplate) existing.directory else suggested)
+                (if (existing == null) templates.restorePickers(current, directories.firstOrNull())
+                    else current.selecting(template, if (!missingTemplate) existing.directory else suggested))
                     .let { if (missingTemplate) it.copy(lastRequest = null, completedRequest = null) else it }
             }
         }
@@ -131,6 +132,14 @@ internal fun NativeTaskComposerView(
     val canEdit = !busy && !accepted && !preparingAttachments && !leavingPreparation
     val canLeave = !leavingPreparation && (!busy || (submissionJob?.isActive == true && !submissionCommitted))
     val currentCanEdit by rememberUpdatedState(canEdit)
+    val currentHasSelectedMac by rememberUpdatedState(hasSelectedMac)
+    fun rememberPickerChoices() {
+        if (currentHasSelectedMac && currentContext() && collection.isCurrent(editor)) {
+            collection.state.value[editor.id]?.takeIf { it.origin == origin }?.let(templateStore::rememberPickers)
+        }
+    }
+    LaunchedEffect(editor, draft.templateId, draft.selection, draft.defaultModel, draft.directory,
+        draft.didEditDirectory, draft.groupId, hasSelectedMac) { rememberPickerChoices() }
     // A draft opened during the very first handshake initially has only the
     // pairing-code identity. Adopt the verified Mac once that handshake finishes.
     LaunchedEffect(editor, resolvedMacOrigin) {
@@ -148,6 +157,7 @@ internal fun NativeTaskComposerView(
     fun edit(update: (TaskDraft) -> TaskDraft) {
         if (busy || accepted || preparingAttachments) return
         collection.editIfCurrent(editor, update) ?: return
+        rememberPickerChoices()
         dirty = true
         error = null
     }
@@ -180,6 +190,7 @@ internal fun NativeTaskComposerView(
         busy = true; error = null
         scope.launch {
             try {
+                rememberPickerChoices()
                 persistDrafts()
                 currentCoroutineContext().ensureActive()
                 check(collection.isCurrent(editor)) { "This draft session has changed" }
@@ -193,9 +204,11 @@ internal fun NativeTaskComposerView(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val currentFlush by rememberUpdatedState(flushDrafts)
     DisposableEffect(editor, lifecycle) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) currentFlush() }
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) {
+            rememberPickerChoices(); currentFlush()
+        } }
         lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer); collection.end(editor); currentFlush() }
+        onDispose { lifecycle.removeObserver(observer); rememberPickerChoices(); collection.end(editor); currentFlush() }
     }
     val provider = command?.let(TaskAgentCommand::detect)
     val modelKey = provider?.let { TaskModelRepository.Key(origin, it) }
@@ -281,6 +294,7 @@ internal fun NativeTaskComposerView(
                 check(requestIsCurrent()) { "Connection changed before the task could be opened" }
                 stage = TaskComposerFailure.Stage.READING_RESULT
                 TaskCreationResult.parse(response)
+                rememberPickerChoices()
                 templateStore.recordSuccess(checkNotNull(draft.templateId), origin, parameters.optString("working_directory").takeIf { it.isNotBlank() })
                 collection.remove(editor)
                 flushDrafts()

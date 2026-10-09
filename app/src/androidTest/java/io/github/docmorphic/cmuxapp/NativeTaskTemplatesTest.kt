@@ -31,7 +31,7 @@ class NativeTaskTemplatesTest {
     private lateinit var client: MobileRpcClient
     private val models = TaskModelRepository()
     private var generation by mutableIntStateOf(0)
-    private val draftId = UUID.randomUUID().toString()
+    private var draftId by mutableStateOf(UUID.randomUUID().toString())
     private var failSave = false
     private var request: JSONObject? = null
 
@@ -99,6 +99,70 @@ class NativeTaskTemplatesTest {
         assertEquals("template-mac", restored.lastOrigin)
         assertEquals("/custom project", restored.recent.getValue("template-mac").first().path)
         assertTrue(TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.isEmpty())
+    }
+
+    @Test fun freshTaskRestoresPickersWithoutRestoringPreviousPrompt() {
+        show(); agent("Claude")
+        compose.chooseTaskDirectory(peer, "/remember this Mac")
+        compose.openTaskPicker("Agent"); compose.onNodeWithText("Codex").performClick()
+        agent("Codex")
+        compose.waitUntil(10_000) { models.cached(TaskModelRepository.Key("template-mac", TaskAgentCommand.CODEX))?.source == TaskModelSource.DISCOVERED }
+        compose.openTaskPicker("Model"); compose.onNodeWithText("Local codex").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep only in this draft")
+        runBlocking { repository.persistNow() }
+        val firstId = draftId
+        compose.runOnIdle { draftId = UUID.randomUUID().toString(); generation++ }
+        agent("Codex")
+        compose.assertTaskDirectory("/remember this Mac")
+        compose.onNodeWithContentDescription("Task prompt").assert(SemanticsMatcher.expectValue(
+            SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+        compose.onNodeWithContentDescription("Model").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Local codex"))
+        assertEquals("Keep only in this draft", repository.drafts.state.value.getValue(firstId).prompt)
+        compose.waitUntil(10_000) { android.view.inspector.WindowInspector.getGlobalWindowViews().any { it.hasWindowFocus() } }
+        screenshot("task-pickers-fresh")
+    }
+
+    @Test fun durableMacSwitchRestoresTargetChoicesAndRejectsRetiredEditor() = runBlocking {
+        val template = repository.templates.state.value.entries[1]
+        val id = UUID.randomUUID().toString()
+        val first = repository.drafts.begin(id, "mac-stable", "Stable", "/stable")
+        repository.drafts.edit(first) { it.selecting(template, "/stable").copy(prompt = "Task",
+            directory = "/stable typed", didEditDirectory = true, groupId = "stable-group") }
+        repository.selectMac(first, "mac-nightly", "Nightly", "/nightly")
+        val moved = repository.drafts.state.value.getValue(id)
+        assertEquals("/nightly", moved.directory); assertFalse(moved.didEditDirectory); assertNull(moved.groupId)
+        assertFalse(repository.drafts.isCurrent(first))
+        assertNull(repository.drafts.editIfCurrent(first) { it.copy(directory = "/late callback") })
+        val next = repository.drafts.begin(id, "mac-nightly", "Nightly", "/nightly")
+        repository.drafts.edit(next) { it.copy(directory = "/nightly typed", didEditDirectory = true) }
+        repository.selectMac(next, "mac-stable", "Stable", null)
+        val restored = TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.getValue(id)
+        assertEquals("/stable typed", restored.directory); assertEquals("stable-group", restored.groupId)
+        assertEquals("Task", restored.prompt)
+        val choices = TaskTemplates(store.load()!!.getJSONObject("task_drafts").getJSONObject("templates")).state.value
+        assertEquals("/nightly typed", choices.pickers.getValue("mac-nightly").directory)
+        assertEquals("/stable typed", choices.pickers.getValue("mac-stable").directory)
+    }
+
+    @Test fun firstHandshakeKeepsInputAndFailedOwnerChangePublishesNothing() = runBlocking {
+        val id = UUID.randomUUID().toString()
+        val editor = repository.drafts.begin(id, "unresolved-code", "Mac", "~")
+        repository.drafts.edit(editor) { it.selecting(repository.templates.state.value.entries.first(), "~")
+            .copy(prompt = "During pairing", directory = "/typed while connecting", didEditDirectory = true) }
+        repository.selectMac(editor, "verified-mac", "Verified", "/host", adoptingIdentity = true)
+        val adopted = repository.drafts.state.value.getValue(id)
+        assertEquals("/typed while connecting", adopted.directory); assertTrue(adopted.didEditDirectory)
+        assertFalse(repository.templates.state.value.pickers.containsKey("unresolved-code"))
+        val next = repository.drafts.begin(id, "verified-mac", "Verified", "/host")
+        val before = repository.templates.state.value
+        store.update { it.put("task_session", UUID.randomUUID().toString()) }
+        try {
+            repository.selectMac(next, "other", "Other", "/other")
+            fail("A replaced account must reject the durable owner change")
+        } catch (_: IllegalStateException) { }
+        assertEquals(adopted, repository.drafts.state.value.getValue(id))
+        assertEquals(before, repository.templates.state.value)
+        assertTrue(repository.drafts.isCurrent(next))
     }
 
     @Test fun renamedBuiltInStaysProtectedAndCustomPlainShellCanBeDeleted() {

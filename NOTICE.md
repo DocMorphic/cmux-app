@@ -177,6 +177,12 @@ cmux revision 4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android additions: Keystore encryption, ordered lifecycle writes and editor leases.
 
+Per-pairing composer choices in TaskPickerPreferences.kt, TaskTemplates.kt,
+TaskDraftRepository.kt and NativeTaskComposerView.kt follow TaskComposerSheet.swift
+and TaskComposerSheet+PickerPreferences.swift at cmux revision
+f4b1509054949eaad5d695569ad443c4c18ed68d (Packages/iOS/CmuxMobileShellUI).
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+
 Completed-task recovery is derived from TaskComposerCompletedOperationRecovery,
 TaskComposerSheet+CompletedOperationRecovery and TaskComposerSheet+DraftState at
 cmux revision 4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0.

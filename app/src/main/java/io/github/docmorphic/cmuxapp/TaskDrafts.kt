@@ -33,7 +33,10 @@ internal data class TaskDraft(
     val title get() = workspaceName.trim().takeIf { it.isNotEmpty() } ?: prompt.trim().lineSequence().firstOrNull()?.takeIf { it.isNotEmpty() } ?: "Untitled task"
     fun onMac(nextOrigin: String, name: String, suggestedDirectory: String) = copy(origin = nextOrigin, macName = name,
         groupId = if (nextOrigin == origin) groupId else null,
-        directory = if (didEditDirectory) directory else suggestedDirectory,
+        directory = if (nextOrigin == origin && didEditDirectory) directory else suggestedDirectory,
+        didEditDirectory = nextOrigin == origin && didEditDirectory,
+        selection = if (nextOrigin == origin) selection else TaskModelSelection(),
+        defaultModel = if (nextOrigin == origin) defaultModel else null,
         lastRequestOrigin = if (lastRequest != null) lastRequestOrigin ?: origin else null,
         completedOrigin = if (completedRequest != null) completedOrigin ?: origin else null)
     fun restoredModels() = TaskModelResult(listOfNotNull(selection.explicit), TaskModelSource.FALLBACK, defaultModel)
@@ -55,11 +58,11 @@ internal data class TaskDraft(
         .put("attachments", JSONArray(attachments.map { it.json() }))
 
     companion object {
-        private fun modelJson(model: TaskModel): JSONObject = JSONObject().put("id", model.id)
+        internal fun modelJson(model: TaskModel): JSONObject = JSONObject().put("id", model.id)
             .put("display_name", model.name).put("default_effort_id", model.defaultEffortId)
             .put("efforts", JSONArray(model.efforts.map { effort -> JSONObject().put("id", effort.id)
                 .put("display_name", effort.name).put("description", effort.description) }))
-        private fun model(raw: JSONObject?): TaskModel? = raw?.let {
+        internal fun model(raw: JSONObject?): TaskModel? = raw?.let {
             TaskModelParser.host(JSONObject().put("source", "discovered").put("models", JSONArray().put(it))).models.single()
         }
         fun read(raw: JSONObject): TaskDraft {

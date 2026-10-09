@@ -56,16 +56,30 @@ internal class TaskDraftRepository private constructor(
         }
     }
 
-    suspend fun selectMac(editor: TaskDrafts.Editor, origin: String, name: String, directory: String): Unit = withContext(Dispatchers.IO) {
+    suspend fun selectMac(editor: TaskDrafts.Editor, origin: String, name: String, openDirectory: String?,
+        adoptingIdentity: Boolean = false): Unit = withContext(Dispatchers.IO) {
         mutex.withLock {
             // Keep the editor lease stable across the durable owner change. Old model/IME
             // callbacks become invalid before the caller starts connecting to the new Mac.
             synchronized(drafts) {
                 check(drafts.isCurrent(editor)) { "Task session changed" }
-                val changed = checkNotNull(drafts.state.value[editor.id]).onMac(origin, name, directory)
-                store.update { state -> requireSession(state)
-                    state.put("task_drafts", drafts.saved(changed).put("templates", templates.state.value.json())) }
-                drafts.retarget(editor, changed)
+                synchronized(templates) {
+                    val current = checkNotNull(drafts.state.value[editor.id])
+                    val choices = if (adoptingIdentity) templates.state.value else templates.state.value.rememberingPickers(current)
+                    val moved = current.onMac(origin, name, choices.suggestedDirectory(choices.selected(current.templateId), origin, openDirectory))
+                    val changed = when {
+                        // The first verified handshake identifies the same Mac; keep in-progress input.
+                        adoptingIdentity -> moved.copy(directory = current.directory, didEditDirectory = current.didEditDirectory,
+                            selection = current.selection, defaultModel = current.defaultModel, groupId = current.groupId)
+                        origin == current.origin -> moved
+                        else -> choices.restorePickers(moved, openDirectory, current.templateId)
+                    }
+                    store.update { state -> requireSession(state)
+                        state.put("task_drafts", drafts.saved(changed).put("templates", choices.rememberingPickers(changed).json())) }
+                    if (!adoptingIdentity) templates.rememberPickers(current)
+                    templates.rememberPickers(changed)
+                    drafts.retarget(editor, changed)
+                }
             }
         }
     }
