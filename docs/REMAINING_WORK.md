@@ -28,6 +28,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Signed milestone run 633 at `7a5ff354` built the APKs and passed its unit-test
+  stage, then failed a stale packaging assertion expecting 19 native libraries.
+  The verifier now checks the exact 22-library arm64 inventory (including Cloud
+  adapters), rejects missing/substituted/duplicate libraries, and verifies every
+  pinned viewer-manifest entry without the old 17-asset count. **Seven Python
+  verifier tests passed; the local debug APK has 22 aligned native libraries and
+  all 18 pinned viewer hashes match.** Verification diagnostics will now be kept
+  even when the APK check fails. This does not establish a signed release; the
+  corrected CI milestone must complete, including release ART checks.
+
 - Feed snapshot decoding now runs off the UI thread with cooperative cancellation,
   current-owner/revision admission and live local decision overlays. **82 focused
   JVM checks passed**, including a busy worker with intervening decisions/events

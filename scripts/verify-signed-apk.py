@@ -18,6 +18,28 @@ import xml.etree.ElementTree as ET
 
 SIGNER = "1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4"
 
+# App adapters, pinned Iroh/Ghostty/Cloud/video engines and packaged dependencies.
+# Check identities as well as alignment: a same-size substitution must not pass.
+EXPECTED_NATIVE_LIBRARIES = frozenset("lib/arm64-v8a/" + name for name in (
+    "libandroidx.graphics.path.so", "libclearkey.so", "libcmux_cloud_jni.so",
+    "libcmux_terminal_client.so", "libcmux_video.so", "libcmux_ghostty.so",
+    "libcrashhelper.so", "libcrashtools.so", "libdatastore_shared_counter.so",
+    "libfreebl3.so", "libgkcodecs.so", "libiroh_ffi.so", "libjnidispatch.so",
+    "liblgpllibs.so", "libmozavcodec.so", "libmozavutil.so", "libmozglue.so",
+    "libnss3.so", "libplugin-container.so", "libsoftokn3.so", "libwg-go.so", "libxul.so",
+))
+
+
+def verify_native_inventory(archive):
+    entries = [name for name in archive.namelist() if name.endswith(".so")]
+    actual = set(entries)
+    if len(actual) != len(entries) or actual != EXPECTED_NATIVE_LIBRARIES:
+        raise ValueError("Native library inventory mismatch: missing=" +
+                         repr(sorted(EXPECTED_NATIVE_LIBRARIES - actual)) + " unexpected=" +
+                         repr(sorted(actual - EXPECTED_NATIVE_LIBRARIES)) +
+                         (" duplicate ZIP entries" if len(actual) != len(entries) else ""))
+    return len(actual)
+
 
 def verify_debug_fixture_exclusion(source, apk_manifest):
     application = ET.fromstring(source).find("application")
@@ -47,7 +69,9 @@ def verify_packaged_viewer_assets(assets_root, archive):
     checked = 0
     for directory in ("raw-code", "markdown-viewer", "docx-viewer", "workbook-viewer", "presentation-viewer"):
         files = json.loads((assets_root / directory / "manifest.json").read_text(encoding="utf-8"))["files"]
-        entries = files.items() if isinstance(files, dict) else ((x["asset"], x["sha256"]) for x in files)
+        entries = list(files.items() if isinstance(files, dict) else ((x["asset"], x["sha256"]) for x in files))
+        if not entries or len({name for name, _ in entries}) != len(entries):
+            raise ValueError(f"Empty or duplicated viewer asset inventory: {directory}")
         for name, expected in entries:
             if hashlib.sha256(archive.read(f"assets/{directory}/{name}")).hexdigest() != expected:
                 raise ValueError(f"Packaged viewer asset mismatch: {directory}/{name}")
@@ -90,8 +114,10 @@ def main():
         "verify", "--verbose", "--print-certs", apk])
     digests = re.findall(r"^Signer #\d+ certificate SHA-256 digest: (\w+)$", signature, re.M)
     require(digests == [SIGNER], "Stable APK signing certificate changed")
+    with zipfile.ZipFile(apk) as archive:
+        native_count = verify_native_inventory(archive)
     native = command("native-alignment.txt", [sys.executable, root / "scripts/verify-native-alignment.py", apk])
-    require(native.count(": PASS (") == 19, "Expected nineteen verified native libraries")
+    require(native.count(": PASS (") == native_count, "Native alignment verification coverage is incomplete")
     command("notice-engine.txt", [sys.executable, root / "scripts/verify-notice-engine.py", apk])
     command("zipalign.txt", [sdk / ("zipalign" + suffix), "-c", "-P", "16", "-v", "4", apk])
     badging = command("badging.txt", [sdk / ("aapt" + suffix), "dump", "badging", apk])
@@ -105,10 +131,9 @@ def main():
     fixtures = verify_debug_fixture_exclusion((root / "app/src/debug/AndroidManifest.xml").read_text(), manifest)
     with zipfile.ZipFile(apk) as archive:
         checked = verify_packaged_viewer_assets(root / "app/src/main/assets", archive)
-    require(checked == 17, "Expected seventeen pinned viewer assets")
     receipt = {"version": args.version, "sha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
         "bytes": apk.stat().st_size, "signer": SIGNER, "viewer_assets": checked,
-        "native_libraries": 19, "debug_fixture_components_excluded": len(fixtures)}
+        "native_libraries": native_count, "debug_fixture_components_excluded": len(fixtures)}
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(receipt, indent=2))
 

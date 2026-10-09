@@ -17,6 +17,33 @@ def manifest(body):
 
 
 class SignedApkFixtureTest(unittest.TestCase):
+    def test_native_inventory_checks_identity_abi_missing_and_duplicates(self):
+        class Archive:
+            def __init__(self, names):
+                self.names = names
+            def namelist(self):
+                return self.names
+        expected = sorted(signed_apk.EXPECTED_NATIVE_LIBRARIES)
+        self.assertEqual(22, signed_apk.verify_native_inventory(Archive(expected + ["classes.dex"])))
+        for missing in expected:
+            with self.subTest(missing=missing), self.assertRaisesRegex(ValueError, "inventory mismatch"):
+                signed_apk.verify_native_inventory(Archive([name for name in expected if name != missing]))
+        for names in (expected[1:] + ["lib/arm64-v8a/libunexpected.so"],
+                      [name.replace("arm64-v8a", "x86_64") for name in expected],
+                      expected + [expected[0]], expected + ["assets/unexpected.so"]):
+            with self.subTest(names=names), self.assertRaisesRegex(ValueError, "inventory mismatch"):
+                signed_apk.verify_native_inventory(Archive(names))
+
+    def test_empty_or_duplicate_pinned_asset_inventory_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "raw-code").mkdir()
+            path = root / "raw-code" / "manifest.json"
+            for files in ({}, [{"asset": "same.js", "sha256": "hash"}] * 2):
+                path.write_text(json.dumps({"files": files}))
+                with self.assertRaisesRegex(ValueError, "Empty or duplicated"):
+                    signed_apk.verify_packaged_viewer_assets(root, None)
+
     def test_expanding_inventory_checks_every_activity_without_a_fixed_count(self):
         source = manifest(''.join(f'<activity android:name=".Fixture{i}" />' for i in range(9)))
         names = signed_apk.verify_debug_fixture_exclusion(source, 'io.github.docmorphic.cmuxapp.MainActivity')
