@@ -28,6 +28,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Signed milestone [635](https://github.com/DocMorphic/cmux-app/actions/runs/37922453797)
+  at `5888cd68` **passed**: Cloud native checkpoint, unit/APK build, signed-package
+  verification and six release class-loading checks on Android 17 ART. The
+  downloaded stable APK also passed local verification: stable signer, 22 native
+  libraries with 16 KiB alignment, 18 pinned viewer assets and exclusion of all
+  14 debug fixture components. SHA-256:
+  `a134a4d1232f774efe4f2268859af31cb83e425a5c75c288ec519904fc23e742`.
+  Evidence: `captures/milestone-635/`. This supersedes 616 as the last verified
+  downloadable signed Actions artifact; it is not a GitHub release or physical
+  Pixel upgrade/acceptance result. The preceding 633/634 failures below are resolved.
+
 - Interactive keyboard dragging now works in the question answer sheet, following
   the iOS source. Three existing Android regressions passed; the new held-drag,
   hide/reopen and draft-retention case passed after correcting its animation
@@ -38,8 +49,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   stale native inventory in the notice-engine verifier. Both verifiers now share
   the reviewed app-module manifest plus the pinned GeckoView library list.
   **Seven verifier tests and the actual local APK's engine/notices/extension
-  check passed.** The corrected full signed CI run must still complete; signed
-  build 616 remains the last verified downloadable artifact.
+  check passed.** The corrected full signed CI run 635 subsequently passed,
+  including release ART checks; see the delivery record above.
 
 - Signed milestone run 633 at `7a5ff354` built the APKs and passed its unit-test
   stage, then failed a stale packaging assertion expecting 19 native libraries.
