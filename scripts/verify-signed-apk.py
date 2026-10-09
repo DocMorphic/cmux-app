@@ -20,14 +20,10 @@ SIGNER = "1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4"
 
 # App adapters, pinned Iroh/Ghostty/Cloud/video engines and packaged dependencies.
 # Check identities as well as alignment: a same-size substitution must not pass.
-EXPECTED_NATIVE_LIBRARIES = frozenset("lib/arm64-v8a/" + name for name in (
-    "libandroidx.graphics.path.so", "libclearkey.so", "libcmux_cloud_jni.so",
-    "libcmux_terminal_client.so", "libcmux_video.so", "libcmux_ghostty.so",
-    "libcrashhelper.so", "libcrashtools.so", "libdatastore_shared_counter.so",
-    "libfreebl3.so", "libgkcodecs.so", "libiroh_ffi.so", "libjnidispatch.so",
-    "liblgpllibs.so", "libmozavcodec.so", "libmozavutil.so", "libmozglue.so",
-    "libnss3.so", "libplugin-container.so", "libsoftokn3.so", "libwg-go.so", "libxul.so",
-))
+THIRD_PARTY = Path(__file__).resolve().parents[1] / "third_party"
+EXPECTED_NATIVE_LIBRARIES = frozenset("lib/arm64-v8a/" + name for name in
+    json.loads((THIRD_PARTY / "android-native-modules.json").read_text()) +
+    json.loads((THIRD_PARTY / "geckoview/manifest.json").read_text())["arm64_libraries"])
 
 
 def verify_native_inventory(archive):

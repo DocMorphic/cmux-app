@@ -1,0 +1,11 @@
+[
+  "libandroidx.graphics.path.so",
+  "libcmux_cloud_jni.so",
+  "libcmux_ghostty.so",
+  "libcmux_terminal_client.so",
+  "libcmux_video.so",
+  "libdatastore_shared_counter.so",
+  "libiroh_ffi.so",
+  "libjnidispatch.so",
+  "libwg-go.so"
+]

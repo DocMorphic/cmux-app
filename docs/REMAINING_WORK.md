@@ -28,6 +28,19 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Interactive keyboard dragging now works in the question answer sheet, following
+  the iOS source. Three existing Android regressions passed; the new held-drag,
+  hide/reopen and draft-retention case passed after correcting its animation
+  measurement. Screenshots inspected; emulator/Gradle stopped. See `AGENT_FEED.md`.
+  Physical Pixel/Mac verification remains open.
+
+- Run 634 passed signing and all native alignment checks, then exposed a second
+  stale native inventory in the notice-engine verifier. Both verifiers now share
+  the reviewed app-module manifest plus the pinned GeckoView library list.
+  **Seven verifier tests and the actual local APK's engine/notices/extension
+  check passed.** The corrected full signed CI run must still complete; signed
+  build 616 remains the last verified downloadable artifact.
+
 - Signed milestone run 633 at `7a5ff354` built the APKs and passed its unit-test
   stage, then failed a stale packaging assertion expecting 19 native libraries.
   The verifier now checks the exact 22-library arm64 inventory (including Cloud
@@ -39,8 +52,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   corrected CI milestone must complete, including release ART checks.
   Follow-up: Ghostty's verified output is now cached immediately after its native
   build, so a later APK verification failure does not discard that reusable work.
-  Run 634 started before this cache-policy follow-up and remains the active
-  corrected packaging milestone at `8de0d9c2`.
+  Run 634 started before this cache-policy follow-up at `8de0d9c2`; its later
+  notice-inventory failure and correction are recorded above.
 
 - Feed snapshot decoding now runs off the UI thread with cooperative cancellation,
   current-owner/revision admission and live local decision overlays. **82 focused

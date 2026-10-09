@@ -19,8 +19,7 @@ def require(condition: bool, message: str) -> None:
 def verify(apk: Path) -> None:
     with zipfile.ZipFile(apk) as package:
         names = package.namelist()
-        existing = {"libandroidx.graphics.path.so", "libcmux_ghostty.so", "libcmux_video.so",
-                    "libdatastore_shared_counter.so", "libiroh_ffi.so", "libjnidispatch.so"}
+        existing = set(json.loads((ROOT / "third_party/android-native-modules.json").read_text()))
         expected = {f"lib/arm64-v8a/{name}" for name in existing | set(PIN["arm64_libraries"])}
         actual = {name for name in names if name.startswith("lib/") and name.endswith(".so")}
         require(actual == expected, "Packaged ABI/library set differs from the reviewed engine and existing native modules")
