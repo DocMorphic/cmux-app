@@ -97,6 +97,68 @@ class WorkspaceActivityRestorationTest {
         compose.waitUntil(15_000) { calls("mobile.terminal.replay").any { it.getJSONObject("params").optString("surface_id") == "new-terminal" } }
         compose.onNodeWithText("New shell ▾").assertExists()
     }
+    @Test fun inFlightTerminalCreationSurvivesActivityRecreationWithoutResending() {
+        val gate = java.util.concurrent.CountDownLatch(1)
+        peer.terminalCreationResponse = {
+            check(gate.await(25, java.util.concurrent.TimeUnit.SECONDS))
+            listing(terminals = """[{"id":"new-terminal","title":"Created shell","is_ready":true}]""")
+            JSONObject(peer.customWorkspaceListing.toString()).put("created_terminal_id", "new-terminal")
+        }
+        try {
+            listing(terminals = "[]"); launch(); waitFor("Waiting for workspace panes…")
+            compose.onNodeWithText("New terminal").performClick()
+            compose.waitUntil(5_000) { calls("terminal.create").size == 1 }
+            val retained = session().workspaceCreation
+            scenario!!.recreate(); waitFor("Waiting for workspace panes…")
+            assertSame(retained, session().workspaceCreation)
+            assertTrue(retained.state.value is NativeCreationState.Running)
+            gate.countDown(); waitFor("Created shell ▾")
+            compose.waitUntil(10_000) { calls("mobile.terminal.replay").any { it.getJSONObject("params").optString("surface_id") == "new-terminal" } }
+            assertEquals(1, calls("terminal.create").size)
+        } finally { gate.countDown() }
+    }
+    @Test fun inFlightWorkspaceCreationSurvivesActivityRecreationWithoutResending() {
+        val gate = java.util.concurrent.CountDownLatch(1)
+        peer.workspaceCreationResponse = {
+            check(gate.await(25, java.util.concurrent.TimeUnit.SECONDS))
+            val created = JSONObject("""{"id":"new-workspace","title":"Created workspace","terminals":[{"id":"new-terminal","title":"Created shell"}]}""")
+            val updated = JSONObject(peer.customWorkspaceListing.toString())
+            updated.getJSONArray("workspaces").put(created); peer.customWorkspaceListing = updated
+            JSONObject().put("created_workspace_id", "new-workspace").put("created_terminal_id", "new-terminal")
+                .put("workspaces", JSONArray().put(created))
+        }
+        try {
+            launch(open = false)
+            compose.waitUntil(10_000) { compose.onAllNodes(hasContentDescription("New Workspace") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("New Workspace").performClick()
+            compose.waitUntil(5_000) { calls("workspace.create").size == 1 }
+            val retained = session().workspaceCreation
+            scenario!!.recreate(); waitFor("Retained workspace")
+            assertSame(retained, session().workspaceCreation)
+            gate.countDown(); waitFor("Created shell ▾")
+            assertEquals(1, calls("workspace.create").size)
+            compose.onNodeWithContentDescription("Back to workspaces").performClick(); waitFor("Created workspace")
+        } finally { gate.countDown() }
+    }
+    @Test fun leavingWorkspaceDuringCreationKeepsLateResultInSidebar() {
+        val gate = java.util.concurrent.CountDownLatch(1)
+        peer.terminalCreationResponse = {
+            check(gate.await(25, java.util.concurrent.TimeUnit.SECONDS))
+            listing(terminals = """[{"id":"new-terminal","title":"Created shell"}]""")
+            JSONObject(peer.customWorkspaceListing.toString()).put("created_terminal_id", "new-terminal")
+        }
+        try {
+            listing(terminals = "[]"); launch(); waitFor("Waiting for workspace panes…")
+            compose.onNodeWithText("New terminal").performClick()
+            compose.waitUntil(5_000) { calls("terminal.create").size == 1 }
+            compose.onNodeWithContentDescription("Back to workspaces").performClick(); waitFor("Retained workspace")
+            gate.countDown()
+            compose.waitUntil(10_000) { session().workspaceCreation.state.value !is NativeCreationState.Running }
+            compose.waitForIdle(); compose.onNodeWithText("Created shell ▾").assertDoesNotExist()
+            compose.onNodeWithText("Retained workspace").performClick(); waitFor("Created shell ▾")
+            assertEquals(1, calls("terminal.create").size)
+        } finally { gate.countDown() }
+    }
     @Test fun pendingRememberedBrowserSurvivesRecreationWithItsInterimTerminal() {
         val available = AtomicBoolean(false)
         val descriptor = JSONObject().put("panel_id", "remembered-browser").put("workspace_id", "workspace-1")

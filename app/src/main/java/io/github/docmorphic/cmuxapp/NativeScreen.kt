@@ -364,6 +364,19 @@ internal fun NativeScreen(
         val localBrowserState by localBrowsers.state.collectAsState()
         val localBrowser = localBrowserState.local
         val browserLogin = if (signedIn) store.taskSession() else null
+        var selectedComputerOrigin by rememberSaveable(signedIn) {
+            mutableStateOf(store.load()?.optString("computer_selection").orEmpty())
+        }
+        val nativeCreation = feedSession.workspaceCreation
+        val nativeCreationState by nativeCreation.state.collectAsState()
+        // Long-lived inventory callbacks must read the current flag, not their launch composition's value.
+        val creatingTerminal by remember(nativeCreation) { derivedStateOf {
+            nativeCreationState is NativeCreationState.Running && nativeCreationState.request?.workspaceId != null
+        } }
+        val creatingWorkspace by remember(nativeCreation) { derivedStateOf {
+            nativeCreationState is NativeCreationState.Running && nativeCreationState.request?.workspaceId == null
+        } }
+        val creationNavigation = rememberSaveable(saver = NativeCreationNavigation.saver) { NativeCreationNavigation() }
         var showComputerOrder by rememberSaveable(browserLogin, teamState.scope) { mutableStateOf(false) }
         var workspaceFilter by rememberSaveable(browserLogin, teamState.scope, stateSaver = NativeWorkspaceFilter.saver) {
             mutableStateOf(NativeWorkspaceFilter())
@@ -479,34 +492,14 @@ internal fun NativeScreen(
                     inAppNotification = null; workspaceRoute = NativeWorkspaceRoute(source.mac.origin, workspace.id, browserId = panel)
                 })
         }
-        fun createTerminal(source: NativeFeedSource, workspace: NativeWorkspace) {
-            if (creatingTerminal || creatingWorkspace) return
-            val entryNavigation = navigationGeneration.observe(browserNavigationContext())
-            val entryLogin = browserLogin
-            val entryOwner = teamState.scope
-            fun stillCurrent() = signedIn && store.taskSession() == entryLogin && teamState.scope == entryOwner &&
-                navigationGeneration.matches(entryNavigation, browserNavigationContext()) &&
-                store.visiblePairedMacs().contains(source.mac) && connection.allowsSaved(source.mac)
-            creatingTerminal = true
+        fun beginNativeCreation(mac: NativeCredentialStore.PairedMac, workspaceId: String? = null, groupId: String? = null) {
+            val login = browserLogin ?: return
+            val id = nativeCreation.begin(login, mac, workspaceId, groupId, teamState.scope) ?: return
+            creationNavigation.begin(id, login, browserNavigationContext() + selectedComputerOrigin)
             workspaceTabs.cancel()
-            scope.launch {
-                try {
-                    if (!stillCurrent()) return@launch
-                    val response = feedCoordinator.workspaceAction(source.mac, workspace.id, "terminal.create")
-                    if (!stillCurrent()) return@launch
-                    val id = response.opt("created_terminal_id") as? String
-                    check(!id.isNullOrBlank()) { "Mac did not return the created terminal." }
-                    val returned = parseAuthoritativeWorkspaces(response).singleOrNull { it.id == workspace.id }
-                    val created = returned?.let { workspaceSnapshots.createdWorkspace(source.mac, it) }
-                    check(created?.terminals?.any { it.id == id } == true) { "Mac did not return the created terminal workspace." }
-                    inAppNotification = null; error = null
-                    workspaceRoute = NativeWorkspaceRoute(source.mac.origin, workspace.id, terminalId = id,
-                        createdWorkspace = created, createdAtMillis = android.os.SystemClock.elapsedRealtime())
-                } catch (failure: Exception) {
-                    if (failure is CancellationException) throw failure
-                    if (stillCurrent()) error = failure.message
-                } finally { creatingTerminal = false }
-            }
+        }
+        fun createTerminal(source: NativeFeedSource, workspace: NativeWorkspace) {
+            beginNativeCreation(source.mac, workspaceId = workspace.id)
         }
         val feedSources by feedCoordinator.sources.collectAsState()
         var customizationTarget by rememberSaveable(stateSaver = workspaceCustomizationTargetSaver) {
@@ -537,9 +530,6 @@ internal fun NativeScreen(
         val workspaceMoves = feedSession.workspaceMoves
         val moveSources by workspaceMoves.sources.collectAsState()
         val moveStatus by workspaceMoves.status.collectAsState()
-        var selectedComputerOrigin by rememberSaveable(signedIn) {
-            mutableStateOf(store.load()?.optString("computer_selection").orEmpty())
-        }
         val selectedComputer = pairedMacs.firstOrNull { it.ownsOrigin(selectedComputerOrigin) }
         val selectedOrigin = selectedComputer?.origin
         val selectedSshComputer = sshTargets.singleOrNull { "ssh:${it.host.id}" == selectedComputerOrigin }
@@ -556,6 +546,21 @@ internal fun NativeScreen(
             sshNavigation.reconcile(browserLogin, sshCreationState, browserNavigationContext() + selectedComputerOrigin,
                 hostCurrent = { host -> sshSession?.isOpen == true && sshSession.hosts.state.value.host(host.id)?.connectsLike(host) == true },
                 completed = { sshSession?.workspaceCreation?.clearCompleted(it) })?.let { error = it }
+        }
+
+        SideEffect {
+            // Wait for restored pane/account admission before binding the saved waiter to this Activity.
+            if (screenResume.pending == null && (connector != null || teamState.scope != null || !signedIn)) {
+                creationNavigation.reconcile(browserLogin, nativeCreationState,
+                    browserNavigationContext() + selectedComputerOrigin,
+                    admitted = { request -> request.team == teamState.scope && feedSession.allowsCreation(request) },
+                    completed = nativeCreation::clearCompleted) { request, destination ->
+                    inAppNotification = null; error = null
+                    workspaceRoute = NativeWorkspaceRoute(request.mac.origin, destination.workspace.id,
+                        terminalId = destination.terminalId, createdWorkspace = destination.workspace,
+                        createdAtMillis = android.os.SystemClock.elapsedRealtime())
+                }?.let { error = it }
+            }
         }
 
         var pendingPickerCode by remember(signedIn) { mutableStateOf<String?>(null) }
@@ -1450,39 +1455,10 @@ internal fun NativeScreen(
 
             fun createWorkspace() {
                 if (creatingWorkspace || creatingTerminal || !canCreateInCurrentPane) return
-                val active = client ?: return
-                val entryNavigation = navigationGeneration.observe(browserNavigationContext())
-                val entryLogin = browserLogin
                 val mac = pairedMacs.singleOrNull { it.code == code } ?: return
-                fun stillCurrent() = signedIn && client === active && store.taskSession() == entryLogin &&
-                    navigationGeneration.matches(entryNavigation, browserNavigationContext()) &&
-                    store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
                 rawKeyboardView?.finishComposition(); directTyping = false
                 stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide()
-                creatingWorkspace = true
-                scope.launch {
-                    try {
-                        if (!stillCurrent()) return@launch
-                        requireWorkspaceConnection(active, mac)
-                        val response = workspaceSnapshots.mutate(mac) { active.request("workspace.create") }
-                        if (!stillCurrent()) return@launch
-                        val returned = createdPlainWorkspace(response)
-                        refreshFeed(); error = null
-                        if (returned == null) return@launch
-                        val created = workspaceSnapshots.createdWorkspace(mac, returned)
-                        notificationTab = false
-                        selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
-                        selectedTerminal = created.terminals.firstOrNull { it.id == response.optString("created_terminal_id") }
-                            ?: created.preferredTerminal
-                        selectedTerminal?.let { terminal ->
-                            workspaceTabKey(entryLogin, teamState.scope, mac, created.id)?.let { key ->
-                                workspaceTabs.cancel(); terminalStartup.begin(key, terminal)
-                            }
-                        }
-                    } catch (failure: Exception) {
-                        recordWorkspaceActionFailure(failure)
-                    } finally { creatingWorkspace = false }
-                }
+                beginNativeCreation(mac)
             }
 
             fun canCreateSsh(target: NativeSshCreateTarget, kind: SshWorkspaceKind): Boolean =
@@ -1530,36 +1506,7 @@ internal fun NativeScreen(
             }
 
             fun createWorkspaceOnMac(mac: NativeCredentialStore.PairedMac, groupId: String? = null) {
-                if (creatingWorkspace || creatingTerminal) return
-                val entryNavigation = navigationGeneration.observe(browserNavigationContext())
-                val entryLogin = browserLogin
-                val entryOwner = teamState.scope
-                val entryComputerSelection = selectedComputerOrigin
-                fun stillCurrent() = signedIn && store.taskSession() == entryLogin && accountTeams.state.value.scope == entryOwner &&
-                    selectedComputerOrigin == entryComputerSelection &&
-                    navigationGeneration.matches(entryNavigation, browserNavigationContext()) &&
-                    store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
-                creatingWorkspace = true
-                workspaceTabs.cancel()
-                scope.launch {
-                    try {
-                        if (!stillCurrent()) return@launch
-                        val response = if (groupId == null) feedCoordinator.createWorkspace(mac, ::stillCurrent)
-                            else feedCoordinator.createWorkspaceInGroup(mac, groupId, ::stillCurrent)
-                        if (!stillCurrent()) return@launch
-                        error = null
-                        val returned = createdPlainWorkspace(response) ?: return@launch
-                        val created = workspaceSnapshots.createdWorkspace(mac, returned)
-                        val terminal = created.terminals.singleOrNull { it.id == response.optString("created_terminal_id") }
-                            ?: created.preferredTerminal
-                        inAppNotification = null; error = null
-                        workspaceRoute = NativeWorkspaceRoute(mac.origin, created.id, terminalId = terminal?.id,
-                            createdWorkspace = created, createdAtMillis = android.os.SystemClock.elapsedRealtime())
-                    } catch (failure: Exception) {
-                        if (failure is CancellationException) throw failure
-                        if (stillCurrent()) recordWorkspaceActionFailure(failure)
-                    } finally { creatingWorkspace = false }
-                }
+                beginNativeCreation(mac, groupId = groupId)
             }
 
             fun createTerminalInPane() {
@@ -1833,7 +1780,8 @@ internal fun NativeScreen(
                             screenResume.complete(); workspaceRoute = null; return@LaunchedEffect
                         }
                         val pane = choice.pane
-                        check(route.creation != null || route.changes || pane != null || workspaceTabs.pending.value != null) { "This workspace pane is no longer available." }
+                        check(route.creation != null || route.changes || pane != null || workspaceTabs.pending.value != null ||
+                            (route.createdWorkspace != null && !explicitPane)) { "This workspace pane is no longer available." }
                         withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
                             if (isCurrent()) {
                                 if (listing != null) applyListing(listing) else applyCreatedWorkspace(mac, TaskCreationResult(workspace, listOf(workspace))); finishSearch(); notificationTab = false

@@ -649,3 +649,60 @@ Verification:
 - Test APK SHA-256: `8ac6a73573ca931d782d4f842285863bdc7d407a838fb38b841a37dc1bf1cfc4`.
 
 The Pixel installation and signed build 284 are unchanged.
+
+## Ordinary creation ownership (2026-10-08)
+
+Source comparison: `MobileShellComposite+WorkspaceCreateRequest.swift` at upstream
+`b9c0111a67bf8daadc2e87bff402254bfd9a26fd`. iOS owns the creation task in its
+session model, pins the destination client, and does not retry ordinary creates
+without an operation ID. Its task-composer operation IDs remain a separate path.
+
+Android ordinary workspace creation (foreground, sidebar and group) and terminal
+creation now share `NativeWorkspaceCreationCoordinator` in `NativeFeedSession`.
+A feed lease keeps the exact admitted Mac connection active while the request and
+its authoritative list refresh finish. Activity recreation does not cancel this
+work, reset its busy state, or submit it again. Account/session removal still
+cancels its worker; a revoked or replaced Mac cannot publish a destination.
+
+`NativeCreationNavigation` saves a bounded waiter ID and login only. The recreated
+screen waits for account/pane restoration, then consumes the retained result once.
+Navigation away abandons automatic opening while the already submitted operation
+finishes. Returning later does not revive the abandoned navigation. Response IDs
+must identify the returned workspace and terminal; a legacy list without a created
+workspace ID updates the feed without guessing which row was created. A created
+workspace without panes opens its waiting screen.
+
+After process death the retained worker is gone. Restoring its waiter reports that
+creation may already have completed and directs the user to check the Mac's list;
+it sends no new mutation. This is recovery from an uncertain result, not proof of
+exactly-once execution or automatic reconciliation of an unacknowledged create.
+Actual Mac/Pixel lifecycle and interrupted network acceptance remain open.
+
+Verification on 2026-10-09:
+
+- 12 focused JVM tests passed: saved waiter restoration, one send across recreation,
+  process-loss uncertainty without replay, abandoned/changed-account navigation,
+  admission removal, exact terminal/workspace IDs, grouped/legacy responses,
+  transport cancellation, session cleanup and bounded saved-state content.
+  Both debug APKs built from the final source.
+- The initial runtime batch passed six of seven checks. The existing terminal
+  startup test caught a stale captured Boolean in long-lived inventory callbacks:
+  a ready sibling could briefly attach before the new terminal's startup pin.
+  The creation flags now use live Compose delegates. The original assertion that
+  no terminal replay occurs while the created terminal is starting is unchanged.
+- Two emulator boots reported System UI ANRs before app testing. The first was
+  stopped before installation completed; the second recovered after choosing
+  Wait, and no additional ANR/crash event occurred during the first test batch.
+  The final boot used `-no-boot-anim` and completed in 18.460 seconds without a
+  preflight ANR. This is setup evidence, not an app performance measurement.
+- Final Android run: **all seven tests passed in 82.459 seconds** on the existing
+  Android 17 / 16 KiB emulator. They cover pending terminal/workspace creation
+  across actual Activity recreation, leaving before a response, retained startup
+  deadline/no premature replay, an empty created workspace receiving its first
+  pane, and terminal/workspace creation from the local browser picker. Final
+  crash/ANR event output was empty. Emulator and Gradle were stopped afterward.
+- Ignored evidence: `captures/runtime/native-creation/` contains both runtime
+  results, final build/JVM XML, preflight failures and final APK/source hashes.
+  The Pixel was absent. Physical Mac/Pixel acceptance and actual process-death
+  verification remain open; the saved-waiter process-loss check here is JVM only.
+  Published signed APK 616 is unchanged.

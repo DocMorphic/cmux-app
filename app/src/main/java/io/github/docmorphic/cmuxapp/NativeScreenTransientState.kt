@@ -43,8 +43,6 @@ internal class NativeScreenTransientState(
     var workspaceRoute by mutableStateOf<NativeWorkspaceRoute?>(null)
     var inAppNotification by mutableStateOf<NotificationDestination?>(null)
     var notificationNow by mutableLongStateOf(System.currentTimeMillis())
-    var creatingTerminal by mutableStateOf(false)
-    var creatingWorkspace by mutableStateOf(false)
     var computerDetails by mutableStateOf<NativeComputerDetailsPresentation?>(null)
     var notificationFilterMenu by mutableStateOf(false)
     var confirmReadAll by mutableStateOf(false)

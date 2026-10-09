@@ -1,6 +1,6 @@
 # Remaining work for iOS parity
 
-Updated 2026-10-08. **The goal is active and full parity is unverified.** This is
+Updated 2026-10-09. **The goal is active and full parity is unverified.** This is
 the current completion checklist; dated entries in [PARITY.md](PARITY.md) preserve
 the detailed evidence and history. A passing fixture or signed APK does not close
 a physical workflow gate. These are work areas, not equal-sized progress units.
@@ -27,6 +27,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- Ordinary native workspace/group-destination and terminal creation now survive
+  Activity recreation through a retained session and a saved waiter, without
+  replaying a mutation. Leaving the destination rejects late automatic navigation;
+  process loss reports an uncertain result. **12 JVM and seven Android checks
+  passed** after fixing a stale busy-flag callback caught by the startup regression.
+  See `WORKSPACE_SELECTION.md` for scope, initial emulator ANRs and evidence.
+  Final run had no crash/ANR events; emulator/Gradle stopped. Physical and actual
+  process-death acceptance remain open; signed APK 616 is unchanged.
 
 - Native terminal View as Text now copies logical lines through Ghostty, preserving
   wrapped commands without inserting visual-row newlines. Capture/capping/text

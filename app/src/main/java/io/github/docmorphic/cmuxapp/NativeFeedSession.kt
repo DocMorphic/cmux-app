@@ -52,6 +52,16 @@ internal class NativeFeedSession(
     }
 
     val workspaceMoves = NativeWorkspaceMoves(scope, coordinator)
+    fun allowsCreation(request: NativeCreationRequest): Boolean = !viewModelCleared && account.isSignedIn() &&
+        store.taskSession() == request.login && store.visiblePairedMacs().contains(request.mac) && connector.allowsSaved(request.mac)
+    val workspaceCreation = NativeWorkspaceCreationCoordinator(scope, ::allowsCreation, ::holdBrowser, create = { request ->
+        val canSend = { allowsCreation(request) }
+        when {
+            request.workspaceId != null -> coordinator.workspaceAction(request.mac, request.workspaceId, "terminal.create", canSend = canSend)
+            request.groupId != null -> coordinator.createWorkspaceInGroup(request.mac, request.groupId, canSend)
+            else -> coordinator.createWorkspace(request.mac, canSend)
+        }
+    }, latest = workspaceSnapshots::createdWorkspace)
     val taskModels = TaskModelRepository()
     val localBrowsers = LocalBrowserNavigation(scope)
     val browserNetworks = NativeBrowserNetworks(scope, coordinator::browserAccess) { mac, login ->
@@ -166,7 +176,7 @@ internal class NativeFeedSession(
     }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
     override fun onCleared() { ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
