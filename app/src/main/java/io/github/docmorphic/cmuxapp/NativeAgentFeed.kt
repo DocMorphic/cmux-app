@@ -46,11 +46,14 @@ internal data class NativeAgentFeedSnapshot(val revision: Long, val items: List<
 
 /** RPC decoding is row-tolerant, but never invents identity or timestamps for a malformed row. */
 internal object NativeAgentFeedWire {
-    fun decode(value: JSONObject): NativeAgentFeedSnapshot {
+    fun decode(value: JSONObject, checkCancelled: () -> Unit = {}): NativeAgentFeedSnapshot {
+        checkCancelled()
         val revision = value.opt("revision") as? Number ?: error("Feed revision missing")
         require(revision.toDouble().isFinite() && revision.toDouble() >= 0 && revision.toDouble() == revision.toLong().toDouble())
         val rows = value.optJSONArray("items") ?: error("Feed items missing")
         return NativeAgentFeedSnapshot(revision.toLong(), (0 until minOf(rows.length(), 400)).mapNotNull { i ->
+            // Keep cancellation outside malformed-row recovery: it must abort the snapshot.
+            checkCancelled()
             runCatching { item(rows.getJSONObject(i)) }.getOrNull()
         }.distinctBy { it.id }.sortedWith(compareByDescending<NativeAgentFeedItem> { it.createdAt }.thenBy { it.id }))
     }

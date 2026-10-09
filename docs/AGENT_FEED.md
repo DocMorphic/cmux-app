@@ -799,3 +799,30 @@ OS process death and a signed release remain unverified by this batch. The iOS
 interactive drag-to-dismiss keyboard gesture still needs an Android comparison/port;
 this batch establishes resize/focus following, not that gesture.
 Signed build 616 is unchanged.
+
+## Background snapshot decoding (2026-10-09)
+
+Scoped source: `MobileShellComposite+AgentFeed.swift`'s
+`decodeAgentFeedSnapshot` at `f4b1509054949eaad5d695569ad443c4c18ed68d`.
+Android's retained Feed session previously ran timestamp parsing, byte-bounded
+field conversion, row validation and sorting on its owning UI dispatcher after
+the RPC. It now decodes on `Dispatchers.Default`, then returns to the owner for
+revision admission, local reply/decision overlays and publication. Cancellation
+is checked before, between rows and after decoding; row-tolerant malformed-data
+handling does not swallow cancellation. Current owner and revision checks remain
+after the worker returns. The existing row/field limits are unchanged.
+
+**82 focused JVM checks passed**: 18 wire/session (four new worker cases),
+54 coordinator, five projection and five timeline checks. The worker tests block
+the synchronous decoder while the owner handles an event or decision, verify the
+new revision/local acknowledgement wins, and reject a completed decoder result
+after session cancellation. A separate case verifies cancellation between rows
+aborts the entire snapshot. These are concurrency-correctness checks, not a
+measured Pixel scrolling-performance claim.
+
+Evidence: ignored `captures/agent-feed-decode-jvm.log` and
+`captures/runtime/agent-feed-decode/` (JUnit XML). No emulator, APK build, physical
+workflow or signed release was performed for this batch; the active signed
+milestone run 633 uses earlier `7a5ff354` sources. The iOS stop-reason cache,
+scroll instrumentation/analytics, remaining privacy changes and physical Feed
+performance still require comparison and acceptance; the global pin is unchanged.

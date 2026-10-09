@@ -19,7 +19,9 @@ internal class NativeAgentFeedSession(
     private val admitted: () -> Boolean,
     private val request: suspend (String, JSONObject) -> JSONObject,
     initial: NativeAgentFeedSnapshot? = null,
-    private val fatal: (Exception) -> Unit = {}
+    private val fatal: (Exception) -> Unit = {},
+    private val decodeDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val decode: (JSONObject, () -> Unit) -> NativeAgentFeedSnapshot = NativeAgentFeedWire::decode
 ) : AutoCloseable {
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
@@ -51,7 +53,12 @@ internal class NativeAgentFeedSession(
         checkOwner()
         mutableState.value = state.value.copy(loading = true)
         try {
-            val snapshot = NativeAgentFeedWire.decode(request("feed.list", JSONObject()))
+            val response = request("feed.list", JSONObject())
+            val snapshot = withContext(decodeDispatcher) {
+                val context = currentCoroutineContext()
+                context.ensureActive()
+                decode(response) { context.ensureActive() }.also { context.ensureActive() }
+            }
             currentCoroutineContext().ensureActive(); checkOwner()
             // Consult the live watermark after the RPC: an event can arrive during this read.
             if (!revision.accept(snapshot.revision)) return false

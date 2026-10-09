@@ -28,6 +28,12 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Feed snapshot decoding now runs off the UI thread with cooperative cancellation,
+  current-owner/revision admission and live local decision overlays. **82 focused
+  JVM checks passed**, including a busy worker with intervening decisions/events
+  and a cancelled worker that finishes late. See `AGENT_FEED.md`. No APK/emulator
+  run for this batch; physical scrolling performance remains unverified.
+
 - Task picker choices now persist separately for each paired Mac, including
   Stable/Nightly, and restore in fresh tasks and explicit Mac switches. A manually
   chosen folder no longer follows a different Mac; first-handshake input and

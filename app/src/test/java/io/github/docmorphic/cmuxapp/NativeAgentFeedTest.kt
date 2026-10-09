@@ -5,6 +5,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class NativeAgentFeedTest {
     private fun row(id: String = "event", kind: String = "permissionRequest") = JSONObject()
@@ -184,5 +186,80 @@ class NativeAgentFeedTest {
             assertTrue(runCatching { session.fullText(initial.items.single()) }.isFailure)
             assertEquals(1, requests)
         } finally { session.close() }
+    }
+
+    @Test fun decodingLeavesOwnerThreadFreeAndRejectsRevisionArrivingDuringWork() = runBlocking {
+        val ownerThread = Thread.currentThread()
+        val entered = CompletableDeferred<Thread>(); val release = CountDownLatch(1)
+        var reads = 0
+        val session = NativeAgentFeedSession(this, { true }, { _, _ ->
+            snapshot(if (++reads == 1) 1 else 3)
+        }, decode = { raw, checkpoint ->
+            if (raw.getLong("revision") == 1L) {
+                entered.complete(Thread.currentThread())
+                check(release.await(3, TimeUnit.SECONDS)) { "Owner thread could not resume during decoding" }
+            }
+            NativeAgentFeedWire.decode(raw, checkpoint)
+        })
+        try {
+            session.start()
+            assertNotEquals(ownerThread, withTimeout(3_000) { entered.await() })
+            // This event runs on the owning thread while synchronous decoding is blocked.
+            session.changed(JSONObject().put("revision", 3))
+            release.countDown()
+            awaitState { session.state.value.snapshot?.revision == 3L }
+            assertEquals(2, reads)
+        } finally { release.countDown(); session.close() }
+    }
+
+    @Test fun cancelledWorkerCannotPublishEvenIfSynchronousDecoderReturns() = runBlocking {
+        val initial = NativeAgentFeedWire.decode(snapshot(1))
+        val entered = CompletableDeferred<Unit>(); val returned = CompletableDeferred<Unit>()
+        val release = CountDownLatch(1)
+        val session = NativeAgentFeedSession(this, { true }, { _, _ -> snapshot(2) }, initial,
+            decode = { raw, _ ->
+                entered.complete(Unit)
+                check(release.await(3, TimeUnit.SECONDS))
+                NativeAgentFeedWire.decode(raw).also { returned.complete(Unit) }
+            })
+        try {
+            session.start(); withTimeout(3_000) { entered.await() }
+            session.close(); release.countDown()
+            withTimeout(3_000) { returned.await() }
+            awaitState { !session.state.value.loading }
+            assertEquals(initial, session.state.value.snapshot)
+            assertNull(session.state.value.error)
+        } finally { release.countDown(); session.close() }
+    }
+
+    @Test fun decisionAcknowledgedDuringDecodeSurvivesSnapshotApplication() = runBlocking {
+        val initial = NativeAgentFeedWire.decode(snapshot(1))
+        val entered = CompletableDeferred<Unit>(); val release = CountDownLatch(1)
+        val session = NativeAgentFeedSession(this, { true }, { method, _ ->
+            if (method == "feed.list") snapshot(2) else JSONObject()
+        }, initial, decode = { raw, checkpoint ->
+            entered.complete(Unit)
+            check(release.await(3, TimeUnit.SECONDS))
+            NativeAgentFeedWire.decode(raw, checkpoint)
+        })
+        try {
+            session.start(); withTimeout(3_000) { entered.await() }
+            assertTrue(session.decide(initial.items.single(), AgentFeedDecision("permission", "once")))
+            release.countDown()
+            awaitState { session.state.value.snapshot?.revision == 2L }
+            val item = session.state.value.snapshot!!.items.single()
+            assertEquals(AgentFeedStatus.RESOLVED, item.status)
+            assertEquals("once", item.decision?.mode)
+        } finally { release.countDown(); session.close() }
+    }
+
+    @Test fun cancellationBetweenRowsIsNotTreatedAsMalformedData() {
+        var checkpoints = 0
+        assertThrows(CancellationException::class.java) {
+            NativeAgentFeedWire.decode(snapshot(1, row("first"), row("second"))) {
+                if (++checkpoints == 3) throw CancellationException("retired snapshot")
+            }
+        }
+        assertEquals(3, checkpoints)
     }
 }
