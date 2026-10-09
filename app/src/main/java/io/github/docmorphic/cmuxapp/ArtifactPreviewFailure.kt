@@ -1,8 +1,11 @@
 package io.github.docmorphic.cmuxapp
 
 import java.io.EOFException
+import java.io.IOException
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import io.github.docmorphic.cmuxapp.iroh.IrxWire
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 
 /** Structured failure survives view recreation without retaining an exception or host payload. */
@@ -93,6 +96,22 @@ internal data class ArtifactPreviewFailure(val kind: Kind, val actualSize: Long?
 
     companion object {
         fun from(error: Throwable, authorization: ArtifactAuthorization? = null): ArtifactPreviewFailure {
+            // Native admission can wrap a typed cause in IOException. Inspect
+            // only that transparent wrapper, with identity/depth bounds; never
+            // infer authority or reachability from exception message text.
+            val seen = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<Throwable, Boolean>())
+            var current: Throwable? = error
+            repeat(16) {
+                val failure = current ?: return ArtifactPreviewFailure(Kind.LOAD_FAILED)
+                if (!seen.add(failure)) return ArtifactPreviewFailure(Kind.LOAD_FAILED)
+                known(failure, authorization)?.let { return it }
+                if (failure !is IOException) return ArtifactPreviewFailure(Kind.LOAD_FAILED)
+                current = failure.cause
+            }
+            return ArtifactPreviewFailure(Kind.LOAD_FAILED)
+        }
+
+        private fun known(error: Throwable, authorization: ArtifactAuthorization?): ArtifactPreviewFailure? {
             if (error is ArtifactPreviewException) return error.failure
             val kind = when (error) {
                 is MobileRpcException -> when (error.code?.trim()?.lowercase(java.util.Locale.ROOT)) {
@@ -122,21 +141,47 @@ internal data class ArtifactPreviewFailure(val kind: Kind, val actualSize: Long?
                     "method_not_found" -> Kind.UNSUPPORTED
                     "capability_disabled" -> Kind.UNSUPPORTED
                     "connection_recovering" -> Kind.CONNECTION_RECOVERING
+                    "connection_needs_restart" -> Kind.CONNECTION_NEEDS_RESTART
                     "authentication_expired" -> Kind.AUTHENTICATION_EXPIRED
                     "ticket_expired" -> Kind.AUTHENTICATION_EXPIRED
                     "unauthorized" -> Kind.AUTHORIZATION_FAILED
                     "authorization_failed" -> Kind.AUTHORIZATION_FAILED
                     "team_access_revoked" -> Kind.AUTHORIZATION_FAILED
+                    "device_revoked" -> Kind.AUTHORIZATION_FAILED
                     "account_mismatch" -> Kind.ACCOUNT_MISMATCH
                     "mac_unreachable" -> Kind.MAC_UNREACHABLE
                     "too_large" -> Kind.TOO_LARGE
                     else -> Kind.LOAD_FAILED
                 }
+                is IrxWire.AdmissionRejected -> when (error.code) {
+                    IrxWire.CloseCode.GRANT_EXPIRED -> Kind.AUTHENTICATION_EXPIRED
+                    IrxWire.CloseCode.INVALID_GRANT, IrxWire.CloseCode.REVOKED,
+                    IrxWire.CloseCode.IDENTITY_MISMATCH -> Kind.AUTHORIZATION_FAILED
+                    IrxWire.CloseCode.MALFORMED_HELLO, IrxWire.CloseCode.PROTOCOL_MISMATCH -> Kind.INVALID_RESPONSE
+                    IrxWire.CloseCode.ADMISSION_TIMEOUT, IrxWire.CloseCode.KEEPALIVE_TIMEOUT -> Kind.REQUEST_TIMED_OUT
+                    IrxWire.CloseCode.SUPERSEDED, IrxWire.CloseCode.USER_REQUESTED,
+                    IrxWire.CloseCode.HOST_SHUTDOWN, IrxWire.CloseCode.EXPLICIT_REDIAL -> Kind.MAC_UNREACHABLE
+                }
+                is IrohV2ServerFailure -> when (error.code) {
+                    "ticket_expired" -> Kind.AUTHENTICATION_EXPIRED
+                    "unauthorized", "device_revoked", "team_access_revoked" -> Kind.AUTHORIZATION_FAILED
+                    "account_mismatch" -> Kind.ACCOUNT_MISMATCH
+                    else -> Kind.LOAD_FAILED
+                }
+                is IrohV2HttpFailure -> when (error.status) {
+                    401 -> Kind.AUTHENTICATION_EXPIRED
+                    403 -> Kind.AUTHORIZATION_FAILED
+                    408, 504 -> Kind.REQUEST_TIMED_OUT
+                    429, in 500..599 -> Kind.UNAVAILABLE
+                    else -> Kind.LOAD_FAILED
+                }
+                is IrohV2Unavailable -> Kind.MAC_UNREACHABLE
                 is ArtifactLaneTransfer.BeforeData, is ArtifactLaneTransfer.Interrupted -> Kind.TRANSFER_INTERRUPTED
                 is SocketTimeoutException, is TimeoutCancellationException -> Kind.REQUEST_TIMED_OUT
+                is CancellationException -> Kind.LOAD_FAILED
                 is EOFException, is SocketException -> Kind.MAC_UNREACHABLE
                 is org.json.JSONException -> Kind.INVALID_RESPONSE
-                else -> Kind.LOAD_FAILED
+                else -> return null
             }
             return ArtifactPreviewFailure(kind)
         }

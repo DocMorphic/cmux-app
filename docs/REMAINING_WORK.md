@@ -20,6 +20,7 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including native errors outside RPC and broader real-route retry acceptance, directory/rename/read/export/decoder failure coverage, live panel-kind changes, and broader main Files/direct-tap/transport restoration, forced browser-parent recreation with binary content, rendered-Markdown reflow and real-route/process recovery, broader Save/provider recovery and remote-file freshness semantics, video acceptance and zoom across aspect-ratio changes. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
 | Background notifications | Configure and deploy the Android push path. FCM/HPKE, worker and reply code exists but production delivery is disabled/unconfigured. The proposed private Firebase plus Mac-forwarder setup still needs provisioning. | Real registered-device delivery with the app foregrounded, backgrounded and process-dead, plus Doze, token rotation, tap/reply routing and account revocation. Document infrastructure and any demonstrated platform differences. |
+| Analytics and privacy settings | Implement the iOS Privacy consent section with a reviewed Android event/server contract and live revocation; resolve crash/replay provider support and sensitive-content masking. Android currently has no equivalent uploader/recorder. | Source audit in ANALYTICS_PRIVACY.md; accepted Android event contract, consent/identity generation and cancellation tests, and configured runtime acceptance. The scoped iOS proxy only accepts its iOS catalog; backend support is unresolved. |
 | Account plan and billing | Verify native plan status and external management; establish Android purchase/restore support with products and server verification. | Source mapping in ACCOUNT_PLAN.md, live authenticated status/browser return, and verified Android purchase/restore-to-entitlement flow. Read-only plan status and pricing links do not establish native purchase parity. |
 | Cloud machines and terminals | Finish remaining Cloud source/UI comparison and real-account acceptance of the mounted machine controller, native terminal/WireGuard bridge and shared workspace integration. Verify system-VPN/private-port and lifecycle/recovery behavior. | Source-to-behavior mapping, fixture transport and UI evidence, then authorized real account/Pixel terminal and lifecycle workflows. See CLOUD_COMPANION.md; do not confuse Cloud machine access with Android background push. |
 | UI and accessibility | Finish screen-by-screen iOS comparison, keyboard insets, dynamic text, TalkBack, gestures/haptics and performance on Pixel. | Matched-state screenshots and interaction checks for all main screens and sheets; usable enlarged text and accessibility traversal; measured investigation of any remaining freezes/ANRs. |
@@ -27,6 +28,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- Native file previews now retain typed Irx/Iroh admission, control and HTTP
+  failure reasons, including expired or revoked access. Transparent native
+  wrappers are inspected with bounds; unknown errors remain generic. **28
+  focused JVM checks passed**, including the actual RPC client read-loop route,
+  retained selection and explicit retry through a verified replacement with no
+  retired-connection request. Main Kotlin compiled; Gradle stopped. See
+  `CONTENT_PREVIEW_LIFECYCLE.md`. No APK/emulator/physical run for this batch;
+  signed 635 predates it.
 
 - Reply composition now fills the sheet and supports interactive keyboard
   dragging while retaining quote/draft state. Native view release and disposed

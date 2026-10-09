@@ -1,5 +1,46 @@
 # Content preview lifecycle
 
+## Typed native file failures — 2026-10-09
+
+Scoped iOS reference: `MobileChatArtifactFailureClassifier.swift`,
+`ChatArtifactFailurePresentation.swift` and `MarkdownSurfaceModel.swift` at
+`f4b1509054949eaad5d695569ad443c4c18ed68d`. The classifier source SHA-256 is
+`91debcb86f2fa601e6c397dbaba2bc62c73d73c0acd3ebea2157855e08d97584`.
+This comparison does not advance the global parity pin.
+
+Preview failure classification now preserves Android's typed Irx admission
+rejection, Iroh control-server/HTTP and control-unavailable failures, including
+expired grant, revoked access, identity rejection, invalid protocol, timeout and
+service availability. Existing file and Markdown presentation families keep
+their separate source vocabulary and retry policy. The RPC device-revoked and
+restart-required codes are also recognized.
+
+Transparent `IOException` wrappers preserve known native causes, bounded to 16
+levels with cycle detection. Explicit host errors, cancellation and non-IO
+wrappers stop that inspection. Unknown errors remain generic; no exception
+message is parsed to infer authorization, storage exhaustion or reachability.
+Local-output errors still cross their existing typed storage boundary.
+
+**28 focused JVM checks passed:** nine failure-presentation, 13 preview-controller
+and six artifact-RPC cases. These cover every Irx close-code variant, typed
+control rejection/HTTP responses, expired/denied versus retryable transfer
+messages, wrapped errors, cycles/depth bounds, raw-message isolation and
+cancellation. An injected native rejection traverses the actual
+`MobileRpcClient` control read loop and `ArtifactRpc` into preview state; the
+file is not fetched or materialized. Another controller case retains selection
+on expiry and keeps the replacement connection idle until an explicit retry,
+then verifies exact downloaded bytes without another retired-connection call.
+Main Kotlin compiled. Evidence: ignored
+`captures/artifact-native-failures*-jvm.log`,
+`captures/runtime/artifact-native-failures/` (JUnit XML) and
+`captures/MobileChatArtifactFailureClassifier-f4.swift`.
+
+Gradle stopped; no APK build, emulator or Pixel run was performed for this batch.
+These injected transport tests do not prove native-FFI failure behavior on a real
+Mac/Pixel. Opaque native errors without a typed code remain generic. Physical
+reconnect/revocation, manual UI retry, decoder/local-read failures and broader
+Files/viewer acceptance remain open. Signed 635 predates this batch.
+
 ## Image focal point across rotation — 2026-10-09
 
 The image gesture test now exercises portrait → landscape → portrait and an

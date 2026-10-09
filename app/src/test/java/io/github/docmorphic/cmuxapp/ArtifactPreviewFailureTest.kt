@@ -1,7 +1,9 @@
 package io.github.docmorphic.cmuxapp
 
 import java.io.EOFException
+import java.io.IOException
 import java.net.SocketTimeoutException
+import io.github.docmorphic.cmuxapp.iroh.IrxWire
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
@@ -64,6 +66,79 @@ class ArtifactPreviewFailureTest {
         assertEquals("Couldn't load file", ArtifactPreviewFailure.from(JSONObject().let { runCatching { it.getString("missing") }.exceptionOrNull()!! })
             .presentation(panel, true, NativeFeedAvailability.CONNECTED).title)
         assertEquals(ArtifactPreviewFailure.Kind.TRANSFER_INTERRUPTED, ArtifactPreviewFailure.from(ArtifactLaneTransfer.Interrupted()).kind)
+    }
+
+    @Test fun nativeAdmissionFailuresKeepPairingProtocolAndTransportReasons() {
+        val expected = mapOf(
+            IrxWire.CloseCode.GRANT_EXPIRED to ArtifactPreviewFailure.Kind.AUTHENTICATION_EXPIRED,
+            IrxWire.CloseCode.INVALID_GRANT to ArtifactPreviewFailure.Kind.AUTHORIZATION_FAILED,
+            IrxWire.CloseCode.REVOKED to ArtifactPreviewFailure.Kind.AUTHORIZATION_FAILED,
+            IrxWire.CloseCode.IDENTITY_MISMATCH to ArtifactPreviewFailure.Kind.AUTHORIZATION_FAILED,
+            IrxWire.CloseCode.MALFORMED_HELLO to ArtifactPreviewFailure.Kind.INVALID_RESPONSE,
+            IrxWire.CloseCode.PROTOCOL_MISMATCH to ArtifactPreviewFailure.Kind.INVALID_RESPONSE,
+            IrxWire.CloseCode.ADMISSION_TIMEOUT to ArtifactPreviewFailure.Kind.REQUEST_TIMED_OUT,
+            IrxWire.CloseCode.KEEPALIVE_TIMEOUT to ArtifactPreviewFailure.Kind.REQUEST_TIMED_OUT,
+            IrxWire.CloseCode.SUPERSEDED to ArtifactPreviewFailure.Kind.MAC_UNREACHABLE,
+            IrxWire.CloseCode.USER_REQUESTED to ArtifactPreviewFailure.Kind.MAC_UNREACHABLE,
+            IrxWire.CloseCode.HOST_SHUTDOWN to ArtifactPreviewFailure.Kind.MAC_UNREACHABLE,
+            IrxWire.CloseCode.EXPLICIT_REDIAL to ArtifactPreviewFailure.Kind.MAC_UNREACHABLE)
+        assertEquals(IrxWire.CloseCode.entries.toSet(), expected.keys)
+        expected.forEach { (code, kind) ->
+            assertEquals(code.wire, kind, ArtifactPreviewFailure.from(IrxWire.AdmissionRejected(code), terminal).kind)
+        }
+        val expired = ArtifactPreviewFailure.from(IrxWire.AdmissionRejected(IrxWire.CloseCode.GRANT_EXPIRED))
+        assertEquals("Pairing expired", expired.presentation(terminal, false, NativeFeedAvailability.CONNECTED).title)
+        assertFalse(expired.presentation(terminal, false, NativeFeedAvailability.CONNECTED).retry)
+        assertEquals("Preview unavailable", expired.presentation(panel, true, NativeFeedAvailability.CONNECTED).title)
+    }
+
+    @Test fun nativeControlFailuresDistinguishConsentAccessAndServiceAvailability() {
+        val denied = listOf("unauthorized", "device_revoked", "team_access_revoked")
+        denied.forEach { code ->
+            val failure = ArtifactPreviewFailure.from(IrohV2ServerFailure(code, false), terminal)
+            assertEquals(ArtifactPreviewFailure.Kind.AUTHORIZATION_FAILED, failure.kind)
+            assertFalse(failure.presentation(terminal, false, NativeFeedAvailability.CONNECTED).retry)
+        }
+        assertEquals(ArtifactPreviewFailure.Kind.AUTHENTICATION_EXPIRED,
+            ArtifactPreviewFailure.from(IrohV2ServerFailure("ticket_expired", false)).kind)
+        assertEquals(ArtifactPreviewFailure.Kind.ACCOUNT_MISMATCH,
+            ArtifactPreviewFailure.from(IrohV2ServerFailure("account_mismatch", false)).kind)
+        assertEquals(ArtifactPreviewFailure.Kind.LOAD_FAILED,
+            ArtifactPreviewFailure.from(IrohV2ServerFailure("future_code", true)).kind)
+        val http = mapOf(401 to ArtifactPreviewFailure.Kind.AUTHENTICATION_EXPIRED,
+            403 to ArtifactPreviewFailure.Kind.AUTHORIZATION_FAILED,
+            408 to ArtifactPreviewFailure.Kind.REQUEST_TIMED_OUT, 504 to ArtifactPreviewFailure.Kind.REQUEST_TIMED_OUT,
+            429 to ArtifactPreviewFailure.Kind.UNAVAILABLE, 503 to ArtifactPreviewFailure.Kind.UNAVAILABLE,
+            400 to ArtifactPreviewFailure.Kind.LOAD_FAILED)
+        http.forEach { (status, kind) -> assertEquals(kind, ArtifactPreviewFailure.from(IrohV2HttpFailure(status, null)).kind) }
+        assertEquals(ArtifactPreviewFailure.Kind.MAC_UNREACHABLE, ArtifactPreviewFailure.from(IrohV2Unavailable()).kind)
+        assertEquals(ArtifactPreviewFailure.Kind.AUTHORIZATION_FAILED, failure("device_revoked").kind)
+        assertEquals("Restart required", copy("connection_needs_restart", false).title)
+        assertFalse(copy("connection_needs_restart", false).retry)
+        // The separate Markdown model deliberately keeps its generic load vocabulary.
+        assertEquals("Couldn't load file", copy("connection_needs_restart").title)
+    }
+
+    @Test fun transparentNativeWrappersAreBoundedAndNeverInterpretRawMessages() {
+        val revoked = IOException("private host payload", IrxWire.AdmissionRejected(IrxWire.CloseCode.REVOKED))
+        val failure = ArtifactPreviewFailure.from(revoked, terminal)
+        assertEquals(ArtifactPreviewFailure.Kind.AUTHORIZATION_FAILED, failure.kind)
+        assertFalse(failure.presentation(terminal, false, NativeFeedAvailability.CONNECTED).message.contains("private"))
+        assertEquals(ArtifactPreviewFailure.Kind.REQUEST_TIMED_OUT,
+            ArtifactPreviewFailure.from(IOException("dial", SocketTimeoutException())).kind)
+        assertEquals(ArtifactPreviewFailure.Kind.LOAD_FAILED,
+            ArtifactPreviewFailure.from(IOException("device_revoked irx:revoked storage full")).kind)
+        assertEquals(ArtifactPreviewFailure.Kind.LOAD_FAILED,
+            ArtifactPreviewFailure.from(IllegalStateException("wrapper", revoked)).kind)
+        val one = IOException("one"); val two = IOException("two", one); one.initCause(two)
+        assertEquals(ArtifactPreviewFailure.Kind.LOAD_FAILED, ArtifactPreviewFailure.from(one).kind)
+        var deep: Throwable = revoked
+        repeat(20) { deep = IOException("wrapper", deep) }
+        assertEquals(ArtifactPreviewFailure.Kind.LOAD_FAILED, ArtifactPreviewFailure.from(deep).kind)
+        val cancelled = CancellationException("retired account").apply { initCause(revoked) }
+        assertEquals(ArtifactPreviewFailure.Kind.LOAD_FAILED, ArtifactPreviewFailure.from(cancelled).kind)
+        val host = MobileRpcException("future_host_code", "payload").apply { initCause(revoked) }
+        assertEquals(ArtifactPreviewFailure.Kind.LOAD_FAILED, ArtifactPreviewFailure.from(host).kind)
     }
 
     @Test fun metadataAndLimitFailuresRetainTypedReasonAndNeverFetch() = runBlocking {

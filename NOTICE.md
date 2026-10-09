@@ -1,5 +1,12 @@
 # Attribution
 
+Native file-failure classification in `ArtifactPreviewFailure.kt` follows
+`MobileChatArtifactFailureClassifier.swift`, `ChatArtifactFailurePresentation.swift`
+and `MarkdownSurfaceModel.swift` at cmux
+`f4b1509054949eaad5d695569ad443c4c18ed68d`. Copyright Manaflow, Inc.;
+GPL-3.0-or-later. Android maps its own typed Iroh/Irx errors to these failure
+families and bounds inspection of transparent native exception wrappers.
+
 Mac pairing setup guidance and the unmodified MacSettings-dark.png and
 MacSettings-light.png images follow OnboardingPairingView.swift,
 OnboardingPairingSettingsScreenshot.swift and OnboardingConnectionView.swift in

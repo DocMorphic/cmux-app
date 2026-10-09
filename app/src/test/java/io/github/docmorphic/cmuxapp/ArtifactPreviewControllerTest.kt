@@ -1,6 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
 import java.nio.file.Files
+import java.io.IOException
+import io.github.docmorphic.cmuxapp.iroh.IrxWire
 import java.util.Base64
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.*
@@ -163,6 +165,67 @@ class ArtifactPreviewControllerTest {
             beforeFetch = {}; controller.retry(); assertEquals("data", artifact().file.readText())
             assertEquals(2, fetches())
         } finally { release.complete(Unit) }
+    } }
+
+    @Test fun nativeFailureRetainsSelectionAndOnlyExplicitRetryUsesVerifiedReplacement() = runBlocking { fixture {
+        var retiredCalls = 0
+        val retired = ArtifactRpc(ArtifactCapabilities(true, false, false, false)) { _, _ ->
+            retiredCalls++
+            throw IOException("native dial wrapper", IrxWire.AdmissionRejected(IrxWire.CloseCode.GRANT_EXPIRED))
+        }
+        open(rpc = retired)
+        val failed = withTimeout(3000) { controller.state.first { it.failure != null } }
+        assertEquals(ArtifactPreviewFailure.Kind.AUTHENTICATION_EXPIRED, failed.failure?.kind)
+        assertEquals("Pairing expired", failed.failure!!.presentation(terminal, false, NativeFeedAvailability.CONNECTED).title)
+        assertNull(failed.artifact); assertEquals(1, retiredCalls)
+        assertTrue(root.listFiles().orEmpty().isEmpty())
+        val verified = rpc()
+        controller.replaceConnection(verified); open(rpc = verified); yield()
+        assertSame(failed.identity, controller.state.value.identity)
+        assertEquals(ArtifactPreviewFailure.Kind.AUTHENTICATION_EXPIRED, controller.state.value.failure?.kind)
+        assertEquals(0, calls.size); assertEquals(1, retiredCalls)
+        controller.retry()
+        val loaded = artifact()
+        assertEquals("data", loaded.file.readText()); assertEquals(1, fetches())
+        assertEquals(1, retiredCalls); assertNull(controller.state.value.failure)
+        controller.close(); emptyDisk()
+    } }
+
+    @Test fun cancelledNativeRequestDoesNotPublishAFailureOrRetryOnAnotherAccount() = runBlocking { fixture {
+        val started = CompletableDeferred<Unit>()
+        val retired = ArtifactRpc(ArtifactCapabilities(true, false, false, false)) { _, _ ->
+            started.complete(Unit); awaitCancellation()
+        }
+        open(rpc = retired); withTimeout(3000) { started.await() }
+        controller.close(); yield()
+        assertEquals(ArtifactPreviewState(), controller.state.value)
+        controller.retry(); open(rpc = rpc()); yield()
+        assertEquals(ArtifactPreviewState(), controller.state.value)
+        assertTrue(calls.isEmpty()); emptyDisk()
+    } }
+
+    @Test fun nativeControlRejectionReachesThePreviewThroughTheActualRpcClient() = runBlocking { fixture {
+        val wire = PoolTestTransport()
+        val rejection = CompletableDeferred<Throwable>()
+        val transport = object : MobileRpcTransport by wire {
+            override suspend fun read(): ByteArray? = throw rejection.await()
+            override fun close() { rejection.cancel(); wire.close() }
+        }
+        MobileRpcClient(transport, { "fixture-token" }).use { client ->
+            client.connect()
+            open(rpc = ArtifactRpc(client, setOf("terminal.artifact.v1")))
+            val request = withTimeout(3000) { wire.sent.receive() }
+            assertEquals("mobile.terminal.artifact.stat", request.getString("method"))
+            assertEquals("workspace", request.getJSONObject("params").getString("workspace_id"))
+            rejection.complete(IOException("native wrapper", IrxWire.AdmissionRejected(IrxWire.CloseCode.REVOKED)))
+            val failed = withTimeout(3000) { controller.state.first { it.failure != null } }
+            assertEquals(ArtifactPreviewFailure.Kind.AUTHORIZATION_FAILED, failed.failure?.kind)
+            val copy = failed.failure!!.presentation(terminal, false, NativeFeedAvailability.CONNECTED)
+            assertEquals("Connection not authorized", copy.title); assertFalse(copy.retry)
+            assertTrue(client.isClosed); assertNull(failed.artifact)
+            assertTrue(root.listFiles().orEmpty().isEmpty())
+            assertTrue(wire.sent.tryReceive().isFailure)
+        }
     } }
 
     @Test fun markdownPanelModeAndExactDisplayedPathRemainPartOfAdmission() = runBlocking { fixture {
