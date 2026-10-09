@@ -188,6 +188,12 @@ MobileShellComposite+AgentFeed.swift in Packages/iOS/CmuxMobileShell at cmux
 revision f4b1509054949eaad5d695569ad443c4c18ed68d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 
+NativeAgentFeedStopReasonCache.kt and its use by the main/browser Feed projections
+follow AgentFeedStopReasonCache.swift and MobileShellComposite+AgentFeed.swift in
+Packages/iOS/CmuxMobileShell at cmux revision
+f4b1509054949eaad5d695569ad443c4c18ed68d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+
 Completed-task recovery is derived from TaskComposerCompletedOperationRecovery,
 TaskComposerSheet+CompletedOperationRecovery and TaskComposerSheet+DraftState at
 cmux revision 4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0.

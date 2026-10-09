@@ -32,9 +32,11 @@ internal data class NativeAgentFeedReadState(val baseline: Double, val read: Lis
 }
 
 /** Retained snapshots remain intact; aggregate and deduplicate only the displayed history. */
-internal fun aggregateNativeAgentFeed(sources: Collection<NativeFeedSource>): List<NativeAgentFeedEntry> {
+internal fun aggregateNativeAgentFeed(sources: Collection<NativeFeedSource>,
+    stopReasons: NativeAgentFeedStopReasonCache = NativeAgentFeedStopReasonCache()): List<NativeAgentFeedEntry> {
     val ordered = sources.flatMap { source -> source.agentFeed.snapshot?.items.orEmpty().map { NativeAgentFeedEntry(source, it) } }
         .sortedWith(compareByDescending<NativeAgentFeedEntry> { it.item.createdAt }.thenBy { it.key })
+    stopReasons.retain(ordered.filter { it.item.kind == AgentFeedKind.STOP }.mapNotNull { it.item.reason }.toSet())
     val result = mutableListOf<NativeAgentFeedEntry>()
     val exact = mutableMapOf<List<String?>, Int>(); val turns = mutableMapOf<List<String?>, Int>()
     ordered.forEach { entry ->
@@ -45,7 +47,7 @@ internal fun aggregateNativeAgentFeed(sources: Collection<NativeFeedSource>): Li
         val exactIndex = exact[key]?.takeIf { abs(result[it].item.createdAt - row.createdAt) <= 2 }
         val turnIndex = turns[turn]?.takeIf { index ->
             val previous = result[index].item
-            abs(previous.createdAt - row.createdAt) <= 120 && agentFeedSameTurnReason(previous.reason, row.reason)
+            abs(previous.createdAt - row.createdAt) <= 120 && stopReasons.matches(previous.reason, row.reason)
         }
         val index = exactIndex ?: turnIndex
         if (index != null) {
@@ -55,13 +57,4 @@ internal fun aggregateNativeAgentFeed(sources: Collection<NativeFeedSource>): Li
         } else { exact[key] = result.size; turns[turn] = result.size; result += entry }
     }
     return result.take(400)
-}
-internal fun agentFeedSameTurnReason(a: String?, b: String?): Boolean {
-    if (a == null || b == null) return false
-    fun collapsed(value: String) = value.trim().replace(Regex("\\s+"), " ")
-    val first = collapsed(a); val second = collapsed(b)
-    if (first.isEmpty() || second.isEmpty()) return false
-    if (first == second) return true
-    val (shorter, longer) = if (first.length <= second.length) first to second else second to first
-    return shorter.endsWith("…") && longer.startsWith(shorter.dropLast(1))
 }

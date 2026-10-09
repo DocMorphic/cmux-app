@@ -21,6 +21,26 @@ class RoutedAgentFeedTest {
         { RoutedSidebarLease({}) {} }, navigate, agentSession = { null }, readAgent = read, refreshAgent = {})
     private fun snapshot() = host({ input() }).feed(RoutedSidebarQuery(feed = true))
 
+    @Test fun unicodeDuplicateStopsAgreeBetweenBrowserFeedBadgeAndLiveRead() = runTest {
+        val preview = item.copy(reason = "Report\u00a0ready…", replyText = "Thanks")
+        val full = item.copy(id = "full", createdAt = 9.0, reason = "Report ready for review")
+        var current = input(source.copy(agentFeed = NativeAgentFeedState(NativeAgentFeedSnapshot(2, listOf(preview, full)))))
+        val reads = mutableListOf<NativeAgentFeedEntry>()
+        val h = host({ current }, read = { row, _ -> reads += row })
+        repeat(3) {
+            assertEquals(1, h.read(RoutedSidebarQuery())!!.feedNeedsInput)
+            val row = h.feed(RoutedSidebarQuery(feed = true)).entries.single()
+            assertEquals(full.reason, row.item.reason)
+            assertEquals("Thanks", row.item.replyText)
+            assertTrue(h.feedAction(RoutedAgentFeedCommand(row.key, RoutedAgentFeedVerb.READ)) { true })
+        }
+        assertEquals(3, reads.size)
+        assertTrue(reads.all { it.item.id == full.id && it.item.replyText == "Thanks" })
+        current = input(source.copy(agentFeed = NativeAgentFeedState(NativeAgentFeedSnapshot(3, emptyList()))))
+        assertEquals(0, h.read(RoutedSidebarQuery())!!.feedNeedsInput)
+        assertTrue(h.feed(RoutedSidebarQuery(feed = true)).entries.isEmpty())
+    }
+
     @Test fun projectionUsesOpaqueIdentityAndRoundTripsAllDisplayValuesIncludingLongLocalReply() {
         val s = snapshot()
         val value = s.copy(entries = listOf(s.entries.single().copy(item = item.copy(

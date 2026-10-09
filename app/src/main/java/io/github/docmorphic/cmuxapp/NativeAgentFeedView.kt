@@ -39,7 +39,8 @@ internal fun NativeAgentFeedView(
     locale: Locale = Locale.getDefault(), display: NativeDisplayPreferences = NativeDisplayPreferences(),
     scopeKey: String = "feed", allowedMacs: Collection<NativeCredentialStore.PairedMac> = sources.map { it.mac }
 ) {
-    val nativeEntries = remember(sources) { aggregateNativeAgentFeed(sources) }
+    val stopReasons = remember(scopeKey) { NativeAgentFeedStopReasonCache() }
+    val nativeEntries = remember(sources, stopReasons) { aggregateNativeAgentFeed(sources, stopReasons) }
     val currentNativeEntries by rememberUpdatedState(nativeEntries.associateBy { it.key })
     val currentRead by rememberUpdatedState(readState)
     val updateRead by rememberUpdatedState(onReadState)

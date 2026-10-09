@@ -60,6 +60,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val agentSession: ((NativeCredentialStore.PairedMac) -> NativeAgentFeedSession?)? = null,
     private val readAgent: ((NativeAgentFeedEntry, Boolean?) -> Unit)? = null,
     private val refreshAgent: (suspend () -> Unit)? = null) : RoutedSidebarHost {
+    private val stopReasons = NativeAgentFeedStopReasonCache()
     private val agent by lazy { if (agentSession != null && readAgent != null && refreshAgent != null)
         NativeRoutedAgentFeed(input, { id(*it.toTypedArray()) }, ::computer, agentSession, readAgent, refreshAgent, navigate) else null }
     override fun feed(query: RoutedSidebarQuery) = checkNotNull(agent) { "Feed unavailable" }.snapshot(query)
@@ -446,7 +447,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             createGroup = if (query.workspaces && validScope) groupCreate(value, selected) else null,
             wrapTitles = value.display.wrapTitles, previewLines = value.display.previewLines, dragRevision = drag?.revision,
             feedAvailable = agent != null, showsNotifications = agent == null || !value.display.feedReplacesNotifications,
-            feedNeedsInput = aggregateNativeAgentFeed(sources).count { value.agentReadState.needsInput(it) },
+            feedNeedsInput = aggregateNativeAgentFeed(sources, stopReasons).count { value.agentReadState.needsInput(it) },
             feedShowsTab = value.display.feedShowsTab, feedBubbleQuotes = value.display.feedBubbleQuotes)
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,

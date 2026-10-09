@@ -28,6 +28,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Feed completion previews now collapse Unicode whitespace like the scoped iOS
+  source, including nonbreaking/em spaces, and reuse normalization across unchanged
+  snapshots. Each main/browser presentation retains only its current stop reasons.
+  **54 focused JVM checks passed**, including reply preservation, exact Mac/build
+  separation, browser row/badge consistency and snapshot removal. Main Kotlin
+  compiled; Gradle stopped. See `AGENT_FEED.md`. No APK/emulator or physical run
+  for this batch; signed 635 predates it.
+
 - Image zoom now preserves the viewed focal point when rotation changes
   aspect-fit letterboxing. **Nine JVM checks and the expanded Android gesture
   case passed**, including landscape recreation, portrait return, reset and

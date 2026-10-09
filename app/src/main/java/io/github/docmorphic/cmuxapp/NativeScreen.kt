@@ -733,7 +733,8 @@ internal fun NativeScreen(
             var agentReadState by remember(agentReadOwner) { mutableStateOf(NativeAgentFeedReadState.decode(
                 agentReadPrefs.getString(agentReadOwner, null), System.currentTimeMillis() / 1000.0)) }
             LaunchedEffect(agentReadOwner, agentReadState) { agentReadPrefs.edit().putString(agentReadOwner, agentReadState.encode()).apply() }
-            val agentEntries = remember(scopedFeedSources) { aggregateNativeAgentFeed(scopedFeedSources) }
+            val stopReasons = remember(agentReadOwner) { NativeAgentFeedStopReasonCache() }
+            val agentEntries = remember(scopedFeedSources, stopReasons) { aggregateNativeAgentFeed(scopedFeedSources, stopReasons) }
             val agentNeedsInputCount = agentEntries.count { agentReadState.needsInput(it) }
             var agentNeedsInputOnly by rememberSaveable(agentReadOwner) { mutableStateOf(false) }
             // Feed is removed when another primary tab or compact detail opens.

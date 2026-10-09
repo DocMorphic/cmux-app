@@ -851,3 +851,42 @@ Evidence: ignored `captures/runtime/agent-feed-keyboard/` and
 stopped. No additional AVD was created. This is API 37 emulator evidence;
 physical Pixel/Mac acceptance, broader gesture/accessibility behavior and a
 successful signed milestone remain open.
+
+## Completion-reason normalization and retained cache (2026-10-09)
+
+Scoped source: `AgentFeedStopReasonCache.swift` and the deduplication call sites in
+`MobileShellComposite+AgentFeed.swift` at
+`f4b1509054949eaad5d695569ad443c4c18ed68d`. The cache source SHA-256 is
+`bf7539a8575645a734b1b151617ad9f78f37d5b058c433abfbe018ebd01976c1`.
+The global parity pin remains unchanged.
+
+Android previously compiled an ASCII whitespace regex on every same-turn
+comparison. Nonbreaking/em spaces therefore prevented a truncated preview from
+matching its full completion. The normalizer now collapses Unicode White_Space
+without a regex, retaining authored nonspace text. Matching still requires equal
+normalized reasons or an explicitly ellipsized prefix; distinct complete
+responses remain separate. Existing exact Mac/build, time-window, fuller-text and
+reply-preservation rules remain intact.
+
+Main Feed/list badge and browser Feed/sidebar presentations now own reusable
+reason caches. Each projection prunes to stop reasons present in its input
+snapshot; removed reasons are not carried forward indefinitely. Caches contain
+normalization results only, do not persist, and do not supply rows or RPC targets.
+Live browser actions continue resolving the current authoritative snapshot.
+
+**54 focused JVM checks passed:** three cache/normalization, seven native
+projection, ten browser Feed and 34 sidebar cases. These cover all six source
+matching fixtures, Unicode whitespace and authored nonspace content, 100 unchanged
+projections with only two normalization calls, changed/removed reason pruning,
+reply and build separation, plus browser badge/row/live-read agreement and snapshot
+removal. The first focused invocation covered the ten cache/projection cases;
+the final invocation includes the actual `RoutedAgentFeedTest`/`RoutedSidebarTest`
+classes. Main Kotlin compiled in the same batch. This is deterministic reuse and
+correctness evidence, not a measured scrolling or latency claim.
+
+Evidence: ignored `captures/agent-feed-stop-reason*-jvm.log`,
+`captures/runtime/agent-feed-stop-reason/` (JUnit XML), and
+`captures/AgentFeedStopReasonCache.swift`. Gradle is stopped; no APK build, emulator
+or Pixel run was performed for this batch. Signed 635 predates this change.
+Broader Unicode/grapheme equivalence, physical Feed performance, remaining
+privacy/analytics source changes and full Feed acceptance remain open.
