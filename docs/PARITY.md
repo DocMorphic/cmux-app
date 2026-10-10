@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Signed milestone 641 and workbook pictures (2026-10-10)
+
+[641](https://github.com/DocMorphic/cmux-app/actions/runs/38045004590) at
+`ddf16db8` passed the cached Cloud checkpoint, policy/helper/JVM/APK,
+signing/package and six Android 17 ART class-loading gates. The downloaded APK
+independently verified against that source has SHA-256
+`88c088efc1b4d5a2237b40886155f0ca423b4252c12ff2f63af46dded07010d4`,
+the unchanged stable signer, 18 pinned viewer assets, 22 aligned native libraries
+and no 14 debug fixture components. See `PIXEL_INSTALL.md` and ignored
+`captures/milestone-641/`. This is an Actions artifact, not a public release or
+signed-in physical Pixel upgrade. It does not close real Mac/Pixel acceptance.
+
+Newer source adds XLSX embedded raster-image projection, authored anchor/crop/
+rotation/flip handling and image-only/later-window reachability. **47 focused Node
+checks passed** and main/Android-test Kotlin compiled; the new actual painted
+image/restoration case remains **unexecuted**. See `DOCUMENT_FORMATS.md` for exact
+source/spec scope, fixture, bounds and remaining drawing/layout requirements.
+641 does not include this feature; no additional local AVD or APK build was used.
+The global upstream parity pin and full completion gates remain open.
+
 ## Feed/Cloud/media UI integration (2026-10-10)
 
 Main `5d254f84` passed 25 fixture Android cases in 197.697 seconds: four full-text
@@ -27,8 +47,8 @@ explanation/upgrade form. See `AGENT_FEED.md` and `CLOUD_COMPANION.md` for hashe
 logs, failed capture evidence, build/install corrections and boot ANR caveats.
 The one existing AVD and Gradle were stopped and reaped without overlap.
 No Pixel/live Mac/Cloud, matched iOS or signed upgrade acceptance is claimed.
-The global upstream parity pin remains unchanged; the next signed milestone is
-pending and signed 635 predates these features. Full parity is unverified.
+The global upstream parity pin remains unchanged; signed 641 above now includes
+these features. Full parity is unverified.
 
 ## Per-Mac task picker restoration (2026-10-09)
 

@@ -6,10 +6,11 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 635 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37922453797/artifacts/11613900556)
-from `5888cd68` is the current verified signed development checkpoint. Newer
-source work on `main`, including the latest Feed/Cloud sheets and viewer/media
-changes, is not included in that APK. Signed-in upgrade, physical Pixel/Mac
+**Signed download:** [build 641 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/38045004590/artifacts/11666733488)
+from `ddf16db8` is the current verified signed development checkpoint, including
+the latest integrated Feed/Cloud sheets and viewer/media changes. Newer source
+work on `main`, including embedded workbook pictures, is not included in that APK.
+Signed-in upgrade, physical Pixel/Mac
 acceptance and configured push remain
 open. See the [install guide](docs/PIXEL_INSTALL.md) for hashes and exact verification
 scope, and [remaining work](docs/REMAINING_WORK.md) for source progress.

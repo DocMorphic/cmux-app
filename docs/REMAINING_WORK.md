@@ -29,6 +29,27 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Signed milestone [641](https://github.com/DocMorphic/cmux-app/actions/runs/38045004590)
+  at `ddf16db8` **passed**, including cached Cloud checkpoint, policy/helper/JVM/APK,
+  signing/package and six Android 17 ART class probes. The downloaded APK also
+  independently passed verification against that exact source: stable signer,
+  18 pinned viewer assets, 22 aligned native libraries and exclusion of all 14
+  debug components. SHA-256:
+  `88c088efc1b4d5a2237b40886155f0ca423b4252c12ff2f63af46dded07010d4`.
+  It includes the integrated Feed/Cloud/media work but predates workbook pictures
+  below. See `PIXEL_INSTALL.md`; 641 supersedes 635 as the current downloadable
+  signed Actions artifact. It is not a public release, signed-in Pixel upgrade
+  or physical Mac acceptance result. Production push and full parity remain open.
+
+- The XLSX preview now projects embedded raster pictures with DrawingML anchors,
+  crop/rotation/flips, safe links and image-only/later-range navigation.
+  **47 focused Node checks passed**, and main/test Kotlin compiled in 25 seconds.
+  The new painted-image/navigation/restoration Android case is compiled but
+  **unexecuted**, queued with workbook/ODS regression cases for the next integration
+  milestone. See `DOCUMENT_FORMATS.md`; charts, other drawing formats/effects,
+  off-window automatic-row sizing, physical and matched Quick Look acceptance
+  remain open. No local APK/emulator run for this feature; signed 641 predates it.
+
 - The latest debug integration at `5d254f84` **passed 25 Android cases in
   197.697 seconds**: four full-text readers, 12 reply sheets, eight Cloud machine
   flows and one paused-video regression. The strengthened reader/Cloud follow-up
@@ -39,7 +60,7 @@ and currently disabled; the upstream watcher is active on main with review issue
   See `AGENT_FEED.md` and `CLOUD_COMPANION.md` for exact scope, hashes and startup
   ANRs. The sole emulator and Gradle are stopped; no Pixel/live host or signed
   upgrade was used. Physical/matched iOS acceptance remains open; signed 635
-  predates the accumulated features and a new integration build is next.
+  predates the accumulated features; signed milestone 641 above now includes them.
 
 - Cloud's create form now explains locked size/plan requirements, supplies the
   corresponding upgrade action and supports partial/full expansion. The shared

@@ -17,7 +17,7 @@ internal object PresentationPreviewPolicy {
 
 internal enum class OfficePreviewKind(val assetDirectory: String, val description: String, val scripts: List<String>) {
     WORD("docx-viewer", "Word document preview", listOf("jszip.min.js", "docx-preview.min.js")),
-    WORKBOOK("workbook-viewer", "Spreadsheet preview", listOf("xlsx.full.min.js", "workbook-model.js", "ods-presentation.js")),
+    WORKBOOK("workbook-viewer", "Spreadsheet preview", listOf("xlsx.full.min.js", "workbook-model.js", "workbook-drawings.js", "ods-presentation.js")),
     PRESENTATION("presentation-viewer", "PowerPoint presentation preview", listOf("aiden0z-pptx-renderer.browser.es.js"));
     val assets get() = mapOf("shell.html" to "text/html", "viewer.css" to "text/css", "viewer.js" to "application/javascript") +
         scripts.associateWith { "application/javascript" }

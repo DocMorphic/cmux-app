@@ -3,7 +3,42 @@
 Current source development is on `main`. These are development milestones;
 see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
-## Current verified signed development APK — build 635 (2026-10-10)
+## Current verified signed development APK — build 641 (2026-10-10)
+
+[Build 641](https://github.com/DocMorphic/cmux-app/actions/runs/38045004590)
+passed at `ddf16db8b353c8d5de07407bad35e331ddfd5d55`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/38045004590/artifacts/11666733488)
+and extract `app-release.apk`. This is an Actions development artifact, not a
+public preview or production promotion.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **641**, version **0.2.0**.
+- SHA-256: `88c088efc1b4d5a2237b40886155f0ca423b4252c12ff2f63af46dded07010d4`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **276,140,226 bytes**; compressed signed artifact **140,118,701 bytes**.
+- Local file: `captures/milestone-641/cmux-app-stable-signed-apk/app-release.apk`.
+
+The milestone includes the integrated Feed reader/reply and Cloud create sheets,
+plus accumulated viewer/media source changes. Its preceding debug integration
+passed 25 Android fixture checks, with the strengthened two-case painted-reader
+follow-up. The unresolved adaptive-video diagnostic is opt-in and is not a pass.
+Embedded workbook pictures are newer source and **not included in 641**.
+
+CI passed the cached Cloud checkpoint (756 artifacts / 410 notice components),
+policy/helper and JVM/APK gates (Gradle: 11m 15s), signing/package verification and
+six release class-loading probes on Android 17 ART. This did not rebuild the
+cached Cloud native source. Downloaded runtime logs confirm all six probes.
+Independent verification used an immutable source snapshot of `ddf16db8`, and
+confirmed the stable signer, 18 pinned viewer assets, exact 22-library inventory
+with 16 KiB native/ZIP alignment and exclusion of all 14 debug fixture components.
+Evidence is ignored under `captures/milestone-641/` and `captures/milestone-641-ci.log`.
+
+No signed-in Pixel upgrade or physical Mac workflow was performed for this APK.
+Those checks, configured push and full parity remain open. Account/pairing/app
+data must be preserved during the eventual upgrade. No extra local AVD was
+created or started for signed verification; local Gradle/emulator processes are
+stopped. See [REMAINING_WORK.md](REMAINING_WORK.md) for the actual completion gates.
+
+## Earlier verified signed development APK — build 635 (2026-10-10)
 
 [Build 635](https://github.com/DocMorphic/cmux-app/actions/runs/37922453797)
 passed at `5888cd68e6fdb12c27015946eb6cba876265c63f`. Download the

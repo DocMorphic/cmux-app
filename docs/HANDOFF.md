@@ -16,10 +16,15 @@ stopped; verify no Gradle process before an emulator run and stop/reap the emula
 before building. Do not create extra AVDs; storage is constrained. Pixel is absent
 from this integration and its credentials/app data must be preserved when it returns.
 
-Last verified signed download is 635 at `5888cd68`, not 606/616. The install guide
-contains the exact artifact, stable signer and verified hash. A new signed
-integration milestone is next for the accumulated source; use manual Android
-build with `publish_preview=false`. Automatic previews remain disabled. Do not
+Last verified signed download is now 641 at `ddf16db8`. CI and independent
+verification passed, including 22 aligned native libraries, 18 pinned assets,
+14 excluded debug components and six Android 17 ART release class probes.
+The install guide contains the exact artifact, stable signer and verified hash.
+Newer workbook-picture source passed 47 Node checks and main/test compilation;
+its painted-image/navigation/restoration Android case is compiled but unexecuted,
+queued with workbook/ODS regressions. See `DOCUMENT_FORMATS.md`. No new local
+APK/emulator or Pixel run for that feature. For the next milestone use manual
+Android build with `publish_preview=false`. Automatic previews remain disabled. Do not
 claim physical acceptance from fixture or release packaging checks.
 
 Open major gates include physical Mac/Pixel workflows, configured FCM/HPKE

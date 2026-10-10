@@ -16,9 +16,12 @@
       if (parts.normalizedArchive) book = model.readArchive(parts.normalizedArchive);
       CmuxOdsPresentation.apply(book, parts.content, parts.styles);
     }
-    if (book.bookType === 'ods' || book.Directory?.charts?.length || book.Directory?.drawings?.length) {
-      const note = document.getElementById('limitations'); note.hidden = false;
-      note.textContent = book.bookType === 'ods' ? 'Some formatting, charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.' : 'Charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.';
+    const drawings = CmuxWorkbookDrawings, pictureCache = new Map(), imageURLs = new Map();
+    let pictureResize;
+    window.addEventListener('pagehide', () => { pictureResize?.disconnect(); for (const url of imageURLs.values()) URL.revokeObjectURL(url); imageURLs.clear(); });
+    function limitation(incomplete) {
+      const note = document.getElementById('limitations'); note.hidden = !incomplete;
+      note.textContent = book.bookType === 'ods' ? 'Some formatting, charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.' : 'Some charts or drawing objects aren’t shown here. Use Viewer actions to open the original workbook.';
     }
     const memories = new Map(), styleIndices = new Map(), richCells = new Map();
     const nodes = (node, name) => Array.from(node.getElementsByTagNameNS('*', name));
@@ -50,6 +53,54 @@
     const stylesXml = xml(book.Directory?.style || ''), borders = stylesXml ? nodes(stylesXml, 'border') : [];
     const stringsXml = xml(book.Directory?.strs?.[0] || '');
     const sharedStrings = stringsXml ? model.children(stringsXml.documentElement, 'si') : [];
+    function pictures(name) {
+      if (!pictureCache.has(name)) {
+        const result = book.bookType === 'ods' ? {images:[],unsupported:1} :
+          paths.get(name) ? drawings.images(paths.get(name),xml,path => book.files?.[path]?.content) : {images:[],unsupported:1};
+        drawings.includeBounds(book.Sheets[name],result.images); pictureCache.set(name,result);
+      }
+      return pictureCache.get(name);
+    }
+    function paintPictures(wrapper, table, next, result) {
+      if(!wrapper.isConnected) return;
+      wrapper.querySelector('.worksheet-pictures')?.remove();
+      if (!result.images.length || !next.rows.length || !next.cols.length) return;
+      const tableRect=table.getBoundingClientRect(), heading=table.tHead.rows[0].cells[1].getBoundingClientRect();
+      const rows=Array.from(table.tBodies[0].rows), top=rows[0].getBoundingClientRect().top;
+      const rowBounds=rows.map(row=>{const r=row.getBoundingClientRect();return [r.top-top,r.bottom-top];});
+      const columnBounds=Array.from(table.tHead.rows[0].cells).slice(1).map(cell=>{const r=cell.getBoundingClientRect();return [r.left-heading.left,r.right-heading.left];});
+      const x=drawings.axis(next.sheet,'cols',next.cols,columnBounds),y=drawings.axis(next.sheet,'rows',next.rows,rowBounds);
+      const layer=document.createElement('div'); layer.className='worksheet-pictures';
+      const width=tableRect.right-heading.left,height=rows.at(-1).getBoundingClientRect().bottom-top;
+      Object.assign(layer.style,{left:heading.left-tableRect.left+'px',top:top-tableRect.top+'px',width:width+'px',height:height+'px'});
+      for (const picture of result.images) {
+        const rect=drawings.rectangle(picture,x,y);
+        if(!rect) { limitation(true); continue; }
+        // Rotation can bring a picture into view even when its unrotated edge is outside.
+        const visual=drawings.visualBounds(picture,rect);
+        if(visual.left+visual.width<=0 || visual.top+visual.height<=0 || visual.left>=width || visual.top>=height) continue;
+        const frame=document.createElement('div');frame.className='workbook-picture';
+        Object.assign(frame.style,{left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',
+          transform:`rotate(${picture.rotation}deg) scale(${picture.flipX?-1:1},${picture.flipY?-1:1})`});
+        const crop=document.createElement('div');crop.className='workbook-picture-crop';
+        const image=document.createElement('img');image.alt=picture.alt;image.draggable=false;
+        const dx=1-picture.crop.l-picture.crop.r,dy=1-picture.crop.t-picture.crop.b;
+        Object.assign(image.style,{width:100/dx+'%',height:100/dy+'%',left:-100*picture.crop.l/dx+'%',top:-100*picture.crop.t/dy+'%'});
+        if(!imageURLs.has(picture.path)) imageURLs.set(picture.path,URL.createObjectURL(new Blob([picture.bytes],{type:picture.mime})));
+        image.src=imageURLs.get(picture.path);image.addEventListener('error',()=>{if(frame.isConnected) { frame.remove();limitation(true); }},{once:true});
+        crop.appendChild(image);
+        if(picture.link) {
+          const link=document.createElement('a');link.href=picture.link.external || '#';link.setAttribute('aria-label',picture.alt);
+          if(picture.link.internal) link.addEventListener('click',event=>{
+            event.preventDefault();const point=model.destination(picture.link.internal,book,next.chosen.index);
+            if(point) render(point.sheet,point.row,point.col); else error.textContent='This link destination is unavailable.';
+          });
+          link.appendChild(crop);frame.appendChild(link);
+        } else frame.appendChild(crop);
+        layer.appendChild(frame);
+      }
+      wrapper.appendChild(layer);
+    }
     function cellStyles(name) {
       if (styleIndices.has(name)) return styleIndices.get(name);
       const indices = new Map(), rich = new Map(), source = paths.get(name) && xml(paths.get(name));
@@ -86,7 +137,10 @@
     let current;
     function render(index, row = 0, col = 0, initial = false) {
       try {
+        const visible=model.sheets(book), chosen=visible.find(sheet=>sheet.index===index) || visible[0];
+        const pictureResult=pictures(chosen.name);
         const next = model.windowFor(book, index, row, col), table = element('table');
+        limitation(book.bookType==='ods' || pictureResult.unsupported>0);
         table.setAttribute('aria-label', next.chosen.name);
         const indices = cellStyles(next.chosen.name), head = element('thead'), headings = element('tr');
         headings.appendChild(element('th', ''));
@@ -95,8 +149,7 @@
         let tableWidth = 52;
         for (const c of next.cols) {
           const col = element('col'), metadata = model.axisInfo(next.sheet, 'cols', c);
-          const width = metadata?.wpx ?? (Number(metadata?.wch) * 7 + 10);
-          const columnWidth = Number.isFinite(width) ? Math.min(800, Math.max(32, width)) : 110;
+          const columnWidth = drawings.columnWidth(metadata);
           col.style.width = columnWidth + 'px'; tableWidth += columnWidth; columns.appendChild(col);
           const th = element('th', XLSX.utils.encode_col(c)); th.scope = 'col'; headings.appendChild(th);
         }
@@ -152,7 +205,13 @@
           body.appendChild(tr);
         }
         table.appendChild(body);
-        content.replaceChildren(next.empty ? element('p', 'This worksheet is empty.') : table);
+        pictureResize?.disconnect();
+        const wrapper=element('div');wrapper.className='worksheet';wrapper.appendChild(table);
+        content.replaceChildren(next.empty ? element('p', 'This worksheet is empty.') : wrapper);
+        if(!next.empty) {
+          paintPictures(wrapper,table,next,pictureResult);
+          pictureResize=new ResizeObserver(()=>paintPictures(wrapper,table,next,pictureResult));pictureResize.observe(table);
+        }
         current = next; selector.value = next.chosen.index; memories.set(next.chosen.index, {row: next.row, col: next.col});
         document.getElementById('left').disabled = next.previousColumn == null;
         document.getElementById('up').disabled = next.previousRow == null;

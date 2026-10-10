@@ -51,6 +51,79 @@ class WorkbookPreviewRuntimeTest {
         compose.waitUntil(45_000) { js("window.__cmuxWorkbookReady === true") == "true" }
         compose.waitUntil(5000) { compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)).fetchSemanticsNodes().isEmpty() }
     }
+    private fun picturePixels(name: String, leftBlue: Boolean, capture: String) {
+        compose.waitUntil(15_000) {
+            val geometry = JSONObject(js("""
+                (() => { const image=[...document.querySelectorAll('.workbook-picture img')].find(n=>n.alt==='${name}');
+                  if(!image || !image.complete || image.naturalWidth!==64) return {};
+                  const r=image.closest('.workbook-picture').getBoundingClientRect();
+                  return {vw:visualViewport.width,x:r.x,y:r.y,w:r.width,h:r.height}; })()
+            """.trimIndent()) ?: "{}")
+            if(!geometry.has("vw")) return@waitUntil false
+            val origin = IntArray(2); var scale = 0.0
+            compose.runOnUiThread { web(compose.activity.window.decorView)?.let {
+                it.getLocationOnScreen(origin); scale=it.width/geometry.getDouble("vw")
+            } }
+            val bitmap=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try {
+                fun matches(fraction: Double, blue: Boolean): Boolean {
+                    val cx=(origin[0]+(geometry.getDouble("x")+geometry.getDouble("w")*fraction)*scale).toInt()
+                    val cy=(origin[1]+(geometry.getDouble("y")+geometry.getDouble("h")*.5)*scale).toInt()
+                    if(cx<4 || cy<4 || cx+4>=bitmap.width || cy+4>=bitmap.height) return false
+                    var correct=0
+                    for(y in cy-3..cy+3) for(x in cx-3..cx+3) {
+                        val color=bitmap.getPixel(x,y)
+                        if(if(blue) Color.red(color) in 20..52 && Color.green(color) in 64..96 && Color.blue(color) in 112..144
+                           else Color.red(color) in 210..242 && Color.green(color) in 147..179 && Color.blue(color) in 58..90) correct++
+                    }
+                    return correct>=40
+                }
+                val painted=matches(.2,leftBlue) && matches(.8,!leftBlue)
+                if(painted) {
+                    val output=File(compose.activity.getExternalFilesDir(null),"workbook-pictures").apply{mkdirs()}
+                    File(output,"$capture.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
+                    File(output,"$capture.json").writeText(geometry.toString())
+                }
+                painted
+            } finally {bitmap.recycle()}
+        }
+    }
+    @Test fun embeddedPicturesPaintCropFlipNavigateAndRestoreIncludingImageOnlySheets() {
+        file=File(compose.activity.cacheDir,"pictures-workbook.xlsx")
+        InstrumentationRegistry.getInstrumentation().context.assets.open("workbook/pictures.xlsx").use { input -> file.outputStream().use { input.copyTo(it) } }
+        val restoration=StateRestorationTester(compose)
+        restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                FilePreviewContent(LocalFilePreview(file,file.length(),WorkbookPreviewPolicy.MIME,ChangesPreviewRoute.WORKBOOK))
+            }
+        } } }
+        ready()
+        assertEquals("true",js("""
+            (()=>document.getElementById('sheets').options.length===3 &&
+              document.querySelectorAll('.workbook-picture').length===3 &&
+              [...document.querySelectorAll('.workbook-picture img')].every(image=>image.src.startsWith('blob:')) &&
+              !document.querySelector('img[alt="External picture blocked"]') &&
+              !document.getElementById('limitations').hidden)()
+        """.trimIndent()))
+        js("document.querySelector('img[alt=\"Cropped flipped picture\"]').closest('.workbook-picture').scrollIntoView({block:'center',inline:'center'});")
+        picturePixels("Cropped flipped picture",true,"cropped-flipped")
+        assertEquals("true",js("""
+            (()=>{const frame=document.querySelector('img[alt="Cell anchored picture"]').closest('.workbook-picture');
+              return frame.getBoundingClientRect().width>100 && frame.getBoundingClientRect().height>50 &&
+                document.querySelector('img[alt="Rotated absolute picture"]').closest('.workbook-picture').style.transform.includes('90deg');})()
+        """.trimIndent()))
+        js("document.getElementById('address').value='A131';document.getElementById('go').click();")
+        js("document.querySelector('img[alt=\"Far page picture\"]').closest('.workbook-picture').scrollIntoView({block:'center',inline:'center'});")
+        picturePixels("Far page picture",false,"far-page")
+        restoration.emulateSavedInstanceStateRestore(); ready()
+        assertEquals("true",js("document.getElementById('range').textContent.startsWith('Rows 131') && !!document.querySelector('img[alt=\"Far page picture\"]')"))
+        js("document.querySelector('img[alt=\"Far page picture\"]').closest('.workbook-picture').scrollIntoView({block:'center',inline:'center'});")
+        picturePixels("Far page picture",false,"far-page-restored")
+        js("document.getElementById('sheets').value='3';document.getElementById('sheets').dispatchEvent(new Event('change'));")
+        assertEquals("true",js("document.getElementById('range').textContent.startsWith('Rows 1–14') && document.querySelectorAll('.workbook-picture').length===1 && document.querySelectorAll('tbody tr').length===14"))
+        js("document.querySelector('img[alt=\"Image only worksheet\"]').closest('.workbook-picture').scrollIntoView({block:'center',inline:'center'});")
+        picturePixels("Image only worksheet",false,"image-only-sheet")
+    }
     @Test fun formattedWorkbookNavigatesAndRestoresSelectedSheetAndRange() {
         file = File(compose.activity.cacheDir, "rich-workbook.xlsx")
         InstrumentationRegistry.getInstrumentation().context.assets.open("workbook/rich-runs.xlsx").use { input ->

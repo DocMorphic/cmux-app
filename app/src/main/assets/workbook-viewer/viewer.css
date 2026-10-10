@@ -1,6 +1,6 @@
 :root { color-scheme: light; font: 14px system-ui, sans-serif; background: #fff; color: #171717; }
 body { margin: 0; }
-nav { box-sizing: border-box; width: 100vw; padding: 10px; background: #202124; color: #eee; position: sticky; left: 0; }
+nav { box-sizing: border-box; width: 100vw; padding: 10px; background: #202124; color: #eee; position: sticky; left: 0; z-index: 2; }
 label { display: inline-flex; align-items: center; gap: 6px; }
 select, input, button { font: inherit; border: 1px solid #72767c; border-radius: 5px; min-height: 40px; box-sizing: border-box; }
 select { max-width: min(72vw, 360px); padding: 6px; }
@@ -18,3 +18,10 @@ th[scope="row"] { position: sticky; left: 0; min-width: 40px; width: 40px; }
 td.number { text-align: right; }
 a { color: #1558bf; }
 ::selection { background: #adcaff; }
+.worksheet { position: relative; width: max-content; }
+.worksheet-pictures { position: absolute; overflow: hidden; pointer-events: none; }
+.workbook-picture { position: absolute; transform-origin: center; }
+.workbook-picture-crop { position: relative; overflow: hidden; width: 100%; height: 100%; }
+.workbook-picture img { position: absolute; max-width: none; }
+.workbook-picture a { display: block; width: 100%; height: 100%; pointer-events: auto; }
+.workbook-picture a:focus-visible { outline: 2px solid #1558bf; outline-offset: -2px; }

@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src blob:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'">
 <title>Spreadsheet</title><link rel="stylesheet" href="viewer.css">
-<script defer src="xlsx.full.min.js"></script><script defer src="workbook-model.js"></script><script defer src="ods-presentation.js"></script><script defer src="viewer.js"></script>
+<script defer src="xlsx.full.min.js"></script><script defer src="workbook-model.js"></script><script defer src="workbook-drawings.js"></script><script defer src="ods-presentation.js"></script><script defer src="viewer.js"></script>
 </head><body>
 <nav aria-label="Workbook controls">
 <label>Sheet <select id="sheets" aria-label="Worksheet"></select></label>

@@ -1,5 +1,63 @@
 # Content formats and offline Word preview
 
+## Embedded workbook pictures — 2026-10-10
+
+Scoped iOS `Artifacts/ChatArtifactPreviewRouter.swift` was rechecked at
+`f4b1509054949eaad5d695569ad443c4c18ed68d`, SHA-256
+`e20371818593f22f028a474c608dc11b71f1b373d31dfdc36d2af880596c599c`.
+It still routes recognized content after image/PDF/media/Markdown/text to Quick
+Look, with separate runtime admission. It does not define a custom worksheet
+renderer or prove every Office format/variant displays. The global pin is unchanged.
+
+The existing Android XLSX reader now projects embedded PNG/JPEG/GIF/BMP pictures
+from worksheet/drawing/image relationships in the already validated, owned ZIP:
+
+- One-cell, two-cell and absolute anchors retain typed EMU offsets/extents,
+  cropping, rotation and horizontal/vertical flips. Descriptions remain literal
+  image alternative text. Eligible hyperlinks use the existing gesture/link policy.
+- Current-window image geometry follows actual rendered cells, including hidden
+  rows/columns and wrapped rows. Sparse prefix sums locate anchors beyond the
+  window without iterating a million rows. Pictures are clipped to the cell area;
+  rotation affects intersection and range bounds. Image-only sheets and pictures
+  beyond existing cells expand the navigable range without synthesizing cell data.
+- Raster signature admission is bounded to 16 MiB per image and 32 MiB of unique
+  picture resources per worksheet, with at most 256 drawing objects. Repeated
+  references reuse Blob URLs; page exit revokes URLs, and retired DOM callbacks
+  cannot change the current worksheet's notice. External image imports are not
+  fetched. Only local Blob images were added to the existing CSP; script, frame,
+  object and network isolation remains in the shared Office controller.
+- Unsupported charts, grouped/vector/tiled objects and failed images retain an
+  Open-original notice. ODS drawing support remains open. The original workbook
+  remains the export/Open/Share/Save payload.
+
+The anchor/rectangle projection follows the documented
+[worksheet drawing types](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.drawing.spreadsheet.worksheetdrawing?view=openxml-3.0.1)
+and [two-cell anchors](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.drawing.spreadsheet.twocellanchor?view=openxml-3.0.1).
+This is an Android implementation batch, not a claim that its layout matches
+the actual iOS Quick Look surface. Complex effects, shapes, charts, all image
+variants and exact off-window automatic row sizing still require work/comparison.
+
+**47 focused Node checks passed**, zero failures/skips: 16 picture projection
+checks plus the existing workbook/ODS checks. These include real fixture bytes,
+namespace/reference admission, anchor geometry, crop/rotation/flips, hidden/sparse
+axes, actual-window geometry, image-only/final-row reachability and bounds.
+JavaScript syntax and all 18 pinned vendor hashes passed. Main and Android-test
+Kotlin **compiled in 25 seconds**; Gradle was stopped afterward. No APK/emulator
+build/run was used for this feature batch.
+
+The original fixture generator is `scripts/generate-workbook-pictures-fixture.py`.
+`pictures.xlsx` adds a generated two-color PNG, cropped/flipped, two-cell,
+absolute/rotated, later-window and image-only-sheet cases, plus a rejected external
+image. SHA-256:
+`fc0eed20ebd9a101e4ccae56ff148055b1bf2dcfd315f469e8512ae8e696fbe4`.
+The new `WorkbookPreviewRuntimeTest` method is **compiled but unexecuted**; it
+requires painted crop/flip colors, later-window navigation, restoration and
+image-only-sheet pixels rather than DOM assertions alone. Run it with the
+existing workbook/ODS cases at the next integration milestone. Evidence is
+ignored in `captures/workbook-pictures-{node-final,compile,gradle-stop}.log` and
+`captures/ChatArtifactPreviewRouter-f4.swift`. Signed 641 predates this feature;
+physical Mac/Pixel, actual remote routes and matched iOS acceptance remain open.
+
 ## Scoped iOS comparison — 2026-10-06
 
 Reviewed `ChatArtifactPreviewRouter.swift`, its router tests and
@@ -21,7 +79,7 @@ prove that every variant of those formats renders on a phone.
 | Markdown | Rendered Markdown | Pinned upstream HTML/libraries with Android adapters | Broader real-route reflow/recovery and physical acceptance |
 | Text/source | Text viewer | Raw text, highlighting, search and reader controls | Broader encodings/large-file/physical acceptance |
 | DOCX | Quick Look candidate, runtime admission | **New offline Word renderer** in the shared preview component | Runtime rendering, text selection, zoom/restoration, real-route actions and Pixel acceptance |
-| XLSX | Quick Look candidate, runtime admission | **New offline workbook reader**, sheet selection and bounded grid navigation | Runtime formatting/navigation/restoration and Pixel checks; charts/drawings/conditional formatting and exact Quick Look layout remain open |
+| XLSX | Quick Look candidate, runtime admission | Offline workbook reader, sheet selection, bounded grid navigation and new embedded raster-image projection | New picture runtime checks, broader formatting/navigation/restoration and Pixel checks; charts/other drawings/conditional formatting and exact Quick Look layout remain open |
 | PPTX | Quick Look candidate, runtime admission | Offline PowerPoint renderer with slide navigation and saved position | Rendering/lifecycle evidence below; exact Quick Look layout and unsupported format variants remain open |
 | ODS | Quick Look candidate when recognized, runtime admission | In-app workbook preview with visibility, basic styles, dimensions, navigation and saved position | Broader authored formatting, charts/drawings and matched Quick Look/Pixel acceptance remain open |
 | Legacy DOC, RTF, XLS, PPT, Pages, Keynote, Numbers and other Quick Look content | Quick Look candidate when recognized, runtime admission | External Open/Share/Save fallback | In-app format implementation and matched format checks remain open; these are not declared unavoidable platform differences |
@@ -131,9 +189,11 @@ Implemented behavior:
   at normal text scale while Word retains page-fit behavior. Runtime restoration
   evidence is still pending.
 
-The reader does **not** yet render charts, drawings/images, conditional formatting,
-pivots or every Excel style variant. Rich text runs are implemented in the later checkpoint below. A workbook containing charts
-or drawings displays an Open-original notice. The large-sheet window controls
+At this checkpoint the reader did not render charts, drawings/images, conditional
+formatting, pivots or every Excel style variant. Rich text runs were subsequently
+implemented below, and the picture batch above now projects embedded raster images.
+Unsupported charts/other objects still display an Open-original notice.
+The large-sheet window controls
 are an Android implementation choice whose UI/interaction parity is unverified.
 These gaps are tracked as remaining work, not unavoidable platform differences.
 At this checkpoint legacy XLS, XLSB, XLSM, ODS and Numbers were not newly
