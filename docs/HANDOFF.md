@@ -7,6 +7,17 @@ completion checklist. The dated older entries below retain history and must not
 be read as the current delivery or pending-test state. The full goal remains
 active and unverified. Scoped source audits do not advance the global parity pin.
 
+The shared SSH/Cloud direct keyboard now honors modifiers for native IME deletion
+and editor Return, and does not consume one-shot Shift while a hardware dead
+accent is pending. Seven JVM checks and all four `SshDirectKeyboardTest` Android
+screen cases passed; build 65 s, runtime 55.623 s. These assert exact bytes using
+the production screen/IME endpoint and actual virtual key map, with a local
+terminal sink. Evidence/hashes are in `TERMINAL_SHORTCUTS.md` and ignored
+`captures/runtime/ssh-direct-keyboard/`. A System Intelligence service ANR was
+logged, no cmux crash. Gradle/emulator stopped and reaped, prior sleep timeout
+restored, no additional AVD, signed release or physical/live-host run. Signed 641
+and global pin are unchanged; provider/Gboard/physical keyboard acceptance remains.
+
 The combined `NativePrivacySettingsTest` + `RtfPreviewRuntimeTest` Android 17
 integration now passed four cases in 28.205 s. Capture inspection caught and
 rejected an earlier blank restored frame despite DOM/scroll assertions; the

@@ -29,6 +29,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The shared SSH/Cloud direct keyboard now applies armed modifiers to native
+  IME deletion and editor Return, and retains one-shot Shift through a pending
+  hardware dead accent. **Seven existing JVM checks and four Android screen
+  cases passed**, build 65 s/runtime 55.623 s. Production editor/queue plus an
+  actual virtual key map verify exact bytes and composition behavior; see
+  `TERMINAL_SHORTCUTS.md`. A System Intelligence service ANR was logged, no cmux
+  crash. Sole AVD/Gradle stopped and reaped; sleep timeout restored, no extra AVD.
+  Physical Gboard/keyboard and live SSH/Cloud acceptance remain open; no signed
+  release, 641/global pin unchanged.
+
 - The combined Privacy/RTF Android 17 integration **passed all four cases in
   28.205 s**, with inspected Settings, raster/vector and restored final-marker
   captures. The initial run had an obstructing startup System UI ANR dialog;

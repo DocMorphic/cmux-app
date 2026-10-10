@@ -135,8 +135,21 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             alt = modifiers.armed == TerminalInputModifiers.Key.ALT,
             shift = modifiers.armed == TerminalInputModifiers.Key.SHIFT,
             command = modifiers.armed == TerminalInputModifiers.Key.COMMAND) ?: return false
+        // A dead accent is pending composition, not a committed keystroke.
+        // Keep a one-shot modifier armed for the character that completes it.
+        if (value.isEmpty()) return true
         modifiers = modifiers.consume()
         return write(value)
+    }
+    fun directText(text: String) {
+        if (text.isEmpty()) return
+        write(modifiers.text(text))
+        modifiers = modifiers.consume()
+    }
+    fun directDelete(before: Int, after: Int) {
+        if (before == 0 && after == 0) return
+        write(modifiers.special("Backspace").repeat(before) + modifiers.special("Delete").repeat(after))
+        modifiers = modifiers.consume()
     }
     fun showKeyboard() { if (canInput) { dictation.cancel(); motion.stop(); direct = true; rawKeyboard?.showKeyboard() } }
     fun showText() { dictation.cancel(); motion.stop(); keyboard?.hide(); val target = shell.display; snapshot = terminalTextSource(target) { shell.display === target } }
@@ -255,12 +268,13 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         if (direct) AndroidView(factory = { viewContext -> TerminalKeyboardView(viewContext).also { view -> rawKeyboard = view; view.post { view.showKeyboard() } } },
             update = { view ->
                 view.isEnabled = canInput
-                view.onText = { text -> write(modifiers.text(text)); modifiers = modifiers.consume() }
+                view.onText = ::directText
+                view.onDelete = ::directDelete
                 view.onKey = ::key
                 view.onPaste = { write(it, paste = true) }
                 view.onContent = if (input.supportsImages) ({ content -> input.paste(content, direct = true) }) else null
                 view.onContentError = { message = it }
-                view.onReturn = { write("\r") }
+                view.onReturn = { directText("\r") }
             }, modifier = Modifier.fillMaxWidth().height(36.dp).testTag("ssh.shell.keyboard"),
             onRelease = { it.dispose(); if (rawKeyboard === it) rawKeyboard = null })
         else {

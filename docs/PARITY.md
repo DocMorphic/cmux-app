@@ -1,5 +1,18 @@
 # Android parity tracker
 
+## 2026-10-10 — SSH/Cloud direct keyboard modifiers
+
+The shared SSH/Cloud screen now applies and consumes accessory modifiers for
+IME deletion and editor Return, and preserves one-shot Shift through an
+uncommitted hardware dead accent. Its production native editor/queue passed four
+Android 17 cases in 55.623 s; seven existing JVM modifier/key checks passed and
+debug/test APKs built in 65 s. Exact byte-stream assertions cover sticky/one-shot
+state, composition edits without remote input and actual virtual-key-map accents.
+See [TERMINAL_SHORTCUTS.md](TERMINAL_SHORTCUTS.md) for source mapping and hashes.
+The AVD logged a System Intelligence service ANR, no cmux crash. Gradle/emulator
+stopped and reaped, sleep timeout restored, no extra AVD. No live host, physical
+Pixel/keyboard or signed release; 641/global pin unchanged and parity stays open.
+
 ## 2026-10-10 — Privacy/RTF painted Android integration
 
 Four cases pass in 28.205 s on the sole API37/16 KiB AVD, including real opt-out

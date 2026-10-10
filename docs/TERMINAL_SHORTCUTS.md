@@ -2,6 +2,52 @@
 
 Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 
+## SSH/Cloud direct keyboard modifiers — 2026-10-10
+
+Scoped comparison: `TerminalInputTextView.swift` at upstream
+`f4b1509054949eaad5d695569ad443c4c18ed68d`, specifically `deleteBackward()` and
+`emitCommittedText`. The iOS proxy applies the armed accessory modifier when
+committing text or deleting outside composition, consumes a one-shot modifier
+and retains a sticky one. Editing an uncommitted candidate sends no terminal
+input. The existing Android Mac input path already implements those policies.
+This scoped comparison does not advance the global parity pin.
+
+`SshShellScreen`, used by SSH workspaces and `NativeCloudTerminalPane`, now routes
+IME deletion and editor Return through the same modifier handling as its toolbar
+and committed text. Previously, its native editor's default deletion bypassed
+the modifier, and its Return callback neither applied nor consumed it. Cmd+
+Backspace now sends Ctrl+U; Alt+Backspace sends ESC+DEL. Forward deletion retains
+the existing accessory Delete encoding. A zero-length deletion leaves the
+modifier untouched. A pending hardware dead accent is handled without queuing
+empty input or consuming Shift; the completing character consumes it. Clipboard
+paste retains its separate paste path and ordered input queue.
+
+**Seven existing JVM checks and four new Android screen cases passed.** The
+main/test APK build and JVM checks completed in 65 s; the Android batch took
+**55.623 s** on the sole existing Android 17 / API37 / 16 KiB AVD. These use the
+production screen/native IME endpoint, actual virtual key map and a local terminal
+byte sink. They verify exact ordered stream contents, including one-shot/sticky
+deletion and Return, composition editing without remote bytes and Shift+dead-key
+completion. Queue packet coalescing is allowed; missing/extra bytes are not.
+The test temporarily uses the default toolbar and restores the prior preference.
+
+The debug APK contains all 21 pinned viewer assets and the expected 22 native
+libraries. SHA-256:
+
+- App: `c1f2d429b1e6c45a7055dd09ddb6efc6fa16df001ba11de2a62b5901521d1c19`
+- Test: `a69995b55cf9785ff71a1f5d641fee91162c7df562783b75c12f026bb2509c88`
+
+Evidence is in ignored `captures/runtime/ssh-direct-keyboard/`: build and runner
+logs, saved upstream source, APK/source digests, runtime receipt and before/after
+event/crash logs. An Android System Intelligence (`com.google.android.as`) service
+ANR occurred during the run; no cmux crash was logged and the crash buffer is
+empty. Requested AVD memory was clamped to 4096 MiB (guest MemTotal 4,062,848 KiB).
+Gradle was stopped and its exit verified before boot; the emulator was stopped
+and reaped afterward, with its original sleep timeout restored. No additional
+AVD, signed APK, real SSH/Cloud host or physical keyboard/Pixel run was used.
+Signed milestone 641 is unchanged; physical Gboard/provider/lifecycle acceptance
+and full keyboard parity remain open.
+
 ## Custom-action editor restoration — 2026-10-07
 
 Scoped source recheck: `TerminalShortcutsSettingsView.swift` and
