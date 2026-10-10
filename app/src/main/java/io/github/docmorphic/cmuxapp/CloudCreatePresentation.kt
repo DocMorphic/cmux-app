@@ -3,16 +3,27 @@ package io.github.docmorphic.cmuxapp
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.util.Locale
 
-internal class CloudCreatePresentation(val catalog: CloudMachineCatalog) {
+internal class CloudCreatePresentation(val catalog: CloudMachineCatalog,
+    private val formatList: (List<String>) -> String = ::cloudPlanList) {
     val kind = if (catalog.availableKinds?.contains(CloudMachineKind.DESKTOP) == false) CloudMachineKind.BASE else CloudMachineKind.DESKTOP
     val sizes = catalog.limits?.memoryOptionsMb.orEmpty().filter { diskMb(it) != null }.distinct().sorted().ifEmpty { listOf(8192) }
     val defaultMemory = 8192.takeIf { it in sizes } ?: sizes.first()
     val lockedSizes = catalog.limits?.lockedMemoryOptionsMb.orEmpty().filter { diskMb(it) != null }.distinct().sorted()
     fun upgradePlan(memoryMb: Int) = (catalog.limits?.memoryUpgradePlansByMb?.get(memoryMb.toString())
         ?: catalog.limits?.memoryUpgradePlanId)?.trim()?.lowercase(Locale.ROOT)?.takeIf { it.isNotEmpty() }
-    val preferredUpgradePlan: String? get() = lockedSizes.mapNotNull(::upgradePlan).distinct()
+    private val upgradePlans get() = lockedSizes.mapNotNull(::upgradePlan).distinct()
+    val preferredUpgradePlan: String? get() = upgradePlans
         .maxByOrNull { when (it) { "max" -> 2; "pro" -> 1; else -> 0 } }
-    fun planLabel(memoryMb: Int) = upgradePlan(memoryMb)?.replaceFirstChar { it.titlecase(Locale.ROOT) } ?: "an upgraded plan"
+    private fun planName(plan: String) = plan.split(' ').joinToString(" ") { it.replaceFirstChar { letter -> letter.titlecase(Locale.ROOT) } }
+    fun planLabel(memoryMb: Int) = upgradePlan(memoryMb)?.let(::planName) ?: "an upgraded plan"
+    fun lockedLabel(memoryMb: Int) = upgradePlan(memoryMb)?.let { "${label(memoryMb)} · Requires ${planName(it)}" } ?: label(memoryMb)
+    val lockedSizesNote: String? get() {
+        val sizes = lockedSizes.filter { upgradePlan(it) != null }.map { "${it / 1024} GB" }
+        if (sizes.isEmpty() || upgradePlans.isEmpty()) return null
+        return "${formatList(sizes)} machines need cmux ${formatList(upgradePlans.map(::planName))}."
+    }
+    val upgradeActionTitle: String? get() = upgradePlans.takeIf { it.isNotEmpty() }
+        ?.let { "Upgrade to ${formatList(it.map(::planName))}" }
     fun label(memoryMb: Int) = "${memoryMb / 1024} GB RAM · ${(diskMb(memoryMb) ?: memoryMb) / 1024} GB disk"
     fun options(memoryMb: Int): CloudMachineCreateOptions {
         require(memoryMb in sizes) { "Choose an available machine size" }
@@ -31,6 +42,15 @@ internal class CloudCreatePresentation(val catalog: CloudMachineCatalog) {
             32768, 65536 -> 131072; else -> null
         }
     }
+}
+
+/** English fallback for the app's current English copy; Android supplies its
+ * locale-aware ICU formatter at the presentation boundary. */
+private fun cloudPlanList(values: List<String>): String = when (values.size) {
+    0 -> ""
+    1 -> values.single()
+    2 -> values.joinToString(" and ")
+    else -> values.dropLast(1).joinToString(", ") + ", and " + values.last()
 }
 
 /** The sideloaded build uses the upstream non-StoreKit destination. Server plan

@@ -1,5 +1,48 @@
 # Cloud companion parity
 
+## Create-form source follow-up — 2026-10-10
+
+Scoped source: `CloudSectionView.swift` at
+`f4b1509054949eaad5d695569ad443c4c18ed68d`, SHA-256
+`df02f91fc734db4bf1040a23d083b6397b452ee6c0214e68f01847f6d5636c18`.
+The global parity/review pin is unchanged; this does not establish the current
+App Store distribution or full Cloud UI acceptance.
+
+The create form now includes the source's memory/disk help, locked-size
+explanation and plan-specific Upgrade action. Only sizes with an actual
+normalized server plan ID contribute to that explanation; distinct plan names
+retain size order, and the existing highest-priority plan selects the upgrade
+destination. Unknown plan metadata does not invent a "Requires" label.
+Android supplies its locale's ICU list formatter; the pure presentation model
+has an English fallback for JVM callers. Locked choices retain the lock icon
+and their existing per-size plan action; they never change the selected create
+size or grant eligibility.
+
+New Machine now has leading Cancel and a centered title, and supports partial
+and full expansion corresponding to the source's medium/large detents. The
+existing busy/dismissal policy and controller-owned create request are retained.
+The machine-list footer explains that computers/workspaces live in the shared
+Workspaces tab. No Cloud API, tunnel, billing or resource entitlement contract
+changed.
+
+All **six existing CloudCreatePresentation JVM cases passed** with expanded
+mixed-plan, missing-plan and locked-size assertions; zero failures/errors/skips.
+Main and Android-test Kotlin compiled in the same 37-second batch; the detent
+adjustment's main compilation passed in another 3 seconds. The existing UI
+upgrade case now covers the explanatory button and locked menu entry, preserving
+the 8 GB submitted profile; its helper expands the sheet through the public
+accessibility action when available. That changed UI case **has not run**.
+Medium/large gestures, footer visibility, locale/large-text layouts and actual
+plan-return/catalog refresh remain integration and physical acceptance gates.
+
+Evidence: ignored `captures/cloud-create-source-batch.log`,
+`captures/cloud-create-detents-compile.log`, `captures/CloudSectionView-f4.swift`
+and the six-case JUnit XML under `app/build/test-results/testDebugUnitTest/`.
+The final UI-helper compile is recorded in `captures/cloud-create-ui-compile.log`.
+Gradle is stopped; no emulator, APK build, signed release, Cloud account request
+or Pixel run was used. Signed 635 is unchanged; native Android purchase/restore,
+production Cloud transport and full parity remain unverified.
+
 ## Source audit — 2026-10-06
 
 Scoped upstream revision: `c2715faa02c260b07012bc0b386597cfb333021d`.

@@ -26,6 +26,9 @@ class CloudCreatePresentationTest {
           "memoryUpgradePlanId":"pro","memoryUpgradePlansByMb":{"65536":"max"}}""")
         assertEquals(listOf(32768, 65536), model.lockedSizes)
         assertEquals("pro", model.upgradePlan(32768)); assertEquals("max", model.upgradePlan(65536))
+        assertEquals("32 GB and 64 GB machines need cmux Pro and Max.", model.lockedSizesNote)
+        assertEquals("Upgrade to Pro and Max", model.upgradeActionTitle)
+        assertEquals("32 GB RAM · 128 GB disk · Requires Pro", model.lockedLabel(32768))
         assertEquals("64 GB RAM · 128 GB disk", model.label(65536))
         assertTrue(runCatching { model.options(32768) }.isFailure)
     }
@@ -42,8 +45,14 @@ class CloudCreatePresentationTest {
         assertEquals("pro", model.upgradePlan(16384)); assertEquals("Pro", model.planLabel(32768))
         assertEquals("max", model.preferredUpgradePlan)
         assertEquals("Max", model.planLabel(65536))
+        assertEquals("Upgrade to Pro and Max", model.upgradeActionTitle)
         assertEquals("max", cloudPlansUrl(model.preferredUpgradePlan).toHttpUrl().queryParameter("plan"))
         assertNull(presentation().preferredUpgradePlan)
+        assertNull(presentation().lockedSizesNote)
+        assertNull(presentation().upgradeActionTitle)
+        val unknownPlan = presentation("""{"lockedMemoryOptionsMb":[16384]}""")
+        assertEquals("16 GB RAM · 64 GB disk", unknownPlan.lockedLabel(16384))
+        assertNull(unknownPlan.lockedSizesNote)
     }
     @Test fun planDestinationCannotChangeOriginOrInjectMoreQueryParameters() {
         val plan = "pro&return_to=https://example.test/#fragment"

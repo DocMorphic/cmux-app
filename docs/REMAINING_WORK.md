@@ -29,6 +29,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud's create form now explains locked size/plan requirements, supplies the
+  corresponding upgrade action and supports partial/full expansion. The shared
+  Workspaces destination is explained below the machine list. **Six existing
+  model/contract tests passed**, and main/test Kotlin compiled. Changed sheet
+  gestures, upgrade actions, profile retention and visual/physical checks remain
+  pending for the next integration milestone. See `CLOUD_COMPANION.md`; no APK,
+  emulator or live Cloud operation was used, and signed 635 is unchanged.
+
 - Feed full text now uses a large draggable sheet with the iOS title/Close/loading
   presentation; reply editor spacing, avatar sizes and controls follow the scoped
   source. Cancelled reads and retired/empty IME submissions are fenced. Main/test

@@ -39,9 +39,18 @@ class CloudMachinesScreenTest {
         compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface { NativeCloudScreen(controller, {}, onPlans, machines = machines, onRetryConnections = onRetry, connectionFailures = connectionFailures) } } }
     }
     @After fun stop() { compose.runOnUiThread { controller?.close(); scope.cancel() } }
+    private fun openCreate() {
+        compose.onNodeWithTag("cloud.new").performClick()
+        // Match a user's expansion of the source's medium/large sheet before
+        // inspecting controls near its footer. Short layouts may already fit.
+        val expands = compose.onAllNodes(SemanticsMatcher.keyIsDefined(
+            androidx.compose.ui.semantics.SemanticsActions.Expand), useUnmergedTree = true)
+        if (expands.fetchSemanticsNodes().isNotEmpty()) expands.onFirst()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.Expand) { it() }
+    }
     @Test fun creationUsesSelectedSizeAndShowsServerUsage() {
         val service = Service(); mount(service)
-        compose.onNodeWithTag("cloud.new").performClick()
+        openCreate()
         compose.onNodeWithText("1 of 5 machines in use").assertExists()
         compose.onNodeWithText("4 of 8 vCPUs · 8 of 16 GB RAM in use").assertExists()
         compose.onNodeWithTag("cloud.create.size").performClick()
@@ -74,10 +83,13 @@ class CloudMachinesScreenTest {
     @Test fun lockedSizeOpensItsPlanWithoutChangingTheSubmittedMachineSize() {
         val plans = mutableListOf<String?>()
         val service = Service(); mount(service) { plans += it }
-        compose.onNodeWithTag("cloud.new").performClick()
+        openCreate()
+        compose.onNodeWithTag("cloud.create.locked.note").assertTextEquals("64 GB machines need cmux Max.")
+        compose.onNodeWithTag("cloud.create.upgrade").performScrollTo().performClick()
+        assertEquals(listOf("max"), plans); assertTrue(service.creates.isEmpty())
         compose.onNodeWithTag("cloud.create.size").performClick()
         compose.onNodeWithTag("cloud.create.upgrade.65536").assertIsEnabled().performClick()
-        assertEquals(listOf("max"), plans); assertTrue(service.creates.isEmpty())
+        assertEquals(listOf("max", "max"), plans); assertTrue(service.creates.isEmpty())
         compose.onNodeWithTag("cloud.create.size").assertTextContains("8 GB RAM · 32 GB disk")
         compose.onNodeWithTag("cloud.create.submit").performScrollTo().performClick()
         compose.waitUntil(3000) { service.creates.size == 1 }

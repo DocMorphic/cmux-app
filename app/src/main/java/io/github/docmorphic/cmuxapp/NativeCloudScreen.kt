@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -97,6 +98,10 @@ private val cloudMuted = Color(0xFF9B9FA8)
                             onAction = { action -> if (action == CloudMachineAction.DELETE) deleteId = machine.id
                                 else controller.act(machine.id, action) })
                     }
+                    if (state.catalog.machines.isNotEmpty()) item {
+                        Text("Cloud machines appear in your computers, and their workspaces open in the Workspaces tab.",
+                            fontSize = 12.sp, color = cloudMuted)
+                    }
                     state.failure?.let { failure -> item {
                         Column(Modifier.fillMaxWidth().background(cloudPanel, RoundedCornerShape(16.dp)).padding(16.dp)) {
                             CloudFailureText(failure)
@@ -132,7 +137,11 @@ private val cloudMuted = Color(0xFF9B9FA8)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun CloudCreateSheet(controller: CloudMachinesController, state: CloudMachinesState,
     onPlans: (String?) -> Unit, dismiss: () -> Unit) {
-    val presentation = CloudCreatePresentation(state.catalog)
+    val locale = LocalConfiguration.current.locales[0]
+    val listFormatter = remember(locale) { android.icu.text.ListFormatter.getInstance(locale) }
+    val presentation = remember(state.catalog, listFormatter) {
+        CloudCreatePresentation(state.catalog) { values -> listFormatter.format(values) }
+    }
     var memory by rememberSaveable { mutableIntStateOf(presentation.defaultMemory) }
     var sizesOpen by remember { mutableStateOf(false) }
     val observer = rememberCoroutineScope()
@@ -150,27 +159,40 @@ private val cloudMuted = Color(0xFF9B9FA8)
     fun openPlans(plan: String?) { plansOpened = true; onPlans(plan) }
     LaunchedEffect(presentation.sizes) { if (memory !in presentation.sizes) memory = presentation.defaultMemory }
     ModalBottomSheet(onDismissRequest = { if (!state.creating) dismiss() },
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false,
             confirmValueChange = { !state.creating || it != SheetValue.Hidden }), containerColor = cloudPanel) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("New Machine", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                TextButton(onClick = dismiss, enabled = !state.creating) { Text("Cancel") }
+                TextButton(onClick = dismiss, enabled = !state.creating, modifier = Modifier.width(80.dp)) { Text("Cancel") }
+                Text("New Machine", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Spacer(Modifier.width(80.dp))
             }
             Text("A cloud computer with devtools and coding agents preinstalled. Its home directory is reset when the machine is recreated.", color = cloudMuted)
             Text("Machine size", fontWeight = FontWeight.SemiBold)
+            Text("Choose the memory and disk profile for this machine.", color = cloudMuted, fontSize = 12.sp)
             Box {
                 OutlinedButton(onClick = { sizesOpen = true }, enabled = !state.creating, modifier = Modifier.testTag("cloud.create.size")) { Text(presentation.label(memory)) }
                 DropdownMenu(expanded = sizesOpen, onDismissRequest = { sizesOpen = false }) {
                     presentation.sizes.forEach { size -> DropdownMenuItem(text = { Text(presentation.label(size)) }, onClick = { memory = size; sizesOpen = false }) }
                     presentation.lockedSizes.forEach { size -> DropdownMenuItem(enabled = !state.creating,
-                        text = { Text("${presentation.label(size)} · Requires ${presentation.planLabel(size)}") },
+                        text = { Text(presentation.lockedLabel(size)) },
+                        leadingIcon = { Icon(painterResource(R.drawable.ic_workspace_lock), null, Modifier.size(18.dp)) },
                         modifier = Modifier.testTag("cloud.create.upgrade.$size"),
                         onClick = { sizesOpen = false; openPlans(presentation.upgradePlan(size)) }) }
                 }
             }
-            if (presentation.lockedSizes.isNotEmpty()) TextButton(onClick = { openPlans(presentation.preferredUpgradePlan) }, enabled = !state.creating) { Text("View plans") }
+            presentation.lockedSizesNote?.let { note ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(note, color = cloudMuted, fontSize = 12.sp, modifier = Modifier.testTag("cloud.create.locked.note"))
+                    presentation.upgradeActionTitle?.let { title ->
+                        OutlinedButton(onClick = { openPlans(presentation.preferredUpgradePlan) }, enabled = !state.creating,
+                            modifier = Modifier.testTag("cloud.create.upgrade")) { Text(title) }
+                    }
+                }
+            }
             presentation.machineUsage?.let { Text(it, color = cloudMuted) }
             presentation.poolUsage?.let { Text(it, color = cloudMuted) }
             state.createFailure?.let { CloudFailureText(it) }
