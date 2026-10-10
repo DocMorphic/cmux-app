@@ -1,5 +1,87 @@
 # Content preview lifecycle
 
+## Paused embedded captions — 2026-10-10
+
+The paused-cue gap seen during the earlier fullscreen milestone was reproduced against
+the exact older debug APK `2c2af1e8`: at a settled 3,000 ms bookmark, English
+timed text was selected but no cue rendered. The changing/gapped fixture case
+failed in 22.678 seconds. Evidence:
+`captures/paused-captions-baseline-runtime.log` and
+`captures/runtime/paused-captions/baseline/paused-captions/`.
+
+A private-file `MediaExtractor` reader now resolves supported embedded 3GPP
+timed-text samples while playback is paused. It does not start or seek the
+audible/video player. Reads run off-main with cancellation, bounded sample and
+buffer sizes, exact player/selection/seek ownership and a final position check.
+Blank samples clear gaps; seek, track change, playback and disposal invalidate
+older reads. Native timed-text callbacks continue to supply playing captions.
+Same-track choices and unchanged metadata refreshes retain the existing cue.
+Both Android MIME spellings (`text/3gpp` and `text/3gpp-tt`) are recognized;
+UTF-8 and BOM-marked UTF-16 text are decoded with malformed payload rejection.
+Trailing styling boxes are not rendered by this plain-text overlay.
+
+The initial extractor probe expected only `text/3gpp` and found zero tracks.
+Its actual format capture identified `text/3gpp-tt`; this was a failed discovery
+run, not a passing test. The corrected probe reads both languages at 15 seconds
+without starting playback. Android's public
+[MediaExtractor API](https://developer.android.com/reference/android/media/MediaExtractor)
+provides track selection, sample timestamps and seeking. The scoped AOSP
+[GenericSource](https://android.googlesource.com/platform/frameworks/av/+/refs/heads/main/media/libmediaplayerservice/nuplayer/GenericSource.cpp)
+clears timed-text packets on seek and schedules fetching through consumed A/V
+packets. That timing is consistent with the observed paused failure; the
+runtime reproduction is the direct evidence for this app.
+
+Six decoder and six existing track-selection JVM cases passed. The first four
+Android cases passed in 57.553 seconds, covering the extractor, changing/gapped
+paused captions, PiP return and audio/subtitle selection. Screenshot review then
+found a blank paused PiP capture despite a positive text lookup. The PiP check
+now requires painted white pixels within fresh cue bounds while still paused,
+including source recreation. A separate playing re-selection check reproduced
+cue loss on APK `3f620d53`: English remained selected at 16,882 ms while playing,
+but its cue was absent. It failed in 144.399 seconds. Two preceding attempts
+never reached this assertion because a startup System UI ANR dialog covered
+the controls; the dialog was cleared before the actual reproduction. Evidence:
+`captures/reselected-captions-baseline-clear-dialog.log`,
+`captures/runtime/paused-captions/reselected-confirmed/` and the retained
+startup/failure logs. The final strengthened run is recorded below.
+
+The strengthened combined run on debug APK `e5c6b886` recorded passing results
+for the extractor, changing/gapped paused-cue and PiP cases. The fourth case was
+still running when the turn interruption stopped the emulator; no four-case
+completion is claimed for that run. Its log is
+`captures/paused-captions-final-runtime.log`, with inspected evidence in
+`captures/runtime/paused-captions/final/`. Both expanded PiP at 12 seconds and
+the recreated inline source visibly paint the French cue while paused. The
+returned bookmark, French native audio, 1.5× speed and mute were preserved;
+resuming also passed the video-color assertion.
+
+The recreated inline paused screenshot nevertheless has a black video surface
+behind its visible caption; its resumed screenshot renders the fixture colors.
+Paused video-frame restoration therefore remains a separate unresolved gate.
+The remaining playing-track case now queries fresh nodes without waiting for
+its continually updating timeline to become idle, restoring the previous idle
+timeout on exit. Only its test APK was rebuilt (18 seconds); the app APK is
+unchanged from the three passing cases.
+
+That isolated retry did not reach a test method. Instrumentation reported
+`Process crashed` as the entire emulator disappeared; its host process ended
+with exit code 137. No Android exception was obtained because ADB had lost the
+device. Host logs confirm termination but do not establish why it was killed.
+Evidence: `captures/paused-captions-tracks-final-runtime.log` and
+`captures/paused-captions-tracks-emulator.log`. The playing same-track regression
+therefore still needs a completed run. App SHA-256:
+`e5c6b88602c24155ccf790543588f7718a7064f20267197f2f58a059ee0f636a`;
+latest test APK:
+`171d767a9fe06353b9c34c11769c943d6569e19a3014d24eca3f0f1803846be4`.
+Only the existing AVD was used; Gradle and the emulator did not overlap. Both
+are stopped at this checkpoint, and no physical or signed-release run occurred.
+
+The scoped iOS media view at `f4b15090` uses AVPlayerViewController and a local
+AVPlayer. No matching paused-caption iOS runtime check has been performed.
+Pixel codecs/routes, hardware graphics, caption styling and the broader format
+matrix remain open; this does not close media or full iOS parity. Signed 635
+predates this batch.
+
 ## Fullscreen media runtime diagnosis — 2026-10-10
 
 The latest held-touch failure was traced before releasing the finger. Controls

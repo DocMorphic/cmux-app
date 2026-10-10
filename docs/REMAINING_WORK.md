@@ -29,6 +29,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Paused embedded 3GPP captions now refresh through an independent bounded file
+  reader, without starting playback. Seek/selection/player changes invalidate
+  older reads, blank cue gaps clear the overlay, and unchanged tracks retain
+  playing text. **12 focused JVM checks passed.** The strengthened extractor,
+  paused-seek and actual OS PiP-return cases each recorded passes before the
+  combined run was interrupted; the remaining playing-track case needs a
+  completed run. Its isolated retry ended when the emulator was killed with
+  exit 137, before a test method began. Screenshots confirm paused French cues
+  in expanded PiP and after source recreation, but the recreated paused video
+  surface is black until resuming: frame restoration remains an explicit next
+  issue. See `CONTENT_PREVIEW_LIFECYCLE.md` for baseline failures, exact hashes
+  and scope. Only the existing AVD was used, with no Gradle overlap; both are
+  stopped. No Pixel, matching iOS runtime or signed release was used. Signed
+  635 predates this batch, and media/full parity remain unverified.
+
 - Fullscreen media now uses controls over the fitted video, with playback
   auto-hide, menu/gesture/accessibility guards and a shared expanded PiP layout.
   **The comprehensive video and actual OS PiP-return cases passed together in

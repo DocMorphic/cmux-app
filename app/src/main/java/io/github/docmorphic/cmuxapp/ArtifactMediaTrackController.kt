@@ -7,14 +7,25 @@ import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.CaptioningManager
 import java.util.Locale
+import java.io.File
+import kotlinx.coroutines.*
 
 /** Platform selection/rendering remains owned by this specific prepared player. */
 internal class ArtifactMediaTrackController(context: Context, private val player: MediaPlayer,
-    private val state: ArtifactMediaState, private val current: () -> Boolean) : AutoCloseable {
+    private val state: ArtifactMediaState, private val file: File, private val current: () -> Boolean) : AutoCloseable {
     private val captions = context.getSystemService(CaptioningManager::class.java)
     private val handler = Handler(Looper.getMainLooper())
     private var closed = false
     private var selectionGeneration = 0L
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val captionDispatcher = Dispatchers.IO.limitedParallelism(1)
+    private var captionJob: Job? = null
+    private var captionGeneration = 0L
+    private var captionSeeking = false
+    private var pausedTextOwned = false
+    private var desiredCaption = -1
+    private var desiredCaptionKey: String? = null
+    private val captionReadFailure = "Subtitles couldn't be refreshed at this position. Seek again or choose another track."
     private val settings = object : CaptioningManager.CaptioningChangeListener() {
         override fun onEnabledChanged(enabled: Boolean) = settingsChanged()
         override fun onLocaleChanged(locale: Locale?) = settingsChanged()
@@ -26,7 +37,8 @@ internal class ArtifactMediaTrackController(context: Context, private val player
         state.trackFailure = null
         captions.addCaptioningChangeListener(settings)
         player.setOnTimedTextListener { source, text ->
-            if (owned() && source === player && state.captionPreference != ArtifactMediaTracks.OFF)
+            if (owned() && source === player && !captionSeeking && state.captionPreference != ArtifactMediaTracks.OFF &&
+                (!pausedTextOwned || runCatching { player.isPlaying }.getOrDefault(false)))
                 state.captionText = text?.text
         }
         refresh()
@@ -77,13 +89,22 @@ internal class ArtifactMediaTrackController(context: Context, private val player
     }
     private fun applyCaption() {
         if (!owned()) return
+        cancelCaptionRead()
         val generation = ++selectionGeneration
         val desired = ArtifactMediaTracks.caption(state.tracks, state.captionPreference, captions.isEnabled,
             captions.locale ?: Locale.getDefault())
         if (state.captionPreference !in listOf(ArtifactMediaTracks.AUTO, ArtifactMediaTracks.OFF) &&
             state.tracks.none { it.caption && it.key == state.captionPreference }) state.captionPreference = ArtifactMediaTracks.AUTO
         try {
-            state.captionText = null
+            desiredCaption = desired?.index ?: -1
+            // Re-selecting the current option or refreshing unchanged metadata
+            // does not make MediaPlayer resend a long-running cue while playing.
+            if (desired?.key != desiredCaptionKey) state.captionText = null
+            desiredCaptionKey = desired?.key
+            // Native notifications queued for the previous language cannot fill
+            // the paused overlay while the new selection is being confirmed.
+            pausedTextOwned = desired != null && ArtifactTx3gText.supports(desired.mime) &&
+                runCatching { !player.isPlaying }.getOrDefault(false)
             requestCaption(desired?.index ?: -1)
             // SubtitleController may use multiple asynchronous handler hops.
             // A newer choice or retired player invalidates this confirmation.
@@ -101,7 +122,8 @@ internal class ArtifactMediaTrackController(context: Context, private val player
             if (owned() && generation == selectionGeneration) {
                 try {
                     captureSelection()
-                    if (state.selectedCaption != desired) {
+                    if (state.selectedCaption == desired) playbackChanged()
+                    else {
                         if (attempts > 1) {
                             // A previous native selection may finish after a newer Off/Auto choice.
                             requestCaption(desired)
@@ -121,9 +143,49 @@ internal class ArtifactMediaTrackController(context: Context, private val player
         state.selectedCaption = listOf(MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_SUBTITLE, MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT)
             .map { player.getSelectedTrack(it) }.firstOrNull { it >= 0 } ?: -1
     }
+    private fun cancelCaptionRead() {
+        captionGeneration++
+        captionJob?.cancel(); captionJob = null
+        pausedTextOwned = false
+    }
+    fun seekStarted() {
+        cancelCaptionRead(); captionSeeking = true; state.captionText = null
+    }
+    fun seekCompleted() {
+        captionSeeking = false; playbackChanged()
+    }
+    fun playbackChanged() {
+        cancelCaptionRead()
+        if (!owned() || captionSeeking || !state.prepared || state.selectedCaption != desiredCaption) return
+        val track = state.tracks.firstOrNull { it.caption && it.index == desiredCaption && ArtifactTx3gText.supports(it.mime) } ?: return
+        val position = runCatching { if (player.isPlaying) null else player.currentPosition }.getOrNull() ?: return
+        val duration = state.duration
+        val generation = captionGeneration
+        pausedTextOwned = true
+        captionJob = scope.launch {
+            try {
+                val result = withContext(captionDispatcher) { ArtifactPausedCaption.read(file, track, position, duration) }
+                if (!owned() || generation != captionGeneration || captionSeeking || state.selectedCaption != track.index ||
+                    runCatching { player.isPlaying || kotlin.math.abs(player.currentPosition.toLong() - position) > 100L }.getOrDefault(true)) return@launch
+                when (result) {
+                    is ArtifactCaptionLookup.Cue -> {
+                        state.captionText = result.text
+                        if (state.trackFailure == captionReadFailure) state.trackFailure = null
+                    }
+                    ArtifactCaptionLookup.Unsupported -> pausedTextOwned = false
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                if (owned() && generation == captionGeneration) {
+                    state.trackFailure = captionReadFailure
+                }
+            }
+        }
+    }
     override fun close() {
         if (closed) return
         closed = true
+        cancelCaptionRead(); scope.cancel()
         handler.removeCallbacksAndMessages(null)
         captions.removeCaptioningChangeListener(settings)
         player.setOnTimedTextListener(null)

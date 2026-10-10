@@ -132,11 +132,13 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
                     if (!released && state.view === this) { state.videoWidth = width; state.videoHeight = height }
                 }
                 trackController?.close()
-                trackController = ArtifactMediaTrackController(context, player, state) { !released && state.view === this && this.player === player }
+                trackController = ArtifactMediaTrackController(context, player, state, checkNotNull(sourceFile)) { !released && state.view === this && this.player === player }
                     .also { it.prepare() }
                 applyVolume()
                 player.setOnSeekCompleteListener {
-                    if (!released && state.view === this && this.player === player) { seeking = false; capturePosition(); startIfRequested() }
+                    if (!released && state.view === this && this.player === player) {
+                        seeking = false; capturePosition(); startIfRequested(); trackController?.seekCompleted()
+                    }
                 }
                 if (state.position > 0) seekTo(state.position.coerceAtMost(duration.coerceAtLeast(0)))
                 else startIfRequested()
@@ -148,6 +150,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         }
         setOnCompletionListener { if (!released && state.view === this) {
             state.position = duration.coerceAtLeast(0); state.playRequested = false; abandonAudio()
+            trackController?.playbackChanged()
             publishPlayback()
         } }
         setOnErrorListener { _, _, _ ->
@@ -198,6 +201,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         if (released) return
         state.position = if (state.prepared) ArtifactMediaControls.seek(msec, 0, state.duration) else msec.coerceAtLeast(0)
         seeking = true
+        trackController?.seekStarted()
         // VideoView's integer seek snaps backward to a keyframe. That can discard
         // seconds of a restored bookmark once playback starts (despite reporting
         // the requested position while the seek is pending).
@@ -232,17 +236,18 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
                 state.controlFailure = "Audio is unavailable right now. Tap Play to try again."
             }
         }
+        trackController?.playbackChanged()
         publishPlayback()
     }
     override fun pause() { if (!released) {
-        capturePosition(); state.playRequested = false; super.pause(); abandonAudio(); publishPlayback()
+        capturePosition(); state.playRequested = false; super.pause(); abandonAudio(); trackController?.playbackChanged(); publishPlayback()
     } }
     private fun focusChanged(event: ArtifactFocusEvent) {
         if (released || state.view !== this) return
         when (event) {
             ArtifactFocusEvent.GAIN -> { applyVolume(); startIfRequested() }
             ArtifactFocusEvent.DUCK -> applyVolume()
-            ArtifactFocusEvent.TRANSIENT_LOSS -> { capturePosition(); super.pause() }
+            ArtifactFocusEvent.TRANSIENT_LOSS -> { capturePosition(); super.pause(); trackController?.playbackChanged() }
             ArtifactFocusEvent.LOSS -> pause()
         }
         publishPlayback()
@@ -294,6 +299,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
             capturePosition()
             if (!changingConfiguration) state.playRequested = false
             super.pause(); abandonAudio()
+            trackController?.playbackChanged()
         }
         publishPlayback()
     }

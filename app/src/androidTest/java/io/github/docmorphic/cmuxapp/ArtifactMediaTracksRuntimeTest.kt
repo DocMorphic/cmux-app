@@ -27,15 +27,28 @@ class ArtifactMediaTracksRuntimeTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
+        val configurator = Configurator.getInstance()
+        val previousIdleTimeout = configurator.waitForIdleTimeout
         val evidence = File(context.getExternalFilesDir(null), "media-tracks").apply { mkdirs() }
         val file = File(context.cacheDir, "tracks.mp4")
         instrumentation.context.assets.open("media/tracks.mp4").use { input -> file.outputStream().use(input::copyTo) }
+        configurator.setWaitForIdleTimeout(0)
         fun await(message: String, predicate: () -> Boolean) {
             val deadline = SystemClock.elapsedRealtime() + 15_000
             while (SystemClock.elapsedRealtime() < deadline) { if (predicate()) return; Thread.sleep(100) }
             fail(message)
         }
-        fun find(selector: BySelector) = checkNotNull(device.wait(Until.findObject(selector), 10_000)) { "Missing $selector" }
+        fun find(selector: BySelector): UiObject2 {
+            val deadline = SystemClock.elapsedRealtime() + 10_000
+            do {
+                // A playing timeline does not become idle. Query current nodes
+                // directly instead of waiting on continual position updates.
+                if (Build.VERSION.SDK_INT >= 34) instrumentation.uiAutomation.clearCache()
+                device.findObject(selector)?.let { return it }
+                Thread.sleep(100)
+            } while (SystemClock.elapsedRealtime() < deadline)
+            error("Missing $selector")
+        }
         fun choose(menu: String, label: String) { find(By.desc(menu)).click(); find(By.text(label)).click() }
         try { ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
             .putExtra("path", file.absolutePath).putExtra("route", ChangesPreviewRoute.MEDIA.name)
@@ -81,6 +94,11 @@ class ArtifactMediaTracksRuntimeTest {
                 read { view, _, _ -> view.seekTo(0); view.start(); true }
                 find(By.text("CMUX ENGLISH CUE"))
                 dump("english")
+                choose("Subtitle tracks", "English")
+                await("Re-selecting the active option cleared its playing cue") { read { view, state, _ ->
+                    view.isPlaying && state.captionText == "CMUX ENGLISH CUE"
+                } }
+                find(By.text("CMUX ENGLISH CUE")); dump("reselected-english")
                 choose("Subtitle tracks", "Off")
                 await("Off left a visible subtitle") { !device.hasObject(By.text("CMUX ENGLISH CUE")) }
                 choose("Subtitle tracks", "French")
@@ -111,6 +129,6 @@ class ArtifactMediaTracksRuntimeTest {
                 } finally { bitmap.recycle() }
                 assertTrue(read { _, state, _ -> state.trackFailure == null && state.failure == null })
             } catch (failure: Throwable) { dump("failure"); throw failure }
-        } } finally { file.delete() }
+        } } finally { file.delete(); configurator.setWaitForIdleTimeout(previousIdleTimeout) }
     }
 }

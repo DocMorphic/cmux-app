@@ -1,0 +1,55 @@
+{
+  "source": "Original generated colors, silent audio and changing/gapped bilingual text; no third-party media.",
+  "generator": "scripts/generate-paused-caption-fixture.py",
+  "inputSha256": "b82ca9d8eb574b181bd47a09d52ebfde37c0ca723e528b6022fbba26e3a235db",
+  "sha256": "98a7cc7371489ee3cbc07a8be5f58fe4255344fe7a337f61bf5e6bf8fa4a39c4",
+  "duration": "20.200000",
+  "streams": [
+    {
+      "index": 0,
+      "codec_name": "h264",
+      "codec_type": "video",
+      "tags": {
+        "language": "und",
+        "handler_name": "VideoHandler",
+        "encoder": "Lavc63.1.101 libx264"
+      }
+    },
+    {
+      "index": 1,
+      "codec_name": "aac",
+      "codec_type": "audio",
+      "tags": {
+        "language": "eng",
+        "handler_name": "SoundHandler"
+      }
+    },
+    {
+      "index": 2,
+      "codec_name": "aac",
+      "codec_type": "audio",
+      "tags": {
+        "language": "fra",
+        "handler_name": "SoundHandler"
+      }
+    },
+    {
+      "index": 3,
+      "codec_name": "mov_text",
+      "codec_type": "subtitle",
+      "tags": {
+        "language": "eng",
+        "handler_name": "SubtitleHandler"
+      }
+    },
+    {
+      "index": 4,
+      "codec_name": "mov_text",
+      "codec_type": "subtitle",
+      "tags": {
+        "language": "fra",
+        "handler_name": "SubtitleHandler"
+      }
+    }
+  ]
+}

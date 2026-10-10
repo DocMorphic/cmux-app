@@ -79,6 +79,24 @@ class ArtifactMediaPipReturnRuntimeTest {
             device.takeScreenshot(File(evidence, "$name.png"))
             device.dumpWindowHierarchy(File(evidence, "$name.xml"))
         }
+        fun pausedCaptionFrame(name: String) {
+            val bounds = find(By.text("CMUX FRENCH CUE")).visibleBounds
+            await("Paused caption was found in the tree but did not paint") {
+                val screenshot = File(evidence, "$name.png")
+                if (!device.takeScreenshot(screenshot)) return@await false
+                val bitmap = android.graphics.BitmapFactory.decodeFile(screenshot.path) ?: return@await false
+                try {
+                    var white = 0
+                    for (y in bounds.top until bounds.bottom) for (x in bounds.left until bounds.right) {
+                        val pixel = bitmap.getPixel(x, y)
+                        if (android.graphics.Color.red(pixel) > 220 && android.graphics.Color.green(pixel) > 220 &&
+                            android.graphics.Color.blue(pixel) > 220) white++
+                    }
+                    white > 30
+                } finally { bitmap.recycle() }
+            }
+            device.dumpWindowHierarchy(File(evidence, "$name.xml"))
+        }
         fun retained(view: ArtifactMediaView, state: ArtifactMediaState): Boolean =
             state.prepared && view.seekComplete() && !view.isPlaying && !state.playRequested && view.currentPosition in 11_700..12_400 &&
                 state.speed == 1.5f && state.muted && state.failure == null && state.trackFailure == null &&
@@ -149,7 +167,10 @@ class ArtifactMediaPipReturnRuntimeTest {
                 find(By.text("Mute")).click()
                 onPlayback { _, model -> model.player.view!!.seekTo(12_000); true }
                 await("Expanded player did not apply choices") { onPlayback { _, model -> retained(model.player.view!!, model.player) } }
+                await("Paused expanded player did not render the selected cue") { onPlayback { _, model -> model.player.captionText == "CMUX FRENCH CUE" } }
+                find(By.text("CMUX FRENCH CUE"))
                 dump("expanded-changed")
+                pausedCaptionFrame("expanded-changed")
                 val timestamp = find(By.text("0:12")).visibleBounds
                 val bitmap = android.graphics.BitmapFactory.decodeFile(File(evidence, "expanded-changed.png").path)
                 try {
@@ -168,6 +189,8 @@ class ArtifactMediaPipReturnRuntimeTest {
                 dump("returned")
                 scenario.recreate()
                 await("Recreation lost the returned bookmark or track choices") { read(::retained) }
+                await("Recreated source lost its paused caption") { read { _, state -> state.captionText == "CMUX FRENCH CUE" } }
+                pausedCaptionFrame("restored-paused")
                 read { view, state ->
                     File(evidence, "restored.json").writeText(JSONObject().put("position", view.currentPosition)
                         .put("playing", view.isPlaying).put("speed", state.speed).put("muted", state.muted)
