@@ -7,6 +7,22 @@ completion checklist. The dated older entries below retain history and must not
 be read as the current delivery or pending-test state. The full goal remains
 active and unverified. Scoped source audits do not advance the global parity pin.
 
+The task prompt now uses saved native text and scroll state, with a drag-owned
+viewport retained through keyboard/picker/layout changes until typing or caret
+movement. Native edits are synchronized before save/submit/lifecycle retirement
+and same-turn image admission; submission reads the current draft snapshot.
+**37 focused JVM cases passed.** The scroll-idle integration passed 22/24 in
+246.883 s; two dock-coordinate failures remain recorded. The final focused
+follow-up passed **12/12 in 156.391 s**, using real accessibility actions for the
+Options and response/retry logic checks while retaining touch/IME-layout checks.
+The production APK is unchanged between those two runs. Inspected captures show
+retained line-28 viewport, caret-following after typing and the full task form.
+Final crash buffer empty, zero new ANR record; sole AVD/Gradle stopped and reaped,
+timeout restored, no extra AVD. See `TASK_COMPOSER_PROMPT.md` for exact APKs and
+failed attempts. Manual-viewport fixture acceptance is now closed; actual
+Activity/process/font-width reflow, physical/matched iOS and broader composer
+acceptance remain open. Signed 641/global parity pin unchanged at this checkpoint.
+
 Initial task keyboard focus and retained prompt selection now follow the scoped
 iOS presentation behavior. Explicit IME text paste bypasses the legacy Compose
 delegate's competing synthetic key and commits ordered selection/composition

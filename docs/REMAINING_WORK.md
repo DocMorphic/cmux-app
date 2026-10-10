@@ -29,6 +29,22 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The task prompt now uses saved native text and scroll state, with a drag-owned
+  viewport retained through keyboard/picker/layout changes until typing or caret
+  movement. Native edits are synchronized before save/submit/lifecycle retirement
+  and same-turn image admission; submission reads the current draft snapshot.
+  **37 focused JVM cases passed.** The scroll-idle integration passed 22/24 in
+  246.883 s; two dock-coordinate failures remain recorded. The final focused
+  follow-up passed **12/12 in 156.391 s**, using real accessibility actions for the
+  Options and response/retry logic checks while retaining touch/IME-layout checks.
+  The production APK is unchanged between those two runs. Inspected captures show
+  retained line-28 viewport, caret-following after typing and the full task form.
+  Final crash buffer empty, zero new ANR record; sole AVD/Gradle stopped and reaped,
+  timeout restored, no extra AVD. See `TASK_COMPOSER_PROMPT.md` for exact APKs and
+  failed attempts. Manual-viewport fixture acceptance is now closed; actual
+  Activity/process/font-width reflow, physical/matched iOS and broader composer
+  acceptance remain open. Signed 641/global parity pin unchanged at this checkpoint.
+
 - Initial task keyboard focus now waits for the resumed, placed, current editor
   and focused window; the request is consumed per presentation. Prompt selection
   survives agent changes, Options and saved-state restoration. Explicit IME text
@@ -37,7 +53,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   including the two attachment cases below. Captures inspected; final run had
   zero new crash/ANR records. See `TASK_COMPOSER_PROMPT.md` for corrected failures
   and exact APKs. Sole AVD/Gradle stopped, sleep timeout restored, no extra AVD.
-  Manual viewport/scroll, actual Activity/process restoration, physical/matched
+  Manual viewport/scroll was subsequently checked as described above; actual
+  Activity/process restoration, physical/matched
   iOS and broader task acceptance remain open. No Pixel or signed release;
   signed 641 and the global parity pin are unchanged.
 

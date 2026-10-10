@@ -171,7 +171,11 @@ class NativeTaskAttachmentsTest {
             compose.waitUntil(15_000) { repository.drafts.state.value[id]?.attachments?.size == 2 }
             val draft = repository.drafts.state.value.getValue(id)
             assertEquals("Keep my prompt", draft.prompt)
-            compose.onNodeWithText("2 attachments couldn't be read. Try adding the missing files again.").assertExists()
+            val feedback = "2 attachments couldn't be read. Try adding the missing files again."
+            // Durable attachment publication precedes completion of the staging
+            // batch. Wait for its final user feedback, not only the byte count.
+            compose.waitUntil(10_000) { compose.onAllNodesWithText(feedback).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText(feedback).assertExists()
             assertEquals(listOf(first.name, last.name), draft.attachments.map { it.name })
             draft.attachments.zip(listOf(first, last)).forEach { (attachment, file) ->
                 assertArrayEquals(file.readBytes(), runBlocking { repository.readAttachment(attachment) })
@@ -218,12 +222,16 @@ class NativeTaskAttachmentsTest {
                 val attributes = android.view.inputmethod.EditorInfo()
                 val connection = keyboardRequest!!.createInputConnection(attributes)
                 assertArrayEquals(arrayOf("image/*"), attributes.contentMimeTypes)
+                // A final native edit and image admission in one UI turn must
+                // persist the text before staging disables the editor.
+                assertTrue(connection.commitText(" 中", 1))
                 assertTrue(connection.commitContent(android.view.inputmethod.InputContentInfo(uri,
                     android.content.ClipDescription("Photo", arrayOf("image/png")), null), 0, null))
             }
             compose.waitUntil(15_000) { repository.drafts.state.value[id]?.attachments?.size == 1 }
             val draft = repository.drafts.state.value.getValue(id)
-            assertEquals("Explain this image", draft.prompt)
+            val expectedPrompt = "Explain this image" + if (systemPaste) "" else " 中"
+            assertEquals(expectedPrompt, draft.prompt)
             if (systemPaste) {
                 compose.waitForIdle()
                 val root = File(context.getExternalFilesDir(null), "composer-system-paste").apply { mkdirs() }
@@ -241,6 +249,9 @@ class NativeTaskAttachmentsTest {
             } }
             compose.onNodeWithContentDescription("Create Task").performClick()
             compose.waitUntil(15_000) { completed }
+            val created = peer.requests.single { it.optString("method") == "workspace.create" }.getJSONObject("params")
+            assertEquals("$expectedPrompt\n\nAttached files (absolute paths on this machine):\n- /tmp/cmux fixture.txt",
+                created.getJSONObject("initial_env").getString("CMUX_TASK_PROMPT"))
             val upload = peer.requests.single { it.optString("method") == "mobile.task.attachment.upload" }.getJSONObject("params")
             assertEquals(draft.attachments.single().id, upload.getString("upload_id"))
             assertArrayEquals(bytes, java.util.Base64.getDecoder().decode(upload.getString("data_b64")))

@@ -2,16 +2,23 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldDecorator
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.Lifecycle
@@ -24,7 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.VisualTransformation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Job
@@ -38,6 +46,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /** The built-in cmux task templates backed by workspace.create. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NativeTaskComposerView(
     client: MobileRpcClient?,
@@ -98,17 +107,11 @@ internal fun NativeTaskComposerView(
     val command = draft.command
     val plainShell = command.isNullOrBlank()
     val prompt = draft.prompt
-    var promptEditor by rememberSaveable(activeId, stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(prompt)) }
-    var retainPromptSelection by rememberSaveable(activeId) { mutableStateOf(false) }
-    val promptValue = taskComposerPromptValue(promptEditor, prompt)
-    SideEffect { if (promptEditor != promptValue) promptEditor = promptValue }
-    val promptStateHolder = rememberSaveableStateHolder()
-    fun hidePromptKeyboard() {
-        // Legacy Compose deselects on blur. A sheet/picker must preserve the
-        // selection that existed before transferring focus to its controls.
-        retainPromptSelection = true
-        focus.clearFocus(); keyboard?.hide()
-    }
+    val promptEditor = rememberSaveable(activeId, saver = TextFieldState.Saver) { TextFieldState(prompt, TextRange.Zero) }
+    val promptScroll = rememberSaveable(activeId, saver = ScrollState.Saver) { ScrollState(0) }
+    val promptBinding = remember(editor, promptEditor) { TaskComposerPromptBinding(promptEditor, prompt) }
+    val promptInteractions = remember(promptEditor) { MutableInteractionSource() }
+    val promptViewport = rememberSaveable(activeId, saver = TaskComposerPromptViewport.Saver) { TaskComposerPromptViewport() }
     val directory = draft.directory
     val selection = draft.selection
     val submission = remember(editor) { TaskSubmissionIdentity().apply {
@@ -178,6 +181,54 @@ internal fun NativeTaskComposerView(
         dirty = true
         error = null
     }
+    fun syncPrompt() {
+        if (!currentContext() || !collection.isCurrent(editor)) return
+        promptBinding.sync(collection.state.value[editor.id]?.prompt) { text ->
+            if (busy || accepted || preparingAttachments || leavingPreparation ||
+                !currentContext() || !collection.isCurrent(editor)) false
+            else collection.editIfCurrent(editor) { it.copy(prompt = text) }?.let {
+                dirty = true; error = null; true
+            } ?: false
+        }
+    }
+    fun hidePromptKeyboard() {
+        syncPrompt()
+        val selectionBeforeBlur = promptEditor.selection
+        focus.clearFocus()
+        // Native Compose collapses selection on blur. Overlay controls must not
+        // replace the user's selection when the editor returns.
+        promptEditor.edit { this.selection = selectionBeforeBlur }
+        keyboard?.hide()
+    }
+    SideEffect { syncPrompt(); promptViewport.editor(promptEditor.text.toString(), promptEditor.selection) }
+    LaunchedEffect(promptBinding, editor) {
+        snapshotFlow { promptEditor.text.toString() }.collect { syncPrompt() }
+    }
+    LaunchedEffect(promptViewport, promptInteractions, promptScroll) {
+        promptInteractions.interactions.collect { interaction -> when (interaction) {
+            is DragInteraction.Start -> promptViewport.beginDrag(promptScroll.value)
+            is DragInteraction.Stop, is DragInteraction.Cancel -> {
+                // Compose emits Stop before scheduling the fling. Keep the
+                // user's ownership across that transition, then observe it.
+                withFrameNanos { }
+                promptViewport.endDrag(promptScroll.value, promptScroll.isScrollInProgress)
+            }
+        } }
+    }
+    LaunchedEffect(promptViewport, promptEditor, promptScroll) {
+        snapshotFlow {
+            // Observe text and selection before interpreting a scroll delta:
+            // typing/caret movement must release a prior manual viewport.
+            listOf(promptEditor.text.toString(), promptEditor.selection, promptScroll.value,
+                promptScroll.maxValue, promptScroll.isScrollInProgress, promptViewport.manualOffset, promptViewport.tracking)
+        }.collect {
+            promptViewport.editor(promptEditor.text.toString(), promptEditor.selection)
+            promptViewport.scroll(promptScroll.value, promptScroll.isScrollInProgress)
+            if (!promptScroll.isScrollInProgress) promptViewport.target(promptScroll.maxValue)?.let { target ->
+                if (target != promptScroll.value) promptScroll.dispatchRawDelta((target - promptScroll.value).toFloat())
+            }
+        }
+    }
     fun selectTemplate(selected: TaskTemplate) {
         edit { it.selecting(selected, templateStore.state.value.suggestedDirectory(selected, origin, directories.firstOrNull())) }
     }
@@ -204,6 +255,7 @@ internal fun NativeTaskComposerView(
     }
     fun saveThen(action: () -> Unit) {
         if (busy) return
+        syncPrompt()
         busy = true; error = null
         scope.launch {
             try {
@@ -222,10 +274,10 @@ internal fun NativeTaskComposerView(
     val currentFlush by rememberUpdatedState(flushDrafts)
     DisposableEffect(editor, lifecycle) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) {
-            rememberPickerChoices(); currentFlush()
+            syncPrompt(); rememberPickerChoices(); currentFlush()
         } }
         lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer); rememberPickerChoices(); collection.end(editor); currentFlush() }
+        onDispose { lifecycle.removeObserver(observer); syncPrompt(); rememberPickerChoices(); collection.end(editor); currentFlush() }
     }
     val provider = command?.let(TaskAgentCommand::detect)
     val modelKey = provider?.let { TaskModelRepository.Key(origin, it) }
@@ -252,15 +304,26 @@ internal fun NativeTaskComposerView(
     }.getOrNull()
     val recoveryApplies = recovery?.appliesTo(origin, effectiveRequest) == true
     fun launchTask(reconcile: Boolean = false, startAgain: Boolean = false) {
-        if (busy || accepted || preparingAttachments || leavingPreparation || supportsTaskCreation == false || !hasSelectedMac || !groupSelection.valid) return
-        if (reconcile && !recoveryApplies) return
-        if (!reconcile && recoveryApplies && !(startAgain && recoveryReady)) return
+        if (busy || accepted || preparingAttachments || leavingPreparation || supportsTaskCreation == false || !hasSelectedMac) return
+        syncPrompt()
+        val requestDraft = collection.state.value[editor.id] ?: return
+        if (!latestGroups.copy(id = requestDraft.groupId).valid) return
+        val requestModels = requestDraft.restoredModels()
+        val requestEffort = requestDraft.selection.effective(requestModels)?.efforts
+            ?.firstOrNull { it.id == requestDraft.selection.effortId }?.id
+        val requestSnapshot = runCatching { TaskAttachments.snapshot(TaskCommand.parameters(requestDraft.command,
+            requestDraft.prompt, requestDraft.directory, UUID.randomUUID(), requestDraft.selection.explicit?.id,
+            requestEffort, requestDraft.workspaceName, requestDraft.groupId), requestDraft.attachments) }.getOrNull()
+        val requestRecovery = requestDraft.completedRequest?.let { TaskCompletedRecovery(requestDraft.completedOrigin ?: origin, it) }
+        val requestRecoveryApplies = requestRecovery?.appliesTo(origin, requestSnapshot) == true
+        if (reconcile && !requestRecoveryApplies) return
+        if (!reconcile && requestRecoveryApplies && !(startAgain && recoveryReady)) return
         val requestConnectionToken = connectionToken
         fun requestIsCurrent() = requestConnectionToken === latestConnectionToken && currentContext() && collection.isCurrent(editor)
         val parameters = runCatching {
             check(requestIsCurrent()) { "Connection changed. Reconnect to this Mac before creating the task" }
-            if (reconcile) checkNotNull(recovery).parameters()
-            else submission.resolve(origin, checkNotNull(effectiveRequest) { "Enter a task prompt" })
+            if (reconcile) checkNotNull(requestRecovery).parameters()
+            else submission.resolve(origin, checkNotNull(requestSnapshot) { "Enter a task prompt" })
         }.getOrElse { error = it.message; return }
         busy = true; error = null; submissionIssue = null
         hidePromptKeyboard()
@@ -291,15 +354,15 @@ internal fun NativeTaskComposerView(
                     check(requestIsCurrent()) { "Connection changed while refreshing workspaces" }
                 }
                 stage = TaskComposerFailure.Stage.VALIDATING_GROUP
-                check(currentGroupCheck?.invoke(parameters.opt("group_id") as? String) ?: latestGroups.valid) {
+                check(currentGroupCheck?.invoke(parameters.opt("group_id") as? String) ?: latestGroups.copy(id = parameters.opt("group_id") as? String).valid) {
                     "The selected group is no longer available. Choose another group or None."
                 }
                 stage = TaskComposerFailure.Stage.UPLOADING
-                val wire = TaskAttachments.prepareRequest(client, parameters, draft.attachments, supportsAttachments, reconcile,
+                val wire = TaskAttachments.prepareRequest(client, parameters, requestDraft.attachments, supportsAttachments, reconcile,
                     read = { attachment -> checkNotNull(attachmentRepository) { "Attachment storage is unavailable" }.readAttachment(attachment) },
                     checkCurrent = {
                         check(requestIsCurrent()) { "Connection changed during attachment upload" }
-                        check(currentGroupCheck?.invoke(parameters.opt("group_id") as? String) ?: latestGroups.valid) { "The selected group is no longer available." }
+                        check(currentGroupCheck?.invoke(parameters.opt("group_id") as? String) ?: latestGroups.copy(id = parameters.opt("group_id") as? String).valid) { "The selected group is no longer available." }
                     })
                 currentCoroutineContext().ensureActive()
                 check(requestIsCurrent()) { "Task session changed before creation" }
@@ -312,7 +375,7 @@ internal fun NativeTaskComposerView(
                 stage = TaskComposerFailure.Stage.READING_RESULT
                 TaskCreationResult.parse(response)
                 rememberPickerChoices()
-                templateStore.recordSuccess(checkNotNull(draft.templateId), origin, parameters.optString("working_directory").takeIf { it.isNotBlank() })
+                templateStore.recordSuccess(checkNotNull(requestDraft.templateId), origin, parameters.optString("working_directory").takeIf { it.isNotBlank() })
                 collection.remove(editor)
                 flushDrafts()
                 accepted = true
@@ -348,10 +411,10 @@ internal fun NativeTaskComposerView(
                     // the prior retry/recovery anchor (which may itself be
                     // uncertain), without dropping prompt or attachment edits.
                     collection.editIfCurrent(editor) { it.copy(
-                        lastRequest = draft.lastRequest, lastRequestOrigin = draft.lastRequestOrigin,
-                        completedRequest = draft.completedRequest, completedOrigin = draft.completedOrigin
+                        lastRequest = requestDraft.lastRequest, lastRequestOrigin = requestDraft.lastRequestOrigin,
+                        completedRequest = requestDraft.completedRequest, completedOrigin = requestDraft.completedOrigin
                     ) }
-                    submission.restore(draft.lastRequestOrigin ?: origin, draft.lastRequest?.let(::JSONObject))
+                    submission.restore(requestDraft.lastRequestOrigin ?: origin, requestDraft.lastRequest?.let(::JSONObject))
                     flushDrafts()
                 }
                 submissionCommitted = false
@@ -501,27 +564,41 @@ internal fun NativeTaskComposerView(
                     Icon(painterResource(R.drawable.ic_task_drafts), "Drafts", Modifier.size(22.dp))
                 }
             }
-            promptStateHolder.SaveableStateProvider(activeId) { RichContentEditor(owner = editor to origin,
+            RichContentEditor(owner = editor to origin,
                 enabled = canEdit && !plainShell && supportsAttachments && attachmentRepository != null,
-                onContent = receiveAttachment, onError = { error = it }, truncateAttachmentPaste = true) { pasteModifier ->
-                TextField(promptValue, { next ->
-                    if (currentCanEdit && currentContext() && collection.isCurrent(editor)) {
-                        if (next.text != collection.state.value[editor.id]?.prompt) edit { it.copy(prompt = next.text) }
-                        val retained = if (retainPromptSelection && next.text == promptEditor.text)
-                            next.copy(selection = promptEditor.selection) else next
-                        promptEditor = taskComposerPromptValue(retained, collection.state.value[editor.id]?.prompt.orEmpty())
+                onContent = { syncPrompt(); receiveAttachment(it) },
+                onError = { syncPrompt(); error = it }, truncateAttachmentPaste = true) { pasteModifier ->
+                BasicTextField(state = promptEditor,
+                    modifier = Modifier.weight(1f).then(promptFocus).then(pasteModifier)
+                    .onGloballyPositioned {
+                        // Equivalent to iOS's post-layout hook: caret layout may
+                        // run after a keyboard/window change. Do not fight a drag.
+                        promptViewport.editor(promptEditor.text.toString(), promptEditor.selection)
+                        if (!promptScroll.isScrollInProgress) promptViewport.target(promptScroll.maxValue)?.let { target ->
+                            if (target != promptScroll.value) promptScroll.dispatchRawDelta((target - promptScroll.value).toFloat())
+                        }
                     }
-                }, Modifier.weight(1f).then(promptFocus).onFocusChanged { if (it.isFocused) retainPromptSelection = false }
-                    .then(pasteModifier).fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).semantics {
+                    .fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).semantics {
                         contentDescription = if (plainShell) "Workspace title (optional)" else "Task prompt"
-                    }, enabled = canEdit, textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
-                    placeholder = { Text(if (plainShell) "Workspace title (optional)" else directory.trim().takeIf { it.isNotEmpty() }
+                        this[TaskPromptScrolling] = promptScroll.isScrollInProgress || promptViewport.tracking
+                    }, enabled = canEdit,
+                    inputTransformation = InputTransformation {
+                        if (busy || accepted || preparingAttachments || leavingPreparation ||
+                            !currentContext() || !collection.isCurrent(editor)) revertAllChanges()
+                    }, textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp, color = LocalContentColor.current),
+                    interactionSource = promptInteractions, scrollState = promptScroll,
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    decorator = TextFieldDecorator { inner -> TextFieldDefaults.DecorationBox(
+                        value = promptEditor.text.toString(), innerTextField = inner,
+                        enabled = canEdit, singleLine = false, visualTransformation = VisualTransformation.None,
+                        interactionSource = promptInteractions,
+                        placeholder = { Text(if (plainShell) "Workspace title (optional)" else directory.trim().takeIf { it.isNotEmpty() }
                         ?.let { "Describe a coding task in ${TaskDirectoryPaths.name(it)}" } ?: "Describe a coding task",
                         color = Color(0xFF64676E), fontSize = 20.sp) },
                     colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                         disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent, disabledIndicatorColor = Color.Transparent))
-            } }
+                        unfocusedIndicatorColor = Color.Transparent, disabledIndicatorColor = Color.Transparent)) })
+            }
             Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (client == null) Text(if (hasSelectedMac) "That Mac is not connected. Open cmux on the Mac to start this task."
                     else "Pair a Mac to start this task. You can save your draft now.",
@@ -636,6 +713,7 @@ internal fun NativeTaskComposerView(
         isCurrent = { currentContext() && collection.isCurrent(editor) && !busy && !accepted && !plainShell && supportsAttachments },
         canPreview = { currentContext() && collection.isCurrent(editor) },
         beforeOverlay = ::hidePromptKeyboard,
-        onPreparing = { preparingAttachments = it }, onChanged = { dirty = true; error = null }, onError = { error = it }, content = layout)
+        onPreparing = { if (it) syncPrompt(); preparingAttachments = it },
+        onChanged = { dirty = true; error = null }, onError = { syncPrompt(); error = it }, content = layout)
     else layout({}, {}, { false })
 }

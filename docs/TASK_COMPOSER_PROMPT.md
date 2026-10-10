@@ -10,7 +10,7 @@ Source hashes are retained in ignored
 `captures/runtime/task-prompt/source-review.json`. This does not advance the
 global parity pin or establish complete task-composer parity.
 
-## Implementation
+## Initial implementation — checkpoint e2e26809
 
 - One initial keyboard-focus request belongs to each task presentation. It waits
   for resumed lifecycle, a placed editor and window focus, then rechecks current
@@ -48,7 +48,7 @@ The first repair also exposed a missing required callback in the debug attachmen
 preview fixture; its explicit no-editor callback is now supplied. Original build
 failures and all runtime attempts remain in the ignored capture directory.
 
-## Accepted integration evidence
+## Initial accepted integration evidence — checkpoint e2e26809
 
 **12 JVM cases passed**, zero failures/errors/skips: six new
 `TaskComposerPromptTest` cases and six `TaskAttachmentStagingTest` cases.
@@ -92,3 +92,99 @@ No physical Pixel, live Mac/account workflow, signed upgrade or new signed relea
 was exercised. Signed delivery 641 remains unchanged. Matched iOS screenshots,
 manual prompt viewport retention, physical IME/provider behavior and broader
 task/workspace acceptance remain open.
+
+## Subsequent native editor and viewport port — 2026-10-10
+
+The prompt now uses the installed Foundation 1.9.1 `BasicTextField` with saved
+`TextFieldState` and an explicit saved `ScrollState`, retaining the same Material
+decoration, typography, placeholder and rich-content interception. The obsolete
+value-only selection helper has been removed. See the
+[official input-state documentation](https://developer.android.com/develop/ui/compose/text/user-input).
+
+The scoped iOS coordinator/TextView preserves a drag-owned offset after layout,
+clamps it to the current content extent, and releases it when typing or selection
+changes. `TaskComposerPromptViewport` now applies that policy on Android, tracking
+drag and fling and preserving the transition frame between them. Unrelated
+keyboard/window/model layout cannot replace the user's chosen viewport.
+
+`TaskComposerPromptBinding` avoids assigning unchanged text, accepts external draft
+changes with clamped UTF-16 selection, and publishes native edits before save,
+submit, stop/disposal and attachment admission. A submit reads one current draft
+snapshot for command/prompt/model/effort/group/attachments and recovery, instead
+of a previously rendered payload. Ownership and live editability remain gates.
+Same-turn IME text plus image admission flushes before staging disables input.
+
+**37 focused JVM cases passed**: nine prompt/binding, seven viewport, nine
+submission and 12 model cases. Android runtime evidence follows below;
+the following failed runs must not be treated as passes:
+
+- The original legacy-editor viewport case failed on Options return (14.862 s).
+- Explicit scroll state alone passed 22/24 integration cases (244.836 s), but
+  still followed the caret after the picker changed keyboard/window layout.
+  Attachment feedback initially asserted before staging finished; its check now
+  waits for the actual final feedback.
+- The first policy integration passed 21/24 cases (216.978 s). Its new image
+  assertion omitted the expected uploaded-file path suffix and was corrected.
+  A response-feedback timeout remains recorded; the isolated response case passed
+  on the diagnostic rerun without a production response change.
+- The three-case diagnostic rerun passed the response and same-turn image-upload
+  cases (32.130 s). Its trace showed the remaining viewport comparison captured
+  a frame during a legitimate fling (offset 1928) versus its final offset 1711;
+  inspected captures showed line 31 versus line 28, rather than a jump to the
+  caret. The check now waits for actual scroll/tracking idle and three stable
+  painted frames, retaining the same viewport pixel assertions.
+
+An opt-in debug trace (`cmux.prompt.viewport.trace`) reports offsets and selection
+indices without prompt contents. Runtime checks clear it after their fixtures.
+The scroll-idle semantics property adds no spoken label. Sources, exact APKs,
+attempt logs, XML and captures are retained under ignored
+`captures/runtime/task-viewport/`; the global source pin and signed 641 are
+unchanged. Physical/matched iOS, actual Activity/process restoration, font/width
+reflow and broader task/workspace acceptance remain open.
+
+
+### Scroll-idle integration and dock-action follow-up
+
+The scroll-idle integration passed **22 of 24** cases in **246.883 seconds**,
+including the real drag, picker/options return, saved-state viewport, typing,
+last-edit submission and same-turn IME image-upload checks. Its two failures were
+initial focus/Options (no Done node after a coordinate tap) and response feedback
+(timeout after a coordinate submit). An isolated response rerun then reached the
+feedback assertion but timed out after the second coordinate submit (21.731 s).
+No production response handling was changed. These are recorded failures, not an
+accepted 24-case suite. Its final last-ANR record matched the pre-run baseline;
+the baseline retained the startup System UI ANR dismissed before instrumentation.
+
+Prompt fixtures now use the existing `openTaskOptions` accessibility-action helper
+and wait for the real sheet. The response/retry-ownership case invokes the enabled
+create button's real semantic action, avoiding a stale dock coordinate during IME
+animation. Its diagnostic catcher now includes assertion errors; the previous
+`Exception` catcher did not record `ComposeTimeoutException`. Touch-based model,
+attachment and keyboard-resize checks remain in the integration selection.
+The unchanged debug APK SHA-256 is
+`96397508ec9beee3ee4f5a7a00efd65d536b4ba43d744905bf3e9b73dade8a98`.
+The follow-up test APK is
+`bd7433a32b86b38bbffb6eda6314b6946bafdc76a60fb3c361d6735db9f4ebcc`;
+its build succeeded in 35 seconds. The final follow-up **passed all 12 cases in
+156.391 seconds**: all four prompt and seven model/response cases plus the real
+keyboard/canvas/Options touch check. The app APK is byte-identical to the 22/24
+run; only the instrumentation actions/diagnostics changed. This is a focused
+follow-up, not a claimed single passing 24-case suite.
+
+Inspected scroll-idle captures show the manual viewport beginning at line 28,
+retained after agent and Options changes and saved state; typing shows the final
+line 100 and appended marker at the caret. Captures compare the same width and
+settled top content, allowing the IME's different editor heights. All original
+logs and images remain under `captures/runtime/task-viewport/`.
+
+
+The final follow-up's crash buffer was empty and its last-ANR record matched the
+pre-run baseline. The fresh full task form was visually inspected for the actual
+new editor decoration and model/effort dock. Verification metadata and exact
+attempt logs are retained in `verification.json`. The original sleep timeout was
+restored; Gradle and the sole emulator were stopped and observed reaped with zero
+matching processes. No additional AVD was created. The requested 1536 MiB memory
+is still clamped to 4096 MiB by this emulator. No physical Pixel/live Mac account,
+actual Activity/process restoration, matched iOS or signed upgrade was exercised;
+those gates and the remaining feature matrix stay open. Signed 641 is unchanged
+at this local checkpoint.

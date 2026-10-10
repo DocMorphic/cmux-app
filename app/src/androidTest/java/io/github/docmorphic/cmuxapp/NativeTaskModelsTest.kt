@@ -166,17 +166,31 @@ class NativeTaskModelsTest {
         }, onCreated = { navigations++ })
         state("Effort", "High")
         compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep this task")
-        compose.onNodeWithContentDescription("Create Task").performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("The Mac did not confirm the created workspace",
-            substring = true).fetchSemanticsNodes().isNotEmpty() }
+        // This case checks response/retry ownership; the IME can still move
+        // the dock after a native text edit. Use its real accessible action,
+        // as openTaskOptions does, rather than a cached-coordinate tap.
+        compose.onNodeWithContentDescription("Create Task").assertIsEnabled()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        try {
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("The Mac did not confirm the created workspace",
+                substring = true).fetchSemanticsNodes().isNotEmpty() }
+        } catch (failure: Throwable) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            File(context.getExternalFilesDir(null), "task-create-rejected-semantics.txt")
+                .writeText("Attempts: ${attempts.size}\n" + compose.onRoot().printToString())
+            screenshot("task-create-rejected-failure")
+            throw failure
+        }
         compose.onNodeWithContentDescription("Task prompt").assertTextContains("Keep this task")
         assertEquals(0, navigations)
         compose.onNodeWithContentDescription("Task prompt").performTextReplacement("  Keep this task  ")
-        compose.onNodeWithContentDescription("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").assertIsEnabled()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
         compose.waitUntil(10_000) { attempts.size == 2 }
         assertEquals(attempts[0].getString("operation_id"), attempts[1].getString("operation_id"))
         compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Create a different task")
-        compose.onNodeWithContentDescription("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").assertIsEnabled()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
         compose.waitUntil(10_000) { attempts.size == 3 }
         assertNotEquals(attempts[0].getString("operation_id"), attempts[2].getString("operation_id"))
         assertEquals(0, navigations)
