@@ -26,10 +26,15 @@ signed-in physical Pixel upgrade. It does not close real Mac/Pixel acceptance.
 
 Newer source adds XLSX embedded raster-image projection, authored anchor/crop/
 rotation/flip handling and image-only/later-window reachability. **47 focused Node
-checks passed** and main/Android-test Kotlin compiled; the new actual painted
-image/restoration case remains **unexecuted**. See `DOCUMENT_FORMATS.md` for exact
-source/spec scope, fixture, bounds and remaining drawing/layout requirements.
-641 does not include this feature; no additional local AVD or APK build was used.
+checks passed** and main/Android-test Kotlin compiled. The five-case workbook
+integration now **passed in 45.795 s**, including actual image pixels/navigation/
+restoration and four existing XLSX/ODS regressions. Initial failures exposed
+stale loading-frame captures and ignored visual-viewport offsets in the checks;
+paint settling, bounded pixel waits and corrected native coordinates resolved
+them without changing the production viewer. See `DOCUMENT_FORMATS.md` for
+failed attempts, APK hashes, inspected captures and the Google Play Services ANR.
+641 does not include this feature. The sole existing AVD was stopped/reaped;
+physical routes, full drawing/layout fidelity and matched iOS acceptance remain open.
 The global upstream parity pin and full completion gates remain open.
 
 ## Feed/Cloud/media UI integration (2026-10-10)

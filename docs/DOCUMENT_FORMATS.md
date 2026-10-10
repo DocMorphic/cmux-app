@@ -42,21 +42,51 @@ checks plus the existing workbook/ODS checks. These include real fixture bytes,
 namespace/reference admission, anchor geometry, crop/rotation/flips, hidden/sparse
 axes, actual-window geometry, image-only/final-row reachability and bounds.
 JavaScript syntax and all 18 pinned vendor hashes passed. Main and Android-test
-Kotlin **compiled in 25 seconds**; Gradle was stopped afterward. No APK/emulator
-build/run was used for this feature batch.
+Kotlin **compiled in 25 seconds** at the initial feature checkpoint; Gradle was
+stopped afterward. The Android runtime integration below supersedes that
+compile-only checkpoint.
 
 The original fixture generator is `scripts/generate-workbook-pictures-fixture.py`.
 `pictures.xlsx` adds a generated two-color PNG, cropped/flipped, two-cell,
 absolute/rotated, later-window and image-only-sheet cases, plus a rejected external
 image. SHA-256:
 `fc0eed20ebd9a101e4ccae56ff148055b1bf2dcfd315f469e8512ae8e696fbe4`.
-The new `WorkbookPreviewRuntimeTest` method is **compiled but unexecuted**; it
-requires painted crop/flip colors, later-window navigation, restoration and
-image-only-sheet pixels rather than DOM assertions alone. Run it with the
-existing workbook/ODS cases at the next integration milestone. Evidence is
-ignored in `captures/workbook-pictures-{node-final,compile,gradle-stop}.log` and
-`captures/ChatArtifactPreviewRouter-f4.swift`. Signed 641 predates this feature;
-physical Mac/Pixel, actual remote routes and matched iOS acceptance remain open.
+The five-case `WorkbookPreviewRuntimeTest` integration now **passed in 45.795
+seconds** on the existing `cmux_api37_16k` AVD. The new case requires actual
+crop/flip colors, later-window navigation, saved-position restoration and
+image-only-sheet pixels. The four existing cases cover XLSX formatting/navigation
+and ODS repeated cells, internal links, visibility/dimensions/styles and rich
+runs. Inspected captures show the cropped/flipped image, later/restored page,
+image-only sheet, ODS text/styles and restored destination. Two-cell dimensions
+and rotation are DOM checks in this case; their complete visual accuracy remains
+open.
+
+The original integration failed **3/5 in 40.761 s**. Settling Compose plus
+WebView's visual callback reduced this to **1/5 in 48.438 s**. The picture failure
+capture visibly contained the expected colors, but `scrollIntoView` moved
+`visualViewport.offsetLeft/offsetTop` while `scrollX/Y` stayed zero. The native
+pixel calculation now subtracts those offsets from DOM rectangles. That run
+passed the picture case, but failed **1/5 in 42.441 s** because one ODS capture
+still showed the old loading shell although its DOM was ready. ODS checks now
+wait up to 15 seconds for the same required ink/background pixels, saving each
+latest capture and geometry. No pixel threshold was relaxed and no production
+viewer change was required. A transient missing `Context` import caused an
+11-second test compilation failure; restoring it built successfully in 8 s.
+The final test build succeeded in 19 s.
+
+Final debug APK SHA-256:
+`125648b5e0c3a1d1e983e94ccf0635ed6664e59f37dae09072041ada4d3fc5d7`;
+test APK:
+`e492ecf4e561dc9ba80b31c2d3dc325a77eba3dde7108b378b7c06a444df76f9`.
+Evidence is ignored in `captures/workbook-{pictures-integration,paint-settle,
+viewport,painted-cells}-*.log`, their APK hash files and corresponding
+`captures/runtime/` directories. The final selected event log contains a Google
+Play Services SIM-state broadcast ANR; it contains no cmux app crash/ANR entry.
+Earlier selected logs were empty. This is not a claim of a clean system log or
+physical performance acceptance. Gradle and the existing emulator were stopped
+and reaped between builds/runs; no additional AVD was created. Signed 641 still
+predates workbook pictures. Physical Mac/Pixel, actual remote routes and matched
+iOS acceptance remain open.
 
 ## Scoped iOS comparison — 2026-10-06
 

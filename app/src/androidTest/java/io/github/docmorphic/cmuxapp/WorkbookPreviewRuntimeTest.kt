@@ -51,41 +51,75 @@ class WorkbookPreviewRuntimeTest {
         compose.waitUntil(45_000) { js("window.__cmuxWorkbookReady === true") == "true" }
         compose.waitUntil(5000) { compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)).fetchSemanticsNodes().isEmpty() }
     }
-    private fun picturePixels(name: String, leftBlue: Boolean, capture: String) {
-        compose.waitUntil(15_000) {
-            val geometry = JSONObject(js("""
-                (() => { const image=[...document.querySelectorAll('.workbook-picture img')].find(n=>n.alt==='${name}');
-                  if(!image || !image.complete || image.naturalWidth!==64) return {};
-                  const r=image.closest('.workbook-picture').getBoundingClientRect();
-                  return {vw:visualViewport.width,x:r.x,y:r.y,w:r.width,h:r.height}; })()
-            """.trimIndent()) ?: "{}")
-            if(!geometry.has("vw")) return@waitUntil false
-            val origin = IntArray(2); var scale = 0.0
-            compose.runOnUiThread { web(compose.activity.window.decorView)?.let {
-                it.getLocationOnScreen(origin); scale=it.width/geometry.getDouble("vw")
-            } }
-            val bitmap=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-            try {
-                fun matches(fraction: Double, blue: Boolean): Boolean {
-                    val cx=(origin[0]+(geometry.getDouble("x")+geometry.getDouble("w")*fraction)*scale).toInt()
-                    val cy=(origin[1]+(geometry.getDouble("y")+geometry.getDouble("h")*.5)*scale).toInt()
-                    if(cx<4 || cy<4 || cx+4>=bitmap.width || cy+4>=bitmap.height) return false
-                    var correct=0
-                    for(y in cy-3..cy+3) for(x in cx-3..cx+3) {
-                        val color=bitmap.getPixel(x,y)
-                        if(if(blue) Color.red(color) in 20..52 && Color.green(color) in 64..96 && Color.blue(color) in 112..144
-                           else Color.red(color) in 210..242 && Color.green(color) in 147..179 && Color.blue(color) in 58..90) correct++
+    private fun settlePaint() {
+        compose.waitForIdle()
+        val drawn = CountDownLatch(1)
+        compose.runOnUiThread {
+            checkNotNull(web(compose.activity.window.decorView)).let { view ->
+                view.postVisualStateCallback(1, object : WebView.VisualStateCallback() {
+                    override fun onComplete(requestId: Long) {
+                        view.postOnAnimation { view.postOnAnimation { drawn.countDown() } }
                     }
-                    return correct>=40
-                }
-                val painted=matches(.2,leftBlue) && matches(.8,!leftBlue)
-                if(painted) {
-                    val output=File(compose.activity.getExternalFilesDir(null),"workbook-pictures").apply{mkdirs()}
-                    File(output,"$capture.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
-                    File(output,"$capture.json").writeText(geometry.toString())
-                }
-                painted
-            } finally {bitmap.recycle()}
+                })
+            }
+        }
+        assertTrue("WebView did not finish drawing", drawn.await(10, TimeUnit.SECONDS))
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+    }
+    private fun picturePixels(name: String, leftBlue: Boolean, capture: String) {
+        settlePaint()
+        try {
+            compose.waitUntil(15_000) {
+                val geometry = JSONObject(js("""
+                    (() => { const image=[...document.querySelectorAll('.workbook-picture img')].find(n=>n.alt==='${name}');
+                      if(!image || !image.complete || image.naturalWidth!==64) return {};
+                      const r=image.closest('.workbook-picture').getBoundingClientRect();
+                      return {vw:visualViewport.width,offsetLeft:visualViewport.offsetLeft,offsetTop:visualViewport.offsetTop,
+                        x:r.x,y:r.y,w:r.width,h:r.height}; })()
+                """.trimIndent()) ?: "{}")
+                if(!geometry.has("vw")) return@waitUntil false
+                val origin = IntArray(2); var scale = 0.0
+                compose.runOnUiThread { web(compose.activity.window.decorView)?.let {
+                    it.getLocationOnScreen(origin); scale=it.width/geometry.getDouble("vw")
+                } }
+                val bitmap=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                try {
+                    fun matches(fraction: Double, blue: Boolean): Boolean {
+                        // DOM rectangles use the layout viewport. WebView scrolling/zoom can
+                        // move the visible viewport within it without changing scrollX/Y.
+                        val cx=(origin[0]+(geometry.getDouble("x")-geometry.getDouble("offsetLeft")+geometry.getDouble("w")*fraction)*scale).toInt()
+                        val cy=(origin[1]+(geometry.getDouble("y")-geometry.getDouble("offsetTop")+geometry.getDouble("h")*.5)*scale).toInt()
+                        if(cx<4 || cy<4 || cx+4>=bitmap.width || cy+4>=bitmap.height) return false
+                        var correct=0
+                        for(y in cy-3..cy+3) for(x in cx-3..cx+3) {
+                            val color=bitmap.getPixel(x,y)
+                            if(if(blue) Color.red(color) in 20..52 && Color.green(color) in 64..96 && Color.blue(color) in 112..144
+                               else Color.red(color) in 210..242 && Color.green(color) in 147..179 && Color.blue(color) in 58..90) correct++
+                        }
+                        return correct>=40
+                    }
+                    val painted=matches(.2,leftBlue) && matches(.8,!leftBlue)
+                    if(painted) {
+                        val output=File(compose.activity.getExternalFilesDir(null),"workbook-pictures").apply{mkdirs()}
+                        File(output,"$capture.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
+                        File(output,"$capture.json").writeText(geometry.toString())
+                    }
+                    painted
+                } finally {bitmap.recycle()}
+            }
+        } catch (failure: Throwable) {
+            val output=File(compose.activity.getExternalFilesDir(null),"workbook-pictures").apply{mkdirs()}
+            File(output,"$capture-failure.json").writeText(js("""
+                (() => ({viewport:{width:visualViewport.width,height:visualViewport.height,offsetLeft:visualViewport.offsetLeft,offsetTop:visualViewport.offsetTop},
+                  scroll:{x:scrollX,y:scrollY},range:document.getElementById('range').textContent,
+                  images:[...document.querySelectorAll('.workbook-picture img')].map(image=>({alt:image.alt,complete:image.complete,
+                    naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight,style:image.style.cssText,
+                    bounds:image.closest('.workbook-picture').getBoundingClientRect().toJSON()}))}))()
+            """.trimIndent()) ?: "{}")
+            val bitmap=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try { File(output,"$capture-failure.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) } }
+            finally { bitmap.recycle() }
+            throw failure
         }
     }
     @Test fun embeddedPicturesPaintCropFlipNavigateAndRestoreIncludingImageOnlySheets() {
@@ -348,39 +382,44 @@ class WorkbookPreviewRuntimeTest {
     }
 
     private fun capturePaintedOdsCell(address: String, output: String, blue: Boolean = false) {
-        val drawn = CountDownLatch(1)
-        compose.runOnUiThread {
-            val view = checkNotNull(web(compose.activity.window.decorView))
-            view.postVisualStateCallback(1, object : WebView.VisualStateCallback() {
-                override fun onComplete(requestId: Long) { view.postOnAnimation { view.postOnAnimation { drawn.countDown() } } }
-            })
-        }
-        assertTrue(drawn.await(10, TimeUnit.SECONDS))
-        val geometry = JSONObject(js("""(() => {const r=document.querySelector('[data-cell="$address"]').getBoundingClientRect();return {width:visualViewport.width,x:r.x,y:r.y,w:r.width,h:r.height};})()""") ?: "{}")
-        val origin = IntArray(2); var scale = 0.0; var width = 0; var height = 0
-        compose.runOnUiThread { checkNotNull(web(compose.activity.window.decorView)).let {
-            it.getLocationOnScreen(origin); width=it.width; height=it.height; scale=width/geometry.getDouble("width")
-        } }
-        val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        try {
-            val left=(origin[0]+geometry.getDouble("x")*scale+3).toInt().coerceAtLeast(origin[0])
-            val right=(origin[0]+(geometry.getDouble("x")+geometry.getDouble("w"))*scale-3).toInt().coerceAtMost(minOf(image.width,origin[0]+width))
-            val top=(origin[1]+geometry.getDouble("y")*scale+3).toInt().coerceAtLeast(origin[1])
-            val bottom=(origin[1]+(geometry.getDouble("y")+geometry.getDouble("h"))*scale-3).toInt().coerceAtMost(minOf(image.height,origin[1]+height))
-            var ink=0; var paper=0
-            for(y in top until bottom) for(x in left until right) {
-                val color=image.getPixel(x,y)
-                if (blue) {
-                    if(Color.red(color)>220 && Color.green(color)>220 && Color.blue(color)>220) ink++
-                    if(Color.red(color) in 15..35 && Color.green(color) in 45..65 && Color.blue(color) in 83..103) paper++
-                } else {
-                    if(Color.red(color)<80 && Color.green(color)<80 && Color.blue(color)<80) ink++
-                    if(Color.red(color)>240 && Color.green(color)>240 && Color.blue(color)>240) paper++
+        settlePaint()
+        var attempt=0
+        // VisualStateCallback schedules a draw; the software compositor may still
+        // present the prior loading frame. Require the actual cell pixels, bounded
+        // by the same timeout used for pictures, instead of accepting one frame.
+        compose.waitUntil(15_000) {
+            attempt++
+            val geometry = JSONObject(js("""(() => {const r=document.querySelector('[data-cell="$address"]').getBoundingClientRect();return {width:visualViewport.width,offsetLeft:visualViewport.offsetLeft,offsetTop:visualViewport.offsetTop,x:r.x,y:r.y,w:r.width,h:r.height};})()""") ?: "{}")
+            val origin = IntArray(2); var scale = 0.0; var width = 0; var height = 0
+            compose.runOnUiThread { checkNotNull(web(compose.activity.window.decorView)).let {
+                it.getLocationOnScreen(origin); width=it.width; height=it.height; scale=width/geometry.getDouble("width")
+            } }
+            val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try {
+                val x=geometry.getDouble("x")-geometry.getDouble("offsetLeft")
+                val y=geometry.getDouble("y")-geometry.getDouble("offsetTop")
+                val left=(origin[0]+x*scale+3).toInt().coerceAtLeast(origin[0])
+                val right=(origin[0]+(x+geometry.getDouble("w"))*scale-3).toInt().coerceAtMost(minOf(image.width,origin[0]+width))
+                val top=(origin[1]+y*scale+3).toInt().coerceAtLeast(origin[1])
+                val bottom=(origin[1]+(y+geometry.getDouble("h"))*scale-3).toInt().coerceAtMost(minOf(image.height,origin[1]+height))
+                var ink=0; var paper=0
+                for(y in top until bottom) for(x in left until right) {
+                    val color=image.getPixel(x,y)
+                    if (blue) {
+                        if(Color.red(color)>220 && Color.green(color)>220 && Color.blue(color)>220) ink++
+                        if(Color.red(color) in 15..35 && Color.green(color) in 45..65 && Color.blue(color) in 83..103) paper++
+                    } else {
+                        if(Color.red(color)<80 && Color.green(color)<80 && Color.blue(color)<80) ink++
+                        if(Color.red(color)>240 && Color.green(color)>240 && Color.blue(color)>240) paper++
+                    }
                 }
-            }
-            assertTrue("Expected painted cell, ink=$ink paper=$paper",ink>30 && paper>500)
-            compose.activity.openFileOutput(output,Context.MODE_PRIVATE).use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
-        } finally { image.recycle() }
+                val captures=File(compose.activity.getExternalFilesDir(null),"workbook-cells").apply{mkdirs()}
+                File(captures,output).outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
+                File(captures,"$output.json").writeText(geometry.put("ink",ink).put("paper",paper)
+                    .put("attempt",attempt).put("nativeLeft",left).put("nativeTop",top).put("nativeRight",right).put("nativeBottom",bottom).toString())
+                ink>30 && paper>500
+            } finally { image.recycle() }
+        }
     }
 
 }

@@ -44,11 +44,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 - The XLSX preview now projects embedded raster pictures with DrawingML anchors,
   crop/rotation/flips, safe links and image-only/later-range navigation.
   **47 focused Node checks passed**, and main/test Kotlin compiled in 25 seconds.
-  The new painted-image/navigation/restoration Android case is compiled but
-  **unexecuted**, queued with workbook/ODS regression cases for the next integration
-  milestone. See `DOCUMENT_FORMATS.md`; charts, other drawing formats/effects,
+  The five-case Android workbook integration **passed in 45.795 s**, including
+  painted image/navigation/restoration and four existing XLSX/ODS cases. Initial
+  failures were corrected in test paint synchronization and visual-viewport
+  coordinates; exact failed attempts, hashes, captures and Google Play Services ANR
+  are retained in `DOCUMENT_FORMATS.md`. Charts, other drawing formats/effects,
   off-window automatic-row sizing, physical and matched Quick Look acceptance
-  remain open. No local APK/emulator run for this feature; signed 641 predates it.
+  remain open. The existing AVD and Gradle were stopped/reaped; no additional
+  virtual device was created. Signed 641 predates workbook pictures.
 
 - The latest debug integration at `5d254f84` **passed 25 Android cases in
   197.697 seconds**: four full-text readers, 12 reply sheets, eight Cloud machine

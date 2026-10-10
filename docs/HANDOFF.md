@@ -21,9 +21,13 @@ verification passed, including 22 aligned native libraries, 18 pinned assets,
 14 excluded debug components and six Android 17 ART release class probes.
 The install guide contains the exact artifact, stable signer and verified hash.
 Newer workbook-picture source passed 47 Node checks and main/test compilation;
-its painted-image/navigation/restoration Android case is compiled but unexecuted,
-queued with workbook/ODS regressions. See `DOCUMENT_FORMATS.md`. No new local
-APK/emulator or Pixel run for that feature. For the next milestone use manual
+its five-case Android integration now passed in 45.795 s with actual image
+pixels/navigation/restoration and four XLSX/ODS regressions. Failed attempts
+identified stale loading captures and incorrect visual-viewport coordinates;
+test synchronization and pixel coordinate fixes resolved them. See
+`DOCUMENT_FORMATS.md` for exact APK hashes, captured evidence, Google Play Services ANR
+and remaining format/physical scope. The existing AVD is stopped/reaped; Pixel
+acceptance remains open. For the next signed milestone use manual
 Android build with `publish_preview=false`. Automatic previews remain disabled. Do not
 claim physical acceptance from fixture or release packaging checks.
 
