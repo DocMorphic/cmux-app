@@ -29,6 +29,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Task attachment selection now stages the prefix fitting the remaining count,
+  blocks pickers when full, and continues past recoverable aggregate-size
+  rejections while preserving later smaller files. Ownership/cancellation/durable
+  writes remain authoritative. **21 focused JVM checks passed**; two new Android
+  cases compiled but await the next integration milestone. See
+  `TASK_ATTACHMENT_STAGING.md`. No APK/emulator/Pixel or signed release for this
+  batch. Initial task-prompt focus and broader composer/UI acceptance remain open.
+
 - Task model discovery now warms all three providers across visible paired Macs,
   with four concurrent slots, a shared five-minute catalog and composer refresh
   joining on the actual RPC wire. Account/connection retirement fences stale

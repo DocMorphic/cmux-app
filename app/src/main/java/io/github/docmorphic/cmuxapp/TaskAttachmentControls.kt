@@ -30,8 +30,8 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
     val files = remember(context) { AttachmentFiles(context.applicationContext, taskFiles = true) }
     val guard by rememberUpdatedState(isCurrent)
     val previewGuard by rememberUpdatedState(canPreview)
-    var menu by remember { mutableStateOf(false) }
     val owner = "${repository.session}:${editor.id}:$origin"
+    var menu by remember(owner, enabled, canAdd) { mutableStateOf(false) }
     var previewId by rememberSaveable(owner) { mutableStateOf<String?>(null) }
     var previewPresentation by rememberSaveable(owner) { mutableStateOf("") }
     val currentOwner by rememberUpdatedState(owner)
@@ -40,18 +40,26 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
     var staging by remember(owner, editor) { mutableStateOf(false) }
     fun current() = currentOwner == owner && currentEditor == editor && guard()
     fun previewCurrent() = currentOwner == owner && currentEditor == editor && previewGuard()
+    fun remainingCount() = (TaskAttachments.MAX_COUNT - repository.drafts.state.value[editor.id]?.attachments.orEmpty().size).coerceAtLeast(0)
+    fun openPicker(launch: () -> Unit) {
+        menu = false
+        if (!enabled || !canAdd || staging || !current()) return
+        if (remainingCount() == 0) { onError(TaskAttachments.COUNT_MESSAGE); return }
+        focus.clearFocus(); keyboard?.hide(); pickerOwner = owner
+        launch()
+    }
     fun stage(items: List<TerminalPasteContent.Item.Attachment>, release: () -> Unit = {}, photoLibrary: Boolean = false): Boolean {
         if (items.isEmpty() || staging || !enabled || !canAdd || !current() || !scope.isActive) return false
-        val remaining = TaskAttachments.MAX_COUNT - repository.drafts.state.value[editor.id]?.attachments.orEmpty().size
-        if (items.size > remaining) { onError("You can attach up to 10 items to a task."); return false }
+        val remaining = remainingCount()
+        if (remaining == 0) { onError(TaskAttachments.COUNT_MESSAGE); release(); return true }
         staging = true
         onPreparing(true)
         scope.launch {
             try {
                 var unreadable = 0
-                for ((uri, imageHint) in items) {
-                    currentCoroutineContext().ensureActive(); check(current()) { "Task session changed" }
-                    val prepared = readComposerAttachment(
+                var limitFailure: String? = null
+                TaskAttachments.stage(items, remaining, guard = { check(current()) { "Task session changed" } },
+                    read = { (uri, imageHint) -> readComposerAttachment(
                         guard = { check(current()) { "Task session changed" } }, failed = { unreadable++ }
                     ) {
                         val images = if (photoLibrary) files.isPhotoImage(uri) else imageHint
@@ -68,16 +76,17 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
                                 files.prepare(uri, false, allowEmpty = true)
                             }
                         }
-                    } ?: continue
-                    currentCoroutineContext().ensureActive(); check(current()) { "Task session changed" }
-                    repository.attach(editor, prepared)
-                    currentCoroutineContext().ensureActive()
-                    if (current()) onChanged()
-                }
+                    } }, append = { prepared ->
+                        repository.attach(editor, prepared)
+                        currentCoroutineContext().ensureActive()
+                        if (current()) onChanged()
+                    }, rejected = { limitFailure = it })
                 // Successful draft edits clear old errors; report partial failure after them.
-                if (unreadable > 0 && current()) onError(
-                    "$unreadable attachment${if (unreadable == 1) "" else "s"} couldn't be read. Try adding the missing files again."
-                )
+                if (current()) {
+                    val failures = listOfNotNull(limitFailure, if (unreadable > 0)
+                        "$unreadable attachment${if (unreadable == 1) "" else "s"} couldn't be read. Try adding the missing files again." else null)
+                    if (failures.isNotEmpty()) onError(failures.joinToString(" "))
+                }
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
                 if (current()) onError(failure.message ?: "That file couldn’t be read. Choose another file.")
@@ -123,18 +132,17 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
             TaskComposerCircle("Add task attachment", R.drawable.ic_task_plus, enabled, onClick = { menu = true })
             DropdownMenu(menu, { menu = false }) {
                 DropdownMenuItem(text = { Text("Photos") }, onClick = {
-                    menu = false; focus.clearFocus(); keyboard?.hide(); pickerOwner = owner
-                    photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                    openPicker { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }
                 })
                 DropdownMenuItem(text = { Text("Files") }, onClick = {
-                    menu = false; focus.clearFocus(); keyboard?.hide(); pickerOwner = owner; picker.launch(arrayOf("*/*"))
+                    openPicker { picker.launch(arrayOf("*/*")) }
                 })
                 DropdownMenuItem(text = { Text("Paste attachment") }, onClick = {
                     menu = false
                     val action = ComposerClipboardPaste(context, ::current, { enabled && canAdd },
                         receive = { pasted ->
                             stage(pasted.items.filterIsInstance<TerminalPasteContent.Item.Attachment>(), pasted::close)
-                        }, report = onError)
+                        }, report = onError, truncateAttachments = true)
                     if (!action.paste()) onError("No copied photos or files. Paste text into the task prompt.")
                 })
             }

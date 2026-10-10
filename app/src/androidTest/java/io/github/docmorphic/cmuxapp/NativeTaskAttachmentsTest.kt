@@ -68,6 +68,80 @@ class NativeTaskAttachmentsTest {
     @Test fun systemPasteKeepsReadableFilesAroundBrokenProviders() = mixedProviderPaste(true)
     @Test fun attachmentMenuKeepsReadableFilesAroundBrokenProviders() = mixedProviderPaste(false)
 
+    @Test fun overflowingClipboardUsesRemainingSlotsAndFullDraftStillAllowsTextPaste() {
+        seedAttachments(8)
+        show()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep this prompt")
+        compose.waitUntil(10_000) { keyboardRequest != null }
+        val directory = File(context.cacheDir, "task-previews").apply { mkdirs() }
+        val files = List(12) { index -> File(directory, "selection-$id-$index.txt").apply { writeText("File $index") } }
+        val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+        val previous = clipboard.primaryClip
+        try {
+            val uris = files.map { androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", it) }
+            val clip = android.content.ClipData.newUri(context.contentResolver, "Task files", uris.first())
+            uris.drop(1).forEach { clip.addItem(android.content.ClipData.Item(it)) }
+            clip.addItem(android.content.ClipData.Item("This caption must not enter the prompt"))
+            compose.runOnIdle { clipboard.setPrimaryClip(clip) }
+            compose.onNodeWithContentDescription("Add task attachment").performClick()
+            compose.onNodeWithText("Paste attachment").performClick()
+            compose.waitUntil(15_000) { repository.drafts.state.value[id]?.attachments?.size == 10 }
+            val selected = repository.drafts.state.value.getValue(id)
+            assertEquals("Keep this prompt", selected.prompt)
+            assertEquals(files.take(2).map { it.name }, selected.attachments.takeLast(2).map { it.name })
+            selected.attachments.takeLast(2).zip(files).forEach { (attachment, file) ->
+                assertArrayEquals(file.readBytes(), runBlocking { repository.readAttachment(attachment) })
+            }
+            compose.onNodeWithContentDescription("Task prompt").performClick()
+            compose.waitUntil(10_000) { keyboardRequest != null }
+            compose.runOnIdle {
+                val connection = keyboardRequest!!.createInputConnection(android.view.inputmethod.EditorInfo())
+                assertTrue(connection.performContextMenuAction(android.R.id.paste))
+            }
+            compose.onNodeWithText(TaskAttachments.COUNT_MESSAGE).assertExists()
+            assertEquals(selected.attachments, repository.drafts.state.value.getValue(id).attachments)
+            assertEquals("Keep this prompt", repository.drafts.state.value.getValue(id).prompt)
+            compose.runOnIdle {
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Text", " plus ordinary text"))
+                val connection = keyboardRequest!!.createInputConnection(android.view.inputmethod.EditorInfo())
+                assertTrue(connection.performContextMenuAction(android.R.id.paste))
+            }
+            compose.waitUntil(10_000) { repository.drafts.state.value[id]?.prompt == "Keep this prompt plus ordinary text" }
+            assertEquals(selected.attachments, repository.drafts.state.value.getValue(id).attachments)
+            assertTrue(peer.requests.none { it.optString("method") in setOf("mobile.task.attachment.upload", "workspace.create") })
+        } finally {
+            compose.runOnIdle { previous?.let(clipboard::setPrimaryClip) ?: clipboard.clearPrimaryClip() }
+            files.forEach(File::delete)
+        }
+    }
+
+    @Test fun fullDraftReportsLimitBeforeLaunchingEitherPicker() {
+        seedAttachments(10)
+        show()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        for (label in listOf("Photos", "Files")) {
+            val monitor = instrumentation.addMonitor(composerPickerFilter(context, label == "Photos"),
+                Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null), true)
+            try {
+                compose.onNodeWithContentDescription("Add task attachment").performClick()
+                compose.onNodeWithText(label).performClick()
+                compose.onNodeWithText(TaskAttachments.COUNT_MESSAGE).assertExists()
+                compose.waitForIdle()
+                assertEquals("A full draft launched $label", 0, monitor.hits)
+            } finally { instrumentation.removeMonitor(monitor) }
+        }
+        assertEquals(10, repository.drafts.state.value.getValue(id).attachments.size)
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.task.attachment.upload" })
+    }
+
+    private fun seedAttachments(count: Int) = runBlocking {
+        val editor = repository.drafts.begin(id, "attachment-mac", "Mac", "/repo")
+        try { repeat(count) { index ->
+            val bytes = "Existing $index".toByteArray()
+            repository.attach(editor, AttachmentFiles.Prepared(ComposerAttachment(name = "existing-$index.txt", size = bytes.size), bytes))
+        } } finally { repository.drafts.end(editor) }
+    }
+
     private fun mixedProviderPaste(systemPaste: Boolean) {
         show()
         compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep my prompt")

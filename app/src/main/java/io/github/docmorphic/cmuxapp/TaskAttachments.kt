@@ -6,16 +6,36 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
+/** Recoverable selection limits; ownership and durable draft failures remain fatal to a batch. */
+internal class TaskAttachmentLimitException(message: String) : IllegalArgumentException(message)
+
 /** Attachment identities belong to the local snapshot, never to workspace.create's wire schema. */
 internal object TaskAttachments {
     const val MAX_COUNT = 10
     const val IMAGE_BYTES = 8 * 1024 * 1024
+    const val COUNT_MESSAGE = "You can attach up to 10 items to a task."
+    const val TOTAL_MESSAGE = "Task attachments can use up to 64 MB in total."
     private const val SNAPSHOT_KEY = "_cmux_task_attachments"
     fun validate(items: List<ComposerAttachment>) {
-        require(items.size <= MAX_COUNT) { "You can attach up to 10 items to a task." }
+        if (items.size > MAX_COUNT) throw TaskAttachmentLimitException(COUNT_MESSAGE)
         require(items.map { it.id }.distinct().size == items.size) { "Duplicate task attachment" }
-        require(items.sumOf { it.size.toLong() } <= ComposerAttachment.TOTAL_BYTES) { "Task attachments can use up to 64 MB in total." }
+        if (items.sumOf { it.size.toLong() } > ComposerAttachment.TOTAL_BYTES) throw TaskAttachmentLimitException(TOTAL_MESSAGE)
         items.forEach { require(ComposerAttachment.read(it.json(), IMAGE_BYTES, allowEmpty = true) == it) { "Invalid task attachment" } }
+    }
+    /** Match iOS selection prefixes; only a count/aggregate rejection may continue past append. */
+    suspend fun <T, P : Any> stage(items: List<T>, remaining: Int, guard: () -> Unit,
+        read: suspend (T) -> P?, append: suspend (P) -> Unit, rejected: (String) -> Unit) {
+        for (item in items.take(remaining.coerceIn(0, MAX_COUNT))) {
+            currentCoroutineContext().ensureActive(); guard()
+            val prepared = read(item) ?: continue
+            currentCoroutineContext().ensureActive(); guard()
+            try { append(prepared) }
+            catch (failure: TaskAttachmentLimitException) {
+                currentCoroutineContext().ensureActive(); guard()
+                rejected(checkNotNull(failure.message))
+            }
+            currentCoroutineContext().ensureActive(); guard()
+        }
     }
     fun read(raw: JSONArray?): List<ComposerAttachment> = (raw?.let { list ->
         (0 until list.length()).map { checkNotNull(ComposerAttachment.read(list.getJSONObject(it), IMAGE_BYTES, allowEmpty = true)) }

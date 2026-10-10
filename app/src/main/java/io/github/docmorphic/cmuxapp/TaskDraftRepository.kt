@@ -91,6 +91,10 @@ internal class TaskDraftRepository private constructor(
             requireSession(checkNotNull(store.load()))
             check(drafts.state.value.values.none { draft -> draft.attachments.any { it.id == prepared.attachment.id } })
             require(prepared.bytes.size == prepared.attachment.size)
+            synchronized(drafts) {
+                val current = checkNotNull(drafts.state.value[editor.id])
+                TaskAttachments.validate(current.attachments + prepared.attachment)
+            }
             files.write(prepared)
             try {
                 synchronized(drafts) {

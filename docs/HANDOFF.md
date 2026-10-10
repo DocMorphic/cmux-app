@@ -7,6 +7,14 @@ completion checklist. The dated older entries below retain history and must not
 be read as the current delivery or pending-test state. The full goal remains
 active and unverified. Scoped source audits do not advance the global parity pin.
 
+Task attachment selection now matches the scoped iOS remaining-count prefix and
+full-list picker admission. A rejected aggregate-size item does not discard later
+smaller files, while cancellation, ownership and persistence errors still stop
+the batch. 21 focused JVM checks passed; two new Android cases compiled but await
+the next integration milestone. `TASK_ATTACHMENT_STAGING.md` records scope and
+the discovered initial-prompt-focus gap for continuation. No emulator/APK/signed
+release in this batch; signed 641 is unchanged.
+
 Task-model prefetch now follows the scoped iOS implementation at `f4b1509`: all
 three providers, four warming slots, one five-minute catalog, current-wire cache
 bindings and shared refresh consumers. Connection topology drives reconciliation

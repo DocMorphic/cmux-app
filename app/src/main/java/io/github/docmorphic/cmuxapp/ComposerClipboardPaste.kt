@@ -10,7 +10,8 @@ internal class ComposerClipboardPaste(
     private val current: () -> Boolean,
     private val enabled: () -> Boolean,
     private val receive: (TerminalPasteContent) -> Boolean,
-    private val report: (String) -> Unit
+    private val report: (String) -> Unit,
+    private val truncateAttachments: Boolean = false
 ) {
     val clipboard = context.getSystemService(ClipboardManager::class.java)
 
@@ -29,8 +30,9 @@ internal class ComposerClipboardPaste(
             val attachments = items.mapNotNull { it.uri?.takeIf { uri -> uri.scheme == "content" } }
             if (attachments.isEmpty()) return false
             require(enabled()) { "Attachments aren't available in this composer right now." }
-            require(clip.itemCount <= 10) { "Paste up to 10 items at a time" }
-            val readable = attachments.mapNotNull { uri ->
+            require(truncateAttachments || clip.itemCount <= 10) { "Paste up to 10 items at a time" }
+            val selected = if (truncateAttachments) attachments.take(TaskAttachments.MAX_COUNT) else attachments
+            val readable = selected.mapNotNull { uri ->
                 if (!current()) return true
                 try {
                     TerminalPasteContent.Item.Attachment(uri,

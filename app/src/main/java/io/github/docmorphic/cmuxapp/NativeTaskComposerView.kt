@@ -486,7 +486,7 @@ internal fun NativeTaskComposerView(
             }
             RichContentEditor(owner = editor to origin,
                 enabled = canEdit && !plainShell && supportsAttachments && attachmentRepository != null,
-                onContent = receiveAttachment, onError = { error = it }) { pasteModifier ->
+                onContent = receiveAttachment, onError = { error = it }, truncateAttachmentPaste = true) { pasteModifier ->
                 TextField(prompt, { text -> edit { it.copy(prompt = text) } },
                     Modifier.weight(1f).then(pasteModifier).fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).semantics {
                         contentDescription = if (plainShell) "Workspace title (optional)" else "Task prompt"

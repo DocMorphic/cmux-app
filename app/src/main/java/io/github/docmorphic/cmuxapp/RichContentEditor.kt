@@ -24,7 +24,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 @Composable
 internal fun RichContentEditor(
     owner: Any?, enabled: Boolean, onContent: (TerminalPasteContent) -> Boolean,
-    onError: (String) -> Unit, content: @Composable (Modifier) -> Unit
+    onError: (String) -> Unit, truncateAttachmentPaste: Boolean = false,
+    content: @Composable (Modifier) -> Unit
 ) {
     val context = LocalContext.current
     val accepting by rememberUpdatedState(enabled)
@@ -32,8 +33,8 @@ internal fun RichContentEditor(
     val report by rememberUpdatedState(onError)
     val mounted = remember(owner) { AtomicBoolean(true) }
     DisposableEffect(mounted) { onDispose { mounted.set(false) } }
-    val paste = remember(mounted, context) { ComposerClipboardPaste(context,
-        { mounted.get() }, { accepting }, { receive(it) }, { report(it) }) }
+    val paste = remember(mounted, context, truncateAttachmentPaste) { ComposerClipboardPaste(context,
+        { mounted.get() }, { accepting }, { receive(it) }, { report(it) }, truncateAttachmentPaste) }
     var clipboardRevision by remember { mutableIntStateOf(0) }
     DisposableEffect(paste) {
         val listener = android.content.ClipboardManager.OnPrimaryClipChangedListener { clipboardRevision++ }
