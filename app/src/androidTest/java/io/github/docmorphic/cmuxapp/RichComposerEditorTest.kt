@@ -130,6 +130,21 @@ class RichComposerEditorTest {
             assertEquals(listOf(TerminalPasteContent.Item.Attachment(document, false)), received.last().items)
             assertEquals("left こんにちは", value.text)
         }
+        copied(ClipData.newPlainText("Text", "世界"))
+        compose.runOnIdle {
+            val connection = request!!.createInputConnection(EditorInfo())
+            assertTrue(connection.setSelection(5, 10))
+            assertTrue(connection.performContextMenuAction(android.R.id.paste))
+        }
+        compose.onNode(hasSetTextAction()).assertTextEquals("left 世界")
+        copied(ClipData.newPlainText("Text", "!"))
+        compose.runOnIdle {
+            val connection = request!!.createInputConnection(EditorInfo())
+            assertTrue(connection.setComposingText("てすと", 1))
+            assertTrue(connection.performContextMenuAction(android.R.id.pasteAsPlainText))
+        }
+        compose.onNode(hasSetTextAction()).assertTextEquals("left 世界てすと!")
+        compose.runOnIdle { assertNull(value.composition) }
     }
 
     @Test fun disabledOversizedAndRetiredPasteNeverInsertUrisOrAttachToNewOwner() {

@@ -28,6 +28,7 @@ class TaskAttachmentPreviewTestActivity : ComponentActivity() {
                     TaskAttachmentControls(repo, editor, "preview-fixture", drafts[id]?.attachments.orEmpty(),
                         enabled = false, canAdd = false, isCurrent = { false },
                         canPreview = { repo.drafts.isCurrent(editor) },
+                        beforeOverlay = {},
                         onPreparing = {}, onChanged = {}, onError = { error(it) }) { strip, _, _ -> strip() }
                 }
             }

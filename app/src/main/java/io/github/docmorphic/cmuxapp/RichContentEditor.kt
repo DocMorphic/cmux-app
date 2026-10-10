@@ -74,7 +74,8 @@ internal fun RichContentEditor(
                     RichContentInputConnection(connection,
                         isCurrent = { mounted.get() && session.get() && accepting },
                         receive = { receive(it) }, report = { report(it) },
-                        paste = { if (mounted.get() && session.get()) paste.paste() else true })
+                        paste = { if (mounted.get() && session.get()) paste.paste() else true },
+                        pasteText = { if (mounted.get() && session.get()) paste.plainText() else null })
                 })
             } finally { session.set(false) }
         }
@@ -92,7 +93,8 @@ internal class RichContentInputConnection(
     private val isCurrent: () -> Boolean,
     private val receive: (TerminalPasteContent) -> Boolean,
     private val report: (String) -> Unit,
-    private val paste: () -> Boolean = { false }
+    private val paste: () -> Boolean = { false },
+    private val pasteText: () -> CharSequence? = { null }
 ) : InputConnectionWrapper(delegate, false) {
     private val open = AtomicBoolean(true)
 
@@ -103,7 +105,19 @@ internal class RichContentInputConnection(
 
     override fun performContextMenuAction(id: Int): Boolean {
         if (!open.get()) return false
-        if ((id == android.R.id.paste || id == android.R.id.pasteAsPlainText) && paste()) return true
+        if (id == android.R.id.paste || id == android.R.id.pasteAsPlainText) {
+            if (paste()) return true
+            // Keep selection and paste in the delegate's ordered edit lane.
+            // Legacy Compose's context action dispatches a synthetic paste key
+            // even while returning false; it can race the preceding selection.
+            val text = pasteText() ?: return false
+            if (!open.get()) return false
+            super.beginBatchEdit()
+            return try {
+                super.finishComposingText()
+                super.commitText(text, 1)
+            } finally { super.endBatchEdit() }
+        }
         return super.performContextMenuAction(id)
     }
 

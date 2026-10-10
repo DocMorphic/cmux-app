@@ -363,6 +363,16 @@ class NativeTaskAttachmentsTest {
 
     @Test fun promptCanvasAndDockResizeWithKeyboardAndOptionsOwnDirectory() {
         show()
+        compose.waitUntil(10_000) {
+            compose.onNodeWithContentDescription("Task prompt").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Focused] &&
+                androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                    ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+        }
+        androidx.test.espresso.Espresso.pressBack()
+        compose.waitUntil(10_000) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == false
+        }
         compose.onNodeWithContentDescription("Task prompt").assertIsDisplayed()
         compose.onNodeWithText("Directory on Mac").assertDoesNotExist()
         compose.onNodeWithContentDescription("Task title").assertTextEquals("repo")
@@ -370,7 +380,7 @@ class NativeTaskAttachmentsTest {
         val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
         assertTrue("Prompt should occupy most of the canvas", initial.height > root.height * 0.6f)
         val before = compose.onNodeWithContentDescription("Create Task").fetchSemanticsNode().boundsInRoot
-        compose.onNodeWithContentDescription("Task prompt").performTextInput("Make the tests pass")
+        compose.onNodeWithContentDescription("Task prompt").performClick().performTextInput("Make the tests pass")
         compose.waitUntil(10_000) {
             androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
                 ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true &&

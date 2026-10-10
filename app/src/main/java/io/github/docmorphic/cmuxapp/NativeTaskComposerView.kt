@@ -7,9 +7,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.Lifecycle
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.TextFieldValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Job
@@ -95,6 +98,17 @@ internal fun NativeTaskComposerView(
     val command = draft.command
     val plainShell = command.isNullOrBlank()
     val prompt = draft.prompt
+    var promptEditor by rememberSaveable(activeId, stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(prompt)) }
+    var retainPromptSelection by rememberSaveable(activeId) { mutableStateOf(false) }
+    val promptValue = taskComposerPromptValue(promptEditor, prompt)
+    SideEffect { if (promptEditor != promptValue) promptEditor = promptValue }
+    val promptStateHolder = rememberSaveableStateHolder()
+    fun hidePromptKeyboard() {
+        // Legacy Compose deselects on blur. A sheet/picker must preserve the
+        // selection that existed before transferring focus to its controls.
+        retainPromptSelection = true
+        focus.clearFocus(); keyboard?.hide()
+    }
     val directory = draft.directory
     val selection = draft.selection
     val submission = remember(editor) { TaskSubmissionIdentity().apply {
@@ -133,6 +147,9 @@ internal fun NativeTaskComposerView(
     val canLeave = !leavingPreparation && (!busy || (submissionJob?.isActive == true && !submissionCommitted))
     val currentCanEdit by rememberUpdatedState(canEdit)
     val currentHasSelectedMac by rememberUpdatedState(hasSelectedMac)
+    val promptFocus = taskComposerInitialFocusModifier(activeId, canEdit,
+        visible = !showOptions && !showDirectory && !showTemplates && !showDrafts && !confirmLeave && !confirmStartAgain,
+        current = { currentContext() && collection.isCurrent(editor) })
     fun rememberPickerChoices() {
         if (currentHasSelectedMac && currentContext() && collection.isCurrent(editor)) {
             collection.state.value[editor.id]?.takeIf { it.origin == origin }?.let(templateStore::rememberPickers)
@@ -169,7 +186,7 @@ internal fun NativeTaskComposerView(
         // recomposed at the preparation/creation boundary.
         if (leavingPreparation || (busy && (submissionJob?.isActive != true || submissionCommitted))) return
         fun presentLeave() {
-            focus.clearFocus(); keyboard?.hide()
+            hidePromptKeyboard()
             if (dirty && !accepted) confirmLeave = true else onBack()
         }
         if (!busy) { presentLeave(); return }
@@ -246,7 +263,7 @@ internal fun NativeTaskComposerView(
             else submission.resolve(origin, checkNotNull(effectiveRequest) { "Enter a task prompt" })
         }.getOrElse { error = it.message; return }
         busy = true; error = null; submissionIssue = null
-        focus.clearFocus(); keyboard?.hide()
+        hidePromptKeyboard()
         submissionJob = scope.launch {
             var transmitted = false
             var stage = TaskComposerFailure.Stage.SAVING
@@ -384,7 +401,7 @@ internal fun NativeTaskComposerView(
             onName = { name -> edit { it.copy(workspaceName = name) } },
             onMac = { next ->
                 if (next != origin && selectMac != null && canEdit) {
-                    focus.clearFocus(); keyboard?.hide(); busy = true; error = null
+                    hidePromptKeyboard(); busy = true; error = null
                     scope.launch {
                         try { check(currentContext()); selectMac(editor, next) }
                         catch (failure: Exception) { if (failure is CancellationException) throw failure; error = failure.message ?: "Could not select this Mac" }
@@ -392,14 +409,14 @@ internal fun NativeTaskComposerView(
                     }
                 }
             }, onGroup = { group -> edit { it.copy(groupId = group) } },
-            onDirectory = { focus.clearFocus(); keyboard?.hide(); showDirectory = true },
+            onDirectory = { hidePromptKeyboard(); showDirectory = true },
             onRefreshGroups = {
                 if (canEdit) { busy = true; scope.launch {
                     try { refreshWorkspaces(); error = null }
                     catch (failure: Exception) { if (failure is CancellationException) throw failure; error = failure.message }
                     finally { busy = false }
                 } }
-            }, onDismiss = { focus.clearFocus(); keyboard?.hide(); showOptions = false })
+            }, onDismiss = { hidePromptKeyboard(); showOptions = false })
         return
     }
     if (showTemplates) {
@@ -480,15 +497,22 @@ internal fun NativeTaskComposerView(
                 Text(draft.workspaceName.trim().ifEmpty { directory.trim().takeIf { it.isNotEmpty() }?.let(TaskDirectoryPaths::name) ?: "New Task" },
                     Modifier.weight(1f).semantics { contentDescription = "Task title" }, textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                IconButton(onClick = { focus.clearFocus(); keyboard?.hide(); showDrafts = true }, enabled = canEdit) {
+                IconButton(onClick = { hidePromptKeyboard(); showDrafts = true }, enabled = canEdit) {
                     Icon(painterResource(R.drawable.ic_task_drafts), "Drafts", Modifier.size(22.dp))
                 }
             }
-            RichContentEditor(owner = editor to origin,
+            promptStateHolder.SaveableStateProvider(activeId) { RichContentEditor(owner = editor to origin,
                 enabled = canEdit && !plainShell && supportsAttachments && attachmentRepository != null,
                 onContent = receiveAttachment, onError = { error = it }, truncateAttachmentPaste = true) { pasteModifier ->
-                TextField(prompt, { text -> edit { it.copy(prompt = text) } },
-                    Modifier.weight(1f).then(pasteModifier).fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).semantics {
+                TextField(promptValue, { next ->
+                    if (currentCanEdit && currentContext() && collection.isCurrent(editor)) {
+                        if (next.text != collection.state.value[editor.id]?.prompt) edit { it.copy(prompt = next.text) }
+                        val retained = if (retainPromptSelection && next.text == promptEditor.text)
+                            next.copy(selection = promptEditor.selection) else next
+                        promptEditor = taskComposerPromptValue(retained, collection.state.value[editor.id]?.prompt.orEmpty())
+                    }
+                }, Modifier.weight(1f).then(promptFocus).onFocusChanged { if (it.isFocused) retainPromptSelection = false }
+                    .then(pasteModifier).fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).semantics {
                         contentDescription = if (plainShell) "Workspace title (optional)" else "Task prompt"
                     }, enabled = canEdit, textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
                     placeholder = { Text(if (plainShell) "Workspace title (optional)" else directory.trim().takeIf { it.isNotEmpty() }
@@ -497,7 +521,7 @@ internal fun NativeTaskComposerView(
                     colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                         disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent, disabledIndicatorColor = Color.Transparent))
-            }
+            } }
             Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (client == null) Text(if (hasSelectedMac) "That Mac is not connected. Open cmux on the Mac to start this task."
                     else "Pair a Mac to start this task. You can save your draft now.",
@@ -528,7 +552,7 @@ internal fun NativeTaskComposerView(
                 attachmentStrip()
                 Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
                     TaskComposerCircle("Task Options", R.drawable.ic_task_options, canEdit,
-                        onClick = { focus.clearFocus(); keyboard?.hide(); showOptions = true })
+                        onClick = { hidePromptKeyboard(); showOptions = true })
                     attachmentPicker()
                     TaskComposerPillScroller(Modifier.weight(1f)) {
                         Box {
@@ -546,7 +570,7 @@ internal fun NativeTaskComposerView(
                                 }
                                 HorizontalDivider()
                                 DropdownMenuItem(text = { Text("Edit Agents") }, onClick = {
-                                    agentMenu = false; focus.clearFocus(); keyboard?.hide(); showTemplates = true
+                                    agentMenu = false; hidePromptKeyboard(); showTemplates = true
                                 })
                             }
                         }
@@ -611,6 +635,7 @@ internal fun NativeTaskComposerView(
         draft.attachments, canEdit, canAdd = !plainShell && supportsAttachments,
         isCurrent = { currentContext() && collection.isCurrent(editor) && !busy && !accepted && !plainShell && supportsAttachments },
         canPreview = { currentContext() && collection.isCurrent(editor) },
+        beforeOverlay = ::hidePromptKeyboard,
         onPreparing = { preparingAttachments = it }, onChanged = { dirty = true; error = null }, onError = { error = it }, content = layout)
     else layout({}, {}, { false })
 }

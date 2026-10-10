@@ -29,13 +29,25 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Initial task keyboard focus now waits for the resumed, placed, current editor
+  and focused window; the request is consumed per presentation. Prompt selection
+  survives agent changes, Options and saved-state restoration. Explicit IME text
+  paste now uses ordered edits, fixing a selection race in the installed Compose
+  delegate. **12 JVM and eight Android cases passed**, Android runtime 93.581 s,
+  including the two attachment cases below. Captures inspected; final run had
+  zero new crash/ANR records. See `TASK_COMPOSER_PROMPT.md` for corrected failures
+  and exact APKs. Sole AVD/Gradle stopped, sleep timeout restored, no extra AVD.
+  Manual viewport/scroll, actual Activity/process restoration, physical/matched
+  iOS and broader task acceptance remain open. No Pixel or signed release;
+  signed 641 and the global parity pin are unchanged.
+
 - Task attachment selection now stages the prefix fitting the remaining count,
   blocks pickers when full, and continues past recoverable aggregate-size
   rejections while preserving later smaller files. Ownership/cancellation/durable
   writes remain authoritative. **21 focused JVM checks passed**; two new Android
-  cases compiled but await the next integration milestone. See
-  `TASK_ATTACHMENT_STAGING.md`. No APK/emulator/Pixel or signed release for this
-  batch. Initial task-prompt focus and broader composer/UI acceptance remain open.
+  cases compiled at that checkpoint and now pass in the task-prompt integration
+  above. See `TASK_ATTACHMENT_STAGING.md`. The original batch used no APK/emulator;
+  physical and broader composer/UI acceptance remain open, signed 641 unchanged.
 
 - Task model discovery now warms all three providers across visible paired Macs,
   with four concurrent slots, a shared five-minute catalog and composer refresh

@@ -58,6 +58,21 @@ internal class ComposerClipboardPaste(
         }
     }
 
+    /** Explicit IME text action only; match Android's first clipboard item without coercing local providers. */
+    fun plainText(): CharSequence? {
+        if (!current()) return null
+        return try {
+            val clip = clipboard.primaryClip ?: return null
+            if (clip.itemCount == 0 || (0 until clip.itemCount).any { clip.getItemAt(it).uri?.scheme == "content" }) return null
+            val item = clip.getItemAt(0)
+            val text = item.text ?: item.uri?.takeIf { it.scheme == "http" || it.scheme == "https" }?.toString()
+            text?.takeIf { current() }
+        } catch (_: Exception) {
+            if (current()) report("The copied text couldn't be read. Try copying it again.")
+            null
+        }
+    }
+
     fun key(event: KeyEvent): Boolean = event.action == KeyEvent.ACTION_DOWN &&
         ((event.keyCode == KeyEvent.KEYCODE_V && (event.isCtrlPressed || event.isMetaPressed) && !event.isAltPressed) ||
             (event.keyCode == KeyEvent.KEYCODE_INSERT && event.isShiftPressed)) && paste()

@@ -21,12 +21,11 @@ import kotlinx.coroutines.isActive
 @Composable
 internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: TaskDrafts.Editor, origin: String,
     attachments: List<ComposerAttachment>, enabled: Boolean, canAdd: Boolean, isCurrent: () -> Boolean, canPreview: () -> Boolean,
+    beforeOverlay: () -> Unit,
     onPreparing: (Boolean) -> Unit, onChanged: () -> Unit, onError: (String) -> Unit,
     content: @Composable (@Composable () -> Unit, @Composable () -> Unit, (TerminalPasteContent) -> Boolean) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val focus = androidx.compose.ui.platform.LocalFocusManager.current
-    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val files = remember(context) { AttachmentFiles(context.applicationContext, taskFiles = true) }
     val guard by rememberUpdatedState(isCurrent)
     val previewGuard by rememberUpdatedState(canPreview)
@@ -45,7 +44,7 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
         menu = false
         if (!enabled || !canAdd || staging || !current()) return
         if (remainingCount() == 0) { onError(TaskAttachments.COUNT_MESSAGE); return }
-        focus.clearFocus(); keyboard?.hide(); pickerOwner = owner
+        beforeOverlay(); pickerOwner = owner
         launch()
     }
     fun stage(items: List<TerminalPasteContent.Item.Attachment>, release: () -> Unit = {}, photoLibrary: Boolean = false): Boolean {
@@ -114,7 +113,7 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
                         canPreview = previewCurrent(), canRemove = enabled,
                         removeLabel = "Remove task attachment: ${item.name}",
                         onPreview = {
-                            focus.clearFocus(); keyboard?.hide()
+                            beforeOverlay()
                             previewPresentation = java.util.UUID.randomUUID().toString(); previewId = item.id
                         }, onRemove = {
                             onPreparing(true)

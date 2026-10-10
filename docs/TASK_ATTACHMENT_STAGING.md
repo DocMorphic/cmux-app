@@ -38,13 +38,17 @@ Two additional production-screen cases compiled in `NativeTaskAttachmentsTest`:
 - `overflowingClipboardUsesRemainingSlotsAndFullDraftStillAllowsTextPaste`
 - `fullDraftReportsLimitBeforeLaunchingEitherPicker`
 
-These Android cases **have not run**. Execute them at the next integration
-milestone together with the existing mixed-provider/menu/system-paste cases.
-This batch created no APK, emulator, Pixel/Mac run or signed release. Signed
+At the original attachment-only checkpoint, these Android cases had not run.
+That batch created no APK, emulator, Pixel/Mac run or signed release. Signed
 milestone 641 is unchanged. Logs, source excerpts/hashes and final test XML are
 retained under ignored `captures/runtime/task-attachment-limits/`.
 
-The scoped prompt source also shows an initial presentation-owned focus transfer
-that Android's task composer does not yet implement. Initial focus, prompt
-selection/scroll retention and matched physical UI remain pending; this attachment
-batch does not close task-composer parity.
+## Subsequent task-prompt integration — 2026-10-10
+
+Both new attachment cases now **passed** in the eight-case Android integration
+recorded in [TASK_COMPOSER_PROMPT.md](TASK_COMPOSER_PROMPT.md), along with prompt
+canvas/keyboard, model/effort and rich-editor paste regressions. Six staging JVM
+cases also passed again alongside six new prompt cases. Initial task focus and
+selection retention are now implemented and covered by those emulator checks.
+Manual scroll/viewport retention, matched physical UI and full task-composer
+acceptance remain open; no Pixel/Mac or signed-release acceptance is claimed.

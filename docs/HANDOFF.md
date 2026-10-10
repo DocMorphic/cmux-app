@@ -7,13 +7,25 @@ completion checklist. The dated older entries below retain history and must not
 be read as the current delivery or pending-test state. The full goal remains
 active and unverified. Scoped source audits do not advance the global parity pin.
 
+Initial task keyboard focus and retained prompt selection now follow the scoped
+iOS presentation behavior. Explicit IME text paste bypasses the legacy Compose
+delegate's competing synthetic key and commits ordered selection/composition
+edits. **12 JVM and eight Android cases passed**, runtime 93.581 s, including
+the two attachment cases from the previous checkpoint. Three fresh captures were
+inspected; no new crash/ANR records in the accepted run. Exact APKs, failed attempts,
+source/dependency evidence and limits are in `TASK_COMPOSER_PROMPT.md` and ignored
+`captures/runtime/task-prompt/`. Sole AVD/Gradle stopped, timeout restored, no extra
+AVD; actual guest memory was 4,062,416 KiB despite the requested 1536 MiB. No
+Pixel/live Mac or signed release, signed 641/global pin unchanged. Manual viewport,
+actual Activity/process restoration and physical/matched iOS acceptance stay open.
+
 Task attachment selection now matches the scoped iOS remaining-count prefix and
 full-list picker admission. A rejected aggregate-size item does not discard later
 smaller files, while cancellation, ownership and persistence errors still stop
-the batch. 21 focused JVM checks passed; two new Android cases compiled but await
-the next integration milestone. `TASK_ATTACHMENT_STAGING.md` records scope and
-the discovered initial-prompt-focus gap for continuation. No emulator/APK/signed
-release in this batch; signed 641 is unchanged.
+the batch. 21 focused JVM checks passed; two new Android cases initially compiled
+without running and now pass in the integration above. `TASK_ATTACHMENT_STAGING.md`
+records scope and the subsequent prompt work. No emulator/APK/signed release in
+the original attachment-only batch; signed 641 is unchanged.
 
 Task-model prefetch now follows the scoped iOS implementation at `f4b1509`: all
 three providers, four warming slots, one five-minute catalog, current-wire cache
