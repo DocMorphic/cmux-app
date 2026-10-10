@@ -1,5 +1,20 @@
 # Android parity tracker
 
+## 2026-10-10 — Privacy consent control and runtime gate
+
+Scoped iOS consent default/key, analytics-only label and placement before
+Diagnostics are implemented, with an explicit availability footer. Main-process
+Settings and runtime share the persisted preference and generation gate; old
+events stay retired after re-enable, stale provider reads cannot restore consent,
+and registered active/lazy jobs cancel on revocation/closure. Nine JVM cases pass;
+main and two new Android cases compiled in 52 s. Android preference/accessibility/
+large-font/restoration execution and matched visual acceptance are pending.
+
+No analytics/crash/replay provider, event uploader or identity was activated.
+Accepted Android server support, actual transport cancellation and account/team
+retirement remain open. See [ANALYTICS_PRIVACY.md](ANALYTICS_PRIVACY.md). No APK,
+emulator/Pixel or signed release; Gradle stopped, signed 641/global pin unchanged.
+
 Reference: [cmux iOS](https://cmux.com/ios) and
 [`manaflow-ai/cmux`](https://github.com/manaflow-ai/cmux) at
 `4c5272e9153eca2033c9f40ac749f0c3a5bcb291` (2026-09-27), refreshed on 2026-09-28.

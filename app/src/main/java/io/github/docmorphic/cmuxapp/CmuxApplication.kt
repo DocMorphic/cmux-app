@@ -53,6 +53,7 @@ class CmuxApplication : Application() {
         runCatching { MobileDiagnostics.install(this, if (process.endsWith(":browser")) DiagnosticRole.BROWSER else DiagnosticRole.APP) }
         MobileDiagnostics.event(DebugOperation.APP_START)
         if (process == packageName) {
+            NativePrivacyConsent.current(this)
             FileSaveWork.recover(this)
             PhoneFcmTokens.observe(this)
         }

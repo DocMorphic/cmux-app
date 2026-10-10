@@ -2687,6 +2687,7 @@ internal fun NativeScreen(
                         modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.whatsnew")) { Text("What's New") }
                     TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
                     NativeFeedbackSettingsButton()
+                    NativePrivacySettings(NativePrivacyConsent.current(context))
                     NativeDiagnosticsSettings()
                     TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
                     NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences, displayState)

@@ -7,6 +7,16 @@ completion checklist. The dated older entries below retain history and must not
 be read as the current delivery or pending-test state. The full goal remains
 active and unverified. Scoped source audits do not advance the global parity pin.
 
+The latest Android batch adds Privacy Settings and the shared, persisted consent
+generation/job cancellation owner. Nine focused JVM cases passed; main and
+instrumentation Kotlin compiled in 52 s. `NativePrivacySettingsTest` has two
+compiled but unexecuted Android cases for actual preferences/off-main revocation,
+large-font layout, switch accessibility and restoration. Queue them for the next
+combined device integration, with a rendered capture. No uploader/recorder or
+backend was enabled. Accepted Android event support, real HTTP cancellation and
+account/team identity retirement remain unresolved; do not send Android events
+under the iOS catalog. See `ANALYTICS_PRIVACY.md`. Signed 641 is unchanged.
+
 The latest host notification batch adds explicit source-journal scheduling and
 owns forwarder startup/shutdown, with timed retry/recovery, safe cancellation and
 durable capture ordering for equally due rows. Legacy journal migration preserves
