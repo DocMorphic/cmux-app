@@ -1,5 +1,35 @@
 # Codex laptop handoff — 2026-09-28
 
+## Current continuation checkpoint — 2026-10-10
+
+Work continues on `main`; [REMAINING_WORK.md](REMAINING_WORK.md) is the current
+completion checklist. The dated older entries below retain history and must not
+be read as the current delivery or pending-test state. The full goal remains
+active and unverified. Scoped source audits do not advance the global parity pin.
+
+At main `5d254f84`, the debug integration passed 25 Android cases in 197.697 s
+(four reader, 12 reply, eight Cloud machine, one paused-video). The strengthened
+reader/Cloud pair passed in 13.889 s with actual final-line pixels and inspected
+screenshots. See `AGENT_FEED.md` / `CLOUD_COMPANION.md` for exact hashes, the stale
+capture correction and startup ANRs. The sole AVD `cmux_api37_16k` and Gradle are
+stopped; verify no Gradle process before an emulator run and stop/reap the emulator
+before building. Do not create extra AVDs; storage is constrained. Pixel is absent
+from this integration and its credentials/app data must be preserved when it returns.
+
+Last verified signed download is 635 at `5888cd68`, not 606/616. The install guide
+contains the exact artifact, stable signer and verified hash. A new signed
+integration milestone is next for the accumulated source; use manual Android
+build with `publish_preview=false`. Automatic previews remain disabled. Do not
+claim physical acceptance from fixture or release packaging checks.
+
+Open major gates include physical Mac/Pixel workflows, configured FCM/HPKE
+delivery, Android purchase/restore with backend support, privacy event/provider
+support, Cloud account/terminal/VPN lifecycle, matched iOS/accessibility and final
+upstream reconciliation. The adaptive-video diagnostic remains opt-in and
+unresolved; it must not count as passing acceptance. No paid operation or
+production promotion is authorized. Do not repeatedly ask the pending provisioning
+questions when independent work is available.
+
 ## Development policy — 2026-10-05
 
 The user requested that completed work be pushed to `main` and that development

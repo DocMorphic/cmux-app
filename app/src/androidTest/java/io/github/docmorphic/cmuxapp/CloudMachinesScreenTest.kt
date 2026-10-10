@@ -36,7 +36,7 @@ class CloudMachinesScreenTest {
                 override suspend fun complete(key: String) {}
             }, { true }).also { it.refresh() }
         }
-        compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface { NativeCloudScreen(controller, {}, onPlans, machines = machines, onRetryConnections = onRetry, connectionFailures = connectionFailures) } } }
+        compose.setContent { CmuxTheme { Surface { NativeCloudScreen(controller, {}, onPlans, machines = machines, onRetryConnections = onRetry, connectionFailures = connectionFailures) } } }
     }
     @After fun stop() { compose.runOnUiThread { controller?.close(); scope.cancel() } }
     private fun openCreate() {
@@ -85,6 +85,7 @@ class CloudMachinesScreenTest {
         val service = Service(); mount(service) { plans += it }
         openCreate()
         compose.onNodeWithTag("cloud.create.locked.note").assertTextEquals("64 GB machines need cmux Max.")
+        captureCloudScreen("create-machine-size-upgrade")
         compose.onNodeWithTag("cloud.create.upgrade").performScrollTo().performClick()
         assertEquals(listOf("max"), plans); assertTrue(service.creates.isEmpty())
         compose.onNodeWithTag("cloud.create.size").performClick()

@@ -3,7 +3,34 @@
 Current source development is on `main`. These are development milestones;
 see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
-## Current signed development APK — build 616 (2026-10-05)
+## Current verified signed development APK — build 635 (2026-10-10)
+
+[Build 635](https://github.com/DocMorphic/cmux-app/actions/runs/37922453797)
+passed at `5888cd68e6fdb12c27015946eb6cba876265c63f`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37922453797/artifacts/11613900556)
+and extract `app-release.apk`. This is an Actions development artifact; no public
+preview or production promotion was performed.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **635**.
+- SHA-256: `a134a4d1232f774efe4f2268859af31cb83e425a5c75c288ec519904fc23e742`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **261,443,778 bytes**.
+- Local file: `captures/milestone-635/cmux-app-stable-signed-apk/app-release.apk`.
+
+CI passed the Cloud checkpoint, JVM/APK/signing/package gates and six release
+class-loading probes on Android 17 ART. The downloaded APK independently passed
+local verification: stable signer, 18 pinned viewer assets, exact 22-library
+inventory with 16 KiB native and ZIP alignment, and exclusion of all 14 debug
+fixture components. Evidence: ignored `captures/milestone-635/`.
+
+This build predates the latest Feed/Cloud sheets, video controls/captions,
+adaptive-video diagnostic and other newer source changes. It is not the current
+debug integration app or a full parity release. No signed-in Pixel upgrade or
+physical Mac workflow is established for 635; those checks and production push
+remain open. See [REMAINING_WORK.md](REMAINING_WORK.md) for current source and
+acceptance status. Download/verify a newer milestone only after its gates pass.
+
+## Earlier signed development APK — build 616 (2026-10-05)
 
 [Build 616](https://github.com/DocMorphic/cmux-app/actions/runs/37352608676)
 passed at `f72f036b8b37d2f5cddddc48b3600dec9ddb615a`. Download the

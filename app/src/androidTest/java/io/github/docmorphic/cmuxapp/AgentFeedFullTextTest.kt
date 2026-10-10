@@ -25,7 +25,10 @@ class AgentFeedFullTextTest {
     private val modal = AgentFeedModal("account", "event", "mac", "build", "turn", null,
         AgentFeedKind.STOP, "workspace", "terminal", "read", raw = true)
     private fun reader() = WindowInspector.getGlobalWindowViews()
-        .firstNotNullOfOrNull { it.findViewWithTag<AgentFeedSourceScroll>("AgentFeedSourceScroll") }
+        .asReversed().firstNotNullOfOrNull {
+            it.findViewWithTag<AgentFeedSourceScroll>("AgentFeedSourceScroll")
+                ?.takeIf { view -> view.isShown && view.isAttachedToWindow && view.hasWindowFocus() }
+        }
     private fun awaitReader(check: (AgentFeedSourceScroll) -> Boolean = { it.body.height > 0 }) {
         compose.waitUntil(20_000) {
             val ready = AtomicBoolean(false)
@@ -33,8 +36,11 @@ class AgentFeedFullTextTest {
             ready.get()
         }
     }
-    private fun capture(name: String) {
+    private fun capture(name: String, finalLine: String? = null) {
         val i = InstrumentationRegistry.getInstrumentation()
+        // Native callbacks do not advance the Compose test clock. Settle the
+        // AndroidView owner's draw before waiting for platform frames.
+        compose.waitForIdle()
         // A native scroll changes geometry before the next frame is painted.
         // Wait for that frame before accepting the screenshot as visual evidence.
         val drawn = java.util.concurrent.CountDownLatch(1)
@@ -45,9 +51,50 @@ class AgentFeedFullTextTest {
         assertTrue("Reader did not draw", drawn.await(5, java.util.concurrent.TimeUnit.SECONDS))
         i.waitForIdleSync()
         val directory = File(i.targetContext.getExternalFilesDir(null), "feed-reader").apply { mkdirs() }
+        compose.runOnUiThread {
+            val view = checkNotNull(reader())
+            File(directory, "$name.json").writeText(org.json.JSONObject()
+                .put("focused", view.hasWindowFocus()).put("attached", view.isAttachedToWindow)
+                .put("scrollY", view.scrollY).put("bodyHeight", view.body.height).put("viewportHeight", view.height)
+                .put("firstLine", view.body.layout.getLineForVertical((view.scrollY - view.body.paddingTop).coerceAtLeast(0)))
+                .put("length", view.body.text.length).toString())
+        }
         i.uiAutomation.takeScreenshot().let { bitmap ->
             File(directory, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-            bitmap.recycle()
+            if (finalLine != null) {
+                var checked = 0; var painted = 0
+                compose.runOnUiThread {
+                    val body = checkNotNull(reader()).body
+                    val line = body.layout.getLineForOffset(body.text.length - 1)
+                    assertEquals(finalLine, body.text.subSequence(body.layout.getLineStart(line), body.text.length).toString())
+                    val paint = android.text.TextPaint(body.paint)
+                    val top = kotlin.math.floor(paint.fontMetrics.top.toDouble()).toInt()
+                    val height = kotlin.math.ceil((paint.fontMetrics.bottom - top).toDouble()).toInt() + 4
+                    val reference = android.graphics.Bitmap.createBitmap(
+                        kotlin.math.ceil(paint.measureText(finalLine).toDouble()).toInt() + 4,
+                        height, android.graphics.Bitmap.Config.ARGB_8888)
+                    android.graphics.Canvas(reference).drawText(finalLine, 2f, (2 - top).toFloat(), paint)
+                    val location = IntArray(2); body.getLocationOnScreen(location)
+                    val left = location[0] + body.totalPaddingLeft + body.layout.getLineLeft(line).toInt() - 2
+                    val screenTop = location[1] + body.totalPaddingTop + body.layout.getLineBaseline(line) + top - 2
+                    for (y in 0 until reference.height) for (x in 0 until reference.width) {
+                        if (android.graphics.Color.alpha(reference.getPixel(x, y)) < 200) continue
+                        checked++
+                        if (left + x !in 0 until bitmap.width || screenTop + y !in 0 until bitmap.height) continue
+                        val actual = bitmap.getPixel(left + x, screenTop + y)
+                        val expected = paint.color
+                        if (kotlin.math.abs(android.graphics.Color.red(actual) - android.graphics.Color.red(expected)) < 45 &&
+                            kotlin.math.abs(android.graphics.Color.green(actual) - android.graphics.Color.green(expected)) < 45 &&
+                            kotlin.math.abs(android.graphics.Color.blue(actual) - android.graphics.Color.blue(expected)) < 45) painted++
+                    }
+                    reference.recycle()
+                }
+                bitmap.recycle()
+                assertTrue("Final line must be painted on screen ($painted/$checked ink pixels)",
+                    checked > 100 && painted.toDouble() / checked > .85)
+            } else {
+                bitmap.recycle()
+            }
         }
     }
 
@@ -81,7 +128,7 @@ class AgentFeedFullTextTest {
             assertEquals(selection + 11, reader()!!.body.selectionEnd)
             reader()!!.scrollTo(0, reader()!!.body.height)
         }
-        capture("long-source-tail")
+        capture("long-source-tail", "TAIL_MARKER")
         compose.runOnUiThread {
             val view = reader()!!
             val last = view.body.layout.getLineForOffset(body.lastIndex)

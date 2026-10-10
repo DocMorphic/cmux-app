@@ -12,6 +12,24 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Feed/Cloud/media UI integration (2026-10-10)
+
+Main `5d254f84` passed 25 fixture Android cases in 197.697 seconds: four full-text
+readers, 12 reply sheets, eight Cloud machine flows and paused-video
+recreation/audio replacement/fullscreen return. The focused strengthened
+reader/Cloud pair passed in 13.889 seconds. The reader capture now settles
+Compose's draw and requires the final marker's actual painted pixels; the
+inspected screenshot shows line 14,000 and the marker. Geometry-only assertions
+had passed with an earlier stale image, including a 39.046-second follow-up that
+only filtered active reader windows. No production reader patch was needed.
+Cloud's capture now uses the actual app theme and visibly shows the locked-size
+explanation/upgrade form. See `AGENT_FEED.md` and `CLOUD_COMPANION.md` for hashes,
+logs, failed capture evidence, build/install corrections and boot ANR caveats.
+The one existing AVD and Gradle were stopped and reaped without overlap.
+No Pixel/live Mac/Cloud, matched iOS or signed upgrade acceptance is claimed.
+The global upstream parity pin remains unchanged; the next signed milestone is
+pending and signed 635 predates these features. Full parity is unverified.
+
 ## Per-Mac task picker restoration (2026-10-09)
 
 Scoped source: `TaskComposerSheet.swift` and

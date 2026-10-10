@@ -1,5 +1,28 @@
 # Cloud companion parity
 
+## Create-form integration follow-up — 2026-10-10
+
+The debug app at main `5d254f84` passed all **eight CloudMachinesScreenTest cases**
+inside a **25-case integration run (197.697 s)** with Feed and paused-video
+regressions. The locked-size upgrade case passed again in the focused reader
+follow-ups (39.046 s and then 13.889 s for two cases each). It opens the Max plan
+from both the explanatory action and locked menu, preserves the submitted 8 GB
+profile, and sends no create request before the fixture's explicit submission.
+
+The screenshot fixture now uses the production `CmuxTheme`. The inspected
+`create-machine-size-upgrade.png` shows New Machine/Cancel, memory/disk help,
+8 GB RAM / 32 GB disk, the 64 GB Max requirement, Upgrade to Max, server usage
+and Create. This is the fixture's expanded form, not medium-detent gesture,
+matched iOS, locale/accessibility or live account acceptance. Test theme imports
+were corrected after a compile failure; the final test build succeeded.
+
+See `AGENT_FEED.md` for exact APK hashes, the reader capture correction and
+startup ANR caveats. Evidence is ignored under `captures/runtime/ui-integration/`
+and `captures/runtime/feed-reader-pixels/` with corresponding logs. Only the
+existing AVD was used, without Gradle overlap; both were stopped and reaped.
+No paid/live Cloud request, Pixel workflow or signed upgrade was performed.
+Signed 635 remains the older milestone until the next signed build passes.
+
 ## Create-form source follow-up — 2026-10-10
 
 Scoped source: `CloudSectionView.swift` at
@@ -31,7 +54,8 @@ Main and Android-test Kotlin compiled in the same 37-second batch; the detent
 adjustment's main compilation passed in another 3 seconds. The existing UI
 upgrade case now covers the explanatory button and locked menu entry, preserving
 the 8 GB submitted profile; its helper expands the sheet through the public
-accessibility action when available. That changed UI case **has not run**.
+accessibility action when available. At source commit `5d254f84` that changed UI
+case had not run; the integration follow-up above now records its passing runs.
 Medium/large gestures, footer visibility, locale/large-text layouts and actual
 plan-return/catalog refresh remain integration and physical acceptance gates.
 
@@ -39,8 +63,9 @@ Evidence: ignored `captures/cloud-create-source-batch.log`,
 `captures/cloud-create-detents-compile.log`, `captures/CloudSectionView-f4.swift`
 and the six-case JUnit XML under `app/build/test-results/testDebugUnitTest/`.
 The final UI-helper compile is recorded in `captures/cloud-create-ui-compile.log`.
-Gradle is stopped; no emulator, APK build, signed release, Cloud account request
-or Pixel run was used. Signed 635 is unchanged; native Android purchase/restore,
+The source-only batch used no emulator, APK build, signed release, Cloud account
+request or Pixel run; the later debug integration is recorded above.
+Signed 635 is unchanged; native Android purchase/restore,
 production Cloud transport and full parity remain unverified.
 
 ## Source audit — 2026-10-06

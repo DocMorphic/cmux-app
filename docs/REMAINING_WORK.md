@@ -29,21 +29,33 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The latest debug integration at `5d254f84` **passed 25 Android cases in
+  197.697 seconds**: four full-text readers, 12 reply sheets, eight Cloud machine
+  flows and one paused-video regression. The strengthened reader/Cloud follow-up
+  **passed two cases in 13.889 seconds**. Final-line pixels and the inspected
+  screenshot now prove the reader paints line 14,000 and the final marker;
+  waiting for Compose to settle corrected the earlier stale capture without a
+  production change. Cloud's create-form capture uses the actual app theme.
+  See `AGENT_FEED.md` and `CLOUD_COMPANION.md` for exact scope, hashes and startup
+  ANRs. The sole emulator and Gradle are stopped; no Pixel/live host or signed
+  upgrade was used. Physical/matched iOS acceptance remains open; signed 635
+  predates the accumulated features and a new integration build is next.
+
 - Cloud's create form now explains locked size/plan requirements, supplies the
   corresponding upgrade action and supports partial/full expansion. The shared
   Workspaces destination is explained below the machine list. **Six existing
-  model/contract tests passed**, and main/test Kotlin compiled. Changed sheet
-  gestures, upgrade actions, profile retention and visual/physical checks remain
-  pending for the next integration milestone. See `CLOUD_COMPANION.md`; no APK,
-  emulator or live Cloud operation was used, and signed 635 is unchanged.
+  model/contract tests passed**, and the integration above now covers upgrade
+  actions/profile retention with an inspected expanded-form screenshot. Changed
+  sheet gestures and physical/matched iOS acceptance remain pending. See
+  `CLOUD_COMPANION.md`; no live Cloud operation was used, and signed 635 is unchanged.
 
 - Feed full text now uses a large draggable sheet with the iOS title/Close/loading
   presentation; reply editor spacing, avatar sizes and controls follow the scoped
   source. Cancelled reads and retired/empty IME submissions are fenced. Main/test
-  Kotlin compiled, and two lifecycle regressions were added; **runtime checks are
-  pending**, including the existing keyboard/reconnect/restoration cases on the
-  changed editor. See `AGENT_FEED.md`. No APK/emulator/Pixel or signed release for
-  this batch; signed 635 is unchanged and Feed parity remains unverified.
+  Kotlin compiled, and the integration above now passed both added lifecycle
+  regressions and all existing keyboard/reconnect/restoration cases on the
+  changed editor. See `AGENT_FEED.md`. No Pixel or signed release for this batch;
+  signed 635 is unchanged and Feed parity remains unverified.
 
 - Native video now preserves VideoView's surface-size listener and mirrors its
   dimensions after measurement. The changed app passed the paused recreation,

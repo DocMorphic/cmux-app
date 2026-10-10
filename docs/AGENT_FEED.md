@@ -15,6 +15,43 @@ This does not advance the global upstream implementation/review pin. The previou
 Android `NativeFeed*` implementation was the notification/workspace aggregator;
 it did **not** implement the distinct agent workstream Feed.
 
+## Reader/reply integration follow-up — 2026-10-10
+
+The debug app built from main `5d254f84` passed **25 Android cases in 197.697 s**:
+four full-text reader, 12 reply-sheet, eight Cloud machine and one paused-video
+case. This executes the two lifecycle regressions and changed editor/reader
+restoration, keyboard and reconnect cases from the source batch below. The reply
+sheet and restored Source-mode screenshots were inspected. It is fixture
+integration evidence, not matched iOS or physical Mac/Pixel acceptance.
+
+Screenshot review exposed a weak final-line check: native geometry reached the
+end of the 14,000-line message while the captured image still showed line 252.
+Choosing only attached, shown, focused reader windows did not resolve it; that
+two-case follow-up passed in 39.046 s but still had stale painted content.
+The capture now waits for Compose to settle before waiting for platform frames,
+and independently checks the final marker's painted ink pixels against the
+native text paint at its actual screen coordinates (over 85% required).
+The strengthened reader case and Cloud upgrade case **passed in 13.889 s**.
+The inspected image now visibly shows line 14,000 and `TAIL_MARKER`; scrollY was
+684,201 for a 686,133-pixel body and 1,932-pixel viewport. No production reader
+change was needed. The check still verifies reloading without saving message
+bytes and restored selection/viewport before scrolling to the end.
+
+App APK SHA-256:
+`a7cda17a990876b94d6bf87361d9ec93ccdc4cef079d140136ac2270b83e85eb`.
+The final test APK SHA-256 was
+`7dc3ab94756435a580d8d78ea97cefe4f8b411bc1e1ed95e35f9e3a1d8a6cdc1`.
+Evidence is ignored under `captures/runtime/ui-integration/`,
+`captures/runtime/ui-integration-capture/`, `captures/runtime/feed-reader-pixels/`
+and the corresponding `ui-integration*` / `feed-reader-pixels*` logs.
+The 25-case run had empty selected crash/ANR logs. Later cold boots recorded
+Google/Digital Intelligence/Photos startup ANRs; no cmux app crash/ANR was in those
+selected logs. A test-fixture theme import error was repaired before the final
+successful test build; an install attempted during boot failed, then succeeded
+after boot. The one existing AVD and Gradle were stopped and reaped, without
+overlap. No Pixel, live Mac/Cloud request or signed upgrade was used. Signed 635
+predates these production changes; full Feed parity remains open.
+
 ## Reader and reply-sheet source batch — 2026-10-10
 
 Scoped source: `AgentFeedReplyComposer.swift` and `AgentFeedFullTextView.swift`
@@ -43,15 +80,16 @@ Main and Android-test Kotlin **compiled successfully in 37 seconds**. Two
 lifecycle regressions were added: late noncooperative full-text
 completion after Close, and delayed IME submission with a cleared/new draft and
 after Cancel. Existing reader/reconnect cases were updated for Close/Try again.
-These new cases **have not been executed**, and earlier runtime results do not
-validate the changed sheet/editor implementation. Run the four
-`AgentFeedFullTextTest` and 12 `AgentFeedReplySheetTest` cases at the next
-integration milestone, including native quote/keyboard/reconnect restoration.
+At source commit `d421317b`, these new cases had not been executed. The integration
+follow-up above now covers all four `AgentFeedFullTextTest` and 12
+`AgentFeedReplySheetTest` cases, including native quote/keyboard/reconnect
+restoration; older runtime results alone did not validate the changed editor.
 
 Evidence: ignored `captures/feed-sheet-source-compile.log`,
 `captures/AgentFeedFullTextView-f4.swift` and the retained reply-composer source in
-`captures/runtime/feed-reply-keyboard/`. Gradle is stopped; no emulator, APK
-build, signed release or Pixel run was used for this batch. The Markdown body
+`captures/runtime/feed-reply-keyboard/`. The source-only batch used no emulator,
+APK build, signed release or Pixel run; the later debug integration is recorded
+above. The Markdown body
 still uses the existing bundled Android renderer; matched iOS text/rendering,
 sheet screenshots, large-text/TalkBack/gestures and real Mac acceptance remain
 open. Signed 635 predates this implementation; full Feed parity is unverified.
