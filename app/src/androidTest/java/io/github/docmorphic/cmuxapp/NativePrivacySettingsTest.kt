@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
@@ -16,6 +17,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.Job
 import org.junit.Assert.*
 import org.junit.Rule
@@ -82,6 +84,12 @@ class NativePrivacySettingsTest {
             compose.runOnIdle { consent.close(); consent = NativePrivacyConsent(prefs) }
             row.assertIsOff()
             assertFalse(consent.capture().enabled)
+            compose.waitForIdle()
+            InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let { bitmap ->
+                try { compose.activity.openFileOutput("privacy-large-font.png", Context.MODE_PRIVATE).use {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                } } finally { bitmap.recycle() }
+            }
         } finally { consent.close(); compose.activity.deleteSharedPreferences(name) }
     }
 }

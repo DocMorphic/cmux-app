@@ -20,7 +20,7 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including native errors outside RPC and broader real-route retry acceptance, directory/rename/read/export/decoder failure coverage, live panel-kind changes, and broader main Files/direct-tap/transport restoration, forced browser-parent recreation with binary content, rendered-Markdown reflow and real-route/process recovery, broader Save/provider recovery and remote-file freshness semantics, video acceptance and zoom across aspect-ratio changes. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
 | Background notifications | Configure and deploy the Android push path. FCM/HPKE, worker and reply code exists but production delivery is disabled/unconfigured. The proposed private Firebase plus Mac-forwarder setup still needs provisioning. | Real registered-device delivery with the app foregrounded, backgrounded and process-dead, plus Doze, token rotation, tap/reply routing and account revocation. Document infrastructure and any demonstrated platform differences. |
-| Analytics and privacy settings | Verify the implemented Privacy consent section on device; establish the reviewed Android event/server contract and integrate consent/identity retirement with actual uploads; resolve crash/replay provider support and sensitive-content masking. Android currently has no equivalent uploader/recorder. | Source mapping and nine focused gate checks in ANALYTICS_PRIVACY.md; two compiled Android cases await execution. Accepted Android event contract, identity retirement/transport cancellation and configured runtime acceptance remain required. The scoped iOS proxy only accepts its iOS catalog; backend support is unresolved. |
+| Analytics and privacy settings | Verify the implemented Privacy consent section on Pixel/matched iOS; establish the reviewed Android event/server contract and integrate consent/identity retirement with actual uploads; resolve crash/replay provider support and sensitive-content masking. Android currently has no equivalent uploader/recorder. | Source mapping, nine focused gate checks and two passed Android fixtures in ANALYTICS_PRIVACY.md. Accepted Android event contract, identity retirement/transport cancellation and configured runtime acceptance remain required. The scoped iOS proxy only accepts its iOS catalog; backend support is unresolved. |
 | Account plan and billing | Verify native plan status and external management; establish Android purchase/restore support with products and server verification. | Source mapping in ACCOUNT_PLAN.md, live authenticated status/browser return, and verified Android purchase/restore-to-entitlement flow. Read-only plan status and pricing links do not establish native purchase parity. |
 | Cloud machines and terminals | Finish remaining Cloud source/UI comparison and real-account acceptance of the mounted machine controller, native terminal/WireGuard bridge and shared workspace integration. Verify system-VPN/private-port and lifecycle/recovery behavior. | Source-to-behavior mapping, fixture transport and UI evidence, then authorized real account/Pixel terminal and lifecycle workflows. See CLOUD_COMPANION.md; do not confuse Cloud machine access with Android background push. |
 | UI and accessibility | Finish screen-by-screen iOS comparison, keyboard insets, dynamic text, TalkBack, gestures/haptics and performance on Pixel. | Matched-state screenshots and interaction checks for all main screens and sheets; usable enlarged text and accessibility traversal; measured investigation of any remaining freezes/ANRs. |
@@ -29,22 +29,33 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The combined Privacy/RTF Android 17 integration **passed all four cases in
+  28.205 s**, with inspected Settings, raster/vector and restored final-marker
+  captures. The initial run had an obstructing startup System UI ANR dialog;
+  the first passing rerun still captured a blank restored frame. Stronger native
+  loading/visual-state/frame and pixel checks now verify actual restored ink/
+  paper. No production viewer change was required. Exact attempts/APKs/receipts
+  are in `DOCUMENT_FORMATS.md` and `ANALYTICS_PRIVACY.md`. No new crash/ANR events
+  in the final run; sole AVD/Gradle stopped, no extra AVD, Pixel absent and signed
+  641 unchanged. Full privacy, RTF and matched iOS acceptance remain open.
+
 - RTF binary files now route to a bundled offline reader with authored text/styles,
   safe links and raster/vector pictures. Owned snapshots and RTF/vector/DOM budgets
   precede decoding/mounting; original actions and saved reader state are shared.
   **21 JVM, eight Node DOM/vector cases (Node22/26), seven package-verifier cases
-  and 21 pinned vendor hashes passed**; main/test Kotlin compiled. Two Android
-  RTF cases await the next integration milestone, together with the Privacy cases
-  below. Tables/advanced features, actual routes and matched Quick Look remain
-  open. See `DOCUMENT_FORMATS.md`. No APK/emulator/Pixel or signed release.
+  and 21 pinned vendor hashes passed**; main/test Kotlin compiled. Both Android
+  RTF cases now pass in the combined integration above. Tables/advanced features,
+  actual routes and matched Quick Look remain
+  open. See `DOCUMENT_FORMATS.md`. Debug fixture integration is recorded above;
+  no Pixel or signed release, signed 641 unchanged.
 
 - Privacy Settings now persists the iOS-default telemetry opt-out, shares the
   main-process consent owner, retires stale generations and cancels registered
   jobs on revocation/closure. **Nine focused JVM checks passed**; main and two
-  new Android cases compiled in 52 s. The actual preference/accessibility/device
-  cases are unexecuted and queued for the next milestone. No uploader/identity/
+  new Android cases compiled in 52 s and now pass in the integration above.
+  Pixel/matched-screen acceptance remains open. No uploader/identity/
   replay or server was enabled; the UI discloses that this build does not upload
-  analytics. See `ANALYTICS_PRIVACY.md`. No APK/emulator/Pixel or signed release;
+  analytics. See `ANALYTICS_PRIVACY.md`. No Pixel or signed release;
   Gradle stopped, signed 641 unchanged.
 
 - The host push pipeline now has an explicit source replay scheduler, bounded

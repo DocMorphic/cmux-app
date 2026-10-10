@@ -1,5 +1,22 @@
 # Mobile analytics and privacy
 
+## Android consent integration — 2026-10-10
+
+Both actual-preference and Settings cases now pass in the four-case Privacy/RTF
+Android 17/API37 16 KiB integration (28.205 s). The store case exercises missing/
+malformed defaults, opt-out persistence/reopen and off-main revocation while the
+main-thread listener is pending. The Settings case exercises one switch action,
+opt-out restoration and wrapping without visual overflow at font scale 2 in an
+isolated 260 dp fixture. Its inspected capture is not the whole Settings screen
+or a matched iOS comparison. No live analytics request or replay was enabled.
+
+Exact APK hashes, failed/obstructed attempts and final evidence are in
+[DOCUMENT_FORMATS.md](DOCUMENT_FORMATS.md#privacyrtf-android-integration--2026-10-10)
+and ignored `captures/runtime/privacy-rtf/`. The final run has no new crash/ANR
+events and an empty crash buffer. The sole emulator and Gradle are stopped;
+Pixel/Mac, accepted backend, real transport cancellation and identity retirement
+remain open. Signed 641 is unchanged.
+
 Audited 2026-10-09 at scoped cmux revision
 `f4b1509054949eaad5d695569ad443c4c18ed68d`. This does not advance the global
 implementation/review pin or establish full privacy/UI parity.
@@ -80,13 +97,13 @@ Gradle invocation:
   :app:compileDebugAndroidTestKotlin --max-workers=2
 ```
 
-Two compiled but unexecuted Android cases exercise actual SharedPreferences
+At the initial feature checkpoint two compiled but unexecuted Android cases exercised actual SharedPreferences
 defaults/malformed values, persistence/reopen, off-main external revocation while
 the main-thread listener is pending, and the real Settings row's single switch
-action, enlarged-text wrapping and opt-out restoration. Run
-`NativePrivacySettingsTest` at the next integration milestone; inspect its rendered
-screen before claiming visual acceptance. No APK, emulator, Pixel, analytics
-service or signed release was run/created for this batch. Gradle was stopped;
+action, enlarged-text wrapping and opt-out restoration.
+`NativePrivacySettingsTest` now passes in the integration above, with an inspected
+component capture. No Pixel, analytics service or signed release was run/created
+for this feature. Gradle was stopped;
 the retained local log is `captures/privacy-consent-gradle.log`. Signed 641 remains
 the verified download and predates this implementation. Full privacy parity,
 account/team retirement and actual uploader/crash/replay integration remain open.

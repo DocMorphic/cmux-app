@@ -7,24 +7,39 @@ completion checklist. The dated older entries below retain history and must not
 be read as the current delivery or pending-test state. The full goal remains
 active and unverified. Scoped source audits do not advance the global parity pin.
 
+The combined `NativePrivacySettingsTest` + `RtfPreviewRuntimeTest` Android 17
+integration now passed four cases in 28.205 s. Capture inspection caught and
+rejected an earlier blank restored frame despite DOM/scroll assertions; the
+stronger test now waits for native loading/visual-state/platform frames and actual
+marker ink/paper. The accepted screenshot shows paragraph 80/final marker, plus
+separate inspected raster/vector and narrow enlarged-text Privacy captures.
+No production viewer change was required. Initial System UI/Google Play startup
+ANRs and all three attempts are retained; final crash buffer is empty with zero
+new crash/ANR events. Exact hashes and evidence: `DOCUMENT_FORMATS.md`,
+`ANALYTICS_PRIVACY.md`, `captures/runtime/privacy-rtf/verification.json`.
+The sole AVD/Gradle are stopped, timeout restored; no new AVD, Pixel or signed
+release. 641/global pin unchanged. Physical/matched iOS and remaining feature
+gates stay open. The older compiled/unexecuted checkpoint descriptions below are
+historical; these four cases no longer await their first integration run.
+
 RTF binary content now uses the shared offline reader, with vendored/pinned
 rtf.js 3.0.9, owned snapshot, structural/vector/DOM budgets and safe field/link
 handling. 21 JVM cases, eight Node renderer/vector checks on 22/26, seven package
 verifier checks and 21 vendor hashes passed; main/test Kotlin compiled. The locked
 DOM test tooling requires `npm ci --prefix scripts/viewer-tests --ignore-scripts`
 before `node --test scripts/tests/rtf-renderer.test.mjs`; CI is updated. Two
-compiled Android cases in `RtfPreviewRuntimeTest` await the next combined device
-milestone alongside the Privacy cases below. Inspect the generated picture/final
-marker captures and verify actual Mac/Pixel/Quick Look before claiming acceptance.
+Android cases in `RtfPreviewRuntimeTest` now pass with the inspected picture/final
+marker captures described above. Actual Mac/Pixel/Quick Look acceptance remains
+open.
 Advanced RTF tables/lists/objects/fields and legacy formats remain open. See
-`DOCUMENT_FORMATS.md`. No APK, emulator/Pixel or signed release in this batch.
+`DOCUMENT_FORMATS.md`. No Pixel or signed release in this batch.
 
 The latest Android batch adds Privacy Settings and the shared, persisted consent
 generation/job cancellation owner. Nine focused JVM cases passed; main and
 instrumentation Kotlin compiled in 52 s. `NativePrivacySettingsTest` has two
-compiled but unexecuted Android cases for actual preferences/off-main revocation,
-large-font layout, switch accessibility and restoration. Queue them for the next
-combined device integration, with a rendered capture. No uploader/recorder or
+Android cases for actual preferences/off-main revocation, large-font layout,
+switch accessibility and restoration; both now pass in the combined integration
+above with an inspected component capture. No uploader/recorder or
 backend was enabled. Accepted Android event support, real HTTP cancellation and
 account/team identity retirement remain unresolved; do not send Android events
 under the iOS catalog. See `ANALYTICS_PRIVACY.md`. Signed 641 is unchanged.

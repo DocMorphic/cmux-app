@@ -1,5 +1,17 @@
 # Android parity tracker
 
+## 2026-10-10 — Privacy/RTF painted Android integration
+
+Four cases pass in 28.205 s on the sole API37/16 KiB AVD, including real opt-out
+store/UI and RTF route/raster/restoration. Inspected captures show Unicode/styles,
+raster/vector content and paragraph 80/final marker after restoration. Native
+loading/visual-state/frame and marker pixel checks corrected a test capture that
+was blank despite its initial passing DOM assertions; no production fix was
+needed. Initial startup ANR obstruction and all attempts are retained in
+`DOCUMENT_FORMATS.md` / `ANALYTICS_PRIVACY.md`. No new crash/ANR events in the final
+run. Emulator/Gradle stopped; no additional AVD, Pixel or signed release, 641 and
+global pin unchanged. Full privacy/format/matched iOS acceptance stays open.
+
 ## 2026-10-10 — Offline RTF artifact reader
 
 Recognized RTF binary artifacts now render in the shared offline reader through

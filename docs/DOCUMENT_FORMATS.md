@@ -1,5 +1,47 @@
 # Content formats and offline Word preview
 
+## Privacy/RTF Android integration — 2026-10-10
+
+The combined four-case Android 17/API37 16 KiB integration **passed in 28.205 s**
+on the existing `cmux_api37_16k` AVD. Both Privacy cases and both RTF cases passed.
+RTF's shared real file route, Unicode/styles/fields, blocked fetch, raster pixels,
+vector structure and restored reader location were exercised. The final restored
+marker region had **3,180 dark text pixels and 14,730 white paper pixels**; the
+inspected screenshot visibly contains paragraph 80 and `RTF_FINAL_MARKER`.
+The inspected first-page capture shows styled text, Japanese, the raster picture
+and two vector pictures. This is fixture evidence, not matched Quick Look or
+physical Mac/Pixel acceptance.
+
+The first attempt failed one of four cases in 49.998 s with a System UI ANR
+dialog covering the viewer. System UI/keyguard and Google Play Services SIM
+broadcast ANRs were present before testing. After dismissing the observed dialog,
+the same APKs passed four cases in 26.311 s, but screenshot inspection found a
+blank restored frame despite its DOM/scroll assertions. That capture was rejected
+as visual restoration evidence. The test now waits for the native loading state,
+WebView visual-state callback and platform frames, then requires actual marker
+ink/paper pixels before saving the accepted screenshot. No production renderer
+change was required. The final run has an empty crash buffer and zero new
+crash/ANR event records.
+
+Application source: `2bcd70bc`; only the instrumentation capture/paint checks
+changed for this run. Debug APK SHA-256:
+`ccc4ec369c2f9a464c1cdf281eba093d3ce1c7f2bdb514df93e702b6165f9035`.
+Final test APK SHA-256:
+`aca934a007ff348fd18772c9761a09ae367014e71a61ae7499450cff14871848`.
+The debug APK contains all 21 pinned vendor assets and the expected 22 native
+libraries. Initial debug/test assembly took 86 s; the capture-only test update
+took 13 s and the final paint-check test update 36 s. Gradle was stopped and its
+process exit checked before each emulator launch. The sole AVD was stopped/reaped
+and its prior screen timeout restored after testing. The requested 1536 MiB was
+clamped by the emulator to 4096 MiB (guest MemTotal 4,062,848 KiB), not a 1536 MiB
+running guest. No extra AVD was created.
+
+Evidence, APK hashes, three attempts, obstructed/blank/accepted captures, viewport
+pixel receipts and before/after system logs are retained under ignored
+`captures/runtime/privacy-rtf/`, including `verification.json`. Signed 641 remains
+the last verified signed download and predates these features. Advanced RTF,
+actual remote paths, matched iOS, process death and physical acceptance stay open.
+
 ## Offline RTF preview — 2026-10-10
 
 RTF binary artifacts now use the shared in-app reader instead of requiring an
@@ -59,13 +101,12 @@ includes RTF and verifies every listed directory. No renderer failure was hidden
 Local logs/fixture source are retained in `captures/rtf-*` and
 `scripts/generate-rtf-fixture.py`.
 
-Two Android cases are compiled but **unexecuted**: the real file route, Unicode/
+At the initial feature checkpoint two Android cases were compiled but unexecuted: the real file route, Unicode/
 formatted content, safe fields, denied fetch, vector structure and actual raster
 pixels/capture; and restored scroll position plus final-marker geometry/capture.
-Run `RtfPreviewRuntimeTest` with `NativePrivacySettingsTest` at the next combined
-integration milestone, inspect both RTF captures, then verify actual Mac/Pixel
-flows and matched Quick Look. No APK, emulator/Pixel run or signed release was
-created for this batch. Signed 641 predates RTF; full format parity remains open.
+The combined integration above now passes them with inspected raster/restoration
+captures. Actual Mac/Pixel flows and matched Quick Look remain open. No signed
+release was created for this feature; signed 641 predates RTF.
 
 ## Embedded workbook pictures — 2026-10-10
 
@@ -179,7 +220,7 @@ prove that every variant of those formats renders on a phone.
 | XLSX | Quick Look candidate, runtime admission | Offline workbook reader, sheet selection, bounded grid navigation and new embedded raster-image projection | New picture runtime checks, broader formatting/navigation/restoration and Pixel checks; charts/other drawings/conditional formatting and exact Quick Look layout remain open |
 | PPTX | Quick Look candidate, runtime admission | Offline PowerPoint renderer with slide navigation and saved position | Rendering/lifecycle evidence below; exact Quick Look layout and unsupported format variants remain open |
 | ODS | Quick Look candidate when recognized, runtime admission | In-app workbook preview with visibility, basic styles, dimensions, navigation and saved position | Broader authored formatting, charts/drawings and matched Quick Look/Pixel acceptance remain open |
-| RTF | Quick Look candidate, runtime admission for recognized binary content | Offline rich-text reader with styled paragraphs, safe links and raster/vector pictures | Android pixel/restoration cases are compiled but unexecuted; broader tables/lists/objects/fields, layout, actual routes and matched Quick Look/Pixel acceptance remain open |
+| RTF | Quick Look candidate, runtime admission for recognized binary content | Offline rich-text reader with styled paragraphs, safe links and raster/vector pictures; two Android raster/restoration cases pass with inspected captures | Broader tables/lists/objects/fields, layout, process death, actual routes and matched Quick Look/Pixel acceptance remain open |
 | Legacy DOC, XLS, PPT, Pages, Keynote, Numbers and other Quick Look content | Quick Look candidate when recognized, runtime admission | External Open/Share/Save fallback | In-app format implementation and matched format checks remain open; these are not declared unavoidable platform differences |
 | Unknown binary/archive | Binary unless recognized as content | External Open/Share/Save | Exact eligibility/menu comparison still open |
 

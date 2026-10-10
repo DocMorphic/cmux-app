@@ -12,7 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -57,8 +58,27 @@ class RtfPreviewRuntimeTest {
                 FilePreviewContent(LocalFilePreview(file, file.length(), RtfPreviewPolicy.MIME, route))
             }
         } } }
-        compose.waitUntil(45_000) { js("window.__cmuxRtfReady === true") == "true" }
+        ready()
         return state
+    }
+    private fun ready() {
+        compose.waitUntil(45_000) { js("window.__cmuxRtfReady === true") == "true" }
+        compose.waitUntil(5_000) { compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)).fetchSemanticsNodes().isEmpty() }
+    }
+    private fun settlePaint() {
+        compose.waitForIdle()
+        val drawn = CountDownLatch(1)
+        compose.runOnUiThread {
+            checkNotNull(web(compose.activity.window.decorView)).let { view ->
+                view.postVisualStateCallback(1, object : WebView.VisualStateCallback() {
+                    override fun onComplete(requestId: Long) {
+                        view.postOnAnimation { view.postOnAnimation { drawn.countDown() } }
+                    }
+                })
+            }
+        }
+        assertTrue("WebView did not finish drawing", drawn.await(10, TimeUnit.SECONDS))
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
     }
     @Test fun authoredRtfRendersOfflineWithSafeFieldsAndPaintedRasterPicture() {
         start()
@@ -75,7 +95,7 @@ class RtfPreviewRuntimeTest {
         js("window.__blockedRtfFetch=null;fetch('https://example.invalid/private').then(r=>window.__blockedRtfFetch=r.status).catch(()=>window.__blockedRtfFetch='blocked');")
         compose.waitUntil(5_000) { js("window.__blockedRtfFetch==='blocked' || window.__blockedRtfFetch===403") == "true" }
         js("document.querySelector('img').scrollIntoView({block:'center'});")
-        compose.waitForIdle()
+        settlePaint()
         compose.waitUntil(15_000) {
             val geometry = JSONObject(js("""
                 (()=>{const r=document.querySelector('img').getBoundingClientRect(),v=visualViewport;
@@ -110,17 +130,44 @@ class RtfPreviewRuntimeTest {
         compose.waitForIdle()
         val before = (js("window.scrollY") ?: "0").toDouble()
         restore.emulateSavedInstanceStateRestore()
-        compose.waitUntil(45_000) { js("window.__cmuxRtfReady===true && window.scrollY > 1000") == "true" }
+        ready()
+        compose.waitUntil(10_000) { js("window.scrollY > 1000") == "true" }
         compose.waitUntil(10_000) { kotlin.math.abs((js("window.scrollY") ?: "0").toDouble() - before) < 80 }
         assertEquals("true", js("""
             (()=>{const content=document.getElementById('content'),r=content.lastElementChild.getBoundingClientRect();
             return content.textContent.includes('RTF_FINAL_MARKER') && r.bottom>0 && r.top<innerHeight;})()
         """.trimIndent()))
-        compose.waitForIdle()
-        InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let { bitmap ->
-            try { compose.activity.openFileOutput("rtf-restored-final.png", Context.MODE_PRIVATE).use {
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
-            } } finally { bitmap.recycle() }
+        settlePaint()
+        // A DOM/scroll match cannot prove the new WebView has painted its content.
+        compose.waitUntil(15_000) {
+            val geometry = JSONObject(js("""
+                (()=>{const range=document.createRange();range.selectNodeContents(document.getElementById('content').lastElementChild);
+                const r=range.getBoundingClientRect(),v=visualViewport;
+                return {width:v.width,x:r.x-v.offsetLeft,y:r.y-v.offsetTop,w:r.width,h:r.height};})()
+            """.trimIndent()) ?: "{}")
+            val origin = IntArray(2); var scale = 0.0; var width = 0; var height = 0
+            compose.runOnUiThread { checkNotNull(web(compose.activity.window.decorView)).let {
+                it.getLocationOnScreen(origin); width = it.width; height = it.height; scale = width / geometry.getDouble("width")
+            } }
+            val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try {
+                val left = (origin[0] + geometry.getDouble("x") * scale).toInt().coerceAtLeast(origin[0])
+                val right = (origin[0] + (geometry.getDouble("x") + geometry.getDouble("w")) * scale).toInt().coerceAtMost(minOf(bitmap.width, origin[0] + width))
+                val top = (origin[1] + geometry.getDouble("y") * scale).toInt().coerceAtLeast(origin[1])
+                val bottom = (origin[1] + (geometry.getDouble("y") + geometry.getDouble("h")) * scale).toInt().coerceAtMost(minOf(bitmap.height, origin[1] + height))
+                var ink = 0; var paper = 0
+                for (y in top until bottom) for (x in left until right) {
+                    val pixel = bitmap.getPixel(x, y)
+                    if (Color.red(pixel) < 80 && Color.green(pixel) < 80 && Color.blue(pixel) < 80) ink++
+                    if (Color.red(pixel) > 240 && Color.green(pixel) > 240 && Color.blue(pixel) > 240) paper++
+                }
+                compose.activity.openFileOutput("rtf-restored-final.png", Context.MODE_PRIVATE).use {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                File(compose.activity.filesDir, "rtf-restored-final.json").writeText(geometry.put("ink", ink).put("paper", paper)
+                    .put("left", left).put("top", top).put("right", right).put("bottom", bottom).toString())
+                ink > 30 && paper > 500
+            } finally { bitmap.recycle() }
         }
     }
 }
