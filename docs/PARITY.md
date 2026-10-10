@@ -1,5 +1,21 @@
 # Android parity tracker
 
+## 2026-10-10 — Offline RTF artifact reader
+
+Recognized RTF binary artifacts now render in the shared offline reader through
+the unmodified pinned rtf.js bundles, with authored paragraph/character styles,
+Unicode/codepage text, safe links and PNG/WMF/EMF pictures. Actual bytes, RTF
+structure/parameters, vector record counts and generated DOM are bounded;
+external imports and active URLs are denied. Reader state and original file
+actions reuse the existing owner/lifecycle.
+
+21 focused JVM cases pass, eight Node actual-renderer/vector checks pass on
+22/26, seven package-verifier cases pass and 21 vendor hashes match. Main/test
+Kotlin compiled; two Android pixel/route/restoration cases are unexecuted and
+queued with Privacy at the next milestone. No APK/emulator/Pixel/signed release;
+641/global pin unchanged. Tables/advanced RTF, exact Quick Look layout and
+physical acceptance remain open. See [DOCUMENT_FORMATS.md](DOCUMENT_FORMATS.md).
+
 ## 2026-10-10 — Privacy consent control and runtime gate
 
 Scoped iOS consent default/key, analytics-only label and placement before

@@ -1,0 +1,15 @@
+{
+  "packages": {
+    "rtf.js": {
+      "version": "3.0.9",
+      "source": "https://registry.npmjs.org/rtf.js/-/rtf.js-3.0.9.tgz",
+      "integrity": "sha512-I1GpDat4i548WzmeZXv27f/743984fvEeeBS8BC01/Sop17pMlUl3M7DYcdcB3PUvOZTrFIMxGZx8qw7cSMAKQ==",
+      "documentation": "https://github.com/tbluemel/rtf.js/blob/master/GETTING_STARTED.md"
+    }
+  },
+  "files": {
+    "WMFJS.bundle.js": "cbd48013970b474e82fc7515b6977ca79d620ea65688d4c4f996d87973ba6ed3",
+    "EMFJS.bundle.js": "9741a1333cefa735144e77bca43ef6f1fc22d3e71a237a3d5700da343d1fc204",
+    "RTFJS.bundle.js": "422ac798d172ee975c21fd63ed7defecefb431699f25d9a0752a069fc78b9253"
+  }
+}

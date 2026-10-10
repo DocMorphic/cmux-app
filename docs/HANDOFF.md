@@ -7,6 +7,18 @@ completion checklist. The dated older entries below retain history and must not
 be read as the current delivery or pending-test state. The full goal remains
 active and unverified. Scoped source audits do not advance the global parity pin.
 
+RTF binary content now uses the shared offline reader, with vendored/pinned
+rtf.js 3.0.9, owned snapshot, structural/vector/DOM budgets and safe field/link
+handling. 21 JVM cases, eight Node renderer/vector checks on 22/26, seven package
+verifier checks and 21 vendor hashes passed; main/test Kotlin compiled. The locked
+DOM test tooling requires `npm ci --prefix scripts/viewer-tests --ignore-scripts`
+before `node --test scripts/tests/rtf-renderer.test.mjs`; CI is updated. Two
+compiled Android cases in `RtfPreviewRuntimeTest` await the next combined device
+milestone alongside the Privacy cases below. Inspect the generated picture/final
+marker captures and verify actual Mac/Pixel/Quick Look before claiming acceptance.
+Advanced RTF tables/lists/objects/fields and legacy formats remain open. See
+`DOCUMENT_FORMATS.md`. No APK, emulator/Pixel or signed release in this batch.
+
 The latest Android batch adds Privacy Settings and the shared, persisted consent
 generation/job cancellation owner. Nine focused JVM cases passed; main and
 instrumentation Kotlin compiled in 52 s. `NativePrivacySettingsTest` has two

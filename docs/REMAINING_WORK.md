@@ -29,6 +29,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- RTF binary files now route to a bundled offline reader with authored text/styles,
+  safe links and raster/vector pictures. Owned snapshots and RTF/vector/DOM budgets
+  precede decoding/mounting; original actions and saved reader state are shared.
+  **21 JVM, eight Node DOM/vector cases (Node22/26), seven package-verifier cases
+  and 21 pinned vendor hashes passed**; main/test Kotlin compiled. Two Android
+  RTF cases await the next integration milestone, together with the Privacy cases
+  below. Tables/advanced features, actual routes and matched Quick Look remain
+  open. See `DOCUMENT_FORMATS.md`. No APK/emulator/Pixel or signed release.
+
 - Privacy Settings now persists the iOS-default telemetry opt-out, shares the
   main-process consent owner, retires stale generations and cancels registered
   jobs on revocation/closure. **Nine focused JVM checks passed**; main and two

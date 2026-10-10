@@ -1,0 +1,6 @@
+{
+  "name": "cmux-offline-viewer-tests",
+  "private": true,
+  "description": "DOM test tooling only; no dependency is shipped to Android.",
+  "devDependencies": {"jsdom": "26.1.0"}
+}

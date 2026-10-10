@@ -63,7 +63,7 @@ def verify_debug_fixture_exclusion(source, apk_manifest):
 
 def verify_packaged_viewer_assets(assets_root, archive):
     checked = 0
-    for directory in ("raw-code", "markdown-viewer", "docx-viewer", "workbook-viewer", "presentation-viewer"):
+    for directory in ("raw-code", "markdown-viewer", "docx-viewer", "workbook-viewer", "presentation-viewer", "rtf-viewer"):
         files = json.loads((assets_root / directory / "manifest.json").read_text(encoding="utf-8"))["files"]
         entries = list(files.items() if isinstance(files, dict) else ((x["asset"], x["sha256"]) for x in files))
         if not entries or len({name for name, _ in entries}) != len(entries):

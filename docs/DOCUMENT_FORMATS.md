@@ -1,5 +1,72 @@
 # Content formats and offline Word preview
 
+## Offline RTF preview — 2026-10-10
+
+RTF binary artifacts now use the shared in-app reader instead of requiring an
+external application. Routing recognizes `.rtf`, `application/rtf`, `text/rtf`
+and `application/x-rtf`, while preserving image/PDF/media/Markdown/wire-text
+precedence. This matches the scoped iOS router at
+`f4b1509054949eaad5d695569ad443c4c18ed68d`: recognized binary content is a Quick Look
+candidate with runtime admission, and wire text remains the text route. This
+does not advance the global pin or establish actual Quick Look layout parity.
+
+The unmodified MIT-licensed rtf.js 3.0.9 bundles (RTFJS/WMFJS/EMFJS, including
+js-codepage 1.15.0) are vendored offline and SHA-256 pinned. The npm tarball's
+published SHA-512 integrity was independently checked before copying. Original
+licenses/copyrights are available in the app's licenses sheet. Sources:
+[renderer and license](https://github.com/tbluemel/rtf.js),
+[document/render API](https://github.com/tbluemel/rtf.js/blob/master/GETTING_STARTED.md).
+No document code, network import callback, remote image or font download is enabled.
+
+- The shared reader prepares an independently owned `document.rtf` snapshot,
+  with cancellation/lease cleanup and a 16 MiB actual-byte limit. The scanner
+  checks RTF version, group/escape structure, numeric parameters, 128-level depth,
+  100,000 controls/groups, 256 pictures and 8 MiB aggregate binary payloads. It
+  skips literal binary bytes correctly rather than treating their braces as RTF.
+  Font/image layout parameters are bounded before the decoder.
+- WMF/EMF decoder references are wrapped before RTFJS loads. Actual record lengths
+  and an 8,192-record/8 MiB budget are checked before vendor decoding. Generated
+  DOM has a 100,000-node budget and allows only the renderer's passive text/image/
+  SVG elements. Handlers, active URLs and external CSS/SVG resources are removed.
+- Authored text, codepage/Unicode, character/paragraph styles, safe absolute
+  links and embedded raster/vector pictures use the renderer. External field
+  imports receive an error without IO. WebView serves only the bundled assets
+  and the owned snapshot; outgoing links use the existing gesture gate.
+- Reader scroll/zoom restoration and original Open/Share/Save reuse the shared
+  Office/content lifecycle. The preview's notice explains that some formatting
+  and embedded objects may be omitted. Tables, advanced lists/objects/fields,
+  page geometry, broader metafile variants and exact Quick Look rendering still
+  require work/comparison; they are not declared unavoidable platform differences.
+
+**21 focused JVM cases passed**: ten new RTF budget/routing/snapshot cases plus
+six existing Office package and five reader-state/routing checks. Main and
+Android-test Kotlin compiled in the same successful **51 s** run. Eight actual
+renderer/DOM/vector-budget checks passed on Node 26.8.2 and 22.16.0, with zero
+failures/skips. Seven signed-package-verifier cases pass, including missing/
+corrupt RTF inventory detection; all **21 pinned vendor assets** match. The
+locked jsdom test tooling installed with lifecycle scripts disabled and was also
+reinstalled from the lock offline; it is not shipped to Android. The milestone
+workflow installs these test dependencies before its existing Node checks.
+
+The strengthened restored-position/final-marker Android case compiled again in
+20 s after its final change. Gradle is stopped; no emulator was started.
+
+The initial DOM assertion counted four nested SVG viewports instead of two
+authored vector pictures; the assertion now checks top-level pictures while
+retaining actual rect/format/text/link checks. The first package-verifier fixture
+failed because its synthetic inventory still had five directories; it now
+includes RTF and verifies every listed directory. No renderer failure was hidden.
+Local logs/fixture source are retained in `captures/rtf-*` and
+`scripts/generate-rtf-fixture.py`.
+
+Two Android cases are compiled but **unexecuted**: the real file route, Unicode/
+formatted content, safe fields, denied fetch, vector structure and actual raster
+pixels/capture; and restored scroll position plus final-marker geometry/capture.
+Run `RtfPreviewRuntimeTest` with `NativePrivacySettingsTest` at the next combined
+integration milestone, inspect both RTF captures, then verify actual Mac/Pixel
+flows and matched Quick Look. No APK, emulator/Pixel run or signed release was
+created for this batch. Signed 641 predates RTF; full format parity remains open.
+
 ## Embedded workbook pictures — 2026-10-10
 
 Scoped iOS `Artifacts/ChatArtifactPreviewRouter.swift` was rechecked at
@@ -112,7 +179,8 @@ prove that every variant of those formats renders on a phone.
 | XLSX | Quick Look candidate, runtime admission | Offline workbook reader, sheet selection, bounded grid navigation and new embedded raster-image projection | New picture runtime checks, broader formatting/navigation/restoration and Pixel checks; charts/other drawings/conditional formatting and exact Quick Look layout remain open |
 | PPTX | Quick Look candidate, runtime admission | Offline PowerPoint renderer with slide navigation and saved position | Rendering/lifecycle evidence below; exact Quick Look layout and unsupported format variants remain open |
 | ODS | Quick Look candidate when recognized, runtime admission | In-app workbook preview with visibility, basic styles, dimensions, navigation and saved position | Broader authored formatting, charts/drawings and matched Quick Look/Pixel acceptance remain open |
-| Legacy DOC, RTF, XLS, PPT, Pages, Keynote, Numbers and other Quick Look content | Quick Look candidate when recognized, runtime admission | External Open/Share/Save fallback | In-app format implementation and matched format checks remain open; these are not declared unavoidable platform differences |
+| RTF | Quick Look candidate, runtime admission for recognized binary content | Offline rich-text reader with styled paragraphs, safe links and raster/vector pictures | Android pixel/restoration cases are compiled but unexecuted; broader tables/lists/objects/fields, layout, actual routes and matched Quick Look/Pixel acceptance remain open |
+| Legacy DOC, XLS, PPT, Pages, Keynote, Numbers and other Quick Look content | Quick Look candidate when recognized, runtime admission | External Open/Share/Save fallback | In-app format implementation and matched format checks remain open; these are not declared unavoidable platform differences |
 | Unknown binary/archive | Binary unless recognized as content | External Open/Share/Save | Exact eligibility/menu comparison still open |
 
 ## DOCX implementation

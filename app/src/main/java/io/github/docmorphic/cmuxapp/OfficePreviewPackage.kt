@@ -34,6 +34,35 @@ internal class OfficePreviewPackage private constructor(val file: File, private 
     override fun close() { try { file.parentFile?.deleteRecursively() } finally { lease.close() } }
 
     companion object {
+        fun prepareRichText(source: File, root: File, limits: RtfPreviewLimits = RtfPreviewLimits(), checkActive: () -> Unit = {}): OfficePreviewPackage {
+            check(source.length() in 1..limits.bytes.toLong()) { "This rich text document is too large to preview." }
+            check(root.isDirectory || root.mkdirs()) { "Could not prepare the rich text preview." }
+            val directory = File(root, UUID.randomUUID().toString())
+            val lease = ArtifactExportCache.hold(directory)
+            try {
+                ArtifactExportCache.prune(root)
+                check(directory.mkdir()) { "Could not prepare the rich text preview." }
+                val output = File(directory, "document.rtf")
+                source.inputStream().use { input -> output.outputStream().use { target ->
+                    val buffer = ByteArray(16 * 1024)
+                    var count = 0L
+                    while (true) {
+                        checkActive()
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        count += read
+                        check(count <= limits.bytes) { "This rich text document is too large to preview." }
+                        target.write(buffer, 0, read)
+                    }
+                    target.fd.sync()
+                } }
+                RtfPreviewBudget.validate(output.readBytes(), limits, checkActive)
+                return OfficePreviewPackage(output, lease)
+            } catch (failure: Throwable) {
+                directory.deleteRecursively(); lease.close(); throw failure
+            }
+        }
+
         fun prepare(source: File, root: File, limits: OfficePackageLimits = OfficePackageLimits(), checkActive: () -> Unit = {}): OfficePreviewPackage {
             check(source.length() in 1..limits.archiveBytes) { "This Office document is too large to preview." }
             check(root.isDirectory || root.mkdirs()) { "Could not prepare the Office preview." }

@@ -15,10 +15,12 @@ internal object PresentationPreviewPolicy {
         mime?.substringBefore(';')?.trim()?.equals(MIME, true) == true
 }
 
-internal enum class OfficePreviewKind(val assetDirectory: String, val description: String, val scripts: List<String>) {
+internal enum class OfficePreviewKind(val assetDirectory: String, val description: String, val scripts: List<String>,
+    val documentName: String = "document.zip", val documentMime: String = "application/zip") {
     WORD("docx-viewer", "Word document preview", listOf("jszip.min.js", "docx-preview.min.js")),
     WORKBOOK("workbook-viewer", "Spreadsheet preview", listOf("xlsx.full.min.js", "workbook-model.js", "workbook-drawings.js", "ods-presentation.js")),
-    PRESENTATION("presentation-viewer", "PowerPoint presentation preview", listOf("aiden0z-pptx-renderer.browser.es.js"));
+    PRESENTATION("presentation-viewer", "PowerPoint presentation preview", listOf("aiden0z-pptx-renderer.browser.es.js")),
+    RICH_TEXT("rtf-viewer", "Rich text document preview", listOf("WMFJS.bundle.js", "EMFJS.bundle.js", "RTFJS.bundle.js", "rtf-model.js"), "document.rtf", RtfPreviewPolicy.MIME);
     val assets get() = mapOf("shell.html" to "text/html", "viewer.css" to "text/css", "viewer.js" to "application/javascript") +
         scripts.associateWith { "application/javascript" }
 }

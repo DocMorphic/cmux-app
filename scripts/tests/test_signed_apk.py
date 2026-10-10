@@ -75,7 +75,7 @@ class SignedApkFixtureTest(unittest.TestCase):
     def test_packaged_assets_include_office_and_reject_missing_or_corrupt_bundles(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            folders = ("raw-code", "markdown-viewer", "docx-viewer", "workbook-viewer", "presentation-viewer")
+            folders = ("raw-code", "markdown-viewer", "docx-viewer", "workbook-viewer", "presentation-viewer", "rtf-viewer")
             for folder in folders:
                 (root / folder).mkdir()
                 files = {"library.js": hashlib.sha256(folder.encode()).hexdigest()}
@@ -89,7 +89,7 @@ class SignedApkFixtureTest(unittest.TestCase):
                 data.seek(0)
                 return zipfile.ZipFile(data)
             with packed() as archive:
-                self.assertEqual(5, signed_apk.verify_packaged_viewer_assets(root, archive))
+                self.assertEqual(len(folders), signed_apk.verify_packaged_viewer_assets(root, archive))
             for folder in folders:
                 with self.subTest(folder=folder), packed(corrupt=folder) as archive:
                     with self.assertRaisesRegex(ValueError, folder):

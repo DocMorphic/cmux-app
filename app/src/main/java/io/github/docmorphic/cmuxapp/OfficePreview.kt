@@ -46,7 +46,9 @@ internal fun OfficeFilePreview(artifact: LocalFilePreview, kind: OfficePreviewKi
             // Assign ownership inside IO so cancellation at the dispatch boundary cannot leak the lease.
             withContext(Dispatchers.IO) {
                 val job = currentCoroutineContext()
-                owned = OfficePreviewPackage.prepare(artifact.file, File(context.cacheDir, "office-previews")) { job.ensureActive() }
+                val root = File(context.cacheDir, "office-previews")
+                owned = if (kind == OfficePreviewKind.RICH_TEXT) OfficePreviewPackage.prepareRichText(artifact.file, root) { job.ensureActive() }
+                    else OfficePreviewPackage.prepare(artifact.file, root) { job.ensureActive() }
             }
             prepared = owned
             awaitCancellation()
@@ -94,7 +96,7 @@ internal class OfficeWebController(
             domStorageEnabled = false; databaseEnabled = false
             javaScriptCanOpenWindowsAutomatically = false; setSupportMultipleWindows(false)
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            useWideViewPort = true; loadWithOverviewMode = kind == OfficePreviewKind.WORD
+            useWideViewPort = true; loadWithOverviewMode = kind == OfficePreviewKind.WORD || kind == OfficePreviewKind.RICH_TEXT
             setSupportZoom(true); builtInZoomControls = true; displayZoomControls = false
         }
         web.addJavascriptInterface(object {
@@ -122,11 +124,11 @@ internal class OfficeWebController(
                     try {
                         val mime = assets[name]
                         val input = when {
-                            name == "document.zip" && !request.isForMainFrame -> document.file.inputStream()
+                            name == kind.documentName && !request.isForMainFrame -> document.file.inputStream()
                             mime != null && (name == "shell.html") == request.isForMainFrame -> context.assets.open("${kind.assetDirectory}/$name")
                             else -> null
                         }
-                        if (input != null) return WebResourceResponse(mime ?: "application/zip", if (mime != null) "UTF-8" else null,
+                        if (input != null) return WebResourceResponse(mime ?: kind.documentMime, if (mime != null) "UTF-8" else null,
                             200, "OK", mapOf("Cache-Control" to "no-store", "X-Content-Type-Options" to "nosniff"), input)
                     } catch (_: Exception) { scope.launch { if (!closed) onFailure() } }
                 }

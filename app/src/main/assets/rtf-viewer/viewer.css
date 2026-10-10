@@ -1,0 +1,7 @@
+:root { color-scheme: light; background: #202124; font-family: sans-serif; }
+body { margin: 0; padding: 14px; }
+#content { box-sizing: border-box; min-height: 240px; background: white; color: black; padding: 24px;
+  overflow-wrap: break-word; width: 100%; max-width: 900px; margin: 0 auto; }
+#content img, #content svg { max-width: 100%; height: auto; }
+#content a { color: #1559b7; text-decoration: underline; }
+#limitations { max-width: 900px; margin: 14px auto; color: #d0d0d0; font-size: 12px; }

@@ -5,3 +5,6 @@
 app/src/main/assets/licenses/JSch*.txt -whitespace
 # Preserve the hash-pinned extraction of GeckoView's bundled license page.
 app/src/main/assets/licenses/GeckoView.txt -whitespace
+app/src/main/assets/licenses/Rtf.txt -whitespace
+# These original third-party bytes are hash-pinned, including in APK verification.
+app/src/main/assets/rtf-viewer/*.bundle.js -text -whitespace
