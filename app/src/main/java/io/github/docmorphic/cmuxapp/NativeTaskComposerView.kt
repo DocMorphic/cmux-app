@@ -212,7 +212,7 @@ internal fun NativeTaskComposerView(
     }
     val provider = command?.let(TaskAgentCommand::detect)
     val modelKey = provider?.let { TaskModelRepository.Key(origin, it) }
-    var modelResult by remember(modelKey) { mutableStateOf(modelKey?.let(models::cached)
+    var modelResult by remember(modelKey, client) { mutableStateOf(modelKey?.let { models.cached(it, client?.compatibilityWire) }
         ?: draft.restoredModels().takeIf { it.usable }) }
     var modelMenu by remember(modelKey) { mutableStateOf<List<TaskModel>?>(null) }
     var effortMenu by remember(modelKey) { mutableStateOf<List<TaskEffort>?>(null) }
@@ -348,7 +348,7 @@ internal fun NativeTaskComposerView(
         try {
             var attempt = 0
             do {
-                val retry = models.refresh(modelKey,
+                val retry = models.refreshShared(modelKey, client.compatibilityWire, scope,
                     host = { TaskModelParser.host(client.request("mobile.task.models.list",
                         JSONObject().put("provider", modelKey.provider.wireName))) },
                     catalog = { catalog(modelKey.provider) }, update = { modelResult = it })

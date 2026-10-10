@@ -1,6 +1,7 @@
 /* Derived from cmux MobileTaskModelCatalogClient, MobileShellComposite+TaskModels,
  * MobileTaskModelAvailability and MobileTaskModelRefreshLoop at
  * 4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0.
+ * Shared refresh/catalog lifecycle follows the scoped iOS implementation at f4b1509.
  * Copyright (c) 2024-present Manaflow, Inc. GPL-3.0-or-later. See NOTICE.md. */
 package io.github.docmorphic.cmuxapp
 
@@ -10,6 +11,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -49,7 +51,7 @@ internal object TaskModelParser {
         return TaskModelResult(models, source, value.optJSONObject("default_model")?.let(::model), discoveryError)
     }
 
-    fun catalog(value: JSONObject, provider: TaskAgentCommand): TaskModelResult {
+    fun catalog(value: JSONObject, provider: TaskAgentCommand, allowEmpty: Boolean = false): TaskModelResult {
         require(value.getInt("schemaVersion") == 1) { "Unsupported model catalog" }
         val raw = value.getJSONObject("providers").getJSONObject(provider.wireName)
         val seenModels = mutableSetOf<String>()
@@ -65,15 +67,31 @@ internal object TaskModelParser {
             val default = row.string("defaultEffort")?.trim()?.takeIf { id -> efforts.any { it.id == id } }
             TaskModel(id, name, efforts, default)
         }
-        require(models.isNotEmpty()) { "Empty model catalog" }
+        require(allowEmpty || models.isNotEmpty()) { "Empty model catalog" }
         val defaultId = raw.string("defaultModel")?.trim()
         return TaskModelResult(models, TaskModelSource.BACKEND, models.firstOrNull { it.id == defaultId })
+    }
+
+    fun catalogAll(value: JSONObject): Map<TaskAgentCommand, TaskModelResult> {
+        require(value.getInt("schemaVersion") == 1) { "Unsupported model catalog" }
+        val providers = value.getJSONObject("providers")
+        return TaskAgentCommand.entries.filter { providers.has(it.wireName) }
+            .associateWith { catalog(value, it, allowEmpty = true) }
+            .also { require(it.isNotEmpty()) { "Empty model catalog" } }
     }
 }
 
 /** The catalog request contains no pairing, account or prompt information. Cancellation closes its socket. */
 internal object TaskModelCatalog {
-    suspend fun load(provider: TaskAgentCommand): TaskModelResult = suspendCancellableCoroutine { continuation ->
+    suspend fun load(provider: TaskAgentCommand): TaskModelResult = withContext(Dispatchers.Default) {
+        TaskModelParser.catalog(download(), provider)
+    }
+
+    suspend fun loadAll(): Map<TaskAgentCommand, TaskModelResult> = withContext(Dispatchers.Default) {
+        TaskModelParser.catalogAll(download())
+    }
+
+    private suspend fun download(): JSONObject = suspendCancellableCoroutine { continuation ->
         val connection = URL("https://cmux.com/api/agent-models").openConnection() as HttpURLConnection
         connection.connectTimeout = 10_000; connection.readTimeout = 10_000
         connection.setRequestProperty("Accept", "application/json")
@@ -94,7 +112,7 @@ internal object TaskModelCatalog {
                     output.toByteArray()
                 }
                 require(data.size <= 1_048_576) { "Model catalog too large" }
-                continuation.resume(TaskModelParser.catalog(JSONObject(data.toString(Charsets.UTF_8)), provider))
+                continuation.resume(JSONObject(data.toString(Charsets.UTF_8)))
             } catch (failure: Exception) { continuation.resumeWithException(failure) }
             finally { connection.disconnect() }
         })
@@ -102,27 +120,94 @@ internal object TaskModelCatalog {
 }
 
 /** Account-owned, pairing/provider-scoped cache. Invoke on its owning UI scope. */
-internal class TaskModelRepository {
+internal class TaskModelRepository(private val ownerScope: CoroutineScope? = null,
+    private val now: () -> Long = { System.nanoTime() / 1_000_000 }) {
     data class Key(val origin: String, val provider: TaskAgentCommand)
     private val cache = mutableMapOf<Key, TaskModelResult>()
     private val generations = mutableMapOf<Key, Long>()
+    private val bindings = mutableMapOf<Key, Any?>()
+    private val fetchedAt = mutableMapOf<Key, Long>()
+    private class SharedRequest(val identity: Any?) {
+        lateinit var job: Deferred<Boolean>
+        val observers = mutableMapOf<UUID, (TaskModelResult) -> Unit>()
+    }
+    private val requests = mutableMapOf<Key, SharedRequest>()
     private var epoch = 0L
     fun cached(key: Key) = cache[key]
-    fun clear() { epoch++; cache.clear(); generations.clear() }
+    fun cached(key: Key, identity: Any?): TaskModelResult? = cache[key]?.takeIf {
+        it.source != TaskModelSource.DISCOVERED || bindings[key] == identity
+    }
+    fun clear() {
+        epoch++; cache.clear(); generations.clear(); bindings.clear(); fetchedAt.clear()
+        requests.values.toList().forEach { it.job.cancel() }; requests.clear()
+    }
     fun retainOrigins(origins: Set<String>) {
-        val forgotten = (cache.keys + generations.keys).filter { it.origin !in origins }
-        forgotten.forEach { cache.remove(it); generations[it] = (generations[it] ?: 0) + 1 }
+        val forgotten = (cache.keys + generations.keys + requests.keys).filter { it.origin !in origins }
+        forgotten.forEach {
+            cache.remove(it); bindings.remove(it); fetchedAt.remove(it)
+            generations[it] = (generations[it] ?: 0) + 1
+            requests.remove(it)?.job?.cancel()
+        }
+    }
+
+    /** A composer joins warming for the same client; its dismissal retires only its own waiter. */
+    suspend fun refreshShared(key: Key, identity: Any?, fallbackScope: CoroutineScope,
+        host: suspend () -> TaskModelResult, catalog: suspend () -> TaskModelResult,
+        maximumCacheAge: Long = 0, update: (TaskModelResult) -> Unit = {}): Boolean {
+        currentCoroutineContext().ensureActive()
+        if (cache[key] != null && cached(key, identity) == null) {
+            cache.remove(key); bindings.remove(key); fetchedAt.remove(key)
+        }
+        cached(key, identity)?.let { value ->
+            update(value)
+            val age = fetchedAt[key]?.let { now() - it }
+            if (value.error == null && value.usable && age != null && age >= 0 && age < maximumCacheAge &&
+                (if (identity == null) value.source == TaskModelSource.BACKEND
+                else value.source == TaskModelSource.DISCOVERED && bindings[key] == identity)) return false
+        }
+        val existing = requests[key]?.takeIf { it.identity == identity && !it.job.isCompleted }
+        val request = existing ?: SharedRequest(identity).also { next ->
+            requests.remove(key)?.job?.cancel()
+            requests[key] = next
+            next.job = (ownerScope ?: fallbackScope).async(start = CoroutineStart.LAZY) {
+                try {
+                    refreshBound(key, host, catalog, identity) { result ->
+                        next.observers.values.toList().forEach { if (requests[key] === next) it(result) }
+                    }
+                } finally { if (requests[key] === next) requests.remove(key) }
+            }
+        }
+        val waiter = UUID.randomUUID()
+        request.observers[waiter] = update
+        request.job.start()
+        return try { request.job.await() }
+        finally {
+            request.observers.remove(waiter)
+            if (request.observers.isEmpty()) {
+                if (requests[key] === request) requests.remove(key)
+                if (!request.job.isCompleted) withContext(NonCancellable) { request.job.cancelAndJoin() }
+            }
+        }
     }
 
     /** A discovered host result wins in either completion order; transient errors preserve valid data. */
     suspend fun refresh(key: Key, host: suspend () -> TaskModelResult,
-        catalog: suspend () -> TaskModelResult, update: (TaskModelResult) -> Unit): Boolean = coroutineScope {
+        catalog: suspend () -> TaskModelResult, update: (TaskModelResult) -> Unit): Boolean =
+        refreshBound(key, host, catalog, null, update)
+
+    private suspend fun refreshBound(key: Key, host: suspend () -> TaskModelResult,
+        catalog: suspend () -> TaskModelResult, identity: Any?, update: (TaskModelResult) -> Unit): Boolean = coroutineScope {
         val capturedEpoch = epoch
         val generation = (generations[key] ?: 0) + 1
         generations[key] = generation
         fun current() = epoch == capturedEpoch && generations[key] == generation
         fun publish(value: TaskModelResult) {
-            if (current()) { cache[key] = value; update(value) }
+            if (current()) {
+                cache[key] = value
+                bindings[key] = if (value.source == TaskModelSource.DISCOVERED) identity else null
+                fetchedAt[key] = now()
+                update(value)
+            }
         }
         data class Result(val host: Boolean, val value: TaskModelResult?)
         val results = Channel<Result>(2)

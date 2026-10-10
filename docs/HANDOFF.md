@@ -7,6 +7,14 @@ completion checklist. The dated older entries below retain history and must not
 be read as the current delivery or pending-test state. The full goal remains
 active and unverified. Scoped source audits do not advance the global parity pin.
 
+Task-model prefetch now follows the scoped iOS implementation at `f4b1509`: all
+three providers, four warming slots, one five-minute catalog, current-wire cache
+bindings and shared refresh consumers. Connection topology drives reconciliation
+without observing every Feed payload; model probes borrow the verified RPC wire.
+26 focused JVM cases passed and main/Android test Kotlin compiled in 14 s.
+See `TASK_MODEL_PREFETCH.md` for scope, failures corrected and remaining physical
+acceptance. No Android runtime/signed release in this batch; signed 641 is unchanged.
+
 The shared SSH/Cloud direct keyboard now honors modifiers for native IME deletion
 and editor Return, and does not consume one-shot Shift while a hardware dead
 accent is pending. Seven JVM checks and all four `SshDirectKeyboardTest` Android

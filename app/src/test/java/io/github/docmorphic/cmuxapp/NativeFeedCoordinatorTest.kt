@@ -13,6 +13,60 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun taskModelDiscoveryBorrowsExactWireAndOptionalRejectionDoesNotChangeHostHealth() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            var allowed = setOf("a", "b"); var connections = 0
+            val coordinator = NativeFeedCoordinator(this, { connections++; if (it.deviceId == "a") a.connect() else b.connect() },
+                { it.deviceId in allowed })
+            try {
+                assertNull(coordinator.taskModelTarget(mac("a")).identity)
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                val target = coordinator.taskModelTarget(mac("a"))
+                assertEquals(setOf(mac("a").origin, mac("b").origin), coordinator.taskModelIdentities.value.keys)
+                assertNotNull(target.identity)
+                assertSame(target.identity, coordinator.taskModelIdentities.value[mac("a").origin])
+                assertSame(target.identity, coordinator.taskModelTarget(mac("a")).identity)
+                assertNotSame(target.identity, coordinator.taskModelTarget(mac("b")).identity)
+                val loader = checkNotNull(target.host)
+                val result = loader(TaskAgentCommand.CODEX)
+                assertEquals("codex-a", result.models.single().id)
+                assertEquals(1, a.requests.count { it.optString("method") == "mobile.task.models.list" })
+                assertTrue(b.requests.none { it.optString("method") == "mobile.task.models.list" })
+                a.rejectedMethods = setOf("mobile.task.models.list"); a.rejectedCode = "forbidden"
+                assertTrue(runCatching { loader(TaskAgentCommand.CLAUDE) }.exceptionOrNull() is MobileRpcException)
+                assertEquals(NativeFeedAvailability.CONNECTED, coordinator.sources.value[mac("a").origin]?.availability)
+                assertEquals(2, connections)
+                val reads = a.requests.size
+                allowed = setOf("b")
+                assertTrue(runCatching { loader(TaskAgentCommand.CODEX) }.isFailure)
+                assertEquals(reads, a.requests.size)
+                assertNull(coordinator.taskModelTarget(mac("a")).host)
+            } finally { coordinator.close() }
+        } }
+    }
+
+    @Test fun taskModelDiscoveryRetirementCancelsPendingReadAndRejectsCapturedTarget() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val gate = java.util.concurrent.CountDownLatch(1); peer.modelGate = gate
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                val target = coordinator.taskModelTarget(mac("a"))
+                val pending = async { checkNotNull(target.host)(TaskAgentCommand.CODEX) }
+                awaitState { peer.requests.any { it.optString("method") == "mobile.task.models.list" } }
+                coordinator.retainMacs(emptyList())
+                assertTrue(coordinator.taskModelIdentities.value.isEmpty())
+                gate.countDown()
+                assertTrue(runCatching { withTimeout(2000) { pending.await() } }.exceptionOrNull() is CancellationException)
+                assertNull(coordinator.taskModelTarget(mac("a")).identity)
+                assertTrue(runCatching { target.host!!.invoke(TaskAgentCommand.CLAUDE) }.isFailure)
+                assertEquals(1, peer.requests.count { it.optString("method") == "mobile.task.models.list" })
+            } finally { gate.countDown(); coordinator.close() }
+        }
+    }
+
     @Test fun agentFeedCapabilitySharesVerifiedConnectionAndRetiresExactOwner() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             a.agentFeedSupported = true
@@ -1236,6 +1290,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     @Volatile var powerValue: Any = false
     private val powerStreams = CopyOnWriteArrayList<Pair<Socket, String>>()
     @Volatile var hostStatusGate: java.util.concurrent.CountDownLatch? = null
+    @Volatile var modelGate: java.util.concurrent.CountDownLatch? = null
     @Volatile var workspaceTitle = "Original"
     @Volatile var workspaceResponse: JSONObject? = null
     @Volatile var rejectWorkspaceAction = false
@@ -1261,6 +1316,12 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                 val request = JSONObject(String(input.readNBytes(size), Charsets.UTF_8)); requests += request
                 if (request.getString("method") == "mobile.host.status") hostStatusGate?.await(10, java.util.concurrent.TimeUnit.SECONDS)
                 val result = when (request.getString("method")) {
+                    "mobile.task.models.list" -> {
+                        modelGate?.await(10, java.util.concurrent.TimeUnit.SECONDS)
+                        JSONObject().put("source", "discovered").put("models", JSONArray().put(JSONObject()
+                            .put("id", request.getJSONObject("params").getString("provider") + "-" + id)
+                            .put("display_name", "Fixture model")))
+                    }
                     "mobile.host.status" -> JSONObject().put("mac_device_id", id).put("mac_instance_tag", hostBuild)
                         .put("capabilities", JSONArray().also {
                             if (accountMutationsSupported) it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)

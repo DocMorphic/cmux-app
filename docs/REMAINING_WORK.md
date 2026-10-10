@@ -29,6 +29,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Task model discovery now warms all three providers across visible paired Macs,
+  with four concurrent slots, a shared five-minute catalog and composer refresh
+  joining on the actual RPC wire. Account/connection retirement fences stale
+  results; leaving the foreground cancels warming. **26 focused JVM checks passed**
+  and main/Android test Kotlin compiled in 14 s. See `TASK_MODEL_PREFETCH.md`.
+  Physical composer/multi-Mac/reconnect acceptance remains open; no new signed
+  APK or Android runtime run, signed 641 and the global parity pin are unchanged.
+
 - The shared SSH/Cloud direct keyboard now applies armed modifiers to native
   IME deletion and editor Return, and retains one-shot Shift through a pending
   hardware dead accent. **Seven existing JVM checks and four Android screen

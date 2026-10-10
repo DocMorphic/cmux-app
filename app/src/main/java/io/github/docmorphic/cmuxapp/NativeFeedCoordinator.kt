@@ -36,6 +36,40 @@ internal class NativeFeedCoordinator(
     private val revisions = mutableMapOf<String, NativeFeedRevision>()
     private val mutableSources = MutableStateFlow<Map<String, NativeFeedSource>>(emptyMap())
     val sources = mutableSources.asStateFlow()
+    private val mutableTaskModelIdentities = MutableStateFlow<Map<String, Any>>(emptyMap())
+    val taskModelIdentities = mutableTaskModelIdentities.asStateFlow()
+    private fun publishTaskModelIdentities() {
+        // Topology observation only. Fresh account/route admission still occurs
+        // when creating and invoking a target; Feed payload changes are not inputs.
+        mutableTaskModelIdentities.value = buildMap {
+            handles.values.forEach { handle -> handle.client?.takeIf { handle.verified && !it.isClosed }?.let {
+                put(handle.mac.origin, it.compatibilityWire)
+            } }
+        }
+    }
+
+    /** Optional discovery borrows this exact verified client without affecting its health poll. */
+    fun taskModelTarget(mac: NativeCredentialStore.PairedMac): TaskModelPrefetch.Target {
+        val handle = handles[mac.origin]?.takeIf { it.mac == mac && it.verified }
+        val client = handle?.client?.takeIf { !it.isClosed && current(handle, it) }
+        if (handle == null || client == null) return TaskModelPrefetch.Target(mac.origin, null)
+        return TaskModelPrefetch.Target(mac.origin, client.compatibilityWire) { provider ->
+            withContext(scope.coroutineContext.minusKey(Job)) {
+                check(current(handle, client) && handle.verified) { "Model discovery connection changed" }
+                val operation = checkNotNull(currentCoroutineContext()[Job])
+                handle.borrowedOperations += operation
+                try {
+                    val result = withContext(Dispatchers.IO) {
+                        TaskModelParser.host(client.request("mobile.task.models.list",
+                            JSONObject().put("provider", provider.wireName)))
+                    }
+                    ensureActive()
+                    check(current(handle, client) && handle.verified) { "Model discovery connection changed" }
+                    result
+                } finally { handle.borrowedOperations.remove(operation) }
+            }
+        }
+    }
 
     fun updateMacs(macs: List<NativeCredentialStore.PairedMac>, routeKeys: Map<String, String> = emptyMap(),
         localRouteKeys: Map<NativeMacIdentity, String> = emptyMap()) {
@@ -88,6 +122,7 @@ internal class NativeFeedCoordinator(
         // The monitor's finally releases its client after bounded stream cleanup.
         // Closing here would prevent unsubscribe while another consumer keeps the wire alive.
         handles.remove(origin)?.let { cancelBorrowedOperations(it); it.changes?.close(); it.agentFeed?.close(); it.job?.cancel(); it.refresh.close() }
+        publishTaskModelIdentities()
     }
     private fun cancelBorrowedOperations(handle: Handle) {
         handle.borrowedOperations.toList().forEach { it.cancel(CancellationException("Borrowed computer connection changed")) }
@@ -166,6 +201,7 @@ internal class NativeFeedCoordinator(
                 if (refreshIdentity(handle.mac, active, status)) return
                 ensureActiveSession(handle)
                 handle.verified = true
+                publishTaskModelIdentities()
                 onVerified(handle.mac)
                 val capabilities = status.optJSONArray("capabilities")?.let { values ->
                     (0 until values.length()).mapNotNull { values.optString(it).takeIf(String::isNotBlank) }.toSet()
@@ -259,7 +295,7 @@ internal class NativeFeedCoordinator(
                     agentFeed = if (NativePanelCachePolicy.retains(failure)) source.agentFeed.copy(loading = false, pending = emptySet())
                         else NativeAgentFeedState(error = "Feed access is no longer authorized"),
                     panelCacheToken = source.panelCacheToken.takeIf { NativePanelCachePolicy.retains(failure) }))
-            } finally { handle.agentFeed?.close(); handle.agentFeed = null; handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBorrowedOperations(handle); active?.close(); handle.client = null }
+            } finally { handle.agentFeed?.close(); handle.agentFeed = null; handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBorrowedOperations(handle); active?.close(); handle.client = null; publishTaskModelIdentities() }
             handle.refresh.awaitRequest(10_000)
         }
     }

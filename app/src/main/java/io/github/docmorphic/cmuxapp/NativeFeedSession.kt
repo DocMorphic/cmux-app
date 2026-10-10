@@ -12,6 +12,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.collect
 
 /** Activity recreation retains account-scoped snapshots; process death refetches from the Mac. */
 internal class NativeFeedSession(
@@ -62,7 +63,16 @@ internal class NativeFeedSession(
             else -> coordinator.createWorkspace(request.mac, canSend)
         }
     }, latest = workspaceSnapshots::createdWorkspace)
-    val taskModels = TaskModelRepository()
+    val taskModels = TaskModelRepository(scope)
+    private val taskModelPrefetch = TaskModelPrefetch(scope, taskModels)
+    init { scope.launch { coordinator.taskModelIdentities.collect { reconcileTaskModelPrefetch() } } }
+    private fun reconcileTaskModelPrefetch() {
+        val visible = if (foreground && !viewModelCleared && account.isSignedIn()) store.visiblePairedMacs().toSet() else emptySet()
+        val wanted = feedMacs.filter {
+            it in visible && connector.allowsSaved(it)
+        }
+        taskModelPrefetch.update(wanted.map(coordinator::taskModelTarget))
+    }
     val localBrowsers = LocalBrowserNavigation(scope)
     val browserNetworks = NativeBrowserNetworks(scope, coordinator::browserAccess) { mac, login ->
         account.isSignedIn() && store.taskSession() == login && store.visiblePairedMacs().contains(mac) && connector.allowsSaved(mac)
@@ -146,6 +156,7 @@ internal class NativeFeedSession(
         coordinator.retainMacs(feedMacs)
         val wanted = if (foreground || sidebarHolds.values.any { it }) feedMacs else feedMacs.filter { it.origin in browserHolds.values }
         if (wanted.isEmpty()) coordinator.pause() else coordinator.updateMacs(wanted, routeKeys, localRouteKeys)
+        reconcileTaskModelPrefetch()
     }
     fun holdBrowser(mac: NativeCredentialStore.PairedMac): AutoCloseable {
         check(account.isSignedIn() && store.visiblePairedMacs().contains(mac) && connector.allowsSaved(mac))
@@ -176,7 +187,7 @@ internal class NativeFeedSession(
     }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModelPrefetch.update(emptyList()); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
     override fun onCleared() { ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
