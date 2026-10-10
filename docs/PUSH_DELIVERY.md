@@ -1,5 +1,64 @@
 # Android background push
 
+## Source replay scheduler and arrival ordering — 2026-10-10
+
+`PushSourceDispatcher` now composes the encrypted source journal with the existing
+forwarder/provider scheduler. Explicit start recovers saved source records;
+captures and committed host/account/enrollment changes wake both stages. Source
+passes are bounded to eight records by default (1–32 configurable), retain the
+original backoff/lease/expiry deadlines and schedule completion-receipt cleanup.
+An empty spool becomes idle. Storage failures retry after five seconds. Fresh
+captures during a pass trigger another pass, and cancelled timer callbacks cannot
+consume replacement timers across wake or stop/start transitions.
+
+Shutdown cancels timers and awaits both encryption/preparation and provider IO.
+The journal's new `shouldContinue` hook stops additional claims/queue admissions;
+a prepared batch remains encrypted on disk for restart. Durable capture while
+stopped remains passive. The host must quiesce its authenticated producer before
+closing stores/keys. Capture/full/storage outcomes propagate to that producer;
+capture is not phone delivery. Diagnostic callbacks expose outcome counts and
+schedule metadata, without event/source IDs, content or credential/error text.
+See `push/README.md` for the owning-host API and lifecycle.
+
+Integration exposed an ordering defect: source rows with the same due time were
+claimed by their keyed hashes, so the fixed three-record fixture's capture order
+`1,2,3` became `3,2,1`. A durable `capture_order` column now breaks equal-deadline
+ties. Legacy journals transactionally inherit retained SQLite insertion order
+after key verification; migration leaves encrypted request/prepared bytes,
+fingerprints, deadlines and deduplication unchanged. This orders source handoff;
+the independent provider queue/FCM transport is not an ordered delivery channel.
+
+**47 focused checks passed on Node26.8.2 and minimum Node22.16.0**, zero failures,
+skips or cancellations: 13 source-scheduler cases, 13 journal cases, 14 forwarder
+cases and seven provider-dispatcher regressions. New coverage uses real encrypted
+SQLite reopen/migration, bounded automatic passes, empty-spool cleanup, no
+recipient/temporary host retries, history-only suppression, retired accounts,
+lost queue acknowledgments, cancellation with retained ciphertext, fresh captures
+inside active work, source backpressure, privacy tightening, credential recovery,
+cancelled timer callbacks, and an actual `FcmSender` stopped during an injected
+token acquisition. The existing SIGKILL-after-queue-commit case also passed through
+the updated journal. Sealing/provider fixtures are synthetic; no live cloud
+delivery is established. Raw results and source hashes are retained in ignored
+`captures/runtime/push-source-scheduler/`.
+
+The native producer was scoped again at
+`f4b1509054949eaad5d695569ad443c4c18ed68d`:
+
+- `Sources/TerminalNotificationStore.swift`, SHA-256
+  `b35f6a4498a6a29102e1a37a8b9a9a8ff4fc8fe7b225066520e61b0f99db9c03`.
+- `Sources/Cloud/PhonePushClient.swift`, SHA-256
+  `e895f51016156d18f11d4aa7d8b721252ff6759a80552b277ae3a7b45596c3df`.
+
+The store still invokes phone side effects when `effects.record` is false; exact
+focused-surface eligibility and full payload remain outside general history/feed
+events. Dismissals retain explicit IDs and the Mac's authenticated account and
+forwarding policy. The scheduler does not manufacture that producer decision.
+The pending custom-versus-unmodified Mac choice, native authenticated adapter,
+key/TLS/Firebase provisioning, Android enrollment/process/Doze/device delivery and
+real Pixel/Mac acceptance remain open. No Mac app/source hook was applied, service
+started, resource provisioned, Android APK built or emulator created for this
+batch. Signed 641 and the global parity pin remain unchanged.
+
 ## Explicit Firebase client build configuration — 2026-10-07
 
 Android builds now accept an explicit client configuration file through the

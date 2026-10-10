@@ -7,6 +7,16 @@ completion checklist. The dated older entries below retain history and must not
 be read as the current delivery or pending-test state. The full goal remains
 active and unverified. Scoped source audits do not advance the global parity pin.
 
+The latest host notification batch adds explicit source-journal scheduling and
+owns forwarder startup/shutdown, with timed retry/recovery, safe cancellation and
+durable capture ordering for equally due rows. Legacy journal migration preserves
+encrypted payloads/fingerprints/deadlines. The related 47 checks passed on Node
+26.8.2 and minimum 22.16.0. See `PUSH_DELIVERY.md` and `push/README.md` for exact
+scope/evidence and lifecycle; the source adapter/custom Mac decision, provisioning
+and actual phone delivery are still pending. No listener/service/Android build was
+started for that batch. Continue independent feature work while those answers
+remain pending; do not infer eligibility from general feed/history events.
+
 At main `5d254f84`, the debug integration passed 25 Android cases in 197.697 s
 (four reader, 12 reply, eight Cloud machine, one paused-video). The strengthened
 reader/Cloud pair passed in 13.889 s with actual final-line pixels and inspected

@@ -36,12 +36,20 @@ export class PushSourceJournal {
         CREATE TABLE IF NOT EXISTS source (
           id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, payload BLOB NOT NULL,
           expires INTEGER NOT NULL, due INTEGER NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
-          attempts INTEGER NOT NULL DEFAULT 0, owner TEXT, lease INTEGER NOT NULL DEFAULT 0, outcome TEXT
+          attempts INTEGER NOT NULL DEFAULT 0, owner TEXT, lease INTEGER NOT NULL DEFAULT 0, outcome TEXT,
+          capture_order INTEGER NOT NULL
         );`);
       this.#transaction(() => {
         const proof = this.#digest('cmux-push-source-key-v1');
         this.#db.prepare('INSERT OR IGNORE INTO meta VALUES (1, ?)').run(proof);
         if (this.#db.prepare('SELECT proof FROM meta WHERE id=1').get().proof !== proof) throw new SourceJournalError('key-mismatch');
+        // Version-one journals retain insertion order in SQLite rowid. Migrate
+        // it after key verification, without decrypting/replacing captured work.
+        if (!this.#db.prepare('PRAGMA table_info(source)').all().some(column => column.name === 'capture_order')) {
+          this.#db.exec('ALTER TABLE source ADD COLUMN capture_order INTEGER NOT NULL DEFAULT 0');
+          this.#db.exec('UPDATE source SET capture_order=rowid');
+        }
+        this.#db.exec('CREATE UNIQUE INDEX IF NOT EXISTS source_capture_order ON source(capture_order)');
       });
     } catch (error) {
       this.#db?.close(); this.#db = null; this.#key.fill(0);
@@ -108,15 +116,17 @@ export class PushSourceJournal {
         return { kind: 'duplicate', id, outcome: old.state === 'done' ? old.outcome : null };
       }
       if (this.#db.prepare('SELECT COUNT(*) AS count FROM source').get().count >= this.#capacity) throw new SourceJournalError('full');
-      this.#db.prepare('INSERT INTO source(id,fingerprint,payload,expires,due) VALUES (?,?,?,?,?)')
-        .run(id, fingerprint, this.#encrypt(id, expires, { request }), expires, now);
+      const order = this.#db.prepare('SELECT COALESCE(MAX(capture_order),0)+1 AS value FROM source').get().value;
+      requireInput(Number.isSafeInteger(order) && order > 0);
+      this.#db.prepare('INSERT INTO source(id,fingerprint,payload,expires,due,capture_order) VALUES (?,?,?,?,?,?)')
+        .run(id, fingerprint, this.#encrypt(id, expires, { request }), expires, now, order);
       return { kind: 'captured', id };
     });
   }
   #claim() {
     return this.#transaction(() => {
       const now = this.#time(); this.#prune(now);
-      const row = this.#db.prepare("SELECT * FROM source WHERE state != 'done' AND due <= ? AND lease <= ? ORDER BY due,id LIMIT 1").get(now, now);
+      const row = this.#db.prepare("SELECT * FROM source WHERE state != 'done' AND due <= ? AND lease <= ? ORDER BY due,capture_order LIMIT 1").get(now, now);
       if (!row) return null;
       const owner = randomUUID(), lease = now + LEASE_MS;
       this.#db.prepare('UPDATE source SET owner=?,lease=?,attempts=attempts+1 WHERE id=?').run(owner, lease, row.id);
@@ -141,13 +151,14 @@ export class PushSourceJournal {
     return { kind: reason, id: row.id, retryAt: due };
   }
   /** Encrypted preparation commits before synchronous delivery-queue admission. */
-  async drain({ forwarder, limit = 8 }) {
+  async drain({ forwarder, limit = 8, shouldContinue = () => true }) {
     requireInput(typeof forwarder?.prepare === 'function' && typeof forwarder?.enqueue === 'function' &&
-      Number.isInteger(limit) && limit > 0 && limit <= 32);
+      Number.isInteger(limit) && limit > 0 && limit <= 32 && typeof shouldContinue === 'function');
     this.#active++;
     try {
       const outcomes = [];
       for (let i = 0; i < limit; i++) {
+        if (shouldContinue() !== true) break;
         const row = this.#claim(); if (!row) break;
         try {
           const record = this.#read(row);
@@ -162,6 +173,9 @@ export class PushSourceJournal {
               .run(this.#encrypt(row.id, row.expires, { ...record, prepared }), row.id, row.owner);
           }
           if (!this.#owns(row)) { outcomes.push({ kind: 'lease-lost', id: row.id }); continue; }
+          // Retain a prepared batch for restart, but do not begin another queue
+          // admission once the owning host has started shutting down.
+          if (shouldContinue() !== true) { outcomes.push(this.#retry(row)); break; }
           const result = forwarder.enqueue(prepared);
           if (result?.kind === 'queued') outcomes.push(this.#finish(row, 'queued'));
           else if (['retired', 'expired'].includes(result?.kind)) outcomes.push(this.#finish(row, result.kind));

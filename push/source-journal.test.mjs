@@ -57,6 +57,54 @@ test('accepted source survives reopening, is encrypted on disk, and finishes thr
   assert.deepEqual(restored.accept(request()), { kind: 'duplicate', id: captured.id, outcome: 'queued' });
 });
 
+test('cancelling a pass retains prepared ciphertext and leaves the next source record unclaimed', async t => {
+  const f = fixture(t), j = f.open();
+  j.accept(request());
+  const next = request(); next.event.correlationID = '00000000-0000-4000-8000-000000000002'; j.accept(next);
+  let active = true, preparations = 0;
+  const outcomes = await j.drain({ shouldContinue: () => active, forwarder: {
+    prepare: async value => { preparations++; active = false; return { kind: 'prepared', jobs: [{ event: value.event.correlationID }] }; },
+    enqueue: () => assert.fail('cancelled pass must not enqueue')
+  } });
+  assert.equal(outcomes[0].kind, 'unavailable'); assert.equal(preparations, 1);
+  assert.deepEqual(j.status().counts, { pending: 1, prepared: 1 });
+  f.clock(time + 1000); let admissions = 0;
+  await j.drain({ forwarder: {
+    prepare: async value => { preparations++; return { kind: 'prepared', jobs: [{ event: value.event.correlationID }] }; },
+    enqueue: prepared => { assert.ok(prepared.jobs[0].event); admissions++; return { kind: 'queued' }; }
+  } });
+  assert.equal(preparations, 2); assert.equal(admissions, 2); assert.deepEqual(j.status().counts, { done: 2 });
+});
+
+test('equally due source captures replay in durable arrival order across bounded passes and reopen', async t => {
+  const f = fixture(t), j = f.open(), inputs = [request(), request(), request()];
+  inputs.forEach((value, index) => { value.event.correlationID = `00000000-0000-4000-8000-00000000000${index + 1}`; j.accept(value); });
+  j.close(); const restored = f.open(), observed = [];
+  const forwarder = {
+    prepare: async value => { observed.push(value.event.correlationID); return { kind: 'prepared', jobs: [] }; },
+    enqueue: () => ({ kind: 'queued' })
+  };
+  await restored.drain({ forwarder, limit: 1 }); await restored.drain({ forwarder, limit: 2 });
+  assert.deepEqual(observed, inputs.map(value => value.event.correlationID));
+});
+
+test('legacy source schema migrates insertion order without changing encrypted requests or deduplication', async t => {
+  const f = fixture(t), j = f.open(), values = [request(), request(), request()];
+  values.forEach((value, index) => { value.event.correlationID = `00000000-0000-4000-8000-00000000000${index + 1}`; j.accept(value); });
+  j.close(); const db = new DatabaseSync(join(f.directory, 'source.sqlite'));
+  const before = db.prepare('SELECT id,fingerprint,payload,expires FROM source ORDER BY rowid').all();
+  db.exec('DROP INDEX source_capture_order; ALTER TABLE source DROP COLUMN capture_order'); db.close();
+  const migrated = f.open(), inspect = new DatabaseSync(join(f.directory, 'source.sqlite'));
+  assert.deepEqual(inspect.prepare('SELECT id,fingerprint,payload,expires FROM source ORDER BY capture_order').all(), before);
+  inspect.close(); assert.equal(migrated.accept(values[0]).kind, 'duplicate');
+  const observed = [];
+  await migrated.drain({ forwarder: {
+    prepare: async value => { observed.push(value.event.correlationID); return { kind: 'prepared', jobs: [] }; },
+    enqueue: () => ({ kind: 'queued' })
+  } });
+  assert.deepEqual(observed, values.map(value => value.event.correlationID));
+});
+
 test('queue commit with a lost result recovers identical ciphertext after restart without resealing', async t => {
   const f = fixture(t), p = pipeline(t, f), j = f.open(); j.accept(request());
   const uncertain = { prepare: value => p.forwarder.prepare(value), enqueue: value => {

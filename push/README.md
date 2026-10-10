@@ -102,6 +102,44 @@ existing outbox deduplicates it. Preparation is never repeated for a saved batch
 Source capture/queue admission/provider acceptance/device display are distinct
 outcomes; an upstream cursor must not be advanced merely because preparation began.
 
+`PushSourceDispatcher` in `source-dispatcher.mjs` now owns automatic journal replay
+and the existing `PushForwarder` delivery scheduler. It starts only when the host
+explicitly calls `start()`, recovers saved records without a new producer event,
+and wakes after durable captures or committed policy/enrollment changes:
+
+```js
+import { PushSourceDispatcher } from './source-dispatcher.mjs';
+const runtime = new PushSourceDispatcher({ journal, forwarder });
+runtime.start();
+// Called only by the authenticated native producer, with its original decision/expiry.
+const receipt = runtime.capture({ event, expiresAt: originalExpiry, sourceEpoch, phoneEligible });
+// Only captured/duplicate acknowledges local storage. Capacity/storage errors must
+// propagate to the producer; do not advance its cursor or discard an uncaptured alert.
+runtime.changed(); // After host policy/account/registration changes have committed.
+// During host shutdown, quiesce the producer first, then await both pipeline stages:
+await runtime.stop();
+// The host can now close journal/outbox/registration stores and credential handles.
+```
+
+Source passes process eight records by default (configurable 1–32), honor saved
+backoff/lease/expiry deadlines and schedule receipt cleanup. An empty spool becomes
+idle. Storage failures use a five-second retry; fresh captures during an active
+pass schedule another pass. Cancelled timer callbacks cannot consume a newer
+timer. `stop()` cancels timers, prevents new source claims/queue admissions and
+waits for both preparation and provider IO. A prepared batch remains durable for
+restart; it is not resealed. `resumeBlocked(reason)` delegates explicit repaired
+credential/payload recovery to the delivery queue. Capture while stopped remains
+durable and passive; shutdown must stop source input before closing storage.
+Diagnostic callbacks expose outcome histograms and scheduling/count metadata,
+without source IDs, content, credentials or provider error text.
+
+Equally due source records now replay in capture order, using a durable integer
+sequence instead of hashed IDs. Existing journals migrate the retained SQLite
+insertion order in a transaction after key verification; encrypted requests,
+prepared batches, deduplication fingerprints and deadlines remain unchanged.
+Retries still honor their individual due times. This orders source-to-outbox
+handoff; the separate provider queue and FCM delivery are not an ordered channel.
+
 SQLite uses FULL synchronous WAL transactions and a private 0700 directory/0600
 file. Capture size is at most 1 MiB; an encrypted record may contain up to 4 MiB of
 request/prepared data. Default capacity is 128 records (configurable 1–512),
@@ -117,7 +155,9 @@ forwarder, temporary policy or storage failure retries with bounded backoff unti
 the original expiry. Explicit suppression/retirement/expiry finishes the source
 record. Corruption is reported without acknowledging processing. The owning host
 must handle these coarse results and source backpressure; no scheduler or listener
-starts when this module is imported. Await an active drain before closing stores.
+starts when this module is imported. The explicit dispatcher can own drain/stop;
+lower-level `drain({ forwarder, shouldContinue })` also supports bounded shutdown
+without consuming another source record. Await an active drain before closing stores.
 
 ## Integration contract
 

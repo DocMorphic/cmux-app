@@ -12,6 +12,19 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Notification source scheduling (2026-10-10)
+
+The host push pipeline now owns explicit startup/replay, bounded scheduled source
+passes, original-deadline retries, cleanup-to-idle and awaited source/provider
+shutdown. Equal-deadline source rows retain durable capture order instead of
+hash order, including migration of saved journals. **47 focused checks passed on
+Node26.8.2 and minimum Node22.16.0**, including real encrypted SQLite reopen/
+migration, uncertain admission recovery, cancellation, privacy/account retirement
+and the existing SIGKILL recovery. See `PUSH_DELIVERY.md` for scoped f4 source
+hashes and fixture limits. The native producer choice/adapter, Firebase/key/TLS
+provisioning and actual Pixel background delivery remain open. No service or
+cloud resource was activated, and signed 641/global parity pin remain unchanged.
+
 ## Signed milestone 641 and workbook pictures (2026-10-10)
 
 [641](https://github.com/DocMorphic/cmux-app/actions/runs/38045004590) at

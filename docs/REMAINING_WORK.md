@@ -29,6 +29,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The host push pipeline now has an explicit source replay scheduler, bounded
+  timed recovery, safe source/provider shutdown and durable arrival ordering for
+  equally due records. **47 focused checks passed on Node26.8.2 and Node22.16.0**,
+  including real encrypted SQLite migration/reopen and the existing SIGKILL
+  handoff recovery. See `PUSH_DELIVERY.md`. The native source choice/adapter,
+  provisioning and actual Android provider/device delivery remain open; this is
+  a host implementation batch, not a running notification service or APK release.
+
 - Signed milestone [641](https://github.com/DocMorphic/cmux-app/actions/runs/38045004590)
   at `ddf16db8` **passed**, including cached Cloud checkpoint, policy/helper/JVM/APK,
   signing/package and six Android 17 ART class probes. The downloaded APK also
