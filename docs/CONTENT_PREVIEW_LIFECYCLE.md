@@ -1,5 +1,53 @@
 # Content preview lifecycle
 
+## Paused-frame readiness follow-up — 2026-10-10
+
+The new native-video check waits for the fixture's gold/blue pixels in the actual
+video view bounds while requiring a settled 12-second bookmark, no playing
+state and no Play request. It exercises Activity recreation, French audio
+replacement, fullscreen entry and inline return. On the existing app APK
+`e5c6b886`, the case **passed in 13.283 seconds** at a temporary 720×1600 /
+280 dpi emulator setting. After resetting the display to its normal
+1080×2400 / 420 dpi, it **passed together with the previously pending playing
+track-selection case in 28.979 seconds**. The playing re-selection screenshot
+contains the English cue, with native French audio retained. The recreated
+paused view reports 12,000 ms, a 320×180 native buffer and a 1080×607 fitted view;
+its screenshot visibly contains both fixture colors before any Play gesture.
+
+Evidence: `captures/paused-video-baseline-runtime.log`,
+`captures/paused-video-native-resolution-runtime.log`,
+`captures/paused-video-baseline-installed.sha256` and inspected captures in
+`captures/runtime/paused-video-frame/{baseline-720,native-resolution}/`.
+The selected crash/ANR event log for this emulator run is empty. Only the
+existing AVD was used, with software graphics and emulator host audio disabled;
+the display overrides were reset. Silent audio/native track selection fixtures
+do not establish audible playback or physical Pixel acceptance.
+
+Source inspection of [AOSP VideoView](https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/master/core/java/android/widget/VideoView.java)
+showed the client prepared callback precedes its final buffer sizing. A candidate
+surface-readiness gate was explored but was never built or installed. The
+unchanged app passed these checks, so that candidate was removed. These results
+do not prove the hypothesized persistent surface failure. They also do not make
+an early black capture acceptable evidence of a rendered paused frame.
+
+The PiP return check now waits for caption pixels **and video colors** while
+paused, then rechecks the exact bookmark/tracks/speed/mute and no Play request.
+This covers the original returned French-caption / 1.5× / mute state.
+**The strengthened PiP case passed in 20.775 seconds** at 1080×2400 / 420 dpi.
+Both expanded and recreated inline screenshots visibly show the native video
+and French cue at 12 seconds while paused. The selected crash/ANR before/after
+logs are empty. Evidence: `captures/paused-video-pip-runtime.log` and inspected
+`captures/runtime/paused-video-frame/pip/`. The app APK is still `e5c6b886`;
+only the test APK was rebuilt (46 seconds), SHA-256
+`1661981234f9737ffac2b8b9fa9b1148f29f20d6ec98c5df999372e092d76ab1`.
+Gradle was stopped before emulator work; the sole emulator was stopped/reaped
+afterwards. These results supersede the pending playing-track and paused-frame
+fixture checks in the preceding checkpoint below. No production player change
+was needed for this frame-readiness follow-up.
+Matched iOS runtime, physical routes, hardware graphics and broader codecs
+remain open; the native video-size listener replacement also needs an adaptive
+dimension audit. Signed 635 predates the current player implementation.
+
 ## Paused embedded captions — 2026-10-10
 
 The paused-cue gap seen during the earlier fullscreen milestone was reproduced against

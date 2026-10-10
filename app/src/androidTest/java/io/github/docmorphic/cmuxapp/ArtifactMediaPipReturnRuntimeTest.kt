@@ -81,7 +81,7 @@ class ArtifactMediaPipReturnRuntimeTest {
         }
         fun pausedCaptionFrame(name: String) {
             val bounds = find(By.text("CMUX FRENCH CUE")).visibleBounds
-            await("Paused caption was found in the tree but did not paint") {
+            await("Paused caption or video frame did not paint") {
                 val screenshot = File(evidence, "$name.png")
                 if (!device.takeScreenshot(screenshot)) return@await false
                 val bitmap = android.graphics.BitmapFactory.decodeFile(screenshot.path) ?: return@await false
@@ -92,7 +92,15 @@ class ArtifactMediaPipReturnRuntimeTest {
                         if (android.graphics.Color.red(pixel) > 220 && android.graphics.Color.green(pixel) > 220 &&
                             android.graphics.Color.blue(pixel) > 220) white++
                     }
-                    white > 30
+                    var gold = 0; var blue = 0
+                    for (y in 0 until bitmap.height step 3) for (x in 0 until bitmap.width step 3) {
+                        val pixel = bitmap.getPixel(x, y)
+                        val r = android.graphics.Color.red(pixel); val g = android.graphics.Color.green(pixel)
+                        val b = android.graphics.Color.blue(pixel)
+                        if (r in 195..245 && g in 130..190 && b in 40..110) gold++
+                        if (r in 10..60 && g in 50..110 && b in 100..160) blue++
+                    }
+                    white > 30 && gold > 1_000 && blue > 1_000
                 } finally { bitmap.recycle() }
             }
             device.dumpWindowHierarchy(File(evidence, "$name.xml"))
@@ -171,6 +179,7 @@ class ArtifactMediaPipReturnRuntimeTest {
                 find(By.text("CMUX FRENCH CUE"))
                 dump("expanded-changed")
                 pausedCaptionFrame("expanded-changed")
+                assertTrue("Waiting for the expanded frame started playback", onPlayback { _, model -> retained(model.player.view!!, model.player) })
                 val timestamp = find(By.text("0:12")).visibleBounds
                 val bitmap = android.graphics.BitmapFactory.decodeFile(File(evidence, "expanded-changed.png").path)
                 try {
@@ -191,6 +200,7 @@ class ArtifactMediaPipReturnRuntimeTest {
                 await("Recreation lost the returned bookmark or track choices") { read(::retained) }
                 await("Recreated source lost its paused caption") { read { _, state -> state.captionText == "CMUX FRENCH CUE" } }
                 pausedCaptionFrame("restored-paused")
+                assertTrue("Waiting for the recreated frame started playback", read(::retained))
                 read { view, state ->
                     File(evidence, "restored.json").writeText(JSONObject().put("position", view.currentPosition)
                         .put("playing", view.isPlaying).put("speed", state.speed).put("muted", state.muted)

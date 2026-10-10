@@ -32,17 +32,20 @@ and currently disabled; the upstream watcher is active on main with review issue
 - Paused embedded 3GPP captions now refresh through an independent bounded file
   reader, without starting playback. Seek/selection/player changes invalidate
   older reads, blank cue gaps clear the overlay, and unchanged tracks retain
-  playing text. **12 focused JVM checks passed.** The strengthened extractor,
-  paused-seek and actual OS PiP-return cases each recorded passes before the
-  combined run was interrupted; the remaining playing-track case needs a
-  completed run. Its isolated retry ended when the emulator was killed with
-  exit 137, before a test method began. Screenshots confirm paused French cues
-  in expanded PiP and after source recreation, but the recreated paused video
-  surface is black until resuming: frame restoration remains an explicit next
-  issue. See `CONTENT_PREVIEW_LIFECYCLE.md` for baseline failures, exact hashes
-  and scope. Only the existing AVD was used, with no Gradle overlap; both are
-  stopped. No Pixel, matching iOS runtime or signed release was used. Signed
-  635 predates this batch, and media/full parity remain unverified.
+  playing text. **12 focused JVM checks passed.** All four strengthened runtime
+  cases have passing results across scoped runs on the unchanged app APK.
+  The pending playing-track case and a new paused-video recreation/audio/
+  fullscreen case **passed together in 28.979 seconds**. The stronger actual OS
+  PiP-return case **passed in 20.775 seconds**, requiring native video colors
+  and French caption pixels while paused at 12 seconds, with speed/mute/tracks
+  retained. The earlier black capture preceded rendered-frame evidence; waiting
+  for video pixels produced correct paused frames, so the experimental player
+  gate was removed. See `CONTENT_PREVIEW_LIFECYCLE.md` for earlier interrupted
+  runs, exact hashes and inspected screenshots. Physical codecs/routes,
+  matched iOS UI/runtime and the adaptive video-dimension audit remain open.
+  Only the existing AVD was used, with no Gradle overlap; both are stopped.
+  No Pixel or signed release was used. Signed 635 predates the caption/player
+  changes, and media/full parity remain unverified.
 
 - Fullscreen media now uses controls over the fitted video, with playback
   auto-hide, menu/gesture/accessibility guards and a shared expanded PiP layout.
@@ -53,8 +56,9 @@ and currently disabled; the upstream watcher is active on main with review issue
   window bounds and fresh menu nodes, preserving bookmark/French tracks/speed/mute
   through return and recreation. Earlier hardware/normal-graphics black frames
   remain unverified on Pixel. The final paused expanded-player capture lacked a
-  caption cue although resumed playback showed it; paused-seek cue freshness is
-  an explicit next check. See `CONTENT_PREVIEW_LIFECYCLE.md` for all attempts.
+  caption cue although resumed playback showed it; the caption and paused-frame
+  follow-up above supersedes that fixture gap. See `CONTENT_PREVIEW_LIFECYCLE.md`
+  for all attempts and remaining media gates.
   The sole emulator and Gradle are stopped; no Pixel or signed release was used.
   Signed 635 predates this batch. Matched iOS UI and physical acceptance remain open.
 
