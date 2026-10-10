@@ -15,6 +15,47 @@ This does not advance the global upstream implementation/review pin. The previou
 Android `NativeFeed*` implementation was the notification/workspace aggregator;
 it did **not** implement the distinct agent workstream Feed.
 
+## Reader and reply-sheet source batch — 2026-10-10
+
+Scoped source: `AgentFeedReplyComposer.swift` and `AgentFeedFullTextView.swift`
+at `f4b1509054949eaad5d695569ad443c4c18ed68d`. Their SHA-256 values are
+`fe3b1a61a97b2bed7d6e54035bc7bd03cbe266c9ccb4dc94f523240c6cc4b694`
+and `c39525f7ab862052cf491ad1fb5f892677bd93e4939b191a7c6e97fb8edc6378`.
+The global parity/review pin remains unchanged.
+
+- Full text now opens in a large draggable sheet with the visible handle,
+  centered **Full text** title, leading **Close** action, labeled loading state,
+  reconnect/retry presentation and scrollable errors. Source/Formatted remains
+  the Android reader's existing selectable-source option. The saved formatted
+  viewport and source scroll/selection owners remain outside the sheet window.
+- Reply and plan-revision sheets use the existing question sheet's dark palette
+  and primary-button treatment. The draft now uses BasicTextField with the source's
+  8 dp top inset and 3–12 lines, eliminating the Material field's internal padding.
+  Agent icons are 22 dp within the 40 dp quote avatar; unknown agents use the
+  source's terminal fallback. The user avatar is 36 dp, the replying line has a
+  10 dp bottom inset, and long headlines ellipsize within their remaining space.
+- IME Send admits the latest trimmed draft and rejects empty or retired-editor
+  submission even if a native callback arrives before recomposition or after
+  dismissal. Full-text and expanded-quote loads check cancellation after the read;
+  a noncooperative transport completion cannot mark a closed reader's message read.
+
+Main and Android-test Kotlin **compiled successfully in 37 seconds**. Two
+lifecycle regressions were added: late noncooperative full-text
+completion after Close, and delayed IME submission with a cleared/new draft and
+after Cancel. Existing reader/reconnect cases were updated for Close/Try again.
+These new cases **have not been executed**, and earlier runtime results do not
+validate the changed sheet/editor implementation. Run the four
+`AgentFeedFullTextTest` and 12 `AgentFeedReplySheetTest` cases at the next
+integration milestone, including native quote/keyboard/reconnect restoration.
+
+Evidence: ignored `captures/feed-sheet-source-compile.log`,
+`captures/AgentFeedFullTextView-f4.swift` and the retained reply-composer source in
+`captures/runtime/feed-reply-keyboard/`. Gradle is stopped; no emulator, APK
+build, signed release or Pixel run was used for this batch. The Markdown body
+still uses the existing bundled Android renderer; matched iOS text/rendering,
+sheet screenshots, large-text/TalkBack/gestures and real Mac acceptance remain
+open. Signed 635 predates this implementation; full Feed parity is unverified.
+
 ## Implemented behavior
 
 - A primary Feed tab, with its own committed/draft/generation-bound search, the

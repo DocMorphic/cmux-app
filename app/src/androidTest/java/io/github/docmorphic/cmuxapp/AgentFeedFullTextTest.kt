@@ -12,6 +12,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -124,13 +126,38 @@ class AgentFeedFullTextTest {
         } }
         compose.onNodeWithText("Reconnect and try again").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, reads) }
-        compose.onNodeWithText("Retry").performClick()
+        compose.onNodeWithText("Try again").performClick()
         awaitReader()
         compose.runOnIdle { assertEquals(1, reads); pending = true }
         compose.waitUntil(5_000) { entered.isCompleted }
-        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithText("Close").performClick()
         compose.waitUntil(5_000) { cancelled.isCompleted }
         compose.runOnIdle { assertEquals(1, reads) }
-        compose.onNodeWithText("Full message").assertDoesNotExist()
+        compose.onNodeWithText("Full text").assertDoesNotExist()
+    }
+
+    @Test fun lateNonCooperativeReadAfterCloseNeverMarksTheMessageRead() {
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val finished = CompletableDeferred<Unit>()
+        var shown by mutableStateOf(true)
+        var reads = 0
+        compose.setContent { CmuxTheme {
+            if (shown) AgentFeedFullText(modal, {}, {
+                try { withContext(NonCancellable) {
+                    entered.complete(Unit); release.await(); "Late complete response"
+                } } finally { finished.complete(Unit) }
+            }, { reads++ }, { shown = false })
+        } }
+        try {
+            compose.waitUntil(5_000) { entered.isCompleted }
+            compose.onNodeWithText("Loading full text…").assertIsDisplayed()
+            compose.onNodeWithText("Close").performClick()
+            compose.onNodeWithTag("AgentFeedFullTextSheet").assertDoesNotExist()
+            release.complete(Unit)
+            compose.waitUntil(5_000) { finished.isCompleted }
+            compose.waitForIdle()
+            compose.runOnIdle { assertEquals(0, reads) }
+        } finally { release.complete(Unit) }
     }
 }

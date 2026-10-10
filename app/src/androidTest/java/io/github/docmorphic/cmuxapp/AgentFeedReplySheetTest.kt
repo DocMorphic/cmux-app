@@ -184,6 +184,31 @@ class AgentFeedReplySheetTest {
         }
     }
 
+    @Test fun delayedImeSendUsesLatestDraftAndCannotSubmitAfterDismissal() {
+        val entry = AgentFeedUiEntry("row", mac.agentFeedUiOwner(), stop, "Mac", true, false, null, true)
+        var modal by mutableStateOf(AgentFeedModal.from("account", entry, "terminal").copy(draft = "Old draft"))
+        var shown by mutableStateOf(true)
+        val sent = mutableListOf<String>()
+        compose.setContent { CmuxTheme { Surface {
+            if (shown) AgentFeedReplySheet(entry, modal, { modal = it }, { "Quote" }, { shown = false },
+                { _, text -> sent += checkNotNull(text) })
+        } } }
+        val editor = compose.onNodeWithTag("AgentFeedComposeDraft").fetchSemanticsNode().config
+        val edit = editor[androidx.compose.ui.semantics.SemanticsActions.SetText].action!!
+        val send = editor[androidx.compose.ui.semantics.SemanticsActions.OnImeAction].action!!
+        compose.runOnUiThread {
+            assertTrue(edit(androidx.compose.ui.text.AnnotatedString(" \n ")))
+            send()
+            assertTrue(sent.isEmpty())
+            assertTrue(edit(androidx.compose.ui.text.AnnotatedString("  Latest draft 👩🏽‍💻  ")))
+            send()
+            assertEquals(listOf("Latest draft 👩🏽‍💻"), sent)
+        }
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithTag("AgentFeedReplySheet").assertDoesNotExist()
+        compose.runOnUiThread { send(); assertEquals(listOf("Latest draft 👩🏽‍💻"), sent) }
+    }
+
     @Test fun retiredScrollCannotOverwriteTheSavedReadingPosition() {
         val position = ComposerScrollPosition()
         var visible by mutableStateOf(true)
@@ -431,7 +456,7 @@ class AgentFeedReplySheetTest {
                 restored.get()
             }
             assertTrue(fixture.requests.count { it.first == "feed.text" } > loads)
-            compose.onNodeWithText("Done").performClick()
+            compose.onNodeWithText("Close").performClick()
             compose.onNodeWithContentDescription("See more").performClick()
             compose.onNodeWithText("Source").performClick()
             awaitReaderSource()

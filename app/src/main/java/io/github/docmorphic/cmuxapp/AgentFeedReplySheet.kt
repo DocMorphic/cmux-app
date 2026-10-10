@@ -1,5 +1,5 @@
 /* Reply presentation follows cmux AgentFeedReplyComposer.swift at
- * 186cec79781256867ad4516f0802118738bd2393. GPL-3.0-or-later. See NOTICE.md. */
+ * f4b1509054949eaad5d695569ad443c4c18ed68d. GPL-3.0-or-later. See NOTICE.md. */
 package io.github.docmorphic.cmuxapp
 
 import androidx.compose.foundation.background
@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -23,11 +25,15 @@ import androidx.core.text.PrecomputedTextCompat
 import androidx.core.widget.TextViewCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import java.util.Locale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 
@@ -79,38 +85,52 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
     val density = LocalDensity.current
     val textMetrics = remember(context, density) { TextViewCompat.getTextMetricsParams(agentFeedQuoteTextView(context)) }
     val canSend = ready && !pending && modal.draft.isNotBlank() && modal.matches(entry)
-    fun send() { if (canSend) {
-        if (editing.mode == "terminal") onSubmit(null, editing.draft.trim())
-        else onSubmit(AgentFeedDecision("exit_plan", "manual", feedback = editing.draft.trim()), null)
-    } }
+    fun send() {
+        // IME submission can precede recomposition or arrive after dismissal.
+        // Admit the latest live draft, rather than a cached button-enabled value.
+        val text = editing.draft.trim()
+        if (editorActive.get() && ready && !pending && editing.matches(entry) && text.isNotEmpty()) {
+            if (editing.mode == "terminal") onSubmit(null, text)
+            else onSubmit(AgentFeedDecision("exit_plan", "manual", feedback = text), null)
+        }
+    }
     LaunchedEffect(modal.expanded, attempt) {
         if (!modal.expanded) return@LaunchedEffect
         failed = false
         try {
             val source = load()
+            currentCoroutineContext().ensureActive()
             fullText = withContext(Dispatchers.Default) {
                 PrecomputedTextCompat.create(agentFeedSpanned(AgentFeedMarkdown.parseFull(source)), textMetrics)
             }
         }
-        catch (error: Exception) { if (error is CancellationException) throw error; failed = true }
+        catch (error: Exception) {
+            if (error is CancellationException) throw error
+            currentCoroutineContext().ensureActive(); failed = true
+        }
     }
-    ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color(0xFF111317), contentColor = Color(0xFFE9E9EC)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).imePadding().testTag("AgentFeedReplySheet")) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onDismiss) { Text("Cancel") }
-                Button(::send, enabled = canSend, modifier = Modifier.testTag("AgentFeedComposeSend")) {
-                    Text(if (pending) "Sending…" else if (modal.mode == "terminal") "Reply" else "Send")
+                Button(::send, enabled = canSend, modifier = Modifier.testTag("AgentFeedComposeSend"),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF176FC1), contentColor = Color.White,
+                        disabledContainerColor = Color(0xFF282C32), disabledContentColor = Color(0xFF737983)),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
+                    Text(if (pending) "Sending…" else if (modal.mode == "terminal") "Reply" else "Send", fontWeight = FontWeight.Bold)
                 }
             }
             AgentFeedComposerScroll(Modifier.fillMaxWidth().weight(1f), fullText,
                 loadingExpanded = modal.expanded && fullText == null && !failed,
                 position = scrollPosition,
-                avatar = { FeedComposerAvatar(item.source, model.author) },
+                avatar = { FeedComposerAvatar(item.source) },
                 heading = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(model.author, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        model.headline?.let { Text(it, color = Color(0xFF9CA3AF), fontSize = 14.sp, maxLines = 1) }
+                        model.headline?.let { Text(it, Modifier.weight(1f), color = Color(0xFF9CA3AF), fontSize = 14.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     }
                 },
                 preview = {
@@ -124,19 +144,23 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
                     }
                 },
                 replying = { Text("Replying to ${model.author}", color = Color(0xFF76B9FF), fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 6.dp, bottom = 14.dp)) },
+                    modifier = Modifier.padding(top = 6.dp, bottom = 10.dp)) },
                 draft = {
                     // A restored expanded sheet resumes reading. Reopening the
                     // keyboard here would scroll the long quote back to its editor.
                     LaunchedEffect(Unit) { if (!modal.expanded) focus.requestFocus() }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-                        Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(40.dp))
-                        TextField(editing.draft, { text -> update { it.copy(draft = text) } }, enabled = !pending,
-                            placeholder = { Text(if (modal.mode == "terminal") "Reply to agent…" else "What should change?") },
-                            minLines = 3, maxLines = 12, modifier = Modifier.weight(1f).focusRequester(focus).testTag("AgentFeedComposeDraft"),
+                        Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(36.dp))
+                        val editorStyle = MaterialTheme.typography.bodyLarge.copy(color = Color(0xFFE9E9EC), fontSize = 17.sp)
+                        BasicTextField(editing.draft, { text -> update { it.copy(draft = text) } }, enabled = !pending,
+                            minLines = 3, maxLines = 12, textStyle = editorStyle, cursorBrush = SolidColor(Color(0xFF76B9FF)),
+                            modifier = Modifier.weight(1f).padding(top = 8.dp).focusRequester(focus).testTag("AgentFeedComposeDraft"),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { send() }),
-                            colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent))
+                            decorationBox = { field -> Box {
+                                if (editing.draft.isEmpty()) Text(if (modal.mode == "terminal") "Reply to agent…" else "What should change?",
+                                    style = editorStyle.copy(color = Color(0xFF9CA3AF)))
+                                field()
+                            } })
                     }
                 },
                 status = {
@@ -149,9 +173,9 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
 }
 
 @Composable
-private fun FeedComposerAvatar(source: String?, author: String) {
+private fun FeedComposerAvatar(source: String?) {
     Box(Modifier.size(40.dp).background(Color(0xFF25292E), CircleShape), contentAlignment = Alignment.Center) {
-        if (source?.lowercase() in setOf("claude", "codex", "opencode")) TaskTemplateIcon("agent:${source!!.lowercase()}")
-        else Text(author.take(1), fontWeight = FontWeight.SemiBold, color = Color(0xFF9CA3AF))
+        val agent = source?.lowercase(Locale.ROOT)
+        TaskTemplateIcon(if (agent in setOf("claude", "codex", "opencode")) "agent:$agent" else "terminal", Modifier.size(22.dp))
     }
 }

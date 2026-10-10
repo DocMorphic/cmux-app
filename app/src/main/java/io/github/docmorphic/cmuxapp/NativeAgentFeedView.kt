@@ -2,6 +2,8 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -19,9 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -202,6 +204,7 @@ internal fun AgentFeedTimeline(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal) -> Unit,
     load: suspend () -> String, onRead: () -> Unit, onDismiss: () -> Unit) {
@@ -211,23 +214,42 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
     val sourcePosition = rememberSaveable(saver = AgentFeedSourcePosition.Saver) { AgentFeedSourcePosition() }
     LaunchedEffect(attempt) {
         error = null
-        try { text = load(); onRead() }
-        catch (failure: Exception) { if (failure is CancellationException) throw failure; error = failure.message ?: "Could not load the message" }
+        try {
+            val loaded = load()
+            // A transport callback may finish after dismissal even when its
+            // underlying read cannot be cancelled. Never mark a retired sheet read.
+            currentCoroutineContext().ensureActive()
+            text = loaded; onRead()
+        }
+        catch (failure: Exception) {
+            if (failure is CancellationException) throw failure
+            currentCoroutineContext().ensureActive()
+            error = failure.message ?: "Could not load the message"
+        }
     }
-    Dialog(onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-            Column(Modifier.fillMaxSize()) {
-                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Full message", Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                    TextButton(onClick = { onChange(modal.copy(raw = !modal.raw)) }, enabled = text != null) { Text(if (modal.raw) "Formatted" else "Source") }
-                    TextButton(onClick = onDismiss) { Text("Done") }
+    ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color(0xFF111317), contentColor = Color(0xFFE9E9EC)) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("AgentFeedFullTextSheet")) {
+            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onDismiss, modifier = Modifier.width(96.dp)) { Text("Close") }
+                Text("Full text", Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                TextButton(onClick = { onChange(modal.copy(raw = !modal.raw)) }, enabled = text != null,
+                    modifier = Modifier.width(96.dp)) { Text(if (modal.raw) "Formatted" else "Source") }
+            }
+            when {
+                error != null -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Couldn’t load the full text from this Mac. Reconnect and try again.")
+                    Text(error!!, color = agentFeedMuted)
+                    TextButton(onClick = { attempt++ }) { Text("Try again") }
                 }
-                when {
-                    error != null -> Column(Modifier.padding(20.dp)) { Text(error!!); TextButton(onClick = { attempt++ }) { Text("Retry") } }
-                    text == null -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                    modal.raw -> AgentFeedSourceReader(text!!, sourcePosition)
-                    else -> MarkdownWebPreview(text!!, viewport, onFailure = { onChange(modal.copy(raw = true)) })
+                text == null -> Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CircularProgressIndicator(Modifier.size(24.dp)); Text("Loading full text…")
                 }
+                modal.raw -> AgentFeedSourceReader(text!!, sourcePosition)
+                else -> MarkdownWebPreview(text!!, viewport, onFailure = { onChange(modal.copy(raw = true)) })
             }
         }
     }
