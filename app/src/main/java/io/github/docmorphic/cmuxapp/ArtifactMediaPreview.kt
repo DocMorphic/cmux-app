@@ -128,9 +128,6 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
                 state.prepared = true
                 state.duration = duration.coerceAtLeast(0)
                 state.videoWidth = player.videoWidth; state.videoHeight = player.videoHeight
-                player.setOnVideoSizeChangedListener { _, width, height ->
-                    if (!released && state.view === this) { state.videoWidth = width; state.videoHeight = height }
-                }
                 trackController?.close()
                 trackController = ArtifactMediaTrackController(context, player, state, checkNotNull(sourceFile)) { !released && state.view === this && this.player === player }
                     .also { it.prepare() }
@@ -161,12 +158,24 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
             true
         }
     }
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        // VideoView's size callback updates its buffer and requests layout.
+        // Preserve that callback; replacing it leaves adaptive video measured
+        // with the first resolution. Mirror dimensions after its layout work.
+        if (!released && state.view === this && state.prepared) player?.let { current ->
+            runCatching {
+                val width = current.videoWidth; val height = current.videoHeight
+                state.videoWidth = width; state.videoHeight = height
+            }
+        }
+    }
     fun open(file: File, retainFocus: Boolean = false) {
         if (released) return
         sourceFile = file
         trackController?.close(); trackController = null
         if (!retainFocus) abandonAudio()
-        player?.setOnSeekCompleteListener(null); player?.setOnVideoSizeChangedListener(null); player = null
+        player?.setOnSeekCompleteListener(null); player = null
         seeking = false; state.prepared = false; state.failure = null; state.controlFailure = null
         setVideoURI(Uri.fromFile(file))
         publishPlayback()
@@ -309,7 +318,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         mediaSession.close()
         trackController?.close(); trackController = null
         abandonAudio(); focus.close()
-        player?.setOnSeekCompleteListener(null); player?.setOnVideoSizeChangedListener(null); player = null
+        player?.setOnSeekCompleteListener(null); player = null
         setOnPreparedListener(null); setOnCompletionListener(null); setOnErrorListener(null); setOnInfoListener(null)
         stopPlayback()
         if (state.view === this) { state.prepared = false; state.view = null }

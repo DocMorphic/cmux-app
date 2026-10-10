@@ -1,5 +1,68 @@
 # Content preview lifecycle
 
+## Native video-size ownership — 2026-10-10
+
+`ArtifactMediaView` no longer replaces or clears VideoView's native size-change
+listener. The framework listener owns the fixed SurfaceHolder buffer, native
+video dimensions and layout request. Android dimensions are mirrored into the
+Compose model after native measurement, with prepared/current-view/release
+guards. Replacing that listener previously retained only the Compose dimensions
+and bypassed the framework's surface/layout updates. Source:
+[AOSP VideoView](https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/master/core/java/android/widget/VideoView.java).
+
+The changed debug APK is
+`76894d6a11bf7e294164e011cd5803e48b20f97b14b090f2cae6f10dcd62cf0a`.
+Its paused-frame recreation, audio replacement and fullscreen/inline return
+case passed in the combined 46.585-second run; the adaptive case failed.
+Paused screenshots were inspected, including native 320×180 buffers, fitted
+1080×607 views and a retained 12-second paused bookmark. Evidence:
+`captures/adaptive-video-fix-clear-dialog-runtime.log` and
+`captures/runtime/adaptive-video/paused-frame-fix/`.
+
+The original local MPEG-TS diagnostic ends at a native 100 ms position before
+the first resolution switch, both with pause/resume and uninterrupted playback.
+The latter case failed in 28.375 seconds. It therefore does not verify adaptive
+surface sizing, and removing pause/resume did not resolve the early end.
+Evidence: `captures/adaptive-video-{canonical-baseline,continuous-warm}-runtime.log`
+and `captures/runtime/adaptive-video/continuous-warm-final/`. Desktop ffprobe
+decoding all 216 frames does not establish Android decoder compatibility.
+A revised diagnostic supplies explicit H.264 access-unit delimiters and a silent
+AAC track while retaining landscape/portrait/landscape changes. That diagnostic
+**failed in 37.198 seconds**: playback reached 18,048 ms, but the native player,
+model and buffer still reported the initial 320×180 dimensions. This differs
+from the early-end result; neither establishes a successful Android size switch.
+The decoder log reports a configured 320×240 maximum output envelope, while the
+fixture's portrait target is 180×320. That observation needs investigation; no
+unavoidable platform limit is inferred. Evidence: `captures/adaptive-video-av-runtime.log`,
+`captures/adaptive-video-av-decoder.log` and
+`captures/runtime/adaptive-video/av-final/`. Fixture SHA-256:
+`581c0dd0c5bb37cc03493847acd40a725aa7ef695b0bb73cf5669f10433aec14`.
+
+The reproducer is retained as an **opt-in unresolved diagnostic**, not a passing
+acceptance test. Invoke its instrumentation class with
+`-e adaptiveVideoDiagnostic true`; ordinary suite runs skip it explicitly.
+It requires real native player dimensions, SurfaceHolder buffer dimensions,
+fitted view geometry and both painted colors on the same player across every
+transition. It never injects size callbacks or swaps players to manufacture a
+result. Generate its original asset with
+`python3 scripts/generate-adaptive-video-fixture.py` (ffmpeg/ffprobe required).
+The test APK was rebuilt in 14 seconds; SHA-256
+`90c894b4c9b6087a85efa1f3103bf3dbc6b8d8a8c7616f8bca2e9bedfb1c8081`
+is the executed pre-opt-in diagnostic APK. The final opt-in gate is a test-only
+change. Adaptive media acceptance remains open, including physical codecs and
+matched iOS behavior.
+
+Startup caveats: a System UI ANR dialog invalidated both cases in the first
+43.883-second attempt. After clearing it, the paused regression passed on the
+same app. A later continuous check failed during application binding before its
+test method; retrying the already-running emulator reached the failed adaptive
+assertion above. These are preserved failures, not passing receipts. No Pixel,
+audible playback, matched iOS media runtime or signed upgrade was verified.
+Only the existing AVD was used. The last asset build began while the previous
+emulator was still shutting down; the final runtime started after Gradle stopped.
+At this checkpoint the emulator is stopped and reaped; Gradle is stopped after
+the final diagnostic compile. Signed 635 is unchanged.
+
 ## Paused-frame readiness follow-up — 2026-10-10
 
 The new native-video check waits for the fixture's gold/blue pixels in the actual

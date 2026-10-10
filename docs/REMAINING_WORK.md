@@ -29,6 +29,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native video now preserves VideoView's surface-size listener and mirrors its
+  dimensions after measurement. The changed app passed the paused recreation,
+  audio replacement and fullscreen-return regression. The MPEG-TS diagnostic
+  remains **unresolved and opt-in**: its revised H.264/AAC stream reaches the end
+  but the emulator reports only the initial dimensions. It is not counted as a
+  passing adaptive-video test. See `CONTENT_PREVIEW_LIFECYCLE.md` for exact
+  results, startup failures and fixture/code hashes. Physical and matched iOS
+  adaptive acceptance remain open; signed 635 is unchanged.
+
 - Paused embedded 3GPP captions now refresh through an independent bounded file
   reader, without starting playback. Seek/selection/player changes invalidate
   older reads, blank cue gaps clear the overlay, and unchanged tracks retain

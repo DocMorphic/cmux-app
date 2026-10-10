@@ -1,0 +1,30 @@
+{
+  "source": "Original generated gold/blue colors and silent AAC track; no third-party media.",
+  "generator": "scripts/generate-adaptive-video-fixture.py",
+  "sha256": "581c0dd0c5bb37cc03493847acd40a725aa7ef695b0bb73cf5669f10433aec14",
+  "frames": 216,
+  "transitions": [
+    {
+      "time": "0.000000",
+      "dimensions": [
+        320,
+        180
+      ]
+    },
+    {
+      "time": "6.000000",
+      "dimensions": [
+        180,
+        320
+      ]
+    },
+    {
+      "time": "12.000000",
+      "dimensions": [
+        320,
+        180
+      ]
+    }
+  ],
+  "scope": "Local non-seekable MPEG-TS diagnostic fixture for native dynamic video dimensions; no iOS format claim."
+}
