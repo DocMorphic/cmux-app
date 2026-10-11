@@ -99,15 +99,16 @@ internal fun NativeManagedComputerRows(rows: List<NativeComputerListRow>, appear
 }
 
 @Composable
-internal fun NativeLegacyComputerDetails(row: NativeComputerListRow, onBack: () -> Unit, onReconnect: () -> Unit) {
+internal fun NativeLegacyComputerDetails(row: NativeComputerListRow, onBack: () -> Unit,
+    backLabel: String = "‹  Computers", canReconnect: Boolean = true, onReconnect: () -> Unit) {
     BackHandler(onBack = onBack)
     Column(Modifier.fillMaxSize().padding(22.dp)) {
-        TextButton(onClick = onBack) { Text("‹  Computers") }
+        TextButton(onClick = onBack) { Text(backLabel) }
         Text(row.name, style = MaterialTheme.typography.headlineSmall)
         Text("Legacy TCP pairing", Modifier.padding(vertical = 12.dp))
         Text(row.route.endpoint ?: "No saved endpoint")
         Text("Reconnect to this computer to use its connection controls in Settings.", Modifier.padding(vertical = 12.dp))
-        Button(onClick = onReconnect) { Text("Reconnect") }
+        Button(onClick = onReconnect, enabled = canReconnect) { Text("Reconnect") }
     }
 }
 

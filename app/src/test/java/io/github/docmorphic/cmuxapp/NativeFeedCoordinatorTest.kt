@@ -13,6 +13,27 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun verifiedTransportPublishesPerHostAndClearsOnDisconnectAndPause() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            val coordinator = NativeFeedCoordinator(this, {
+                if (it.deviceId == "a") a.connectWithTransport(MobileConnectionTransport.TAILSCALE)
+                else b.connectWithTransport(MobileConnectionTransport.IROH)
+            }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                assertEquals(MobileConnectionTransport.TAILSCALE, coordinator.sources.value[mac("a").origin]?.connectionTransport)
+                assertEquals(MobileConnectionTransport.IROH, coordinator.sources.value[mac("b").origin]?.connectionTransport)
+                a.disconnect()
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.OFFLINE }
+                assertNull(coordinator.sources.value[mac("a").origin]?.connectionTransport)
+                assertEquals(MobileConnectionTransport.IROH, coordinator.sources.value[mac("b").origin]?.connectionTransport)
+                coordinator.pause()
+                assertTrue(coordinator.sources.value.values.all { it.availability == NativeFeedAvailability.OFFLINE && it.connectionTransport == null })
+            } finally { coordinator.close() }
+        } }
+    }
+
     @Test fun taskModelDiscoveryBorrowsExactWireAndOptionalRejectionDoesNotChangeHostHealth() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             var allowed = setOf("a", "b"); var connections = 0
@@ -1306,6 +1327,14 @@ private class FeedPeer(private val id: String) : AutoCloseable {
         }.apply { isDaemon = true; start() }
     }
     suspend fun connect() = MobileRpcClient(PairingCode.Route("127.0.0.1", server.localPort), { "fixture" }, ticket).also { it.connect() }
+    suspend fun connectWithTransport(kind: MobileConnectionTransport) = MobileRpcClient(
+        SocketMobileRpcTransport(PairingCode.Route("127.0.0.1", server.localPort), javax.net.SocketFactory.getDefault(),
+            object : MobileSocketAuthority {
+                override val connectionTransport = kind
+                override fun start(onInvalidated: () -> Unit) {}
+                override fun validate(socket: Socket?) {}
+                override fun close() {}
+            }), { "fixture" }, ticket).also { it.connect() }
     private fun serve(socket: Socket) {
         try { socket.use {
             val input = socket.getInputStream()

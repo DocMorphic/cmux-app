@@ -1,5 +1,24 @@
 # Workspace display and scrollback settings
 
+## Settings connected computers — 2026-10-12
+
+Settings now has one row per current connected Mac app instance, its actual
+opened Iroh/Tailscale method and the existing Computer Details action. Sibling
+builds remain distinct; raw sockets/unknown methods are not relabeled. Metadata
+follows wire/attach-ticket leases and is cleared on disconnect/reconnect/pause.
+All Computers remains available offline. Dispatch rechecks current account/team,
+pairing and allowed route; cached actions recheck membership/component lifetime.
+Narrow or large-text rows place the method below the name.
+
+All 95 focused JVM cases passed. The initial and final debug/test builds succeeded
+(2m59s, 42s); all three distinct Android cases passed in each run (27.083s, 26.33s),
+including stale actions, actual font-scale-2 layout, and Settings → legacy Details
+→ Settings → live terminal input with pairing/client preservation. Screenshot
+inspection prompted the responsive correction and stronger placement assertion.
+No crash/ANR records; timeout restored, sole AVD stopped/reaped. Signed 650/global
+pin unchanged. Physical native Details/push, matched iOS and TalkBack remain open.
+See [SETTINGS_CONNECTIONS.md](SETTINGS_CONNECTIONS.md) for exact scope and hashes.
+
 ## Setup reference — 2026-10-12
 
 Settings now includes the iOS **Set Up Computer** reference entry before

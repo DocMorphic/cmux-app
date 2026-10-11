@@ -69,4 +69,23 @@ class NativeComputerConnectionTest {
         val duplicate = mac.copy(code = "another-code")
         assertTrue(nativeComputerConnections(listOf(mac, duplicate), emptyMap(), mac.code, null, emptyList()).isEmpty())
     }
+
+    @Test fun foregroundTransportComesFromItsWireAndNeverFromTheBackgroundPreference() {
+        val source = NativeFeedSource(mac, availability = NativeFeedAvailability.CONNECTED,
+            connectionTransport = MobileConnectionTransport.IROH)
+        assertEquals(MobileConnectionTransport.IROH, project(source).transport)
+        val foreground = nativeComputerConnections(listOf(mac), mapOf(mac.origin to source), mac.code, null,
+            emptyList(), MobileConnectionTransport.TAILSCALE).getValue(identity)
+        assertEquals(MobileConnectionTransport.TAILSCALE, foreground.transport)
+        assertNull(project(source, active = mac.code).transport)
+    }
+
+    @Test fun disconnectedOrUnmatchedSnapshotsCannotRetainAConnectedTransportLabel() {
+        val source = NativeFeedSource(mac, availability = NativeFeedAvailability.OFFLINE,
+            connectionTransport = MobileConnectionTransport.IROH)
+        assertNull(project(source).transport)
+        assertNull(project(source, pending = mac.code).transport)
+        assertNull(project(source.copy(mac = mac.copy(code = "replacement"),
+            availability = NativeFeedAvailability.CONNECTED)).transport)
+    }
 }

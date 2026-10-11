@@ -126,6 +126,8 @@ class MobileRpcClient internal constructor(
     internal fun retire() = failConnection(EOFException("Computer access or account session changed"))
 
     internal val compatibilityWire: MobileRpcClient get() = delegate?.compatibilityWire ?: this
+    internal val connectionTransport: MobileConnectionTransport? get() =
+        if (isClosed) null else delegate?.connectionTransport ?: transport.connectionTransport
     internal fun retireForCompatibility(reason: java.io.IOException) = compatibilityWire.failConnection(reason)
 
     internal suspend fun transportDiagnostics(): MobileTransportDiagnostics? {

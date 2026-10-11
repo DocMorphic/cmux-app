@@ -712,9 +712,9 @@ internal fun NativeScreen(
             (selectedCloudId == null && selectedSshComputer == null && (selectedComputer == null || selectedComputer.code == connectedCode))
         val canCreateInCurrentPane = connectionReady && client != null && connectedCode == code
         val computerConnections = nativeComputerConnections(pairedMacs, feedSources,
-            activeCode = connectedCode.takeIf { connectionReady && client != null && it == code },
+            activeCode = connectedCode.takeIf { connectionReady && client?.isClosed == false && it == code },
             pendingCode = code.takeIf { signedIn && it.isNotBlank() && !connectionReady && busy },
-            foregroundWorkspaces = workspaces)
+            foregroundWorkspaces = workspaces, foregroundTransport = client?.connectionTransport)
         NativeSavedComputerDetailsHost(sharedConnections?.native, computerState, computerDetails,
             computerConnections, forgetCallbacks, store, connection, feedCoordinator) { computerDetails = null }
         // Separate feed/terminal/route setup from account and computer state.
@@ -2600,6 +2600,27 @@ internal fun NativeScreen(
                     }
                 }
                 val settingsContent: @Composable ColumnScope.() -> Unit = {
+                    val settingsOwner = NativeComputerMenuOwner(browserLogin, teamState.scope)
+                    val settingsRows = nativeSettingsConnectionRows(pairedMacs, computerConnections)
+                    var legacyOrigin by rememberSaveable(settingsOwner) { mutableStateOf<String?>(null) }
+                    val legacy = legacyOrigin?.let { origin ->
+                        pairedMacs.singleOrNull { it.origin == origin }?.let { mac ->
+                            NativeComputerList.rows(listOf(mac), appearances, scopedPresence, lastSeenHistory,
+                                computerPreferences, currentDirectory, tailscaleRouteLabels).singleOrNull()
+                        }
+                    }
+                    fun currentSettingsMac(mac: NativeCredentialStore.PairedMac) = account.isSignedIn() &&
+                        store.taskSession() == settingsOwner.login && accountTeams.state.value.scope == settingsOwner.team &&
+                        NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac)
+                    if (legacy != null) NativeLegacyComputerDetails(legacy, { legacyOrigin = null }, onReconnect = {
+                        if (currentSettingsMac(legacy.mac)) {
+                            legacyOrigin = null; showSettings = false
+                            val alreadyConnected = connectionReady && connectedCode == legacy.mac.code && client?.isClosed == false
+                            val sameAttempt = code == legacy.mac.code
+                            selectPickerComputer(legacy.mac)
+                            if (!alreadyConnected) { expectedReconnect = legacy.mac; if (sameAttempt) retry++ }
+                        }
+                    }, backLabel = "‹  Settings", canReconnect = currentSettingsMac(legacy.mac)) else {
                     NativeSettingsLayout(onBack = { showSettings = false }, account = {
                     NativeAccountTeamSection(teamState, onRefresh = {
                         scope.launch {
@@ -2633,12 +2654,18 @@ internal fun NativeScreen(
                         modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.whatsnew")) { Text("What's New") }
                     })
                     }, computers = {
-                    Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() }, color = nativeMuted, fontSize = 11.sp)
-                    TextButton(onClick = ::presentComputers, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.computers")) {
-                        Text("All Computers")
-                    }
-                    Text("${pairedMacs.firstOrNull { it.code == code }?.let(appearances::name) ?: hostName} · ${if (client != null) "Connected" else "Disconnected"}",
-                        Modifier.padding(horizontal = 22.dp), color = nativeMuted, fontSize = 13.sp)
+                    NativeSettingsConnections(settingsOwner, settingsRows, appearances, onDetails = { mac ->
+                        if (currentSettingsMac(mac)) {
+                            val target = settingsOwner.team?.let { NativeComputerTarget.from(mac, it) }
+                            if (target != null && sharedConnections != null) {
+                                if (computerState.account == settingsOwner.team)
+                                    computerDetails = NativeComputerDetailsPresentation(checkNotNull(settingsOwner.team), target, machineColorIndices[mac.colorIdentity])
+                                else error = "Computer settings are still loading. Try again."
+                            } else legacyOrigin = mac.origin
+                        }
+                    }, onComputers = ::presentComputers,
+                        fallbackName = hostName.takeIf { connectionReady && connectedCode == code && client?.isClosed == false },
+                        fallbackTransport = client?.connectionTransport)
                     if (code.isNotBlank() && (PairingCodeParser.parse(code).getOrNull() !is PairingCode.Iroh ||
                         pairedMacs.none { it.code == code && computerState.account?.let { team -> NativeComputerTarget.from(it, team) } != null })) TextButton(onClick = {
                         runCatching {
@@ -2698,14 +2725,15 @@ internal fun NativeScreen(
                     NativeAboutSettings(session = {
                         val current = accountTeams.state.value
                         val connected = connectionReady && connectedCode == code && client?.isClosed == false
-                        val route = if (connected) when (PairingCodeParser.parse(code).getOrNull()) {
-                            is PairingCode.Iroh -> "iroh"
-                            is PairingCode.Tailscale -> "tailscale"
+                        val route = if (connected) when (client?.connectionTransport) {
+                            MobileConnectionTransport.IROH -> "iroh"
+                            MobileConnectionTransport.TAILSCALE -> "tailscale"
                             null -> null
                         } else null
                         NativeSupportSession(current.userId, current.selectedTeamId, connected, route)
                     })
                     })
+                    }
                 }
                 val taskComposerContent: @Composable ColumnScope.() -> Unit = {
                     val repository = taskDraftRepository

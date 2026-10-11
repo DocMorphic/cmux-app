@@ -85,7 +85,7 @@ internal class NativeFeedCoordinator(
             val handle = Handle(mac, revisions.getOrPut(origin) { NativeFeedRevision() }, routeKey(mac))
             handles[origin] = handle
             publish(handle, (mutableSources.value[origin] ?: NativeFeedSource(mac))
-                .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null, keepAwake = null, changes = emptyMap()))
+                .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null, keepAwake = null, changes = emptyMap(), connectionTransport = null))
             handle.job = scope.launch { monitor(handle) }
         }
     }
@@ -114,7 +114,7 @@ internal class NativeFeedCoordinator(
 
     fun pause() {
         handles.keys.toList().forEach(::remove)
-        mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE, keepAwake = null, changes = emptyMap(),
+        mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE, keepAwake = null, changes = emptyMap(), connectionTransport = null,
             agentFeed = source.agentFeed.copy(loading = false, pending = emptySet())) }
     }
     override fun close() { pause(); mutableSources.value = emptyMap(); revisions.clear() }
@@ -208,7 +208,7 @@ internal class NativeFeedCoordinator(
                 }.orEmpty()
                 handle.capabilities = capabilities
                 publish(handle, (mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac))
-                    .copy(capabilities = capabilities, keepAwake = null, macMutationTicket = active.macMutationTicket()))
+                    .copy(capabilities = capabilities, keepAwake = null, macMutationTicket = active.macMutationTicket(), connectionTransport = active.connectionTransport))
                 val client = active
                 coroutineScope {
                     client.macMutationTicket()?.expiresAtMillis?.let { expiry -> launch {
@@ -291,7 +291,7 @@ internal class NativeFeedCoordinator(
                 if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
-                    error = failure.message ?: "Computer unavailable", keepAwake = null, changes = emptyMap(),
+                    error = failure.message ?: "Computer unavailable", keepAwake = null, changes = emptyMap(), connectionTransport = null,
                     agentFeed = if (NativePanelCachePolicy.retains(failure)) source.agentFeed.copy(loading = false, pending = emptySet())
                         else NativeAgentFeedState(error = "Feed access is no longer authorized"),
                     panelCacheToken = source.panelCacheToken.takeIf { NativePanelCachePolicy.retains(failure) }))

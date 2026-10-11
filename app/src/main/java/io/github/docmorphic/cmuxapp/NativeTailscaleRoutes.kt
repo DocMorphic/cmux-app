@@ -23,6 +23,7 @@ internal class NativeTailscaleRoutes(private val context: Context, store: Native
 internal class TailscaleCandidateTransport(private val routes: List<PairingCode.Route>,
     private val permits: () -> Boolean,
     private val create: suspend (PairingCode.Route, () -> Boolean) -> MobileRpcTransport) : MobileRpcTransport {
+    override val connectionTransport = MobileConnectionTransport.TAILSCALE
     private val lock = Any()
     private val connecting = Mutex()
     private var candidate: MobileRpcTransport? = null

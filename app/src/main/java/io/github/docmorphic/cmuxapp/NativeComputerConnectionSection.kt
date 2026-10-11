@@ -24,6 +24,12 @@ internal fun NativeComputerConnectionSection(connection: NativeComputerConnectio
             Text("Role", Modifier.weight(1f))
             Text("Active (foreground)")
         }
+        connection.transport?.takeIf { connection.availability == NativeFeedAvailability.CONNECTED }?.let {
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text("Active Transport", Modifier.weight(1f))
+                Text(it.label)
+            }
+        }
         Row(Modifier.fillMaxWidth().padding(top = 12.dp)) {
             Text("Workspaces", Modifier.weight(1f))
             Text(connection.workspaceCount?.toString() ?: "—")

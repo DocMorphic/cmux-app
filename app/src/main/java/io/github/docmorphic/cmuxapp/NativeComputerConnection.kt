@@ -4,7 +4,8 @@ internal data class NativeComputerConnection(
     val availability: NativeFeedAvailability = NativeFeedAvailability.OFFLINE,
     val foreground: Boolean = false,
     val workspaceCount: Int? = null,
-    val keepAwake: Boolean? = null
+    val keepAwake: Boolean? = null,
+    val transport: MobileConnectionTransport? = null
 ) {
     val phrase get() = when (availability) {
         NativeFeedAvailability.CONNECTED -> "Connected"
@@ -18,7 +19,8 @@ internal data class NativeComputerConnection(
  */
 internal fun nativeComputerConnections(
     allowed: List<NativeCredentialStore.PairedMac>, sources: Map<String, NativeFeedSource>,
-    activeCode: String?, pendingCode: String?, foregroundWorkspaces: List<NativeWorkspace>
+    activeCode: String?, pendingCode: String?, foregroundWorkspaces: List<NativeWorkspace>,
+    foregroundTransport: MobileConnectionTransport? = null
 ): Map<NativeMacIdentity, NativeComputerConnection> = allowed
     .groupBy { NativeMacIdentity(it.deviceId, it.instanceTag) }
     .mapNotNull { (identity, candidates) ->
@@ -38,5 +40,10 @@ internal fun nativeComputerConnections(
         val keepAwake = source?.keepAwake?.takeIf {
             source.availability == NativeFeedAvailability.CONNECTED && "caffeine.control.v1" in source.capabilities
         }
-        identity to NativeComputerConnection(availability, foreground, count, keepAwake)
+        val transport = when {
+            availability != NativeFeedAvailability.CONNECTED -> null
+            foreground -> foregroundTransport
+            else -> source?.connectionTransport
+        }
+        identity to NativeComputerConnection(availability, foreground, count, keepAwake, transport)
     }.toMap()

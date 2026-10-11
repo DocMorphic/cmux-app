@@ -8,7 +8,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
 
-internal class PoolTestTransport : MobileRpcTransport {
+internal class PoolTestTransport(override val connectionTransport: MobileConnectionTransport? = null) : MobileRpcTransport {
     val incoming = Channel<ByteArray>(16)
     val sent = Channel<JSONObject>(16)
     val connects = AtomicInteger()
@@ -27,6 +27,25 @@ internal class PoolTestTransport : MobileRpcTransport {
 }
 
 class MobileRpcConnectionsTest {
+    @Test fun transportIdentitySurvivesSharedLeasesAndTicketViewsWithoutAnotherDial() = runBlocking<Unit> {
+        val wire = PoolTestTransport(MobileConnectionTransport.IROH)
+        MobileRpcConnections().use { pool ->
+            val first = pool.acquire("mac", { true }) { MobileRpcClient(wire, { "fixture" }) }
+            val second = pool.acquire("mac", { true }) { error("Must share the same wire") }
+            val ticket = first.withAttachTicket(MobileAttachTicketContext("", null, "fixture-ticket", null)) {}
+            assertEquals(MobileConnectionTransport.IROH, second.connectionTransport)
+            assertEquals(MobileConnectionTransport.IROH, ticket.connectionTransport)
+            assertEquals(1, wire.connects.get())
+            ticket.close()
+            assertNull(ticket.connectionTransport)
+            assertEquals(MobileConnectionTransport.IROH, second.connectionTransport)
+            assertEquals(0, wire.closes.get())
+            pool.retain(emptySet())
+            assertNull(second.connectionTransport)
+            second.close()
+        }
+    }
+
     @Test fun slowMacAdmissionDoesNotDelayOtherMacs() = runBlocking<Unit> {
         val slow = PoolTestTransport().apply { gate = CompletableDeferred() }
         val healthy = PoolTestTransport()

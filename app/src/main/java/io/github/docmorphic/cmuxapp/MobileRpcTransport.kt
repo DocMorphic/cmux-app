@@ -10,9 +10,12 @@ import java.net.Socket
 import javax.net.SocketFactory
 
 internal enum class MobileRpcAuthorization { ACCOUNT_BEARER, TRANSPORT_ADMISSION }
+internal enum class MobileConnectionTransport(val label: String) { IROH("Iroh"), TAILSCALE("Tailscale") }
 
 /** One connection incarnation. Independent events are complete, unframed JSON payloads. */
 internal interface MobileRpcTransport : AutoCloseable {
+    /** Display metadata only. A configured preference or raw socket is not transport identity. */
+    val connectionTransport: MobileConnectionTransport? get() = null
     val rpcAuthorization: MobileRpcAuthorization get() = MobileRpcAuthorization.ACCOUNT_BEARER
     /** Available only on an admitted, connected numeric Tailscale candidate. */
     fun tailscalePeer(): PairingCode.Route? = null
@@ -45,6 +48,7 @@ internal sealed interface MobileControlRepair {
 
 /** Legacy TCP remains available for existing hosts and protocol fixtures. */
 internal interface MobileSocketAuthority : AutoCloseable {
+    val connectionTransport: MobileConnectionTransport? get() = null
     fun diagnostics(socket: Socket): MobileTransportDiagnostics? = null
     fun start(onInvalidated: () -> Unit)
     fun validate(socket: Socket? = null)
@@ -53,6 +57,7 @@ internal interface MobileSocketAuthority : AutoCloseable {
 internal class SocketMobileRpcTransport(private val route: PairingCode.Route,
                                        private val factory: SocketFactory,
                                        private val authority: MobileSocketAuthority? = null) : MobileRpcTransport {
+    override val connectionTransport get() = authority?.connectionTransport
     private val lock = Any()
     private val connecting = Mutex()
     private var socket: Socket? = null

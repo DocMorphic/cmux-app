@@ -117,6 +117,32 @@ class NativeFlowTest {
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
     }
 
+    @Test fun settingsConnectedMacDetailsReturnPreservesPairingAndTerminalInput() {
+        val clients = CopyOnWriteArrayList<MobileRpcClient>()
+        peer.notificationFeed = searchNotifications()
+        showSearchFixture(onClient = { clients += it })
+        val before = NativeCredentialStore(context).load()?.optString("pairing_code")
+        val connections = clients.size
+        assertTrue(connections > 0)
+        compose.onNodeWithContentDescription("cmux settings").performClick()
+        compose.onNodeWithTag("settings.connection:fixture-mac:").performScrollTo().performClick()
+        compose.onNodeWithText("Legacy TCP pairing").assertIsDisplayed()
+        screenshot("settings-connected-mac-details")
+        compose.onNodeWithText("‹  Settings").performClick()
+        compose.onNodeWithTag("settings.connection:fixture-mac:").assertExists()
+        compose.onNodeWithTag("settings.done").performClick()
+        assertEquals(connections, clients.size)
+        assertTrue(clients.none { it.isClosed })
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.onNodeWithTag("native.composer").performTextInput("settings-details-input")
+        compose.onNodeWithContentDescription("Send").performClick()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" &&
+            it.optJSONObject("params")?.optString("text")?.contains("settings-details-input") == true } }
+        assertEquals(before, NativeCredentialStore(context).load()?.optString("pairing_code"))
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
     @Test fun unsupportedGroupLongPressDoesNotLeaveAnInvisibleMenuBlockingNormalTap() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()

@@ -69,6 +69,7 @@ private class AndroidTailscaleAuthority(
     private val manager: ConnectivityManager,
     private val permits: () -> Boolean
 ) : MobileSocketAuthority {
+    override val connectionTransport = MobileConnectionTransport.TAILSCALE
     val observations = TailscaleObservations()
     private val lock = Any()
     private val networks = mutableMapOf<Long, Network>()
