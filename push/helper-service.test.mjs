@@ -16,6 +16,7 @@ const desc = (id, byte) => ({ version: 1, algorithm: 'rawX25519', installationID
 const native = desc('native', 1), helper = desc('helper', 2), phone = desc('phone', 3);
 const key = Buffer.alloc(32, 41), sessionID = '00000000-0000-4000-8000-000000000010';
 const hostMessage = () => ({ type: 'host', snapshot: { state: 'ready', epoch: 'fixture-epoch', observedAt: time, validUntil: time + 30_000,
+  trustedPhones: [{ phoneBuildID: 'android.fixture', installationID: phone.installationID, keyID: phone.keyID, publicKey: phone.publicKey }],
   authority: { accountID: 'fixture-account', teamID: null, macDeviceID: 'fixture-mac', macInstanceTag: 'stable', macBuildID: 'fixture-build' },
   settings: { forwardingEnabled: true, mode: 'always', admission: 'allowed', hideContent: false } } });
 const capture = () => ({ type: 'capture', request: { sourceEpoch: 'fixture-epoch', expiresAt: time + 120_000, phoneEligible: true,
@@ -153,14 +154,34 @@ test('helper enrollment requires a freshly observed native phone pin', async t =
     proof: hmac(Buffer.from(offer.secret, 'base64url'), 'cmux-app.helper.begin.v1', [digest, requestDigest]) });
   assert.equal(reply.status, 403, 'Owner offer possession alone must not replace the native phone pin');
 });
-test('loss of native phone trust during OAuth prevents provider contact', async t => {
-  let enter, release;
-  const entered = new Promise(r => { enter = r; }), waiting = new Promise(r => { release = r; });
-  const f = fixture(t, { tokens: { get: async () => { enter(); await waiting; return 'fixture-oauth'; }, invalidate() {} } });
-  t.after(() => release());
-  const endpoint = await f.start(); await enroll(f, endpoint); await f.send(capture()); await entered;
-  const unavailable = hostMessage(); delete unavailable.snapshot.trustedPhones; await f.send(unavailable);
-  release(); await new Promise(r => setTimeout(r, 25)); assert.equal(f.sent.length, 0);
+for (const change of ['unavailable', 'removed', 'rotated-public-key', 'rotated-key-id', 'changed-build']) {
+  test(change === 'unavailable' ? 'loss of native phone trust during OAuth prevents provider contact' :
+    `native phone ${change} during OAuth prevents provider contact`, async t => {
+    let enter, release;
+    const entered = new Promise(r => { enter = r; }), waiting = new Promise(r => { release = r; });
+    const f = fixture(t, { tokens: { get: async () => { enter(); await waiting; return 'fixture-oauth'; }, invalidate() {} } });
+    try {
+      const endpoint = await f.start(); await enroll(f, endpoint); await f.send(capture()); await entered;
+      const next = hostMessage();
+      if (change === 'unavailable') delete next.snapshot.trustedPhones;
+      else if (change === 'removed') next.snapshot.trustedPhones = [];
+      else if (change === 'rotated-public-key') next.snapshot.trustedPhones[0].publicKey = Buffer.alloc(32, 9).toString('base64');
+      else if (change === 'rotated-key-id') next.snapshot.trustedPhones[0].keyID = 'replacement-key';
+      else next.snapshot.trustedPhones[0].phoneBuildID = 'other-build';
+      await f.send(next); release(); await new Promise(r => setTimeout(r, 25)); assert.equal(f.sent.length, 0);
+    } finally { release(); }
+  });
+}
+test('native phone removal rejects enrollment retries and renewal but permits authenticated cleanup', async t => {
+  const f = fixture(t), endpoint = await f.start(), { offer, finish, ack } = await enroll(f, endpoint);
+  const next = hostMessage(); next.snapshot.trustedPhones = []; await f.send(next);
+  assert.equal((await post(endpoint, 'finish', finish)).status, 403);
+  const recipient = { installationID: phone.installationID, keyID: phone.keyID, senderKeyID: helper.keyID,
+    tuple: { ...offer.mac, iosBuildID: offer.phoneBuildID, iosInstallationID: phone.installationID } };
+  const request = { requestID: '00000000-0000-4000-8000-000000000030', registration: ack.body.registration,
+    recipient, action: 'renew', token: 'replacement-fixture-token' };
+  assert.equal((await post(endpoint, 'maintain.begin', request)).status, 403);
+  assert.equal((await post(endpoint, 'maintain.begin', { ...request, action: 'revoke', token: null })).status, 200);
 });
 test('stop fences admission and waits for existing encryption before returning', async t => {
   let enter, release;

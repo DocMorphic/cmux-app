@@ -66,7 +66,7 @@ export class PushEnrollment {
   #admitted(row) {
     need(!this.#closed && this.#offers.get(row.offer.offerID) === row && this.#now() < row.offer.expiresAt);
     // A promise/truthy value is not authorization; the host policy must be a current synchronous decision.
-    need(this.#permits(publicOffer(row.offer)) === true);
+    need(this.#permits(publicOffer(row.offer), row.phone ? clone(row.phone) : undefined) === true);
   }
   issue(input, lifetime = 120_000) {
     this.#prune(); need(!this.#closed && this.#offers.size < this.#capacity && Number.isSafeInteger(lifetime) && lifetime >= 1000 && lifetime <= 300_000);
@@ -86,6 +86,7 @@ export class PushEnrollment {
     const previous = this.#registrations.recipients({ accountID: tuple.accountID, teamID: tuple.teamID })
       .find(r => r.recipient.tuple.iosBuildID === tuple.iosBuildID && r.recipient.tuple.iosInstallationID === tuple.iosInstallationID &&
         r.recipient.tuple.macDeviceID === tuple.macDeviceID && r.recipient.tuple.macInstanceTag === tuple.macInstanceTag && r.recipient.tuple.macBuildID === tuple.macBuildID);
+    row.phone = clone(body.phone); this.#admitted(row);
     row.requestDigest = digest; row.requestID = body.requestID; row.challenge = randomBytes(32);
     row.enrollment = { token: body.token, recipient, publicKey: body.phone.publicKey };
     row.expectedGeneration = previous?.registration.generation ?? null;

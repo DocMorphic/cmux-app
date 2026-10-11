@@ -8,6 +8,7 @@ import tempfile
 
 REF = "f4b1509054949eaad5d695569ad443c4c18ed68d"
 PINS = {
+    "Sources/Mobile/MobileHostService+PhonePushKeyExchange.swift": "09a9804a0176f1dc31f64fb7944fb99473ed1470542a519cd8ac3b14df5062cf",
     "Sources/Cloud/PhonePushClient.swift": "e895f51016156d18f11d4aa7d8b721252ff6759a80552b277ae3a7b45596c3df",
     "Sources/Auth/MacAuthComposition.swift": "71184d168ad431dd0867a7efb64f6ea61b2fd66b8c3fcf6b9c3ee1ae6be10d57",
     "cmux.xcodeproj/project.pbxproj": "78898acbeb053763c315c44b6dfe43fb6ff51da3cba0a073958b2192976f5a50",
@@ -74,12 +75,37 @@ HELPERS = '''    /// Used by the native auth owner before its first transition a
         nativePushLastSettings = next
         return next
     }
+    func refreshAndroidPushTrust() { publishAndroidPushHost() }
+    private func nativePushTrustedPhones(_ identity: NativePushSourceMessages.Identity?,
+        storage suppliedStorage: (any PhonePushSharedStateStorage)? = nil) throws
+        -> [NativePushSourceMessages.TrustedPhone] {
+        guard let identity else { return [] }
+        let storage = suppliedStorage ?? Bundle.main.phonePushSharedStateStorage
+        // Audited PhonePushPeerKeyStore v2 namespace; contains public descriptors.
+        let prefix = "cmux.phone-push.peer.v2."
+        let keys = storage.keys(withPrefix: prefix).filter { $0 != prefix + "registry" }.sorted()
+        guard keys.count <= 128 else { throw NativePushSourceMessages.Failure.invalidInput }
+        let rows = keys.compactMap { key -> (tuple: Data, descriptor: Data)? in
+            guard let tuple = Data(base64Encoded: String(key.dropFirst(prefix.count))),
+                  let descriptor = storage.data(forKey: key) else { return nil }
+            return (tuple, descriptor)
+        }
+        let phones = try NativePushSourceMessages.trustedPhones(rows: rows, identity: identity)
+        if let previous = nativePushLastTrustedPhones, previous != phones {
+            // A changed pin fences the old helper before provider IO can await
+            // a queued control frame. Original captures remain durable.
+            nativePushSource?.invalidate()
+        }
+        nativePushLastTrustedPhones = phones
+        return phones
+    }
     private func publishAndroidPushHost() {
         guard let nativePushSource else { return }
         let (identity, signedOut) = nativePushContext()
         do {
             let message = try nativePushMessages.host(identity: identity, confirmedSignedOut: signedOut,
-                settings: nativePushSettings(), nowEpochSeconds: clock.nowEpochSeconds)
+                settings: nativePushSettings(), nowEpochSeconds: clock.nowEpochSeconds,
+                trustedPhones: try nativePushTrustedPhones(identity))
             if !nativePushSource.offer([message], scope: identity.map { nativePushScope($0) }) { nativePushSource.invalidate() }
         } catch { nativePushSource.invalidate() }
     }
@@ -91,7 +117,8 @@ HELPERS = '''    /// Used by the native auth owner before its first transition a
         }
         do {
             let messages = try nativePushMessages.capture(payload, identity: identity,
-                settings: nativePushSettings(), nowEpochSeconds: clock.nowEpochSeconds)
+                settings: nativePushSettings(), nowEpochSeconds: clock.nowEpochSeconds,
+                trustedPhones: try nativePushTrustedPhones(identity))
             if !nativePushSource.offer(messages, scope: nativePushScope(identity)) { nativePushSource.invalidate() }
         } catch { nativePushSource.invalidate() }
     }
@@ -109,13 +136,14 @@ def patched_sources(original):
         "    private var nativePushSource: (any NativePushSourceSink)?\n"
         "    private let nativePushMessages = NativePushSourceMessages()\n"
         "    private var nativePushLastSettings: NativePushSourceMessages.Settings?\n"
+        "    private var nativePushLastTrustedPhones: [NativePushSourceMessages.TrustedPhone]?\n"
         "    private var nativePushAuthBootstrapped = false\n"
         "    private var nativePushLifecycleTask: Task<Void, Never>?\n"
         "    private var nativePushHeartbeatTask: Task<Void, Never>?\n")
     source = once(source, "    func configure(auth: AuthCoordinator) {\n        self.auth = auth\n",
         "    func configure(auth: AuthCoordinator, nativePushSource: (any NativePushSourceSink)? = nil) {\n"
         "        invalidateAndroidPushSource()\n        nativePushLifecycleTask?.cancel()\n"
-        "        nativePushHeartbeatTask?.cancel()\n        nativePushLastSettings = nil\n"
+        "        nativePushHeartbeatTask?.cancel()\n        nativePushLastSettings = nil\n        nativePushLastTrustedPhones = nil\n"
         "        nativePushAuthBootstrapped = false\n        self.nativePushSource = nativePushSource\n        self.auth = auth\n")
     marker = "            await self.bootstrapQueueAndObserve(auth: auth)\n        }\n    }\n"
     source = once(source, marker, marker[:-6] + '''        if nativePushSource != nil {
@@ -172,6 +200,11 @@ def patched_sources(original):
     }
 
 ''' + marker)
+    result[path] = source.encode()
+    path = "Sources/Mobile/MobileHostService+PhonePushKeyExchange.swift"
+    source = original[path].decode()
+    marker = "            let result = MobilePhonePushKeyExchangeResponse(\n"
+    source = once(source, marker, "            await MainActor.run { PhonePushClient.shared.refreshAndroidPushTrust() }\n\n" + marker)
     result[path] = source.encode()
     path = "Sources/Auth/MacAuthComposition.swift"
     source = original[path].decode()

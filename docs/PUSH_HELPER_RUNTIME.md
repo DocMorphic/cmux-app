@@ -1,5 +1,11 @@
 # Production push helper startup — 2026-10-11
 
+Current native phone pin integration extends the installer to **17 files / seven
+pins**. Enrollment/renewal/provider authorization require current native phone key
+trust; changed pins fence the old helper. See NATIVE_PUSH_TRUST.md for executed
+upstream-store/Swift/helper evidence and the remaining acceptance gates. Earlier
+checkpoint counts below describe their respective batches.
+
 The native source owner now integrates encrypted capture commit/receipt retirement
 and freshly verified scope recovery. Current installer: **16 files / six pins**.
 Encrypted source-context metadata survives the last receipt so helper work can

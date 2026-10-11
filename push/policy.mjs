@@ -14,6 +14,23 @@ export class PushHostUnavailable extends Error {
   constructor() { super('Push host state unavailable'); }
 }
 
+export function validNativePhones(phones) {
+  return Array.isArray(phones) && phones.length <= 128 && phones.every(p =>
+    exact(p, ['phoneBuildID', 'installationID', 'keyID', 'publicKey']) &&
+    ['phoneBuildID', 'installationID', 'keyID'].every(k => text(p[k]) && p[k].isWellFormed()) && key(p.publicKey)) &&
+    new Set(phones.map(p => JSON.stringify([p.phoneBuildID, p.installationID]))).size === phones.length;
+}
+
+/** The authenticated native owner projects pins for this account/Mac only.
+ * Absence is temporary unavailability; an explicit empty list is revocation. */
+export function nativePhoneTrusted(host, recipient, publicKey) {
+  if (host.state !== 'ready' || !hostMatchesRecipient(host, recipient)) return false;
+  if (!validNativePhones(host.trustedPhones)) throw new PushHostUnavailable();
+  return host.trustedPhones.some(p => p.phoneBuildID === recipient.tuple.iosBuildID &&
+    p.installationID === recipient.installationID && p.installationID === recipient.tuple.iosInstallationID &&
+    p.keyID === recipient.keyID && p.publicKey === publicKey);
+}
+
 /** The provider must independently authenticate this snapshot. No event/enrollment supplies host authority. */
 export function readPushHost(read, now = Date.now) {
   let host;

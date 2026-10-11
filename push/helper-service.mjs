@@ -11,7 +11,7 @@ import { PushMaintenance } from './maintenance.mjs';
 import { createPushEnrollmentServer } from './enrollment-http.mjs';
 import { NativePushSourceAdapter } from './native-source.mjs';
 import { NativePushSourceChannel } from './native-source-channel.mjs';
-import { readPushHost, hostMatchesRecipient } from './policy.mjs';
+import { readPushHost, hostMatchesRecipient, nativePhoneTrusted } from './policy.mjs';
 
 const text = value => typeof value === 'string' && value.length > 0 && value.length <= 1024 && !/[\u0000-\u001f]/.test(value);
 const descriptor = value => value && Object.keys(value).length === 5 && value.version === 1 && value.algorithm === 'rawX25519' &&
@@ -64,11 +64,13 @@ export class NativePushHelperService {
     if (!descriptor(value) || ['installationID', 'keyID', 'publicKey'].some(k => value[k] === this.#helper[k])) throw new PushHelperError();
     return value;
   }
-  #permitOffer(offer) {
+  #permitOffer(offer, phone) {
     try {
       const host = this.#host(), entry = this.#offers.get(offer.offerID);
       const epoch = entry?.epoch ?? this.#issuingEpoch;
-      return epoch === host.epoch && sameDescriptor(offer.native, this.#native()) && sameDescriptor(offer.helper, this.#helper) &&
+      return (!phone || nativePhoneTrusted(host, { installationID: phone.installationID, keyID: phone.keyID,
+          senderKeyID: this.#helper.keyID, tuple: { ...offer.mac, iosBuildID: offer.phoneBuildID, iosInstallationID: phone.installationID } }, phone.publicKey)) &&
+        epoch === host.epoch && sameDescriptor(offer.native, this.#native()) && sameDescriptor(offer.helper, this.#helper) &&
         fields.every(k => (offer.mac[k] ?? null) === (host.authority[k] ?? null)) &&
         offer.endpoint === this.#endpoint && offer.project.project === this.#project.project && offer.project.sender === this.#project.sender &&
         this.#clients.get(offer.phoneBuildID) === offer.project.application;
@@ -79,8 +81,10 @@ export class NativePushHelperService {
       const host = this.#host();
       // Phone-key possession and current native account authorize cleanup even
       // while forwarding is paused. Presence does not gate token maintenance.
+      const record = this.#registrations.maintenanceRegistration(binding.recipient, binding.registration);
       return hostMatchesRecipient(host, binding.recipient) &&
-        (action === 'revoke' || (action === 'renew' && this.#clients.has(binding.recipient.tuple.iosBuildID)));
+        (action === 'revoke' || (action === 'renew' && this.#clients.has(binding.recipient.tuple.iosBuildID) &&
+          record && nativePhoneTrusted(host, binding.recipient, record.publicKey)));
     } catch { return false; }
   }
   #encrypt = input => {
@@ -111,10 +115,11 @@ export class NativePushHelperService {
         this.#journal = new PushSourceJournal({ directory: join(this.#directory, 'source'), key: this.#keys.source, now: this.#now });
         const sender = new FcmSender({ projectId: this.#project.project, tokens: this.#tokens, fetch: this.#fetch, now: this.#now });
         this.#forwarder = new PushForwarder({ registrations: this.#registrations, outbox: this.#outbox, sender,
-          readHost: () => this.#state === 'running' ? this.#adapter?.readHost() : null, seal: this.#encrypt, now: this.#now });
+          readHost: () => this.#state === 'running' ? this.#adapter?.readHost() : null,
+          recipientTrusted: (recipient, publicKey, host) => nativePhoneTrusted(host, recipient, publicKey), seal: this.#encrypt, now: this.#now });
         this.#dispatcher = new PushSourceDispatcher({ journal: this.#journal, forwarder: this.#forwarder, now: this.#now });
         this.#enrollment = new PushEnrollment({ registrations: this.#registrations, seal: this.#encrypt, now: this.#now,
-          permits: offer => this.#permitOffer(offer) });
+          permits: (offer, phone) => this.#permitOffer(offer, phone) });
         // Initialized after the actual listener endpoint is known.
         const enrollment = { begin: body => this.#enrollment.begin(body), finish: body => {
           const receipt = this.#enrollment.finish(body); this.#dispatcher.changed(); return receipt;

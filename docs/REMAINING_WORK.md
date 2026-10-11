@@ -12,6 +12,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current checkpoint — 2026-10-11
 
+Native phone pin lifecycle is now integrated into authenticated host snapshots,
+helper enrollment/renewal and preparation/provider authorization. Changed native
+pins fence the old helper; missing projection retains original work, while explicit
+removal denies delivery. Regression `dd625cfa` reproduced enrollment and held-OAuth
+delivery without a current pin. The actual upstream peer store and injected Swift
+hook compile/execute with synthetic public pins; complete Node 22/26 runs pass
+188 of 189 checks with one existing optional reference-decryptor skip. Installer
+scope is now 17 changed files / seven audited originals. See NATIVE_PUSH_TRUST.md
+for exact evidence and remaining whole-app/Keychain/native-sender-key/Pixel gates.
+
 Signed Android integration milestone is running at source `d34daed53231997ffa68de63233357e6fe98d489`:
 https://github.com/DocMorphic/cmux-app/actions/runs/38169223650. Firebase configuration
 and the unchanged release signing secrets are supplied by the existing workflow.

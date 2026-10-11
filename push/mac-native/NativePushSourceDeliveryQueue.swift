@@ -234,7 +234,7 @@ final class NativePushSourceDeliveryQueue {
             return .init(body: body, revision: revision, observedAt: observed, validUntil: until,
                 binding: nil, forwarding: false, hideContent: true)
         }
-        guard snapshot.count == 6, snapshot["state"] as? String == "ready",
+        guard snapshot.count == (snapshot["trustedPhones"] == nil ? 6 : 7), snapshot["state"] as? String == "ready",
               let epoch = snapshot["epoch"] as? String, !epoch.isEmpty,
               let authority = snapshot["authority"] as? [String: Any], authority.count == 5,
               let account = authority["accountID"] as? String, !account.isEmpty,
@@ -248,6 +248,19 @@ final class NativePushSourceDeliveryQueue {
               let admission = settings["admission"] as? String,
               ["allowed", "forwarding_disabled", "suppressed_mac_active", "unknown"].contains(admission) else {
             throw Failure.invalidInput
+        }
+        if let supplied = snapshot["trustedPhones"] {
+            guard let phones = supplied as? [[String: Any]], phones.count <= 128 else { throw Failure.invalidInput }
+            var identities = Set<[String]>()
+            for phone in phones {
+                guard phone.count == 4, let label = phone["phoneBuildID"] as? String,
+                      let installation = phone["installationID"] as? String, let key = phone["keyID"] as? String,
+                      [label, installation, key].allSatisfy({ !$0.isEmpty && $0.utf16.count <= 1024 &&
+                          !$0.unicodeScalars.contains(where: { $0.value < 32 }) }),
+                      let encoded = phone["publicKey"] as? String, encoded.count == 44,
+                      let bytes = Data(base64Encoded: encoded), bytes.count == 32, bytes.base64EncodedString() == encoded,
+                      identities.insert([label, installation]).inserted else { throw Failure.invalidInput }
+            }
         }
         return .init(body: body, revision: revision, observedAt: observed, validUntil: until,
             binding: .init(epoch: epoch, account: account, team: authority["teamID"] as? String,

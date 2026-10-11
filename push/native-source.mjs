@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { readPushHost } from './policy.mjs';
+import { readPushHost, validNativePhones } from './policy.mjs';
 
 const MAX_BODY = 1_048_576;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -64,7 +64,9 @@ export class NativePushSourceAdapter {
     if (snapshot?.state === 'signed-out') {
       need(exact(snapshot, ['state', 'observedAt', 'validUntil'])); host = structuredClone(snapshot);
     } else {
-      need(exact(snapshot, ['state', 'epoch', 'observedAt', 'validUntil', 'authority', 'settings']) && snapshot.state === 'ready' &&
+      const fields = ['state', 'epoch', 'observedAt', 'validUntil', 'authority', 'settings'];
+      if (Object.hasOwn(snapshot ?? {}, 'trustedPhones')) fields.push('trustedPhones');
+      need(exact(snapshot, fields) && (!Object.hasOwn(snapshot, 'trustedPhones') || validNativePhones(snapshot.trustedPhones)) && snapshot.state === 'ready' &&
         exact(snapshot.authority, ['accountID', 'teamID', 'macDeviceID', 'macInstanceTag', 'macBuildID']) &&
         exact(snapshot.settings, ['forwardingEnabled', 'mode', 'admission', 'hideContent']));
       for (const field of ['accountID', 'macDeviceID', 'macInstanceTag', 'macBuildID']) need(text(snapshot.authority[field]));

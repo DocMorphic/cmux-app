@@ -23,6 +23,11 @@ fresh matching native authority can resume it. Nine real producer/helper recover
 cases pass on Node 22/26 and eight storage groups pass; actual Keychain/full Mac app/
 FCM/Pixel acceptance remain open. See [native capture storage](../docs/NATIVE_PUSH_CAPTURE_STORAGE.md).
 
+Native phone pin lifecycle is also integrated: the production helper requires the
+fresh native phone key for enrollment, renewal and delivery, including after OAuth.
+The actual upstream store/injected hook and both Node suites pass; whole-app/physical
+acceptance remains open. See [native phone trust](../docs/NATIVE_PUSH_TRUST.md).
+
 ## Composed native helper
 
 `NativePushHelperService` in `helper-service.mjs` assembles the private native
