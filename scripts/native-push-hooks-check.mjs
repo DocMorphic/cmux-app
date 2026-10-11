@@ -18,7 +18,9 @@ let sequence = 0;
 const send = body => adapter.accept(encodeNativePushFrame({ key, sessionID, sequence: ++sequence, body }));
 try {
   const first = cases.first.snapshot; assert.equal(send(cases.first).kind, 'state-updated');
-  assert.equal(first.authority.accountID, 'fixture-account'); assert.equal(first.authority.teamID, 'fixture-team');
+  // Official native key exchange, recipient lookup and encryption all bind
+  // teamID:null. Selected-team authority still changes the source epoch.
+  assert.equal(first.authority.accountID, 'fixture-account'); assert.equal(first.authority.teamID, null);
   assert.equal(first.validUntil, time + 30_000);
   for (const name of ['notify', 'dismiss']) {
     assert.equal(send(cases[name][0]).kind, 'state-updated'); assert.equal(send(cases[name][1]).kind, 'captured');
@@ -37,6 +39,7 @@ try {
   assert.equal(cases.recovered.snapshot.epoch, first.epoch); send(cases.recovered);
   send(cases.teamB); assert.notEqual(cases.teamB.snapshot.epoch, first.epoch);
   send(cases.teamA); assert.notEqual(cases.teamA.snapshot.epoch, first.epoch);
+  assert.equal(cases.teamB.snapshot.authority.teamID, null); assert.equal(cases.teamA.snapshot.authority.teamID, null);
   assert.notEqual(cases.teamA.snapshot.epoch, cases.teamB.snapshot.epoch);
   send(cases.signOut); assert.equal(adapter.readHost().state, 'signed-out');
   send(cases.afterSignOut); assert.notEqual(cases.afterSignOut.snapshot.epoch, cases.teamA.snapshot.epoch);
