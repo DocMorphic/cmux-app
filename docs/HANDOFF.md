@@ -2,6 +2,15 @@
 
 ## Current checkpoint — 2026-10-11
 
+The user selected **private Firebase plus a custom cmux Mac build** for complete
+Android background notifications. Authenticated native source projection and a
+private child-pipe channel now feed the existing encrypted journal/dispatcher.
+63 focused cases passed on Node 22/26; an actual Swift CryptoKit producer completed
+two durable captures over private pipes on both runtimes. EOF invalidated authority.
+See [NATIVE_PUSH_SOURCE.md](NATIVE_PUSH_SOURCE.md) for source hashes/evidence/next
+hooks. Native cmux producer installation, helper assembly, keys/TLS/Firebase and
+real delivery remain open. No production listener, custom Mac install or APK.
+
 Signed milestone [642](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533)
 at `7147bc62` passed, including the previously failing Cloud native job's cached
 checkpoint verification. Its downloaded APK independently verifies the stable

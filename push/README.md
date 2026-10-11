@@ -66,7 +66,10 @@ host policy. Tightening privacy prevents an older unredacted queued alert from
 being sent; it is not re-encrypted or given a new expiry. Metadata is not part of
 the FCM message. Split batches check cancellation/policy between encrypted parts.
 
-**Source integration is still required.** At scoped upstream commit
+**Native Mac hooks are still required.** `NativePushSourceAdapter` and the private
+pipe channel implement authenticated handoff into the durable source journal;
+see [native source evidence](../docs/NATIVE_PUSH_SOURCE.md). They do not yet install
+the owning producer in cmux. At scoped upstream commit
 `186cec79781256867ad4516f0802118738bd2393`, `TerminalNotificationStore` can call phone
 forwarding even with `effects.record == false`, while `notification.created` is
 published from store changes and its content is redacted. History insertions also
@@ -83,6 +86,57 @@ open. See [verification](../docs/PUSH_DELIVERY.md#forwarding-pipeline-and-durabl
 an **already authenticated** producer and `PushForwarder`. The source adapter is
 still required; the journal does not turn a general feed event into an authorized
 phone alert.
+
+### Private native source channel
+
+`native-source.mjs` authenticates a fresh source session using HMAC-SHA256. Its
+Apple CryptoKit encoder is `NativePushSourceFrame.swift`. The authenticated bytes
+are four uint32 big-endian length-prefixed fields: `cmux-app.native.push.v1`, the
+lowercase session UUID, the decimal sequence, and the exact UTF-8 JSON body.
+Frames contain `version`, `sessionID`, `sequence`, base64 `body`, and base64
+`proof`. The body is bounded to 1 MiB. Sequences start at one and must remain
+strictly below JavaScript's maximum safe integer. Retrying the identical most
+recent acknowledged frame returns its cached receipt without capturing again.
+
+`native-source-channel.mjs` adds an explicitly started, bounded NDJSON channel
+over **private child pipes supplied by the Mac owner**. Its first line is
+`{type:"bootstrap", version:1, sessionID, key}` with a fresh random session and
+32-byte base64 key. Provision this secret through those private pipes; never put
+it in arguments, environment, logs, a public endpoint, an enrollment offer or a
+phone request. The channel clears its temporary key copy; its adapter factory
+must construct `NativePushSourceAdapter`, which owns a separate copy. Bootstrap
+does not discover or authenticate a cmux account.
+
+Bind the owner's local helper descriptor and supply
+`capture: request => dispatcher.capture(request)` and
+`changed: () => dispatcher.changed()`. The forwarder's `readHost` reads that
+adapter. Native host messages supply authenticated account/team/Mac identity,
+source epoch, a maximum 30-second lease and live forwarding/privacy settings;
+the producer cannot supply helper key identity. Native capture messages contain
+the typed event, original expiry, epoch and actual phone eligibility decision.
+
+Receipts confirm source capture/duplicate/expiry/retirement, never phone delivery.
+Missing/expired host authority and storage/capacity failures are unacknowledged.
+After a **received nonacknowledgment**, the producer can send a fresh host frame at
+the same unused sequence, then retry the original event at the next sequence.
+After a lost/uncertain acknowledgment, first retry the exact frame. Preserve
+correlation, epoch, event content and original expiry on retry.
+
+Reads pause until receipt completion. Invalid/oversized/truncated input, pipe
+errors, EOF and explicit stop immediately close the adapter and invalidate host
+authority. The owner supervises stream errors after closure, tears down child
+pipes, awaits dispatcher shutdown, then closes stores/destroys storage keys.
+Construction starts no IO, listener, process or timer. Do not expose this channel
+on a socket or use untrusted incoming traffic to provision its bootstrap.
+
+```sh
+node --test push/native-source*.test.mjs push/source-journal.test.mjs push/source-dispatcher.test.mjs push/forwarder.test.mjs
+python3 scripts/check-native-push-source.py --node /absolute/path/to/node
+```
+
+The second command requires macOS Swift/CryptoKit and uses public fixture keys,
+an actual Swift child process and a temporary encrypted journal. Linux CI checks
+committed CryptoKit vectors through the existing `push/*.test.mjs` suite.
 
 ```js
 const journal = new PushSourceJournal({ directory: privateDirectory, key: keyFromCredentialStore });
@@ -531,15 +585,16 @@ responses carry Retry-After. See [transport evidence and remaining integration](
 
 ## Remaining end-to-end work
 
-1. Choose/provision the dedicated Firebase setup or establish official backend
-   deployment access. The Mac's currently selected Google Cloud project is not
-   implicitly authorized for this app.
+1. Provision the selected private Firebase setup for the custom cmux Mac
+   extension. The Mac's currently selected Google Cloud project is not implicitly
+   authorized for this app; no new project or credentials have been provisioned.
 2. Add explicit Android Firebase configuration and authenticated helper enrollment.
    Android token acquisition/rotation/opt-out/deletion now has a durable lifecycle
    and WorkManager hooks; its consent and helper-pairing UI now exist. Provider
    configuration and SDK/physical acceptance remain open. See [the checkpoint](../docs/PUSH_DELIVERY.md#android-token-lifecycle--source-checkpoint-2026-10-06).
-3. Implement the admitted Mac/backend notification subscription and encrypted
-   sender identity binding. Android now has an independent helper sender pin and
+3. Install the admitted native notification hooks and encrypted sender identity
+   binding. The authenticated adapter/private pipe channel exist; the native
+   owner/bootstrap integration still needs installation. Android has an independent helper sender pin and
    routes replies to the native Mac key, retaining both revocation fences. The
    authenticated helper handshake and confirmation UI now exist; host source/key
    provisioning remain open; never pass unverified network descriptors straight to the pin API. See
@@ -547,7 +602,7 @@ responses carry Retry-After. See [transport evidence and remaining integration](
 4. Integrate event preparation/encryption, `PushRegistrations`, `PushDispatcher`, `PushOutbox` and `FcmSender`
    into that host with its credential-store key, current membership/hide-content/
    away policy and admission backpressure. `PushForwarder` composes these parts
-   with live snapshot policy; the trusted host snapshot/event provider is still missing;
+   with live snapshot policy; the native owner of snapshot/event production is still missing;
    local tests do not establish that a running host has implemented these contracts.
 5. Verify real Pixel delivery, Doze/process death, dismissal, replies, logout,
    token changes and revocation before describing push as functional.

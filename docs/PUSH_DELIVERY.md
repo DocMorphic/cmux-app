@@ -1,5 +1,16 @@
 # Android background push
 
+## Authenticated native source and private pipes — 2026-10-11
+
+The user selected private Firebase plus a custom cmux Mac build. Native-source
+projection, CryptoKit authentication and an explicitly started private pipe
+channel now integrate with the durable journal/dispatcher. 63 focused checks
+passed on Node 22/26; actual Swift-to-Node private-pipe capture/receipt/EOF checks
+also passed on both runtimes using encrypted storage and public fixture keys.
+See [NATIVE_PUSH_SOURCE.md](NATIVE_PUSH_SOURCE.md) for pinned source hashes,
+scope and the native hooks/helper/provisioning/live-delivery work still required.
+No custom cmux app, production listener, Firebase deployment or APK in this batch.
+
 ## Source replay scheduler and arrival ordering — 2026-10-10
 
 `PushSourceDispatcher` now composes the encrypted source journal with the existing
