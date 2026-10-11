@@ -6,6 +6,8 @@ import Foundation
 final class NativePushSourceOwner: NativePushSourceSink {
     enum Failure: Error { case invalidConfiguration }
     private let sink: NativePushSourceCaptureController
+    private let repository: NativePushOwnerDescriptorRepository
+    var onPairingInvalidation: () -> Void = {}
 
     init?(environment: [String: String], loadDescriptor: @escaping @Sendable () throws -> Data,
           loadCaptureKey: @escaping @Sendable (Bool) throws -> Data,
@@ -14,6 +16,7 @@ final class NativePushSourceOwner: NativePushSourceSink {
         guard let node = environment["CMUX_ANDROID_PUSH_NODE"], let helper = environment["CMUX_ANDROID_PUSH_HELPER"],
               [configuration, node, helper].allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }) else { throw Failure.invalidConfiguration }
         let repository = NativePushOwnerDescriptorRepository(configurationURL: URL(fileURLWithPath: configuration), loadDescriptor: loadDescriptor)
+        self.repository = repository
         sink = try NativePushSourceCaptureController(repositoryFactory: { try await repository.captures(loadKey: loadCaptureKey) },
             executable: URL(fileURLWithPath: node),
             arguments: [helper, "--config", configuration], directory: URL(fileURLWithPath: helper).deletingLastPathComponent(),
@@ -22,9 +25,13 @@ final class NativePushSourceOwner: NativePushSourceSink {
     func start() throws { try sink.start() }
     func offer(_ messages: [Data]) -> Bool { sink.offer(messages) }
     func offer(_ messages: [Data], scope: NativePushSourceScope?) -> Bool { sink.offer(messages, scope: scope) }
-    func invalidate() { sink.invalidate() }
-    func retireScope() { sink.retireScope() }
-    func stop() async { await sink.stop() }
+    func invalidate() { onPairingInvalidation(); sink.invalidate() }
+    func retireScope() { onPairingInvalidation(); sink.retireScope() }
+    func stop() async { onPairingInvalidation(); await sink.stop() }
     var isRunning: Bool { sink.isRunning }
     var retainedCount: Int { sink.retainedCount }
+    func requestPairing(action: String, value: String) async throws -> Data {
+        let path = try await repository.controlSocket()
+        return try await NativePushPairingClient(path: path).request(action: action, value: value)
+    }
 }

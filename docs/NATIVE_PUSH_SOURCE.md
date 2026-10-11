@@ -1,5 +1,9 @@
 # Native Android push source — 2026-10-11
 
+Current pairing UI extends the installer to **22 files / eight audited originals**.
+See [NATIVE_PUSH_PAIRING.md](NATIVE_PUSH_PAIRING.md); earlier counts below describe
+their respective checkpoints. The full tagged Mac/Pixel/provider gates remain open.
+
 Current native Mac descriptor binding, running-owner publication and durable
 capture-before-preparation behavior are recorded in
 [NATIVE_PUSH_MAC_KEY.md](NATIVE_PUSH_MAC_KEY.md). Current installer scope remains

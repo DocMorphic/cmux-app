@@ -18,7 +18,7 @@ def main():
     binary = output / "owner-fixture"
     sources = ["push/NativePushSourceFrame.swift", "push/mac-native/NativePushSourceSink.swift",
         "push/mac-native/NativePushSourceDeliveryQueue.swift", "push/mac-native/NativePushSourceProcessSink.swift",
-        "push/mac-native/NativePushOwnerDescriptorRepository.swift", "push/mac-native/NativePushSourceOwner.swift",
+        "push/mac-native/NativePushOwnerDescriptorRepository.swift", "push/mac-native/NativePushPairingClient.swift", "push/mac-native/NativePushSourceOwner.swift",
         "push/mac-native/NativePushCaptureRepository.swift", "push/mac-native/NativePushSourceCaptureController.swift",
         "scripts/native-push-owner-fixture.swift"]
     build = subprocess.run(["/usr/bin/swiftc", "-swift-version", "6", *[str(root / p) for p in sources], "-o", str(binary)], capture_output=True, timeout=90)

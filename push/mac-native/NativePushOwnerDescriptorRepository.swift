@@ -24,6 +24,13 @@ actor NativePushOwnerDescriptorRepository {
         self.configurationURL = configurationURL; self.loadDescriptor = loadDescriptor
     }
 
+    func controlSocket() throws -> String {
+        let configuration = try JSONDecoder().decode(Configuration.self, from: readPrivate(configurationURL))
+        guard configuration.version == 1, configuration.stateDirectory.hasPrefix("/"),
+              !configuration.stateDirectory.contains("\0") else { throw Failure.unavailable }
+        return URL(fileURLWithPath: configuration.stateDirectory).appendingPathComponent("control/owner.sock").path
+    }
+
     func captures(loadKey: @escaping @Sendable (Bool) throws -> Data) throws -> NativePushCaptureRepository {
         do {
             let configuration = try JSONDecoder().decode(Configuration.self, from: readPrivate(configurationURL))

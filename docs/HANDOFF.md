@@ -2,6 +2,16 @@
 
 ## Current checkpoint — 2026-10-11
 
+The custom Mac notification-pairing window is implemented in the application
+menu: release/debug selection, fresh QR, matching key fingerprint, expiry,
+copy/paste and cancellation. Native invalidation clears displayed offers. Actual
+Swift UI/client/composition typechecks, exact QR pixel decoding, isolated clipboard,
+menu reconstruction, Unix failure checks and production helper control pass.
+All 13 labels have nine locale entries; the full patched catalog validator passes.
+Installer scope is now 22 files / eight audited originals. This is custom-build
+source, not a change to the running official app; whole tagged app/Pixel/FCM
+acceptance remains pending. See NATIVE_PUSH_PAIRING.md. Signed 650 is unchanged.
+
 Native Mac sender-key lifecycle is now bound into encrypted helper enrollment.
 A changed descriptor fences old delivery and renewal, including held OAuth and
 helper restart. The running Swift owner refreshes its public descriptor without

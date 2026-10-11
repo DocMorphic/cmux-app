@@ -2,12 +2,14 @@
 """Install the audited native source hooks into an exact, private cmux checkout."""
 import argparse
 import hashlib
+import json
 import os
 from pathlib import Path
 import tempfile
 
 REF = "f4b1509054949eaad5d695569ad443c4c18ed68d"
 PINS = {
+    "Resources/Localizable.xcstrings": "d942497a9ff1a2970e2e3f6941b4e239a24d172dbe9d02971fe33776578dd35b",
     "Sources/Mobile/MobileHostService+PhonePushKeyExchange.swift": "09a9804a0176f1dc31f64fb7944fb99473ed1470542a519cd8ac3b14df5062cf",
     "Sources/Cloud/PhonePushClient.swift": "e895f51016156d18f11d4aa7d8b721252ff6759a80552b277ae3a7b45596c3df",
     "Sources/Auth/MacAuthComposition.swift": "71184d168ad431dd0867a7efb64f6ea61b2fd66b8c3fcf6b9c3ee1ae6be10d57",
@@ -216,7 +218,7 @@ def patched_sources(original):
     path = "Sources/AppDelegate.swift"
     source = original[path].decode()
     source = once(source, "import CmuxCloud\n", "import CmuxCloud\nimport CmuxPhonePush\n")
-    source = once(source, "    private(set) var auth: MacAuthComposition?\n", "    private(set) var auth: MacAuthComposition?\n    private var nativeAndroidPushOwner: NativePushSourceOwner?\n")
+    source = once(source, "    private(set) var auth: MacAuthComposition?\n", "    private(set) var auth: MacAuthComposition?\n    private var nativeAndroidPushOwner: NativePushSourceOwner?\n    private var nativeAndroidPushPairing: NativePushPairingPresentation?\n")
     source = once(source, "        PhonePushClient.shared.configure(auth: auth.coordinator)\n", '''        if nativeAndroidPushOwner == nil {
             if let bundleID = Bundle.main.bundleIdentifier {
                 nativeAndroidPushOwner = try? NativePushSourceOwner(
@@ -235,7 +237,17 @@ def patched_sources(original):
         }
         PhonePushClient.shared.configure(auth: auth.coordinator, nativePushSource: nativeAndroidPushOwner)
         try? nativeAndroidPushOwner?.start()
+        if let owner = nativeAndroidPushOwner, nativeAndroidPushPairing == nil {
+            nativeAndroidPushPairing = NativePushPairingPresentation(request: { [weak owner] action, value in
+                guard let owner else { throw NativePushPairingClient.Failure.unavailable }
+                return try await owner.requestPairing(action: action, value: value)
+            })
+            owner.onPairingInvalidation = { [weak pairing = nativeAndroidPushPairing] in pairing?.invalidateOffer() }
+        }
+        nativeAndroidPushPairing?.installMenu()
 ''')
+    source = once(source, "    func menuNeedsUpdate(_ menu: NSMenu) {\n", "    func menuNeedsUpdate(_ menu: NSMenu) {\n        nativeAndroidPushPairing?.installMenu()\n")
+    source = once(source, "    func installReloadConfigurationMenuItemAction() {\n", "    func installReloadConfigurationMenuItemAction() {\n        nativeAndroidPushPairing?.installMenu()\n")
     result[path] = source.encode()
     path = "scripts/reload.sh"
     source = original[path].decode()
@@ -271,6 +283,10 @@ def patched_sources(original):
         "NativePushCaptureRepository": "push/mac-native/NativePushCaptureRepository.swift",
         "NativePushCaptureKeyStore": "push/mac-native/NativePushCaptureKeyStore.swift",
         "NativePushSourceCaptureController": "push/mac-native/NativePushSourceCaptureController.swift",
+        "NativePushPairingClient": "push/mac-native/NativePushPairingClient.swift",
+        "NativePushPairingModel": "push/mac-native/NativePushPairingModel.swift",
+        "NativePushPairingView": "push/mac-native/NativePushPairingView.swift",
+        "NativePushPairingPresentation": "push/mac-native/NativePushPairingPresentation.swift",
     }
     for index, (name, source_path) in enumerate(native_sources.items(), 1):
         build = f"C0DEAD0000000000000000{index:02X}"
@@ -282,6 +298,17 @@ def patched_sources(original):
         source = once(source, "\t\t\t\tD1F0A00100000000000000A2 /* PhonePushClient.swift */,", f"\t\t\t\t{file} /* {name}.swift */,\n\t\t\t\tD1F0A00100000000000000A2 /* PhonePushClient.swift */,")
         source = once(source, "\t\t\t\tD1F0A00100000000000000A1 /* PhonePushClient.swift in Sources */,", f"\t\t\t\t{build} /* {name}.swift in Sources */,\n\t\t\t\tD1F0A00100000000000000A1 /* PhonePushClient.swift in Sources */,")
         result[f"Sources/Cloud/{name}.swift"] = (ROOT / source_path).read_bytes()
+    result[path] = source.encode()
+    path = "Resources/Localizable.xcstrings"
+    source = original[path].decode()
+    entries = json.loads((ROOT / "push/mac-native/NativePushPairing.localizations.json").read_text())
+    catalog = json.loads(source)
+    if set(entries) & set(catalog["strings"]):
+        raise ValueError("Native push localization key collision")
+    inserted = json.dumps(entries, ensure_ascii=False, indent=2)[2:-2]
+    source = once(source, '  "strings": {\n', '  "strings": {\n' + "\n".join("  " + row for row in inserted.splitlines()) + ",\n")
+    if set(json.loads(source)["strings"]) != set(catalog["strings"]) | set(entries):
+        raise ValueError("Native push localization insertion failed")
     result[path] = source.encode()
     return result
 

@@ -1,5 +1,9 @@
 # Native Mac sender key lifecycle — 2026-10-11
 
+Current pairing UI extends the installer to **22 files / eight audited originals**.
+See [NATIVE_PUSH_PAIRING.md](NATIVE_PUSH_PAIRING.md); earlier counts below describe
+their respective checkpoints. The full tagged Mac/Pixel/provider gates remain open.
+
 ## Implemented boundary
 
 Helper enrollment now persists the exact public native Mac descriptor from the

@@ -1,5 +1,9 @@
 # Native capture storage — 2026-10-11
 
+Current pairing UI extends the installer to **22 files / eight audited originals**.
+See [NATIVE_PUSH_PAIRING.md](NATIVE_PUSH_PAIRING.md); earlier counts below describe
+their respective checkpoints. The full tagged Mac/Pixel/provider gates remain open.
+
 Current native phone pin integration extends the installer to **17 files / seven
 pins**. Enrollment/renewal/provider authorization require current native phone key
 trust; changed pins fence the old helper. See NATIVE_PUSH_TRUST.md for executed

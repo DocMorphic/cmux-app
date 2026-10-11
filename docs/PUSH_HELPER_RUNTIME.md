@@ -1,5 +1,9 @@
 # Production push helper startup — 2026-10-11
 
+Current Mac pairing UI and installer scope (**22 files / eight pins**) are in
+[NATIVE_PUSH_PAIRING.md](NATIVE_PUSH_PAIRING.md). Older checkpoint counts below
+remain historical. Native Mac descriptor binding is in NATIVE_PUSH_MAC_KEY.md.
+
 Current native phone pin integration extends the installer to **17 files / seven
 pins**. Enrollment/renewal/provider authorization require current native phone key
 trust; changed pins fence the old helper. See NATIVE_PUSH_TRUST.md for executed
@@ -162,8 +166,10 @@ node scripts/cmux-push-owner.mjs offer --socket /absolute/private/state/control/
 
 That explicit command prints the private offer JSON for the existing Android
 helper-pairing flow. The offer contains a short-lived pairing secret; the running
-helper never logs it automatically. A Mac UI/QR presentation is still required
-for product setup. Phone HTTPS exposes only enrollment/maintenance challenge
+helper never logs it automatically. The configured custom Mac build now presents
+the same offer in its Pair Android Notifications menu/window, with QR, fingerprint,
+expiry and cancellation (NATIVE_PUSH_PAIRING.md); whole-app/Pixel acceptance remains
+open. Phone HTTPS exposes only enrollment/maintenance challenge
 steps, not local control or account/identity selection.
 
 ## Executed checks and limits

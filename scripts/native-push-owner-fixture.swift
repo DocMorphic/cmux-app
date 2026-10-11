@@ -79,10 +79,20 @@ final class NativeOwnerFixtureDescriptor: @unchecked Sendable {
         try require(owner.offer([host(), capture()], scope: scope))
         try await wait { owner.isRunning && owner.retainedCount == 0 }
         try await runProbe("offer"); try require(starts == 1)
+        let pairingData = try await owner.requestPairing(action: "offer", value: "android.fixture")
+        let pairing = try NativePushPairingOffer(body: pairingData, phoneBuildID: "android.fixture",
+            now: Int64(Date().timeIntervalSince1970 * 1000))
+        try require(pairing.fingerprint.count == 79 && pairing.endpoint.hasPrefix("https://127.0.0.1:"))
+        let cancellation = try await owner.requestPairing(action: "cancel", value: pairing.id)
+        try require((try JSONSerialization.jsonObject(with: cancellation) as? [String: Bool])?["cancelled"] == true)
+        print("Actual native owner requests and cancels its private pairing offer using the Swift socket client")
+        var pairingInvalidations = 0
+        owner.onPairingInvalidation = { pairingInvalidations += 1 }
         try require(owner.offer([host(hide: true), capture(hide: true)], scope: scope))
         try await wait { starts == 2 && owner.isRunning && reaped == 1 && owner.retainedCount == 0 }
         try await runProbe("offer")
         owner.invalidate()
+        try require(pairingInvalidations == 1)
         try await wait { reaped == 2 }
         try require(!owner.isRunning && starts == 2)
         try require(owner.offer([host(hide: true), capture(hide: true)], scope: scope))

@@ -1,5 +1,9 @@
 # Android push sender components
 
+The configured custom Mac build now has a QR pairing window with helper fingerprint,
+expiry, copy/paste and cancellation. See [native pairing](../docs/NATIVE_PUSH_PAIRING.md).
+This source still needs whole tagged Mac/Pixel acceptance; the official app is unchanged.
+
 These are event preparation, Mac CryptoKit encryption, FCM HTTP v1 transport,
 encrypted outbox/registration storage and an explicit scheduler for a trusted Mac
 forwarder or backend.
