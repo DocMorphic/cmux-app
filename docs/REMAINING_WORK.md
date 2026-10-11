@@ -12,6 +12,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current checkpoint — 2026-10-11
 
+Signed Android integration milestone is running at source `d34daed53231997ffa68de63233357e6fe98d489`:
+https://github.com/DocMorphic/cmux-app/actions/runs/38169223650. Firebase configuration
+and the unchanged release signing secrets are supplied by the existing workflow.
+At dispatch/checkpoint, the cached Cloud dependency check passed and Android tests/
+compilation were in progress; no completed artifact or live delivery is claimed.
+Build 642 remains the last verified published APK until this run passes verification.
+
 The production native source owner now commits encrypted originals before helper
 transmission and retires them only after exact durable receipts. Fresh verified
 account/selected-team/Mac scope gates recovery; temporary loss retains work,
