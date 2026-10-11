@@ -36,6 +36,7 @@ final class NativePushSourceProcessSink: NativePushSourceSink {
     private let receiptDelay: Duration
     private let retryDelay: Duration
     private let prepareChild: @Sendable () async throws -> Void
+    private let acknowledgedCapture: (Data) -> Void
     private let queue: NativePushSourceDeliveryQueue
     private let io = DispatchQueue(label: "cmux.android-push.private-pipes")
     private var child: Child?
@@ -50,6 +51,7 @@ final class NativePushSourceProcessSink: NativePushSourceSink {
          now: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) },
          receiptDelay: Duration = .seconds(5), retryDelay: Duration = .seconds(5),
          prepareChild: @escaping @Sendable () async throws -> Void = {},
+         acknowledgedCapture: @escaping (Data) -> Void = { _ in },
          onState: @escaping (String) -> Void = { _ in }) throws {
         guard executable.isFileURL, executable.path.hasPrefix("/"), directory.isFileURL,
               directory.path.hasPrefix("/"), receiptDelay > .zero, retryDelay > .zero else {
@@ -58,6 +60,7 @@ final class NativePushSourceProcessSink: NativePushSourceSink {
         self.executable = executable; self.arguments = arguments; self.directory = directory
         self.now = now; self.report = onState; self.receiptDelay = receiptDelay; self.retryDelay = retryDelay
         self.prepareChild = prepareChild
+        self.acknowledgedCapture = acknowledgedCapture
         self.queue = try NativePushSourceDeliveryQueue()
     }
     var isRunning: Bool { child?.process.isRunning == true && child?.retiring == false }
@@ -80,6 +83,10 @@ final class NativePushSourceProcessSink: NativePushSourceSink {
     }
     func invalidate() {
         queue.invalidate()
+        retire()
+    }
+    func retireScope() {
+        queue.discardCaptures()
         retire()
     }
     /// Stop provider work by retiring the owned child, then await its actual exit
@@ -211,11 +218,13 @@ final class NativePushSourceProcessSink: NativePushSourceSink {
         do {
             for byte in bytes {
                 if byte == 10 {
+                    let captured = queue.pendingCaptureBody
                     let action = try queue.receive(child.receipt)
                     child.receipt.removeAll(keepingCapacity: true)
                     if action != .duplicate {
                         guard child.writeTicket != nil, child.receiptAction == nil else { throw Failure.unavailable }
                         child.receiptAction = action
+                        if action == .advance, let captured { acknowledgedCapture(captured) }
                         advance(child)
                     }
                 } else {

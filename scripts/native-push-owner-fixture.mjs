@@ -44,4 +44,16 @@ if (mode === 'prepare') {
   finally { journal.close(); }
   assert.equal(readFileSync(join(root, 'state/source/source.sqlite')).includes(Buffer.from('native owner λ')), false);
   console.log('Actual native capture persists encrypted after helper retirement');
+} else if (['verify-recovery', 'verify-full-recovery'].includes(mode)) {
+  const journal = new PushSourceJournal({ directory: join(root, 'state/source'), key: Buffer.alloc(32, 4) });
+  try {
+    const expected = mode === 'verify-full-recovery' ? 128 : 1;
+    assert.equal(Object.values(journal.status().counts).reduce((a, b) => a + b, 0), expected);
+    const original = JSON.parse(readFileSync(join(root, 'original-public-fixture.json'))).request;
+    assert.equal(original.sourceEpoch, 'native-incarnation-first');
+    assert.equal(original.event.correlationID, '00000000-0000-4000-8000-000000000222');
+    assert.equal(journal.accept(original).kind, 'duplicate');
+    assert.equal(Object.values(journal.status().counts).reduce((a, b) => a + b, 0), expected);
+  } finally { journal.close(); }
+  console.log('Actual encrypted helper journal contains one original identity; exact replay is duplicate, without epoch rewrite');
 } else throw Error('Unknown public fixture operation');

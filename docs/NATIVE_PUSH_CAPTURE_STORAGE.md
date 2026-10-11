@@ -1,5 +1,32 @@
 # Native capture storage — 2026-10-11
 
+## Owner integration checkpoint
+
+The production source owner now uses `NativePushSourceCaptureController`: verified
+selected-team scope is supplied by the actual native hooks, original captures commit
+before helper transmission, and exact durable capture receipts schedule storage
+removal. Temporary invalidation retains work; explicit auth/team retirement clears
+old captures/transport. Storage work is joined during stop. Current installer scope
+is 16 files / six audited originals, including explicit controller membership.
+
+Actual Swift owner→production helper checks pass on Node 22/26 for committed-but-
+receipt-lost SIGKILL recovery, fresh selected-team mismatch, temporary unavailability,
+team A→B→A, held startup/stop/team transition, and a full 128-record store. The helper
+retains one original journal identity for replay; full source-journal backpressure
+leaves a new native original durably retained. Classic process supervisor and current
+mapping/receipt/installer/launch checks pass. These use synthetic keys/identities,
+real local TLS/SQLite/CryptoKit and no enrolled recipient/Google request.
+
+**Still open at this checkpoint:** when all native captures were already acknowledged
+but helper delivery remains pending, source identity must also survive restart.
+This metadata boundary is being implemented next; the current recovery proof covers
+unacknowledged native originals. Full app/Keychain/Firebase/Pixel acceptance remains
+unverified. Evidence is `captures/runtime/push-native-recovery/`.
+
+```sh
+python3 scripts/check-native-push-recovery.py --node /absolute/path/to/node
+```
+
 `NativePushCaptureRepository` is an implemented actor for encrypted producer
 captures that await a durable helper receipt. `NativePushCaptureKeyStore` supplies
 an independent AES-256 key for the custom bundle through the macOS Keychain. The
@@ -55,9 +82,9 @@ tagged-launch environment cases pass. No whole app, provider or phone was launch
 
 ## Integration still required
 
-These storage types are wired for compilation but **the production source owner
-still uses its existing memory queue**. Neither storage-only SIGKILL recovery nor
-project membership proves production notification recovery.
+The earlier storage-only checkpoint below predates the owner integration above.
+Neither standalone storage SIGKILL recovery nor project membership alone proves
+production notification recovery.
 
 The next owner integration must:
 

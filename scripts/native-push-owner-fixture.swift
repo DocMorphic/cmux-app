@@ -48,12 +48,13 @@ actor NativeOwnerFixtureGate {
                 "settings": ["forwardingEnabled": true, "mode": "always", "admission": "allowed", "hideContent": hide]]])
         }
         let descriptor = try json(["version": 1, "algorithm": "rawX25519", "installationID": "fixture-native", "keyID": "fixture-native-key", "publicKey": Data(repeating: 9, count: 32).base64EncodedString()])
-        let absent = try NativePushSourceOwner(environment: [:], loadDescriptor: { descriptor })
+        let absent = try NativePushSourceOwner(environment: [:], loadDescriptor: { descriptor }, loadCaptureKey: { _ in Data(repeating: 34, count: 32) })
         try require(absent == nil)
         let nativePath = root + "/native.json"
         var starts = 0, reaped = 0
         guard let owner = try NativePushSourceOwner(environment: ["CMUX_ANDROID_PUSH_CONFIG": root + "/config.json",
-            "CMUX_ANDROID_PUSH_NODE": node, "CMUX_ANDROID_PUSH_HELPER": helper], loadDescriptor: { descriptor }, onState: { phase in
+            "CMUX_ANDROID_PUSH_NODE": node, "CMUX_ANDROID_PUSH_HELPER": helper], loadDescriptor: { descriptor },
+            loadCaptureKey: { _ in Data(repeating: 34, count: 32) }, onState: { phase in
                 print("Fixture phase: " + phase)
                 if phase == "started" { starts += 1 }; if phase == "reaped" { reaped += 1 }
             }) else { throw NativePushSourceOwner.Failure.invalidConfiguration }
@@ -65,16 +66,18 @@ actor NativeOwnerFixtureGate {
             "event": ["kind": "notify", "correlationID": UUID().uuidString.lowercased(), "badgeCount": 1, "hideContent": hide,
                 "title": "fixture", "subtitle": "", "body": "native owner λ", "replyShape": "none", "retargetsToLiveSurfaceOwner": false,
                 "workspaceId": NSNull(), "surfaceId": NSNull(), "notificationId": NSNull()]]]) }
-        try require(owner.offer([host(), capture()]))
+        let scope = NativePushSourceScope(accountID: "fixture-account", teamID: nil, macDeviceID: "fixture-mac",
+            macInstanceTag: "fixture-tag", macBuildID: "fixture-build")
+        try require(owner.offer([host(), capture()], scope: scope))
         try await wait { owner.isRunning && owner.retainedCount == 0 }
         try await runProbe("offer"); try require(starts == 1)
-        try require(owner.offer([host(hide: true), capture(hide: true)]))
+        try require(owner.offer([host(hide: true), capture(hide: true)], scope: scope))
         try await wait { starts == 2 && owner.isRunning && reaped == 1 && owner.retainedCount == 0 }
         try await runProbe("offer")
         owner.invalidate()
         try await wait { reaped == 2 }
         try require(!owner.isRunning && starts == 2)
-        try require(owner.offer([host(hide: true), capture(hide: true)]))
+        try require(owner.offer([host(hide: true), capture(hide: true)], scope: scope))
         try await wait { starts == 3 && owner.isRunning && owner.retainedCount == 0 }
         try await runProbe("offer")
         await owner.stop(); try require(reaped == 3 && !owner.isRunning)

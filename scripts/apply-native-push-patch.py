@@ -26,8 +26,12 @@ def once(source, old, new):
 
 HELPERS = '''    /// Used by the native auth owner before its first transition await.
     func invalidateAndroidPushSource() {
-        nativePushSource?.invalidate()
+        nativePushSource?.retireScope()
         nativePushMessages.invalidate()
+    }
+    private func nativePushScope(_ identity: NativePushSourceMessages.Identity) -> NativePushSourceScope {
+        .init(accountID: identity.accountID, teamID: identity.teamID, macDeviceID: identity.macDeviceID,
+            macInstanceTag: identity.macInstanceTag, macBuildID: identity.macBuildID)
     }
     private func nativePushContext(macDeviceID: String? = nil)
         -> (NativePushSourceMessages.Identity?, Bool) {
@@ -76,7 +80,7 @@ HELPERS = '''    /// Used by the native auth owner before its first transition a
         do {
             let message = try nativePushMessages.host(identity: identity, confirmedSignedOut: signedOut,
                 settings: nativePushSettings(), nowEpochSeconds: clock.nowEpochSeconds)
-            if !nativePushSource.offer([message]) { nativePushSource.invalidate() }
+            if !nativePushSource.offer([message], scope: identity.map { nativePushScope($0) }) { nativePushSource.invalidate() }
         } catch { nativePushSource.invalidate() }
     }
     private func publishAndroidPushPayload(_ payload: PhonePushPayload) {
@@ -88,7 +92,7 @@ HELPERS = '''    /// Used by the native auth owner before its first transition a
         do {
             let messages = try nativePushMessages.capture(payload, identity: identity,
                 settings: nativePushSettings(), nowEpochSeconds: clock.nowEpochSeconds)
-            if !nativePushSource.offer(messages) { nativePushSource.invalidate() }
+            if !nativePushSource.offer(messages, scope: nativePushScope(identity)) { nativePushSource.invalidate() }
         } catch { nativePushSource.invalidate() }
     }
 '''
@@ -189,6 +193,9 @@ def patched_sources(original):
                         return try JSONEncoder().encode(MobilePhonePushPublicKeyDescriptor(
                             installationID: key.installationID, keyID: key.keyID, publicKey: key.publicKeyData
                         ))
+                    },
+                    loadCaptureKey: { @Sendable allowCreation in
+                        try NativePushCaptureKeyStore(bundleID: bundleID).load(allowCreation: allowCreation)
                     }
                 )
             }
@@ -230,6 +237,7 @@ def patched_sources(original):
         "NativePushSourceOwner": "push/mac-native/NativePushSourceOwner.swift",
         "NativePushCaptureRepository": "push/mac-native/NativePushCaptureRepository.swift",
         "NativePushCaptureKeyStore": "push/mac-native/NativePushCaptureKeyStore.swift",
+        "NativePushSourceCaptureController": "push/mac-native/NativePushSourceCaptureController.swift",
     }
     for index, (name, source_path) in enumerate(native_sources.items(), 1):
         build = f"C0DEAD0000000000000000{index:02X}"

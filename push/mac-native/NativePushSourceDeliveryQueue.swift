@@ -60,6 +60,10 @@ final class NativePushSourceDeliveryQueue {
     var retainedCount: Int { captures.count }
     var retainedBytes: Int { captures.reduce(0) { $0 + $1.body.count } }
     var hasSession: Bool { encoder != nil }
+    var pendingCaptureBody: Data? {
+        guard let id = pendingCaptureID, captures.first?.id == id else { return nil }
+        return captures.first?.body
+    }
     func canBegin(now: Int64) -> Bool {
         Self.validTime(now) && encoder == nil && host?.isLive(now) == true
     }
@@ -190,6 +194,7 @@ final class NativePushSourceDeliveryQueue {
     /// Transport loss retains original capture bodies. Current authority must
     /// be refreshed by the native owner before reconnect/replay.
     func invalidate() { disconnect(); host = nil }
+    func discardCaptures() { invalidate(); captures.removeAll() }
     private func disconnect() {
         encoder = nil
         pending = nil

@@ -8,6 +8,7 @@ actor NativePushOwnerDescriptorRepository {
     private struct Configuration: Decodable {
         let version: Int
         let nativeDescriptorPath: String
+        let stateDirectory: String
     }
     private struct Descriptor: Codable {
         let version: Int
@@ -21,6 +22,21 @@ actor NativePushOwnerDescriptorRepository {
 
     init(configurationURL: URL, loadDescriptor: @escaping @Sendable () throws -> Data) {
         self.configurationURL = configurationURL; self.loadDescriptor = loadDescriptor
+    }
+
+    func captures(loadKey: @escaping @Sendable (Bool) throws -> Data) throws -> NativePushCaptureRepository {
+        do {
+            let configuration = try JSONDecoder().decode(Configuration.self, from: readPrivate(configurationURL))
+            guard configuration.version == 1, configuration.stateDirectory.hasPrefix("/"),
+                  !configuration.stateDirectory.contains("\0") else { throw Failure.unavailable }
+            let state = URL(fileURLWithPath: configuration.stateDirectory)
+            var existing = stat()
+            if lstat(state.path, &existing) != 0 {
+                guard errno == ENOENT, mkdir(state.path, S_IRWXU) == 0 else { throw Failure.unavailable }
+            }
+            try privateDirectory(state)
+            return try NativePushCaptureRepository(directory: state.appendingPathComponent("producer"), loadKey: loadKey)
+        } catch { throw Failure.unavailable }
     }
 
     func publish() throws {
