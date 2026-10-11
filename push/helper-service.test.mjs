@@ -76,10 +76,10 @@ function fixture(t, overrides = {}) {
     input.write(JSON.stringify(bootstrap ? message : encodeNativePushFrame({ sessionID, key, sequence: ++sequence, body: message })) + '\n');
     await wait(() => receipts.length > count); return receipts[count];
   }
-  async function start() {
+  async function start(initialHost = hostMessage()) {
     const ready = await service.start({ input, output, host: '127.0.0.1', port: 0 });
     await send({ type: 'bootstrap', version: 1, sessionID, key: key.toString('base64') }, true);
-    assert.equal((await send(hostMessage())).kind, 'state-updated');
+    assert.equal((await send(initialHost)).kind, 'state-updated');
     return ready.endpoint;
   }
   return { service, root, sourceKeys, input, output, receipts, challenges, sent, events, send, start,
@@ -142,6 +142,25 @@ test('native privacy tightening during OAuth prevents provider contact', async t
   const endpoint = await f.start(); await enroll(f, endpoint); await f.send(capture()); await entered;
   const privateHost = hostMessage(); privateHost.snapshot.settings.hideContent = true; await f.send(privateHost);
   release(); await new Promise(r => setTimeout(r, 20)); assert.equal(f.sent.length, 0);
+});
+test('helper enrollment requires a freshly observed native phone pin', async t => {
+  const f = fixture(t), initial = hostMessage(); delete initial.snapshot.trustedPhones;
+  const endpoint = await f.start(initial), offer = f.service.issueOffer('android.fixture');
+  const digest = enrollmentOfferDigest(offer), requestID = '00000000-0000-4000-8000-000000000020', token = 'fixture-token';
+  const requestDigest = createHash('sha256').update(enrollmentFrame('cmux-app.helper.request.v1',
+    [digest, requestID, phone.installationID, phone.keyID, phone.publicKey, token])).digest('hex');
+  const reply = await post(endpoint, 'begin', { offerID: offer.offerID, requestID, phone, token,
+    proof: hmac(Buffer.from(offer.secret, 'base64url'), 'cmux-app.helper.begin.v1', [digest, requestDigest]) });
+  assert.equal(reply.status, 403, 'Owner offer possession alone must not replace the native phone pin');
+});
+test('loss of native phone trust during OAuth prevents provider contact', async t => {
+  let enter, release;
+  const entered = new Promise(r => { enter = r; }), waiting = new Promise(r => { release = r; });
+  const f = fixture(t, { tokens: { get: async () => { enter(); await waiting; return 'fixture-oauth'; }, invalidate() {} } });
+  t.after(() => release());
+  const endpoint = await f.start(); await enroll(f, endpoint); await f.send(capture()); await entered;
+  const unavailable = hostMessage(); delete unavailable.snapshot.trustedPhones; await f.send(unavailable);
+  release(); await new Promise(r => setTimeout(r, 25)); assert.equal(f.sent.length, 0);
 });
 test('stop fences admission and waits for existing encryption before returning', async t => {
   let enter, release;
