@@ -87,7 +87,9 @@ export class NativePushSourceAdapter {
     let message;
     try { message = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body)); } catch { throw new NativePushSourceError(); }
     let kind;
-    if (message?.type === 'host') {
+    if (message?.type === 'invalidate') {
+      need(exact(message, ['type'])); this.#host = null; this.#changed(); kind = 'state-unavailable';
+    } else if (message?.type === 'host') {
       need(exact(message, ['type', 'snapshot'])); kind = this.#hostUpdate(message.snapshot);
     } else {
       need(exact(message, ['type', 'request']) && message.type === 'capture'); validateRequest(message.request);

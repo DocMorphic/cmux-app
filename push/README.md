@@ -4,8 +4,9 @@ These are event preparation, Mac CryptoKit encryption, FCM HTTP v1 transport,
 encrypted outbox/registration storage and an explicit scheduler for a trusted Mac
 forwarder or backend.
 It is **not a running forwarding service**. HTTPS factories remain unbound until
-a host explicitly starts them; no Firebase project or production deployment is
-provisioned here. Importing the modules makes no network calls. Tests use synthetic
+a host explicitly starts them. A dedicated Cloud project now exists, but Firebase
+activation/client/provider configuration and production deployment are pending
+(see [FIREBASE_SETUP.md](../docs/FIREBASE_SETUP.md)). Importing the modules makes no network calls. Tests use synthetic
 credentials with injected transports or local TLS servers, never the live provider.
 
 ```sh
@@ -56,8 +57,9 @@ prepared ciphertext for admission recovery and manage replay/cursors. Retry the
 **same** prepared batch after storage/capacity errors, never fresh encryption with
 the same event ID. Preparation reports suppressed/retired/expired/no-recipients,
 busy or stopped without queueing a prefix. Complete phone/part fanout is atomically
-admitted. New events apply native away policy; dismissals and already-admitted
-retries do not wait for away presence. Current forwarding, identity, helper key,
+admitted. The native producer applies away policy before capture; later
+preparation/encryption/retries do not recheck that admission. Dismissals do not
+wait for away presence. Current forwarding, identity, helper key,
 registration and privacy remain checked at delivery, including after OAuth.
 
 Encrypted queue metadata retains the event kind, actual content-redaction choice,
@@ -66,10 +68,13 @@ host policy. Tightening privacy prevents an older unredacted queued alert from
 being sent; it is not re-encrypted or given a new expiry. Metadata is not part of
 the FCM message. Split batches check cancellation/policy between encrypted parts.
 
-**Native Mac hooks are still required.** `NativePushSourceAdapter` and the private
+**Native Mac installation/process ownership are still required.** `NativePushSourceAdapter` and the private
 pipe channel implement authenticated handoff into the durable source journal;
 see [native source evidence](../docs/NATIVE_PUSH_SOURCE.md). They do not yet install
-the owning producer in cmux. At scoped upstream commit
+the owning producer in cmux. The reviewed six-file hook installer and real payload/
+auth mapping checks are available in `scripts/apply-native-push-patch.py` and
+`scripts/check-native-push-hooks.py`; the injected sink defaults to nil and needs
+a concrete process owner. At scoped upstream commit
 `186cec79781256867ad4516f0802118738bd2393`, `TerminalNotificationStore` can call phone
 forwarding even with `effects.record == false`, while `notification.created` is
 published from store changes and its content is redacted. History insertions also
@@ -114,6 +119,10 @@ adapter. Native host messages supply authenticated account/team/Mac identity,
 source epoch, a maximum 30-second lease and live forwarding/privacy settings;
 the producer cannot supply helper key identity. Native capture messages contain
 the typed event, original expiry, epoch and actual phone eligibility decision.
+An exact `{type:"invalidate"}` control clears live authority without falsely
+asserting logout or extending queued expiry. Owner invalidation must discard
+stale queued host controls and refresh current authority before capture replay;
+auth/master/privacy transitions synchronously fence previous provider work.
 
 Receipts confirm source capture/duplicate/expiry/retirement, never phone delivery.
 Missing/expired host authority and storage/capacity failures are unacknowledged.

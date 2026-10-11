@@ -2,15 +2,28 @@
 
 ## Current checkpoint — 2026-10-11
 
-The user selected **private Firebase plus a custom cmux Mac build** for complete
-Android background notifications. Authenticated native source projection and a
-private child-pipe channel now feed the existing encrypted journal/dispatcher.
-63 focused cases passed on Node 22/26; an actual Swift CryptoKit producer completed
-two durable captures over private pipes on both runtimes. EOF invalidated authority.
-See [NATIVE_PUSH_SOURCE.md](NATIVE_PUSH_SOURCE.md) for source hashes/evidence/next
-hooks. Native cmux producer installation, helper assembly, keys/TLS/Firebase and
-real delivery remain open. No production listener, custom Mac install or APK.
+The user selected **private Firebase plus a custom cmux Mac build**, and a
+**dedicated project**. Cloud project `cmux-app-push-20261011` now exists (ACTIVE,
+Firebase/FCM APIs enabled, billing disabled). Firebase activation returned HTTP
+403 despite verified Owner; the user was asked to complete the console/terms step.
+See [FIREBASE_SETUP.md](FIREBASE_SETUP.md); no Firebase client/provider credentials
+or live delivery have been configured.
 
+A pinned six-file native hook installer now captures the actual phone producer
+before the Apple-recipient gate and derives authenticated session/team authority.
+It observes auth/settings, heartbeats and immediately fences auth/privacy/master
+forwarding transitions. Unknown authority invalidates its lease without declaring
+logout. The native sink still needs a concrete helper process owner and assembly.
+The delayed-preparation admission bug was reproduced in regression commit
+`39689e3d` (two failures), then fixed: becoming active after native admission does
+not drop the alert. 66 focused checks pass on Node 22/26, four installer cases,
+eight compiled auth projection cases, actual payload mapper/encrypted-journal
+interop on both runtimes, and edited Swift syntax/project parsing pass.
+See [NATIVE_PUSH_SOURCE.md](NATIVE_PUSH_SOURCE.md) for exact scope/evidence.
+Earlier actual CryptoKit/private-pipe checks remain recorded separately. No full
+custom Mac build/install, production listener, Android build or physical acceptance
+in this batch. Next: native process owner, helper assembly/keys/TLS, configured
+Firebase clients/provider, tagged app build and real delivery.
 Signed milestone [642](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533)
 at `7147bc62` passed, including the previously failing Cloud native job's cached
 checkpoint verification. Its downloaded APK independently verifies the stable

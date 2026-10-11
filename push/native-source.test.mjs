@@ -105,6 +105,15 @@ test('sign-out and changed account epoch retire late events without source stora
   const next = host(); next.snapshot.epoch = 'new-epoch'; f.adapter.accept(frame(next, 4));
   assert.equal(f.adapter.accept(frame(request(), 5)).kind, 'retired'); assert.equal(f.captured.length, 0);
 });
+test('temporary native authority loss invalidates the lease without claiming account retirement', () => {
+  const f = basic(); f.adapter.accept(frame(host()));
+  assert.equal(f.adapter.accept(frame({ type: 'invalidate' }, 2)).kind, 'state-unavailable');
+  assert.equal(f.adapter.readHost(), null); assert.equal(f.changes(), 2);
+  assert.deepEqual(f.adapter.accept(frame(request(), 3)), { sequence: 3, kind: 'source-unavailable', acknowledged: false });
+  f.adapter.accept(frame(host(), 3));
+  assert.equal(f.adapter.accept(frame(request(), 4)).kind, 'captured');
+  assert.equal(f.captured[0].expiresAt, time + 120_000);
+});
 test('storage errors return coarse nonacknowledgments and retry the unchanged request', () => {
   let failed = true; const captured = [];
   const f = basic({ capture: request => { if (failed) throw new Error('private diagnostic not exposed'); captured.push(request); return { kind: 'captured' }; } });

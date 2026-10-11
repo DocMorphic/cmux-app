@@ -5,7 +5,68 @@
 The user selected **private Firebase plus a custom cmux Mac build**. Limit the Mac
 extension to the real phone producer and authenticated host/account/settings
 state. Existing Android terminal/workspace functionality does not require this
-extension. Firebase resources and live delivery remain unprovisioned/unverified.
+extension. A dedicated Cloud project has been created; Firebase activation is awaiting the
+account owner’s console step. Live delivery remains unconfigured/unverified.
+See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
+
+## Native producer hooks and preserved admission — 2026-10-11
+
+`scripts/apply-native-push-patch.py` now installs a bounded extension into an
+**exact private checkout** at `f4b1509054949eaad5d695569ad443c4c18ed68d`.
+It verifies four original file hashes before writing six files: PhonePushClient,
+MacAuthComposition, the authenticated team projection, explicit Xcode membership,
+and the two `push/mac-native/` sources. It refuses collisions and changed source;
+`--check` makes no edits. Simulated interrupted replacement verifies rollback and
+staging cleanup. Review/rebase the patch when its pinned upstream files change.
+
+The native producer captures the actual admitted PhonePushPayload after native
+eligibility/authentication and before Apple recipient discovery. Explicit dismiss
+IDs, routing, text, empty-reply-to-none mapping and original 120-second expiry
+are preserved. Account/team authority uses the authenticated session and verified
+team resolution, including a verified teamless account; cached or unresolved
+membership cannot authorize the helper. The epoch changes on session/team binding
+changes and actual auth retirement, including A → B → A. Unknown authority emits
+an authenticated `invalidate` control without falsely asserting logout.
+
+The patch observes native team scopes, publishes ten-second host heartbeats, and
+fences the sink synchronously before auth transition awaits. Disabling forwarding
+or tightening content privacy also invalidates the sink before queued controls
+can wait behind captures. Bootstrap must finish before absence of a session can
+be asserted as signed-out. The concrete sink must discard stale queued host
+controls and publish fresh native authority before replaying exact capture bodies.
+An `offer` is atomic for its whole batch; only durable receipts release captures.
+The injected sink defaults to nil: this patch alone starts no helper/listener.
+
+Regression commit `39689e3d` reproduced two dropped-alert cases: the Mac became
+active before delayed preparation, or during encryption. Both failed on the old
+forwarder and pass with the fix. `phoneEligible: true` is native admission already
+completed, so later presence changes do not undo it. Current forwarding, identity,
+privacy, registration and expiry still fence preparation and provider IO.
+
+| Check | Result | Evidence scope |
+| --- | --- | --- |
+| Source/channel/journal/dispatcher/forwarder, Node 26.8.2 | 66 passed, zero failures/skips; 500.324083 ms | Includes unknown-state control and the two admission regressions |
+| Same focused suite, Node 22.16.0 | 66 passed, zero failures/skips; 427.534 ms | Supported helper runtime |
+| Patch installer | Four passed | Pin/collision refusal, check mode and simulated rollback |
+| Patched Swift and Xcode project | Swift syntax and plist parse passed | Not a full target typecheck/build |
+| Actual upstream auth projection | Eight cases passed in Swift language mode 6 | Compiled against inert coordinator storage; cached/unresolved/generation/membership/teamless/sign-out |
+| Actual upstream payload plus mapper | Compiled/executed in Swift language mode 6; validated on Node 22/26 | Literal payload mapping, leases/expiry, six rejected inputs, unknown recovery, team ABA, logout and three encrypted journal records |
+
+Commands:
+
+```sh
+node --test push/native-source*.test.mjs push/source-journal.test.mjs push/source-dispatcher.test.mjs push/forwarder.test.mjs
+python3 -m unittest discover -s scripts/tests -p test_native_push_patch.py -v
+python3 scripts/check-native-push-hooks.py --upstream /absolute/path/to/pinned/upstream-cache --node /absolute/path/to/node
+node scripts/native-push-hooks-check.mjs captures/runtime/push-native-hooks/check/cases.json
+python3 scripts/apply-native-push-patch.py --target /absolute/path/to/private/cmux-checkout --check
+```
+
+Original logs, exact patched files/hashes, auth/mapping outputs and red/green logs:
+ignored `captures/runtime/push-native-hooks/`. Public fixtures only; no credentials
+or actual cmux account were loaded by these checks. There is no whole app build,
+helper process owner, actual auth lifecycle, FCM request, APK or physical acceptance
+in this batch. No running user cmux app was changed. Signed 642 is unchanged.
 
 ## Authoritative source
 
@@ -70,19 +131,17 @@ cases inject a synthetic sealer/sender and do not establish new HPKE/FCM evidenc
 
 ## Required next integration
 
-1. Install the native hook after real eligibility/authentication and before the
-   Apple recipient gate. Preserve explicit dismiss IDs; map empty reply to `none`.
-2. Derive account/team/build/epoch from the native owner. Maintain heartbeat and
-   immediate auth/settings transitions; supervise the helper and preserve original
-   event/expiry through uncertain receipts/restarts.
-3. Assemble journal/dispatcher/forwarder/sealer/enrollment in the owning helper.
-   Provision storage/sealing keys and authenticated HTTPS enrollment.
-4. Provision private Firebase, Android configuration and limited provider
-   credentials; build/sign the custom Mac extension and Android milestone. No
-   Firebase project ID or credentials have been supplied yet.
-5. Verify actual Mac/Pixel foreground/background/process-dead/Doze delivery,
+1. Implement the injected sink’s private child-process owner, bootstrap, bounded
+   exact-frame receipts/replay and native lifecycle fencing. Assemble the
+   journal/dispatcher/forwarder/sealer/enrollment service with its keys and HTTPS.
+2. Apply the reviewed hook patch in a private checkout and perform the upstream
+   tagged full-app build and actual auth/settings/capture acceptance. Syntax and
+   fixture compilation do not establish whole-app integration.
+3. Finish dedicated Firebase activation (see FIREBASE_SETUP.md), register Android
+   clients and provision limited provider credentials. Build/sign the custom Mac
+   extension and configured Android integration milestone.
+4. Verify actual Mac/Pixel foreground/background/process-dead/Doze delivery,
    token rotation, tap/reply, dismissals and account revocation.
 
-This batch is **not a running custom Mac producer or production push service**.
-No APK, signed release, Pixel installation, listener or Firebase deployment was
-made. Signed 642 remains latest; full parity stays open.
+The goal remains active; this is not a running custom Mac producer or production
+push service. Signed 642 remains latest and full parity stays open.

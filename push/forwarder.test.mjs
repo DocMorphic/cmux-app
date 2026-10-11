@@ -62,13 +62,13 @@ test('eligible event fans out only to this host/account/team and carries host-ow
   assert.ok(f.sent.every(delivery => !Object.hasOwn(delivery, 'admission')));
 });
 
-test('history-only, away-presence, forwarding-off and stale source events never encrypt', async t => {
+test('history-only, native presence suppression, forwarding-off and stale source events never encrypt', async t => {
   const f = fixture(t), r = f.runtime();
   const value = request(); delete value.phoneEligible;
   assert.equal((await r.prepare(value)).kind, 'suppressed');
   assert.equal((await r.prepare({ ...request(), sourceEpoch: 'old-session' })).kind, 'retired');
   f.snapshot().settings.mode = 'onlyWhenAway'; f.snapshot().settings.admission = 'suppressed_mac_active';
-  assert.equal((await r.prepare(request())).kind, 'suppressed');
+  assert.equal((await r.prepare({ ...request(), phoneEligible: false })).kind, 'suppressed');
   f.snapshot().settings.forwardingEnabled = false;
   assert.equal((await r.prepare(request())).kind, 'suppressed');
   assert.equal(f.payloads.length, 0);

@@ -1,5 +1,29 @@
 # Android background push
 
+## Native hooks, admission fix and dedicated project — 2026-10-11
+
+The reviewed native installer now wires the real PhonePushPayload producer,
+authenticated session/team authority, heartbeat and immediate auth/privacy/
+forwarding fencing. Its injected process sink still requires an owner/assembly;
+no production producer has been started. Unknown native authority has an explicit
+lease-invalidation control. Native admission survives later presence changes,
+including delayed preparation/encryption, while current delivery gates remain.
+
+Two regression cases failed before the fix (`39689e3d`) and passed afterward.
+66 focused Node checks passed on each of 22/26, four installer cases passed,
+eight actual auth projection cases compiled/executed against inert storage, and
+actual upstream payload mapping compiled/executed into encrypted journals on both
+Node runtimes. Edited Swift syntax/project parsing passed; full target compilation
+and actual account/helper lifecycle remain open. See
+[NATIVE_PUSH_SOURCE.md](NATIVE_PUSH_SOURCE.md).
+
+The newly authorized dedicated Cloud project `cmux-app-push-20261011` exists;
+Firebase/FCM APIs are enabled and billing is disabled. Firebase activation returned
+HTTP 403 despite verified Owner. The account owner was asked to complete the
+console/terms step. No client configuration/provider credentials/live FCM delivery
+exist yet. See [FIREBASE_SETUP.md](FIREBASE_SETUP.md). No APK, emulator, listener,
+custom Mac install or physical device changes in this batch; signed 642 unchanged.
+
 ## Authenticated native source and private pipes — 2026-10-11
 
 The user selected private Firebase plus a custom cmux Mac build. Native-source

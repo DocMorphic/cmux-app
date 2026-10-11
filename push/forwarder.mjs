@@ -1,6 +1,6 @@
 import { preparePushBatch } from './events.mjs';
 import { PushDispatcher } from './dispatcher.mjs';
-import { readPushHost, hostMatchesRecipient, hostAdmitsEvent, hostPermitsDelivery } from './policy.mjs';
+import { readPushHost, hostMatchesRecipient, hostPermitsDelivery } from './policy.mjs';
 
 /** Composition of live host policy, enrolled recipients, encryption and durable delivery.
  * readHost is a trusted local source, never request parameters or the phone's claimed account.
@@ -43,7 +43,10 @@ export class PushForwarder {
       if (!original || !['notify', 'dismiss'].includes(original.kind)) throw new TypeError('Invalid push event');
       if (host.state !== 'ready' || sourceEpoch !== host.epoch) return { kind: 'retired' };
       // History/feed insertion and replay alone are not evidence of phone-forward eligibility.
-      if ((original.kind === 'notify' && phoneEligible !== true) || !hostAdmitsEvent(host, original.kind)) return { kind: 'suppressed' };
+      // The authenticated native producer already applied focused-pane/away
+      // admission. Later presence changes do not undo its queued alert. Master
+      // forwarding, identity and privacy still fence preparation/provider IO.
+      if ((original.kind === 'notify' && phoneEligible !== true) || !host.settings.forwardingEnabled) return { kind: 'suppressed' };
       if (!Number.isSafeInteger(expiresAt) || expiresAt % 1000 !== 0) throw new TypeError('Invalid push expiry');
       if (expiresAt - this.#now() < 1000) return { kind: 'expired' };
       const records = this.#registrations.recipients({ accountID: host.authority.accountID, teamID: host.authority.teamID ?? null })
@@ -56,7 +59,7 @@ export class PushForwarder {
         const permits = () => {
           if (this.#stopped || generation !== this.#generation) return false;
           const live = readPushHost(this.#readHost, this.#now);
-          return hostAdmitsEvent(live, original.kind) && hostPermitsDelivery(live, { recipient: registration.recipient }, admission);
+          return hostPermitsDelivery(live, { recipient: registration.recipient }, admission);
         };
         const prepared = await preparePushBatch({ event: { ...original, hideContent: host.settings.hideContent },
           expiresAt, registration, authority: host.authority, hostEpoch: host.epoch }, { seal: this.#seal, now: this.#now, permits });
@@ -65,7 +68,7 @@ export class PushForwarder {
         jobs.push(...prepared.jobs);
         if (jobs.length > 512) throw new Error('Push fanout exceeds capacity');
         const live = readPushHost(this.#readHost, this.#now);
-        if (!hostAdmitsEvent(live, original.kind)) return { kind: 'suppressed' };
+        if (live.state !== 'ready' || !live.settings.forwardingEnabled) return { kind: 'suppressed' };
         for (const job of jobs) {
           if (!hostPermitsDelivery(live, { recipient: job.delivery.recipient }, job.admission)) return { kind: 'retired' };
         }
