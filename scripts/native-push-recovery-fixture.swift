@@ -55,8 +55,16 @@ actor NativeRecoveryGate {
         }
         let repo = try NativePushCaptureRepository(directory: URL(fileURLWithPath: root + "/state/producer"), loadKey: { _ in captureKey })
         try owner.start()
-        if mode == "commit-and-die" || mode == "scope-aba" {
-            try require(owner.offer([host("native-incarnation-first"), capture("native-incarnation-first")], scope: scope()))
+        if ["commit-and-die", "scope-aba", "acknowledged-and-die"].contains(mode) {
+            let body = try capture("native-incarnation-first")
+            try require(owner.offer([host("native-incarnation-first"), body], scope: scope()))
+            if mode == "acknowledged-and-die" {
+                try await wait { owner.isRunning && commits == 1 && receipts == 1 && owner.retainedCount == 0 }
+                try require(try await repo.load(now: Int64(Date().timeIntervalSince1970 * 1000)).isEmpty)
+                try body.write(to: URL(fileURLWithPath: root + "/original-public-fixture.json"))
+                FileHandle.standardOutput.write(Data("actual helper acknowledged; source metadata awaited before SIGKILL\n".utf8))
+                _ = Darwin.kill(getpid(), SIGKILL); throw Failure.assertion(#line)
+            }
             try await wait { FileManager.default.fileExists(atPath: root + "/committed-receipt-withheld") && owner.isRunning && commits == 1 }
             try require(receipts == 0 && owner.retainedCount == 1)
             let records = try await repo.load(now: Int64(Date().timeIntervalSince1970 * 1000))
@@ -81,6 +89,16 @@ actor NativeRecoveryGate {
         }
         let original = try Data(contentsOf: URL(fileURLWithPath: root + "/original-public-fixture.json"))
         let saved = try await repo.load(now: Int64(Date().timeIntervalSince1970 * 1000))
+        if mode == "restore-acknowledged" {
+            try require(saved.isEmpty)
+            try require(owner.offer([host("native-incarnation-second")], scope: scope()))
+            try await wait { owner.isRunning && FileManager.default.fileExists(atPath: root + "/accepted-host-epoch") }
+            let acceptedEpoch = try String(contentsOfFile: root + "/accepted-host-epoch", encoding: .utf8)
+            try require(acceptedEpoch == "native-incarnation-first")
+            await owner.stop(); try require(receipts == 0 && commits == 0)
+            print("Fresh matching native owner preserves the acknowledged source epoch after all local captures were released")
+            return
+        }
         try require(saved.count == 1 && saved[0].body == original)
         try require(!owner.isRunning)
         if mode == "held-stop" || mode == "held-team-hop" {

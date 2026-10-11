@@ -12,6 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--node', required=True)
     parser.add_argument('--output', type=Path, default=Path('captures/runtime/push-native-recovery/check'))
+    parser.add_argument('--case', choices=['acknowledged'], help='Run one focused recovery regression')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
@@ -34,15 +35,20 @@ def main():
             except ProcessLookupError: pass
             child.wait()
         if die:
-            if child.returncode != -signal.SIGKILL or b'encrypted original retained before SIGKILL' not in data:
+            if child.returncode != -signal.SIGKILL or b'before SIGKILL' not in data:
                 raise RuntimeError('Native owner did not reach committed lost-receipt checkpoint')
         elif child.returncode: raise subprocess.CalledProcessError(child.returncode, mode)
         print(data.decode().strip())
-    for target in ['restore', 'restore-after-unavailable', 'restore-other-team', 'scope-aba', 'held-stop', 'held-team-hop', 'full-store']:
+    targets = ['acknowledged'] if args.case else ['restore', 'restore-after-unavailable', 'restore-other-team', 'scope-aba', 'held-stop', 'held-team-hop', 'full-store', 'acknowledged']
+    for target in targets:
         with tempfile.TemporaryDirectory(prefix='cmux-recovery-', dir='/tmp') as temporary:
             prepared = subprocess.run([args.node, str(root / 'scripts/native-push-owner-fixture.mjs'), 'prepare', temporary], capture_output=True, timeout=20)
             prepared.check_returncode()
-            if target != 'scope-aba':
+            if target == 'acknowledged':
+                run('acknowledged-and-die', temporary, 'cmux-push-helper.mjs', die=True)
+                Path(temporary, 'allow-receipts').write_text('public fixture receipt forwarding\n')
+                run('restore-acknowledged', temporary, 'native-push-recovery-child.mjs')
+            elif target != 'scope-aba':
                 run('commit-and-die', temporary, 'native-push-recovery-child.mjs', die=True)
                 run(target, temporary, 'cmux-push-helper.mjs')
             else: run(target, temporary, 'native-push-recovery-child.mjs')

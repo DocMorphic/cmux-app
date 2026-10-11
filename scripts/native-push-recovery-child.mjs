@@ -12,6 +12,22 @@ const child = spawn(process.execPath, [fileURLToPath(new URL('./cmux-push-helper
 const stop = () => { child.stdin.end(); };
 process.stdin.on('error', stop); process.stdout.on('error', stop); child.stdin.on('error', stop);
 process.stdin.pipe(child.stdin);
+let inputPending = ''; const hosts = new Map();
+process.stdin.on('data', chunk => {
+  inputPending += chunk.toString('utf8');
+  if (inputPending.length > 2 * 1_048_576) { child.kill('SIGKILL'); return; }
+  let index;
+  while ((index = inputPending.indexOf('\n')) >= 0) {
+    const line = inputPending.slice(0, index); inputPending = inputPending.slice(index + 1);
+    try {
+      const frame = JSON.parse(line);
+      if (frame.version === 1 && typeof frame.body === 'string') {
+        const body = JSON.parse(Buffer.from(frame.body, 'base64').toString('utf8'));
+        if (body.type === 'host' && body.snapshot?.state === 'ready') hosts.set(frame.sequence, body.snapshot.epoch);
+      }
+    } catch { child.kill('SIGKILL'); }
+  }
+});
 let pending = '';
 child.stdout.on('data', chunk => {
   pending += chunk.toString('utf8');
@@ -21,6 +37,10 @@ child.stdout.on('data', chunk => {
     const line = pending.slice(0, index); pending = pending.slice(index + 1);
     try {
       const receipt = JSON.parse(line);
+      if (receipt.kind === 'state-updated' && hosts.has(receipt.sequence)) {
+        writeFileSync(join(root, 'accepted-host-epoch'), hosts.get(receipt.sequence), { mode: 0o600 });
+        hosts.delete(receipt.sequence);
+      }
       if (['captured', 'duplicate'].includes(receipt.kind) && !existsSync(join(root, 'allow-receipts'))) {
         writeFileSync(join(root, 'committed-receipt-withheld'), 'actual helper committed; receipt withheld\n', { mode: 0o600 });
       } else process.stdout.write(line + '\n');
