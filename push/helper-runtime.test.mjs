@@ -123,3 +123,23 @@ test('the production CLI keeps stdout as private receipts and exits/reaps after 
   assert.equal(diagnostics, '');
   assert.equal(existsSync(join(f.c.stateDirectory, 'control', 'owner.sock')), false);
 });
+test('a replacement production helper recovers its stale socket after the native owner kills/reaps its predecessor', async t => {
+  const f = fixture(t), path = join(f.c.stateDirectory, 'control', 'owner.sock');
+  async function launch() {
+    const child = spawn(process.execPath, ['scripts/cmux-push-helper.mjs', '--config', f.path], { stdio: ['pipe', 'pipe', 'pipe'], env: { PATH: '/usr/bin:/bin' } });
+    const closed = once(child, 'close'); let diagnostics = '';
+    child.stderr.on('data', bytes => { diagnostics += bytes; }); child.stdin.on('error', () => {});
+    t.after(async () => { if (child.exitCode === null) child.kill('SIGKILL'); await closed; });
+    const wire = source(child.stdin, child.stdout);
+    await Promise.race([wire.bootstrap(), closed.then(() => { throw Error(`Replacement exited before native bootstrap: ${diagnostics.includes('Push helper unavailable') ? 'helper unavailable' : 'unexpected exit'}`); })]);
+    await wire.send(host());
+    const offer = await requestPushOwner({ path, action: 'offer', value: 'android.fixture' });
+    assert.equal(offer.mac.accountID, 'fixture-account');
+    return { child, closed };
+  }
+  const original = await launch(); original.child.kill('SIGKILL');
+  const [, signal] = await original.closed; assert.equal(signal, 'SIGKILL');
+  assert.equal(existsSync(path), true);
+  const replacement = await launch(); replacement.child.stdin.end();
+  assert.equal((await replacement.closed)[0], 0); assert.equal(existsSync(path), false);
+});
