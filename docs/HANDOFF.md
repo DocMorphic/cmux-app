@@ -2,6 +2,18 @@
 
 ## Current checkpoint — 2026-10-11
 
+Private helper keys are now provisioned and preserved at
+`/Users/dharmaydave/.config/cmux-app/push-owner-keys`; the CryptoKit sealer built.
+Eight key-setup cases pass on Node 22/26. Tagged launch dropping the three explicit
+owner paths was reproduced (`7c2fc140`) and repaired in the installer; eight actual
+launch-environment cases now pass. Current installer scope is 13 files / six
+original hashes. Current auth/payload/receipt checks plus Swift/project/Bash parsing
+and four installer cases pass. Full Xcode is absent; the user is asked to install
+and open it. Tailscale HTTPS Certificates are also requested (MagicDNS exists).
+About 16 GiB is free, so no full native checkout/dependency expansion was started.
+No phone appeared in ADB. Trusted TLS/runtime configuration, whole Mac build and
+real delivery remain pending; see the current section of PUSH_HELPER_RUNTIME.md.
+
 Native composition injection is implemented in the pinned installer (12 files,
 five original hashes including AppDelegate). Explicit `CMUX_ANDROID_PUSH_CONFIG`,
 `CMUX_ANDROID_PUSH_NODE`, `CMUX_ANDROID_PUSH_HELPER` paths enable one owner. Its actor

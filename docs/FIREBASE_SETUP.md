@@ -61,7 +61,10 @@ activated successfully without another terms prompt.
 
 ## Next integration
 
-1. Complete helper keys/TLS and apply/build the native integration.
+1. Helper sender/storage keys are now provisioned privately and the CryptoKit
+   sealer compiled. Complete trusted TLS/runtime configuration and apply/build the
+   native integration. Full Xcode installation and Tailscale HTTPS Certificates
+   are currently requested from the owner.
    Source injection/public-descriptor publication and standalone native owner
    execution are now checked; whole-app/native account acceptance remains open.
    The production entrypoint now composes the verified private provider; see

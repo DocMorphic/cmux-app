@@ -33,6 +33,8 @@ def main():
         (output / "swift-parse.log").write_bytes(parse.stdout + parse.stderr); parse.check_returncode()
         wiring = subprocess.run(["plutil", "-lint", str(target / "cmux.xcodeproj/project.pbxproj")], capture_output=True, timeout=10)
         (output / "project-parse.log").write_bytes(wiring.stdout + wiring.stderr); wiring.check_returncode()
+        launch = subprocess.run(["/bin/bash", "-n", str(target / "scripts/reload.sh")], capture_output=True, timeout=10)
+        (output / "launch-parse.log").write_bytes(launch.stdout + launch.stderr); launch.check_returncode()
     inputs = []
     payload_hashes = {}
     for name in ["PhonePushPayload.swift", "PhonePushPayloadKind.swift"]:
@@ -80,7 +82,7 @@ def main():
     receipt = {"ref": patch.REF, "pinnedSources": patch.PINS, "payloadSources": payload_hashes,
         "patchedSources": {path: hashlib.sha256(data).hexdigest() for path, data in patched.items()},
         "kind": "native-mapping-and-patch-check-passed",
-        "scope": "Edited Swift syntax/project parsing; actual upstream payload mapper/auth projection and native receipt queue compiled/executed; actual Swift queue/private-pipe journal interop. Not a whole app build, process supervisor or live account/provider."}
+        "scope": "Edited Swift/project/tagged-launch syntax; actual upstream payload mapper/auth projection and native receipt queue compiled/executed; actual Swift queue/private-pipe journal interop. Not a whole app build, process supervisor or live account/provider."}
     (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(auth_result.decode().strip())
     print(check.stdout.decode().strip())

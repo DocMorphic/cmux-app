@@ -12,6 +12,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current checkpoint — 2026-10-11
 
+Helper sender/storage keys are provisioned privately and the sealer compiled.
+Eight key-setup cases pass on Node 22/26; repeated setup preserves identity/keys.
+Tagged launch configuration loss was reproduced/repaired, with eight executed
+launch-environment cases passing. Current installer is 13 files / six pins; four
+installer cases and current native syntax/mapping/receipt checks pass. Full Xcode
+is absent and Tailscale HTTPS Certificates are requested. No live listener,
+configured APK or physical delivery was exercised. TLS/runtime configuration,
+whole tagged build and actual account/FCM/Doze acceptance remain open.
+
 Native composition/public descriptor publication now exist in a 12-file installer
 against five audited originals. Actual Swift owner→production helper scenarios pass
 on Node 22/26, including privacy replacement, authority recovery and joined cancelled

@@ -13,6 +13,7 @@ PINS = {
     "cmux.xcodeproj/project.pbxproj": "78898acbeb053763c315c44b6dfe43fb6ff51da3cba0a073958b2192976f5a50",
     "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TeamScopes.swift": "55c26389f160344ad666a0eeea48d1d1b37ac63c3e2e50f97602bed26f38a0fe",
     "Sources/AppDelegate.swift": "e24fe250dfd1d95e0f64f09060281370b05e1ae6c172a25233a301d47ffca7b0",
+    "scripts/reload.sh": "b42199aa1416b20b51f48cc507e3bc0595347fcacf0fb470fb302912498d5216",
 }
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -194,6 +195,27 @@ def patched_sources(original):
         }
         PhonePushClient.shared.configure(auth: auth.coordinator, nativePushSource: nativeAndroidPushOwner)
         try? nativeAndroidPushOwner?.start()
+''')
+    result[path] = source.encode()
+    path = "scripts/reload.sh"
+    source = original[path].decode()
+    marker = '''  if [[ "$PROD_AUTH" -eq 1 ]]; then
+    TAG_LAUNCH_ENV+=(CMUX_AUTH_ENVIRONMENT=production)
+  fi
+'''
+    source = once(source, marker, marker + '''  # Tagged launch uses env -i; explicitly carry only the reviewed owner's
+  # nonsecret configuration/executable paths. Partial setup must not silently
+  # launch a build without its Android push owner.
+  if [[ -n "${CMUX_ANDROID_PUSH_CONFIG:-}${CMUX_ANDROID_PUSH_NODE:-}${CMUX_ANDROID_PUSH_HELPER:-}" ]]; then
+    for CMUX_ANDROID_PUSH_PATH_NAME in CMUX_ANDROID_PUSH_CONFIG CMUX_ANDROID_PUSH_NODE CMUX_ANDROID_PUSH_HELPER; do
+      CMUX_ANDROID_PUSH_PATH_VALUE="${!CMUX_ANDROID_PUSH_PATH_NAME:-}"
+      if [[ "$CMUX_ANDROID_PUSH_PATH_VALUE" != /* ]]; then
+        echo "error: Android push owner requires all three absolute paths" >&2
+        exit 1
+      fi
+      TAG_LAUNCH_ENV+=("$CMUX_ANDROID_PUSH_PATH_NAME=$CMUX_ANDROID_PUSH_PATH_VALUE")
+    done
+  fi
 ''')
     result[path] = source.encode()
     path = "cmux.xcodeproj/project.pbxproj"

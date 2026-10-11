@@ -6,8 +6,13 @@ forwarder or backend.
 It is **not a running forwarding service**. HTTPS factories remain unbound until
 a host explicitly starts them. Correct-account Firebase/client/private/CI
 configuration/private provider credentials and the explicit production entrypoint
-exist; native installation/keys/TLS remain pending (see
+exist; native installation/TLS/runtime configuration remain pending (see
 [PUSH_HELPER_RUNTIME.md](../docs/PUSH_HELPER_RUNTIME.md)).
+Independent helper keys are now provisioned privately; `owner-keys.mjs` and
+`scripts/provision-push-owner-keys.mjs` verify/preserve them on reruns and refuse
+unsafe or incomplete setup. The native installer also explicitly forwards the
+three owner paths through the tagged launcher's clean environment. Trusted TLS,
+whole tagged Mac build and real phone/provider acceptance remain pending.
 Importing the modules makes no network calls. Tests use synthetic
 credentials with injected transports or local TLS servers, never the live provider.
 

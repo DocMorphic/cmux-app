@@ -1,5 +1,68 @@
 # Production push helper startup — 2026-10-11
 
+## Current provisioning and tagged launch checkpoint
+
+Independent sender/registration/source/outbox keys are provisioned privately at
+`/Users/dharmaydave/.config/cmux-app/push-owner-keys`. All four files are 32 bytes,
+0600, in a 0700 directory. `helper.json` contains only the matching public X25519
+descriptor and independent random identities. The reusable setup command is:
+
+```sh
+node scripts/provision-push-owner-keys.mjs --directory /absolute/private/parent/push-owner-keys
+```
+
+The parent must already be private and owned. A rerun verifies and preserves every
+key and identity; incomplete/unsafe material is refused without regenerating it.
+Eight focused cases passed on Node 26.8.2 (245.40775 ms) and 22.16.0
+(255.745334 ms), including a changed public descriptor, nonprivate parent and
+symlink/hard-link/incomplete material. The real owner command succeeded twice:
+first provisioned, then verified/preserved. No private bytes were printed.
+
+The production CryptoKit sealer built successfully as a Mac arm64 executable.
+This build establishes compilation, not actual notification encryption/delivery
+with these provisioned keys. No listener or provider request was started.
+
+Regression `7c2fc140` reproduced the tagged upstream launcher's `env -i` dropping
+the three explicitly selected owner paths. The installer now patches `reload.sh`
+to forward exactly those paths and refuse partial/relative configuration. The
+same executed launch fragment passes eight cases after the fix; no app/helper
+is launched by that fixture. Current installer scope is **13 files / six audited
+originals**, including reload SHA-256
+`b42199aa1416b20b51f48cc507e3bc0595347fcacf0fb470fb302912498d5216`.
+Four installer refusal/rollback cases and current edited Swift/project/Bash
+parsing, actual auth/payload mapping and compiled receipt-queue interop also pass.
+
+```sh
+python3 scripts/check-native-push-launch.py --upstream /absolute/path/to/pinned/upstream-cache
+```
+
+Current prerequisites observed on this Mac: full Xcode is absent (only Command
+Line Tools selected), approximately 16 GiB disk space is free, Tailscale is running
+with MagicDNS but supplies no certificate domains, and ADB reports no phone.
+The owner is asked to install/open Xcode and enable HTTPS Certificates in Tailscale
+DNS settings; both remain pending. Do not expand another checkout/download native
+build dependencies until Xcode and sufficient storage are available. No Android
+emulator or Gradle process was started in this batch.
+
+Use one stable tag (`android-push`) for the eventual build. A local-backend-only
+build does not establish production account/Cloud acceptance. The reviewed pinned
+upstream supports `--prod-auth` for this tagged account test; it selects production
+Stack auth, cmux APIs and the broker without copying the official app's credentials:
+
+```sh
+CMUX_DEV_BACKEND_MODE=local CMUX_RELOAD_NO_GLOBAL_CLI_LINKS=1 ./scripts/reload.sh --tag android-push --prod-auth
+```
+
+Only launch after the private runtime configuration, trusted hostname certificate
+and native setup are ready. Pass the three explicit owner paths to the patched
+reload's `--launch`. Preserve the official running cmux and existing phone app data.
+Full app build/linking, tagged sign-in, actual Keychain publication, configured
+Android milestone and live FCM delivery are still unverified.
+
+Evidence: ignored `captures/runtime/push-native-owner/owner-keys-node22.log`,
+`owner-keys-node26.log`, `sealer-production-build.log`, `tagged-launch-red.log`,
+`tagged-launch-green.log`, and `launch-hooks/`.
+
 `scripts/cmux-push-helper.mjs` now composes the implemented native source channel,
 durable encrypted stores, CryptoKit sealer, bound private service-account token
 provider, FCM transport and HTTPS enrollment/maintenance. `helper-runtime.mjs`

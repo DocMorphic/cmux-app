@@ -12,6 +12,14 @@ See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 ## Native composition injection — 2026-10-11
 
+The latest provisioning/launcher batch adds independent private helper keys and
+compiled sealer plus the explicit clean-environment tagged launch wiring. Current
+installer scope is **13 files / six original pins**. Eight key-setup cases pass on
+Node 22/26 and eight actual tagged launch cases pass, alongside the current native
+mapping/receipt and four installer checks. Full Xcode is absent and trusted
+Tailscale HTTPS is pending owner setup. See PUSH_HELPER_RUNTIME.md for private
+paths, exact scope and next commands; no live provider/device behavior is implied.
+
 The installer now injects an explicitly configured `NativePushSourceOwner` at
 AppDelegate startup: **12 changed files / five original pins**. Public descriptor
 publication runs in an actor before each child launch; no native private key is
@@ -291,15 +299,16 @@ cases inject a synthetic sealer/sender and do not establish new HPKE/FCM evidenc
 
 ## Required next integration
 
-1. Assemble the production helper entrypoint with journal/dispatcher/forwarder/
-   sealer/enrollment, keys and HTTPS. Inject the implemented process sink into the
-   native composition and add encrypted unacknowledged-producer persistence.
-2. Apply the reviewed hook patch in a private checkout and perform the upstream
-   tagged full-app build and actual auth/settings/capture acceptance. Syntax and
-   fixture compilation do not establish whole-app integration.
-3. Finish correct-account dedicated Firebase provisioning (see FIREBASE_SETUP.md), register Android
-   clients and provision limited provider credentials. Build/sign the custom Mac
-   extension and configured Android integration milestone.
+1. Complete trusted hostname TLS and the private runtime configuration using the
+   provisioned keys/provider and compiled sealer. Entrypoint, native owner injection
+   and public descriptor publication exist. Add encrypted unacknowledged-producer
+   persistence through Mac app death.
+2. Once full Xcode/storage are available, apply the reviewed patch in a private
+   checkout and perform the tagged full-app build and actual auth/settings/capture
+   acceptance. Syntax/fixture compilation do not establish whole-app integration.
+3. Correct-account dedicated Firebase, both clients, limited provider credentials
+   and messaging-scope OAuth are verified (FIREBASE_SETUP.md). Build/sign the custom
+   Mac extension and configured Android integration milestone.
 4. Verify actual Mac/Pixel foreground/background/process-dead/Doze delivery,
    token rotation, tap/reply, dismissals and account revocation.
 
