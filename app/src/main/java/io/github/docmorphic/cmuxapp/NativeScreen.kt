@@ -2652,6 +2652,7 @@ internal fun NativeScreen(
                             showSettings = false
                         }.onFailure { error = it.message }
                     }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Remove local pairing", color = Color(0xFFFF9999)) }
+                    NativeSettingsSetupHelp(displayPolicy)
                     TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
                     }, notifications = {
                     Text("PUSH ALERTS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() },

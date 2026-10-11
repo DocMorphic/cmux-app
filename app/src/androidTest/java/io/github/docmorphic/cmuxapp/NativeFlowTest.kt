@@ -90,6 +90,33 @@ class NativeFlowTest {
         TerminalDraftRepository.get(context).drafts.clear()
     }
 
+    @Test fun settingsSetupReferenceLeavesPairingAndLiveTransportUnchanged() {
+        val clients = CopyOnWriteArrayList<MobileRpcClient>()
+        peer.notificationFeed = searchNotifications()
+        showSearchFixture(onClient = { clients += it })
+        val before = NativeCredentialStore(context).load()?.optString("pairing_code")
+        val connections = clients.size
+        assertTrue(connections > 0)
+        compose.onNodeWithContentDescription("cmux settings").performClick()
+        compose.onNodeWithTag("settings.setup-help").performScrollTo().performClick()
+        compose.onNodeWithTag("setup.help").assertIsDisplayed()
+        compose.onNodeWithTag("setup.help.gate:accountMismatch").performScrollTo().assertIsDisplayed()
+        screenshot("settings-setup-reference")
+        compose.onNodeWithTag("setup.help.done").performClick()
+        compose.onNodeWithTag("setup.help").assertDoesNotExist()
+        compose.onNodeWithTag("settings.done").performClick()
+        assertEquals(connections, clients.size)
+        assertTrue(clients.none { it.isClosed })
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.onNodeWithTag("native.composer").performTextInput("setup-help-input")
+        compose.onNodeWithContentDescription("Send").performClick()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" &&
+            it.optJSONObject("params")?.optString("text")?.contains("setup-help-input") == true } }
+        assertEquals(before, NativeCredentialStore(context).load()?.optString("pairing_code"))
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
     @Test fun unsupportedGroupLongPressDoesNotLeaveAnInvisibleMenuBlockingNormalTap() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
@@ -2628,11 +2655,11 @@ class NativeFlowTest {
         screenshot("notification-unavailable")
     }
 
-    private fun showSearchFixture(ticket: MobileAttachTicketContext? = null) {
+    private fun showSearchFixture(ticket: MobileAttachTicketContext? = null, onClient: (MobileRpcClient) -> Unit = {}) {
         compose.setContent {
             CmuxTheme { Surface(Modifier.fillMaxSize()) {
                 NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
-                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }, ticket).also { it.connect() }
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }, ticket).also { it.connect(); onClient(it) }
                 })
             } }
         }

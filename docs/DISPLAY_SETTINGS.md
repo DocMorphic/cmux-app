@@ -1,5 +1,15 @@
 # Workspace display and scrollback settings
 
+## Setup reference — 2026-10-12
+
+Settings now includes the iOS **Set Up Computer** reference entry before
+Introduction. Four setup gates/network guidance, restoration, safe download links
+and a fixed Done header are implemented. A reproduced Dialog font-scale loss is
+fixed, with a direct renderer assertion and inspected final scale-2 screenshot.
+The production Settings/transport/pairing/terminal-input case and final rendering
+case passed across the recorded runs. See [SETUP_HELP.md](SETUP_HELP.md) for exact
+counts, original failures, APK hashes and remaining scope. Signed 650 is unchanged.
+
 ## Settings screen and inline teams — 2026-10-12
 
 Scoped source remains `f4b1509054949eaad5d695569ad443c4c18ed68d`, specifically
