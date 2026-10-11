@@ -201,6 +201,27 @@ test('native Mac rotation after restart cannot reuse an older helper enrollment'
     await new Promise(r => setTimeout(r, 25)); assert.equal(restarted.sent.length, 0);
   } finally { await restarted.service.stop(); }
 });
+test('committed helper renewal recovers its exact receipt after reply loss and restart', async t => {
+  const f = fixture(t), endpoint = await f.start(), { offer, ack } = await enroll(f, endpoint);
+  const request = { requestID: '00000000-0000-4000-8000-000000000040', registration: ack.body.registration,
+    recipient: { installationID: phone.installationID, keyID: phone.keyID, senderKeyID: helper.keyID,
+      tuple: { ...offer.mac, iosBuildID: offer.phoneBuildID, iosInstallationID: phone.installationID } },
+    action: 'renew', token: 'replacement-fixture-token' };
+  assert.equal((await post(endpoint, 'maintain.begin', request)).status, 200);
+  const challenge = f.challenges.find(c => c.kind === 'cmux-app.helper.registration');
+  const finish = { requestID: request.requestID, proof: hmac(Buffer.from(challenge.challenge, 'base64url'),
+    'cmux-app.helper.registration.finish.v1', [challenge.requestDigest]) };
+  const committed = await post(endpoint, 'maintain.finish', finish); assert.equal(committed.status, 200);
+  const retried = await post(endpoint, 'maintain.finish', finish);
+  assert.equal(retried.status, 200); assert.deepEqual(retried.body, committed.body);
+  await f.service.stop(); const restarted = fixture(t, { directory: f.root });
+  try {
+    const newEndpoint = await restarted.start(), recovered = await post(newEndpoint, 'maintain.finish', finish);
+    assert.equal(recovered.status, 200); assert.deepEqual(recovered.body, committed.body);
+    restarted.replaceNative(desc('rotated-native', 6));
+    assert.equal((await post(newEndpoint, 'maintain.finish', finish)).status, 403);
+  } finally { await restarted.service.stop(); }
+});
 test('stop fences admission and waits for existing encryption before returning', async t => {
   let enter, release;
   const entered = new Promise(r => { enter = r; }), waiting = new Promise(r => { release = r; });
