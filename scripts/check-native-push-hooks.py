@@ -66,13 +66,25 @@ def main():
     check = subprocess.run([args.node, str(root / "scripts/native-push-hooks-check.mjs"), str(output / "cases.json")],
         capture_output=True, timeout=30)
     (output / "behavior.log").write_bytes(check.stdout + check.stderr); check.check_returncode()
+    queue_binary = output / "queue-fixture"
+    queue_build = subprocess.run(["/usr/bin/swiftc", "-swift-version", "6",
+        str(root / "push/NativePushSourceFrame.swift"), str(root / "push/mac-native/NativePushSourceDeliveryQueue.swift"),
+        str(root / "scripts/native-push-delivery-queue-fixture.swift"), "-o", str(queue_binary)],
+        capture_output=True, timeout=90)
+    (output / "queue-build.log").write_bytes(queue_build.stdout + queue_build.stderr); queue_build.check_returncode()
+    queue_cases = output / "queue-cases.json"
+    queue_cases.write_bytes(subprocess.check_output([str(queue_binary)], timeout=10))
+    queue_check = subprocess.run([args.node, str(root / "scripts/native-push-delivery-queue-check.mjs"),
+        str(queue_cases), str(queue_binary)], capture_output=True, timeout=30)
+    (output / "queue-behavior.log").write_bytes(queue_check.stdout + queue_check.stderr); queue_check.check_returncode()
     receipt = {"ref": patch.REF, "pinnedSources": patch.PINS, "payloadSources": payload_hashes,
         "patchedSources": {path: hashlib.sha256(data).hexdigest() for path, data in patched.items()},
         "kind": "native-mapping-and-patch-check-passed",
-        "scope": "Whole edited Swift syntax/project parsing; actual upstream payload mapper compiled/executed. Not a whole app build or live auth/source transport."}
+        "scope": "Edited Swift syntax/project parsing; actual upstream payload mapper/auth projection and native receipt queue compiled/executed; actual Swift queue/private-pipe journal interop. Not a whole app build, process supervisor or live account/provider."}
     (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(auth_result.decode().strip())
     print(check.stdout.decode().strip())
+    print(queue_check.stdout.decode().strip())
 
 
 if __name__ == "__main__":

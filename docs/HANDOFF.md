@@ -10,7 +10,7 @@ cached gcloud account, then shut down; `DELETE_REQUESTED` was verified. Do not u
 the replacement with an explicit `--account`. See
 [FIREBASE_SETUP.md](FIREBASE_SETUP.md); no client/provider configuration or live
 delivery exists.
-A pinned six-file native hook installer now captures the actual phone producer
+The initial pinned six-file native hook installer captures the actual phone producer
 before the Apple-recipient gate and derives authenticated session/team authority.
 It observes auth/settings, heartbeats and immediately fences auth/privacy/master
 forwarding transitions. Unknown authority invalidates its lease without declaring
@@ -21,6 +21,14 @@ not drop the alert. 66 focused checks pass on Node 22/26, four installer cases,
 eight compiled auth projection cases, actual payload mapper/encrypted-journal
 interop on both runtimes, and edited Swift syntax/project parsing pass.
 See [NATIVE_PUSH_SOURCE.md](NATIVE_PUSH_SOURCE.md) for exact scope/evidence.
+The next owner queue batch adds bounded atomic host/capture admission and exact
+pending-frame replay, receipt validation, host refresh after nonacks and transport
+retirement on account/privacy/master changes. Ten compiled Swift case groups and
+actual Swift queue/private-pipe encrypted-journal exchanges pass on Node 22/26.
+The installer now wires eight files against four unchanged original pins. The
+concrete process supervisor/assembly is still absent; unacknowledged native owner
+entries remain in memory, so encrypted producer persistence through Mac app death
+is also open. See NATIVE_PUSH_SOURCE.md for commands and evidence.
 Earlier actual CryptoKit/private-pipe checks remain recorded separately. No full
 custom Mac build/install, production listener, Android build or physical acceptance
 in this batch. Next: native process owner, helper assembly/keys/TLS, configured

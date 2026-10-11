@@ -176,7 +176,13 @@ def patched_sources(original):
     result[path] = source.encode()
     path = "cmux.xcodeproj/project.pbxproj"
     source = original[path].decode()
-    for index, name in enumerate(["NativePushSourceMessages", "NativePushSourceSink"], 1):
+    native_sources = {
+        "NativePushSourceMessages": "push/mac-native/NativePushSourceMessages.swift",
+        "NativePushSourceSink": "push/mac-native/NativePushSourceSink.swift",
+        "NativePushSourceDeliveryQueue": "push/mac-native/NativePushSourceDeliveryQueue.swift",
+        "NativePushSourceFrame": "push/NativePushSourceFrame.swift",
+    }
+    for index, (name, source_path) in enumerate(native_sources.items(), 1):
         build = f"C0DEAD0000000000000000{index:02X}"
         file = f"C0DEAD0000000000000001{index:02X}"
         if build in source or file in source:
@@ -185,7 +191,7 @@ def patched_sources(original):
         source = once(source, "/* End PBXFileReference section */", f'\t\t{file} /* {name}.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Sources/Cloud/{name}.swift"; sourceTree = SOURCE_ROOT; }};\n/* End PBXFileReference section */')
         source = once(source, "\t\t\t\tD1F0A00100000000000000A2 /* PhonePushClient.swift */,", f"\t\t\t\t{file} /* {name}.swift */,\n\t\t\t\tD1F0A00100000000000000A2 /* PhonePushClient.swift */,")
         source = once(source, "\t\t\t\tD1F0A00100000000000000A1 /* PhonePushClient.swift in Sources */,", f"\t\t\t\t{build} /* {name}.swift in Sources */,\n\t\t\t\tD1F0A00100000000000000A1 /* PhonePushClient.swift in Sources */,")
-        result[f"Sources/Cloud/{name}.swift"] = (ROOT / f"push/mac-native/{name}.swift").read_bytes()
+        result[f"Sources/Cloud/{name}.swift"] = (ROOT / source_path).read_bytes()
     result[path] = source.encode()
     return result
 

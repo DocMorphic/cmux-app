@@ -139,6 +139,18 @@ pipes, awaits dispatcher shutdown, then closes stores/destroys storage keys.
 Construction starts no IO, listener, process or timer. Do not expose this channel
 on a socket or use untrusted incoming traffic to provision its bootstrap.
 
+The owner-side `mac-native/NativePushSourceDeliveryQueue.swift` is a bounded,
+main-actor receipt/replay state machine with no IO. It retains at most 128 original
+capture bodies/8 MiB, only the latest observed host control, and the exact pending
+frame until a receipt. A nonack permits refreshing host state at the unused
+sequence. Disconnect requires refreshed authority; account/privacy/master changes
+require retiring the transport. Native admission survives presence changes.
+The pinned hook installer wires the queue and CryptoKit encoder explicitly into
+Xcode. A concrete process sink and encrypted producer persistence through Mac app
+process death are still required; this queue's unacknowledged entries are in
+memory. Actual Swift/private-pipe journal exchanges are documented in
+[NATIVE_PUSH_SOURCE.md](../docs/NATIVE_PUSH_SOURCE.md).
+
 ```sh
 node --test push/native-source*.test.mjs push/source-journal.test.mjs push/source-dispatcher.test.mjs push/forwarder.test.mjs
 python3 scripts/check-native-push-source.py --node /absolute/path/to/node

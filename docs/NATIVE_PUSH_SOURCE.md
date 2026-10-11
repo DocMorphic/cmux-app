@@ -11,6 +11,56 @@ down; replacement provisioning awaits Gmail browser authorization. Live delivery
 remains unconfigured/unverified.
 See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
+## Native owner receipt queue — 2026-10-11
+
+`NativePushSourceDeliveryQueue.swift` now supplies the bounded receipt/replay
+state for the future Mac process sink. It performs no IO or account bootstrap.
+Atomic admission accepts one native host/control or one host/capture batch, at
+most 128 captures and 8 MiB of capture bodies. A rejected batch changes neither
+host state nor its capture prefix. Only the latest host observation is retained;
+its original 30-second lease is never extended by replay.
+
+Each private connection begins with an owner-provisioned session/key bootstrap.
+The queue retains the exact authenticated pending frame until a receipt, even
+past its expiry when the acknowledgment is uncertain. A received nonack permits
+fresh native host state at the unused sequence, then replay of the unchanged
+capture at the next sequence. Capture/duplicate/expired/retired acknowledgments
+release exactly one entry; stale duplicate receipts are harmless. Invalid receipt
+shape/boolean/sequence/kind/size cannot advance or release entries.
+
+Disconnect/unknown authority clears live controls/session but keeps original
+capture bodies. Reconnect requires refreshed native authority. Account binding
+changes, sign-out, master forwarding disable or tightened privacy require transport
+retirement before a fresh connection. Presence alone preserves admitted/in-flight
+alerts. Expired events are not renewed, and expired/future host observations cannot
+authorize startup or replay.
+
+Ten compiled fixture case groups passed in Swift language mode 6, plus actual
+Swift queue/private-pipe exchanges on Node 26.8.2 and 22.16.0. In those exchanges
+the helper's real adapter rejected the first capture after its host lease expired;
+the Swift queue consumed that nonack, refreshed host state at the unused sequence,
+then captured the unchanged original event into a real encrypted SQLite journal.
+The child consumed all five receipts and exited zero; EOF retired helper authority.
+The typed payload/auth mapper checks still pass. The installer now adds the queue
+and frame encoder with explicit PBX membership: **eight changed files** against
+the same four audited original hashes. Edited Swift syntax/plist parsing and four
+installer cases pass; these are not a whole-app build.
+
+Evidence: ignored `captures/runtime/push-native-owner/check/` (compiled binaries,
+case output, original compiler/behavior logs, patched source/hash receipt) and
+`queue-node22.log`. Reproduce with the expanded `check-native-push-hooks.py`, then:
+
+```sh
+node scripts/native-push-delivery-queue-check.mjs captures/runtime/push-native-owner/check/queue-cases.json captures/runtime/push-native-owner/check/queue-fixture
+```
+
+The concrete native process supervisor, helper assembly and production injection
+remain required. Unacknowledged owner entries are currently in memory; persistence
+through **Mac app process death** needs an encrypted producer spool or integration
+with the native queue. The helper journal is durable after capture receipt. No
+user account, Firebase/provider request, production process/listener, APK or full
+custom app build was exercised. Signed 642/global parity pin are unchanged.
+
 ## Native producer hooks and preserved admission — 2026-10-11
 
 `scripts/apply-native-push-patch.py` now installs a bounded extension into an

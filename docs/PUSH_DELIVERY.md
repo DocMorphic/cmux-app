@@ -1,5 +1,23 @@
 # Android background push
 
+## Native owner receipt/replay queue — 2026-10-11
+
+The native queue now supplies atomic bounded admission, exact frame retention
+through uncertain receipts, fresh host replacement after nonacks, terminal capture
+receipts and immediate state retirement requirements. Latest-only native host
+controls preserve their original leases; original event bodies/expiries survive
+reconnect. Presence changes preserve prior phone admission; identity/privacy/master
+changes require transport retirement. The installer adds explicit queue/encoder
+PBX membership (eight changed files; four original pins unchanged).
+
+Ten compiled Swift fixture groups pass. Actual Swift queue/private-pipe exchanges
+with the helper adapter and encrypted journal pass on Node 22/26: expired authority
+causes a real nonack, host refresh reuses the unused sequence, unchanged capture
+becomes durable, all five receipts are consumed and EOF retires authority. No
+whole app, native supervisor, actual auth/provider/Pixel workflow is proved.
+Unacknowledged owner entries remain in memory; Mac app-death producer persistence
+and the process supervisor/assembly remain open. See NATIVE_PUSH_SOURCE.md.
+
 ## Native hooks, admission fix and dedicated project — 2026-10-11
 
 The reviewed native installer now wires the real PhonePushPayload producer,
