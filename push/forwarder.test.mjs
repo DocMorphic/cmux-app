@@ -135,6 +135,23 @@ test('already admitted away alerts may retry after Mac becomes active, matching 
   r.enqueue(await r.prepare(request())); f.snapshot().settings.admission = 'suppressed_mac_active';
   r.start(); await f.fire(); assert.equal(f.sent.length, 1);
 });
+test('native admission survives Mac activation before helper preparation without renewing expiry', async t => {
+  const f = fixture(t), r = f.runtime(), admitted = request();
+  f.snapshot().settings.mode = 'onlyWhenAway'; f.snapshot().settings.admission = 'suppressed_mac_active';
+  const prepared = await r.prepare(admitted);
+  assert.equal(prepared.kind, 'prepared'); assert.equal(prepared.jobs[0].delivery.expiresAt, admitted.expiresAt);
+  r.enqueue(prepared); r.start(); await f.fire(); assert.equal(f.sent.length, 1);
+});
+test('native admission survives Mac activation during encryption while revocation remains live', async t => {
+  let release, entered;
+  const held = new Promise(resolve => { release = resolve; });
+  const started = new Promise(resolve => { entered = resolve; });
+  const f = fixture(t, { encrypt: async args => { entered(); await held; return seal(args); } }), r = f.runtime();
+  f.snapshot().settings.mode = 'onlyWhenAway'; const pending = r.prepare(request()); await started;
+  f.snapshot().settings.admission = 'suppressed_mac_active'; release();
+  const prepared = await pending; assert.equal(prepared.kind, 'prepared');
+  r.enqueue(prepared); r.start(); await f.fire(); assert.equal(f.sent.length, 1);
+});
 
 test('shutdown awaits encryption, rejects late preparation and never starts a provider', async t => {
   let release; const wait = new Promise(resolve => { release = resolve; });
