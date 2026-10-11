@@ -1,8 +1,8 @@
 import Darwin
 import Foundation
 
-/// Publishes only the custom app's public push descriptor before each private
-/// helper launch. File/Keychain work stays in this actor, outside the main actor.
+/// Publishes only the custom app's public push descriptor before each fresh host
+/// observation and private helper launch. File/Keychain work stays off main.
 actor NativePushOwnerDescriptorRepository {
     enum Failure: Error { case unavailable }
     private struct Configuration: Decodable {
@@ -58,6 +58,7 @@ actor NativePushOwnerDescriptorRepository {
                       !$0.unicodeScalars.contains(where: { $0.value < 32 }) }) else { throw Failure.unavailable }
             let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
             let data = try encoder.encode(descriptor)
+            if let current = try? readPrivate(target), current == data { return }
             let temporary = target.deletingLastPathComponent().appendingPathComponent(".cmux-push-" + UUID().uuidString)
             let fd = open(temporary.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, S_IRUSR | S_IWUSR)
             guard fd >= 0 else { throw Failure.unavailable }

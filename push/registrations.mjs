@@ -29,11 +29,22 @@ function binding(value) {
   return { registration: value.registration, token: value.token, recipient: recipient(value.recipient) };
 }
 function enrollment(value) {
-  requireInput(exact(value, ['token', 'recipient', 'publicKey']));
+  const fields = ['token', 'recipient', 'publicKey'];
+  if (Object.hasOwn(value ?? {}, 'native')) fields.push('native');
+  requireInput(exact(value, fields));
   requireInput(typeof value.token === 'string' && value.token.length > 0 && value.token.length <= 4096 && !/\s/.test(value.token));
   const key = typeof value.publicKey === 'string' ? Buffer.from(value.publicKey, 'base64') : Buffer.alloc(0);
   requireInput(key.length === 32 && key.toString('base64') === value.publicKey);
-  return { token: value.token, recipient: recipient(value.recipient), publicKey: value.publicKey };
+  const checked = { token: value.token, recipient: recipient(value.recipient), publicKey: value.publicKey };
+  if (Object.hasOwn(value, 'native')) {
+    const native = value.native;
+    requireInput(exact(native, ['version', 'algorithm', 'installationID', 'keyID', 'publicKey']) &&
+      native.version === 1 && native.algorithm === 'rawX25519' && [native.installationID, native.keyID].every(text));
+    const publicKey = typeof native.publicKey === 'string' ? Buffer.from(native.publicKey, 'base64') : Buffer.alloc(0);
+    requireInput(publicKey.length === 32 && publicKey.toString('base64') === native.publicKey);
+    checked.native = structuredClone(native);
+  }
+  return checked;
 }
 
 /** Durable storage for already-authenticated enrollments. It is not an authentication or network API. */
@@ -100,8 +111,11 @@ export class PushRegistrations {
     if (!row) return null;
     try {
       const value = this.#open(row);
-      const checked = enrollment({ token: value.token, recipient: value.recipient, publicKey: value.publicKey });
-      requireInput(exact(value, ['registration', 'token', 'recipient', 'publicKey']));
+      const fields = ['registration', 'token', 'recipient', 'publicKey'];
+      const input = { token: value.token, recipient: value.recipient, publicKey: value.publicKey };
+      if (Object.hasOwn(value, 'native')) { fields.push('native'); input.native = value.native; }
+      const checked = enrollment(input);
+      requireInput(exact(value, fields));
       binding({ registration: value.registration, token: checked.token, recipient: checked.recipient });
       if (this.#slot(checked.recipient) !== row.slot) throw new Error();
       return value;
@@ -118,7 +132,9 @@ export class PushRegistrations {
     return this.#transaction(() => {
       const slot = this.#slot(checked.recipient), previous = this.#read(slot);
       if ((previous?.registration.generation ?? null) !== expectedGeneration) throw new RegistrationError('superseded');
-      if (previous && !forceGeneration && canonical({ token: previous.token, recipient: previous.recipient, publicKey: previous.publicKey }) === canonical(checked))
+      const prior = previous && { token: previous.token, recipient: previous.recipient, publicKey: previous.publicKey };
+      if (previous && Object.hasOwn(previous, 'native')) prior.native = previous.native;
+      if (previous && !forceGeneration && canonical(prior) === canonical(checked))
         return structuredClone(previous);
       if (!previous && !this.#read(slot, true) && this.#db.prepare(
         'SELECT (SELECT COUNT(*) FROM registrations) + (SELECT COUNT(*) FROM retired_registrations) AS count').get().count >= this.#capacity)
@@ -158,6 +174,17 @@ export class PushRegistrations {
       const current = this.#known(this.#slot(checked));
       return current && canonical(current.registration) === canonical(registration) && canonical(current.recipient) === canonical(checked)
         ? structuredClone(current) : null;
+    });
+  }
+  /** Native policy metadata only. Protocol receipt recovery already verifies
+   * the exact committed generation; a renewal's BEFORE generation is retired.
+   * This cannot authorize an operation or expose a token by itself. */
+  maintenanceTrust(target, registrationID) {
+    const checked = recipient(target); requireInput(text(registrationID));
+    return this.#transaction(() => {
+      const current = this.#known(this.#slot(checked));
+      if (!current || current.registration.id !== registrationID || canonical(current.recipient) !== canonical(checked)) return null;
+      return { publicKey: current.publicKey, ...(Object.hasOwn(current, 'native') ? { native: structuredClone(current.native) } : {}) };
     });
   }
   maintenanceMatches(value) {

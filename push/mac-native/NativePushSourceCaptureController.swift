@@ -20,6 +20,7 @@ final class NativePushSourceCaptureController: NativePushSourceSink {
         var submitted: Bool
     }
     private let repositoryFactory: @Sendable () async throws -> NativePushCaptureRepository
+    private let prepareHost: @Sendable () async throws -> Void
     private let now: () -> Int64
     private let report: (String) -> Void
     private var sink: NativePushSourceProcessSink?
@@ -39,13 +40,15 @@ final class NativePushSourceCaptureController: NativePushSourceSink {
     private var removals: Set<UUID> = []
     private var revision: UInt64 = 0
     private var sentRevision: UInt64?
+    private var preparedRevision: UInt64?
 
     init(repositoryFactory: @escaping @Sendable () async throws -> NativePushCaptureRepository,
          executable: URL, arguments: [String], directory: URL,
          prepareChild: @escaping @Sendable () async throws -> Void,
+         prepareHost: @escaping @Sendable () async throws -> Void = {},
          now: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) },
          onState: @escaping (String) -> Void = { _ in }) throws {
-        self.repositoryFactory = repositoryFactory; self.now = now; self.report = onState
+        self.repositoryFactory = repositoryFactory; self.prepareHost = prepareHost; self.now = now; self.report = onState
         sink = try NativePushSourceProcessSink(executable: executable, arguments: arguments, directory: directory,
             now: now, prepareChild: prepareChild, acknowledgedCapture: { [weak self] in self?.acknowledged($0) },
             onState: { [weak self] in self?.transportState($0) })
@@ -112,7 +115,7 @@ final class NativePushSourceCaptureController: NativePushSourceSink {
         } catch { return false }
     }
     func invalidate() {
-        observation = nil; sentRevision = nil; sink?.invalidate()
+        observation = nil; sentRevision = nil; preparedRevision = nil; sink?.invalidate()
     }
     func retireScope() {
         invalidate(); retireUnloaded = true; wireEpoch = nil; nativeEpoch = nil; activeScope = nil
@@ -205,21 +208,31 @@ final class NativePushSourceCaptureController: NativePushSourceSink {
                 let ids = Set(expired.map { $0.record.id }); removals.formUnion(ids)
                 entries.removeAll { ids.contains($0.record.id) }; continue
             }
-            try submitAvailable()
             if let index = entries.firstIndex(where: { !$0.persisted }) {
                 var record = entries[index].record
                 let persisted = entries.filter { $0.persisted }
-                guard persisted.count < 128, persisted.reduce(0, { $0 + $1.record.body.count }) + record.body.count <= 8 * 1_048_576 else { return }
-                if let wireEpoch { record = try rebound(record, epoch: wireEpoch) }
-                let id = record.id
-                _ = try await repository.append(record, now: now())
-                guard let current = entries.firstIndex(where: { $0.record.id == id }) else {
-                    removals.insert(id); continue
+                if persisted.count < 128, persisted.reduce(0, { $0 + $1.record.body.count }) + record.body.count <= 8 * 1_048_576 {
+                    if let wireEpoch { record = try rebound(record, epoch: wireEpoch) }
+                    let id = record.id
+                    _ = try await repository.append(record, now: now())
+                    guard let current = entries.firstIndex(where: { $0.record.id == id }) else {
+                        removals.insert(id); continue
+                    }
+                    entries[current].record = record; entries[current].persisted = true
+                    report("capture-committed")
+                    continue
                 }
-                entries[current].record = record; entries[current].persisted = true
-                report("capture-committed")
+            }
+            if enabled, let observation, observation.observedAt <= now(), now() < observation.validUntil,
+               preparedRevision != revision {
+                let selected = revision
+                try await prepareHost()
+                // Stop/invalidation or a newer native observation may arrive
+                // during actor IO. Never transmit an unprepared/stale host.
+                if enabled, self.observation != nil, selected == revision { preparedRevision = selected }
                 continue
             }
+            try submitAvailable()
             return
         }
     }

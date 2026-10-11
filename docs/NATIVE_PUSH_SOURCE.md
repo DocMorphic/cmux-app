@@ -1,5 +1,10 @@
 # Native Android push source — 2026-10-11
 
+Current native Mac descriptor binding, running-owner publication and durable
+capture-before-preparation behavior are recorded in
+[NATIVE_PUSH_MAC_KEY.md](NATIVE_PUSH_MAC_KEY.md). Current installer scope remains
+17 files / seven audited originals; prior counts below describe older checkpoints.
+
 Current native phone pin integration extends the installer to **17 files / seven
 pins**. Enrollment/renewal/provider authorization require current native phone key
 trust; changed pins fence the old helper. See NATIVE_PUSH_TRUST.md for executed
@@ -316,8 +321,9 @@ cases inject a synthetic sealer/sender and do not establish new HPKE/FCM evidenc
 
 1. Complete trusted hostname TLS and the private runtime configuration using the
    provisioned keys/provider and compiled sealer. Entrypoint, native owner injection
-   and public descriptor publication exist. Add encrypted unacknowledged-producer
-   persistence through Mac app death.
+   and public descriptor publication exist. Encrypted unacknowledged-producer
+   persistence through Mac app death is implemented; actual user Keychain and full
+   custom app acceptance remain open.
 2. Once full Xcode/storage are available, apply the reviewed patch in a private
    checkout and perform the tagged full-app build and actual auth/settings/capture
    acceptance. Syntax/fixture compilation do not establish whole-app integration.
@@ -328,4 +334,4 @@ cases inject a synthetic sealer/sender and do not establish new HPKE/FCM evidenc
    token rotation, tap/reply, dismissals and account revocation.
 
 The goal remains active; this is not a running custom Mac producer or production
-push service. Signed 642 remains latest and full parity stays open.
+push service. Signed 650 is the latest verified preview and full parity stays open.

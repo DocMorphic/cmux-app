@@ -88,7 +88,7 @@ export class PushEnrollment {
         r.recipient.tuple.macDeviceID === tuple.macDeviceID && r.recipient.tuple.macInstanceTag === tuple.macInstanceTag && r.recipient.tuple.macBuildID === tuple.macBuildID);
     row.phone = clone(body.phone); this.#admitted(row);
     row.requestDigest = digest; row.requestID = body.requestID; row.challenge = randomBytes(32);
-    row.enrollment = { token: body.token, recipient, publicKey: body.phone.publicKey };
+    row.enrollment = { token: body.token, recipient, publicKey: body.phone.publicKey, native: clone(row.offer.native) };
     row.expectedGeneration = previous?.registration.generation ?? null;
     row.pending = (async () => {
       const plaintext = Buffer.from(JSON.stringify({ version: 1, kind: 'cmux-app.helper.enrollment', offerID: row.offer.offerID,

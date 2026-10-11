@@ -19,7 +19,7 @@ export class PushForwarder {
         if (!hostPermitsDelivery(host, binding, admission)) return false;
         if (this.#trusted === undefined) return true;
         const record = this.#registrations.maintenanceRegistration(binding.recipient, binding.registration);
-        return !!record && this.#trusted(binding.recipient, record.publicKey, host) === true;
+        return !!record && this.#trusted(binding.recipient, record.publicKey, host, record.native) === true;
       } });
   }
   /** No listener/provider IO starts until the owning service explicitly calls this. */
@@ -58,7 +58,7 @@ export class PushForwarder {
       if (expiresAt - this.#now() < 1000) return { kind: 'expired' };
       const records = this.#registrations.recipients({ accountID: host.authority.accountID, teamID: host.authority.teamID ?? null })
         .filter(record => hostMatchesRecipient(host, record.recipient) &&
-          (this.#trusted === undefined || this.#trusted(record.recipient, record.publicKey, host) === true));
+          (this.#trusted === undefined || this.#trusted(record.recipient, record.publicKey, host, record.native) === true));
       if (!records.length) return { kind: 'no-recipients' };
       const jobs = [];
       for (const registration of records) {
@@ -68,7 +68,7 @@ export class PushForwarder {
           if (this.#stopped || generation !== this.#generation) return false;
           const live = readPushHost(this.#readHost, this.#now);
           return hostPermitsDelivery(live, { recipient: registration.recipient }, admission) &&
-            (this.#trusted === undefined || this.#trusted(registration.recipient, registration.publicKey, live) === true);
+            (this.#trusted === undefined || this.#trusted(registration.recipient, registration.publicKey, live, registration.native) === true);
         };
         const prepared = await preparePushBatch({ event: { ...original, hideContent: host.settings.hideContent },
           expiresAt, registration, authority: host.authority, hostEpoch: host.epoch }, { seal: this.#seal, now: this.#now, permits });

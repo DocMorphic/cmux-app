@@ -2,6 +2,17 @@
 
 ## Current checkpoint — 2026-10-11
 
+Native Mac sender-key lifecycle is now bound into encrypted helper enrollment.
+A changed descriptor fences old delivery and renewal, including held OAuth and
+helper restart. The running Swift owner refreshes its public descriptor without
+requiring a child restart; originals persist before held key preparation. Exact
+committed renewal receipts recover across retry/restart while current trust holds.
+Four behavioral regression commits preserve the failures. Current Node 22/26 runs
+pass 191 of 192 checks with one existing optional skip; actual owner, nine recovery
+cases, native mapping/auth/receipt and installer/launch checks pass. Installer scope
+remains 17 files / seven pins. APK 650 is unchanged. See NATIVE_PUSH_MAC_KEY.md for
+binding, evidence and the remaining actual Keychain/custom-Mac/Pixel/FCM gates.
+
 Signed milestone **650** is now published and independently verified at source
 `d34daed53231997ffa68de63233357e6fe98d489`:
 https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-650.

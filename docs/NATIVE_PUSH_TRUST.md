@@ -2,6 +2,11 @@
 
 ## Implemented boundary
 
+Native Mac descriptor binding and running-owner refresh are now implemented in
+[NATIVE_PUSH_MAC_KEY.md](NATIVE_PUSH_MAC_KEY.md). Its current 192-check helper runs
+extend the 189-check phone-pin checkpoint recorded below. Physical Mac key rotation
+and full native/Pixel delivery remain open.
+
 The custom native producer now includes `trustedPhones` in each authenticated ready
 host snapshot. Each row contains only the Android build label, phone installation
 ID, key ID and public key. The native hook reads the audited `PhonePushPeerKeyStore`

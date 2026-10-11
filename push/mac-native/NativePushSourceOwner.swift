@@ -17,7 +17,7 @@ final class NativePushSourceOwner: NativePushSourceSink {
         sink = try NativePushSourceCaptureController(repositoryFactory: { try await repository.captures(loadKey: loadCaptureKey) },
             executable: URL(fileURLWithPath: node),
             arguments: [helper, "--config", configuration], directory: URL(fileURLWithPath: helper).deletingLastPathComponent(),
-            prepareChild: { try await repository.publish() }, onState: onState)
+            prepareChild: { try await repository.publish() }, prepareHost: { try await repository.publish() }, onState: onState)
     }
     func start() throws { try sink.start() }
     func offer(_ messages: [Data]) -> Bool { sink.offer(messages) }

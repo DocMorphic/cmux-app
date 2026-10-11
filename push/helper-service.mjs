@@ -81,10 +81,10 @@ export class NativePushHelperService {
       const host = this.#host();
       // Phone-key possession and current native account authorize cleanup even
       // while forwarding is paused. Presence does not gate token maintenance.
-      const record = this.#registrations.maintenanceRegistration(binding.recipient, binding.registration);
+      const record = this.#registrations.maintenanceTrust(binding.recipient, binding.registration.id);
       return hostMatchesRecipient(host, binding.recipient) &&
         (action === 'revoke' || (action === 'renew' && this.#clients.has(binding.recipient.tuple.iosBuildID) &&
-          record && nativePhoneTrusted(host, binding.recipient, record.publicKey)));
+          record && sameDescriptor(record.native, this.#native()) && nativePhoneTrusted(host, binding.recipient, record.publicKey)));
     } catch { return false; }
   }
   #encrypt = input => {
@@ -116,7 +116,8 @@ export class NativePushHelperService {
         const sender = new FcmSender({ projectId: this.#project.project, tokens: this.#tokens, fetch: this.#fetch, now: this.#now });
         this.#forwarder = new PushForwarder({ registrations: this.#registrations, outbox: this.#outbox, sender,
           readHost: () => this.#state === 'running' ? this.#adapter?.readHost() : null,
-          recipientTrusted: (recipient, publicKey, host) => nativePhoneTrusted(host, recipient, publicKey), seal: this.#encrypt, now: this.#now });
+          recipientTrusted: (recipient, publicKey, host, native) => sameDescriptor(native, this.#native()) &&
+            nativePhoneTrusted(host, recipient, publicKey), seal: this.#encrypt, now: this.#now });
         this.#dispatcher = new PushSourceDispatcher({ journal: this.#journal, forwarder: this.#forwarder, now: this.#now });
         this.#enrollment = new PushEnrollment({ registrations: this.#registrations, seal: this.#encrypt, now: this.#now,
           permits: (offer, phone) => this.#permitOffer(offer, phone) });

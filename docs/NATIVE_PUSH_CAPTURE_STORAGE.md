@@ -8,6 +8,11 @@ checkpoint counts below describe their respective batches.
 
 ## Owner integration and restart identity checkpoint
 
+Original captures now commit before fresh host descriptor preparation. Held
+preparation/stop and all nine recovery cases, including full-store backpressure,
+pass with the current controller. See [NATIVE_PUSH_MAC_KEY.md](NATIVE_PUSH_MAC_KEY.md)
+for the reproduced failure and exact current batch evidence.
+
 The production source owner now uses `NativePushSourceCaptureController`: verified
 selected-team scope is supplied by the actual native hooks, original captures commit
 before helper transmission, and exact durable capture receipts schedule storage
