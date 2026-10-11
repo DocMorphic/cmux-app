@@ -9,12 +9,14 @@ PACKAGE = importlib.util.module_from_spec(SPEC); SPEC.loader.exec_module(PACKAGE
 
 class MacNotificationPackage(unittest.TestCase):
     def fixture(self):
-        return {'CFBundleIdentifier': PACKAGE.BUNDLE_ID, 'LSEnvironment': {
+        # Pinned reload.sh and full build 38174243912 use dots for bundle-tag separators.
+        return {'CFBundleIdentifier': 'com.cmuxterm.app.debug.android.push', 'LSEnvironment': {
             'CMUX_AUTH_ENVIRONMENT': 'production', 'CMUX_API_BASE_URL': 'https://cmux.com',
             'CMUX_IROH_BROKER_BASE_URL': 'https://cmux.com', 'CMUX_IROH_V2_ENVIRONMENT': 'production',
             'CMUX_IROH_V2_BASE_URL': 'https://cmux-iroh-v2.debussy.workers.dev',
             'CMUX_BUNDLED_CLI_PATH': '/Users/runner/work/build/bin/cmux',
             'CMUX_SHELL_INTEGRATION_DIR': '/Users/runner/work/shell', 'CMUXTERM_REPO_ROOT': '/Users/runner/work/source',
+            'CMUXD_UNIX_PATH': '/Users/runner/Library/Application Support/cmux/cmuxd-dev-android-push.sock',
             'CMUX_SOCKET_PATH': '/tmp/cmux-debug-android-push.sock'}}
 
     def test_relocates_known_paths_without_mutating_original_or_isolated_socket(self):
@@ -25,7 +27,9 @@ class MacNotificationPackage(unittest.TestCase):
         self.assertEqual(actual['LSEnvironment']['CMUX_SOCKET_PATH'], '/tmp/cmux-debug-android-push.sock')
 
     def test_refuses_stable_and_untagged_bundles(self):
-        for identity in ['com.cmuxterm.app', 'com.cmuxterm.app.debug', 'other']:
+        for identity in ['com.cmuxterm.app', 'com.cmuxterm.app.debug', 'other',
+                         'com.cmuxterm.app.debug.android-push', 'com.cmuxterm.app.debug.other',
+                         'com.cmuxterm.app.nightly.android.push']:
             with self.subTest(identity=identity):
                 source = self.fixture(); source['CFBundleIdentifier'] = identity
                 with self.assertRaises(ValueError): PACKAGE.relocated_plist(source)

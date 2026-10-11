@@ -26,9 +26,9 @@ times out. Inspect actual failure logs before changing inputs.
 
 Successful runs upload `cmux-mac-notification-companion-arm64`, containing the ZIP,
 manifest and SHA256SUMS. The packager verifies the exact 22-file patch in the built
-checkout, isolated bundle ID `com.cmuxterm.app.debug.android-push`, ARM64 support,
+checkout, isolated bundle ID `com.cmuxterm.app.debug.android.push`, ARM64 support,
 production routes and deep code signatures. It removes runner-specific repository,
-bundled CLI and shell integration paths from the launch environment, then signs the
+bundled CLI, shell integration and runner-home daemon paths from the launch environment, then signs the
 relocated top bundle again. Unknown runner paths and baked account/helper paths
 are refused. The manifest records both source commits, every patch-file hash,
 archive hash, Xcode version and verification scope.
@@ -46,19 +46,25 @@ synthetic native fixture checks, with no real credentials or notifications.
 
 ## Verification status
 
-First full Mac build dispatched: https://github.com/DocMorphic/cmux-app/actions/runs/38174243912
-at project source `ee66bd51ac46de138345f851457bc10d76868439`, upstream `f4b15090`.
-Authoritative job `114573108892` is active: toolchain/dependencies, verified Ghostty,
-patch installation, catalog and native integration checks succeeded; the full
-tagged app is compiling. Do not redispatch this live run. Full app/package/artifact and physical
-acceptance are unverified until terminal results are inspected and bytes checked.
+First full Mac run [38174243912](https://github.com/DocMorphic/cmux-app/actions/runs/38174243912)
+is terminal: the full patched app **compiled successfully** on Xcode 26.6 in
+73m49s, then packaging failed because the verifier expected a hyphenated bundle
+ID while pinned reload.sh uses `com.cmuxterm.app.debug.android.push`. Source was
+`ee66bd51ac46de138345f851457bc10d76868439` / upstream `f4b15090`. Failed logs and
+build diagnostics were downloaded and inspected; no verified app artifact exists.
+The verifier now requires that exact canonical identity, strips the runner-home daemon locator while retaining the isolated frontend socket, and
+still refuses wrong tags, private paths, unknown runner paths and nonproduction
+routes. Five policy groups pass after preserved regression failures. A future
+packaging failure preserves an explicitly UNVERIFIED compiled recovery archive;
+that archive requires independent inspection before use. Verified packaging,
+local installation/runtime and physical FCM/Pixel acceptance remain open.
 
 Five packaging-policy test groups pass locally: relocation without mutation,
 stable/untagged bundle refusal, development endpoint refusal, baked private path
 refusal and unknown runner path refusal. The manual workflow YAML parses. Local
 verification used Ruby's standard YAML library because Python PyYAML is absent.
-Full app compilation/signature/archive evidence must come from a terminal successful
-workflow and downloaded artifact; it is not implied by these portable checks.
+Full app compilation is established by the terminal build step and inspected log.
+Signature/archive evidence still requires successful packaging and downloaded bytes.
 
 Runner/toolchain references: [GitHub runner documentation](https://docs.github.com/en/actions/reference/runners/github-hosted-runners),
 [macOS ARM64 image](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md),

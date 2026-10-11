@@ -9,9 +9,10 @@ import subprocess
 from pathlib import Path
 
 
-BUNDLE_ID = 'com.cmuxterm.app.debug.android-push'
+BUNDLE_ID = 'com.cmuxterm.app.debug.android.push'
 UPSTREAM = 'f4b1509054949eaad5d695569ad443c4c18ed68d'
-BUILD_PATH_KEYS = {'CMUXTERM_REPO_ROOT', 'CMUX_BUNDLED_CLI_PATH', 'CMUX_SHELL_INTEGRATION_DIR'}
+BUILD_PATH_KEYS = {'CMUXTERM_REPO_ROOT', 'CMUX_BUNDLED_CLI_PATH', 'CMUX_SHELL_INTEGRATION_DIR',
+                   'CMUXD_UNIX_PATH'}
 
 
 def relocated_plist(info):

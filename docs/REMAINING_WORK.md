@@ -1,6 +1,6 @@
 # Remaining work for iOS parity
 
-Updated 2026-10-11. **The goal is active and full parity is unverified.** This is
+Updated 2026-10-12. **The goal is active and full parity is unverified.** This is
 the current completion checklist; dated entries in [PARITY.md](PARITY.md) preserve
 the detailed evidence and history. A passing fixture or signed APK does not close
 a physical workflow gate. These are work areas, not equal-sized progress units.
@@ -18,7 +18,11 @@ MAC_NOTIFICATION_BUILD.md. It uses the pinned full upstream checkout, reviewed
 Local Xcode/storage no longer need to gate producing the custom app artifact.
 The development packager verifies isolated identity, exact source patch and code
 signatures, removes runner paths and records provenance. Five packaging-policy
-groups and workflow parsing pass; full CI/artifact/runtime results remain pending.
+groups and workflow parsing pass. First CI full compilation succeeded (73m49s);
+packaging failed on the verifier's incorrect bundle-tag separator. The exact ID
+and runner-home daemon locator are repaired; future failed packaging preserves
+an explicitly unverified recovery archive. Verified artifact/runtime/physical
+acceptance remain pending. See MAC_NOTIFICATION_BUILD.md for original evidence.
 
 The custom Mac notification-pairing window is implemented in the application
 menu: release/debug selection, fresh QR, matching key fingerprint, expiry,
@@ -156,6 +160,17 @@ Full Quick Look/physical acceptance and the other completion gates below remain
 open; the global parity pin is unchanged. Final crash buffer empty, no new
 ANR/crash events; sole AVD/Gradle stopped and reaped, prior screen timeout restored,
 no new AVD. The Pixel was absent from ADB for this fixture batch.
+
+## Setup reference follow-up — 2026-10-12
+
+The Settings Set Up Computer reference is implemented in source order with four
+gates/network guidance, a fixed Done header, restoration and safe download links.
+Actual scale-2 rendering now passes after repairing reproduced Dialog font-scale
+loss. The separate production Settings/transport/pairing/terminal-input fixture
+flow passed. Two distinct Android cases have passing results across the recorded
+runs; no crash/ANR records, sole AVD stopped/reaped and timeout restored. Signed
+650 unchanged. Highlighted disconnected/onboarding guidance, matched-iOS styling,
+TalkBack/localization and physical workflows remain open. See SETUP_HELP.md.
 
 ## Settings screen follow-up — 2026-10-12
 

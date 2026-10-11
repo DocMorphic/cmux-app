@@ -1,5 +1,16 @@
 # Codex laptop handoff — 2026-09-28
 
+## Setup reference follow-up — 2026-10-12
+
+Settings has the iOS Set Up Computer reference entry with all four setup sections
+and network guidance. The Dialog retains parent text density: a direct layout
+assertion reproduced scale 1 instead of 2, and the final rendering test passed
+with actual scale 2. Settings preserves pairing/live transport and subsequent
+terminal input in the separate passing fixture flow. Two distinct Android cases
+passed across the recorded runs; see SETUP_HELP.md for failures and final hashes.
+No crash/ANR records; sole AVD stopped/reaped, timeout restored. Signed 650 unchanged;
+no physical/matched-iOS/TalkBack acceptance is established.
+
 ## Settings follow-up — 2026-10-12
 
 Settings has a fixed title/Done header, reordered groups and an inline Team radio
@@ -38,12 +49,18 @@ its Gmail Owner binding was freshly verified. Tailscale is running but provides
 no certificate domains; ADB currently reports no phone. No real configuration
 or listener has been provisioned. See PUSH_HELPER_RUNTIME.md.
 
-First full Mac build dispatched: https://github.com/DocMorphic/cmux-app/actions/runs/38174243912
-at project source `ee66bd51ac46de138345f851457bc10d76868439`, upstream `f4b15090`.
-Authoritative job `114573108892` is active: toolchain/dependencies, verified Ghostty,
-patch installation, catalog and native integration checks succeeded; the full
-tagged app is compiling. Do not redispatch this live run. Full app/package/artifact and physical
-acceptance are unverified until terminal results are inspected and bytes checked.
+First full Mac run [38174243912](https://github.com/DocMorphic/cmux-app/actions/runs/38174243912)
+is terminal: the full patched app **compiled successfully** on Xcode 26.6 in
+73m49s, then packaging failed because the verifier expected a hyphenated bundle
+ID while pinned reload.sh uses `com.cmuxterm.app.debug.android.push`. Source was
+`ee66bd51ac46de138345f851457bc10d76868439` / upstream `f4b15090`. Failed logs and
+build diagnostics were downloaded and inspected; no verified app artifact exists.
+The verifier now requires that exact canonical identity, strips the runner-home daemon locator while retaining the isolated frontend socket, and
+still refuses wrong tags, private paths, unknown runner paths and nonproduction
+routes. Five policy groups pass after preserved regression failures. A future
+packaging failure preserves an explicitly UNVERIFIED compiled recovery archive;
+that archive requires independent inspection before use. Verified packaging,
+local installation/runtime and physical FCM/Pixel acceptance remain open.
 
 A manual GitHub macOS ARM64 full-build route is now implemented in
 MAC_NOTIFICATION_BUILD.md. It uses the pinned full upstream checkout, reviewed

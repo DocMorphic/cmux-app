@@ -63,6 +63,7 @@ jobs:
           python3 scripts/check-native-push-pairing.py --node "$(command -v node)" --patched-app-delegate build/mac-checks/hooks/patched/Sources/AppDelegate.swift --output build/mac-checks/pairing
           python3 scripts/check-native-push-owner.py --node "$(command -v node)" --output build/mac-checks/owner
       - name: Build the full tagged app with production account routing
+        id: native_build
         working-directory: upstream
         env:
           CMUX_GHOSTTYKIT_PREPROVISIONED: '1'
@@ -71,6 +72,7 @@ jobs:
           ./scripts/reload.sh --tag android-push --prod-auth --no-global-cli-links \
             --derived-data "$RUNNER_TEMP/cmux-android-push-derived" 2>&1 | tee "$RUNNER_TEMP/cmux-android-push-build.log"
       - name: Package and verify the isolated development app
+        id: package
         run: |
           python3 cmux-app/scripts/package-mac-notification-companion.py \
             --app "$RUNNER_TEMP/cmux-android-push-derived/Build/Products/Debug/cmux DEV android-push.app" \
@@ -80,6 +82,41 @@ jobs:
         with:
           name: cmux-mac-notification-companion-arm64
           path: cmux-app/build/mac-companion/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve compiled app after a packaging failure
+        id: recovery
+        if: ${{ failure() && steps.native_build.outcome == 'success' && steps.package.outcome == 'failure' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cmux-build-recovery"
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/cmux-android-push-derived/Build/Products/Debug/cmux DEV android-push.app" \
+            "$RUNNER_TEMP/cmux-build-recovery/cmux-android-push-UNVERIFIED.zip"
+          python3 - <<'PY'
+          import hashlib, json, os, plistlib, subprocess
+          from pathlib import Path
+          temp = Path(os.environ['RUNNER_TEMP'])
+          output = temp / 'cmux-build-recovery'
+          archive = output / 'cmux-android-push-UNVERIFIED.zip'
+          info = plistlib.loads((temp / 'cmux-android-push-derived/Build/Products/Debug/cmux DEV android-push.app/Contents/Info.plist').read_bytes())
+          workspace = Path(os.environ['GITHUB_WORKSPACE'])
+          def commit(directory):
+              return subprocess.check_output(['git', '-C', str(workspace / directory), 'rev-parse', 'HEAD'], text=True).strip()
+          with archive.open('rb') as handle:
+              digest = hashlib.file_digest(handle, 'sha256').hexdigest()
+          receipt = {'kind': 'unverified-compiled-app-recovery', 'archive': archive.name, 'sha256': digest,
+                     'projectCommit': commit('cmux-app'), 'upstreamCommit': commit('upstream'),
+                     'reportedBundleID': info.get('CFBundleIdentifier'), 'verified': False,
+                     'scope': 'Packaging failed. Inspect source, configuration, architecture and signatures before using this app. Runtime acceptance remains unverified.'}
+          (output / 'recovery.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
+      - name: Upload unverified compiled app for recovery
+        if: ${{ failure() && steps.recovery.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmux-mac-notification-UNVERIFIED-recovery
+          path: ${{ runner.temp }}/cmux-build-recovery/
           if-no-files-found: error
           retention-days: 14
       - name: Preserve build and integration diagnostics
