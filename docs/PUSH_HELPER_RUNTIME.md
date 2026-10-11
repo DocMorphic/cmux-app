@@ -1,5 +1,9 @@
 # Production push helper startup — 2026-10-11
 
+A manual full Mac build on a GitHub ARM64 runner is now available:
+[MAC_NOTIFICATION_BUILD.md](MAC_NOTIFICATION_BUILD.md). Local Xcode is optional
+for producing that artifact; live TLS/runtime/Pixel acceptance remains required.
+
 Current Mac pairing UI and installer scope (**22 files / eight pins**) are in
 [NATIVE_PUSH_PAIRING.md](NATIVE_PUSH_PAIRING.md). Older checkpoint counts below
 remain historical. Native Mac descriptor binding is in NATIVE_PUSH_MAC_KEY.md.

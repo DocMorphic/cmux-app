@@ -2,6 +2,14 @@
 
 ## Current checkpoint — 2026-10-11
 
+A manual GitHub macOS ARM64 full-build route is now implemented in
+MAC_NOTIFICATION_BUILD.md. It uses the pinned full upstream checkout, reviewed
+22-file patch, documented tagged reload and production account/Iroh routing.
+Local Xcode/storage no longer need to gate producing the custom app artifact.
+The development packager verifies isolated identity, exact source patch and code
+signatures, removes runner paths and records provenance. Five packaging-policy
+groups and workflow parsing pass; full CI/artifact/runtime results remain pending.
+
 The custom Mac notification-pairing window is implemented in the application
 menu: release/debug selection, fresh QR, matching key fingerprint, expiry,
 copy/paste and cancellation. Native invalidation clears displayed offers. Actual

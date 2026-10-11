@@ -1,0 +1,95 @@
+name: Custom cmux Mac notification companion
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-notification-companion
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      CMUX_DEV_BACKEND_MODE: local
+      CMUX_RELOAD_NO_GLOBAL_CLI_LINKS: '1'
+      CMUX_SWIFT_FRONTEND_WORKAROUND: '1'
+      CMUX_RELOAD_APP_EMIT_MODULE: '1'
+      CMUX_IROH_V2_ENVIRONMENT: production
+      CMUX_IROH_V2_BASE_URL: https://cmux-iroh-v2.debussy.workers.dev
+      CARGO_BUILD_JOBS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cmux-app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: f4b1509054949eaad5d695569ad443c4c18ed68d
+          path: upstream
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare pinned native toolchain
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          if ! xcrun metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          ./scripts/install-zig-ci.sh
+      - name: Prepare full native dependencies and verified Ghostty framework
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          ./scripts/setup.sh
+      - name: Install reviewed Android notification hooks
+        run: |
+          python3 cmux-app/scripts/apply-native-push-patch.py --target "$GITHUB_WORKSPACE/upstream"
+          python3 upstream/scripts/localization_catalog.py check --catalog "$GITHUB_WORKSPACE/upstream/Resources/Localizable.xcstrings"
+      - name: Verify native pairing and producer integration
+        working-directory: cmux-app
+        run: |
+          python3 scripts/check-native-push-hooks.py --upstream "$GITHUB_WORKSPACE/upstream" --node "$(command -v node)" --output build/mac-checks/hooks
+          python3 scripts/check-native-push-pairing.py --node "$(command -v node)" --patched-app-delegate build/mac-checks/hooks/patched/Sources/AppDelegate.swift --output build/mac-checks/pairing
+          python3 scripts/check-native-push-owner.py --node "$(command -v node)" --output build/mac-checks/owner
+      - name: Build the full tagged app with production account routing
+        working-directory: upstream
+        env:
+          CMUX_GHOSTTYKIT_PREPROVISIONED: '1'
+        run: |
+          set -euo pipefail
+          ./scripts/reload.sh --tag android-push --prod-auth --no-global-cli-links \
+            --derived-data "$RUNNER_TEMP/cmux-android-push-derived" 2>&1 | tee "$RUNNER_TEMP/cmux-android-push-build.log"
+      - name: Package and verify the isolated development app
+        run: |
+          python3 cmux-app/scripts/package-mac-notification-companion.py \
+            --app "$RUNNER_TEMP/cmux-android-push-derived/Build/Products/Debug/cmux DEV android-push.app" \
+            --upstream "$GITHUB_WORKSPACE/upstream" --output "$GITHUB_WORKSPACE/cmux-app/build/mac-companion"
+      - name: Upload verified development bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmux-mac-notification-companion-arm64
+          path: cmux-app/build/mac-companion/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve build and integration diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmux-mac-notification-build-diagnostics
+          path: |
+            ${{ runner.temp }}/cmux-android-push-build.log
+            /tmp/cmux-reload-android-push.log
+            cmux-app/build/mac-checks/
+          if-no-files-found: ignore
+          retention-days: 14
