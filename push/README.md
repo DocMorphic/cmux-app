@@ -10,6 +10,27 @@ remain pending (see [FIREBASE_SETUP.md](../docs/FIREBASE_SETUP.md)).
 Importing the modules makes no network calls. Tests use synthetic
 credentials with injected transports or local TLS servers, never the live provider.
 
+## Composed native helper
+
+`NativePushHelperService` in `helper-service.mjs` assembles the private native
+channel, encrypted stores, scheduler, FCM sender and HTTPS enrollment/maintenance.
+The owner supplies storage keys, TLS, helper identity, trusted native descriptor,
+declared Android clients and credential/sealing providers. Construction is passive.
+`start({input, output, host, port})` explicitly binds the listener and private pipes;
+`issueOffer(phoneBuildID)` is a host-local operation requiring a fresh native lease.
+No HTTP request can issue an offer or supply native authority.
+
+`await stop()` fences admission, closes the listener/connections and completes
+active sealing/provider operations before closing stores/wiping owned key copies.
+The owner supervises private stream errors and closes its credential providers
+after stop. Instances are one-shot; recovery creates a new instance with freshly
+observed native authority and the same provisioned durable storage keys.
+
+Nine assembly cases use real local TLS/proofs/stores and injected test providers;
+101 related checks pass on Node 22/26. Production CLI/owner control, keys/TLS,
+native injection and live delivery remain open. See
+[the evidence](../docs/NATIVE_PUSH_SOURCE.md#composed-helper-lifecycle--2026-10-11).
+
 ```sh
 node --test push/*.test.mjs
 ```

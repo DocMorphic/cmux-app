@@ -19,8 +19,15 @@ malformed/stalled receipts, fresh-authority recovery, stop and owner-release cle
 The initial actor callback SIGTRAP was reproduced (f337e279) and fixed. Earlier
 66 Node cases, eight auth projection cases, ten receipt/replay groups and four
 installer cases remain recorded in NATIVE_PUSH_SOURCE.md. Full custom app build,
-production helper assembly/keys/TLS/injection and encrypted persistence through
+production helper entrypoint/keys/TLS/injection and encrypted persistence through
 Mac app death remain open.
+
+The helper lifecycle now composes private native input, encrypted storage, FCM
+forwarding and TLS enrollment/maintenance. 101 focused checks pass on Node 22/26,
+including nine real TLS assembly cases with injected test encryption/provider.
+Fresh native authority gates offers and enrollment; awaited shutdown fences
+admission and completes active work before closing keys/stores. Production
+entrypoint/owner control and real provider/device delivery are still required.
 
 Correct-account Firebase project `cmux-app-push-private-20261011` is active with
 billing off. Both Android clients and private/CI configuration exist; generated

@@ -9,6 +9,39 @@ extension. The Gmail-owned dedicated Firebase project and Android client configu
 exist; provider credentials and live delivery remain unconfigured/unverified.
 See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
+## Composed helper lifecycle — 2026-10-11
+
+`push/helper-service.mjs` now assembles the private native channel, encrypted
+registration/source/outbox stores, forwarding scheduler, FCM sender and HTTPS
+enrollment/maintenance server. Construction is passive; the owner explicitly
+supplies credentials, TLS, descriptors and listener interface before `start()`.
+Only a fresh authenticated native lease can issue a host-local offer or authorize
+enrollment/maintenance. Persisted registrations and phone claims cannot establish
+that authority. Offers bind the current native epoch and both public descriptors;
+the HTTP endpoint exposes challenge steps, never offer issuance.
+
+Stop fences admission immediately, clears native authority, closes owned network
+connections and awaits active encryption/provider work before closing stores and
+wiping owned keys. EOF retires the entire service. Startup failure/stop races also
+close partial listeners/stores. Caller-owned private streams and credential
+providers remain the owner's responsibility; close credentials after awaited stop.
+
+**101 focused checks passed** on Node 26.8.2 (526.512 ms) and 22.16.0 (580.709 ms),
+including nine new assembly cases. These use real local TLS, the actual enrollment
+proof protocol, private source frames and encrypted SQLite stores, with an injected
+test sealer/provider transport. They verify end-to-end component routing, original
+expiry, epoch rejection, privacy fencing during OAuth, source EOF and awaited
+shutdown during encryption/provider work. They do not send a real Firebase push.
+
+```sh
+node --test push/helper-service.test.mjs push/native-source*.test.mjs push/source-journal.test.mjs push/source-dispatcher.test.mjs push/forwarder.test.mjs push/enrollment*.test.mjs push/maintenance.test.mjs
+```
+
+Original logs: ignored `captures/runtime/push-native-owner/helper-suite-node26.log`
+and `helper-suite-node22.log`. Production CLI/owner control, credential/TLS
+provisioning, native composition injection and encrypted producer persistence
+remain required. No production listener, APK, emulator or physical test ran.
+
 ## Native private process supervisor — 2026-10-11
 
 `NativePushSourceProcessSink.swift` now implements the injected sink using one

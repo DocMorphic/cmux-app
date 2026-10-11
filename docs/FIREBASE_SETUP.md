@@ -48,7 +48,9 @@ activated successfully without another terms prompt.
 ## Next integration
 
 1. Provision limited provider credentials into private Mac credential storage;
-   wire the token provider and complete helper assembly/keys/TLS/native injection.
+   wire the token provider and complete helper entrypoint/keys/TLS/native injection.
+   The helper component lifecycle is assembled and locally checked; its provider
+   transport is still injected in tests (see NATIVE_PUSH_SOURCE.md).
 2. Build the configured Android/custom Mac integration milestone. Existing
    `cmuxFirebaseConfig` and `CMUX_FIREBASE_CONFIG` inputs use this private file;
    optional GitHub configuration is ready for the next signed milestone.

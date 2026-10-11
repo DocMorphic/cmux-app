@@ -11,13 +11,21 @@ generated resources independently match the project/sender/client IDs. An FCM
 provider service account/role exists; no provider credentials or delivery yet.
 The empty wrong-account project remains shut down. See FIREBASE_SETUP.md.
 
+The helper now has a composed lifecycle in `push/helper-service.mjs`: private
+native source, encrypted stores, FCM forwarding and TLS enrollment/maintenance.
+101 focused checks pass on Node 22/26, including nine real local TLS assembly
+cases and shutdown while encryption/provider work is active. Test providers are
+injected; no live FCM delivery is established. Construction is passive and stop
+fences authority before awaiting work/closing stores. Production CLI/owner control,
+credentials/TLS and native injection remain next. See NATIVE_PUSH_SOURCE.md.
+
 The native process supervisor now launches one private child, keeps IO off the
 main actor, retires/reaps before replacement and cleans up on owner release.
 Actual process scenarios pass on Node 22/26, including encrypted capture, privacy
 replacement, malformed/stalled pipes, refreshed authority and stop. Initial
 Swift actor callback SIGTRAP is recorded in regression commit f337e279; explicit
 Sendable callbacks fix it. The installer now wires nine files against four
-unchanged original pins. Production helper assembly/injection/credentials/TLS,
+unchanged original pins. Production helper entrypoint/injection/credentials/TLS,
 encrypted producer persistence and the tagged full app/live Mac/Pixel milestone
 remain open. Original evidence/commands are in NATIVE_PUSH_SOURCE.md.
 
