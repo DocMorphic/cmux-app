@@ -115,6 +115,26 @@ final class NativeOwnerFixtureDescriptor: @unchecked Sendable {
         await gate.release(); await stopping.value
         try require(stopped && preparedStarts == 0 && !held.isRunning)
 
+        // Native descriptor refresh must not postpone independent capture
+        // durability. Stop joins refresh and cannot launch a late helper.
+        let hostGate = NativeOwnerFixtureGate()
+        let ledger = try NativePushCaptureRepository(directory: URL(fileURLWithPath: root + "/held-host-producer"),
+            loadKey: { _ in Data(repeating: 35, count: 32) })
+        var hostStarts = 0, hostStopRequested = false, hostStopped = false
+        let heldHost = try NativePushSourceCaptureController(repositoryFactory: { ledger },
+            executable: URL(fileURLWithPath: node), arguments: [helper, "--config", root + "/config.json"],
+            directory: URL(fileURLWithPath: root), prepareChild: {}, prepareHost: { await hostGate.prepare() }, onState: {
+                if $0 == "started" { hostStarts += 1 }; if $0 == "capture-stopping" { hostStopRequested = true }
+            })
+        try heldHost.start(); try require(heldHost.offer([host(), capture()], scope: scope))
+        try await wait { await hostGate.began }
+        let committed = try await ledger.load(now: Int64(Date().timeIntervalSince1970 * 1000))
+        try require(committed.count == 1)
+        let stopHost = Task { @MainActor in await heldHost.stop(); hostStopped = true }
+        try await wait { hostStopRequested }; try require(!hostStopped)
+        await hostGate.release(); await stopHost.value
+        try require(hostStopped && hostStarts == 0 && !heldHost.isRunning)
+
         // Repositories cannot publish private fields or follow a target symlink.
         let configURL = URL(fileURLWithPath: root + "/config.json")
         let before = try Data(contentsOf: URL(fileURLWithPath: nativePath))
