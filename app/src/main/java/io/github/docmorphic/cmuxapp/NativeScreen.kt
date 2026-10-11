@@ -365,6 +365,7 @@ internal fun NativeScreen(
         val localBrowserState by localBrowsers.state.collectAsState()
         val localBrowser = localBrowserState.local
         val browserLogin = if (signedIn) store.taskSession() else null
+        var setupRequiresReauth by remember(code, browserLogin, teamState.scope) { mutableStateOf(false) }
         var selectedComputerOrigin by rememberSaveable(signedIn) {
             mutableStateOf(store.load()?.optString("computer_selection").orEmpty())
         }
@@ -1990,6 +1991,7 @@ internal fun NativeScreen(
                             switchOwner()?.let { macSwitchRecovery.connected(it, remembered) }
                             savedPairedMacs = store.pairedMacs()
                             connectionError = null
+                            setupRequiresReauth = false
                             retryDelay = 2_000
                         } catch (failure: Throwable) { active.close(); throw failure }
                     } catch (failure: Throwable) {
@@ -1998,6 +2000,7 @@ internal fun NativeScreen(
                         ensureActive()
                         if (failure is CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
                         connectionError = nativeConnectionFailure(failure)
+                        setupRequiresReauth = nativeSetupRequiresReauth(failure)
                         busy = false
                         if (pendingPickerCode == requestedCode) pendingPickerCode = null
                         val restore = macSwitchRecovery.failed(switchAttempt, switchOwner(), requestedCode, ::canRestoreMac)
@@ -2032,6 +2035,7 @@ internal fun NativeScreen(
                     active.disconnected.collect { failure ->
                         connectionReady = false
                         connectionError = nativeConnectionFailure(failure)
+                        setupRequiresReauth = nativeSetupRequiresReauth(failure)
                         delay(2_000)
                         retry++
                     }
@@ -2484,6 +2488,7 @@ internal fun NativeScreen(
                             hostName.takeIf { connectionReady }, displayPolicy, onboardingPermissionBusy, onboardingPermissionResult,
                             error ?: connectionError ?: computerState.error ?: if (onboardingOwner == null) "Refresh your account in Settings before connecting to a Mac." else null,
                             canConnect = onboardingOwner != null, onEnableNotifications = { enableNotifications(true) },
+                            setupHighlight = NativeSetupGuidance.resolve(signedIn, savedPairedMacs.isNotEmpty(), setupRequiresReauth),
                             onReachedConnection = {
                                 if (!replayOnboarding) runCatching { onboardingStore.connect(); onboardingProgress = onboardingStore.progress }
                                     .onFailure { error = it.message }
@@ -2886,6 +2891,7 @@ internal fun NativeScreen(
                             lastSeenHistory = lastSeenHistory, preferences = computerPreferences, tailscaleRoutes = tailscaleRouteLabels,
                             forgetCallbacks = forgetCallbacks, presentDetails = { computerDetails = it },
                             connectingCode = code.takeIf { busy && cachedComputers == null }, connectionFailure = error ?: connectionError,
+                            hasAccountMismatch = setupRequiresReauth,
                             onCancelConnect = { ticketPairing.clear(); macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null
                                 code = ""; connectionError = null; error = null; showReconnectList = false },
                             canSelectSaved = { mac -> isReconnectOwnerCurrent() &&
@@ -4136,6 +4142,7 @@ internal fun NativeComputerPicker(
     cachedDisplay: Boolean = false, displayAppearances: NativeMacAppearances? = null,
     macPolicy: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked,
     connectingCode: String? = null, connectionFailure: String? = null, onCancelConnect: () -> Unit = {},
+    hasAccountMismatch: Boolean = false,
     canSelectSaved: (NativeCredentialStore.PairedMac) -> Boolean,
     canSelectDiscovered: (IrohV2Computer) -> Boolean,
     onSelectSaved: (NativeCredentialStore.PairedMac) -> Unit,
@@ -4171,6 +4178,9 @@ internal fun NativeComputerPicker(
         TextButton(onClick = { showPairingHelp = true }, modifier = Modifier.testTag("computers.pairing.help")) {
             Text("How to connect your Mac")
         }
+        NativeSetupHelpButton(macPolicy,
+            NativeSetupGuidance.resolve(true, saved.isNotEmpty() || hidden.isNotEmpty(), hasAccountMismatch),
+            "computers.setup-help")
         if (teamState.loading || (!cachedDisplay && computerState.loading)) {
             LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 16.dp))
             Text("Finding your computers…", color = nativeMuted)
@@ -4294,6 +4304,7 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
     NativeHeader("Sign in to cmux")
     Column(Modifier.fillMaxWidth().padding(24.dp)) {
         Text("Use the same cmux account as your Mac.", color = nativeMuted)
+        NativeSetupHelpButton(macPolicy, NativeSetupGuidance.NOT_SIGNED_IN, "signin.setup-help", "Set Up Computer")
         TextButton(onClick = { showPairingHelp = true }, modifier = Modifier.testTag("signin.pairing.help")) {
             Text("Set up cmux on your Mac")
         }

@@ -91,6 +91,29 @@ class NativeOnboardingFlowTest {
         compose.onNodeWithTag("onboarding.primary").performClick()
         compose.runOnIdle { assertEquals(0, requests); assertEquals(1, settings) }
     }
+    @Test fun connectionHelpRestoresWithoutRepeatingEntryOrInvokingPairingAndStaysOpenWhenReady() {
+        val restoration = StateRestorationTester(compose)
+        var phase by mutableStateOf(NativeOnboardingPhase.FALLBACK)
+        var reached = 0; var actions = 0
+        restoration.setContent { CmuxTheme { Surface { Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            NativeOnboardingFlow(NativeOnboardingProgress.CONNECT, false, phase, "Fixture Mac",
+                NativeMacCompatibilityPolicy.baked, false, 0, null,
+                { actions++ }, { reached++ }, { actions++ }, { actions++ }, { actions++ }, { actions++ }, { actions++ },
+                setupHighlight = NativeSetupGuidance.MAC_UNREACHABLE)
+        } } } }
+        compose.onNodeWithTag("onboarding.setup-help").performScrollTo().performClick()
+        compose.onNodeWithTag("setup.help.you-are-here").assertExists()
+            .assert(hasAnyAncestor(hasTestTag("setup.help.gate:macUnreachable")))
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithTag("setup.help").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(1, reached); assertEquals(0, actions); phase = NativeOnboardingPhase.READY }
+        compose.onNodeWithTag("setup.help").assertIsDisplayed()
+        compose.onNodeWithTag("setup.help.done").performClick()
+        compose.onNodeWithTag("onboarding.setup-help").assertDoesNotExist()
+        compose.onNodeWithTag("onboarding.primary").assertTextEquals("Open Workspaces")
+        compose.runOnIdle { assertEquals(1, reached); assertEquals(0, actions) }
+    }
+
     @Test fun latePermissionResultDoesNotMoveUserBackAndReplayStartsAtWelcome() {
         var result by mutableLongStateOf(0); var enables = 0; var complete = 0
         compose.setContent { CmuxTheme { Surface { Column(Modifier.fillMaxSize().safeDrawingPadding()) {

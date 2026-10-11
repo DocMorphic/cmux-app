@@ -73,6 +73,68 @@ class NativeSetupHelpTest {
         compose.onNodeWithTag("settings.setup-help").assertIsDisplayed()
     }
 
+    @Test fun highlightedGateRestoresAndFollowsCurrentGuidanceWithAllOtherStepsVisible() {
+        val restoration = StateRestorationTester(compose)
+        var highlight by mutableStateOf(NativeSetupGuidance.MAC_UNREACHABLE)
+        restoration.setContent { CmuxTheme { Surface { Column {
+            NativeSetupHelpButton(NativeMacCompatibilityPolicy.baked, highlight, "fixture.setup-help")
+        } } } }
+        compose.onNodeWithTag("fixture.setup-help").performClick()
+        fun assertHighlighted(gate: NativeSetupGuidance) {
+            val order = NativeSetupGuidance.ordered(gate).map { it.id }
+            val positions = order.map { compose.onNodeWithTag("setup.help.gate:$it").getUnclippedBoundsInRoot().top.value }
+            assertEquals(positions.sorted(), positions)
+            compose.onNodeWithTag("setup.help.you-are-here").assertExists()
+                .assert(hasAnyAncestor(hasTestTag("setup.help.gate:${gate.id}")))
+        }
+        assertHighlighted(highlight)
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithTag("setup.help").assertIsDisplayed()
+        assertHighlighted(highlight)
+        compose.runOnIdle { highlight = NativeSetupGuidance.ACCOUNT_MISMATCH }
+        assertHighlighted(highlight)
+        capture("highlighted-account-gate")
+        compose.onNodeWithTag("setup.help.done").performClick()
+        compose.onNodeWithTag("setup.help").assertDoesNotExist()
+        compose.onNodeWithTag("fixture.setup-help").assertIsDisplayed()
+    }
+
+    @Test fun signInHelpHighlightsSignInWithoutSendingCodeOrChangingEnteredEmail() {
+        var actions = 0
+        compose.setContent { CmuxTheme { Surface {
+            NativeSignIn({ actions++ }, { actions++ }, { actions++ }, { actions++ },
+                NativeMacCompatibilityPolicy.baked, { actions++ })
+        } } }
+        compose.onNodeWithText("Email").performTextInput("fixture@example.invalid")
+        androidx.test.espresso.Espresso.closeSoftKeyboard()
+        compose.onNodeWithTag("signin.setup-help").performScrollTo().performClick()
+        compose.onNodeWithTag("setup.help.you-are-here").assertExists()
+            .assert(hasAnyAncestor(hasTestTag("setup.help.gate:notSignedIn")))
+        compose.onNodeWithTag("setup.help.done").performClick()
+        compose.onNodeWithText("Email").assertTextContains("fixture@example.invalid")
+        compose.runOnIdle { assertEquals(0, actions) }
+    }
+
+    @Test fun highlightedLargeTextPlacesMarkerBelowScaledHeadingWithoutOverlap() {
+        compose.setContent { CmuxTheme {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                NativeSetupHelp(NativeMacCompatibilityPolicy.baked, NativeSetupGuidance.MAC_UNREACHABLE) {}
+            }
+        } }
+        val layout = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText("Wake the computer", useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layout) }
+        assertEquals(2f, layout.single().layoutInput.density.fontScale, .01f)
+        val heading = compose.onNodeWithText("Wake the computer", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val marker = compose.onNodeWithTag("setup.help.you-are-here").getUnclippedBoundsInRoot()
+        assertTrue(marker.top >= heading.bottom)
+        compose.onNodeWithTag("setup.help.you-are-here").assert(hasAnyAncestor(hasTestTag("setup.help.gate:macUnreachable")))
+        compose.onNodeWithTag("setup.help.gate:macUnreachable").performScrollTo()
+        compose.onNodeWithTag("setup.help.done").assertIsDisplayed()
+        capture("highlighted-large-font")
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

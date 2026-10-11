@@ -30,6 +30,7 @@ internal fun NativeOnboardingFlow(initialProgress: NativeOnboardingProgress, rep
     onEnableNotifications: () -> Unit, onReachedConnection: () -> Unit, onComplete: () -> Unit,
     onRetry: () -> Unit, onScan: () -> Unit, onPairing: (String) -> Unit, onSettings: () -> Unit,
     onMethod: (NativeOnboardingMethod) -> Unit = {}, initialMethod: NativeOnboardingMethod = NativeOnboardingMethod.AUTOMATIC, canConnect: Boolean = true,
+    setupHighlight: NativeSetupGuidance = NativeSetupGuidance.NEVER_PAIRED,
     computers: @Composable ColumnScope.() -> Unit = {}, keepAwake: @Composable () -> Unit = {}) {
     val initial = if (!replay && initialProgress == NativeOnboardingProgress.CONNECT) NativeOnboardingStage.CONNECT else NativeOnboardingStage.AGENTS
     val pager = rememberPagerState(initialPage = initial.ordinal, pageCount = { NativeOnboardingStage.entries.size })
@@ -137,6 +138,8 @@ internal fun NativeOnboardingFlow(initialProgress: NativeOnboardingProgress, rep
                             }
                         }
                         if (active && phase == NativeOnboardingPhase.READY) keepAwake()
+                        NativeSetupHelpButton(policy, setupHighlight, "onboarding.setup-help",
+                            visible = active && phase != NativeOnboardingPhase.READY)
                     }
                 }
             }

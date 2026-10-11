@@ -1,5 +1,53 @@
 # Settings setup reference — 2026-10-12
 
+## Highlighted connection guidance — 2026-10-12
+
+Scoped reference remains `f4b1509054949eaad5d695569ad443c4c18ed68d`:
+`MobileSetupGuidancePolicy.swift`, `SetupHelpView.swift`, the disconnected
+`CMUXMobileRootView.swift` classifier and `DisconnectedWorkspaceShellView.swift`.
+Mismatch has first precedence, then signed out, known paired Mac, then never
+paired. A highlighted section moves first and shows **You are here**, while all
+other setup steps and network guidance remain. Settings keeps its unhighlighted
+reference order. Reading guidance never drives pairing or discovery.
+
+Android now exposes the same guidance from sign-in, disconnected Computers and
+onboarding's connection page. Known saved/hidden pairings distinguish setup from
+wake/reconnect guidance. The main connection publishes a typed reauthentication
+signal for host RPC `unauthorized` and exhausted Iroh control authentication
+errors; successful verified connection clears it, and route/login/team changes
+reset its remembered scope. Network timeouts, error-message text, local errors,
+permission denial and protocol/identity failures are not relabeled as account
+mismatches. This is presentation data, never an authorization grant.
+
+A highlighted help sheet restores open state, responds to current guidance and
+retains the existing fixed header, density and download handling. Large text puts
+the marker below the heading. Onboarding's help remains open when the connection
+becomes ready, without repeating its entry, pairing or permission actions.
+
+All **13 focused JVM cases passed** (guidance 4, onboarding state 9), including
+all eight durable-input combinations, complete highlighted ordering, typed
+rejections and bounded cyclic/deep cause handling. The debug/test build passed in 1m53s. Six Android cases passed unassisted in
+**61.689s** on the sole existing API37 / 16 KiB AVD: highlighted order/open-state
+restoration and live guidance change; the existing actual font-scale-2 reference
+and download recovery; sign-in help without sending a code or losing entered
+email; onboarding help restoration without repeating actions and persistence
+when the Mac becomes ready; the existing connected Settings reference/terminal
+flow; and host-framed `unauthorized` rejection followed by highlighted account
+recovery, successful reconnect and actual terminal paste input. This now repeats
+the connected reference case after the earlier text-density repair.
+
+Two screenshots were inspected, showing the account gate first with the marker
+and the actual scaled reference with fixed Done. The final affected-branch check for the highlighted marker at actual font
+scale 2 passed in **7.051s**; its screenshot shows the marker below the full-width
+heading. Its test-only build passed in 37s, and production source/main APK stayed
+unchanged. Seven distinct Android cases therefore have passing evidence across
+the two runs. Both runs had no new crash/ANR records; timeouts were restored and
+the sole AVD stopped/reaped.
+Evidence: ignored `captures/runtime/setup-guidance*`. Signed 650/global pin remain
+unchanged; physical/matched-iOS/TalkBack and full connection acceptance remain
+open. In particular, this classifier does not invent a phone sign-in diagnosis
+from Irx grant, protocol or peer-identity rejection.
+
 Scoped source: `f4b1509054949eaad5d695569ad443c4c18ed68d`,
 `Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SetupHelpView.swift`,
 `SetupHelpGateContent.swift` and the entry in `MobileSettingsView.swift`.
@@ -61,3 +109,14 @@ and Computers. Highlighted setup gates on disconnected/onboarding screens,
 matched-iOS grouped styling, TalkBack, localization and physical workflow
 acceptance remain open. This checkpoint does not complete overall Settings or
 connection parity.
+
+## Highlighted guidance artifact hashes
+
+Debug APK SHA-256:
+`d917354bb30a29e01c1ca4b0682ee7415ee886cf01fd1944372b53dc80f5dc75`.
+Initial test APK SHA-256 (six-case run):
+`803ad739c2e5c1ee8e3ceff2389cea1c490a038621d8299b1b0a99383eb82322`.
+Final test APK SHA-256 (scaled-marker follow-up):
+`c13ac537da2cf379f9af6643366986a39d5108876b47415f2b6a4f727e35ea07`.
+Source/test/APK receipts: `captures/runtime/setup-guidance-verification.json`.
+No physical Pixel data changed; signed 650 remains the published download.

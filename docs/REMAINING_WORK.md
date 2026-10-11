@@ -1,5 +1,26 @@
 # Remaining work for iOS parity
 
+## Highlighted setup guidance — 2026-10-12
+
+Sign-in, disconnected Computers and onboarding now open setup help with the
+current durable gate first and a You are here marker. The classifier follows the
+scoped iOS precedence: confirmed authentication rejection, signed out, previously
+paired Mac, then first pairing. It reads saved/hidden history, not discovery or
+error-message text. The scoped reauthentication signal clears on verified success
+and resets with route/login/team changes; it never grants authority or drives a
+connection. Settings keeps its plain reference. Onboarding help restores without
+repeating entry/pairing/permission actions and stays open when the Mac becomes
+ready; large text places the marker below the heading.
+
+13 focused JVM cases passed. Seven distinct Android cases passed across a
+six-case run (61.689s) and the actual font-scale-2 marker follow-up (7.051s),
+including host-framed unauthorized rejection, highlighted recovery, reconnect and
+actual terminal input. The connected Settings reference case was repeated after
+the density fix. Three screenshots inspected, no new crash/ANR records, timeouts
+restored and sole AVD stopped/reaped. Signed 650/global pin unchanged; physical
+native/account, matched-iOS/localization/TalkBack and full parity remain open.
+See SETUP_HELP.md for exact source scope, results and artifact hashes.
+
 ## Settings connected computers — 2026-10-12
 
 Settings now has one row per current connected Mac app instance, its actual

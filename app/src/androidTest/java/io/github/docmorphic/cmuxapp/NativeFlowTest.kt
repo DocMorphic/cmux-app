@@ -143,6 +143,37 @@ class NativeFlowTest {
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
     }
 
+    @Test fun hostAuthenticationRejectionHighlightsRecoveryThenCanReconnectAndType() {
+        peer.rejectedMethods = setOf("mobile.host.status")
+        peer.rejectedMethodCode = "unauthorized"
+        peer.notificationFeed = searchNotifications()
+        val before = NativeCredentialStore(context).load()?.optString("pairing_code")
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) {
+            peer.requests.any { it.optString("method") == "mobile.host.status" } &&
+                compose.onAllNodesWithTag("computers.setup-help").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("computers.setup-help").performScrollTo().performClick()
+        compose.onNodeWithTag("setup.help.you-are-here").assertExists()
+            .assert(hasAnyAncestor(hasTestTag("setup.help.gate:accountMismatch")))
+        screenshot("setup-help-auth-rejection")
+        compose.onNodeWithTag("setup.help.done").performClick()
+        peer.rejectedMethods = emptySet()
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.onNodeWithTag("native.composer").performTextInput("setup-recovery-input")
+        compose.onNodeWithContentDescription("Send").performClick()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" &&
+            it.optJSONObject("params")?.optString("text")?.contains("setup-recovery-input") == true } }
+        assertEquals(before, NativeCredentialStore(context).load()?.optString("pairing_code"))
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
     @Test fun unsupportedGroupLongPressDoesNotLeaveAnInvisibleMenuBlockingNormalTap() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
