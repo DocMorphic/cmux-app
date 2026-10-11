@@ -30,11 +30,13 @@ if (mode === 'prepare') {
     clients: [{ phoneBuildID: 'android.fixture', application: 'fixture-app' }], endpoint: 'https://127.0.0.1:0/v1/push/enroll',
     listener: { host: '127.0.0.1', port: 0 }, sealerExecutable: '/usr/bin/false' }));
   console.log('Prepared public native-owner fixture');
-} else if (mode === 'offer') {
+} else if (mode === 'offer' || mode === 'rotated-offer') {
   const offer = await requestPushOwner({ path: join(root, 'state/control/owner.sock'), action: 'offer', value: 'android.fixture' });
   assert.equal(offer.mac.accountID, 'fixture-account'); assert.equal(offer.mac.macBuildID, 'fixture-build');
-  assert.equal(offer.native.installationID, 'fixture-native'); assert.equal(offer.native.keyID, 'fixture-native-key');
-  assert.equal(offer.native.publicKey, Buffer.alloc(32, 9).toString('base64'));
+  const rotated = mode === 'rotated-offer';
+  assert.equal(offer.native.installationID, rotated ? 'fixture-native-rotated' : 'fixture-native');
+  assert.equal(offer.native.keyID, rotated ? 'fixture-native-key-rotated' : 'fixture-native-key');
+  assert.equal(offer.native.publicKey, Buffer.alloc(32, rotated ? 10 : 9).toString('base64'));
   assert.equal(lstatSync(join(root, 'native.json')).mode & 0o777, 0o600);
   assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(root, 'native.json')))).sort(), ['algorithm', 'installationID', 'keyID', 'publicKey', 'version']);
   console.log('Native authority and published public descriptor verified through owner control');

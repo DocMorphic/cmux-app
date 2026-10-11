@@ -10,6 +10,13 @@ actor NativeOwnerFixtureGate {
     }
     func release() { continuation?.resume(); continuation = nil }
 }
+final class NativeOwnerFixtureDescriptor: @unchecked Sendable {
+    private let lock = NSLock()
+    private var bytes: Data
+    init(_ bytes: Data) { self.bytes = bytes }
+    func read() -> Data { lock.withLock { bytes } }
+    func replace(_ bytes: Data) { lock.withLock { self.bytes = bytes } }
+}
 
 @main struct NativePushOwnerFixture {
     enum FixtureFailure: Error { case assertion(Int), probe(String) }
@@ -48,12 +55,13 @@ actor NativeOwnerFixtureGate {
                 "settings": ["forwardingEnabled": true, "mode": "always", "admission": "allowed", "hideContent": hide]]])
         }
         let descriptor = try json(["version": 1, "algorithm": "rawX25519", "installationID": "fixture-native", "keyID": "fixture-native-key", "publicKey": Data(repeating: 9, count: 32).base64EncodedString()])
+        let liveDescriptor = NativeOwnerFixtureDescriptor(descriptor)
         let absent = try NativePushSourceOwner(environment: [:], loadDescriptor: { descriptor }, loadCaptureKey: { _ in Data(repeating: 34, count: 32) })
         try require(absent == nil)
         let nativePath = root + "/native.json"
         var starts = 0, reaped = 0
         guard let owner = try NativePushSourceOwner(environment: ["CMUX_ANDROID_PUSH_CONFIG": root + "/config.json",
-            "CMUX_ANDROID_PUSH_NODE": node, "CMUX_ANDROID_PUSH_HELPER": helper], loadDescriptor: { descriptor },
+            "CMUX_ANDROID_PUSH_NODE": node, "CMUX_ANDROID_PUSH_HELPER": helper], loadDescriptor: { liveDescriptor.read() },
             loadCaptureKey: { _ in Data(repeating: 34, count: 32) }, onState: { phase in
                 print("Fixture phase: " + phase)
                 if phase == "started" { starts += 1 }; if phase == "reaped" { reaped += 1 }
@@ -80,6 +88,13 @@ actor NativeOwnerFixtureGate {
         try require(owner.offer([host(hide: true), capture(hide: true)], scope: scope))
         try await wait { starts == 3 && owner.isRunning && owner.retainedCount == 0 }
         try await runProbe("offer")
+        let rotated = try json(["version": 1, "algorithm": "rawX25519", "installationID": "fixture-native-rotated",
+            "keyID": "fixture-native-key-rotated", "publicKey": Data(repeating: 10, count: 32).base64EncodedString()])
+        liveDescriptor.replace(rotated)
+        try require(owner.offer([host(hide: true)], scope: scope))
+        try await wait { (try? Data(contentsOf: URL(fileURLWithPath: nativePath))) == rotated }
+        try require(starts == 3 && owner.isRunning)
+        try await runProbe("rotated-offer")
         await owner.stop(); try require(reaped == 3 && !owner.isRunning)
         try await runProbe("verify")
 
