@@ -10,6 +10,22 @@ exist. A private provider credential and real messaging-scope OAuth are verified
 live FCM delivery and production provider wiring remain unverified.
 See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
+## Native composition injection — 2026-10-11
+
+The installer now injects an explicitly configured `NativePushSourceOwner` at
+AppDelegate startup: **12 changed files / five original pins**. Public descriptor
+publication runs in an actor before each child launch; no native private key is
+exported. Preparation retirement/stop are joined before replacement. Actual Swift
+owner→production Node helper scenarios pass on Node 22/26, including encrypted
+capture, private offers, privacy kill/reap/replacement and authority recovery.
+The stale socket restart failure (`903a0514`) and native mobile tuple team mismatch
+(`06e81493`) were reproduced before repair. Selected-team authority still gates and
+rotates source epochs; the wire tuple matches official `teamID:null`. **123 focused
+checks pass** on both runtimes. Exact scope, commands, failed attempts and evidence
+are in PUSH_HELPER_RUNTIME.md. Helper keys/TLS, tagged whole-app build, encrypted
+producer persistence and real delivery remain open; source injection/standalone
+execution do not close those gates.
+
 ## Production helper startup — 2026-10-11
 
 The production CLI/configuration composition and owner-only local pairing control
@@ -20,8 +36,8 @@ component shutdown. **122 focused checks pass on Node 22/26**, including six act
 runtime/CLI cases. No live recipient/provider delivery or full Mac app build is
 established. See [PUSH_HELPER_RUNTIME.md](PUSH_HELPER_RUNTIME.md) for the configuration,
 commands, original failed fixture expectation, evidence and exact native startup
-point to inject next. Native descriptor publication, keys/TLS provisioning,
-composition injection and encrypted producer persistence remain open.
+point used by the subsequent native batch above. Helper keys/TLS provisioning,
+whole-app/runtime acceptance and encrypted producer persistence remain open.
 
 ## Composed helper lifecycle — 2026-10-11
 

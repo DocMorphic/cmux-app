@@ -30,7 +30,9 @@ observed native authority and the same provisioned durable storage keys.
 Nine assembly cases use real local TLS/proofs/stores and injected test providers.
 The production runtime/CLI now loads explicit private configuration and opens
 owner-only local pairing control. 122 related checks pass on Node 22/26.
-Keys/TLS, native injection and live delivery remain open. See
+Keys/TLS, tagged whole-app build and live delivery remain open. The pinned native
+installer now injects the explicit owner/public descriptor publisher; standalone
+Swift owner→production helper execution passes on Node 22/26. See
 [runtime startup](../docs/PUSH_HELPER_RUNTIME.md) and
 [the evidence](../docs/NATIVE_PUSH_SOURCE.md#composed-helper-lifecycle--2026-10-11).
 

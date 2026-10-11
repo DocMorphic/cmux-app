@@ -60,6 +60,9 @@ final class NativePushSourceDeliveryQueue {
     var retainedCount: Int { captures.count }
     var retainedBytes: Int { captures.reduce(0) { $0 + $1.body.count } }
     var hasSession: Bool { encoder != nil }
+    func canBegin(now: Int64) -> Bool {
+        Self.validTime(now) && encoder == nil && host?.isLive(now) == true
+    }
     var isBootstrapping: Bool {
         if case .bootstrap = pending?.role { return true }
         return false
@@ -110,7 +113,7 @@ final class NativePushSourceDeliveryQueue {
     /// Called only after the owner has retired/reaped the previous private child.
     /// A new connection cannot replay stale queued host controls.
     func begin(sessionID: String, key: Data, now: Int64) throws {
-        guard Self.validTime(now), encoder == nil, host?.isLive(now) == true else {
+        guard canBegin(now: now) else {
             throw Failure.unavailable
         }
         let next = try NativePushSourceFrameEncoder(sessionID: sessionID, key: key)

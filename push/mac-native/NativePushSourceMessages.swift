@@ -54,7 +54,10 @@ final class NativePushSourceMessages {
         if identity != next { identity = next; epoch = UUID().uuidString.lowercased() }
         return try encode(["type": "host", "snapshot": [
             "state": "ready", "epoch": epoch, "observedAt": now, "validUntil": now + 30_000,
-            "authority": ["accountID": next.accountID, "teamID": next.teamID as Any? ?? NSNull(),
+            // The native phone key exchange/recipient tuple is account scoped.
+            // Keep verified selected-team identity/generation in the source epoch
+            // above, while matching its actual teamID:null encryption contract.
+            "authority": ["accountID": next.accountID, "teamID": NSNull(),
                 "macDeviceID": next.macDeviceID, "macInstanceTag": next.macInstanceTag, "macBuildID": next.macBuildID],
             "settings": ["forwardingEnabled": settings.forwardingEnabled, "mode": settings.mode,
                 "admission": settings.admission, "hideContent": settings.hideContent]]])

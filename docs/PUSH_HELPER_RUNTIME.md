@@ -43,14 +43,32 @@ three native public-descriptor identity fields must remain independent.
 
 The trusted native owner launches the absolute Node executable with arguments
 `[absoluteHelperScript, "--config", absoluteConfigurationFile]`, a minimal
-environment and private stdin/stdout. `NativePushSourceProcessSink` already owns
-that process/pipes; production composition injection and native-descriptor
-publication remain to be installed in the custom app.
+environment and private stdin/stdout. The pinned installer now injects the
+`NativePushSourceOwner` at `AppDelegate.configure(...)`. Explicit enabling uses
+three nonsecret paths in the tagged Mac app's environment:
+
+| Variable | Absolute owner-selected path |
+| --- | --- |
+| `CMUX_ANDROID_PUSH_CONFIG` | Private configuration JSON described above |
+| `CMUX_ANDROID_PUSH_NODE` | Trusted Node executable |
+| `CMUX_ANDROID_PUSH_HELPER` | `scripts/cmux-push-helper.mjs` |
+
+With no configuration variable the owner is absent. Construction/start without a
+fresh native observation performs no publication/helper launch. Before **each**
+launch, `NativePushOwnerDescriptorRepository` runs file/Keychain projection outside
+the main actor, publishing the actual tagged bundle's public descriptor atomically
+as a private file. It rejects extra/private fields and unsafe targets. The process
+sink cancels and joins retired preparation before replacement; awaited stop also
+joins preparation. Full custom app build/runtime verification is still required.
 
 ## Local pairing control
 
 The runtime binds `stateDirectory/control/owner.sock` in a private directory, with
-socket mode 0600. It refuses to remove/replace an existing owner socket or file.
+socket mode 0600. It preserves existing active owners and ordinary files. After a
+native SIGKILL/reap, it may remove only an owned private socket whose connection
+probe confirms no listener and whose inode/device/mode/timestamps remain unchanged.
+Timeouts, permission failures or changed filesystem objects fail closed. Stop
+cancels/joins the probe; it cannot unlink the socket after shutdown admission closes.
 This is separate from phone HTTPS and the authenticated native source pipes.
 Commands are one bounded NDJSON request, exactly `{action,value}`:
 
@@ -97,19 +115,65 @@ Evidence is ignored `captures/runtime/push-native-owner/helper-production-node26
 and `helper-production-node22.log`. Temporary listeners/children were reaped. No
 production listener, FCM message, APK, emulator or physical check ran in this batch.
 
-## Next native composition step
+## Native injection and restart checkpoint — 2026-10-11
 
 At scoped upstream `f4b1509054949eaad5d695569ad443c4c18ed68d`,
 `Sources/AppDelegate.swift` calls `PhonePushClient.shared.configure(auth:)` during
 `configure(...)`. Its original SHA-256 is
 `e24fe250dfd1d95e0f64f09060281370b05e1ae6c172a25233a301d47ffca7b0`.
-Retain one explicitly enabled owner, publish the current native public descriptor
-off the main actor, then inject the process sink into that call. The current key
-API is `PhonePushKeyMaterial.current(bundleID:)` in `PhonePushCrypto.swift`; project
-only its installation/key IDs and `publicKeyData`, using the actual tagged bundle
-ID. Do not export its private key or copy it into the helper sender identity.
+The installer now retains one explicitly configured owner, projects the public
+descriptor off the main actor and injects it into that call. The current key API
+is `PhonePushKeyMaterial.current(bundleID:)` in `PhonePushCrypto.swift`; only its
+installation/key IDs and `publicKeyData` are serialized, using the actual tagged
+bundle ID. The helper sender remains independently provisioned. The installer now
+writes **12 files against five audited original pins**, with explicit PBX membership.
+
+Two behavior failures were reproduced before their repairs:
+
+- `903a0514`: real production helper is killed/reaped; its replacement exits before
+  bootstrap because the stale owner socket remains. Six other runtime cases passed.
+  Probed/inode-checked recovery now passes the same seven-case command on Node 22/26,
+  including preserving an active owner.
+- `06e81493`: actual compiled native mapping emits selected-team `teamID` where the
+  official native key exchange, recipient lookup and encrypted push tuples all use
+  `teamID:null`. Android's strict native-tuple enrollment check would reject that
+  offer for selected-team accounts. Wire authority now matches the account-scoped
+  native tuple; verified selected-team identity/generation remain in the source
+  epoch, including team A→B→A retirement. The same mapping command passes after
+  recompilation on both runtimes; authenticated team-resolution gates remain.
+
+The actual Swift owner/process queue/repository now compile in Swift language mode
+6 and drive the **production CLI/helper** on Node 26.8.2 and 22.16.0. Executed
+scenarios include passive/lease-gated startup, public descriptor/owner offers,
+original native capture into encrypted storage, privacy kill/reap/replacement,
+authority invalidation/fresh recovery, awaited stop, held cancelled preparation
+with no late launch, and rejecting private fields/symlink publication. They use
+synthetic identities/keys and enroll no phone; they do not test user Keychain or
+actual FCM/Pixel delivery. The fixture sealer path is not invoked.
+
+The initial owner fixture used system OpenSSL's default 0644 key file and was
+correctly rejected by the private-file reader; direct stat/read diagnostics proved
+that cause. Its first unhandled fixture error appeared as a Swift top-level trap,
+not the earlier DispatchIO actor assertion. Fixture key mode is now explicitly
+0600, readiness waits for actual capture receipts, and failures exit normally with
+a fixture assertion location. Original logs remain in the ignored evidence folder.
+
+**123 focused checks passed** on Node 26.8.2 (1307.370 ms) and 22.16.0
+(1659.332 ms), in addition to the native owner scenarios, eight actual auth
+projection cases, compiled mapping checks, ten receipt/replay groups and four
+installer cases. Native edited-source/project parsing passes; none establish
+whole-app linking or actual account behavior.
+
+```sh
+python3 scripts/check-native-push-owner.py --node /absolute/path/to/node
+```
+
+Evidence: `captures/runtime/push-native-owner/production-node26/`,
+`production-node22/`, `native-owner-suite-node26.log`, `native-owner-suite-node22.log`,
+`stale-owner-socket-red.log`, the green logs and native tuple red/green logs/cases.
 
 Follow tagged/local-backend build instructions; preserve the running official cmux
-and the Pixel's account/app data. Full app linking, native startup/recovery, key
+and the Pixel's account/app data. Helper keys/TLS provisioning, full app linking,
+actual native startup/recovery, key
 rotation, encrypted unacknowledged producer persistence, configured signed Android
 milestone and actual foreground/background/process-dead/Doze delivery remain open.

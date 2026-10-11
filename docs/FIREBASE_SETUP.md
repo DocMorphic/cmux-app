@@ -61,7 +61,9 @@ activated successfully without another terms prompt.
 
 ## Next integration
 
-1. Complete helper keys/TLS and native public-descriptor publication/injection.
+1. Complete helper keys/TLS and apply/build the native integration.
+   Source injection/public-descriptor publication and standalone native owner
+   execution are now checked; whole-app/native account acceptance remains open.
    The production entrypoint now composes the verified private provider; see
    PUSH_HELPER_RUNTIME.md for its explicit configuration and owner pairing control.
    The helper component lifecycle is assembled and locally checked; its provider

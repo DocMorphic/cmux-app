@@ -1,5 +1,5 @@
 import { createServer, createConnection } from 'node:net';
-import { lstatSync, chmodSync } from 'node:fs';
+import { lstatSync, chmodSync, unlinkSync } from 'node:fs';
 import { dirname, isAbsolute } from 'node:path';
 
 export class PushOwnerControlError extends Error {
@@ -10,9 +10,34 @@ function privateParent(path) {
   const stat = lstatSync(dirname(path));
   if (!stat.isDirectory() || stat.uid !== process.getuid() || (stat.mode & 0o077)) throw new PushOwnerControlError();
 }
+async function recoverStaleSocket(path, signal) {
+  if (signal.aborted) throw new PushOwnerControlError();
+  let original;
+  try { original = lstatSync(path, { bigint: true }); }
+  catch (error) { if (error.code === 'ENOENT') return; throw new PushOwnerControlError(); }
+  if (!original.isSocket() || original.uid !== BigInt(process.getuid()) || (original.mode & 0o077n)) throw new PushOwnerControlError();
+  const stale = await new Promise(resolve => {
+    const socket = createConnection(path); let settled = false;
+    const finish = result => { if (settled) return; settled = true; signal.removeEventListener('abort', cancelled); socket.destroy(); resolve(result); };
+    const cancelled = () => finish(false);
+    signal.addEventListener('abort', cancelled, { once: true });
+    socket.on('connect', () => finish(false));
+    socket.on('error', error => finish(error.code === 'ECONNREFUSED' || error.code === 'ENOENT'));
+    socket.setTimeout(1000, () => finish(false));
+  });
+  if (!stale || signal.aborted) throw new PushOwnerControlError();
+  let current;
+  try { current = lstatSync(path, { bigint: true }); }
+  catch (error) { if (error.code === 'ENOENT') return; throw new PushOwnerControlError(); }
+  // Never unlink an active/replacement owner or a changed filesystem object.
+  if (!current.isSocket() || ['dev', 'ino', 'uid', 'mode', 'birthtimeNs', 'ctimeNs'].some(k => current[k] !== original[k]))
+    throw new PushOwnerControlError();
+  unlinkSync(path);
+}
 /** Owner-only Unix socket, separate from phone HTTPS and source pipes. */
 export class PushOwnerControl {
   #path; #issue; #cancel; #resume; #server; #sockets = new Set(); #state = 'new'; #stopping; #failed;
+  #recovery; #abort = new AbortController();
   constructor({ path, issueOffer, cancelOffer, resumeBlocked, onFailure = () => {} }) {
     if ([issueOffer, cancelOffer, resumeBlocked, onFailure].some(f => typeof f !== 'function')) throw new PushOwnerControlError();
     this.#path = path; this.#issue = issueOffer; this.#cancel = cancelOffer; this.#resume = resumeBlocked;
@@ -23,9 +48,9 @@ export class PushOwnerControl {
     this.#state = 'starting';
     try {
       privateParent(this.#path);
-      // Never unlink an existing socket/file to take over another owner.
-      try { lstatSync(this.#path); throw new PushOwnerControlError(); }
-      catch (error) { if (error.code !== 'ENOENT') throw new PushOwnerControlError(); }
+      this.#recovery = recoverStaleSocket(this.#path, this.#abort.signal);
+      await this.#recovery;
+      if (this.#state !== 'starting') throw new PushOwnerControlError();
       this.#server = createServer(socket => {
         if (this.#state !== 'running') { socket.destroy(); return; }
         this.#sockets.add(socket); socket.once('close', () => this.#sockets.delete(socket));
@@ -71,8 +96,12 @@ export class PushOwnerControl {
   stop() {
     if (this.#stopping) return this.#stopping;
     this.#state = 'closed';
+    this.#abort.abort();
     for (const socket of this.#sockets) socket.destroy();
-    this.#stopping = this.#server ? new Promise(resolve => this.#server.close(() => resolve())) : Promise.resolve();
+    this.#stopping = (async () => {
+      await this.#recovery?.catch(() => {});
+      if (this.#server) await new Promise(resolve => this.#server.close(() => resolve()));
+    })();
     return this.#stopping;
   }
 }

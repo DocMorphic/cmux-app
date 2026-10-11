@@ -35,16 +35,21 @@ final class NativePushSourceProcessSink: NativePushSourceSink {
     private let report: (String) -> Void
     private let receiptDelay: Duration
     private let retryDelay: Duration
+    private let prepareChild: @Sendable () async throws -> Void
     private let queue: NativePushSourceDeliveryQueue
     private let io = DispatchQueue(label: "cmux.android-push.private-pipes")
     private var child: Child?
     private var enabled = false
     private var timer: Task<Void, Never>?
+    private var preparation: Task<Void, Never>?
+    private var preparationID: UUID?
+    private var preparationRetired = false
     private var stopWaiters: [CheckedContinuation<Void, Never>] = []
 
     init(executable: URL, arguments: [String], directory: URL,
          now: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) },
          receiptDelay: Duration = .seconds(5), retryDelay: Duration = .seconds(5),
+         prepareChild: @escaping @Sendable () async throws -> Void = {},
          onState: @escaping (String) -> Void = { _ in }) throws {
         guard executable.isFileURL, executable.path.hasPrefix("/"), directory.isFileURL,
               directory.path.hasPrefix("/"), receiptDelay > .zero, retryDelay > .zero else {
@@ -52,10 +57,12 @@ final class NativePushSourceProcessSink: NativePushSourceSink {
         }
         self.executable = executable; self.arguments = arguments; self.directory = directory
         self.now = now; self.report = onState; self.receiptDelay = receiptDelay; self.retryDelay = retryDelay
+        self.prepareChild = prepareChild
         self.queue = try NativePushSourceDeliveryQueue()
     }
     var isRunning: Bool { child?.process.isRunning == true && child?.retiring == false }
     var retainedCount: Int { queue.retainedCount }
+    deinit { preparation?.cancel() }
 
     func start() throws {
         guard stopWaiters.isEmpty else { throw Failure.unavailable }
@@ -80,11 +87,16 @@ final class NativePushSourceProcessSink: NativePushSourceSink {
     func stop() async {
         enabled = false
         invalidate()
-        guard child != nil else { return }
+        report("stopping")
+        guard child != nil || preparation != nil else { return }
         await withCheckedContinuation { stopWaiters.append($0) }
     }
     private func retire() {
         timer?.cancel(); timer = nil
+        if preparation != nil {
+            preparationRetired = true
+            preparation?.cancel()
+        }
         guard let child, !child.retiring else { return }
         child.retiring = true
         child.reader.close(flags: .stop); child.writer.close(flags: .stop)
@@ -105,12 +117,41 @@ final class NativePushSourceProcessSink: NativePushSourceSink {
         if !child.retiring { queue.invalidate() }
         child.reader.close(flags: .stop); child.writer.close(flags: .stop)
         self.child = nil
-        let waiters = stopWaiters; stopWaiters.removeAll()
-        for waiter in waiters { waiter.resume() }
+        finishStopIfIdle()
         report("reaped")
         pump()
     }
     private func launch() {
+        guard enabled, child == nil, preparation == nil, queue.canBegin(now: now()) else { return }
+        let ticket = UUID()
+        preparationID = ticket; preparationRetired = false
+        let prepare = prepareChild
+        preparation = Task { @MainActor [weak self] in
+            do {
+                try Task.checkCancellation()
+                try await prepare()
+                self?.prepared(ticket, successful: !Task.isCancelled)
+            } catch { self?.prepared(ticket, successful: false) }
+        }
+    }
+    private func finishStopIfIdle() {
+        guard child == nil, preparation == nil else { return }
+        let waiters = stopWaiters; stopWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+    }
+    private func prepared(_ ticket: UUID, successful: Bool) {
+        guard preparationID == ticket else { return }
+        let retired = preparationRetired
+        preparation = nil; preparationID = nil; preparationRetired = false
+        finishStopIfIdle()
+        if !successful && !retired {
+            queue.invalidate(); report("preparation-unavailable"); return
+        }
+        guard enabled else { return }
+        if !retired { launchPrepared() }
+        pump()
+    }
+    private func launchPrepared() {
         guard enabled, child == nil else { return }
         do {
             var key = Data(count: 32)

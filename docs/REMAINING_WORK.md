@@ -12,11 +12,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current checkpoint — 2026-10-11
 
+Native composition/public descriptor publication now exist in a 12-file installer
+against five audited originals. Actual Swift owner→production helper scenarios pass
+on Node 22/26, including privacy replacement, authority recovery and joined cancelled
+preparation, plus 123 focused JS cases on both runtimes. Stale socket restart and
+native tuple team mismatch were reproduced and repaired; selected-team verification/
+epoch fences remain. Provision helper keys/TLS, apply/build the tagged full Mac
+integration and configured Android, then verify actual account/Keychain/Pixel
+FCM/Doze behavior. Standalone checks do not close those acceptance gates. See
+PUSH_HELPER_RUNTIME.md.
+
 The production helper entrypoint/private configuration and local owner pairing
 control now exist. 122 focused cases pass on Node 22/26, including real runtime/CLI
 startup, native authority, descriptor/provider binding and socket/EOF shutdown.
-No FCM delivery or full Mac app build is established. Next: native public-descriptor
-publication/process-sink injection and helper keys/TLS provisioning, followed by
+No FCM delivery or full Mac app build is established. The later native batch above
+supplies publication/injection. Next: helper keys/TLS provisioning, followed by
 tagged Mac/configured Android and physical delivery. See PUSH_HELPER_RUNTIME.md.
 
 Native notification hooks now have a pinned nine-file installer and an implemented
@@ -26,7 +36,7 @@ malformed/stalled receipts, fresh-authority recovery, stop and owner-release cle
 The initial actor callback SIGTRAP was reproduced (f337e279) and fixed. Earlier
 66 Node cases, eight auth projection cases, ten receipt/replay groups and four
 installer cases remain recorded in NATIVE_PUSH_SOURCE.md. Full custom app build,
-helper keys/TLS/native injection and encrypted persistence through
+helper keys/TLS/native installation and encrypted persistence through
 Mac app death remain open.
 
 The helper lifecycle now composes private native input, encrypted storage, FCM
@@ -43,7 +53,7 @@ resources independently match both variants. A limited FCM provider service acco
 and role exist with one private RSA credential. Explicit private-file loading and
 real messaging-scope OAuth/token caching succeeded; fifteen focused loader/sender
 checks pass on Node 22/26. No FCM request or real Mac/Pixel delivery occurred.
-Production installation, keys/TLS/native injection and physical delivery remain open.
+Production installation/build, keys/TLS and physical delivery remain open.
 See FIREBASE_SETUP.md. Signed 642/global parity pin are unchanged.
 
 Signed milestone [642](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533)
@@ -78,7 +88,7 @@ no new AVD. The Pixel was absent from ADB for this fixture batch.
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including native errors outside RPC and broader real-route retry acceptance, directory/rename/read/export/decoder failure coverage, live panel-kind changes, and broader main Files/direct-tap/transport restoration, forced browser-parent recreation with binary content, rendered-Markdown reflow and real-route/process recovery, broader Save/provider recovery and remote-file freshness semantics, video acceptance and zoom across aspect-ratio changes. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
-| Background notifications | Implement/deploy the selected private Firebase plus custom cmux Mac extension. FCM/HPKE, worker/reply code, production helper startup/local pairing control and authenticated native/private-pipe handoff exist. Apply/build/inject the native process sink/hooks, publish native descriptors, provision helper keys/TLS and encrypted producer persistence. Correct-account Firebase/client/private/CI configuration and provider OAuth exist; live delivery is unverified. | PUSH_HELPER_RUNTIME.md records 122 focused checks on Node 22/26; NATIVE_PUSH_SOURCE.md records actual native payload/auth projection checks, ten compiled native receipt/replay groups and Swift queue/private-pipe durable-capture interop. FIREBASE_SETUP.md records private credential/provider verification. Real foreground/background/process-dead/Doze delivery, token rotation, tap/reply, dismissals and revocation remain required. Document infrastructure and demonstrated platform differences. |
+| Background notifications | Implement/deploy the selected private Firebase plus custom cmux Mac extension. FCM/HPKE, worker/reply code, production helper/local pairing control, native owner/publication/injection and authenticated private-pipe handoff exist. Apply/build the implemented owner/hooks, provision helper keys/TLS and encrypted producer persistence. Correct-account Firebase/client/private/CI configuration and provider OAuth exist; live delivery is unverified. | PUSH_HELPER_RUNTIME.md records 123 focused checks on Node 22/26 and actual Swift owner→production helper execution; NATIVE_PUSH_SOURCE.md records native payload/auth projection checks, ten compiled receipt/replay groups and private-pipe durable-capture interop. FIREBASE_SETUP.md records private credential/provider verification. Real foreground/background/process-dead/Doze delivery, token rotation, tap/reply, dismissals and revocation remain required. Document infrastructure and demonstrated platform differences. |
 | Analytics and privacy settings | Verify the implemented Privacy consent section on Pixel/matched iOS; establish the reviewed Android event/server contract and integrate consent/identity retirement with actual uploads; resolve crash/replay provider support and sensitive-content masking. Android currently has no equivalent uploader/recorder. | Source mapping, nine focused gate checks and two passed Android fixtures in ANALYTICS_PRIVACY.md. Accepted Android event contract, identity retirement/transport cancellation and configured runtime acceptance remain required. The scoped iOS proxy only accepts its iOS catalog; backend support is unresolved. |
 | Account plan and billing | Verify native plan status and external management; establish Android purchase/restore support with products and server verification. | Source mapping in ACCOUNT_PLAN.md, live authenticated status/browser return, and verified Android purchase/restore-to-entitlement flow. Read-only plan status and pricing links do not establish native purchase parity. |
 | Cloud machines and terminals | Finish remaining Cloud source/UI comparison and real-account acceptance of the mounted machine controller, native terminal/WireGuard bridge and shared workspace integration. Verify system-VPN/private-port and lifecycle/recovery behavior. | Source-to-behavior mapping, fixture transport and UI evidence, then authorized real account/Pixel terminal and lifecycle workflows. See CLOUD_COMPANION.md; do not confuse Cloud machine access with Android background push. |

@@ -12,6 +12,7 @@ PINS = {
     "Sources/Auth/MacAuthComposition.swift": "71184d168ad431dd0867a7efb64f6ea61b2fd66b8c3fcf6b9c3ee1ae6be10d57",
     "cmux.xcodeproj/project.pbxproj": "78898acbeb053763c315c44b6dfe43fb6ff51da3cba0a073958b2192976f5a50",
     "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TeamScopes.swift": "55c26389f160344ad666a0eeea48d1d1b37ac63c3e2e50f97602bed26f38a0fe",
+    "Sources/AppDelegate.swift": "e24fe250dfd1d95e0f64f09060281370b05e1ae6c172a25233a301d47ffca7b0",
 }
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -174,6 +175,27 @@ def patched_sources(original):
         "        self.cloudTeamScopeObserver = CloudTeamScopeObserver(auth: coordinator) { isSameAccount in\n"
         "            PhonePushClient.shared.invalidateAndroidPushSource()\n")
     result[path] = source.encode()
+    path = "Sources/AppDelegate.swift"
+    source = original[path].decode()
+    source = once(source, "import CmuxCloud\n", "import CmuxCloud\nimport CmuxPhonePush\n")
+    source = once(source, "    private(set) var auth: MacAuthComposition?\n", "    private(set) var auth: MacAuthComposition?\n    private var nativeAndroidPushOwner: NativePushSourceOwner?\n")
+    source = once(source, "        PhonePushClient.shared.configure(auth: auth.coordinator)\n", '''        if nativeAndroidPushOwner == nil {
+            if let bundleID = Bundle.main.bundleIdentifier {
+                nativeAndroidPushOwner = try? NativePushSourceOwner(
+                    environment: ProcessInfo.processInfo.environment,
+                    loadDescriptor: { @Sendable in
+                        let key = try PhonePushKeyMaterial.current(bundleID: bundleID)
+                        return try JSONEncoder().encode(MobilePhonePushPublicKeyDescriptor(
+                            installationID: key.installationID, keyID: key.keyID, publicKey: key.publicKeyData
+                        ))
+                    }
+                )
+            }
+        }
+        PhonePushClient.shared.configure(auth: auth.coordinator, nativePushSource: nativeAndroidPushOwner)
+        try? nativeAndroidPushOwner?.start()
+''')
+    result[path] = source.encode()
     path = "cmux.xcodeproj/project.pbxproj"
     source = original[path].decode()
     native_sources = {
@@ -182,6 +204,8 @@ def patched_sources(original):
         "NativePushSourceDeliveryQueue": "push/mac-native/NativePushSourceDeliveryQueue.swift",
         "NativePushSourceProcessSink": "push/mac-native/NativePushSourceProcessSink.swift",
         "NativePushSourceFrame": "push/NativePushSourceFrame.swift",
+        "NativePushOwnerDescriptorRepository": "push/mac-native/NativePushOwnerDescriptorRepository.swift",
+        "NativePushSourceOwner": "push/mac-native/NativePushSourceOwner.swift",
     }
     for index, (name, source_path) in enumerate(native_sources.items(), 1):
         build = f"C0DEAD0000000000000000{index:02X}"
@@ -240,7 +264,7 @@ def main():
     args = parser.parse_args()
     patched = install(args.target.resolve(), args.check)
     print(f"Native producer hooks {'checked' if args.check else 'installed'}: {len(patched)} files at audited {REF}")
-    print("Helper transport injection/assembly and tagged full-app/live acceptance remain required.")
+    print("Helper keys/TLS provisioning and tagged full-app/live acceptance remain required.")
 
 
 if __name__ == "__main__":
