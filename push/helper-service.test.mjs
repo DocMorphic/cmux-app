@@ -183,6 +183,24 @@ test('native phone removal rejects enrollment retries and renewal but permits au
   assert.equal((await post(endpoint, 'maintain.begin', request)).status, 403);
   assert.equal((await post(endpoint, 'maintain.begin', { ...request, action: 'revoke', token: null })).status, 200);
 });
+test('native Mac descriptor rotation during OAuth prevents provider contact', async t => {
+  let enter, release;
+  const entered = new Promise(r => { enter = r; }), waiting = new Promise(r => { release = r; });
+  const f = fixture(t, { tokens: { get: async () => { enter(); await waiting; return 'fixture-oauth'; }, invalidate() {} } });
+  try {
+    const endpoint = await f.start(); await enroll(f, endpoint); await f.send(capture()); await entered;
+    f.replaceNative(desc('rotated-native', 6)); release();
+    await new Promise(r => setTimeout(r, 25)); assert.equal(f.sent.length, 0);
+  } finally { release(); }
+});
+test('native Mac rotation after restart cannot reuse an older helper enrollment', async t => {
+  const original = fixture(t), endpoint = await original.start(); await enroll(original, endpoint); await original.service.stop();
+  const restarted = fixture(t, { directory: original.root, readNativeDescriptor: () => desc('rotated-native', 6) });
+  try {
+    await restarted.start(); assert.equal((await restarted.send(capture())).kind, 'captured');
+    await new Promise(r => setTimeout(r, 25)); assert.equal(restarted.sent.length, 0);
+  } finally { await restarted.service.stop(); }
+});
 test('stop fences admission and waits for existing encryption before returning', async t => {
   let enter, release;
   const entered = new Promise(r => { enter = r; }), waiting = new Promise(r => { release = r; });
