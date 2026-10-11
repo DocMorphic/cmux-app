@@ -1,5 +1,23 @@
 # Codex laptop handoff — 2026-09-28
 
+## Private HTTPS setup and storage cleanup — 2026-10-12
+
+The owner enabled Tailscale HTTPS Certificates. A certificate/key pair was issued
+privately and the explicit runtime setup succeeded against the production sealer,
+Gmail-owned Firebase clients/provider and independent owner keys. Offline validation
+verified the hostname, matching key, validity and public-root chain. Configuration
+is 0600 in a 0700 runtime directory; a second setup preserved configuration/key
+bytes, inodes and identities. No helper listener, native authority publication or
+FCM request was started. The tagged Mac artifact/account/Keychain and real Pixel
+handshake/delivery gates remain open; follow the same hosted build retry.
+
+At the owner's request, obsolete staged Codex/cmux-nightly update copies, the Go
+build cache and unused Gradle 8.13 caches/daemon records were removed. Active/latest
+installers, code, private credentials, current toolchains, captures and the sole
+Android AVD were preserved. Free storage rose from about 12 GiB to 25 GiB while
+Xcode was downloading; availability can change during installation. Cleanup and
+secret-free provisioning receipts are in ignored `captures/runtime/`.
+
 ## Mac build retry — 2026-10-12
 
 The exact-identity/runner-path packaging repairs and Settings setup reference are
