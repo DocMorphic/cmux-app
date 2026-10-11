@@ -5,8 +5,9 @@ encrypted outbox/registration storage and an explicit scheduler for a trusted Ma
 forwarder or backend.
 It is **not a running forwarding service**. HTTPS factories remain unbound until
 a host explicitly starts them. Correct-account Firebase/client/private/CI
-configuration and private provider credentials exist; the production forwarding
-entrypoint remains pending (see [FIREBASE_SETUP.md](../docs/FIREBASE_SETUP.md)).
+configuration/private provider credentials and the explicit production entrypoint
+exist; native installation/keys/TLS remain pending (see
+[PUSH_HELPER_RUNTIME.md](../docs/PUSH_HELPER_RUNTIME.md)).
 Importing the modules makes no network calls. Tests use synthetic
 credentials with injected transports or local TLS servers, never the live provider.
 
@@ -26,9 +27,11 @@ The owner supervises private stream errors and closes its credential providers
 after stop. Instances are one-shot; recovery creates a new instance with freshly
 observed native authority and the same provisioned durable storage keys.
 
-Nine assembly cases use real local TLS/proofs/stores and injected test providers;
-101 related checks pass on Node 22/26. Production CLI/owner control, keys/TLS,
-native injection and live delivery remain open. See
+Nine assembly cases use real local TLS/proofs/stores and injected test providers.
+The production runtime/CLI now loads explicit private configuration and opens
+owner-only local pairing control. 122 related checks pass on Node 22/26.
+Keys/TLS, native injection and live delivery remain open. See
+[runtime startup](../docs/PUSH_HELPER_RUNTIME.md) and
 [the evidence](../docs/NATIVE_PUSH_SOURCE.md#composed-helper-lifecycle--2026-10-11).
 
 ```sh
@@ -639,8 +642,8 @@ responses carry Retry-After. See [transport evidence and remaining integration](
 
 ## Remaining end-to-end work
 
-1. Wire the provisioned private Firebase provider into the helper entrypoint.
-   Project/client/private/CI configuration and provider OAuth are verified;
+1. Install the composed helper and provision its independent sender/storage keys
+   and trusted TLS. Project/client/private/CI configuration and provider OAuth are verified;
    the Mac's unrelated default Google Cloud project must not be used. See
    [current setup](../docs/FIREBASE_SETUP.md).
 2. Build the configured Android integration milestone and verify helper enrollment.
@@ -654,11 +657,11 @@ responses carry Retry-After. See [transport evidence and remaining integration](
    authenticated helper handshake and confirmation UI now exist; host source/key
    provisioning remain open; never pass unverified network descriptors straight to the pin API. See
    [helper trust](../docs/PUSH_DELIVERY.md#independent-helper-sender-trust--source-checkpoint-2026-10-06).
-4. Integrate event preparation/encryption, `PushRegistrations`, `PushDispatcher`, `PushOutbox` and `FcmSender`
-   into that host with its credential-store key, current membership/hide-content/
-   away policy and admission backpressure. `PushForwarder` composes these parts
-   with live snapshot policy; the native owner of snapshot/event production is still missing;
-   local tests do not establish that a running host has implemented these contracts.
+4. Inject the implemented process sink/hooks at the native composition root and
+   publish its public descriptor. The helper now composes event preparation,
+   registration/storage, CryptoKit encryption and FCM with live policy. Full app
+   linking/startup/recovery and encrypted unacknowledged producer persistence are
+   still required; local component checks do not establish running-host acceptance.
 5. Verify real Pixel delivery, Doze/process death, dismissal, replies, logout,
    token changes and revocation before describing push as functional.
 

@@ -61,8 +61,9 @@ activated successfully without another terms prompt.
 
 ## Next integration
 
-1. Wire the verified private token provider into the helper entrypoint and complete
-   helper keys/TLS/native injection.
+1. Complete helper keys/TLS and native public-descriptor publication/injection.
+   The production entrypoint now composes the verified private provider; see
+   PUSH_HELPER_RUNTIME.md for its explicit configuration and owner pairing control.
    The helper component lifecycle is assembled and locally checked; its provider
    transport is still injected in tests (see NATIVE_PUSH_SOURCE.md).
 2. Build the configured Android/custom Mac integration milestone. Existing

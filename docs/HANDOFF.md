@@ -2,6 +2,17 @@
 
 ## Current checkpoint — 2026-10-11
 
+Production helper startup now exists in `scripts/cmux-push-helper.mjs` and
+`push/helper-runtime.mjs`, using explicit private configuration and pipe receipts.
+`owner-control.mjs` supplies a private owner-only Unix socket for offers/cancel/
+credential recovery; `scripts/cmux-push-owner.mjs` is its explicit local command.
+122 focused cases pass on Node 22/26, including six real runtime/CLI cases; no live
+FCM or full app build occurred. Native composition point/public-key API/pin are
+recorded in PUSH_HELPER_RUNTIME.md. Next: off-main-actor native public descriptor
+publication and process-sink injection, provision helper keys/TLS, tagged full Mac
+and configured Android milestone, then real delivery. The existing native sink
+still defaults to nil until that injection is implemented.
+
 The user selected **private Firebase plus a custom cmux Mac build**, and a
 **dedicated project**. Correct Gmail authorization/provisioning is now complete.
 Firebase project `cmux-app-push-private-20261011` (185554994782) is active, Gmail-owned,
@@ -19,8 +30,8 @@ native source, encrypted stores, FCM forwarding and TLS enrollment/maintenance.
 101 focused checks pass on Node 22/26, including nine real local TLS assembly
 cases and shutdown while encryption/provider work is active. Test providers are
 injected; no live FCM delivery is established. Construction is passive and stop
-fences authority before awaiting work/closing stores. Production CLI/owner control,
-helper keys/TLS, verified provider wiring and native injection remain next. See
+fences authority before awaiting work/closing stores. The later runtime batch above
+supplies CLI/owner control/provider composition; helper keys/TLS and native injection remain next. See
 NATIVE_PUSH_SOURCE.md and FIREBASE_SETUP.md.
 
 The native process supervisor now launches one private child, keeps IO off the
@@ -29,7 +40,7 @@ Actual process scenarios pass on Node 22/26, including encrypted capture, privac
 replacement, malformed/stalled pipes, refreshed authority and stop. Initial
 Swift actor callback SIGTRAP is recorded in regression commit f337e279; explicit
 Sendable callbacks fix it. The installer now wires nine files against four
-unchanged original pins. Production helper entrypoint/injection/credentials/TLS,
+unchanged original pins. Native injection/helper keys/TLS,
 encrypted producer persistence and the tagged full app/live Mac/Pixel milestone
 remain open. Original evidence/commands are in NATIVE_PUSH_SOURCE.md.
 
@@ -37,7 +48,7 @@ The initial pinned six-file native hook installer captures the actual phone prod
 before the Apple-recipient gate and derives authenticated session/team authority.
 It observes auth/settings, heartbeats and immediately fences auth/privacy/master
 forwarding transitions. Unknown authority invalidates its lease without declaring
-logout. The native sink still needs production helper assembly/injection.
+logout. The native sink still needs production composition injection.
 The delayed-preparation admission bug was reproduced in regression commit
 `39689e3d` (two failures), then fixed: becoming active after native admission does
 not drop the alert. 66 focused checks pass on Node 22/26, four installer cases,
@@ -54,8 +65,8 @@ entries remain in memory, so encrypted producer persistence through Mac app deat
 is also open. See NATIVE_PUSH_SOURCE.md for commands and evidence.
 Earlier actual CryptoKit/private-pipe checks remain recorded separately. No full
 custom Mac build/install, production listener, Android build or physical acceptance
-in this batch. Next: production helper assembly/keys/TLS/injection, configured
-Firebase clients/provider, tagged app build and real delivery.
+in these source batches. Next: helper keys/TLS/native injection, configured
+tagged app build and real delivery.
 Signed milestone [642](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533)
 at `7147bc62` passed, including the previously failing Cloud native job's cached
 checkpoint verification. Its downloaded APK independently verifies the stable

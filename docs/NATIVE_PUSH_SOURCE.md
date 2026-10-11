@@ -10,6 +10,19 @@ exist. A private provider credential and real messaging-scope OAuth are verified
 live FCM delivery and production provider wiring remain unverified.
 See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
+## Production helper startup — 2026-10-11
+
+The production CLI/configuration composition and owner-only local pairing control
+are implemented. Explicit startup validates private files and exact helper/provider
+identity, binds TLS and a private Unix socket, and consumes only the native owner's
+private pipes. Source EOF/stop closes listeners and clears owned key buffers after
+component shutdown. **122 focused checks pass on Node 22/26**, including six actual
+runtime/CLI cases. No live recipient/provider delivery or full Mac app build is
+established. See [PUSH_HELPER_RUNTIME.md](PUSH_HELPER_RUNTIME.md) for the configuration,
+commands, original failed fixture expectation, evidence and exact native startup
+point to inject next. Native descriptor publication, keys/TLS provisioning,
+composition injection and encrypted producer persistence remain open.
+
 ## Composed helper lifecycle — 2026-10-11
 
 `push/helper-service.mjs` now assembles the private native channel, encrypted
@@ -39,9 +52,10 @@ node --test push/helper-service.test.mjs push/native-source*.test.mjs push/sourc
 ```
 
 Original logs: ignored `captures/runtime/push-native-owner/helper-suite-node26.log`
-and `helper-suite-node22.log`. Production CLI/owner control, credential/TLS
-provisioning, native composition injection and encrypted producer persistence
-remain required. No production listener, APK, emulator or physical test ran.
+and `helper-suite-node22.log`. The later runtime checkpoint above closes production
+CLI/owner control/provider composition. Helper keys/TLS, native composition
+injection and encrypted producer persistence remain required. No production
+listener, APK, emulator or physical test ran.
 
 ## Native private process supervisor — 2026-10-11
 
@@ -83,8 +97,9 @@ The installer now wires **nine changed files** against the same four original
 source pins. Syntax/plist parsing, actual payload/auth projection, queue/private
 pipe checks and four installer cases still pass. No full custom app build or
 production composition injection is established. The fixture helper stores events
-but does not send FCM; the production helper entrypoint, keys/TLS/enrollment and
-provider wiring remain required. Unacknowledged owner captures remain in memory;
+but does not send FCM; the production runtime above now supplies entrypoint/provider
+composition. Keys/TLS/native installation and enrollment acceptance remain required.
+Unacknowledged owner captures remain in memory;
 encrypted producer persistence through Mac app death stays open. Signed 642 and
 the global parity pin are unchanged.
 
