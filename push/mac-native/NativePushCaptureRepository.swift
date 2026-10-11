@@ -24,8 +24,13 @@ actor NativePushCaptureRepository {
         let expiresAt: Int64
         let body: Data
     }
+    struct Recovery: Sendable {
+        let context: Context?
+        let records: [Record]
+    }
     private struct Snapshot: Codable {
         let version: Int
+        let context: Context?
         let records: [Record]
     }
     private let directory: URL
@@ -46,12 +51,35 @@ actor NativePushCaptureRepository {
     /// Returns unexpired original captures only. No host/session/transport state
     /// is restored, no key is created on read, and corrupt storage is preserved.
     func load(now: Int64) throws -> [Record] {
+        try recover(now: now).records
+    }
+
+    /// Source identity metadata remains after captures are acknowledged, so the
+    /// helper's durable work can resume. It is never evidence of live authority.
+    func recover(now: Int64) throws -> Recovery {
         do {
             try validTime(now)
-            guard try prepareDirectory(create: false) else { return [] }
-            guard let bytes = try read() else { return [] }
+            guard try prepareDirectory(create: false), let bytes = try read() else { return .init(context: nil, records: []) }
             let key = try key(allowCreation: false)
-            return try decode(bytes, key: key).filter { $0.expiresAt > now }
+            let snapshot = try decode(bytes, key: key)
+            return .init(context: snapshot.context, records: snapshot.records.filter { $0.expiresAt > now })
+        } catch { throw Failure.unavailable }
+    }
+
+    /// Caller first verifies native scope and retires mismatched originals. A
+    /// metadata update cannot silently evict captures or relabel their identity.
+    func saveContext(_ context: Context?, now: Int64) throws {
+        do {
+            try validTime(now)
+            if let context { try validate(context) }
+            guard try prepareDirectory(create: context != nil) else { return }
+            let bytes = try read()
+            if bytes == nil && context == nil { return }
+            let key = try key(allowCreation: bytes == nil)
+            let prior = try bytes.map { try decode($0, key: key) } ?? Snapshot(version: 1, context: nil, records: [])
+            let records = prior.records.filter { $0.expiresAt > now }
+            guard context == nil || records.allSatisfy({ $0.context == context }) else { throw Failure.unavailable }
+            if context != prior.context || records != prior.records { try write(records, context: context, key: key) }
         } catch { throw Failure.unavailable }
     }
 
@@ -63,14 +91,15 @@ actor NativePushCaptureRepository {
             guard record.admittedAt <= now, record.expiresAt > now else { throw Failure.unavailable }
             _ = try prepareDirectory(create: true)
             let bytes = try read(), key = try key(allowCreation: bytes == nil)
-            let prior = try bytes.map { try decode($0, key: key) } ?? []
-            if let same = prior.first(where: { $0.id == record.id }) {
+            let prior = try bytes.map { try decode($0, key: key) } ?? Snapshot(version: 1, context: nil, records: [])
+            guard prior.context == nil || prior.context == record.context else { throw Failure.unavailable }
+            if let same = prior.records.first(where: { $0.id == record.id }) {
                 guard same == record else { throw Failure.unavailable }
                 return .duplicate
             }
-            var records = prior.filter { $0.expiresAt > now }
+            var records = prior.records.filter { $0.expiresAt > now }
             records.append(record); try validate(records)
-            try write(records, key: key)
+            try write(records, context: prior.context, key: key)
             return .stored
         } catch { throw Failure.unavailable }
     }
@@ -84,8 +113,8 @@ actor NativePushCaptureRepository {
             guard try prepareDirectory(create: false), let bytes = try read() else { return }
             let key = try key(allowCreation: false)
             let prior = try decode(bytes, key: key)
-            let records = prior.filter { !ids.contains($0.id) && $0.expiresAt > now }
-            if records != prior { try write(records, key: key) }
+            let records = prior.records.filter { !ids.contains($0.id) && $0.expiresAt > now }
+            if records != prior.records { try write(records, context: prior.context, key: key) }
         } catch { throw Failure.unavailable }
     }
 
@@ -101,8 +130,8 @@ actor NativePushCaptureRepository {
     private func validate(_ record: Record) throws {
         try validTime(record.admittedAt); try validTime(record.expiresAt)
         let c = record.context
-        guard [c.accountID, c.macDeviceID, c.macInstanceTag, c.macBuildID, c.sourceEpoch].allSatisfy(validText),
-              c.teamID == nil || validText(c.teamID!), record.expiresAt > record.admittedAt,
+        try validate(c)
+        guard record.expiresAt > record.admittedAt,
               record.expiresAt - record.admittedAt <= 120_000, record.expiresAt % 1000 == 0,
               !record.body.isEmpty, record.body.count <= 1_048_576,
               String(data: record.body, encoding: .utf8) != nil,
@@ -117,6 +146,10 @@ actor NativePushCaptureRepository {
               let expiry = request["expiresAt"] as? NSNumber,
               CFGetTypeID(expiry) != CFBooleanGetTypeID(),
               expiry.doubleValue == Double(record.expiresAt) else { throw Failure.unavailable }
+    }
+    private func validate(_ c: Context) throws {
+        guard [c.accountID, c.macDeviceID, c.macInstanceTag, c.macBuildID, c.sourceEpoch].allSatisfy(validText),
+              c.teamID == nil || validText(c.teamID!) else { throw Failure.unavailable }
     }
     private func validText(_ value: String) -> Bool {
         !value.isEmpty && value.utf16.count <= 1024 && !value.unicodeScalars.contains { $0.value < 32 }
@@ -164,18 +197,19 @@ actor NativePushCaptureRepository {
         }
         return bytes
     }
-    private func decode(_ bytes: Data, key: SymmetricKey) throws -> [Record] {
+    private func decode(_ bytes: Data, key: SymmetricKey) throws -> Snapshot {
         var plaintext = try AES.GCM.open(AES.GCM.SealedBox(combined: bytes), using: key, authenticating: aad)
         defer { plaintext.resetBytes(in: 0..<plaintext.count) }
         let snapshot = try JSONDecoder().decode(Snapshot.self, from: plaintext)
         guard snapshot.version == 1 else { throw Failure.unavailable }
+        if let context = snapshot.context { try validate(context) }
         try validate(snapshot.records)
-        return snapshot.records
+        return snapshot
     }
-    private func write(_ records: [Record], key: SymmetricKey) throws {
+    private func write(_ records: [Record], context: Context?, key: SymmetricKey) throws {
         try validate(records)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
-        var plaintext = try encoder.encode(Snapshot(version: 1, records: records))
+        var plaintext = try encoder.encode(Snapshot(version: 1, context: context, records: records))
         defer { plaintext.resetBytes(in: 0..<plaintext.count) }
         guard let bytes = try AES.GCM.seal(plaintext, using: key, authenticating: aad).combined,
               bytes.count <= maximumFileBytes else { throw Failure.unavailable }

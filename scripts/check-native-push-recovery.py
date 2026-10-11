@@ -39,7 +39,7 @@ def main():
                 raise RuntimeError('Native owner did not reach committed lost-receipt checkpoint')
         elif child.returncode: raise subprocess.CalledProcessError(child.returncode, mode)
         print(data.decode().strip())
-    targets = ['acknowledged'] if args.case else ['restore', 'restore-after-unavailable', 'restore-other-team', 'scope-aba', 'held-stop', 'held-team-hop', 'full-store', 'acknowledged']
+    targets = ['acknowledged'] if args.case else ['restore', 'restore-after-unavailable', 'restore-other-team', 'scope-aba', 'signed-out', 'held-stop', 'held-team-hop', 'full-store', 'acknowledged']
     for target in targets:
         with tempfile.TemporaryDirectory(prefix='cmux-recovery-', dir='/tmp') as temporary:
             prepared = subprocess.run([args.node, str(root / 'scripts/native-push-owner-fixture.mjs'), 'prepare', temporary], capture_output=True, timeout=20)
@@ -48,7 +48,7 @@ def main():
                 run('acknowledged-and-die', temporary, 'cmux-push-helper.mjs', die=True)
                 Path(temporary, 'allow-receipts').write_text('public fixture receipt forwarding\n')
                 run('restore-acknowledged', temporary, 'native-push-recovery-child.mjs')
-            elif target != 'scope-aba':
+            elif target not in ['scope-aba', 'signed-out']:
                 run('commit-and-die', temporary, 'native-push-recovery-child.mjs', die=True)
                 run(target, temporary, 'cmux-push-helper.mjs')
             else: run(target, temporary, 'native-push-recovery-child.mjs')

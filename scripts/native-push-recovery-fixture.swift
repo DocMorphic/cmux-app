@@ -55,7 +55,7 @@ actor NativeRecoveryGate {
         }
         let repo = try NativePushCaptureRepository(directory: URL(fileURLWithPath: root + "/state/producer"), loadKey: { _ in captureKey })
         try owner.start()
-        if ["commit-and-die", "scope-aba", "acknowledged-and-die"].contains(mode) {
+        if ["commit-and-die", "scope-aba", "acknowledged-and-die", "signed-out"].contains(mode) {
             let body = try capture("native-incarnation-first")
             try require(owner.offer([host("native-incarnation-first"), body], scope: scope()))
             if mode == "acknowledged-and-die" {
@@ -74,6 +74,16 @@ actor NativeRecoveryGate {
             if mode == "commit-and-die" {
                 FileHandle.standardOutput.write(Data("actual helper committed; native encrypted original retained before SIGKILL\n".utf8))
                 _ = Darwin.kill(getpid(), SIGKILL); throw Failure.assertion(#line)
+            }
+            if mode == "signed-out" {
+                let now = Int64(Date().timeIntervalSince1970 * 1000)
+                try require(owner.offer([json(["type": "host", "snapshot": ["state": "signed-out", "observedAt": now, "validUntil": now + 30_000]])]))
+                try await wait { owner.isRunning && owner.retainedCount == 0 }
+                await owner.stop()
+                let metadata = try await repo.recover(now: Int64(Date().timeIntervalSince1970 * 1000))
+                try require(metadata.records.isEmpty && metadata.context == nil && receipts == 0)
+                print("Confirmed sign-out clears encrypted captures/source metadata and fences the old private helper")
+                return
             }
             owner.retireScope()
             try require(!owner.isRunning)

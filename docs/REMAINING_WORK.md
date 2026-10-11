@@ -12,12 +12,22 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current checkpoint — 2026-10-11
 
-Native encrypted capture repository/Keychain loader now compile and are wired in
-the 15-file/six-pin installer. Actual CryptoKit storage passes committed-SIGKILL
-recovery and seven scenario groups. The source owner still uses its memory queue;
-fresh-authority replay, producer commit/receipt integration and the source-epoch
-lost-receipt boundary remain open. Keychain access/full app/provider/device behavior
-were not exercised. See NATIVE_PUSH_CAPTURE_STORAGE.md for exact scope/next work.
+The production native source owner now commits encrypted originals before helper
+transmission and retires them only after exact durable receipts. Fresh verified
+account/selected-team/Mac scope gates recovery; temporary loss retains work,
+confirmed sign-out/team retirement clears it, and stop joins owned storage work.
+The installer now changes 16 files against six audited originals.
+
+Regression `b67d7483` reproduced loss of helper source identity after all native
+captures were acknowledged. Encrypted context metadata now survives the last
+receipt, is committed before host transmission, and is reused only after fresh
+matching native authority. It never establishes a lease or renews event expiry.
+Nine actual producer→production-helper recovery cases pass on Node 22 and 26,
+including SIGKILL, selected-team mismatch/ABA, sign-out, held IO and full-store
+backpressure. Eight storage groups, both production-owner runs and current native
+mapping/auth/receipt/installer/launch checks pass. Keys/accounts are synthetic;
+actual Keychain/full tagged app/FCM/physical-device acceptance remain open.
+See NATIVE_PUSH_CAPTURE_STORAGE.md for preserved red/green evidence and next gates.
 
 Helper sender/storage keys are provisioned privately and the sealer compiled.
 Eight key-setup cases pass on Node 22/26; repeated setup preserves identity/keys.

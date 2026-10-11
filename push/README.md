@@ -16,10 +16,12 @@ whole tagged Mac build and real phone/provider acceptance remain pending.
 Importing the modules makes no network calls. Tests use synthetic
 credentials with injected transports or local TLS servers, never the live provider.
 
-The native capture repository/independent Keychain loader are implemented and wired
-for app compilation. Actual encrypted storage survives committed SIGKILL in a
-fixture; production source-owner restore/persist/receipt integration remains open.
-See [native capture storage](../docs/NATIVE_PUSH_CAPTURE_STORAGE.md).
+The native capture repository and independent Keychain loader are integrated into
+the production source owner. Original captures commit before transmission; exact
+receipts retire them. Encrypted source context survives the final receipt and only
+fresh matching native authority can resume it. Nine real producer/helper recovery
+cases pass on Node 22/26 and eight storage groups pass; actual Keychain/full Mac app/
+FCM/Pixel acceptance remain open. See [native capture storage](../docs/NATIVE_PUSH_CAPTURE_STORAGE.md).
 
 ## Composed native helper
 

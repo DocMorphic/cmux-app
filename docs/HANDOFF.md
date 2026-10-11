@@ -2,17 +2,22 @@
 
 ## Current checkpoint — 2026-10-11
 
-Encrypted native capture storage and its independent Keychain key loader are
-implemented, with explicit app membership (15 files / six installer pins). Actual
-Swift/CryptoKit storage passes committed-SIGKILL recovery and seven scenario groups,
-including unchanged body/expiry, receipt removal, bounds and corrupt/unsafe storage.
-Keychain code compiles but was not executed. **The production owner still uses its
-memory queue**: wiring fresh-authority restore/persist/receipt retirement remains
-next, including the source-epoch/lost-receipt boundary documented in
-NATIVE_PUSH_CAPTURE_STORAGE.md. Current auth/payload/receipt checks plus
-Swift/project/Bash parsing, four installer and eight launch cases pass. Xcode,
-HTTPS and physical-device prerequisites remain unchanged; no live listener/APK/FCM
-or whole app ran in this batch.
+The production native source owner now commits encrypted originals before helper
+transmission and retires them only after exact durable receipts. Fresh verified
+account/selected-team/Mac scope gates recovery; temporary loss retains work,
+confirmed sign-out/team retirement clears it, and stop joins owned storage work.
+The installer now changes 16 files against six audited originals.
+
+Regression `b67d7483` reproduced loss of helper source identity after all native
+captures were acknowledged. Encrypted context metadata now survives the last
+receipt, is committed before host transmission, and is reused only after fresh
+matching native authority. It never establishes a lease or renews event expiry.
+Nine actual producer→production-helper recovery cases pass on Node 22 and 26,
+including SIGKILL, selected-team mismatch/ABA, sign-out, held IO and full-store
+backpressure. Eight storage groups, both production-owner runs and current native
+mapping/auth/receipt/installer/launch checks pass. Keys/accounts are synthetic;
+actual Keychain/full tagged app/FCM/physical-device acceptance remain open.
+See NATIVE_PUSH_CAPTURE_STORAGE.md for preserved red/green evidence and next gates.
 
 Private helper keys are now provisioned and preserved at
 `/Users/dharmaydave/.config/cmux-app/push-owner-keys`; the CryptoKit sealer built.

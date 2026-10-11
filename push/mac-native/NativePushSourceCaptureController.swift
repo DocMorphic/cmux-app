@@ -32,6 +32,8 @@ final class NativePushSourceCaptureController: NativePushSourceSink {
     private var activeScope: NativePushSourceScope?
     private var wireEpoch: String?
     private var loaded: [NativePushCaptureRepository.Record]?
+    private var storedContext: NativePushCaptureRepository.Context?
+    private var contextDirty = false
     private var retireUnloaded = false
     private var entries: [Entry] = []
     private var removals: Set<UUID> = []
@@ -114,6 +116,7 @@ final class NativePushSourceCaptureController: NativePushSourceSink {
     }
     func retireScope() {
         invalidate(); retireUnloaded = true; wireEpoch = nil; nativeEpoch = nil; activeScope = nil
+        storedContext = nil; contextDirty = true
         sink?.retireScope()
         removals.formUnion(entries.map { $0.record.id }); entries.removeAll()
         if let loaded { removals.formUnion(loaded.map(\.id)); self.loaded = [] }
@@ -154,28 +157,45 @@ final class NativePushSourceCaptureController: NativePushSourceSink {
     private func drain() async throws {
         if repository == nil {
             let prepared = try await repositoryFactory()
-            let saved = try await prepared.load(now: now())
-            repository = prepared; loaded = saved
+            let saved = try await prepared.recover(now: now())
+            repository = prepared; loaded = saved.records
+            if !retireUnloaded { storedContext = saved.context }
         }
         guard let repository else { throw Failure.unavailable }
         while true {
             if let saved = loaded, retireUnloaded || (activeScope != nil && nativeEpoch != nil) {
-                let matching = retireUnloaded ? [] : saved.filter { matches($0.context, activeScope!) }
+                let mayRestore = !retireUnloaded && (storedContext == nil || activeScope.map { matches(storedContext!, $0) } == true)
+                let matching = mayRestore ? saved.filter { matches($0.context, activeScope!) } : []
                 let epochs = Set(matching.map { $0.context.sourceEpoch })
-                let restored = epochs.count <= 1 ? matching : []
-                wireEpoch = restored.first?.context.sourceEpoch ?? nativeEpoch
+                let epoch = mayRestore ? storedContext?.sourceEpoch ?? (epochs.count <= 1 ? matching.first?.context.sourceEpoch : nil) : nil
+                wireEpoch = epoch ?? nativeEpoch
+                let restored = matching.filter { $0.context.sourceEpoch == wireEpoch }
                 let keep = Set(restored.map(\.id))
                 removals.formUnion(saved.filter { !keep.contains($0.id) }.map(\.id))
                 entries.insert(contentsOf: restored.map { .init(record: $0, persisted: true, submitted: false) }, at: 0)
                 loaded = nil; retireUnloaded = false
+                storedContext = activeScope.flatMap { scope in wireEpoch.map { context(scope, epoch: $0) } }
+                contextDirty = true
             } else if loaded == nil {
                 retireUnloaded = false
-                if wireEpoch == nil { wireEpoch = nativeEpoch }
+                if wireEpoch == nil, let nativeEpoch {
+                    wireEpoch = nativeEpoch
+                    storedContext = activeScope.flatMap { scope in wireEpoch.map { context(scope, epoch: $0) } }
+                    contextDirty = true
+                }
             }
             if !removals.isEmpty {
-                let ids = removals
+                let ids = Set(removals.prefix(128))
                 try await repository.remove(ids, now: now())
                 removals.subtract(ids)
+                continue
+            }
+            if contextDirty {
+                let selected = storedContext
+                try await repository.saveContext(selected, now: now())
+                // A native transition can change the selected metadata while IO
+                // is suspended. Commit the new selection before any transmission.
+                if storedContext == selected { contextDirty = false }
                 continue
             }
             // Expired originals cannot produce another delivery. The transport

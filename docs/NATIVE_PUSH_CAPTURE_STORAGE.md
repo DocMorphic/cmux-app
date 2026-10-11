@@ -1,6 +1,6 @@
 # Native capture storage — 2026-10-11
 
-## Owner integration checkpoint
+## Owner integration and restart identity checkpoint
 
 The production source owner now uses `NativePushSourceCaptureController`: verified
 selected-team scope is supplied by the actual native hooks, original captures commit
@@ -9,19 +9,28 @@ removal. Temporary invalidation retains work; explicit auth/team retirement clea
 old captures/transport. Storage work is joined during stop. Current installer scope
 is 16 files / six audited originals, including explicit controller membership.
 
-Actual Swift owner→production helper checks pass on Node 22/26 for committed-but-
-receipt-lost SIGKILL recovery, fresh selected-team mismatch, temporary unavailability,
-team A→B→A, held startup/stop/team transition, and a full 128-record store. The helper
-retains one original journal identity for replay; full source-journal backpressure
-leaves a new native original durably retained. Classic process supervisor and current
-mapping/receipt/installer/launch checks pass. These use synthetic keys/identities,
-real local TLS/SQLite/CryptoKit and no enrolled recipient/Google request.
+Actual Swift owner→production helper checks pass on Node 22/26 for nine recovery
+cases: committed-but-receipt-lost SIGKILL, temporary unavailability, selected-team
+mismatch despite `teamID:null`, team A→B→A, explicit sign-out, held startup/stop,
+team transition during restore, a full 128-record store, and restart after all
+captures were already acknowledged. Full journal backpressure retains the new
+native original; acknowledged work keeps its original helper source identity.
 
-**Still open at this checkpoint:** when all native captures were already acknowledged
-but helper delivery remains pending, source identity must also survive restart.
-This metadata boundary is being implemented next; the current recovery proof covers
-unacknowledged native originals. Full app/Keychain/Firebase/Pixel acceptance remains
-unverified. Evidence is `captures/runtime/push-native-recovery/`.
+The last case failed before the fix in regression commit `b67d7483`: after restart,
+the real helper accepted a new source epoch and could retire its pending work.
+Encrypted source-context metadata now survives the last receipt and commits before
+any host/capture transmission. Only fresh matching native account/selected-team/Mac
+state can reuse it. Confirmed retirement clears it; it supplies no lease or
+transport credentials and never renews event expiry. Older version-1 files without
+metadata remain readable.
+
+Eight storage scenario groups, production-owner checks on both Node runtimes, and
+current mapping/auth/receipt/installer/launch checks pass. These use synthetic keys
+and identities with real local TLS/SQLite/CryptoKit; no enrolled recipient or Google
+request. Actual Keychain access, whole custom app and Mac/Pixel/FCM acceptance remain
+unverified. Evidence: `captures/runtime/push-native-recovery/final-node26/`,
+`final-node22/`, `final-storage/`, `final-hooks/`, `final-owner-node26/`,
+`final-owner-node22/`, and preserved `acknowledged-red/`/`acknowledged-green/`.
 
 ```sh
 python3 scripts/check-native-push-recovery.py --node /absolute/path/to/node
@@ -31,7 +40,7 @@ python3 scripts/check-native-push-recovery.py --node /absolute/path/to/node
 captures that await a durable helper receipt. `NativePushCaptureKeyStore` supplies
 an independent AES-256 key for the custom bundle through the macOS Keychain. The
 pinned installer wires both files explicitly into the app target; current scope
-is **15 changed files / six audited originals**.
+is **16 changed files / six audited originals**.
 
 ## Implemented storage contract
 
@@ -68,43 +77,29 @@ python3 scripts/check-native-push-captures.py
 The actual repository and Keychain implementation compile in Swift language mode
 6 with the installed Swift compiler. A fixture commits an encrypted capture,
 intentionally SIGKILLs itself, and a new process restores its exact body/context/
-expiry. Seven scenario groups also cover duplicate/conflict handling, exact receipt
+expiry. Eight current scenario groups also cover duplicate/conflict handling, exact receipt
 removal, expired slots/count/byte limits, no renewed expiry, absent-store passivity,
 wrong/missing keys, authenticated corruption, ciphertext transplant, private modes,
-symlink/hard-link refusal and rejecting host controls. Encryption/storage are real
+symlink/hard-link refusal, rejecting host controls, and preserving/clearing source
+context after the last receipt. Encryption/storage are real
 CryptoKit/filesystem operations. The key closure is synthetic; **actual Keychain
-access was not executed**. Logs: ignored `captures/runtime/push-native-captures/current/`.
+access was not executed**. Latest logs: ignored `captures/runtime/push-native-recovery/final-storage/`.
 
 Current patched Swift/project/Bash parsing and the actual auth projection/payload
 mapping/ten receipt groups/private-pipe journal interop pass in
 `captures/runtime/push-native-captures/hooks/`. Four installer cases and eight
 tagged-launch environment cases pass. No whole app, provider or phone was launched.
 
-## Integration still required
+## Acceptance still required
 
-The earlier storage-only checkpoint below predates the owner integration above.
-Neither standalone storage SIGKILL recovery nor project membership alone proves
-production notification recovery.
-
-The next owner integration must:
-
-1. Derive stored account and selected-team context from the actual verified native
-   identity; the account-scoped wire `teamID:null` cannot stand in for selected-team
-   verification. Select the repository/key loader at the composition root.
-2. Commit original captures outside the main actor before their helper transmission,
-   retain exact capture-to-record IDs, and remove storage only after durable receipts
-   or explicit native retirement. Await pending owned IO during stop/replacement.
-3. Require freshly verified native account/team/Mac state before replay. Stored
-   context never establishes authority. Distinguish temporary unavailability from
-   confirmed auth/team/policy retirement and cancel stale restoration work.
-4. Preserve original correlation, expiry and source identity across a lost receipt.
-   `PushSourceJournal.accept()` keys records by source epoch plus correlation and
-   fingerprints the full request; blindly assigning a new epoch creates a new
-   identity. Conversely `NativePushSourceAdapter.accept()` retires an old epoch
-   against a fresh host. Resolve this boundary with actual producer/journal behavior
-   and tests before enabling recovery; do not skip either gate.
-5. Verify producer/helper committed-but-receipt-lost cases, privacy/auth/team ABA,
-   expiry, storage failure/backpressure and whole tagged app lifecycle. Then verify
-   actual Mac/Pixel delivery with the configured Firebase provider.
+1. Build/link the full tagged custom Mac app, sign in separately, verify its actual
+   Keychain loader and native lifecycle with the configured source owner.
+2. Provision trusted HTTPS and private production runtime configuration. Verify
+   owner enrollment and native peer/key revocation with the real account.
+3. Build the configured signed Android milestone; verify retained sign-in/pairing
+   and Firebase resources in that exact APK.
+4. Verify real Mac/Pixel foreground/background/process-death/Doze delivery,
+   token rotation, notification taps/replies and revocation. Local fixtures do not
+   establish those workflows.
 
 Full Xcode and trusted HTTPS remain pending owner setup; the goal remains active.

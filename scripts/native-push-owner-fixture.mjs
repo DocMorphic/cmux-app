@@ -55,5 +55,7 @@ if (mode === 'prepare') {
     assert.equal(journal.accept(original).kind, 'duplicate');
     assert.equal(Object.values(journal.status().counts).reduce((a, b) => a + b, 0), expected);
   } finally { journal.close(); }
-  console.log('Actual encrypted helper journal contains one original identity; exact replay is duplicate, without epoch rewrite');
+  console.log(mode === 'verify-full-recovery' ?
+    'Actual encrypted helper journal retains 128 original identities; exact first replay is duplicate, with the new capture backpressured' :
+    'Actual encrypted helper journal contains one original identity; exact replay is duplicate, without epoch rewrite');
 } else throw Error('Unknown public fixture operation');

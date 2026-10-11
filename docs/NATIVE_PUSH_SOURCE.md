@@ -12,10 +12,14 @@ See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 ## Native composition injection — 2026-10-11
 
-Encrypted producer capture storage and the independent Keychain loader now have
-explicit app membership (current installer: 15 files / six pins). Actual storage
-passes committed-SIGKILL recovery and seven scenario groups. Production persist/
-restore/receipt integration remains open; see NATIVE_PUSH_CAPTURE_STORAGE.md.
+Encrypted producer capture commit/receipt retirement and fresh-scope recovery are
+integrated into the production owner (16 files / six installer pins). Nine actual
+producer→production-helper recovery cases pass on Node 22/26, including lost receipts,
+all-acknowledged source identity, confirmed sign-out, team ABA and full storage.
+Eight storage groups and both production owner runs pass. Context remains encrypted
+and passive until fresh verified native scope matches; no event expiry is renewed.
+See NATIVE_PUSH_CAPTURE_STORAGE.md. Actual Keychain, full custom app and provider/
+physical-device acceptance remain open.
 
 The latest provisioning/launcher batch adds independent private helper keys and
 compiled sealer plus the explicit clean-environment tagged launch wiring. Current

@@ -63,9 +63,22 @@ import Foundation
         })
         try await rejected { _ = try await missing.load(now: time + 1000) }
         try require(try await repo.load(now: time + 120_000) == [])
+        let originalContext = try record().context
+        try await repo.saveContext(originalContext, now: time + 1000)
+        let anchored = try Data(contentsOf: persisted)
+        let changedContext = NativePushCaptureRepository.Context(accountID: originalContext.accountID, teamID: "different-team",
+            macDeviceID: originalContext.macDeviceID, macInstanceTag: originalContext.macInstanceTag,
+            macBuildID: originalContext.macBuildID, sourceEpoch: "different-epoch")
+        try await rejected { try await repo.saveContext(changedContext, now: time + 1000) }
+        try require(try Data(contentsOf: persisted) == anchored)
         try await repo.remove([fixedID], now: time + 1000)
         try require(try await repository(path).load(now: time + 1000) == [])
+        let metadata = try await repository(path).recover(now: time + 1000)
+        try require(metadata.context == originalContext && metadata.records.isEmpty)
+        try await repo.saveContext(nil, now: time + 1000)
+        try require(try await repo.recover(now: time + 1000).context == nil)
         print("Recovery after committed SIGKILL, encrypted private storage, exact duplicate/conflict, original expiry and receipt removal passed")
+        print("Encrypted source context survives all capture acknowledgments; conflicting relabel refuses and explicit retirement clears metadata")
 
         let passivePath = root + "/passive"
         let passive = try repository(passivePath, loadKey: { _ in throw NativePushCaptureRepository.Failure.unavailable })

@@ -1,9 +1,12 @@
 # Production push helper startup — 2026-10-11
 
-The subsequent native capture storage batch adds two explicitly wired types:
-current installer **15 files / six pins**. Actual encrypted repository SIGKILL
-recovery passes; production owner/receipt/fresh-authority replay is still unwired.
-See NATIVE_PUSH_CAPTURE_STORAGE.md; this does not establish live delivery.
+The native source owner now integrates encrypted capture commit/receipt retirement
+and freshly verified scope recovery. Current installer: **16 files / six pins**.
+Encrypted source-context metadata survives the last receipt so helper work can
+resume with its original identity after restart. Nine production-helper recovery
+cases pass on Node 22/26, plus eight storage groups and both actual owner runs.
+See NATIVE_PUSH_CAPTURE_STORAGE.md for the reproduced acknowledged-source regression
+and exact evidence. Actual Keychain, whole tagged app and live delivery remain open.
 
 ## Current provisioning and tagged launch checkpoint
 
