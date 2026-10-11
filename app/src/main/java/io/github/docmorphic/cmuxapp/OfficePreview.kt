@@ -125,7 +125,7 @@ internal class OfficeWebController(
                         val mime = assets[name]
                         val input = when {
                             name == kind.documentName && !request.isForMainFrame -> document.file.inputStream()
-                            mime != null && (name == "shell.html") == request.isForMainFrame -> context.assets.open("${kind.assetDirectory}/$name")
+                            mime != null && (name == "shell.html") == request.isForMainFrame -> context.assets.open(checkNotNull(kind.assetPath(name)))
                             else -> null
                         }
                         if (input != null) return WebResourceResponse(mime ?: kind.documentMime, if (mime != null) "UTF-8" else null,

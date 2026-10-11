@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -121,6 +125,118 @@ class WorkbookPreviewRuntimeTest {
             finally { bitmap.recycle() }
             throw failure
         }
+    }
+    private fun chartPixels(name: String, capture: String, position: Boolean = true) {
+        try {
+            compose.waitUntil(15_000) { js("!!document.querySelector('[role=\"img\"][aria-label=\"$name\"] canvas')") == "true" }
+            if (position) js("document.querySelector('[role=\"img\"][aria-label=\"$name\"]').closest('.workbook-chart').scrollIntoView({block:'center',inline:'center'});")
+            settlePaint()
+            compose.waitUntil(15_000) {
+                val raw = js("""
+                    (()=>{const canvas=document.querySelector('[role="img"][aria-label="$name"] canvas');
+                      if(!canvas)return null;const r=canvas.getBoundingClientRect(),vp=visualViewport;
+                      const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data,points=[];
+                      for(let y=3;y<canvas.height;y+=6)for(let x=3;x<canvas.width;x+=6){
+                        const cx=x*r.width/canvas.width,cy=y*r.height/canvas.height;
+                        if(r.x+cx<vp.offsetLeft+3 || r.x+cx>vp.offsetLeft+vp.width-3 ||
+                           r.y+cy<vp.offsetTop+3 || r.y+cy>vp.offsetTop+vp.height-3)continue;
+                        const i=(y*canvas.width+x)*4,red=pixels[i],green=pixels[i+1],blue=pixels[i+2];
+                        if(pixels[i+3]>240 && Math.max(red,green,blue)-Math.min(red,green,blue)>50 &&
+                           Math.max(red,green,blue)>100)points.push({x:cx,y:cy,r:red,g:green,b:blue});
+                      }
+                      const samples=points.filter((_,i)=>i%Math.max(1,Math.floor(points.length/64))===0).slice(0,64);
+                      return {vw:vp.width,ox:vp.offsetLeft,oy:vp.offsetTop,x:r.x,y:r.y,w:r.width,h:r.height,samples};})()
+                """.trimIndent())
+                if (raw == null || raw == "null") return@waitUntil false
+                val geometry=JSONObject(raw); val origin=IntArray(2); var scale=0.0
+                compose.runOnUiThread { web(compose.activity.window.decorView)?.let { it.getLocationOnScreen(origin);scale=it.width/geometry.getDouble("vw") } }
+                val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                try {
+                    val left=(origin[0]+(geometry.getDouble("x")-geometry.getDouble("ox"))*scale).toInt().coerceAtLeast(0)
+                    val right=(origin[0]+(geometry.getDouble("x")-geometry.getDouble("ox")+geometry.getDouble("w"))*scale).toInt().coerceAtMost(image.width)
+                    val top=(origin[1]+(geometry.getDouble("y")-geometry.getDouble("oy"))*scale).toInt().coerceAtLeast(0)
+                    val bottom=(origin[1]+(geometry.getDouble("y")-geometry.getDouble("oy")+geometry.getDouble("h"))*scale).toInt().coerceAtMost(image.height)
+                    var colored=0
+                    for(y in top until bottom) for(x in left until right) {
+                        val pixel=image.getPixel(x,y);val r=Color.red(pixel);val g=Color.green(pixel);val b=Color.blue(pixel)
+                        if(maxOf(r,g,b)-minOf(r,g,b)>50 && maxOf(r,g,b)>100) colored++
+                    }
+                    // A pan can reach JS geometry before the Android compositor paints.
+                    // Compare distributed authored canvas pixels to the native screenshot
+                    // so a stale neighboring chart cannot satisfy the ink count.
+                    val samples=geometry.getJSONArray("samples"); var matches=0
+                    for(index in 0 until samples.length()) {
+                        val point=samples.getJSONObject(index)
+                        val cx=(origin[0]+(geometry.getDouble("x")-geometry.getDouble("ox")+point.getDouble("x"))*scale).toInt()
+                        val cy=(origin[1]+(geometry.getDouble("y")-geometry.getDouble("oy")+point.getDouble("y"))*scale).toInt()
+                        var matched=false
+                        for(y in cy-2..cy+2) for(x in cx-2..cx+2) {
+                            if(x !in 0 until image.width || y !in 0 until image.height) continue
+                            val pixel=image.getPixel(x,y)
+                            if(kotlin.math.abs(Color.red(pixel)-point.getInt("r"))<=18 &&
+                                kotlin.math.abs(Color.green(pixel)-point.getInt("g"))<=18 &&
+                                kotlin.math.abs(Color.blue(pixel)-point.getInt("b"))<=18) matched=true
+                        }
+                        if(matched) matches++
+                    }
+                    val painted=colored>500 && samples.length()>=12 && matches>=samples.length()*.9
+                    if(painted) {
+                        val folder=File(compose.activity.getExternalFilesDir(null),"workbook-charts").apply{mkdirs()}
+                        File(folder,"$capture.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
+                        File(folder,"$capture.json").writeText(geometry.put("coloredPixels",colored).put("matchedSamples",matches).toString())
+                    }
+                    painted
+                } finally {image.recycle()}
+            }
+        } catch (failure: Throwable) {
+            val folder=File(compose.activity.getExternalFilesDir(null),"workbook-charts").apply{mkdirs()}
+            File(folder,"$capture-failure.json").writeText(js("""
+                (()=>({viewport:{width:visualViewport.width,height:visualViewport.height,offsetLeft:visualViewport.offsetLeft,
+                  offsetTop:visualViewport.offsetTop,pageLeft:visualViewport.pageLeft,pageTop:visualViewport.pageTop},
+                  scroll:{x:scrollX,y:scrollY},range:document.getElementById('range').textContent,
+                  charts:[...document.querySelectorAll('.workbook-chart')].map(frame=>({label:frame.firstElementChild?.getAttribute('aria-label'),
+                    bounds:frame.getBoundingClientRect().toJSON(),canvases:[...frame.querySelectorAll('canvas')].map(canvas=>({width:canvas.width,
+                      height:canvas.height,bounds:canvas.getBoundingClientRect().toJSON()}))}))}))()
+            """.trimIndent()) ?: "{}")
+            val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try { File(folder,"$capture-failure.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) } }
+            finally { image.recycle() }
+            throw failure
+        }
+    }
+    @Test fun worksheetChartsPaintNavigateAndRestoreIncludingChartOnlySheets() {
+        file=File(compose.activity.cacheDir,"charts-workbook.xlsx")
+        InstrumentationRegistry.getInstrumentation().context.assets.open("workbook/charts.xlsx").use { input->file.outputStream().use { input.copyTo(it) } }
+        val restore=StateRestorationTester(compose)
+        restore.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+            FilePreviewContent(LocalFilePreview(file,file.length(),WorkbookPreviewPolicy.MIME,ChangesPreviewRoute.WORKBOOK))
+        } } } }
+        ready()
+        assertEquals("true",js("document.querySelectorAll('.workbook-chart').length===6 && document.getElementById('limitations').hidden"))
+        for(name in listOf("Column chart","Line chart","Doughnut chart","Radar chart","Area chart","Pie chart"))
+            chartPixels(name,name.substringBefore(' ').lowercase())
+        js("window.__blockedChartFetch=null;fetch('https://example.invalid/chart').then(r=>window.__blockedChartFetch=r.status).catch(()=>window.__blockedChartFetch='blocked');")
+        compose.waitUntil(5000) { js("window.__blockedChartFetch==='blocked' || window.__blockedChartFetch===403") == "true" }
+        js("document.getElementById('address').value='A131';document.getElementById('go').click();")
+        assertEquals("true",js("document.querySelectorAll('.workbook-chart').length===2 && document.getElementById('range').textContent.startsWith('Rows 131')"))
+        chartPixels("Far scatter chart","scatter");chartPixels("Bubble chart","bubble")
+        val savedViewport=JSONObject(js("({x:visualViewport.pageLeft,y:visualViewport.pageTop})")!!)
+        restore.emulateSavedInstanceStateRestore();ready()
+        assertEquals("true",js("document.getElementById('range').textContent.startsWith('Rows 131')"))
+        // Verify the saved bubble viewport before any navigation. An imperative JS
+        // scroll cannot cancel native reader restoration; a real touch can.
+        chartPixels("Bubble chart","bubble-restored",position=false)
+        val restoredViewport=JSONObject(js("({x:visualViewport.pageLeft,y:visualViewport.pageTop})")!!)
+        assertEquals(savedViewport.getDouble("x"),restoredViewport.getDouble("x"),1.0)
+        assertEquals(savedViewport.getDouble("y"),restoredViewport.getDouble("y"),1.0)
+        compose.onNodeWithContentDescription(OfficePreviewKind.WORKBOOK.description)
+            .performTouchInput { click(Offset(20f,height-30f)) }
+        chartPixels("Far scatter chart","scatter-after-restored-touch")
+        js("document.getElementById('sheets').value='2';document.getElementById('sheets').dispatchEvent(new Event('change'));")
+        assertEquals("true",js("document.querySelectorAll('.workbook-chart').length===1 && !document.getElementById('range').textContent.includes('Empty')"))
+        chartPixels("Chart-only worksheet","chart-only")
+        js("document.getElementById('sheets').value='1';document.getElementById('sheets').dispatchEvent(new Event('change'));")
+        assertEquals("true",js("document.querySelectorAll('.workbook-chart').length===0 && document.querySelector('[data-cell=\"B2\"]').textContent==='100'"))
     }
     @Test fun embeddedPicturesPaintCropFlipNavigateAndRestoreIncludingImageOnlySheets() {
         file=File(compose.activity.cacheDir,"pictures-workbook.xlsx")

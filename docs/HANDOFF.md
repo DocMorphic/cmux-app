@@ -1,6 +1,31 @@
 # Codex laptop handoff — 2026-09-28
 
-## Current continuation checkpoint — 2026-10-10
+## Current checkpoint — 2026-10-11
+
+Signed milestone [642](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533)
+at `7147bc62` passed, including the previously failing Cloud native job's cached
+checkpoint verification. Its downloaded APK independently verifies the stable
+signer, 21 vendor assets, all 22 aligned native libraries and exclusion of all
+14 debug fixture components; six Android 17 ART release probes passed. It
+includes the task prompt/attachment/prefetch, SSH/Cloud keyboard, Privacy and RTF
+batches plus workbook pictures. Public preview publication was disabled.
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) now links the current artifact and exact
+SHA-256. Signed-in Pixel upgrade and live Mac acceptance remain open.
+
+The subsequent XLSX chart batch reuses the pinned presentation engine for
+worksheet chart parts and shared drawing geometry, with local cache hydration,
+typed theme relationships and chart-only/far-range navigation. 55 focused Node
+checks passed on Node 22/26 and six reader-state JVM cases passed. Six Android
+workbook cases passed in 41.92 s; the stronger chart-paint follow-up passed in
+14.698 s with all 11 captures matching 64/64 actual canvas samples. Initial
+restoration/stale-capture failures and actual scope are tracked in
+[WORKBOOK_CHARTS.md](WORKBOOK_CHARTS.md). Charts are not included in signed 642.
+Full Quick Look/physical acceptance and the other completion gates below remain
+open; the global parity pin is unchanged. Final crash buffer empty, no new
+ANR/crash events; sole AVD/Gradle stopped and reaped, prior screen timeout restored,
+no new AVD. The Pixel was absent from ADB for this fixture batch.
+
+## Previous continuation checkpoint — 2026-10-10
 
 Work continues on `main`; [REMAINING_WORK.md](REMAINING_WORK.md) is the current
 completion checklist. The dated older entries below retain history and must not

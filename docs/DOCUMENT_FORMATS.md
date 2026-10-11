@@ -1,5 +1,15 @@
 # Content formats and offline Word preview
 
+## Worksheet charts — 2026-10-11
+
+XLSX now projects anchored worksheet charts using the existing pinned presentation
+engine, local authored or hydrated caches, actual workbook-theme relationships
+and shared picture/range geometry. Eight chart families, far-row charts and
+chart-only sheets have focused coverage. Scope, failed restoration diagnostics,
+exact integration evidence and remaining Quick Look/physical gates are recorded
+in [WORKBOOK_CHARTS.md](WORKBOOK_CHARTS.md). Signed 642 includes pictures and RTF
+but predates worksheet charts; see [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+
 ## Privacy/RTF Android integration — 2026-10-10
 
 The combined four-case Android 17/API37 16 KiB integration **passed in 28.205 s**
@@ -217,7 +227,7 @@ prove that every variant of those formats renders on a phone.
 | Markdown | Rendered Markdown | Pinned upstream HTML/libraries with Android adapters | Broader real-route reflow/recovery and physical acceptance |
 | Text/source | Text viewer | Raw text, highlighting, search and reader controls | Broader encodings/large-file/physical acceptance |
 | DOCX | Quick Look candidate, runtime admission | **New offline Word renderer** in the shared preview component | Runtime rendering, text selection, zoom/restoration, real-route actions and Pixel acceptance |
-| XLSX | Quick Look candidate, runtime admission | Offline workbook reader, sheet selection, bounded grid navigation and new embedded raster-image projection | New picture runtime checks, broader formatting/navigation/restoration and Pixel checks; charts/other drawings/conditional formatting and exact Quick Look layout remain open |
+| XLSX | Quick Look candidate, runtime admission | Offline workbook reader, sheet selection, bounded grid navigation, embedded raster pictures and anchored charts | Broader chart variants/styles and drawing objects, conditional formatting, performance, actual routes, Pixel and matched Quick Look checks remain open |
 | PPTX | Quick Look candidate, runtime admission | Offline PowerPoint renderer with slide navigation and saved position | Rendering/lifecycle evidence below; exact Quick Look layout and unsupported format variants remain open |
 | ODS | Quick Look candidate when recognized, runtime admission | In-app workbook preview with visibility, basic styles, dimensions, navigation and saved position | Broader authored formatting, charts/drawings and matched Quick Look/Pixel acceptance remain open |
 | RTF | Quick Look candidate, runtime admission for recognized binary content | Offline rich-text reader with styled paragraphs, safe links and raster/vector pictures; two Android raster/restoration cases pass with inspected captures | Broader tables/lists/objects/fields, layout, process death, actual routes and matched Quick Look/Pixel acceptance remain open |

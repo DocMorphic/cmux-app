@@ -5,6 +5,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class OfficeReaderStateTest {
+    @Test fun sharedChartAssetIsAdmittedOnlyByTheWorkbookAlias() {
+        assertEquals("presentation-viewer/aiden0z-pptx-renderer.browser.es.js", OfficePreviewKind.WORKBOOK.assetPath("chart-renderer.js"))
+        assertNull(OfficePreviewKind.WORD.assetPath("chart-renderer.js"))
+        assertNull(OfficePreviewKind.WORKBOOK.assetPath("../presentation-viewer/aiden0z-pptx-renderer.browser.es.js"))
+        assertNull(OfficePreviewKind.WORKBOOK.assetPath(null))
+        assertEquals("workbook-viewer/viewer.js", OfficePreviewKind.WORKBOOK.assetPath("viewer.js"))
+    }
     @Test fun savedLocationRestoresWorkbookWindowAndViewportWithoutContent() {
         val state = OfficeReaderState()
         state.readWorkbookState(JSONObject().put("sheet", 3).put("row", 200).put("col", 64))

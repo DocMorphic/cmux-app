@@ -25,3 +25,5 @@ a { color: #1558bf; }
 .workbook-picture img { position: absolute; max-width: none; }
 .workbook-picture a { display: block; width: 100%; height: 100%; pointer-events: auto; }
 .workbook-picture a:focus-visible { outline: 2px solid #1558bf; outline-offset: -2px; }
+
+.workbook-chart { position: absolute; overflow: hidden; pointer-events: auto; }

@@ -3,7 +3,40 @@
 Current source development is on `main`. These are development milestones;
 see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
-## Current verified signed development APK — build 641 (2026-10-10)
+## Current verified signed development APK — build 642 (2026-10-11)
+
+[Build 642](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533)
+passed at `7147bc62cb92c7f5b55724c733595623f9872f9f`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533/artifacts/11674995373)
+and extract `app-release.apk`. It remains an Actions development artifact;
+public preview publication was disabled and the publish job was skipped.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **642**, version **0.2.0**.
+- SHA-256: `197c42f4b6e6b2825f4aaba4c34ecff88a28982d189e0a32259e3261d6b67388`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **277,080,215 bytes**; compressed signed artifact **141,049,357 bytes**.
+- Local file: `captures/milestone-642/app-release.apk`.
+
+This includes workbook pictures, offline RTF, Privacy consent settings, SSH/Cloud
+keyboard fixes, task attachment staging, model prefetch and native prompt state
+through `7147bc62`. Worksheet charts are a subsequent source batch and are
+**not included in 642**. Privacy upload and production push remain unconfigured.
+
+CI passed policy/helper/viewer and JVM/APK gates, signing/package verification
+and six release class-loading probes on Android 17 ART. The Cloud native job
+successfully restored and verified its complete cached checkpoint; it did not
+perform a fresh native compilation. Independent verification of the downloaded
+APK confirmed all **21 pinned viewer assets**, **22 native libraries** with
+16 KiB ELF/RELRO/ZIP alignment and exclusion of **14 debug fixture components**.
+The local receipt exactly matches the CI receipt. Runtime logs confirm all six
+release class probes. Evidence is ignored under `captures/milestone-642/`.
+
+No signed-in Pixel upgrade or live Mac acceptance was performed for 642.
+Preserve account, pairing and app data during eventual installation; do not
+uninstall or clear the stable app. Full parity remains open. No additional local
+AVD was created for the signed package verification.
+
+## Earlier verified signed development APK — build 641 (2026-10-10)
 
 [Build 641](https://github.com/DocMorphic/cmux-app/actions/runs/38045004590)
 passed at `ddf16db8b353c8d5de07407bad35e331ddfd5d55`. Download the

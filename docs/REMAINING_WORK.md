@@ -1,6 +1,6 @@
 # Remaining work for iOS parity
 
-Updated 2026-10-10. **The goal is active and full parity is unverified.** This is
+Updated 2026-10-11. **The goal is active and full parity is unverified.** This is
 the current completion checklist; dated entries in [PARITY.md](PARITY.md) preserve
 the detailed evidence and history. A passing fixture or signed APK does not close
 a physical workflow gate. These are work areas, not equal-sized progress units.
@@ -9,6 +9,31 @@ Development now targets `main` at the user's request. Implement features in larg
 batches; broad regression and signed builds belong at integration milestones and
 final acceptance. Scheduled APK builds are opt-in via `CMUX_AUTOMATIC_PREVIEWS=true`
 and currently disabled; the upstream watcher is active on main with review issue #2.
+
+## Current checkpoint — 2026-10-11
+
+Signed milestone [642](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533)
+at `7147bc62` passed, including the previously failing Cloud native job's cached
+checkpoint verification. Its downloaded APK independently verifies the stable
+signer, 21 vendor assets, all 22 aligned native libraries and exclusion of all
+14 debug fixture components; six Android 17 ART release probes passed. It
+includes the task prompt/attachment/prefetch, SSH/Cloud keyboard, Privacy and RTF
+batches plus workbook pictures. Public preview publication was disabled.
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) now links the current artifact and exact
+SHA-256. Signed-in Pixel upgrade and live Mac acceptance remain open.
+
+The subsequent XLSX chart batch reuses the pinned presentation engine for
+worksheet chart parts and shared drawing geometry, with local cache hydration,
+typed theme relationships and chart-only/far-range navigation. 55 focused Node
+checks passed on Node 22/26 and six reader-state JVM cases passed. Six Android
+workbook cases passed in 41.92 s; the stronger chart-paint follow-up passed in
+14.698 s with all 11 captures matching 64/64 actual canvas samples. Initial
+restoration/stale-capture failures and actual scope are tracked in
+[WORKBOOK_CHARTS.md](WORKBOOK_CHARTS.md). Charts are not included in signed 642.
+Full Quick Look/physical acceptance and the other completion gates below remain
+open; the global parity pin is unchanged. Final crash buffer empty, no new
+ANR/crash events; sole AVD/Gradle stopped and reaped, prior screen timeout restored,
+no new AVD. The Pixel was absent from ADB for this fixture batch.
 
 ## Completion gates
 
@@ -27,7 +52,11 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Release and updates | Verify an upgrade while signed in; verify the configured Android notice feed across cold-start/offline restart, cookie exchange and What's New; carry an upstream review through a port and chosen preview milestone; scheduled previews remain opt-in during feature-first development. | Stable-signer upgrade preserving account/pairing/settings, actual configured feed and update checks, and one observed upstream-change-to-review/build cycle. The watcher has succeeded on main and created review issue #2; port/build acceptance remains. Scheduled APK builds require `CMUX_AUTOMATIC_PREVIEWS=true` (currently disabled). |
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
-## Current delivery and next actions
+## Earlier implementation and acceptance records
+
+The dated records below describe their respective checkpoints; signed 642 and
+the worksheet-chart record above supersede older delivery/test status. They do
+not close the broader physical and matched-iOS completion gates.
 
 - The task prompt now uses saved native text and scroll state, with a drag-owned
   viewport retained through keyboard/picker/layout changes until typing or caret

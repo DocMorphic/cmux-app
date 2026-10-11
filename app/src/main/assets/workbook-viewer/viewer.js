@@ -1,3 +1,4 @@
+import {buildPresentation,renderSlide} from "./chart-renderer.js";
 'use strict';
 (async () => {
   const model = CmuxWorkbookModel, content = document.getElementById('content');
@@ -18,7 +19,9 @@
     }
     const drawings = CmuxWorkbookDrawings, pictureCache = new Map(), imageURLs = new Map();
     let pictureResize;
-    window.addEventListener('pagehide', () => { pictureResize?.disconnect(); for (const url of imageURLs.values()) URL.revokeObjectURL(url); imageURLs.clear(); });
+    const chartAPI={buildPresentation,renderSlide}, chartHandles=new Set(), chartCache=new Map(), chartResources=CmuxWorkbookCharts.resources();
+    function disposeCharts() { for(const handle of chartHandles) handle.dispose();chartHandles.clear(); }
+    window.addEventListener('pagehide', () => { pictureResize?.disconnect(); disposeCharts(); for (const url of imageURLs.values()) URL.revokeObjectURL(url); imageURLs.clear(); });
     function limitation(incomplete) {
       const note = document.getElementById('limitations'); note.hidden = !incomplete;
       note.textContent = book.bookType === 'ods' ? 'Some formatting, charts and drawings aren’t shown here. Use Viewer actions to open the original workbook.' : 'Some charts or drawing objects aren’t shown here. Use Viewer actions to open the original workbook.';
@@ -55,16 +58,25 @@
     const sharedStrings = stringsXml ? model.children(stringsXml.documentElement, 'si') : [];
     function pictures(name) {
       if (!pictureCache.has(name)) {
-        const result = book.bookType === 'ods' ? {images:[],unsupported:1} :
-          paths.get(name) ? drawings.images(paths.get(name),xml,path => book.files?.[path]?.content) : {images:[],unsupported:1};
-        drawings.includeBounds(book.Sheets[name],result.images); pictureCache.set(name,result);
+        const result = book.bookType === 'ods' ? {images:[],charts:[],unsupported:1} :
+          paths.get(name) ? drawings.objects(paths.get(name),xml,path => book.files?.[path]?.content) : {images:[],charts:[],unsupported:1};
+        result.charts=result.charts.flatMap(chart=>{
+          try {
+            if(!chartCache.has(chart.path)) chartCache.set(chart.path,CmuxWorkbookCharts.prepare(chart,book,xml,
+              node=>new XMLSerializer().serializeToString(node),chartResources));
+            const cached=chartCache.get(chart.path);return [{...chart,maps:cached.maps,theme:cached.theme,incomplete:cached.incomplete}];
+          }
+          catch(_) { result.unsupported++;return []; }
+        });
+        drawings.includeBounds(book.Sheets[name],[...result.images,...result.charts]); pictureCache.set(name,result);
       }
       return pictureCache.get(name);
     }
     function paintPictures(wrapper, table, next, result) {
       if(!wrapper.isConnected) return;
+      disposeCharts();
       wrapper.querySelector('.worksheet-pictures')?.remove();
-      if (!result.images.length || !next.rows.length || !next.cols.length) return;
+      if (!(result.images.length || result.charts.length) || !next.rows.length || !next.cols.length) return;
       const tableRect=table.getBoundingClientRect(), heading=table.tHead.rows[0].cells[1].getBoundingClientRect();
       const rows=Array.from(table.tBodies[0].rows), top=rows[0].getBoundingClientRect().top;
       const rowBounds=rows.map(row=>{const r=row.getBoundingClientRect();return [r.top-top,r.bottom-top];});
@@ -81,7 +93,7 @@
         if(visual.left+visual.width<=0 || visual.top+visual.height<=0 || visual.left>=width || visual.top>=height) continue;
         const frame=document.createElement('div');frame.className='workbook-picture';
         Object.assign(frame.style,{left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',
-          transform:`rotate(${picture.rotation}deg) scale(${picture.flipX?-1:1},${picture.flipY?-1:1})`});
+          zIndex:String(picture.zOrder),transform:`rotate(${picture.rotation}deg) scale(${picture.flipX?-1:1},${picture.flipY?-1:1})`});
         const crop=document.createElement('div');crop.className='workbook-picture-crop';
         const image=document.createElement('img');image.alt=picture.alt;image.draggable=false;
         const dx=1-picture.crop.l-picture.crop.r,dy=1-picture.crop.t-picture.crop.b;
@@ -100,6 +112,25 @@
         layer.appendChild(frame);
       }
       wrapper.appendChild(layer);
+      // Mount visible charts only; dispose their canvases before a sheet/window
+      // change or geometry repaint. The shared engine never sees the ZIP itself.
+      let canvasPixels=0;
+      for(const chart of result.charts) {
+        const rect=drawings.rectangle(chart,x,y);
+        if(!rect) { limitation(true);continue; }
+        if(rect.left+rect.width<=0 || rect.top+rect.height<=0 || rect.left>=width || rect.top>=height) continue;
+        const scale=Math.min(1,2048/rect.width,2048/rect.height);
+        canvasPixels+=Math.max(1,Math.round(rect.width*scale))*Math.max(1,Math.round(rect.height*scale));
+        if(canvasPixels>16*1024*1024) { limitation(true);continue; }
+        const frame=document.createElement('div');frame.className='workbook-chart';
+        Object.assign(frame.style,{left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',zIndex:String(chart.zOrder)});
+        layer.appendChild(frame);
+        try {
+          const handle=CmuxWorkbookCharts.render(chart,rect.width,rect.height,chartAPI,()=>limitation(true));
+          chartHandles.add(handle);frame.appendChild(handle.element);
+          if(chart.incomplete) limitation(true);
+        } catch(_) { frame.remove();limitation(true); }
+      }
     }
     function cellStyles(name) {
       if (styleIndices.has(name)) return styleIndices.get(name);
@@ -205,7 +236,7 @@
           body.appendChild(tr);
         }
         table.appendChild(body);
-        pictureResize?.disconnect();
+        pictureResize?.disconnect();disposeCharts();
         const wrapper=element('div');wrapper.className='worksheet';wrapper.appendChild(table);
         content.replaceChildren(next.empty ? element('p', 'This worksheet is empty.') : wrapper);
         if(!next.empty) {

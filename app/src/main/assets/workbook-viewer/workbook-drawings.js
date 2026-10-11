@@ -1,4 +1,4 @@
-/* Offline SpreadsheetML pictures. No document URL is ever fetched. */
+/* Offline SpreadsheetML pictures and chart anchors. No document URL is ever fetched. */
 (function(root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./workbook-model.js'));
   else root.CmuxWorkbookDrawings = factory(root.CmuxWorkbookModel);
@@ -8,6 +8,7 @@
     sheet: ['http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'http://purl.oclc.org/ooxml/spreadsheetml/main'],
     xdr: ['http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing', 'http://purl.oclc.org/ooxml/drawingml/spreadsheetDrawing'],
     a: ['http://schemas.openxmlformats.org/drawingml/2006/main', 'http://purl.oclc.org/ooxml/drawingml/main'],
+    c: ['http://schemas.openxmlformats.org/drawingml/2006/chart', 'http://purl.oclc.org/ooxml/drawingml/chart'],
     r: ['http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'http://purl.oclc.org/ooxml/officeDocument/relationships'],
     rel: ['http://schemas.openxmlformats.org/package/2006/relationships']
   };
@@ -69,10 +70,10 @@
     if (bytes?.length >= 2 && bytes[0] === 66 && bytes[1] === 77) return 'image/bmp';
     return null;
   }
-  function images(sheetPath, xml, readBytes) {
-    const result = [], resources = new Set(); let bytes = 0, unsupported = 0;
+  function objects(sheetPath, xml, readBytes) {
+    const result = [], charts = [], resources = new Set(); let bytes = 0, unsupported = 0, order = 0;
     const sheet = xml(sheetPath)?.documentElement;
-    if (!is(sheet,'sheet','worksheet')) return {images:result,unsupported:1};
+    if (!is(sheet,'sheet','worksheet')) return {images:result,charts,unsupported:1};
     const sheetRels = relationships(sheetPath,xml);
     unsupported += children(sheet,'sheet','legacyDrawing').length;
     for (const drawingRef of children(sheet,'sheet','drawing')) {
@@ -82,11 +83,23 @@
       if (!is(drawing,'xdr','wsDr')) { unsupported++; continue; }
       const rels = relationships(relation.target,xml);
       for (const anchor of Array.from(drawing.children)) {
-        if (result.length + unsupported >= MAX_IMAGES) throw new Error('Too many workbook pictures');
+        const zOrder=order++;
+        if (result.length + charts.length + unsupported >= MAX_IMAGES) throw new Error('Too many workbook pictures');
         try {
           if (!['oneCellAnchor','twoCellAnchor','absoluteAnchor'].some(tag => is(anchor,'xdr',tag))) throw new Error('Unsupported drawing');
-          const pictures = children(anchor,'xdr','pic');
-          if (pictures.length !== 1 || Array.from(anchor.children).some(n => ['sp','grpSp','graphicFrame','cxnSp'].some(tag => is(n,'xdr',tag)))) throw new Error('Unsupported drawing');
+          const pictures = children(anchor,'xdr','pic'), frames = children(anchor,'xdr','graphicFrame');
+          if (Array.from(anchor.children).some(n => ['sp','grpSp','cxnSp'].some(tag => is(n,'xdr',tag))) ||
+              pictures.length + frames.length !== 1) throw new Error('Unsupported drawing');
+          if (frames.length) {
+            const frame=frames[0], graphic=first(frame,'a','graphic'), data=first(graphic,'a','graphicData');
+            if (!ns.c.includes(data?.getAttribute('uri'))) throw new Error('Unsupported graphic');
+            const reference=first(data,'c','chart'), chartRel=rels.get(ref(reference,'id'));
+            if (!relationType(chartRel,'chart') || chartRel.external || !chartRel.target) throw new Error('Unsupported chart');
+            const properties=first(first(frame,'xdr','nvGraphicFramePr'),'xdr','cNvPr');
+            const chart={zOrder,path:chartRel.target,alt:(properties?.getAttribute('descr') || properties?.getAttribute('title') ||
+              properties?.getAttribute('name') || 'Worksheet chart').slice(0,1024)};
+            position(chart,anchor); charts.push(chart); continue;
+          }
           const pic = pictures[0], fill = first(pic,'xdr','blipFill'), blip = first(fill,'a','blip');
           const imageRel = rels.get(ref(blip,'embed'));
           if (!relationType(imageRel,'image') || imageRel.external || !imageRel.target || first(fill,'a','tile')) throw new Error('Unsupported image');
@@ -99,22 +112,30 @@
           const crop = first(fill,'a','srcRect'), cropping = {};
           for (const edge of ['l','t','r','b']) cropping[edge] = percentage(crop?.getAttribute(edge) || '0');
           if (1 - cropping.l - cropping.r <= 0 || 1 - cropping.t - cropping.b <= 0) throw new Error('Invalid picture crop');
-          const image = {path:imageRel.target,bytes:data,mime:type,crop:cropping,
+          const image = {zOrder,path:imageRel.target,bytes:data,mime:type,crop:cropping,
             alt:(properties?.getAttribute('descr') || properties?.getAttribute('title') || properties?.getAttribute('name') || 'Embedded image').slice(0,1024),
             rotation:number(transform?.getAttribute('rot') || '0',-21600000,21600000)/60000,
             flipX:['1','true'].includes(transform?.getAttribute('flipH')),flipY:['1','true'].includes(transform?.getAttribute('flipV'))};
           const hyperlink = rels.get(ref(first(properties,'a','hlinkClick'),'id'));
           if (relationType(hyperlink,'hyperlink')) image.link = model.link({l:{Target:hyperlink.target}});
-          if (is(anchor,'xdr','absoluteAnchor')) {
-            const pos = first(anchor,'xdr','pos'); image.absolute = {x:number(pos?.getAttribute('x'),-1e12)/EMU,y:number(pos?.getAttribute('y'),-1e12)/EMU};
-          } else image.from = marker(first(anchor,'xdr','from'));
-          if (is(anchor,'xdr','twoCellAnchor')) image.to = marker(first(anchor,'xdr','to'),true);
-          else { const extent = first(anchor,'xdr','ext'); image.width=number(extent?.getAttribute('cx'),1)/EMU; image.height=number(extent?.getAttribute('cy'),1)/EMU; }
+          position(image,anchor);
           result.push(image);
         } catch (_) { unsupported++; }
       }
     }
-    return {images:result,unsupported};
+    return {images:result,charts,unsupported};
+  }
+  function position(object,anchor) {
+    if (is(anchor,'xdr','absoluteAnchor')) {
+      const pos=first(anchor,'xdr','pos'); object.absolute={x:number(pos?.getAttribute('x'),-1e12)/EMU,y:number(pos?.getAttribute('y'),-1e12)/EMU};
+    } else object.from=marker(first(anchor,'xdr','from'));
+    if (is(anchor,'xdr','twoCellAnchor')) object.to=marker(first(anchor,'xdr','to'),true);
+    else { const extent=first(anchor,'xdr','ext'); object.width=number(extent?.getAttribute('cx'),1)/EMU;object.height=number(extent?.getAttribute('cy'),1)/EMU; }
+  }
+  /** Compatibility for picture-only callers; the viewer consumes all objects. */
+  function images(sheetPath,xml,readBytes) {
+    const result=objects(sheetPath,xml,readBytes);
+    return {images:result.images,unsupported:result.unsupported+result.charts.length};
   }
   function columnWidth(info) {
     const width = info?.wpx ?? (Number(info?.wch)*7+10);
@@ -177,5 +198,5 @@
     const address = p => { let c=p.c+1,s=''; while(c) { const v=(c-1)%26;s=String.fromCharCode(65+v)+s;c=Math.floor((c-1)/26); } return s+(p.r+1); };
     sheet['!ref']=address(bounds.s)+':'+address(bounds.e);
   }
-  return {ns,resolve,relationships,images,mime,axis,rectangle,visualBounds,includeBounds,columnWidth,rowHeight,EMU};
+  return {ns,resolve,relationships,objects,images,mime,axis,rectangle,visualBounds,includeBounds,columnWidth,rowHeight,EMU};
 });
