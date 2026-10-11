@@ -60,6 +60,10 @@ final class NativePushSourceDeliveryQueue {
     var retainedCount: Int { captures.count }
     var retainedBytes: Int { captures.reduce(0) { $0 + $1.body.count } }
     var hasSession: Bool { encoder != nil }
+    var isBootstrapping: Bool {
+        if case .bootstrap = pending?.role { return true }
+        return false
+    }
 
     /// Accepts only one native host/control or one atomic host/capture batch.
     /// A rejected batch does not update host state or retain a prefix.
