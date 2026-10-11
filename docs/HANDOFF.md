@@ -1,5 +1,19 @@
 # Codex laptop handoff — 2026-09-28
 
+## Settings follow-up — 2026-10-12
+
+Settings has a fixed title/Done header, reordered groups and an inline Team radio
+picker, with account actions before teams. A reproduced stale accessibility action
+could select a replacement row after membership changed; rows are now keyed by
+original account/login/team and dispatch checks read current authority/state.
+All 25 focused JVM cases passed. All ten distinct Android cases have passing
+results across three runs; original failures and repairs are preserved in
+DISPLAY_SETTINGS.md. The final actual process-kill test verifies cached team taps
+send no HTTP request or selection change, then refresh restores team management.
+Terminal recreation/input passed. No crash/ANR events; only the existing AVD was
+used, stopped/reaped, and its screen timeout restored. Signed 650 remains current;
+no physical Pixel or full matched-iOS/TalkBack acceptance is established.
+
 ## Current checkpoint — 2026-10-11
 
 Android Settings now has full-row single-switch actions for Terminal/Haptics/

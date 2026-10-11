@@ -1,5 +1,59 @@
 # Workspace display and scrollback settings
 
+## Settings screen and inline teams — 2026-10-12
+
+Scoped source remains `f4b1509054949eaad5d695569ad443c4c18ed68d`, specifically
+`MobileSettingsView.swift` / `MobileDisplaySettings.swift`. The global parity pin
+is unchanged. Settings now keeps its title and **Done** action outside the
+scrolling body. Account actions, Plan and conditional What's New precede the
+inline Team group. Connection/All Computers and Introduction precede SSH/Networking,
+Terminal/Haptics/Display, Push Alerts, Privacy/Diagnostics and the support/reset/
+About footer. Existing callbacks and stored preferences remain in use.
+
+The team picker shows every team with one selected checkmark when there are
+multiple teams; it hides the list for zero/one team. It exposes a selectable
+radio group, wrapping labels and growing rows. Cached/loading account details
+cannot select a team. Cached actions recheck current account/login, membership,
+selection and component lifetime. Rows are keyed by original account/login and
+team: the initial regression reproduced Compose reusing a removed team's action
+for a replacement row, which the keys prevent.
+
+Verification used only the existing API37/16 KiB AVD:
+
+- All 25 focused JVM cases passed (17 account/team, eight profile/cache).
+- Initial Android batch: seven of ten passed in **87.502 s**; the cached-action
+  regression, old text-only Send lookup, and UI Automator enabled-property
+  assertion failed. These original results are preserved.
+- After keying rows and using the Send icon's existing description, the action,
+  inline-picker and terminal/recreation cases passed in the four-case rerun
+  (**51.302 s**). The process-death enabled-property assertion still failed.
+- The final process-death case passed in **15.139 s**. It kills/restarts the actual
+  account UI process, taps both cached team controls, verifies retained selection,
+  no live authority and no new HTTP request, then verifies refresh and a confirmed
+  team change. It observes the controller's selected team in the debug fixture
+  instead of relying on UI Automator's enabled/checked projection. The separate
+  Compose cached-profile test verifies disabled semantics. All ten distinct cases
+  have passing results across these runs; they were not all rerun on the final APK.
+- Terminal verification includes the 20,000-row replay request after recreation
+  and actual `terminal.paste` input. The header tests cover scrolling, slot order,
+  dismissal and a 260 dp/font-scale-2 header. Inspected images cover the fixed
+  header, inline selection and refreshed process fixture; the Settings capture
+  includes an in-flight scrollback popup, not a settled full-screen comparison.
+- Builds took 1m50s initially, 32s for the keys/selector repair, and 30s for the
+  final debug process observation. No crash/ANR records; screen timeout restored,
+  emulator/Gradle stopped and reaped. No Pixel data or official Mac app changed.
+
+Final debug APK SHA-256:
+`6c5ab2589d35a9220c620b6394c5a0f17f8784953f3b37f592625a4717ec6d16`.
+Final test APK SHA-256:
+`63a33334eea011cdeaa86fc38463b9f6e8f3f091cf7a00a391c216db96a232f8`.
+Ignored evidence: `captures/runtime/settings-layout-*`,
+`settings-team-inline-final.png`, `settings-account-process-final.png` and the
+current JVM XML. Signed 650 is unchanged. Matched iOS screenshots, TalkBack,
+full connected-Mac/setup/debug Settings content and physical Pixel/Mac acceptance
+remain open. The existing Android team-switch transport teardown is unchanged;
+the iOS live-terminal retention comment needs a separate authority/lifecycle audit.
+
 ## Settings row and preference integration — 2026-10-11
 
 Scoped follow-up at `f4b1509054949eaad5d695569ad443c4c18ed68d` reads

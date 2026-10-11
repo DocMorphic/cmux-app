@@ -47,6 +47,7 @@ class NativeAccountProcessTestActivity : ComponentActivity() {
             Column(Modifier.statusBarsPadding()) {
                 Text(if (login == null) "Fixture signed out" else "Fixture signed in")
                 Text(if (state.scope == null) "No live team authority" else "Verified team authority")
+                Text("Selected team: ${state.selectedTeamId ?: "none"}")
                 NativeAccountTeamSection(state, onRefresh = {
                     lifecycleScope.launch { runCatching { teams.refresh() } }
                 }, onSelect = { id -> lifecycleScope.launch { runCatching { teams.select(id) } } },

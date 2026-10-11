@@ -107,7 +107,7 @@ class NativeTerminalSizingRuntimeTest {
             waitFor("Sizing settings persisted") { NativeDisplayPreferences.read(preferences).let { it.showAltScreenNotice && it.useFullTerminalHeight } }
             device.waitForIdle(1_000); capture("settings")
             UiScrollable(UiSelector().scrollable(true)).scrollToBeginning(30)
-            node(By.text("‹  Back")).click()
+            node(By.text("Done")).click()
             node(By.text("Claude Code task")).click()
             terminal(); node(By.desc("Explain full-screen terminal sizing"))
             device.waitForIdle(1_000)

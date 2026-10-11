@@ -2624,16 +2624,21 @@ internal fun NativeScreen(
                             if (failure is CancellationException) throw failure
                             accountTeams.state.value.createdTeam != null
                         }
-                    })
+                    }, afterAccount = {
                     TextButton(onClick = { signOutCurrentAccount() },
                         modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
                     NativeAccountDeletionButton(browserLogin, deletionReceipt, accountDeletion::begin)
                     if (connector == null) NativeAccountPlanSettings(account, accountTeams, teamState.scope)
+                    if (whatsNewState?.archive?.isNotEmpty() == true) TextButton(onClick = { showWhatsNew = true },
+                        modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.whatsnew")) { Text("What's New") }
+                    })
                     }, computers = {
-                    Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
+                    Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() }, color = nativeMuted, fontSize = 11.sp)
                     TextButton(onClick = ::presentComputers, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.computers")) {
-                        Text("Manage computers")
+                        Text("All Computers")
                     }
+                    Text("${pairedMacs.firstOrNull { it.code == code }?.let(appearances::name) ?: hostName} · ${if (client != null) "Connected" else "Disconnected"}",
+                        Modifier.padding(horizontal = 22.dp), color = nativeMuted, fontSize = 13.sp)
                     if (code.isNotBlank() && (PairingCodeParser.parse(code).getOrNull() !is PairingCode.Iroh ||
                         pairedMacs.none { it.code == code && computerState.account?.let { team -> NativeComputerTarget.from(it, team) } != null })) TextButton(onClick = {
                         runCatching {
@@ -2647,24 +2652,18 @@ internal fun NativeScreen(
                             showSettings = false
                         }.onFailure { error = it.message }
                     }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Remove local pairing", color = Color(0xFFFF9999)) }
+                    TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
                     }, notifications = {
-                    Text("NOTIFICATIONS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+                    Text("PUSH ALERTS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() },
                         color = nativeMuted, fontSize = 11.sp)
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Background notifications")
-                            Text("Keep a connection to your Mac for agent alerts", color = nativeMuted, fontSize = 12.sp)
-                        }
-                        Switch(backgroundNotifications, onCheckedChange = { enabled ->
+                    NativeSettingsToggleRow("Background notifications", backgroundNotifications, { enabled ->
                             if (enabled) {
                                 enableNotifications(false)
                             } else runCatching { NativeNotificationService.setEnabled(context, false) }
                                 .onSuccess { backgroundNotifications = false; error = null }
                                 .onFailure { error = it.message }
-                        }, enabled = signedIn && code.isNotBlank(),
-                            modifier = Modifier.semantics { contentDescription = "Background notifications" })
-                    }
+                        }, Modifier.padding(horizontal = 22.dp).testTag("settings.background-notifications"),
+                        "Keep a connection to your Mac for agent alerts", enabled = signedIn && code.isNotBlank())
                     PhonePushSettings(teamState.scope, accountTeams::isCurrent,
                         onEnableBackground = { enableNotifications(false) }, onConnect = ::presentComputers)
                     PhoneMacPushSettings(client.takeIf { connectionReady && connectedCode == code },
@@ -2676,29 +2675,24 @@ internal fun NativeScreen(
                         }, onConnect = ::presentComputers)
                     NativeNotificationSettings()
                     }, preferences = {
-                    if (whatsNewState?.archive?.isNotEmpty() == true) TextButton(onClick = { showWhatsNew = true },
-                        modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.whatsnew")) { Text("What's New") }
-                    TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
-                    NativeFeedbackSettingsButton()
-                    NativePrivacySettings(NativePrivacyConsent.current(context))
-                    NativeDiagnosticsSettings()
-                    TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
                     NativeTerminalPreferenceSettings(artifactPreferences, displayState)
                     TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }
                     NativeHapticSettings(artifactPreferences, displayState)
                     NativeDisplaySettings(artifactPreferences, displayState)
-                    TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                     }, connections = {
+                    Text("SSH", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() }, color = nativeMuted, fontSize = 11.sp)
+                    TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
                     NativeNetworkingSettings(sharedConnections?.native, computerState)
+                    }, footer = {
+                    NativePrivacySettings(NativePrivacyConsent.current(context))
+                    NativeDiagnosticsSettings()
                     NativeLegacyConnectionCheckSettings(client, pairedMacs, code, connectionReady)
-                    Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
-                        color = nativeMuted, fontSize = 11.sp)
-                    Text("${pairedMacs.firstOrNull { it.code == code }?.let(appearances::name) ?: hostName} · ${if (client != null) "Connected" else "Disconnected"}",
-                        Modifier.padding(horizontal = 22.dp), color = nativeMuted, fontSize = 13.sp)
                     TextButton(onClick = onUseHelper, modifier = Modifier.padding(horizontal = 14.dp)) {
                         Text("Use existing helper connection", color = nativeMuted)
                     }
+                    NativeFeedbackSettingsButton()
                     NativeLegalSupportSettings()
+                    TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                     NativeLocalResetSection()
                     NativeAboutSettings(session = {
                         val current = accountTeams.state.value

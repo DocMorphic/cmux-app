@@ -37,6 +37,7 @@ class NativeAccountProcessDeathTest {
         assertTrue("Condition timed out", test())
     }
     private fun text(value: String) = checkNotNull(device.wait(Until.findObject(By.text(value)), 20_000)) { "Missing: $value" }
+    private fun team(value: String) = checkNotNull(device.wait(Until.findObject(By.desc(value)), 20_000)) { "Missing team control: $value" }
     private fun launch(defer: Boolean = false) {
         context.startActivity(Intent(context, activity).putExtra("fixtureId", id).putExtra("fixturePort", server.port)
             .putExtra("deferOutcome", defer).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
@@ -77,10 +78,11 @@ class NativeAccountProcessDeathTest {
         launch(); profile("Process Person", "two"); text("Refresh account").click()
         text("Process Person"); text("Verified team authority"); assertEquals(2, server.requestCount)
         restart(); text("Process Person"); text("fixture@example.test"); text("No live team authority")
-        // Compose exposes the label as enabled even when its enclosing button is
-        // disabled. Exercise the actual tap instead of asserting label semantics.
-        text("Team two").click(); device.waitForIdle(1000)
-        assertFalse(device.hasObject(By.text("Team one")))
+        // UI Automator reports this disabled Compose control as enabled. Verify
+        // actual taps, retained selection and HTTP admission in the fresh process.
+        team("Team two").click(); device.waitForIdle(1000)
+        team("Team one").click(); device.waitForIdle(1000)
+        text("Selected team: two"); text("No live team authority")
         text("Create Team").click(); device.waitForIdle(1000)
         assertFalse(device.hasObject(By.text("Team name")))
         assertEquals(2, server.requestCount)
@@ -88,11 +90,12 @@ class NativeAccountProcessDeathTest {
         text("Account request failed (503)"); text("Process Person"); text("No live team authority")
         profile("Refreshed Person", "one"); text("Refresh account").click()
         text("Refreshed Person"); text("Verified team authority")
+        text("Selected team: one")
         assertEquals(5, server.requestCount)
         server.enqueue(MockResponse().setBody("""{"id":"fixture-user","selected_team":{"id":"two"}}"""))
-        text("Team one").click(); text("Team two").click()
+        team("Team one").click(); team("Team two").click()
         waitFor { server.requestCount == 6 }
-        waitFor { !device.hasObject(By.text("Team one")) }
+        text("Selected team: two")
         text("Team two"); text("Verified team authority")
         capture("account-process-refreshed")
     }

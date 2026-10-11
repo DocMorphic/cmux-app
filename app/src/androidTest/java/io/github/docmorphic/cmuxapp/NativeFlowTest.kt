@@ -271,7 +271,7 @@ class NativeFlowTest {
         compose.onNodeWithContentDescription("cmux settings").performClick()
         compose.onNodeWithContentDescription("Open Folders on Tap").performScrollTo().assertIsOn().performClick()
         compose.onNodeWithContentDescription("Show Missing Files").performScrollTo().assertIsOff().performClick()
-        compose.onNodeWithText("‹  Back").performScrollTo().performClick()
+        compose.onNodeWithTag("settings.done").performClick()
         assertTrue(!context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE).getBoolean("terminal-folder-tap", true))
         compose.onNodeWithText("Claude Code task").performClick()
         tapArtifactCell("open ./folder", 8.5f)
@@ -283,7 +283,7 @@ class NativeFlowTest {
         compose.onNodeWithContentDescription("cmux settings").performClick()
         compose.onNodeWithContentDescription("Open Folders on Tap").performScrollTo().assertIsOff().performClick()
         compose.onNodeWithContentDescription("Show Missing Files").performScrollTo().assertIsOn()
-        compose.onNodeWithText("‹  Back").performScrollTo().performClick()
+        compose.onNodeWithTag("settings.done").performClick()
         compose.onNodeWithText("Claude Code task").performClick()
         val clicks = peer.requests.count { it.optString("method") == "mobile.terminal.mouse" }
         tapArtifactCell("open ./folder", 8.5f)
@@ -2330,7 +2330,7 @@ class NativeFlowTest {
             gate.countDown()
             compose.waitUntil(10_000) { peer.customWorkspaceListing?.getJSONArray("workspaces")?.length() == 3 }
             // Returning to the list observes the authoritative refresh and settles the response.
-            compose.onNodeWithText("‹  Back").performScrollTo().performClick()
+            compose.onNodeWithTag("settings.done").performClick()
             compose.waitUntil(10_000) { compose.onAllNodesWithText("Created in group").fetchSemanticsNodes().isNotEmpty() }
             assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.replay" })
             assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })

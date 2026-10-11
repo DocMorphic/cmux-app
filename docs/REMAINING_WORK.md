@@ -157,6 +157,19 @@ open; the global parity pin is unchanged. Final crash buffer empty, no new
 ANR/crash events; sole AVD/Gradle stopped and reaped, prior screen timeout restored,
 no new AVD. The Pixel was absent from ADB for this fixture batch.
 
+## Settings screen follow-up — 2026-10-12
+
+Fixed Settings title/Done header and source-ordered groups are implemented. The
+inline multi-team picker shows one selection and revalidates cached actions;
+account/login/team keys fix a reproduced replacement-row dispatch. 25 JVM cases
+and ten distinct Android cases have passing results across the recorded runs,
+including actual process death and terminal replay/input after recreation. Initial
+failures, selector repairs, source scope and final APK hashes are recorded in
+DISPLAY_SETTINGS.md. One existing AVD was used and stopped/reaped; timeout restored,
+no crash/ANR records. Signed 650/global pin unchanged. Full connected-Mac/setup/debug
+Settings content, matched iOS/TalkBack, physical acceptance and the iOS live-terminal
+retention behavior during team switching remain open.
+
 ## Settings integration — 2026-10-11
 
 Terminal/Haptics/Display now use full-row single-switch actions, scalable labels,

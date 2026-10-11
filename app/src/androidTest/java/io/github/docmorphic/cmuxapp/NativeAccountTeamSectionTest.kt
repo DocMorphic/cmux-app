@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import kotlinx.coroutines.CompletableDeferred
-import org.junit.Assert.assertEquals
+import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 
@@ -68,6 +71,50 @@ class NativeAccountTeamSectionTest {
         compose.onNodeWithText("First team").performClick()
         compose.onNodeWithText("Second team").performClick()
         compose.runOnIdle { assertEquals("two", selected) }
+    }
+
+    @Test fun inlinePickerShowsEveryTeamAndOneSelectionWithoutOpeningAMenu() {
+        var state by mutableStateOf(NativeAccountTeamsState(userId = "fixture-user",
+            teams = listOf(NativeTeam("one", "First team"), NativeTeam("two", "Second team")), selectedTeamId = "one"))
+        val selected = mutableListOf<String>()
+        compose.setContent { CmuxTheme { Surface { Column {
+            NativeAccountTeamSection(state, {}, { selected += it; state = state.copy(selectedTeamId = it) },
+                onCreate = { error("Not submitted") })
+        } } } }
+        compose.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton)).assertCountEquals(2)
+        compose.onNodeWithTag("settings.team:one").assertIsDisplayed().assertIsSelected().performClick()
+        compose.onNodeWithTag("settings.team:two").assertIsDisplayed().assertIsNotSelected().performClick().assertIsSelected()
+        compose.onNodeWithTag("settings.team:one").assertIsNotSelected()
+        compose.onAllNodes(isPopup()).assertCountEquals(0)
+        compose.runOnIdle { assertEquals(listOf("two"), selected) }
+        capture("team-inline-picker")
+        compose.runOnIdle { state = state.copy(teams = state.teams.take(1), selectedTeamId = "one") }
+        compose.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton)).assertCountEquals(0)
+    }
+
+    @Test fun cachedSelectionReadsCurrentMembershipOwnerAndLifecycleBeforeDispatch() {
+        val initial = NativeAccountTeamsState(userId = "fixture-user", teams = listOf(NativeTeam("one", "First team"),
+            NativeTeam("two", "Second team")), selectedTeamId = "one", scope = NativeTeamScope("login-a", "fixture-user", "one", 1))
+        var state by mutableStateOf(initial)
+        var showing by mutableStateOf(true)
+        val selected = mutableListOf<String>()
+        compose.setContent { CmuxTheme { Surface { Column {
+            if (showing) NativeAccountTeamSection(state, {}, { selected += it }, onCreate = { error("Not submitted") })
+        } } } }
+        val action = compose.onNodeWithTag("settings.team:two").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        for (replacement in listOf(initial.copy(loading = true), initial.copy(cached = true),
+            initial.copy(teams = listOf(initial.teams[0], NativeTeam("three", "Third team"))),
+            initial.copy(userId = "replacement-user", scope = initial.scope!!.copy(userId = "replacement-user")),
+            initial.copy(scope = initial.scope!!.copy(login = "login-b")))) {
+            compose.runOnIdle { state = replacement }
+            compose.waitForIdle()
+            compose.runOnIdle { action(); assertTrue(selected.isEmpty()) }
+        }
+        compose.runOnIdle { state = initial }
+        compose.waitForIdle()
+        compose.runOnIdle { action(); assertEquals(listOf("two"), selected); showing = false }
+        compose.waitForIdle()
+        compose.runOnIdle { action(); assertEquals(listOf("two"), selected) }
     }
     private fun capture(name: String) {
         val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()

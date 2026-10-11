@@ -59,8 +59,7 @@ class NativeDisplayRuntimeTest {
                 node(By.text(NumberFormat.getIntegerInstance().format(20_000) + " Rows")).click()
                 waitFor { NativeDisplayPreferences.read(preferences) == NativeDisplayPreferences(true, 1, 20_000) }
                 capture("settings")
-                UiScrollable(UiSelector().scrollable(true)).scrollToBeginning(30)
-                node(By.text("‹  Back")).click()
+                node(By.text("Done")).click()
                 node(By.text("Claude Code task")).click()
                 node(By.textContains("cmux Android terminal"))
                 assertEquals(20_000, peer.requests.first { it.optString("method") == "mobile.terminal.replay" }
@@ -80,7 +79,7 @@ class NativeDisplayRuntimeTest {
                 node(By.textContains("cmux Android terminal"))
                 // Exercise real input after the recreated binding, not just retained pixels.
                 node(By.clazz("android.widget.EditText")).text = "display-runtime-input"
-                node(By.text("Send")).click()
+                node(By.desc("Send")).click()
                 waitFor { peer.requests.any { it.optString("method") == "terminal.paste" &&
                     it.optJSONObject("params")?.optString("text")?.contains("display-runtime-input") == true } }
                 assertTrue(peer.failures.toString(), peer.failures.isEmpty())
