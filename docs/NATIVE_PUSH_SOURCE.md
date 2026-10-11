@@ -5,11 +5,54 @@
 The user selected **private Firebase plus a custom cmux Mac build**. Limit the Mac
 extension to the real phone producer and authenticated host/account/settings
 state. Existing Android terminal/workspace functionality does not require this
-extension. The intended Firebase account is davedharmay@gmail.com (user correction). The
-initial empty Cloud project was created under the wrong cached account and shut
-down; replacement provisioning awaits Gmail browser authorization. Live delivery
-remains unconfigured/unverified.
+extension. The Gmail-owned dedicated Firebase project and Android client configuration now
+exist; provider credentials and live delivery remain unconfigured/unverified.
 See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
+
+## Native private process supervisor — 2026-10-11
+
+`NativePushSourceProcessSink.swift` now implements the injected sink using one
+explicitly enabled, owner-configured child process. Construction/admission are
+passive until `start()`. Fresh random channel key/session travel through private
+pipes; command arguments/environment carry no channel key. The child receives a
+minimal environment. DispatchIO performs pipe operations outside the main actor,
+with bounded receipt decoding, one pending write/frame and completed-write/receipt
+coordination. Diagnostics expose fixed phase names only.
+
+Auth/privacy/master retirement closes IO and kills only the owned helper, then
+waits for Foundation’s actual child-exit callback before replacement. Unexpected
+exit/pipe failure clears live authority; fresh native observations are required
+for recovery. Lost sequenced receipts retry the exact frame; a stalled bootstrap
+retires its channel because bootstrap replay is not a sequenced helper message.
+Explicit stop awaits child exit; owner release also terminates the private child.
+
+The initial real process fixture exited SIGTRAP before any capture. Regression
+commit `f337e279` preserves that state. The original crash report identifies a
+Swift actor assertion in an actor-inherited legacy DispatchIO callback. Explicit
+`@Sendable` IO/termination/cleanup closures now cross into main-actor Tasks only for
+state updates. The same process scenario passes after the fix.
+
+Actual Swift-owner/Node-child checks pass on **Node 26.8.2 and 22.16.0**: passive
+startup, one real encrypted-journal capture with original expiry/Unicode body,
+privacy retirement/reap/replacement, refreshed-authority recovery, awaited stop,
+oversized receipt rejection, stalled-bootstrap retirement, and owner-release
+cleanup independently verified against the child PID. Fixture process groups are
+isolated and cleaned on success/failure. No user cmux process is targeted.
+
+```sh
+python3 scripts/check-native-push-process.py --node /absolute/path/to/node
+```
+
+Original evidence: ignored `captures/runtime/push-native-owner/` (initial crash/
+red result, both final process build/behavior logs and earlier queue/mapping logs).
+The installer now wires **nine changed files** against the same four original
+source pins. Syntax/plist parsing, actual payload/auth projection, queue/private
+pipe checks and four installer cases still pass. No full custom app build or
+production composition injection is established. The fixture helper stores events
+but does not send FCM; the production helper entrypoint, keys/TLS/enrollment and
+provider wiring remain required. Unacknowledged owner captures remain in memory;
+encrypted producer persistence through Mac app death stays open. Signed 642 and
+the global parity pin are unchanged.
 
 ## Native owner receipt queue — 2026-10-11
 
@@ -183,9 +226,9 @@ cases inject a synthetic sealer/sender and do not establish new HPKE/FCM evidenc
 
 ## Required next integration
 
-1. Implement the injected sink’s private child-process owner, bootstrap, bounded
-   exact-frame receipts/replay and native lifecycle fencing. Assemble the
-   journal/dispatcher/forwarder/sealer/enrollment service with its keys and HTTPS.
+1. Assemble the production helper entrypoint with journal/dispatcher/forwarder/
+   sealer/enrollment, keys and HTTPS. Inject the implemented process sink into the
+   native composition and add encrypted unacknowledged-producer persistence.
 2. Apply the reviewed hook patch in a private checkout and perform the upstream
    tagged full-app build and actual auth/settings/capture acceptance. Syntax and
    fixture compilation do not establish whole-app integration.

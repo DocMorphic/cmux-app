@@ -1,5 +1,24 @@
 # Android background push
 
+## Native supervisor and configured Firebase clients — 2026-10-11
+
+The native sink now supervises one explicitly enabled private helper child with
+fresh bootstrap, bounded off-main-actor IO, exact receipt retries, retirement/reap
+before replacement, refreshed authority recovery, awaited stop and owner-release
+cleanup. Real Swift-owner/Node-child cases pass on Node 22/26. The initial Swift
+actor callback crash (`f337e279`) is fixed by explicit Sendable callbacks before
+main-actor state updates. The installer wires nine files; full app composition/
+build and encrypted unacknowledged-producer persistence remain open.
+
+The correct Gmail-owned Firebase project `cmux-app-push-private-20261011` is active
+with billing off, release/debug clients and private/CI configuration. Both Android
+GoogleServices tasks passed; independent XML matches both variants’ project,
+sender and app IDs. A limited FCM service-account role was created/verified; no
+provider private key/token or FCM request exists. See FIREBASE_SETUP.md and
+NATIVE_PUSH_SOURCE.md for evidence and remaining production helper/keys/TLS/native
+injection and actual Mac/Pixel delivery requirements. No APK/custom app/physical
+acceptance in this batch; signed 642 unchanged.
+
 ## Native owner receipt/replay queue — 2026-10-11
 
 The native queue now supplies atomic bounded admission, exact frame retention

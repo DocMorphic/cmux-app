@@ -4,10 +4,10 @@ These are event preparation, Mac CryptoKit encryption, FCM HTTP v1 transport,
 encrypted outbox/registration storage and an explicit scheduler for a trusted Mac
 forwarder or backend.
 It is **not a running forwarding service**. HTTPS factories remain unbound until
-a host explicitly starts them. Correct-account Firebase provisioning is pending
-Gmail authorization; the empty wrong-account project was shut down. Client/provider
-configuration and production deployment are pending
-(see [FIREBASE_SETUP.md](../docs/FIREBASE_SETUP.md)). Importing the modules makes no network calls. Tests use synthetic
+a host explicitly starts them. Correct-account Firebase/client/private/CI
+configuration exists; provider credentials and the production forwarding entrypoint
+remain pending (see [FIREBASE_SETUP.md](../docs/FIREBASE_SETUP.md)).
+Importing the modules makes no network calls. Tests use synthetic
 credentials with injected transports or local TLS servers, never the live provider.
 
 ```sh
@@ -74,8 +74,8 @@ pipe channel implement authenticated handoff into the durable source journal;
 see [native source evidence](../docs/NATIVE_PUSH_SOURCE.md). They do not yet install
 the owning producer in cmux. The reviewed six-file hook installer and real payload/
 auth mapping checks are available in `scripts/apply-native-push-patch.py` and
-`scripts/check-native-push-hooks.py`; the injected sink defaults to nil and needs
-a concrete process owner. At scoped upstream commit
+`scripts/check-native-push-hooks.py`; the injected sink defaults to nil. Its concrete process supervisor is implemented;
+production helper assembly/injection still remains. At scoped upstream commit
 `186cec79781256867ad4516f0802118738bd2393`, `TerminalNotificationStore` can call phone
 forwarding even with `effects.record == false`, while `notification.created` is
 published from store changes and its content is redacted. History insertions also
@@ -146,7 +146,8 @@ frame until a receipt. A nonack permits refreshing host state at the unused
 sequence. Disconnect requires refreshed authority; account/privacy/master changes
 require retiring the transport. Native admission survives presence changes.
 The pinned hook installer wires the queue and CryptoKit encoder explicitly into
-Xcode. A concrete process sink and encrypted producer persistence through Mac app
+Xcode. The concrete `NativePushSourceProcessSink` now supervises a private owned child;
+production assembly/injection and encrypted producer persistence through Mac app
 process death are still required; this queue's unacknowledged entries are in
 memory. Actual Swift/private-pipe journal exchanges are documented in
 [NATIVE_PUSH_SOURCE.md](../docs/NATIVE_PUSH_SOURCE.md).

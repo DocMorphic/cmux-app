@@ -180,6 +180,7 @@ def patched_sources(original):
         "NativePushSourceMessages": "push/mac-native/NativePushSourceMessages.swift",
         "NativePushSourceSink": "push/mac-native/NativePushSourceSink.swift",
         "NativePushSourceDeliveryQueue": "push/mac-native/NativePushSourceDeliveryQueue.swift",
+        "NativePushSourceProcessSink": "push/mac-native/NativePushSourceProcessSink.swift",
         "NativePushSourceFrame": "push/NativePushSourceFrame.swift",
     }
     for index, (name, source_path) in enumerate(native_sources.items(), 1):

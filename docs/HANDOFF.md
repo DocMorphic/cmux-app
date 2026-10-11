@@ -3,18 +3,29 @@
 ## Current checkpoint — 2026-10-11
 
 The user selected **private Firebase plus a custom cmux Mac build**, and a
-**dedicated project**. The intended Google account is **davedharmay@gmail.com**
-(user correction). The initial empty Cloud project was created under the wrong
-cached gcloud account, then shut down; `DELETE_REQUESTED` was verified. Do not use
-`cmux-app-push-20261011`. Gmail browser authorization is pending before creating
-the replacement with an explicit `--account`. See
-[FIREBASE_SETUP.md](FIREBASE_SETUP.md); no client/provider configuration or live
-delivery exists.
+**dedicated project**. Correct Gmail authorization/provisioning is now complete.
+Firebase project `cmux-app-push-private-20261011` (185554994782) is active, Gmail-owned,
+without organization parent or billing. Release/debug clients are registered,
+private configuration and its GitHub Actions secret exist, and both variants’
+generated resources independently match the project/sender/client IDs. An FCM
+provider service account/role exists; no provider credentials or delivery yet.
+The empty wrong-account project remains shut down. See FIREBASE_SETUP.md.
+
+The native process supervisor now launches one private child, keeps IO off the
+main actor, retires/reaps before replacement and cleans up on owner release.
+Actual process scenarios pass on Node 22/26, including encrypted capture, privacy
+replacement, malformed/stalled pipes, refreshed authority and stop. Initial
+Swift actor callback SIGTRAP is recorded in regression commit f337e279; explicit
+Sendable callbacks fix it. The installer now wires nine files against four
+unchanged original pins. Production helper assembly/injection/credentials/TLS,
+encrypted producer persistence and the tagged full app/live Mac/Pixel milestone
+remain open. Original evidence/commands are in NATIVE_PUSH_SOURCE.md.
+
 The initial pinned six-file native hook installer captures the actual phone producer
 before the Apple-recipient gate and derives authenticated session/team authority.
 It observes auth/settings, heartbeats and immediately fences auth/privacy/master
 forwarding transitions. Unknown authority invalidates its lease without declaring
-logout. The native sink still needs a concrete helper process owner and assembly.
+logout. The native sink still needs production helper assembly/injection.
 The delayed-preparation admission bug was reproduced in regression commit
 `39689e3d` (two failures), then fixed: becoming active after native admission does
 not drop the alert. 66 focused checks pass on Node 22/26, four installer cases,
@@ -25,13 +36,13 @@ The next owner queue batch adds bounded atomic host/capture admission and exact
 pending-frame replay, receipt validation, host refresh after nonacks and transport
 retirement on account/privacy/master changes. Ten compiled Swift case groups and
 actual Swift queue/private-pipe encrypted-journal exchanges pass on Node 22/26.
-The installer now wires eight files against four unchanged original pins. The
-concrete process supervisor/assembly is still absent; unacknowledged native owner
+The installer now wires eight files against four unchanged original pins. At that earlier queue checkpoint the
+concrete process supervisor/assembly was absent; unacknowledged native owner
 entries remain in memory, so encrypted producer persistence through Mac app death
 is also open. See NATIVE_PUSH_SOURCE.md for commands and evidence.
 Earlier actual CryptoKit/private-pipe checks remain recorded separately. No full
 custom Mac build/install, production listener, Android build or physical acceptance
-in this batch. Next: native process owner, helper assembly/keys/TLS, configured
+in this batch. Next: production helper assembly/keys/TLS/injection, configured
 Firebase clients/provider, tagged app build and real delivery.
 Signed milestone [642](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533)
 at `7147bc62` passed, including the previously failing Cloud native job's cached

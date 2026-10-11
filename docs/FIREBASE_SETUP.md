@@ -1,48 +1,61 @@
 # Dedicated Firebase setup — 2026-10-11
 
-The user explicitly selected private Firebase plus a custom cmux Mac extension,
-then authorized creating a dedicated project.
+The user selected private Firebase plus a custom cmux Mac extension and authorized
+a dedicated project. The intended Google account is **davedharmay@gmail.com**.
 
-## Current state — corrected account
+## Verified current state
 
-The user clarified that the intended Google account is **davedharmay@gmail.com**.
-The initial project was mistakenly created using the Mac’s existing gcloud account
-in another Google Cloud organization. That empty project
-`cmux-app-push-20261011` has been shut down; `lifecycleState: DELETE_REQUESTED`
-was independently verified. No Firebase apps, client configuration, service-account
-keys, billing linkage or live sender were created in it. Do not use it for cmux-app.
+- Project ID: `cmux-app-push-private-20261011`; display name `cmux-app`.
+- Project number: `185554994782`; Cloud lifecycle `ACTIVE`, no organization parent.
+- Gmail browser authorization completed; project Owner verified for that account.
+  All provisioning calls used explicit account and project, ignoring gcloud’s
+  unrelated current project.
+- Firebase activation completed successfully (`done: true`, FirebaseProject
+  response). Firebase Management, FCM and IAM APIs were enabled for this project.
+- `billingEnabled: false` verified; no Analytics link was created.
+- Android clients registered: `io.github.docmorphic.cmuxapp` and
+  `io.github.docmorphic.cmuxapp.debug`.
+- The two selected client records were checked against their registered package,
+  Firebase app ID, project ID and sender/project number. Configuration is stored
+  privately at `~/.config/cmux-app/firebase/cmux-app-push-private-20261011/google-services.json`
+  (file mode 0600, containing directory 0700). It is absent from this repository.
+- GitHub Actions secret `CMUX_FIREBASE_CONFIG_JSON` was set from that verified file;
+  its existence/update timestamp was independently checked. This contains only
+  Android client configuration, never provider/service-account private keys.
+- Both `processDebugGoogleServices` and `processReleaseGoogleServices` completed
+  successfully in five seconds. Generated XML independently matches each variant’s
+  Firebase app ID, project ID and sender number. No APK was built in that check.
+- Provider identity created:
+  `cmux-android-push@cmux-app-push-private-20261011.iam.gserviceaccount.com`.
+  Its `roles/firebasecloudmessaging.admin` project binding was independently
+  verified. **No provider private key/token was provisioned or used.**
 
-A new `gcloud auth login davedharmay@gmail.com` browser authorization is pending.
-Finish it with the intended account; do not reuse the other cached account.
-Before any replacement provisioning, verify the authenticated account and pass
-`--account=davedharmay@gmail.com` and the replacement project ID explicitly.
-The previously requested terms step under the wrong account is superseded.
+Original resource/operation metadata, client registration results, resource build
+log and independent XML comparison are in ignored `captures/runtime/firebase-setup/`.
+Credentials/access tokens/client key values were not printed. The API returns
+project-wide client records; the private combined file selects exactly one record
+for each registered app rather than concatenating duplicate records.
 
-The wrong-account project’s Firebase Management and FCM APIs were enabled and
-billing was verified disabled before cleanup. Adding Firebase had returned HTTP
-403 despite Owner access. That result is not evidence about the intended Gmail
-account and must not be used to diagnose its setup.
+## Corrected initial account mistake
 
-For the replacement, create a dedicated project (a different ID is required while
-the old ID remains reserved), add Firebase, verify the completed FirebaseProject
-operation, and keep Analytics/billing off. Record its verified resource metadata
-here. The Firebase [existing-project guide](https://firebase.google.com/docs/projects/use-firebase-with-existing-cloud-project)
-documents the separate account terms/permission requirements if activation fails.
+The first empty Cloud project `cmux-app-push-20261011` was mistakenly created
+using the Mac’s old gcloud account in another organization. It was shut down;
+`DELETE_REQUESTED` was independently verified. No Firebase clients, provider keys,
+billing link or live sender were created there. Do not use that project. Its
+activation 403 is not evidence about the intended Gmail account; the replacement
+activated successfully without another terms prompt.
 
-## Next implementation
+## Next integration
 
-1. Verify the project is a FirebaseProject before further provisioning.
-2. Register Android clients for `io.github.docmorphic.cmuxapp` and
-   `io.github.docmorphic.cmuxapp.debug`; preserve existing signing/account data.
-3. Download client configuration to private local storage and use the explicit
-   `cmuxFirebaseConfig` build input. Do not commit live client files to this
-   public repository; use the optional CI secret path when a configured release
-   milestone is ready.
-4. Configure a limited FCM provider identity for the private Mac helper. Keep
-   provider credentials outside APKs/repository/logs. No billing upgrade is
-   needed for the current project-creation step.
-5. Complete helper enrollment/TLS/native producer assembly and real Mac/Pixel
-   delivery acceptance, including process-dead/Doze, token rotation and revocation.
+1. Provision limited provider credentials into private Mac credential storage;
+   wire the token provider and complete helper assembly/keys/TLS/native injection.
+2. Build the configured Android/custom Mac integration milestone. Existing
+   `cmuxFirebaseConfig` and `CMUX_FIREBASE_CONFIG` inputs use this private file;
+   optional GitHub configuration is ready for the next signed milestone.
+3. Verify actual consent/token registration, enrollment and real Mac/Pixel
+   foreground/background/process-dead/Doze delivery, token rotation, tap/reply,
+   dismissals and account revocation. Client registration/resource generation do
+   not establish token acquisition or push delivery.
 
-References: [project management API workflow](https://firebase.google.com/docs/projects/api/workflow_set-up-and-manage-project),
-[FCM HTTP v1](https://firebase.google.com/docs/cloud-messaging/send/v1-api).
+References: [project management workflow](https://firebase.google.com/docs/projects/api/workflow_set-up-and-manage-project),
+[FCM HTTP v1 and provider role](https://firebase.google.com/docs/cloud-messaging/send/v1-api).

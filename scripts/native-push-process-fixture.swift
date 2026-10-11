@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 @main struct NativePushProcessFixture {
     @MainActor static func main() async throws {
@@ -66,8 +67,9 @@ import Foundation
             var failed = false, closed = false
             let bad = try NativePushSourceProcessSink(executable: URL(fileURLWithPath: args[1]),
                 arguments: [args[2], directory.path, mode, marker], directory: URL(fileURLWithPath: args[2]).deletingLastPathComponent(),
-                receiptDelay: .milliseconds(100), retryDelay: .milliseconds(50), onState: { phase in
-                    if phase == "unavailable" { failed = true }; if phase == "reaped" { closed = true }
+                receiptDelay: .milliseconds(300), retryDelay: .milliseconds(50), onState: { phase in
+                    if phase == (mode == "malformed" ? "receipt-rejected" : "bootstrap-timeout") { failed = true }
+                    if phase == "reaped" { closed = true }
                 })
             try require(bad.offer([host(), event]))
             try bad.start()
@@ -75,6 +77,17 @@ import Foundation
             try require(!bad.isRunning && bad.retainedCount == 1)
             await bad.stop()
         }
-        print("Native process supervisor: passive startup, real durable capture, privacy retirement/reap/restart, fresh-authority recovery, stop, oversized receipt and stalled bootstrap passed")
+        try FileManager.default.removeItem(atPath: marker + ".pid")
+        var disposable: NativePushSourceProcessSink? = try NativePushSourceProcessSink(
+            executable: URL(fileURLWithPath: args[1]), arguments: [args[2], directory.path, "normal", marker],
+            directory: URL(fileURLWithPath: args[2]).deletingLastPathComponent())
+        try require(disposable!.offer([host()]))
+        try disposable!.start()
+        try await wait { FileManager.default.fileExists(atPath: marker + ".pid") }
+        let pid = Int32(try String(contentsOfFile: marker + ".pid", encoding: .utf8))!
+        weak var released = disposable
+        disposable = nil
+        try await wait { released == nil && Darwin.kill(pid, 0) != 0 && errno == ESRCH }
+        print("Native process supervisor: passive startup, real durable capture, privacy retirement/reap/restart, fresh-authority recovery, stop, oversized receipt, stalled bootstrap and owner-release cleanup passed")
     }
 }
