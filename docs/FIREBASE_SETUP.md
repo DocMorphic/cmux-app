@@ -63,8 +63,14 @@ activated successfully without another terms prompt.
 
 1. Helper sender/storage keys are now provisioned privately and the CryptoKit
    sealer compiled. Complete trusted TLS/runtime configuration and apply/build the
-   native integration. Full Xcode installation and Tailscale HTTPS Certificates
-   are currently requested from the owner.
+   native integration. Tailscale HTTPS Certificates are currently requested from
+   the owner.
+   A hosted ARM64 full Mac build is now active; local Xcode installation is
+   optional for producing its artifact (MAC_NOTIFICATION_BUILD.md). Trusted
+   Tailscale hostname certificates remain unavailable on the Mac. The explicit
+   runtime provisioning command is implemented and checked; see
+   PUSH_HELPER_RUNTIME.md. It has not written a real runtime configuration or
+   started the listener without that certificate.
    Source injection/public-descriptor publication and standalone native owner
    execution are now checked; whole-app/native account acceptance remains open.
    The production entrypoint now composes the verified private provider; see

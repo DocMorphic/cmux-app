@@ -2,11 +2,22 @@
 
 ## Current checkpoint — 2026-10-11
 
+Private runtime setup is now implemented by `scripts/provision-push-runtime.mjs`:
+exact release/debug Firebase binding, explicit selected provider/key/TLS paths,
+offline hostname/key/date/public-root checks, explicit listener, and no-overwrite
+configuration creation. Repeated setup preserves keys/identity/file bytes even
+when JSON ordering differs. It creates no native authority/listener/provider IO.
+Nine focused groups pass on Node 26; full Node 22 helper results are 200/201
+passed with one existing optional skip. Correct Gmail project remains ACTIVE and
+its Gmail Owner binding was freshly verified. Tailscale is running but provides
+no certificate domains; ADB currently reports no phone. No real configuration
+or listener has been provisioned. See PUSH_HELPER_RUNTIME.md.
+
 First full Mac build dispatched: https://github.com/DocMorphic/cmux-app/actions/runs/38174243912
 at project source `ee66bd51ac46de138345f851457bc10d76868439`, upstream `f4b15090`.
 Authoritative job `114573108892` is active: toolchain/dependencies, verified Ghostty,
-patch installation and catalog checks succeeded; native integration checks are
-running. Do not redispatch this live run. Full app/package/artifact and physical
+patch installation, catalog and native integration checks succeeded; the full
+tagged app is compiling. Do not redispatch this live run. Full app/package/artifact and physical
 acceptance are unverified until terminal results are inspected and bytes checked.
 
 A manual GitHub macOS ARM64 full-build route is now implemented in

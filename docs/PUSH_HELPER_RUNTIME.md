@@ -102,6 +102,42 @@ cannot be recalled.
 
 ## Owner configuration
 
+Generate the configuration with the explicit local setup command after obtaining
+the hostname certificate. The containing directory of `--output` is a dedicated
+runtime root; its parent must already be private and owned. Keep it separate from
+the owner key directory. Example paths below are placeholders, not provisioned files:
+
+```sh
+node scripts/provision-push-runtime.mjs \
+  --keys /absolute/private/parent/push-owner-keys \
+  --firebase /absolute/private/firebase/google-services.json \
+  --provider /absolute/private/firebase/provider-service-account.json \
+  --tls-key /absolute/private/tls/hostname.key \
+  --tls-cert /absolute/private/tls/hostname.crt \
+  --hostname mac.example.ts.net --listen 100.64.0.10 --port 58468 \
+  --sealer /absolute/trusted/cmux-push-seal \
+  --output /absolute/private/parent/push-runtime/config.json
+```
+
+The command binds exactly one release/debug Firebase client to the selected
+project/sender and validates the selected service account without OAuth. Offline
+TLS checks cover the private key, hostname SAN, server purpose, validity dates,
+chain signatures and a runtime public root. The CLI has no custom-root bypass.
+Android's actual connection still must verify the certificate. Select an explicit
+IP listener; wildcard addresses are refused. Runtime/native output cannot overlap
+key material, including through filesystem aliases. A rerun preserves existing identities, keys, file bytes and inode
+when parsed configuration matches, including different JSON field order. Changed
+or unsafe configuration fails without replacing the existing file.
+
+Setup writes only private paths/public metadata; it does not publish a native
+descriptor, create authority, start listeners or contact Firebase. Native public
+key publication and account authority still come from the running custom app.
+Nine focused groups passed on Node 26; the Node 22 full helper suite passed
+200 of 201 checks with the existing optional reference-decryptor skip. Eight initial
+setup groups and the initial 199/200 suite also passed on Node 26. Evidence
+is in ignored `captures/runtime/push-runtime-setup/node22.log`. This establishes
+setup behavior using isolated certificates/provider fixtures, not live delivery.
+
 Configuration is a private JSON file (0600, containing directory 0700) with exactly
 these top-level fields. Paths are absolute and selected by the trusted Mac owner.
 Secret files must also be private, regular, singly linked, bounded files. Symlinks
