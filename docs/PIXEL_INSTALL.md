@@ -3,7 +3,42 @@
 Current source development is on `main`. These are development milestones;
 see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
-## Current verified signed development APK — build 642 (2026-10-11)
+## Current verified signed development APK — build 650 (2026-10-11)
+
+[Download build 650](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-650/app-release.apk)
+from the [published development preview](https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-650).
+[Workflow 650](https://github.com/DocMorphic/cmux-app/actions/runs/38169223650) passed
+at `d34daed53231997ffa68de63233357e6fe98d489`.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **650**, version **0.2.0**.
+- SHA-256: `89778c280de6e2c1acff2527439efacd64c14a1c70376eb29043c2154ec7f4fe`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **277,087,970 bytes**.
+- Local file: `captures/releases/firebase-milestone-38169223650/apk/app-release.apk`.
+
+This includes the source batches through 642 plus worksheet charts and the explicit
+Gmail-owned Firebase client configuration. Independent compiled-resource checks
+match project `cmux-app-push-private-20261011`, sender `185554994782`, release
+application ID `1:185554994782:android:a24cacf32aa2969cf0d6cf` and client API key.
+The key is checked in memory and omitted from receipts/logs. Future configured
+milestones also enforce this comparison in `verify-signed-apk.py`.
+
+CI passed policy/helper/viewer, JVM/APK, signature/native alignment and six Android
+17 ART release class-loading gates. Its Cloud job verified the cached native
+checkpoint; no fresh Cloud native compilation is claimed. Independent downloaded
+APK checks confirm all **21 viewer assets**, **22 aligned native libraries** and
+exclusion of **14 debug components**. Published source/version/digest, downloaded
+bytes and CI/local receipts match. Evidence: ignored
+`captures/releases/firebase-milestone-38169223650/`.
+
+Update the existing release app while preserving its sign-in/pairing/data; do not
+uninstall or clear it. The debug app is a separate package and keeps separate data.
+No signed-in Pixel upgrade, actual FCM token/delivery or live custom Mac acceptance
+was performed. The Mac extension is source in this repository, not part of the APK;
+its native phone-pin batch is newer than this APK source and needs the full tagged
+Mac build. Full iOS parity remains open. No extra local AVD/build was started.
+
+## Earlier verified signed development APK — build 642 (2026-10-11)
 
 [Build 642](https://github.com/DocMorphic/cmux-app/actions/runs/38063365533)
 passed at `7147bc62cb92c7f5b55724c733595623f9872f9f`. Download the

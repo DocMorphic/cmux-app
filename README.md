@@ -6,14 +6,13 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 641 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/38045004590/artifacts/11666733488)
-from `ddf16db8` is the current verified signed development checkpoint, including
-the latest integrated Feed/Cloud sheets and viewer/media changes. Newer source
-work on `main`, including embedded workbook pictures, is not included in that APK.
-Signed-in upgrade, physical Pixel/Mac
-acceptance and configured push remain
-open. See the [install guide](docs/PIXEL_INSTALL.md) for hashes and exact verification
-scope, and [remaining work](docs/REMAINING_WORK.md) for source progress.
+**Signed download:** [build 650 APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-650/app-release.apk)
+from `d34daed5` is the current verified development preview, including worksheet
+charts and the Gmail-owned Firebase client configuration. Signing, native 16 KiB
+alignment, assets and compiled Firebase resources are verified. Signed-in Pixel
+upgrade, the full custom Mac build, live push delivery and full parity remain open.
+See the [install guide](docs/PIXEL_INSTALL.md) for hashes and exact evidence,
+and [remaining work](docs/REMAINING_WORK.md) for source progress.
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
 Android now wires Iroh/V2 discovery and admitted RPC connections into the app and

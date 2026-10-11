@@ -73,10 +73,14 @@ activated successfully without another terms prompt.
    transport is still injected in tests (see NATIVE_PUSH_SOURCE.md).
 2. Build the configured Android/custom Mac integration milestone. Existing
    `cmuxFirebaseConfig` and `CMUX_FIREBASE_CONFIG` inputs use this private file;
-   GitHub milestone run `38169223650` now targets source
-   `d34daed53231997ffa68de63233357e6fe98d489` with that secret. It is in progress;
-   exact APK resources/signature/alignment/ART checks still need terminal success.
-   This run does not build or launch the full custom Mac app.
+   GitHub milestone run `38169223650` passed at source
+   `d34daed53231997ffa68de63233357e6fe98d489` and published signed build 650.
+   Independent downloaded APK checks match release project/sender/application
+   and API key resources (key never logged), signer, all native alignment/assets
+   and six retained Android 17 class-loading results. See PIXEL_INSTALL.md.
+   This run did not build or launch the full custom Mac app or establish real
+   token acquisition/FCM delivery. The configured Android packaging gate is done;
+   the custom Mac milestone and physical integration remain.
 3. Verify actual consent/token registration, enrollment and real Mac/Pixel
    foreground/background/process-dead/Doze delivery, token rotation, tap/reply,
    dismissals and account revocation. Client registration/resource generation do

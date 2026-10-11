@@ -8,14 +8,16 @@ import { readPushHost, hostMatchesRecipient, hostPermitsDelivery } from './polic
  */
 export class PushForwarder {
   #registrations; #readHost; #seal; #now; #trusted; #dispatcher; #preparing = 0; #stopped = false; #generation = 0; #settled = new Set(); #stopPromise = null;
-  constructor({ registrations, outbox, sender, readHost, seal, recipientTrusted = () => true, now = Date.now, ...scheduler }) {
-    if (typeof registrations?.recipients !== 'function' || typeof readHost !== 'function' || typeof seal !== 'function' || typeof recipientTrusted !== 'function')
+  constructor({ registrations, outbox, sender, readHost, seal, recipientTrusted, now = Date.now, ...scheduler }) {
+    if (typeof registrations?.recipients !== 'function' || typeof readHost !== 'function' || typeof seal !== 'function' ||
+        (recipientTrusted !== undefined && (typeof recipientTrusted !== 'function' || typeof registrations?.maintenanceRegistration !== 'function')))
       throw new TypeError('Invalid push forwarder configuration');
     this.#registrations = registrations; this.#readHost = readHost; this.#seal = seal; this.#now = now; this.#trusted = recipientTrusted;
     this.#dispatcher = new PushDispatcher({ ...scheduler, registrations, outbox, sender, now,
       policy: (binding, admission) => {
         const host = readPushHost(this.#readHost, this.#now);
         if (!hostPermitsDelivery(host, binding, admission)) return false;
+        if (this.#trusted === undefined) return true;
         const record = this.#registrations.maintenanceRegistration(binding.recipient, binding.registration);
         return !!record && this.#trusted(binding.recipient, record.publicKey, host) === true;
       } });
@@ -55,7 +57,8 @@ export class PushForwarder {
       if (!Number.isSafeInteger(expiresAt) || expiresAt % 1000 !== 0) throw new TypeError('Invalid push expiry');
       if (expiresAt - this.#now() < 1000) return { kind: 'expired' };
       const records = this.#registrations.recipients({ accountID: host.authority.accountID, teamID: host.authority.teamID ?? null })
-        .filter(record => hostMatchesRecipient(host, record.recipient) && this.#trusted(record.recipient, record.publicKey, host) === true);
+        .filter(record => hostMatchesRecipient(host, record.recipient) &&
+          (this.#trusted === undefined || this.#trusted(record.recipient, record.publicKey, host) === true));
       if (!records.length) return { kind: 'no-recipients' };
       const jobs = [];
       for (const registration of records) {
@@ -65,7 +68,7 @@ export class PushForwarder {
           if (this.#stopped || generation !== this.#generation) return false;
           const live = readPushHost(this.#readHost, this.#now);
           return hostPermitsDelivery(live, { recipient: registration.recipient }, admission) &&
-            this.#trusted(registration.recipient, registration.publicKey, live) === true;
+            (this.#trusted === undefined || this.#trusted(registration.recipient, registration.publicKey, live) === true);
         };
         const prepared = await preparePushBatch({ event: { ...original, hideContent: host.settings.hideContent },
           expiresAt, registration, authority: host.authority, hostEpoch: host.epoch }, { seal: this.#seal, now: this.#now, permits });

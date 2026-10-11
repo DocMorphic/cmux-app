@@ -75,12 +75,58 @@ def verify_packaged_viewer_assets(assets_root, archive):
     return checked
 
 
+def verify_firebase_resources(configuration, resource_dump):
+    """Compare the compiled release resources with the selected client config.
+
+    Client API keys are checked in memory and never included in diagnostics.
+    Configuration is explicit; no provider key or gcloud state is discovered.
+    """
+    config = json.loads(configuration.read_text(encoding="utf-8"))
+    if not isinstance(config, dict) or "private_key" in config:
+        raise ValueError("Expected Android Firebase client configuration")
+    package = "io.github.docmorphic.cmuxapp"
+    clients = [c for c in config.get("client", []) if
+        c.get("client_info", {}).get("android_client_info", {}).get("package_name") == package]
+    if len(clients) != 1:
+        raise ValueError("Expected exactly one Firebase release client")
+    client = clients[0]
+    keys = [k.get("current_key") for k in client.get("api_key", []) if k.get("current_key")]
+    expected = {"google_app_id": client.get("client_info", {}).get("mobilesdk_app_id"),
+        "gcm_defaultSenderId": config.get("project_info", {}).get("project_number"),
+        "project_id": config.get("project_info", {}).get("project_id"),
+        "google_api_key": keys[0] if keys else None}
+    if any(not isinstance(value, str) or not value for value in expected.values()):
+        raise ValueError("Incomplete Firebase release client configuration")
+    headers = list(re.finditer(r"^\s*resource 0x[0-9a-fA-F]+ (\S+)[^\n]*$", resource_dump, re.M))
+    found = {}
+    for i, header in enumerate(headers):
+        name = header.group(1).removeprefix("string/")
+        if header.group(1) != "string/" + name or name not in expected:
+            continue
+        block = resource_dump[header.end():headers[i + 1].start() if i + 1 < len(headers) else len(resource_dump)]
+        values = re.findall(r"^\s*\([^\n)]*\)\s+(.*)$", block, re.M)
+        default = re.findall(r"^\s*\(\)\s+(.*)$", block, re.M)
+        if name in found or len(values) != 1 or len(default) != 1:
+            raise ValueError("Ambiguous compiled Firebase resource: " + name)
+        try:
+            found[name] = json.loads(default[0])
+        except (TypeError, ValueError):
+            raise ValueError("Invalid compiled Firebase resource: " + name) from None
+    for name, value in expected.items():
+        if found.get(name) != value:
+            raise ValueError("Compiled Firebase resource mismatch: " + name)
+    return {"project": expected["project_id"], "sender": expected["gcm_defaultSenderId"],
+        "application": expected["google_app_id"], "package": package, "api_key_matches": True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("apk", type=Path)
     parser.add_argument("--version", type=int, required=True, help="Expected workflow run number")
     parser.add_argument("--output", type=Path, required=True, help="Local diagnostics and receipt directory")
     parser.add_argument("--sdk", type=Path, default=os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT"))
+    parser.add_argument("--firebase-config", type=Path, default=os.environ.get("CMUX_FIREBASE_CONFIG"),
+        help="Optional selected Google client config; verify compiled Firebase resources")
     args = parser.parse_args()
     if args.sdk is None:
         parser.error("Set ANDROID_HOME or pass --sdk")
@@ -130,6 +176,12 @@ def main():
     receipt = {"version": args.version, "sha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
         "bytes": apk.stat().st_size, "signer": SIGNER, "viewer_assets": checked,
         "native_libraries": native_count, "debug_fixture_components_excluded": len(fixtures)}
+    if args.firebase_config is not None:
+        resources = subprocess.run([str(sdk / ("aapt2" + suffix)), "dump", "resources", str(apk)],
+            capture_output=True, text=True, timeout=120)
+        if resources.returncode:
+            raise ValueError("Cannot read compiled Firebase resources")
+        receipt["firebase"] = verify_firebase_resources(args.firebase_config, resources.stdout)
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(receipt, indent=2))
 

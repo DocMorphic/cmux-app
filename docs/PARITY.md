@@ -1,5 +1,23 @@
 # Android parity tracker
 
+## 2026-10-11 — Configured signed Android 650 and native phone trust
+
+Signed development preview 650 passed and is published at `d34daed5`. Independent
+downloaded APK verification matches the unchanged signer, 21 viewer assets, all
+22 native libraries with 16 KiB ELF/RELRO/ZIP alignment, 14 excluded debug fixture
+components and the exact Gmail-owned Firebase project/sender/application/client
+key resources. Six Android 17 ART release class probes passed. Cloud native used
+its verified cache. Worksheet charts are included. No physical upgrade or actual
+FCM delivery was established; see PIXEL_INSTALL.md and FIREBASE_SETUP.md.
+
+Subsequent Mac helper source binds enrollment/renewal/provider authorization to
+fresh native phone pins. Two prior failures were reproduced in `dd625cfa`; the
+actual upstream peer store and injected Swift hook compile/execute, and complete
+Node 22/26 runs pass 188 of 189 cases with one optional reference-decryptor skip.
+Installer scope is 17 files / seven audited originals. Full tagged Mac/Keychain/
+Mac sender-key lifecycle and Pixel/FCM acceptance remain open. This Mac extension
+is built separately and is not shipped inside the APK. See NATIVE_PUSH_TRUST.md.
+
 ## 2026-10-10 — SSH/Cloud direct keyboard modifiers
 
 The shared SSH/Cloud screen now applies and consumes accessory modifiers for

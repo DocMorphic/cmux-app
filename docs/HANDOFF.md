@@ -2,6 +2,19 @@
 
 ## Current checkpoint — 2026-10-11
 
+Signed milestone **650** is now published and independently verified at source
+`d34daed53231997ffa68de63233357e6fe98d489`:
+https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-650.
+It includes worksheet charts and configured Gmail-owned Firebase resources. CI
+passed JVM/APK/helper/viewer/signature/alignment and six Android 17 class-loading
+checks; the Cloud native check used its verified cache. Downloaded bytes match
+published/CI receipts, and local verification independently confirms the signer,
+21 assets, 22 native libraries, 14 excluded debug components and exact compiled
+Firebase project/sender/application/client-key resources. No actual provider
+request, Pixel upgrade or full custom Mac build is established. Exact hashes,
+download and install scope are in PIXEL_INSTALL.md; native phone-pin source is
+newer than this APK and is built separately on the Mac.
+
 Native phone pin lifecycle is now integrated into authenticated host snapshots,
 helper enrollment/renewal and preparation/provider authorization. Changed native
 pins fence the old helper; missing projection retains original work, while explicit

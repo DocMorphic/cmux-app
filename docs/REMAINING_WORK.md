@@ -22,12 +22,18 @@ hook compile/execute with synthetic public pins; complete Node 22/26 runs pass
 scope is now 17 changed files / seven audited originals. See NATIVE_PUSH_TRUST.md
 for exact evidence and remaining whole-app/Keychain/native-sender-key/Pixel gates.
 
-Signed Android integration milestone is running at source `d34daed53231997ffa68de63233357e6fe98d489`:
-https://github.com/DocMorphic/cmux-app/actions/runs/38169223650. Firebase configuration
-and the unchanged release signing secrets are supplied by the existing workflow.
-At dispatch/checkpoint, the cached Cloud dependency check passed and Android tests/
-compilation were in progress; no completed artifact or live delivery is claimed.
-Build 642 remains the last verified published APK until this run passes verification.
+Signed milestone **650** is now published and independently verified at source
+`d34daed53231997ffa68de63233357e6fe98d489`:
+https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-650.
+It includes worksheet charts and configured Gmail-owned Firebase resources. CI
+passed JVM/APK/helper/viewer/signature/alignment and six Android 17 class-loading
+checks; the Cloud native check used its verified cache. Downloaded bytes match
+published/CI receipts, and local verification independently confirms the signer,
+21 assets, 22 native libraries, 14 excluded debug components and exact compiled
+Firebase project/sender/application/client-key resources. No actual provider
+request, Pixel upgrade or full custom Mac build is established. Exact hashes,
+download and install scope are in PIXEL_INSTALL.md; native phone-pin source is
+newer than this APK and is built separately on the Mac.
 
 The production native source owner now commits encrypted originals before helper
 transmission and retires them only after exact durable receipts. Fresh verified
