@@ -17,12 +17,13 @@ Node runtimes. Edited Swift syntax/project parsing passed; full target compilati
 and actual account/helper lifecycle remain open. See
 [NATIVE_PUSH_SOURCE.md](NATIVE_PUSH_SOURCE.md).
 
-The newly authorized dedicated Cloud project `cmux-app-push-20261011` exists;
-Firebase/FCM APIs are enabled and billing is disabled. Firebase activation returned
-HTTP 403 despite verified Owner. The account owner was asked to complete the
-console/terms step. No client configuration/provider credentials/live FCM delivery
-exist yet. See [FIREBASE_SETUP.md](FIREBASE_SETUP.md). No APK, emulator, listener,
-custom Mac install or physical device changes in this batch; signed 642 unchanged.
+The user corrected the intended Firebase account to davedharmay@gmail.com.
+The initial empty Cloud project was created under the wrong cached gcloud account
+and has been shut down (`DELETE_REQUESTED` verified). Gmail browser authorization
+is pending before replacement provisioning with an explicit account. No client
+configuration/provider credentials/live FCM delivery exist. See
+[FIREBASE_SETUP.md](FIREBASE_SETUP.md). No APK, emulator, listener, custom Mac
+install or physical device changes in this batch; signed 642 unchanged.
 
 ## Authenticated native source and private pipes — 2026-10-11
 

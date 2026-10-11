@@ -3,12 +3,13 @@
 ## Current checkpoint — 2026-10-11
 
 The user selected **private Firebase plus a custom cmux Mac build**, and a
-**dedicated project**. Cloud project `cmux-app-push-20261011` now exists (ACTIVE,
-Firebase/FCM APIs enabled, billing disabled). Firebase activation returned HTTP
-403 despite verified Owner; the user was asked to complete the console/terms step.
-See [FIREBASE_SETUP.md](FIREBASE_SETUP.md); no Firebase client/provider credentials
-or live delivery have been configured.
-
+**dedicated project**. The intended Google account is **davedharmay@gmail.com**
+(user correction). The initial empty Cloud project was created under the wrong
+cached gcloud account, then shut down; `DELETE_REQUESTED` was verified. Do not use
+`cmux-app-push-20261011`. Gmail browser authorization is pending before creating
+the replacement with an explicit `--account`. See
+[FIREBASE_SETUP.md](FIREBASE_SETUP.md); no client/provider configuration or live
+delivery exists.
 A pinned six-file native hook installer now captures the actual phone producer
 before the Apple-recipient gate and derives authenticated session/team authority.
 It observes auth/settings, heartbeats and immediately fences auth/privacy/master

@@ -5,8 +5,10 @@
 The user selected **private Firebase plus a custom cmux Mac build**. Limit the Mac
 extension to the real phone producer and authenticated host/account/settings
 state. Existing Android terminal/workspace functionality does not require this
-extension. A dedicated Cloud project has been created; Firebase activation is awaiting the
-account owner’s console step. Live delivery remains unconfigured/unverified.
+extension. The intended Firebase account is davedharmay@gmail.com (user correction). The
+initial empty Cloud project was created under the wrong cached account and shut
+down; replacement provisioning awaits Gmail browser authorization. Live delivery
+remains unconfigured/unverified.
 See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 ## Native producer hooks and preserved admission — 2026-10-11
@@ -137,7 +139,7 @@ cases inject a synthetic sealer/sender and do not establish new HPKE/FCM evidenc
 2. Apply the reviewed hook patch in a private checkout and perform the upstream
    tagged full-app build and actual auth/settings/capture acceptance. Syntax and
    fixture compilation do not establish whole-app integration.
-3. Finish dedicated Firebase activation (see FIREBASE_SETUP.md), register Android
+3. Finish correct-account dedicated Firebase provisioning (see FIREBASE_SETUP.md), register Android
    clients and provision limited provider credentials. Build/sign the custom Mac
    extension and configured Android integration milestone.
 4. Verify actual Mac/Pixel foreground/background/process-dead/Doze delivery,

@@ -3,35 +3,31 @@
 The user explicitly selected private Firebase plus a custom cmux Mac extension,
 then authorized creating a dedicated project.
 
-## Current state
+## Current state — corrected account
 
-- Dedicated Google Cloud project: `cmux-app-push-20261011`, display name `cmux-app`.
-- Project number: `556314637658`; lifecycle `ACTIVE` verified.
-- Created using the Mac’s active gcloud account. The account has project Owner;
-  the new project inherited that account’s Google Cloud organization.
-- Firebase Management API (`firebase.googleapis.com`) and FCM API
-  (`fcm.googleapis.com`) enabled successfully, scoped explicitly to this project.
-- `billingEnabled: false` verified. No Analytics link was created.
-- **Adding Firebase has not succeeded.** The REST request with an explicit quota
-  header (`x-goog-user-project: cmux-app-push-20261011`) returns HTTP 403:
-  “The caller does not have permission.” No Firebase apps, client configuration,
-  provider service account/key or live sender have been created.
+The user clarified that the intended Google account is **davedharmay@gmail.com**.
+The initial project was mistakenly created using the Mac’s existing gcloud account
+in another Google Cloud organization. That empty project
+`cmux-app-push-20261011` has been shut down; `lifecycleState: DELETE_REQUESTED`
+was independently verified. No Firebase apps, client configuration, service-account
+keys, billing linkage or live sender were created in it. Do not use it for cmux-app.
 
-The initial default Python TLS trust store failed before sending the request;
-Node’s verified HTTPS transport succeeded. An initial REST request without the
-quota header returned the quota-project error. No TLS verification was disabled,
-no credentials were printed, and no unrelated existing project was modified.
+A new `gcloud auth login davedharmay@gmail.com` browser authorization is pending.
+Finish it with the intended account; do not reuse the other cached account.
+Before any replacement provisioning, verify the authenticated account and pass
+`--account=davedharmay@gmail.com` and the replacement project ID explicitly.
+The previously requested terms step under the wrong account is superseded.
 
-## Account owner step requested
+The wrong-account project’s Firebase Management and FCM APIs were enabled and
+billing was verified disabled before cleanup. Adding Firebase had returned HTTP
+403 despite Owner access. That result is not evidence about the intended Gmail
+account and must not be used to diagnose its setup.
 
-Open [Firebase console](https://console.firebase.google.com/) with the same account
-used by gcloud. Accept Firebase’s terms if prompted and add Firebase to the
-**existing** project `cmux-app-push-20261011`, keeping Analytics off.
-Firebase’s [existing-project guide](https://firebase.google.com/docs/projects/use-firebase-with-existing-cloud-project)
-says HTTP 403 can mean missing permissions or unaccepted Firebase terms. Owner
-was verified; unaccepted terms are a plausible cause, not an observed diagnosis.
-If the console shows a different error, record it rather than creating another
-project or changing organization policy.
+For the replacement, create a dedicated project (a different ID is required while
+the old ID remains reserved), add Firebase, verify the completed FirebaseProject
+operation, and keep Analytics/billing off. Record its verified resource metadata
+here. The Firebase [existing-project guide](https://firebase.google.com/docs/projects/use-firebase-with-existing-cloud-project)
+documents the separate account terms/permission requirements if activation fails.
 
 ## Next implementation
 

@@ -4,8 +4,9 @@ These are event preparation, Mac CryptoKit encryption, FCM HTTP v1 transport,
 encrypted outbox/registration storage and an explicit scheduler for a trusted Mac
 forwarder or backend.
 It is **not a running forwarding service**. HTTPS factories remain unbound until
-a host explicitly starts them. A dedicated Cloud project now exists, but Firebase
-activation/client/provider configuration and production deployment are pending
+a host explicitly starts them. Correct-account Firebase provisioning is pending
+Gmail authorization; the empty wrong-account project was shut down. Client/provider
+configuration and production deployment are pending
 (see [FIREBASE_SETUP.md](../docs/FIREBASE_SETUP.md)). Importing the modules makes no network calls. Tests use synthetic
 credentials with injected transports or local TLS servers, never the live provider.
 
