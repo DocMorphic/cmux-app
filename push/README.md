@@ -5,8 +5,8 @@ encrypted outbox/registration storage and an explicit scheduler for a trusted Ma
 forwarder or backend.
 It is **not a running forwarding service**. HTTPS factories remain unbound until
 a host explicitly starts them. Correct-account Firebase/client/private/CI
-configuration exists; provider credentials and the production forwarding entrypoint
-remain pending (see [FIREBASE_SETUP.md](../docs/FIREBASE_SETUP.md)).
+configuration and private provider credentials exist; the production forwarding
+entrypoint remains pending (see [FIREBASE_SETUP.md](../docs/FIREBASE_SETUP.md)).
 Importing the modules makes no network calls. Tests use synthetic
 credentials with injected transports or local TLS servers, never the live provider.
 
@@ -266,6 +266,16 @@ scope, a pinned Google token endpoint, a bounded token lifetime and an in-memory
 cache. ADC/workload credentials can instead be supplied through the same provider
 interface. Keys and access tokens must never enter the Android APK, logs or Git.
 The module does not read files or environment credentials automatically.
+
+`privateServiceAccountTokens({path, projectID, accountEmail})` in
+`private-credentials.mjs` activates an explicitly selected private credential file.
+It requires the exact expected project/service-account identity, a private containing
+directory/file on Unix, a regular singly linked file and bounded valid contents.
+It rejects symlinks and exposes coarse load failures. File reads happen only at
+explicit activation; OAuth happens only at `get()`. Provision credentials outside
+the repository and never include them in Android client configuration. The returned
+provider retains its parsed signing key for its process lifetime; temporary file
+read buffers are cleared. Fresh activation is required after credential replacement.
 
 `send({token, envelope, recipient, expiresAt}, {permits})` takes:
 
@@ -629,13 +639,14 @@ responses carry Retry-After. See [transport evidence and remaining integration](
 
 ## Remaining end-to-end work
 
-1. Provision the selected private Firebase setup for the custom cmux Mac
-   extension. The Mac's currently selected Google Cloud project is not implicitly
-   authorized for this app; no new project or credentials have been provisioned.
-2. Add explicit Android Firebase configuration and authenticated helper enrollment.
+1. Wire the provisioned private Firebase provider into the helper entrypoint.
+   Project/client/private/CI configuration and provider OAuth are verified;
+   the Mac's unrelated default Google Cloud project must not be used. See
+   [current setup](../docs/FIREBASE_SETUP.md).
+2. Build the configured Android integration milestone and verify helper enrollment.
    Android token acquisition/rotation/opt-out/deletion now has a durable lifecycle
    and WorkManager hooks; its consent and helper-pairing UI now exist. Provider
-   configuration and SDK/physical acceptance remain open. See [the checkpoint](../docs/PUSH_DELIVERY.md#android-token-lifecycle--source-checkpoint-2026-10-06).
+   wiring and SDK/physical acceptance remain open. See [the checkpoint](../docs/PUSH_DELIVERY.md#android-token-lifecycle--source-checkpoint-2026-10-06).
 3. Install the admitted native notification hooks and encrypted sender identity
    binding. The authenticated adapter/private pipe channel exist; the native
    owner/bootstrap integration still needs installation. Android has an independent helper sender pin and

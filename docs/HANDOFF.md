@@ -8,7 +8,10 @@ Firebase project `cmux-app-push-private-20261011` (185554994782) is active, Gmai
 without organization parent or billing. Release/debug clients are registered,
 private configuration and its GitHub Actions secret exist, and both variants’
 generated resources independently match the project/sender/client IDs. An FCM
-provider service account/role exists; no provider credentials or delivery yet.
+provider service account/role and one private RSA credential exist. The owner-
+selected private file loader verifies project/account/permissions before activation;
+real messaging-scope OAuth and token caching succeeded, without FCM calls. Fifteen
+focused credential/sender checks pass on Node 22/26. Real delivery is still pending.
 The empty wrong-account project remains shut down. See FIREBASE_SETUP.md.
 
 The helper now has a composed lifecycle in `push/helper-service.mjs`: private
@@ -17,7 +20,8 @@ native source, encrypted stores, FCM forwarding and TLS enrollment/maintenance.
 cases and shutdown while encryption/provider work is active. Test providers are
 injected; no live FCM delivery is established. Construction is passive and stop
 fences authority before awaiting work/closing stores. Production CLI/owner control,
-credentials/TLS and native injection remain next. See NATIVE_PUSH_SOURCE.md.
+helper keys/TLS, verified provider wiring and native injection remain next. See
+NATIVE_PUSH_SOURCE.md and FIREBASE_SETUP.md.
 
 The native process supervisor now launches one private child, keeps IO off the
 main actor, retires/reaps before replacement and cleans up on owner release.

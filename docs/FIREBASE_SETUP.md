@@ -28,7 +28,21 @@ a dedicated project. The intended Google account is **davedharmay@gmail.com**.
 - Provider identity created:
   `cmux-android-push@cmux-app-push-private-20261011.iam.gserviceaccount.com`.
   Its `roles/firebasecloudmessaging.admin` project binding was independently
-  verified. **No provider private key/token was provisioned or used.**
+  verified. One enabled user-managed RSA key was subsequently provisioned and its
+  key name independently matched against Google's key list.
+- Provider credential is private at
+  `~/.config/cmux-app/firebase/cmux-app-push-private-20261011/provider-service-account.json`
+  (0600 file, 0700 containing directory), outside GitHub and Android configuration.
+  `push/private-credentials.mjs` explicitly loads this owner-selected file, rejects
+  nonprivate permissions, symlinks/hard links, nonfiles and oversized content, and
+  binds it to the exact expected project/service account. It does not discover
+  gcloud/environment credentials or contact Google until the provider's `get()`.
+- A real OAuth exchange through that loader and the existing sender provider
+  succeeded against Google's fixed token endpoint with the messaging scope.
+  A second read used the cached token; one OAuth request, **zero FCM requests**.
+  Private credentials/assertions/access-token values were not printed or committed.
+  Fifteen focused loader/sender checks passed on Node 26.8.2 (119.511 ms) and
+  22.16.0 (311.771 ms), using public test keys/injected OAuth transport.
 
 Original resource/operation metadata, client registration results, resource build
 log and independent XML comparison are in ignored `captures/runtime/firebase-setup/`.
@@ -47,8 +61,8 @@ activated successfully without another terms prompt.
 
 ## Next integration
 
-1. Provision limited provider credentials into private Mac credential storage;
-   wire the token provider and complete helper entrypoint/keys/TLS/native injection.
+1. Wire the verified private token provider into the helper entrypoint and complete
+   helper keys/TLS/native injection.
    The helper component lifecycle is assembled and locally checked; its provider
    transport is still injected in tests (see NATIVE_PUSH_SOURCE.md).
 2. Build the configured Android/custom Mac integration milestone. Existing

@@ -6,7 +6,8 @@ The user selected **private Firebase plus a custom cmux Mac build**. Limit the M
 extension to the real phone producer and authenticated host/account/settings
 state. Existing Android terminal/workspace functionality does not require this
 extension. The Gmail-owned dedicated Firebase project and Android client configuration now
-exist; provider credentials and live delivery remain unconfigured/unverified.
+exist. A private provider credential and real messaging-scope OAuth are verified;
+live FCM delivery and production provider wiring remain unverified.
 See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 ## Composed helper lifecycle — 2026-10-11
