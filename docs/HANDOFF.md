@@ -2,6 +2,13 @@
 
 ## Current checkpoint — 2026-10-11
 
+First full Mac build dispatched: https://github.com/DocMorphic/cmux-app/actions/runs/38174243912
+at project source `ee66bd51ac46de138345f851457bc10d76868439`, upstream `f4b15090`.
+Authoritative job `114573108892` is active: toolchain/dependencies, verified Ghostty,
+patch installation and catalog checks succeeded; native integration checks are
+running. Do not redispatch this live run. Full app/package/artifact and physical
+acceptance are unverified until terminal results are inspected and bytes checked.
+
 A manual GitHub macOS ARM64 full-build route is now implemented in
 MAC_NOTIFICATION_BUILD.md. It uses the pinned full upstream checkout, reviewed
 22-file patch, documented tagged reload and production account/Iroh routing.

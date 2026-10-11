@@ -46,6 +46,13 @@ synthetic native fixture checks, with no real credentials or notifications.
 
 ## Verification status
 
+First full Mac build dispatched: https://github.com/DocMorphic/cmux-app/actions/runs/38174243912
+at project source `ee66bd51ac46de138345f851457bc10d76868439`, upstream `f4b15090`.
+Authoritative job `114573108892` is active: toolchain/dependencies, verified Ghostty,
+patch installation and catalog checks succeeded; native integration checks are
+running. Do not redispatch this live run. Full app/package/artifact and physical
+acceptance are unverified until terminal results are inspected and bytes checked.
+
 Five packaging-policy test groups pass locally: relocation without mutation,
 stable/untagged bundle refusal, development endpoint refusal, baked private path
 refusal and unknown runner path refusal. The manual workflow YAML parses. Local
