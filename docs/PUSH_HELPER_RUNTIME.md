@@ -1,5 +1,10 @@
 # Production push helper startup — 2026-10-11
 
+The subsequent native capture storage batch adds two explicitly wired types:
+current installer **15 files / six pins**. Actual encrypted repository SIGKILL
+recovery passes; production owner/receipt/fresh-authority replay is still unwired.
+See NATIVE_PUSH_CAPTURE_STORAGE.md; this does not establish live delivery.
+
 ## Current provisioning and tagged launch checkpoint
 
 Independent sender/registration/source/outbox keys are provisioned privately at

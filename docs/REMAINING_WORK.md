@@ -12,6 +12,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current checkpoint — 2026-10-11
 
+Native encrypted capture repository/Keychain loader now compile and are wired in
+the 15-file/six-pin installer. Actual CryptoKit storage passes committed-SIGKILL
+recovery and seven scenario groups. The source owner still uses its memory queue;
+fresh-authority replay, producer commit/receipt integration and the source-epoch
+lost-receipt boundary remain open. Keychain access/full app/provider/device behavior
+were not exercised. See NATIVE_PUSH_CAPTURE_STORAGE.md for exact scope/next work.
+
 Helper sender/storage keys are provisioned privately and the sealer compiled.
 Eight key-setup cases pass on Node 22/26; repeated setup preserves identity/keys.
 Tagged launch configuration loss was reproduced/repaired, with eight executed

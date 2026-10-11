@@ -228,6 +228,8 @@ def patched_sources(original):
         "NativePushSourceFrame": "push/NativePushSourceFrame.swift",
         "NativePushOwnerDescriptorRepository": "push/mac-native/NativePushOwnerDescriptorRepository.swift",
         "NativePushSourceOwner": "push/mac-native/NativePushSourceOwner.swift",
+        "NativePushCaptureRepository": "push/mac-native/NativePushCaptureRepository.swift",
+        "NativePushCaptureKeyStore": "push/mac-native/NativePushCaptureKeyStore.swift",
     }
     for index, (name, source_path) in enumerate(native_sources.items(), 1):
         build = f"C0DEAD0000000000000000{index:02X}"

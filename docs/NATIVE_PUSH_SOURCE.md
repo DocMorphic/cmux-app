@@ -12,6 +12,11 @@ See [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 ## Native composition injection — 2026-10-11
 
+Encrypted producer capture storage and the independent Keychain loader now have
+explicit app membership (current installer: 15 files / six pins). Actual storage
+passes committed-SIGKILL recovery and seven scenario groups. Production persist/
+restore/receipt integration remains open; see NATIVE_PUSH_CAPTURE_STORAGE.md.
+
 The latest provisioning/launcher batch adds independent private helper keys and
 compiled sealer plus the explicit clean-environment tagged launch wiring. Current
 installer scope is **13 files / six original pins**. Eight key-setup cases pass on

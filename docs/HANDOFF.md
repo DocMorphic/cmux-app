@@ -2,6 +2,18 @@
 
 ## Current checkpoint — 2026-10-11
 
+Encrypted native capture storage and its independent Keychain key loader are
+implemented, with explicit app membership (15 files / six installer pins). Actual
+Swift/CryptoKit storage passes committed-SIGKILL recovery and seven scenario groups,
+including unchanged body/expiry, receipt removal, bounds and corrupt/unsafe storage.
+Keychain code compiles but was not executed. **The production owner still uses its
+memory queue**: wiring fresh-authority restore/persist/receipt retirement remains
+next, including the source-epoch/lost-receipt boundary documented in
+NATIVE_PUSH_CAPTURE_STORAGE.md. Current auth/payload/receipt checks plus
+Swift/project/Bash parsing, four installer and eight launch cases pass. Xcode,
+HTTPS and physical-device prerequisites remain unchanged; no live listener/APK/FCM
+or whole app ran in this batch.
+
 Private helper keys are now provisioned and preserved at
 `/Users/dharmaydave/.config/cmux-app/push-owner-keys`; the CryptoKit sealer built.
 Eight key-setup cases pass on Node 22/26. Tagged launch dropping the three explicit

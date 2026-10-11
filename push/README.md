@@ -16,6 +16,11 @@ whole tagged Mac build and real phone/provider acceptance remain pending.
 Importing the modules makes no network calls. Tests use synthetic
 credentials with injected transports or local TLS servers, never the live provider.
 
+The native capture repository/independent Keychain loader are implemented and wired
+for app compilation. Actual encrypted storage survives committed SIGKILL in a
+fixture; production source-owner restore/persist/receipt integration remains open.
+See [native capture storage](../docs/NATIVE_PUSH_CAPTURE_STORAGE.md).
+
 ## Composed native helper
 
 `NativePushHelperService` in `helper-service.mjs` assembles the private native
