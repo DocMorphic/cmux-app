@@ -8,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,8 @@ internal data class NativeDisplayPreferences(
     val feedShowsTab: Boolean = false,
     val feedBubbleQuotes: Boolean = true,
     val feedReplacesNotifications: Boolean = true,
+    val terminalFolderTapEnabled: Boolean = true,
+    val showMissingFiles: Boolean = false,
 ) {
     companion object {
         const val wrapKey = "wrap-workspace-titles"
@@ -42,8 +45,10 @@ internal data class NativeDisplayPreferences(
         const val feedTabKey = "show-tab-in-feed"
         const val feedBubblesKey = "feed-quote-bubbles"
         const val feedReplacesNotificationsKey = "feed-replaces-notifications"
-        fun read(preferences: SharedPreferences): NativeDisplayPreferences {
-            val stored = preferences.all
+        const val folderTapKey = "terminal-folder-tap"
+        const val missingFilesKey = "show-missing-files"
+        fun read(preferences: SharedPreferences) = fromStored(preferences.all)
+        fun fromStored(stored: Map<String, *>): NativeDisplayPreferences {
             return NativeDisplayPreferences(
                 stored[wrapKey] as? Boolean ?: false,
                 (stored[previewKey] as? Int ?: 2).coerceIn(1, 2),
@@ -54,6 +59,8 @@ internal data class NativeDisplayPreferences(
                 stored[feedTabKey] as? Boolean ?: false,
                 stored[feedBubblesKey] as? Boolean ?: true,
                 stored[feedReplacesNotificationsKey] as? Boolean ?: true,
+                stored[folderTapKey] as? Boolean ?: true,
+                stored[missingFilesKey] as? Boolean ?: false,
             )
         }
     }
@@ -76,36 +83,23 @@ internal fun rememberNativeDisplayPreferences(preferences: SharedPreferences): N
 @Composable
 internal fun NativeDisplaySettings(preferences: SharedPreferences, state: NativeDisplayPreferences) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 10.dp)) {
-        Text("DISPLAY", style = MaterialTheme.typography.labelSmall)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Wrap Workspace Titles", Modifier.weight(1f))
-            Switch(state.wrapTitles, onCheckedChange = {
-                preferences.edit().putBoolean(NativeDisplayPreferences.wrapKey, it).apply()
-            }, modifier = Modifier.testTag("settings.wrap-titles").semantics { contentDescription = "Wrap Workspace Titles" })
-        }
+        Text("DISPLAY", style = MaterialTheme.typography.labelSmall, modifier = Modifier.semantics { heading() })
+        NativeSettingsToggleRow("Show Missing Files", state.showMissingFiles,
+            { preferences.edit().putBoolean(NativeDisplayPreferences.missingFilesKey, it).apply() },
+            Modifier.testTag("settings.missing-files"), "Keep files that were deleted or moved in the Files list")
+        NativeSettingsToggleRow("Wrap Workspace Titles", state.wrapTitles,
+            { preferences.edit().putBoolean(NativeDisplayPreferences.wrapKey, it).apply() }, Modifier.testTag("settings.wrap-titles"))
+        NativeSettingsToggleRow("Legacy Notifications Tab", !state.feedReplacesNotifications, {
+                preferences.edit().putBoolean(NativeDisplayPreferences.feedReplacesNotificationsKey, !it).apply()
+            }, Modifier.testTag("settings.legacy-notifications"),
+            "The Feed replaced Notifications. Turn this on to bring the legacy tab back.")
+        NativeSettingsToggleRow("Show Tab in Feed", state.feedShowsTab,
+            { preferences.edit().putBoolean(NativeDisplayPreferences.feedTabKey, it).apply() }, Modifier.testTag("settings.feed-tab"))
+        if (BuildConfig.DEBUG) NativeSettingsToggleRow("Feed Quote Bubbles", state.feedBubbleQuotes,
+            { preferences.edit().putBoolean(NativeDisplayPreferences.feedBubblesKey, it).apply() }, Modifier.testTag("settings.feed-bubbles"))
         DisplayChoice("Preview Lines", if (state.previewLines == 1) "1 Line" else "2 Lines", "settings.preview-lines",
             listOf(1 to "1 Line", 2 to "2 Lines")) {
             preferences.edit().putInt(NativeDisplayPreferences.previewKey, it).apply()
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Legacy Notifications Tab")
-                Text("The Feed replaced Notifications. Turn this on to bring the legacy tab back.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Switch(!state.feedReplacesNotifications, onCheckedChange = {
-                preferences.edit().putBoolean(NativeDisplayPreferences.feedReplacesNotificationsKey, !it).apply()
-            }, modifier = Modifier.testTag("settings.legacy-notifications").semantics { contentDescription = "Legacy Notifications Tab" })
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Show Tab in Feed", Modifier.weight(1f))
-            Switch(state.feedShowsTab, onCheckedChange = { preferences.edit().putBoolean(NativeDisplayPreferences.feedTabKey, it).apply() },
-                modifier = Modifier.testTag("settings.feed-tab").semantics { contentDescription = "Show Tab in Feed" })
-        }
-        if (BuildConfig.DEBUG) Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Feed Quote Bubbles", Modifier.weight(1f))
-            Switch(state.feedBubbleQuotes, onCheckedChange = { preferences.edit().putBoolean(NativeDisplayPreferences.feedBubblesKey, it).apply() },
-                modifier = Modifier.testTag("settings.feed-bubbles").semantics { contentDescription = "Feed Quote Bubbles" })
         }
         val numbers = NumberFormat.getIntegerInstance()
         DisplayChoice("Terminal Scrollback", "${numbers.format(state.scrollbackRows)} Rows", "settings.scrollback",

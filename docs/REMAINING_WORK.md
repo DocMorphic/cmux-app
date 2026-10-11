@@ -157,6 +157,19 @@ open; the global parity pin is unchanged. Final crash buffer empty, no new
 ANR/crash events; sole AVD/Gradle stopped and reaped, prior screen timeout restored,
 no new AVD. The Pixel was absent from ADB for this fixture batch.
 
+## Settings integration — 2026-10-11
+
+Terminal/Haptics/Display now use full-row single-switch actions, scalable labels,
+heading semantics and light checked knobs. Folder taps and missing-file visibility
+share the observed safe snapshot, preserve stored keys/defaults and respond to
+malformed values/whole-store clearing. Scoped iOS placement is corrected for these
+groups and controls. Five JVM and four distinct Android cases passed; the two new
+cases passed again with actual knob-pixel verification on the final APK. The
+isolated 260 dp/font-scale-2 screenshot was inspected. Both runs have no crash/ANR
+events; only the existing AVD was used, stopped/reaped, and timeout restored.
+Signed 650/global pin unchanged, Pixel/matched iOS/full Settings/TalkBack remain
+open. See DISPLAY_SETTINGS.md for hashes, initial compiler failure and exact scope.
+
 ## Completion gates
 
 | Area | What remains | Evidence required to close it |

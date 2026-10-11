@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
@@ -954,16 +955,8 @@ internal fun NativeScreen(
                 }
             }
             val currentScrollbackRows by rememberUpdatedState(displayState.scrollbackRows)
-            var folderTapEnabled by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("terminal-folder-tap", true)) }
-            var showMissingArtifacts by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("show-missing-files", false)) }
-            DisposableEffect(artifactPreferences) {
-                val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { preferences, key ->
-                    if (key == "show-missing-files") showMissingArtifacts = preferences.getBoolean(key, false)
-                    if (key == "terminal-folder-tap") folderTapEnabled = preferences.getBoolean(key, true)
-                }
-                artifactPreferences.registerOnSharedPreferenceChangeListener(listener)
-                onDispose { artifactPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
-            }
+            val folderTapEnabled = displayState.terminalFolderTapEnabled
+            val showMissingArtifacts = displayState.showMissingFiles
             val artifactsReady = selectedTerminal?.isReady == true && connectionReady && connectedCode == code && artifactRpc?.capabilities?.terminal == true && draftTarget != null
             val artifactController = remember(artifactRpc, draftTarget, artifactsReady, showMissingArtifacts) {
                 if (artifactsReady) TerminalArtifactController(scope, artifactRpc!!,
@@ -2690,10 +2683,10 @@ internal fun NativeScreen(
                     NativePrivacySettings(NativePrivacyConsent.current(context))
                     NativeDiagnosticsSettings()
                     TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
-                    NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences, displayState)
-                    NativeDisplaySettings(artifactPreferences, displayState)
-                    NativeHapticSettings(artifactPreferences, displayState)
+                    NativeTerminalPreferenceSettings(artifactPreferences, displayState)
                     TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }
+                    NativeHapticSettings(artifactPreferences, displayState)
+                    NativeDisplaySettings(artifactPreferences, displayState)
                     TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                     }, connections = {
                     NativeNetworkingSettings(sharedConnections?.native, computerState)
@@ -4365,21 +4358,7 @@ private fun NativePairingConfirmation(code: String?, onDismiss: () -> Unit, onCo
 }
 
 @Composable
-private fun NativeTerminalPreferenceSettings(folderTapEnabled: Boolean, showMissingArtifacts: Boolean,
-    artifactPreferences: android.content.SharedPreferences, displayState: NativeDisplayPreferences) {
-    Text("TERMINAL", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
+private fun NativeTerminalPreferenceSettings(artifactPreferences: android.content.SharedPreferences, displayState: NativeDisplayPreferences) {
+    Text("TERMINAL", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() }, color = nativeMuted, fontSize = 11.sp)
     NativeTerminalSizingSettings(artifactPreferences, displayState)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("Open Folders on Tap", Modifier.weight(1f))
-        Switch(folderTapEnabled, onCheckedChange = { artifactPreferences.edit().putBoolean("terminal-folder-tap", it).apply() },
-            modifier = Modifier.semantics { contentDescription = "Open Folders on Tap" })
-    }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text("Show Missing Files")
-            Text("Keep files that were deleted or moved in the Files list", color = nativeMuted, fontSize = 12.sp)
-        }
-        Switch(showMissingArtifacts, onCheckedChange = { artifactPreferences.edit().putBoolean("show-missing-files", it).apply() },
-            modifier = Modifier.semantics { contentDescription = "Show Missing Files" })
-    }
 }

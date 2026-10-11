@@ -19,6 +19,9 @@ internal fun NativeTerminalSizingSettings(preferences: SharedPreferences, state:
         TerminalSizingToggle("Full-Screen Sizing Notice", state.showAltScreenNotice, "settings.alt-screen-notice") {
             preferences.edit().putBoolean(NativeDisplayPreferences.altScreenNoticeKey, it).apply()
         }
+        TerminalSizingToggle("Open Folders on Tap", state.terminalFolderTapEnabled, "settings.folder-tap") {
+            preferences.edit().putBoolean(NativeDisplayPreferences.folderTapKey, it).apply()
+        }
         TerminalSizingToggle("Use Full Terminal Height", state.useFullTerminalHeight, "settings.full-terminal-height",
             "Let apps like Vim extend beneath the keyboard and toolbars.") {
             preferences.edit().putBoolean(NativeDisplayPreferences.fullTerminalHeightKey, it).apply()
@@ -29,15 +32,7 @@ internal fun NativeTerminalSizingSettings(preferences: SharedPreferences, state:
 @Composable
 private fun TerminalSizingToggle(title: String, enabled: Boolean, tag: String, description: String? = null,
     onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title)
-            description?.let { Text(it, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-        Switch(enabled, onCheckedChange = onChange,
-            modifier = Modifier.testTag(tag).semantics { contentDescription = title })
-    }
+    NativeSettingsToggleRow(title, enabled, onChange, Modifier.testTag(tag), description)
 }
 
 /** The explanation belongs to the visible connection/surface, while suppression is an app preference. */

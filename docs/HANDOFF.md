@@ -2,6 +2,17 @@
 
 ## Current checkpoint — 2026-10-11
 
+Android Settings now has full-row single-switch actions for Terminal/Haptics/
+Display, heading semantics, light checked knobs and corrected scoped iOS group/
+control placement. Folder/missing-file flags share the safe observed preferences
+snapshot and respond to malformed values and whole-store clearing. Existing
+preference keys/defaults remain. Five JVM and four distinct Android cases passed;
+the two new row cases passed again with a rendered-knob pixel assertion on the
+final APK. The 260 dp/font-scale-2 component screenshot was inspected. No crash/
+ANR records; sole existing AVD/Gradle stopped and reaped, timeout restored.
+No Pixel or signed release; signed 650 and global pin unchanged. Full Settings/
+matched-iOS/accessibility acceptance remains open. See DISPLAY_SETTINGS.md.
+
 Private runtime setup is now implemented by `scripts/provision-push-runtime.mjs`:
 exact release/debug Firebase binding, explicit selected provider/key/TLS paths,
 offline hostname/key/date/public-root checks, explicit listener, and no-overwrite

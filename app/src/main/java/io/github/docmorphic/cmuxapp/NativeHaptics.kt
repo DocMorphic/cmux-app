@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
@@ -65,13 +66,10 @@ internal fun NativeHapticsProvider(content: @Composable () -> Unit) {
 @Composable
 internal fun NativeHapticSettings(preferences: SharedPreferences, state: NativeDisplayPreferences) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 10.dp)) {
-        Text("HAPTICS", style = MaterialTheme.typography.labelSmall)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Haptic Feedback", Modifier.weight(1f))
-            Switch(state.hapticFeedbackEnabled, onCheckedChange = {
+        Text("HAPTICS", style = MaterialTheme.typography.labelSmall, modifier = Modifier.semantics { heading() })
+        NativeSettingsToggleRow("Haptic Feedback", state.hapticFeedbackEnabled, {
                 preferences.edit().putBoolean(NativeDisplayPreferences.hapticsKey, it).apply()
-            }, modifier = Modifier.testTag("settings.haptics").semantics { contentDescription = "Haptic Feedback" })
-        }
+            }, Modifier.testTag("settings.haptics"))
         Text("When off, cmux does not vibrate for actions, confirmations, warnings, or errors.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

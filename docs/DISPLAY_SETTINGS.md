@@ -1,5 +1,58 @@
 # Workspace display and scrollback settings
 
+## Settings row and preference integration — 2026-10-11
+
+Scoped follow-up at `f4b1509054949eaad5d695569ad443c4c18ed68d` reads
+`MobileSettingsView.swift` and `MobileDisplaySettings.swift` in the existing
+CmuxMobileShellUI package. The global parity pin is unchanged.
+
+Android now places Open Folders on Tap between the alternate-screen notice and
+legacy-height controls, keeps Terminal Shortcuts with Terminal, and orders the
+Haptics/Display groups afterward. Show Missing Files is in Display, before title
+wrapping; Preview Lines follows the Feed controls. The Android debug bubble switch
+remains in Display; the scoped iOS debug labs placement is not ported by this batch.
+
+All nine debug Terminal/Haptics/Display switches (eight in release) use one
+full-row toggle action and one Switch accessibility node. Titles wrap, rows grow
+with text, and the three group labels expose heading semantics. The checked knob
+uses the app's light foreground instead of Material's inherited purple color.
+This does not establish a matched-iOS color/layout comparison or TalkBack traversal.
+
+Folder taps and missing-file visibility now share the observed display snapshot
+instead of a second `getBoolean` reader/listener in NativeScreen. Existing keys
+`terminal-folder-tap` and `show-missing-files` and their on/off defaults are preserved.
+Wrong-typed values resolve safely; a whole-store clear refreshes all settings,
+including these two flags. Preferences still affect the existing file controller
+and direct-path admission; no transport or stored pairing format changed.
+
+Verification:
+
+- Five focused JVM cases passed (three stored-preference cases and two existing
+  haptic-policy cases), zero errors/failures/skips. Debug/test APKs built.
+- Four distinct Android cases passed in **18.987 s** on the sole existing API37/
+  16 KiB AVD: single-switch semantics/large-font label taps/persistence/malformed
+  values/clear/remount; disabled-row input; the existing workspace title/preview
+  layout; and legacy Feed/Notifications persistence/navigation.
+- Screenshot inspection exposed the purple checked knob. After fixing its color
+  and adding an actual framebuffer assertion, the two row cases passed again
+  in **12.639 s** on the final APK. The inspected final screenshot shows light
+  knobs and wrapped labels at font scale 2 in an isolated 260 dp component. It
+  is not a full Settings screen or physical-device screenshot.
+- The initial build failed only on a new test's untyped `emptyMap`; explicit
+  generic arguments fixed it. The integration build then took 60 s; the final
+  paint/heading build took 57 s. Original failure and both passing logs remain.
+- Both runs recorded no crash/ANR events. Gradle/emulator are stopped and reaped;
+  the original screen timeout was restored. No new AVD or signed release was made.
+
+Final debug APK SHA-256:
+`18f898065233486235c3170eb0d011041db73f8a4a6dee7f51f0285187a0da5a`.
+Final test APK SHA-256:
+`34a29043fb3c9460f5b3763841459eeba0b079078e29fc6976a952db7d50cdd7`.
+Evidence: ignored `captures/runtime/settings-toggle-*`,
+`captures/runtime/settings-large-font-final.png` and current JVM XML. Signed 650
+is unchanged. Full Settings ordering, matched iOS, TalkBack and Pixel/Mac acceptance
+remain open.
+
 ## Source contract
 
 Scoped reference: `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`.
