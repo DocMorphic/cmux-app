@@ -1,5 +1,18 @@
 # Codex laptop handoff — 2026-09-28
 
+## Mac build retry — 2026-10-12
+
+The exact-identity/runner-path packaging repairs and Settings setup reference are
+pushed to main at `686b012d4a8aca76e7839c24cd40ca9fe2fbaabb`. Manual retry
+[38180269049](https://github.com/DocMorphic/cmux-app/actions/runs/38180269049), job
+`114591146203`, was confirmed in progress during checkout at 22:24 UTC. Follow that
+same handle. Full compilation succeeded in the previous run, but no verified
+packaged app exists yet. Inspect the retry's terminal result and downloaded bytes
+before installation. An UNVERIFIED recovery artifact requires the full independent
+source/configuration/architecture/signature checks. Trusted TLS/private runtime,
+local custom-app account/Keychain, Pixel and FCM acceptance remain open. Preserve
+the official running Mac app and phone data. See MAC_NOTIFICATION_BUILD.md.
+
 ## Setup reference follow-up — 2026-10-12
 
 Settings has the iOS Set Up Computer reference entry with all four setup sections

@@ -46,6 +46,12 @@ synthetic native fixture checks, with no real credentials or notifications.
 
 ## Verification status
 
+Retry [38180269049](https://github.com/DocMorphic/cmux-app/actions/runs/38180269049)
+was dispatched at `686b012d4a8aca76e7839c24cd40ca9fe2fbaabb` on main after the
+repairs. Authoritative job `114591146203` was confirmed **in progress** during
+checkout at 2026-10-11 22:24 UTC. Track this exact run; do not redispatch because
+an observation expires. Its full build/package/recovery results remain unverified.
+
 First full Mac run [38174243912](https://github.com/DocMorphic/cmux-app/actions/runs/38174243912)
 is terminal: the full patched app **compiled successfully** on Xcode 26.6 in
 73m49s, then packaging failed because the verifier expected a hyphenated bundle
