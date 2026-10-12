@@ -40,6 +40,31 @@ class NativeSavedTailscaleRuntimeTest {
         return scope
     }
 
+    @Test fun returnedSavedTicketHandleContinuesOnlyWhileExactRuntimeForegroundIsActivated() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val base = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            val mac = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(
+                PairingCodeParser.computer(IrohV2Computer("record", "a".repeat(64), f.target.deviceId,
+                    f.target.buildTag, "Mac", emptyList()), f.team), f.target.deviceId, "Mac", f.target.buildTag), f.team)
+            val context = MobileAttachTicketContext("", null, "saved-ticket", null)
+            val session = NativeSavedTicketSession(mac, context, { account.isCurrent(f.team) },
+                { f.local.retainsForeground(f.team, it) }) {}
+            val client = base.withAttachTicket(context, session.admission::requireCurrent)
+            session.bind(client)
+            val hold = checkNotNull(f.local.reserveForeground(checkNotNull(account.captureContinuation(f.team)), client))
+            try {
+                hold.activate { true }; select(f, account, server, "other")
+                client.workspaces(); assertEquals(1, f.wires.size)
+                select(f, account, server, "team"); client.workspaces()
+                assertEquals(1, f.wires.single().methods.count { it == "mobile.attach_ticket.create" })
+                hold.close()
+                val before = f.wires.single().methods.size
+                assertTrue(runCatching { client.workspaces() }.isFailure)
+                assertEquals(before, f.wires.single().methods.size)
+            } finally { hold.close(); client.close(); base.close() }
+        }
+    }
+
     @Test fun savedForegroundKeepsTicketAndWireAcrossTeamRoundTripWhileOldAdmissionsStayFenced() = runBlocking<Unit> {
         continuation { f, account, server ->
             val first = checkNotNull(f.local.connectIfSelected(f.pairing()))

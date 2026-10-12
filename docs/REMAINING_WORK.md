@@ -1,5 +1,36 @@
 # Remaining work for iOS parity
 
+## Saved primary-ticket continuation — 2026-10-12
+
+`connectSaved()` now binds its primary-ticket guard to the one returned client.
+Before binding, admission requires the exact selected scope. Afterward it can use
+the native runtime's activated foreground ownership for that original account/Mac
+wire. The guard checks authorization before and after its saved-record read; an
+old foreground exception cannot bind a new handle or authorize a reconnect.
+Binding failure closes the returned ticket view and underlying acquired handle.
+
+The original owner, saved ticket revision, visibility and route binding remain
+checked by `NativeAttachTicketStore`. The captured routing choice and configured
+audience remain required. Revision caching now uses an atomic stamp instead of a
+monitor around credential reads, and rejects changes during revalidation. Existing
+attach-ticket expiry, narrowing, account fallback and mutation policies are
+unchanged; this continuation cannot mint or widen a ticket.
+
+All **157 focused JVM cases pass**: four new saved-ticket session, 15 ticket-store,
+30 saved-runtime, six saved-route, 58 legacy authority, 36 Iroh and eight foreground
+holder cases. The real saved-runtime reservation fixture keeps its original ticket
+through verified account selection/return and rejects RPC before transport write
+when released. Other cases cover saved record removal/hiding/replacement, logout,
+route changes, failed binding, rename and unchanged expiry authority. Debug/test
+APKs build in 1m13s. XML, logs and exact source/APK hashes are ignored under
+`captures/runtime/saved-ticket-continuation-*`. Account HTTP, credentials and wires
+are fixtures; no physical phone, emulator, actual QUIC or live account was used.
+
+External/initial pairing ticket guards and legacy Tailscale still require their
+own continuation integration. Per-Mac panes/feeds/browser/notifications and Activity
+lifetime must be fixed before removing Settings teardown. **The app still
+disconnects on team selection.** Signed build 654 predates this batch.
+
 ## Foreground compatibility policy tracking — 2026-10-12
 
 The version gate now keeps tracking an already admitted foreground Iroh or saved

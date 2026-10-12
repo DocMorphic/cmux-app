@@ -7,6 +7,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicLong
 
 /** Activity recreation and the notification service share one enrolled endpoint per process. */
 internal class NativeAppConnections private constructor(context: Context) : AutoCloseable {
@@ -103,23 +104,24 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             val selected = savedRoute(mac, team)
             val pairing = selected.pairing
             // A retained native identity does not extend the ticket's route coverage.
-            val ticket = if (mac.ticketRevision == null || !selected.usesPrimaryTicket) null else {
+            val ticketSession = if (mac.ticketRevision == null || !selected.usesPrimaryTicket) null else {
                 val context = checkNotNull(store.attachTicket(team, mac))
-                val admissionLock = Any()
-                var checkedRevision = Long.MIN_VALUE
-                NativeSavedTicketAdmission(mac, context) {
-                    check(teams.isCurrent(team)) { "Account or team changed" }
-                    synchronized(admissionLock) {
-                        val revision = store.revisions.value
-                        if (checkedRevision != revision) {
-                            check(allowsSaved(mac)) { "Saved route authorization changed" }
-                            // Read rechecks visibility, captured ticket revision, account and route binding.
-                            checkNotNull(store.attachTicket(team, mac))
-                            checkedRevision = revision
-                        }
+                val checkedRevision = AtomicLong(Long.MIN_VALUE)
+                NativeSavedTicketSession(mac, context, { teams.isCurrent(team) },
+                    { handle -> native.retainsForeground(team, handle) }) {
+                    check(compatibility.audience.allowsSavedTag(mac.instanceTag) && savedRoute(mac, team) == selected) {
+                        "Saved route authorization changed"
+                    }
+                    val revision = store.revisions.value
+                    if (checkedRevision.get() != revision) {
+                        // Original owner, visibility, ticket revision and exact route remain required.
+                        checkNotNull(store.attachTicket(team, mac))
+                        check(store.revisions.value == revision) { "Saved ticket changed during authorization" }
+                        checkedRevision.set(revision)
                     }
                 }
             }
+            val ticket = ticketSession?.admission
             ticket?.requireCurrent()
             val client = when (pairing) {
                 is PairingCode.Tailscale -> tailscale.connectSaved(mac, account, team, ticket)
@@ -135,6 +137,8 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
                 check(savedRoute(mac, team) == selected) { "Computer connection settings changed" }
                 ticket?.requireCurrent()
                 val result = if (ticket == null || pairing is PairingCode.Tailscale) client else client.withAttachTicket(ticket.context, ticket::requireCurrent)
+                try { ticketSession?.bind(result) }
+                catch (failure: Throwable) { result.close(); throw failure }
                 result.authenticatedSavedRouteCode = selected.code
                 return result
             } catch (failure: Throwable) { client.close(); throw failure }
