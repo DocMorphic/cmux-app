@@ -1,5 +1,32 @@
 # Codex laptop handoff — 2026-09-28
 
+## Foreground browser ownership — 2026-10-12
+
+Existing browser tabs and Mac tunnel networks now retain the admitted foreground
+Mac's original team generation across picker changes. Secondary networks retire;
+pending browser creation is cancelled. The retained owner requires the exact saved
+record, current login and live foreground proof. Losing that proof closes the
+network, including while the screen composition is inactive.
+
+Foreground browsing uses the existing admitted client's lanes and checks authority
+before and after asynchronous work. Browser keys, sidebar selection and pane
+rendering use the foreground Mac context. New browser creation and task operations
+still require their remaining scope integration; Settings teardown remains enabled.
+**The app still disconnects on team selection.**
+
+Verification: **53 focused JVM cases passed**, debug/test APKs built, four changed
+classes passed Android 17 ART reflection, and **three browser runtime checks passed
+in 9.228s** (retained DOM/history/WebView through recreation, admitted native HTTP
+proxy, and failed POST non-replay). The initial run exposed two outdated fixture
+expectations: native RPC authorization is supplied by the authenticated admission
+handshake, and dynamic text was not found through UIAutomator. Retention now checks
+the DOM directly; dynamic accessibility updates remain unverified. Original failure
+logs are preserved. The existing 16 KB AVD was stopped/reaped after 37.828s; no new
+AVD or physical phone was used. These are local fixtures, not complete Pixel/Mac
+acceptance. Signed build 654 predates this source.
+
+Evidence and source/APK hashes: `captures/runtime/foreground-browser-scope-*`.
+
 ## Foreground Files and panel access — 2026-10-12
 
 Files and file panels now prefer the exact admitted foreground client instead of

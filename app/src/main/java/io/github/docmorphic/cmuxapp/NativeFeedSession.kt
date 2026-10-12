@@ -126,9 +126,24 @@ internal class NativeFeedSession(
         taskModelPrefetch.update(wanted.map(coordinator::taskModelTarget))
     }
     val localBrowsers = LocalBrowserNavigation(scope)
-    val browserNetworks = NativeBrowserNetworks(scope, coordinator::browserAccess) { mac, login ->
-        account.isSignedIn() && store.taskSession() == login && store.visiblePairedMacs().contains(mac) && connector.allowsSaved(mac)
+    private fun browserAccess(mac: NativeCredentialStore.PairedMac, permits: () -> Boolean): MacBrowserAccess {
+        val state = screenConnection
+        val client = state?.client
+        if (state != null && client != null && state.connectionReady && state.connectedCode == mac.code &&
+            state.code == mac.code && canRetainForeground(mac, client)) {
+            return NativeForegroundBrowserAccess(scope, client, { state.hostCapabilities }) {
+                permits() && state.client === client && state.connectionReady && state.connectedCode == mac.code &&
+                    state.code == mac.code && canRetainForeground(mac, client)
+            }
+        }
+        return coordinator.browserAccess(mac, permits)
     }
+    val browserNetworks = NativeBrowserNetworks(scope, ::browserAccess, allows = { mac, login ->
+        account.isSignedIn() && store.taskSession() == login && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+            (connector.allowsSaved(mac) || allowsForegroundMac(mac))
+    }, isCurrent = { owner -> teams?.isCurrent(owner) ?: true }, continues = { mac, owner ->
+        foregroundAuthority?.scopeFor(mac) == owner
+    })
     val workspaceTabs = NativeWorkspaceTabNavigation(store)
     val terminalStartup = NativeTerminalStartup()
     val paneNavigation = NativePaneNavigation()
@@ -257,7 +272,8 @@ internal class NativeFeedSession(
         reconcileTaskModelPrefetch()
     }
     fun holdBrowser(mac: NativeCredentialStore.PairedMac): AutoCloseable {
-        check(account.isSignedIn() && store.visiblePairedMacs().contains(mac) && connector.allowsSaved(mac))
+        check(account.isSignedIn() && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+            (connector.allowsSaved(mac) || allowsForegroundMac(mac)))
         val token = Any(); browserHolds[token] = mac.origin; reconcileFeed()
         return AutoCloseable {
             if (browserHolds.remove(token) != null) {

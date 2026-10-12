@@ -248,6 +248,8 @@ internal fun NativeScreen(
             pairedMacs, store.visiblePairedMacs(), code, client, feedSession::foregroundScope)
         val paneMacs = paneContext.macs
         val paneTeam = paneContext.team
+        val browserContinuation = if (paneContext.foreground && paneContext.mac != null && paneTeam != null)
+            NativeBrowserContinuation(paneContext.mac, paneTeam) else null
         val computerPreferenceStore = remember(context, teamState.scope) {
             teamState.scope?.let { NativeMacConnectionStore.create(context.applicationContext, it) }
         }
@@ -477,14 +479,15 @@ internal fun NativeScreen(
                 ?.let { workspaceTabs.explicit(login, it.first, checkNotNull(it.second)) }
         }
         val navigationGeneration = remember { NativeNavigationGeneration() }
+        fun browserOwner(mac: NativeCredentialStore.PairedMac) = feedSession.foregroundScope(mac, client) ?: teamState.scope
         fun browserNavigationContext() = listOf(signedIn, teamState.scope, code, workspaceRoute?.id,
             selectedWorkspace?.id, selectedTerminal?.id, selectedBrowser?.id, selectedSurface?.id,
             selectedChangesWorkspace?.id, showSettings, showTaskComposer, notificationTab, currentIncomingRoute, localBrowser?.key,
             showSshComputers, sshRoute)
         SideEffect {
             navigationGeneration.observe(browserNavigationContext())
-            localBrowsers.retain(teamState.scope, signedIn, pairedMacs.map { it.origin }.toSet(), browserLogin)
-            feedSession.browserNetworks.retain(browserLogin.takeIf { signedIn }, teamState.scope, pairedMacs)
+            localBrowsers.retain(teamState.scope, signedIn, paneMacs.map { it.origin }.toSet(), browserLogin, browserContinuation)
+            feedSession.browserNetworks.retain(browserLogin.takeIf { signedIn }, teamState.scope, pairedMacs, browserContinuation)
             localBrowsers.navigationContext(browserNavigationContext())
         }
         fun openNewBrowser(source: NativeFeedSource, workspace: NativeWorkspace) {
@@ -1663,7 +1666,7 @@ internal fun NativeScreen(
                                 applyListing(listing); notifications = feed
                                 finishSearch(); notificationTab = openedFromFeed; showSettings = false; showTaskComposer = false
                                 showLicenses = false; selectedChangesWorkspace = null
-                                localBrowserKey(browserLogin, teamState.scope, mac, workspace.id)?.let(localBrowsers::selectMacPane)
+                                localBrowserKey(browserLogin, browserOwner(mac), mac, workspace.id)?.let(localBrowsers::selectMacPane)
                                 selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser; selectedSurface = surface
                                 notificationDelivery.cancel(routeId)
                                 true
@@ -1724,7 +1727,7 @@ internal fun NativeScreen(
                         return@LaunchedEffect
                     }
                     sshNavigation.leave()
-                    val browserKey = localBrowserKey(browserLogin, teamState.scope, mac, route.workspaceId)
+                    val browserKey = localBrowserKey(browserLogin, browserOwner(mac), mac, route.workspaceId)
                     val browserWorkspace = workspaceSources.firstOrNull { it.mac.origin == mac.origin }?.workspaces?.firstOrNull { it.id == route.workspaceId }
                     val explicitPane = route.terminalId != null || route.browserId != null || route.surfaceId != null || route.changes || route.creation != null
                     val tabKey = workspaceTabKey(browserLogin, teamState.scope, mac, route.workspaceId)
@@ -2852,9 +2855,9 @@ internal fun NativeScreen(
                 }
                 val localBrowserContent: @Composable ColumnScope.() -> Unit = {
                     val localBrowser = checkNotNull(localBrowser)
-                    val browserMac = pairedMacs.first { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key }
+                    val browserMac = paneMacs.first { localBrowserKey(browserLogin, browserOwner(it), it, localBrowser.key.workspaceId) == localBrowser.key }
                     fun browserMenu(): RoutedBrowserMenu? {
-                        if (!signedIn || localBrowserKey(browserLogin, teamState.scope, browserMac, localBrowser.key.workspaceId) != localBrowser.key) return null
+                        if (!signedIn || localBrowserKey(browserLogin, browserOwner(browserMac), browserMac, localBrowser.key.workspaceId) != localBrowser.key) return null
                         val source = (moveSources[browserMac.origin] ?: feedSources[browserMac.origin])?.takeIf { it.mac == browserMac }
                         val primary = connectionReady && connectedCode == browserMac.code && client?.isClosed == false
                         val currentWorkspace = when {
@@ -2873,7 +2876,7 @@ internal fun NativeScreen(
                     fun createFromBrowser(kind: NativeWorkspaceCreation) {
                         val login = store.taskSession() ?: return
                         if (browserMenu()?.creationEnabled != true || localBrowsers.state.value.local?.surface !== localBrowser.surface ||
-                            localBrowserKey(login, teamState.scope, browserMac, localBrowser.key.workspaceId) != localBrowser.key ||
+                            localBrowserKey(login, browserOwner(browserMac), browserMac, localBrowser.key.workspaceId) != localBrowser.key ||
                             !store.visiblePairedMacs().contains(browserMac) || !connection.allowsSaved(browserMac)) return
                         localBrowsers.leave(close = true)
                         workspaceRoute = NativeWorkspaceRoute(browserMac.origin, localBrowser.key.workspaceId,
@@ -3240,8 +3243,8 @@ internal fun NativeScreen(
                 val remoteBrowserContent: @Composable ColumnScope.() -> Unit = {
                     val browser = selectedBrowser!!
                     val workspace = selectedWorkspace
-                    val mac = pairedMacs.singleOrNull { it.code == code }
-                    val browserKey = if (mac != null && workspace != null) localBrowserKey(browserLogin, teamState.scope, mac, workspace.id) else null
+                    val mac = paneContext.mac
+                    val browserKey = if (mac != null && workspace != null) localBrowserKey(browserLogin, browserOwner(mac), mac, workspace.id) else null
                     NativeRemoteBrowserPane(client, browser, busy, connectionError,
                         panePicker = { title ->
                             NativePanePicker(title, workspace, NativeWorkspacePane(browser = browser), Modifier.fillMaxWidth(),
@@ -3261,8 +3264,9 @@ internal fun NativeScreen(
                             if (browserKey != null && workspace != null && mac != null && signedIn && store.taskSession() == browserLogin &&
                                 selectedBrowser?.id == browser.id && selectedWorkspace?.browsers?.any { it.id == browser.id } == true &&
                                 selectedWorkspace?.id == workspace.id && code == mac.code &&
-                                browserKey == localBrowserKey(store.taskSession(), teamState.scope, mac, workspace.id) &&
-                                store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)) {
+                                browserKey == localBrowserKey(store.taskSession(), browserOwner(mac), mac, workspace.id) &&
+                                NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+                                (connection.allowsSaved(mac) || feedSession.foregroundScope(mac, client) != null)) {
                                 focusManager.clearFocus(); softwareKeyboard?.hide(); workspaceTabs.cancel()
                                 localBrowsers.openOnDevice(browserKey, workspace, browser.id, url)
                                 selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null
@@ -3295,8 +3299,8 @@ internal fun NativeScreen(
                 val sidebarSelection: NativeSidebarSelection? = when {
                     sshRoute != null -> displayedSshTarget?.let { NativeSidebarSelection.Ssh(sshRoute.host, it) }
                     showSettings || showTaskComposer || workspaceRoute != null || currentIncomingRoute != null -> null
-                    localBrowser != null -> pairedMacs.singleOrNull {
-                        localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key
+                    localBrowser != null -> paneMacs.singleOrNull {
+                        localBrowserKey(browserLogin, browserOwner(it), it, localBrowser.key.workspaceId) == localBrowser.key
                     }?.let { NativeSidebarSelection.Mac(it, localBrowser.key.workspaceId) }
                     else -> (selectedChangesWorkspace ?: selectedWorkspace)?.let { workspace ->
                         pairedMacs.singleOrNull { it.code == code }?.let { NativeSidebarSelection.Mac(it, workspace.id) }
@@ -3929,7 +3933,7 @@ internal fun NativeScreen(
                                 connected = connectionReady && error == null, connectionError = error ?: connectionError,
                                 onReconnect = { error = null; retryDelay = 2_000; retry++ })
                         }
-                        localBrowser != null && pairedMacs.any { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key } -> localBrowserContent()
+                        localBrowser != null && paneMacs.any { localBrowserKey(browserLogin, browserOwner(it), it, localBrowser.key.workspaceId) == localBrowser.key } -> localBrowserContent()
                         showWorkspaceReconnect -> reconnectContent()
                         selectedWorkspace != null && selectedTerminal == null && selectedBrowser == null && selectedSurface == null && selectedChangesWorkspace == null -> {
                             val workspace = selectedWorkspace!!

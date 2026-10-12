@@ -51,7 +51,7 @@ class RetainedBrowserRuntimeTest {
                 }
                 text("First fixture"); text("Open next fixture").click(); text("Next fixture")
                 assertEquals("41", js("document.getElementById('draft').value='Unsent fixture draft';window.unsentCounter=41;document.getElementById('state').textContent='Unsent fixture draft';window.unsentCounter"))
-                text("Unsent fixture draft")
+                assertEquals("\"Unsent fixture draft\"", js("document.getElementById('state').textContent"))
                 scenario.onActivity {
                     model = ViewModelProvider(it)[RetainedBrowserTestModel::class.java]
                     originalWeb = it.window.decorView.findViewWithTag("LocalBrowserWebView")
@@ -60,8 +60,8 @@ class RetainedBrowserRuntimeTest {
                 }
                 val reads = paths.count { it == "/next" }
                 repeat(2) {
-                    scenario.recreate(); text("Next fixture"); text("Unsent fixture draft")
-                    assertEquals("[\"Unsent fixture draft\",41]", js("[document.getElementById('draft').value,window.unsentCounter]"))
+                    scenario.recreate(); text("Next fixture")
+                    assertEquals("[\"Unsent fixture draft\",\"Unsent fixture draft\",41]", js("[document.getElementById('draft').value,document.getElementById('state').textContent,window.unsentCounter]"))
                     scenario.onActivity { activity ->
                         assertSame(model, ViewModelProvider(activity)[RetainedBrowserTestModel::class.java])
                         assertSame(originalWeb, activity.window.decorView.findViewWithTag<WebView>("LocalBrowserWebView"))

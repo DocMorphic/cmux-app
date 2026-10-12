@@ -19,6 +19,8 @@ internal interface MacBrowserAccess : BrowserTunnelBackend {
     suspend fun listeningPorts(): BrowserTunnelProtocol.ListeningPorts
 }
 
+internal data class NativeBrowserContinuation(val mac: NativeCredentialStore.PairedMac, val team: NativeTeamScope)
+
 /** The browser process receives only this owner's proxy and isolated storage identity. */
 internal interface RoutedBrowserNetwork {
     val storageId: String
@@ -110,26 +112,40 @@ internal class NativeMacBrowserNetwork(ownerScope: CoroutineScope, private val a
 /** Account/build identity, rather than whichever computer happens to be selected in the UI. */
 internal class NativeBrowserNetworks(private val scope: CoroutineScope,
     private val access: (NativeCredentialStore.PairedMac, () -> Boolean) -> MacBrowserAccess,
-    private val allows: (NativeCredentialStore.PairedMac, String) -> Boolean
+    private val allows: (NativeCredentialStore.PairedMac, String) -> Boolean,
+    private val isCurrent: (NativeTeamScope) -> Boolean,
+    private val continues: (NativeCredentialStore.PairedMac, NativeTeamScope) -> Boolean
 ) {
+    constructor(scope: CoroutineScope, access: (NativeCredentialStore.PairedMac, () -> Boolean) -> MacBrowserAccess,
+        allows: (NativeCredentialStore.PairedMac, String) -> Boolean) : this(scope, access, allows, { true }, { _, _ -> false })
     private data class Owner(val login: String, val user: String?, val team: String?, val generation: Long?,
         val origin: String, val device: String, val build: String?)
     private var authorized = emptyMap<Owner, NativeCredentialStore.PairedMac>()
     private val networks = mutableMapOf<Owner, NativeMacBrowserNetwork>()
 
-    fun retain(login: String?, team: NativeTeamScope?, macs: List<NativeCredentialStore.PairedMac>) {
+    fun retain(login: String?, team: NativeTeamScope?, macs: List<NativeCredentialStore.PairedMac>,
+        foreground: NativeBrowserContinuation? = null) {
+        val retained = foreground?.takeIf { it.team.login == login && it.mac.accountUserId == it.team.userId &&
+            it.mac.accountTeamId == it.team.teamId && allows(it.mac, it.team.login) && continues(it.mac, it.team) }
         authorized = if (login == null || (team != null && team.login != login)) emptyMap() else macs
             .filter { allows(it, login) && (team == null ||
                 ((it.accountUserId == null || it.accountUserId == team.userId) &&
-                    (it.accountTeamId == null || it.accountTeamId == team.teamId))) }
+                    (it.accountTeamId == null || it.accountTeamId == team.teamId))) &&
+                (retained == null || !NativeComputerMenuPairing.isCurrent(it, listOf(retained.mac))) }
             .associateBy { Owner(login, team?.userId ?: it.accountUserId, team?.teamId ?: it.accountTeamId,
                 team?.generation, it.origin, canonicalMacDeviceId(it.deviceId), it.instanceTag?.trim()?.takeIf(String::isNotEmpty)) }
+        if (retained != null && login != null) authorized = authorized + (Owner(login, retained.team.userId, retained.team.teamId,
+            retained.team.generation, retained.mac.origin, canonicalMacDeviceId(retained.mac.deviceId), retained.mac.instanceTag) to retained.mac)
         networks.keys.toList().filter { it !in authorized }.forEach { networks.remove(it)?.close() }
     }
 
     fun network(mac: NativeCredentialStore.PairedMac): NativeMacBrowserNetwork? {
         val owner = authorized.entries.singleOrNull { it.value == mac }?.key ?: return null
-        fun permitted() = authorized[owner]?.let { allows(it, owner.login) } == true
+        fun permitted() = authorized[owner]?.let { mac ->
+            val team = if (owner.user != null && owner.team != null && owner.generation != null)
+                NativeTeamScope(owner.login, owner.user, owner.team, owner.generation) else null
+            allows(mac, owner.login) && (team == null || isCurrent(team) || continues(mac, team))
+        } == true
         if (!permitted()) return null
         if (networks[owner]?.retired?.isCompleted == true) networks.remove(owner)
         return networks.getOrPut(owner) {

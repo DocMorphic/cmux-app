@@ -37,13 +37,16 @@ internal class LocalBrowserNavigation(private val scope: CoroutineScope,
     fun navigationContext(value: Any) {
         if (context != value) { context = value; cancelRequest() }
     }
-    fun retain(owner: NativeTeamScope?, signedIn: Boolean, origins: Set<String>, login: String? = owner?.login) {
-        if (!signedIn || (loginScope != null && loginScope != login) ||
-            (owner != null && accountScope != null && owner != accountScope)) clear()
+    fun retain(owner: NativeTeamScope?, signedIn: Boolean, origins: Set<String>, login: String? = owner?.login,
+        foreground: NativeBrowserContinuation? = null) {
+        if (!signedIn || (loginScope != null && loginScope != login)) clear()
+        if (owner != null && accountScope != null && owner != accountScope) cancelRequest()
         loginScope = login
         if (owner != null) {
             accountScope = owner
-            store.retainAccount(owner.userId, owner.teamId)
+            store.retainKeys { key -> (key.accountId == owner.userId && key.teamId == owner.teamId) ||
+                (foreground != null && foreground.team.login == login && key.accountId == foreground.team.userId &&
+                    key.teamId == foreground.team.teamId && key.computerId == foreground.mac.origin) }
         }
         store.retainComputers(origins)
         returnTerminals.keys.removeAll { it.computerId !in origins }

@@ -22,6 +22,23 @@ class LocalBrowserNavigationTest {
         assertFalse(LocalBrowserNavigation.canCreate(false, capabilities))
         capabilities.forEach { assertFalse(LocalBrowserNavigation.canCreate(true, setOf(it))) }
     }
+
+    @Test fun onlyForegroundLocalSurfaceSurvivesTeamChangeAndPendingCreationStillCancels() = runTest {
+        val navigation = LocalBrowserNavigation(this)
+        val mac = NativeCredentialStore.PairedMac("route", "device", "Mac", "default", owner.userId, owner.teamId, key.computerId)
+        navigation.retain(owner, true, setOf(key.computerId))
+        navigation.open(canCreate = false); runCurrent()
+        val original = checkNotNull(navigation.state.value.local).surface
+        val sibling = key.copy(computerId = "secondary")
+        navigation.open(key = sibling, create = { awaitCancellation() }, remote = { fail("Retired result routed") })
+        runCurrent()
+        navigation.retain(owner.copy(teamId = "other", generation = 2), true, setOf(key.computerId), owner.login,
+            NativeBrowserContinuation(mac, owner))
+        runCurrent()
+        assertFalse(original.state.value.closed); assertNull(navigation.state.value.creating)
+        navigation.retain(owner.copy(teamId = "other", generation = 2), true, emptySet(), owner.login)
+        assertTrue(original.state.value.closed)
+    }
     @Test fun creationDescriptorMustHaveStringIdsForTheRequestedWorkspace() {
         val response = JSONObject().put("panel_id", "panel").put("workspace_id", "w")
         assertEquals("panel", localBrowserCreatedPanel(response, "w"))

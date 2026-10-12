@@ -176,7 +176,8 @@ class NativeBrowserTunnelTest {
                 val control = launch {
                     while (true) {
                         val request = frame(reader)
-                        assertEquals("browser-native-fixture-token", request.getJSONObject("auth").getString("stack_access_token"))
+                        // Iroh authenticates its control session at admission; RPC frames omit bearer fields.
+                        assertFalse(request.has("auth"))
                         val result = when (request.getString("method")) {
                             "mobile.host.status" -> JSONObject().put("mac_device_id", mac.deviceId).put("mac_instance_tag", mac.instanceTag)
                                 .put("capabilities", JSONArray().put(BrowserTunnelProtocol.CAPABILITY))

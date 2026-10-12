@@ -127,8 +127,11 @@ internal class LocalBrowserStore(private val defaultUrl: String? = "https://duck
     fun requestRestore(key: LocalBrowserKey) { restores += key }
     fun consumeRestore(key: LocalBrowserKey): LocalBrowserSurface? = if (restores.remove(key)) open(key) else null
     fun retainAccount(accountId: String, teamId: String?) {
-        keys().filter { it.accountId != accountId || it.teamId != teamId }.forEach(::retire)
-        restores.removeAll { it.accountId != accountId || it.teamId != teamId }
+        retainKeys { it.accountId == accountId && it.teamId == teamId }
+    }
+    fun retainKeys(allowed: (LocalBrowserKey) -> Boolean) {
+        keys().filterNot(allowed).forEach(::retire)
+        restores.removeAll { !allowed(it) }
     }
     fun retainComputers(computerIds: Set<String>) {
         keys().filter { it.computerId !in computerIds }.forEach(::retire)

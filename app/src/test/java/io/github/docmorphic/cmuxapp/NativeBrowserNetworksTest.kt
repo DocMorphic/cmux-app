@@ -53,6 +53,47 @@ class NativeBrowserNetworksTest {
         }
     }
 
+    @Test fun verifiedForegroundNetworkSurvivesTeamRoundTripWhileSecondaryRetires() = runBlocking<Unit> {
+        val original = NativeTeamScope("login", "user", "team", 1)
+        var selected = original
+        val a = mac("a"); val secondary = mac("secondary")
+        var proof = true
+        val registry = NativeBrowserNetworks(this, { _, _ -> Access() },
+            { row, _ -> row.accountTeamId == selected.teamId || proof && row == a },
+            { it == selected }, { row, owner -> proof && row == a && owner == original })
+        try {
+            registry.retain("login", selected, listOf(a, secondary))
+            val first = checkNotNull(registry.network(a)); val other = checkNotNull(registry.network(secondary))
+            val port = first.prepare()
+            selected = original.copy(teamId = "other", generation = 2)
+            registry.retain("login", selected, emptyList(), NativeBrowserContinuation(a, original))
+            assertSame(first, registry.network(a)); assertTrue(other.retired.isCompleted)
+            assertEquals(port, first.prepare()); assertFalse(first.retired.isCompleted)
+            selected = original.copy(generation = 3)
+            registry.retain("login", selected, listOf(a), NativeBrowserContinuation(a, original))
+            assertSame(first, registry.network(a))
+            proof = false
+            until { first.retired.isCompleted }
+            assertNull(registry.network(a))
+        } finally { registry.clear() }
+    }
+
+    @Test fun savedOrWrongTeamContinuationCannotAuthorizeARetiredNetwork() = runBlocking<Unit> {
+        val original = NativeTeamScope("login", "user", "team", 1)
+        var selected = original
+        val a = mac("a")
+        val registry = NativeBrowserNetworks(this, { _, _ -> Access() }, { _, _ -> true },
+            { it == selected }, { _, _ -> false })
+        try {
+            registry.retain("login", original, listOf(a)); val first = checkNotNull(registry.network(a))
+            selected = original.copy(teamId = "other", generation = 2)
+            registry.retain("login", selected, emptyList(), NativeBrowserContinuation(a, original))
+            assertTrue(first.retired.isCompleted); assertNull(registry.network(a))
+            registry.retain("login", selected, emptyList(), NativeBrowserContinuation(a, selected))
+            assertNull(registry.network(a))
+        } finally { registry.clear() }
+    }
+
     @Test fun listingPolicyExpiresAfterTenSecondsLoopbackAlwaysRefreshesAndFailuresKeepPolicy() = runBlocking<Unit> {
         val access = Access()
         val direct = CopyOnWriteArrayList<String>()
