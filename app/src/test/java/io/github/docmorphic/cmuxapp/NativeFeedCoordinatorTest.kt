@@ -855,6 +855,39 @@ class NativeFeedCoordinatorTest {
         } }
     }
 
+    @Test fun sameLocatorReplyUsesSelectedOwnersVerifiedFeedAndLeavesOriginalWireUntouched() = runBlocking {
+        FeedPeer("shared").use { a -> FeedPeer("shared").use { b ->
+            val original = NativeCredentialStore.PairedMac("shared-locator", "shared", "Original", null, "user", "original", "origin-a")
+            val selected = original.copy(name = "Picker", accountTeamId = "picker", stableOrigin = "origin-b")
+            val selectedOwner = NativeTeamScope("login", "user", "picker", 2)
+            b.workspaceResponse = JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w").put("title", "W")
+                .put("terminals", JSONArray().put(JSONObject().put("id", "s").put("title", "S")))))
+            val root = a.connect(); var feedDials = 0; var selectedAllowed = true
+            val coordinator = NativeFeedCoordinator(this, { feedDials++; b.connect() }, { it == selected && selectedAllowed })
+            val target = PhoneReplyDirectTarget(selectedOwner.copy(generation = 0), selected.origin, "epoch",
+                PhonePushPeer(PhonePushTuple("user", "picker", "fixture", "phone", "physical-b", "stable", "fixture.mac"),
+                    PhonePushIdentity.generate().descriptor()), "w", "s", false)
+            try {
+                original.requireMatchingHost(root.hostStatus())
+                coordinator.updateMacs(listOf(selected))
+                awaitState { coordinator.sources.value[selected.origin]?.hasWorkspaceSnapshot == true }
+                val candidate = checkNotNull(nativePhoneReplyCandidate(target, original, listOf(selected)))
+                assertFalse(nativeForegroundMacSelected(candidate, original, true, original.code, original.code, true))
+                fun admitted() = selectedAllowed && nativePhoneReplyOwnerMatches(target, selectedOwner)
+                val attempt = checkNotNull(coordinator.replyAttempt(candidate, target, ::admitted))
+                assertEquals(PhoneReplyDirectResult.DELIVERED, attempt.send(" selected owner λ\n") { true })
+                assertEquals(1, feedDials); assertFalse(root.isClosed)
+                assertTrue(a.requests.none { it.optString("method") == "terminal.paste" })
+                assertEquals(" selected owner λ\n", b.requests.single { it.optString("method") == "terminal.paste" }
+                    .getJSONObject("params").getString("text"))
+                val retired = checkNotNull(coordinator.replyAttempt(candidate, target, ::admitted))
+                selectedAllowed = false
+                assertEquals(PhoneReplyDirectResult.UNAVAILABLE, retired.send("must not write") { true })
+                assertEquals(1, b.requests.count { it.optString("method") == "terminal.paste" }); assertFalse(root.isClosed)
+            } finally { coordinator.close(); root.close() }
+        } }
+    }
+
     @Test fun directReplyRespectsDetachOnSecondaryMacAndRechecksPreparedAttempts() = runBlocking {
         FeedPeer("b").use { peer ->
             peer.workspaceResponse = JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w").put("title", "W")

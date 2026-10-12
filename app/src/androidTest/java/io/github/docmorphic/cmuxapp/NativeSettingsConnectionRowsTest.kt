@@ -27,6 +27,29 @@ class NativeSettingsConnectionRowsTest {
     private fun row(mac: NativeCredentialStore.PairedMac = this.mac, kind: MobileConnectionTransport = MobileConnectionTransport.IROH) =
         NativeSettingsConnectionRow(mac, NativeComputerConnection(NativeFeedAvailability.CONNECTED, transport = kind))
 
+    @Test fun sameInstanceOwnersKeepSeparateTransportAndCapturedRowActionsCannotRetarget() {
+        val original = mac.copy(name = "Original Mac", accountUserId = "user", accountTeamId = "original", stableOrigin = "origin-a")
+        val picker = original.copy(name = "Picker Mac", accountTeamId = "picker", stableOrigin = "origin-b")
+        val source = NativeFeedSource(picker, availability = NativeFeedAvailability.CONNECTED, connectionTransport = MobileConnectionTransport.IROH)
+        val projection = nativeRecordComputerConnections(listOf(original, picker), mapOf(picker.origin to source), emptyList(),
+            MobileConnectionTransport.TAILSCALE, { it == original }, { false })
+        var rows by mutableStateOf(nativeSettingsConnectionRows(listOf(original, picker), projection))
+        val actions = mutableListOf<NativeCredentialStore.PairedMac>()
+        compose.setContent { CmuxTheme { Surface { Column {
+            NativeSettingsConnections(owner, rows, NativeMacAppearances(), { actions += it }, {})
+        } } } }
+        compose.onNodeWithText("Original Mac").assertHasClickAction(); compose.onNodeWithText("Picker Mac").assertHasClickAction()
+        compose.onNodeWithText("Tailscale", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Iroh", useUnmergedTree = true).assertExists()
+        val originalAction = compose.onNodeWithText("Original Mac").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        compose.onNodeWithText("Picker Mac").performClick()
+        compose.runOnIdle { assertEquals(listOf(picker), actions); rows = rows.filter { it.mac == picker } }
+        compose.waitForIdle(); compose.runOnIdle { originalAction(); assertEquals(listOf(picker), actions) }
+        compose.onNodeWithText("Original Mac").assertDoesNotExist()
+        compose.onNodeWithText("Picker Mac").performClick()
+        compose.runOnIdle { assertEquals(listOf(picker, picker), actions) }
+    }
+
     @Test fun siblingBuildRowsShowActualTransportAndAllComputersRemainsAvailableAtLargeFont() {
         val sibling = mac.copy(code = "other-route", instanceTag = "nightly", name = "Another build")
         val selected = mutableListOf<NativeCredentialStore.PairedMac>(); var computers = 0

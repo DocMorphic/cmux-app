@@ -14,6 +14,16 @@ class NativeForegroundReplyAccessTest {
     private val workspace = NativeWorkspace("workspace", "Original", listOf(NativeTerminal("surface", "Shell")),
         null, false, null, null, false, emptyList(), null, null, null)
 
+    @Test fun sameLocatorSelectedPeerIsFoundByOriginWhileRenamesCoalesceAndConflictingAliasesFail() {
+        val picker = mac.copy(accountTeamId = "picker", stableOrigin = "picker-origin")
+        assertSame(picker, nativePhoneReplyCandidate(target.copy(origin = picker.origin), mac, listOf(picker)))
+        assertSame(mac, nativePhoneReplyCandidate(target, mac, listOf(picker)))
+        assertSame(mac, nativePhoneReplyCandidate(target, mac, listOf(mac.copy(name = "Renamed"))))
+        assertNull(nativePhoneReplyCandidate(target.copy(origin = "absent"), mac, listOf(picker)))
+        assertNull(nativePhoneReplyCandidate(target, mac, listOf(mac.copy(ticketRevision = "new"))))
+        assertNull(nativePhoneReplyCandidate(target, mac, listOf(picker.copy(previousOrigins = setOf(mac.origin)))))
+    }
+
     @Test fun actionOwnerMatchesLiveAccountTeamWithoutRequiringItsHistoricalGenerationOrDirectoryPushIdEquality() {
         assertTrue(nativePhoneReplyOwnerMatches(target, owner))
         assertTrue(nativePhoneReplyOwnerMatches(target.copy(peer = peer.copy(tuple = peer.tuple.copy(teamID = "original"))), owner))

@@ -14,7 +14,16 @@ import androidx.compose.ui.unit.dp
 internal data class NativeSettingsConnectionRow(val mac: NativeCredentialStore.PairedMac,
     val connection: NativeComputerConnection) {
     val identity get() = NativeMacIdentity(canonicalMacDeviceId(mac.deviceId), mac.instanceTag)
+    val owner get() = NativeComputerConnectionOwner.from(mac)
 }
+
+/** The record projection can distinguish an admitted original-team row from a same-instance picker row. */
+internal fun nativeSettingsConnectionRows(macs: List<NativeCredentialStore.PairedMac>,
+    connections: NativeComputerConnectionProjection): List<NativeSettingsConnectionRow> =
+    macs.groupBy(NativeComputerConnectionOwner::from).values.mapNotNull { candidates ->
+        val mac = candidates.singleOrNull() ?: return@mapNotNull null
+        connections[mac]?.takeIf { it.availability == NativeFeedAvailability.CONNECTED }?.let { NativeSettingsConnectionRow(mac, it) }
+    }
 
 /** Live app instances only. Discovery, filters and ambiguous saved identities cannot create rows. */
 internal fun nativeSettingsConnectionRows(macs: List<NativeCredentialStore.PairedMac>,
@@ -38,13 +47,13 @@ internal fun NativeSettingsConnections(owner: NativeComputerMenuOwner, rows: Lis
     DisposableEffect(Unit) { onDispose { admitted = false } }
     Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() },
         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-    rows.forEach { row -> key(owner, row.identity) {
+    rows.forEach { row -> key(owner, row.owner) {
         val name = appearances.name(row.mac)
         BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 52.dp)
             .testTag("settings.connection:${row.identity.deviceId}:${row.identity.buildTag.orEmpty()}")
             .clickable(role = Role.Button) {
                 if (admitted && currentOwner == owner) {
-                    val latest = currentRows.singleOrNull { it.identity == row.identity }
+                    val latest = currentRows.singleOrNull { it.owner == row.owner }
                     if (latest != null && NativeComputerMenuPairing.isCurrent(row.mac, listOf(latest.mac)))
                         currentDetails(latest.mac)
                 }

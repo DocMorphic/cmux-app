@@ -1,5 +1,51 @@
 # Team switching and the active Mac session
 
+## Record-qualified connection presentation and same-locator replies — 2026-10-12
+
+Connection status now has a record projection keyed by account owner and app
+instance, with exact origin/route/ticket matching on lookup. Foreground count and
+transport remain separate from a selected-team same-device/same-locator feed's
+count, transport and keep-awake state. Pending status requires the intended record,
+not code equality. Ambiguous owned instances are omitted. A harmless name change
+can keep its verified source; route/ticket changes cannot. This is presentation
+metadata and never admits a connection or settings action.
+
+`NativeScreen` derives selected-team legacy maps from this projection, supplies its
+record getter to the computer selector, and uses it for selected Settings rows.
+Inventory union coalesces harmless foreground/selected name differences without
+choosing ambiguous records. Settings row keys and captured action lookup include
+account ownership, preventing a removed original row from retargeting to a same-
+instance row in another team. The component can render both owners safely; the
+production Settings inventory still awaits the foreground detail integration.
+
+Reply candidates now search both foreground and selected inventories by original
+notification origin, coalesce harmless renames and reject conflicting aliases.
+The root branch requires `paneConnected(record)` rather than code equality. A
+same-locator selected peer can therefore borrow its already verified feed while
+the original root stays untouched. Selected feed permission and all encrypted
+receiver/outbox/epoch and admitted-paste fences remain; no new dial is introduced.
+
+**96 focused JVM cases pass**, including a new real-RPC same-locator selected-feed
+reply test, record projection isolation/pending/revision cases and the existing
+60-case feed coordinator suite. Debug/test APKs build and seven classes pass
+Android 17 ART reflection. **Three runtime cases pass in 7.593s**: same-instance
+owner rows retain separate transport and reject captured-row retargeting;
+component owner/membership/disposal guards; and the encrypted original-owner
+notification reply across an injected picker change.
+
+Evidence/XML/source and APK hashes are ignored under
+`captures/runtime/foreground-record-connections-*`. The sole existing 16 KB AVD
+was stopped/reaped; no physical device was touched. These are local fixtures, not
+actual account team selection or Mac/Iroh/Pixel/FCM acceptance. Signed 654 predates
+this source; full parity remains unverified.
+
+Remaining: foreground Settings/detail/local-removal operations, original-owner
+agent-feed source/read/actions when its secondary feed retires, then integration
+and actual account-switch UI acceptance. The selected-team detail host still
+requires its selected discovery/runtime state. Explicit Settings selection/create
+and Iroh eligibility teardown remain enabled: **team selection still disconnects
+the app**. Do not broaden fresh connection admission to make a detail view work.
+
 ## Foreground replies, workspace inventory and display metadata — 2026-10-12
 
 The direct notification reply provider now finds the individually admitted pane Mac

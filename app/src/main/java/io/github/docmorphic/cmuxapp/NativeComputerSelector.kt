@@ -44,13 +44,16 @@ internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>,
     sshTargets: List<NativeSshCreateTarget> = emptyList(), selectedSsh: NativeSshCreateTarget? = null,
     canSelectSsh: (NativeSshCreateTarget) -> Boolean = { false }, onSelectSsh: (NativeSshCreateTarget) -> Unit = {},
     cloud: List<CloudWorkspaceSnapshot> = emptyList(), selectedCloud: String? = null,
-    canSelectCloud: (CloudWorkspaceSnapshot) -> Boolean = { false }, onSelectCloud: (CloudWorkspaceSnapshot) -> Unit = {}) {
+    canSelectCloud: (CloudWorkspaceSnapshot) -> Boolean = { false }, onSelectCloud: (CloudWorkspaceSnapshot) -> Unit = {},
+    connectionFor: (NativeCredentialStore.PairedMac) -> NativeComputerConnection? = {
+        connections[NativeMacIdentity(it.deviceId, it.instanceTag)]
+    }) {
     // Match iOS's deferred menu: capture presentation and callbacks once per opening.
     // Toolbar state remains live. Current authority is checked separately at every tap.
     val opening = remember(open) {
         if (!open) null else ComputerMenuOpening(owner, selected == null && pending == null && selectedSsh == null && selectedCloud == null,
             macs.map { mac -> ComputerMenuRow(mac, appearances.name(mac), (pending ?: selected)?.origin == mac.origin, presence.buildLabel(mac),
-                connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()) }, onSelect, onPair, sshTargets, selectedSsh?.host?.id, onSelectSsh, cloud.toList(), selectedCloud, onSelectCloud)
+                connectionFor(mac) ?: NativeComputerConnection()) }, onSelect, onPair, sshTargets, selectedSsh?.host?.id, onSelectSsh, cloud.toList(), selectedCloud, onSelectCloud)
     }
     val currentOwner by rememberUpdatedState(owner)
     val currentOwnerCheck by rememberUpdatedState(isOwnerCurrent)

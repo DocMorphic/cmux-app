@@ -6,6 +6,14 @@ internal fun nativePhoneReplyOwnerMatches(target: PhoneReplyDirectTarget, owner:
         target.team.teamId == owner.teamId && target.peer.tuple.accountID == owner.userId &&
         (target.peer.tuple.teamID == null || target.peer.tuple.teamID == owner.teamId)
 
+/** Search both inventories by authenticated origin; a shared public locator does not choose a handle. */
+internal fun nativePhoneReplyCandidate(target: PhoneReplyDirectTarget, foreground: NativeCredentialStore.PairedMac?,
+    selected: List<NativeCredentialStore.PairedMac>): NativeCredentialStore.PairedMac? {
+    val candidates = (listOfNotNull(foreground) + selected).filter { it.ownsOrigin(target.origin) }
+    val first = candidates.firstOrNull() ?: return null
+    return first.takeIf { candidates.all { NativeComputerMenuPairing.isCurrent(first, listOf(it)) } }
+}
+
 /** Borrow this handle only. The caller validates its exact admitted record and live owner. */
 internal fun nativeForegroundReplyAttempt(target: PhoneReplyDirectTarget, mac: NativeCredentialStore.PairedMac,
     client: MobileRpcClient, workspaces: () -> List<NativeWorkspace>, isCurrent: () -> Boolean,

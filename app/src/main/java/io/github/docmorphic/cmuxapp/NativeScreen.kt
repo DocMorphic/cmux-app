@@ -778,10 +778,16 @@ internal fun NativeScreen(
         val canCreateOnCurrentMac = connectionReady && client != null && connectedCode == code &&
             (selectedCloudId == null && selectedSshComputer == null && (selectedComputer == null || selectedComputer.code == connectedCode))
         val canCreateInCurrentPane = connectionReady && client != null && connectedCode == code
-        val computerConnections = nativeComputerConnections(pairedMacs, feedSources,
-            activeCode = connectedCode.takeIf { connectionReady && client?.isClosed == false && it == code },
-            pendingCode = code.takeIf { signedIn && it.isNotBlank() && !connectionReady && busy },
-            foregroundWorkspaces = workspaces, foregroundTransport = client?.connectionTransport, isForeground = ::paneConnected)
+        val pendingConnectionMac = expectedReconnect?.takeIf { it.code == code } ?: paneContext.mac?.takeIf { it.code == code }
+        val recordConnectionMacs = listOfNotNull(paneContext.mac) + pairedMacs.filterNot { mac ->
+            paneContext.mac?.let { NativeComputerMenuPairing.isCurrent(mac, listOf(it)) } == true
+        }
+        val recordConnections = nativeRecordComputerConnections(recordConnectionMacs, feedSources,
+            workspaces, client?.connectionTransport, ::paneConnected, isPending = { mac ->
+                signedIn && busy && !connectionReady && pendingConnectionMac != null &&
+                    NativeComputerMenuPairing.isCurrent(mac, listOf(pendingConnectionMac))
+            })
+        val computerConnections = recordConnections.selectedValues(pairedMacs)
         NativeSavedComputerDetailsHost(sharedConnections?.native, computerState, computerDetails,
             computerConnections, forgetCallbacks, store, connection, feedCoordinator) { computerDetails = null }
         // Separate feed/terminal/route setup from account and computer state.
@@ -1174,12 +1180,12 @@ internal fun NativeScreen(
                 }
             }
             ObservePhoneReplyDirect(lifecycle) { target ->
-                val mac = paneMacs.singleOrNull { it.ownsOrigin(target.origin) }
+                val mac = nativePhoneReplyCandidate(target, paneContext.mac, pairedMacs)
                 fun selectedAdmission() = feedForeground && signedIn && store.taskSession() == target.team.login &&
                     teamState.scope?.let { accountTeams.isCurrent(it) && nativePhoneReplyOwnerMatches(target, it) } == true &&
                     mac != null && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac)
                 if (mac == null) null
-                else if (mac.code == code) {
+                else if (paneConnected(mac)) {
                     val active = client
                     val owner = active?.let { feedSession.foregroundScope(mac, it) } ?: teamState.scope
                     val workspace = target.resolve(workspaces)
@@ -2712,7 +2718,7 @@ internal fun NativeScreen(
                 }
                 val settingsContent: @Composable ColumnScope.() -> Unit = {
                     val settingsOwner = NativeComputerMenuOwner(browserLogin, teamState.scope)
-                    val settingsRows = nativeSettingsConnectionRows(pairedMacs, computerConnections)
+                    val settingsRows = nativeSettingsConnectionRows(pairedMacs, recordConnections)
                     var legacyOrigin by rememberSaveable(settingsOwner) { mutableStateOf<String?>(null) }
                     val legacy = legacyOrigin?.let { origin ->
                         pairedMacs.singleOrNull { it.origin == origin }?.let { mac ->
@@ -3438,7 +3444,8 @@ internal fun NativeScreen(
                             presence = scopedPresence, sshTargets = sshTargets, selectedSsh = selectedSshComputer,
                             canSelectSsh = ::canSelectSsh, onSelectSsh = ::selectSshComputer,
                             cloud = cloudSnapshots.values.toList(), selectedCloud = selectedCloudId,
-                            canSelectCloud = ::canSelectCloud, onSelectCloud = ::selectCloudComputer)
+                            canSelectCloud = ::canSelectCloud, onSelectCloud = ::selectCloudComputer,
+                            connectionFor = recordConnections::get)
                         if (isSidebar) Spacer(Modifier.weight(1f)) else ListTitle(Modifier.weight(1f))
                         if (agentFeedTab) {
                             Box {
