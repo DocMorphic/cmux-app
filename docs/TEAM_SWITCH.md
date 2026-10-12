@@ -1,5 +1,41 @@
 # Team switching and the active Mac session
 
+## Foreground pane, tab and picker guards — 2026-10-12
+
+Pane recovery, browser discovery, terminal startup expiry, workspace routes and
+remembered tab updates now use the admitted Mac's own team context. Activity
+restoration uses that live context when available; cold process restoration still
+uses the selected team. Local-browser creation and routed sidebar data/actions can
+use the individually admitted foreground record without admitting another old-team
+Mac. Notification suppression and Changes pane keys follow the displayed Mac.
+
+The connection owner retains its verified Mac record. Warm picker matches and
+foreground status require the exact device/build/account/origin/ticket record,
+readiness, both code bindings and current permission. A same public locator in
+another team cannot borrow the foreground count/status. Explicit selection of a
+different record sharing the code advances retry and pins fresh admission. Browser
+and sidebar workspace fallbacks also require the exact admitted record, preventing
+another same-code row from displaying its data. Metadata alone is not authority;
+existing saved/foreground proof and fresh-connection checks remain.
+
+**73 focused JVM cases pass**, including three new exact-record selection/status
+cases. Debug/test APKs build and five changed classes pass Android 17 ART reflection.
+**Three runtime cases pass in 11.426s**: exact remembered-browser discovery, late
+browser discovery respecting a newer terminal choice, and streamed-browser picker
+terminal creation in its own workspace. An earlier run lost its process handle
+without a test/lifecycle report; no emulator remained, and that run is unverified.
+The fresh terminal run provides the authoritative result.
+
+Evidence/XML/source and APK hashes are ignored under
+`captures/runtime/foreground-pane-guards-*`. Only the existing 16 KB AVD was used
+and stopped/reaped; the physical phone was untouched. Same-locator cross-team cases
+are controller tests, not full real-account UI or Mac/Iroh/Pixel acceptance. Signed
+654 predates this source.
+
+Appearance and remaining task/presentation/Changes access guards still need review
+before removing Settings teardown. **Team selection still disconnects the app.**
+Full parity remains unverified.
+
 ## Captured foreground disconnect recovery — 2026-10-12
 
 The screen connection now retains the admitted recovery owner and retry generation

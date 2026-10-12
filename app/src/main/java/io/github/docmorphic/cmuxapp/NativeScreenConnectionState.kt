@@ -26,12 +26,14 @@ internal class NativeScreenConnectionState(initialCode: String,
             ownedClient = value
             notificationsRevision = -1
             admittedOwner = null
+            admittedMac = null
             changed(previous, value)
         }
     var connectedCode by mutableStateOf<String?>(null)
     var connectionReady by mutableStateOf(false)
     var admittedRetry: Int? = null
     var admittedOwner by mutableStateOf<NativeConnectionRecoveryOwner?>(null)
+    var admittedMac by mutableStateOf<NativeCredentialStore.PairedMac?>(null)
     val replayGeneration = mutableIntStateOf(0)
     val viewportGeneration = mutableLongStateOf(0L)
     var hostName by mutableStateOf("cmux")

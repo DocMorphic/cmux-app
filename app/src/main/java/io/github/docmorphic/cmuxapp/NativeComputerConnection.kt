@@ -20,13 +20,14 @@ internal data class NativeComputerConnection(
 internal fun nativeComputerConnections(
     allowed: List<NativeCredentialStore.PairedMac>, sources: Map<String, NativeFeedSource>,
     activeCode: String?, pendingCode: String?, foregroundWorkspaces: List<NativeWorkspace>,
-    foregroundTransport: MobileConnectionTransport? = null
+    foregroundTransport: MobileConnectionTransport? = null,
+    isForeground: (NativeCredentialStore.PairedMac) -> Boolean = { it.code == activeCode }
 ): Map<NativeMacIdentity, NativeComputerConnection> = allowed
     .groupBy { NativeMacIdentity(it.deviceId, it.instanceTag) }
     .mapNotNull { (identity, candidates) ->
         val mac = candidates.singleOrNull() ?: return@mapNotNull null
         val source = sources[mac.origin]?.takeIf { it.mac == mac }
-        val foreground = mac.code == activeCode
+        val foreground = mac.code == activeCode && isForeground(mac)
         val availability = when {
             foreground || source?.availability == NativeFeedAvailability.CONNECTED -> NativeFeedAvailability.CONNECTED
             mac.code == pendingCode || source?.availability == NativeFeedAvailability.CONNECTING -> NativeFeedAvailability.CONNECTING

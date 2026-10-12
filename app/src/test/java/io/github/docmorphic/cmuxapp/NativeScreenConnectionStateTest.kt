@@ -12,12 +12,14 @@ class NativeScreenConnectionStateTest {
         try {
             owner.client = client; owner.connectedCode = "original"; owner.connectionReady = true; owner.admittedRetry = 4
             owner.admittedOwner = NativeConnectionRecoveryOwner("login", "original", null)
+            owner.admittedMac = NativeCredentialStore.PairedMac("original", "device", "Mac")
             owner.hostName = "Verified Mac"; owner.hostCapabilities = setOf("terminal.resize.v1")
             val old = NativeScreenTransientState("original", emptyList(), false, connectionState = owner)
             old.terminalClick = {}
             val replacement = NativeScreenTransientState("ignored", emptyList(), false, connectionState = owner)
             assertSame(client, replacement.client); assertEquals("original", replacement.code)
             assertEquals(owner.admittedOwner, replacement.connectionState.admittedOwner)
+            assertEquals(owner.admittedMac, replacement.connectionState.admittedMac)
             assertEquals("Verified Mac", replacement.hostName); assertEquals(owner.hostCapabilities, replacement.hostCapabilities)
             assertNull(replacement.terminalClick); assertNotNull(old.terminalClick)
             val oldGeneration = ++old.replayGeneration
@@ -49,8 +51,9 @@ class NativeScreenConnectionStateTest {
         val second = MobileRpcClient(secondWire, { "fixture" }); second.connect()
         val owner = NativeScreenConnectionState("one")
         owner.client = first; owner.notificationsRevision = 7; owner.admittedOwner = NativeConnectionRecoveryOwner("login", "one", null)
+        owner.admittedMac = NativeCredentialStore.PairedMac("one", "device", "Mac")
         owner.client = second; assertEquals(-1L, owner.notificationsRevision)
-        assertNull(owner.admittedOwner)
+        assertNull(owner.admittedOwner); assertNull(owner.admittedMac)
         owner.notificationsRevision = 2; owner.client = second; assertEquals(2L, owner.notificationsRevision)
         assertTrue(first.isClosed); assertFalse(second.isClosed)
         assertEquals(1, firstWire.closes.get()); assertEquals(0, secondWire.closes.get())
