@@ -130,7 +130,36 @@ internal fun nativeComputerForgetFlow(runtime: NativeIrohRuntime, team: NativeTe
     } },
     prepare = prepare,
     revoke = { runtime.forgetComputer(team, target) },
-    cleanup = { rows -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    cleanup = { rows -> nativeComputerForgetCleanup(team, target, store, appearance, connectionSettings, rows) }
+)
+
+internal fun nativeForegroundComputerForgetFlow(runtime: NativeIrohRuntime, management: NativeForegroundComputerManagement,
+    store: NativeCredentialStore, appearance: NativeMacAppearanceStore, connectionSettings: NativeMacConnectionStore,
+    prepare: (List<NativeCredentialStore.PairedMac>) -> Unit): NativeComputerForgetFlow {
+    val team = management.team
+    val target = checkNotNull(NativeComputerTarget.from(management.mac, team))
+    var permit: NativeForegroundComputerRevoke? = null
+    return NativeComputerForgetFlow(
+        permits = { permit?.current() == true || management.available() },
+        capture = { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            check(store.taskSession() == team.login)
+            NativeComputerForgetLocal.capture(store.pairedMacs(), team, target)
+        } },
+        prepare = { rows ->
+            if (permit == null) permit = management.beginRevoke()
+            check(permit?.current() == true)
+            prepare(rows)
+        },
+        revoke = { runtime.forgetForegroundComputer(checkNotNull(permit)) },
+        cleanup = { rows ->
+            nativeComputerForgetCleanup(team, target, store, appearance, connectionSettings, rows)
+            permit?.close()
+        })
+}
+
+private suspend fun nativeComputerForgetCleanup(team: NativeTeamScope, target: NativeComputerTarget,
+    store: NativeCredentialStore, appearance: NativeMacAppearanceStore, connectionSettings: NativeMacConnectionStore,
+    rows: List<NativeCredentialStore.PairedMac>) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         // Clear metadata first. A failed pairing commit leaves a retryable saved row.
         // Both stores are addressed by the captured owner, never the live display team.
         var discarded = emptyList<NativePairingAppearanceUpgrade>()
@@ -145,5 +174,4 @@ internal fun nativeComputerForgetFlow(runtime: NativeIrohRuntime, team: NativeTe
         })
         connectionSettings.removeComputer(target) { store.taskSession() == team.login }
         store.forgetCapturedNativeMac(team, rows, target)
-    } }
-)
+    }

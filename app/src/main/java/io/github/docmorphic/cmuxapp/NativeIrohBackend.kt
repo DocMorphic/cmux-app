@@ -12,6 +12,7 @@ import kotlinx.coroutines.sync.withLock
 internal interface IrohAccountBackend : AutoCloseable {
     val state: StateFlow<IrohV2ControlState>
     suspend fun start()
+    suspend fun startManagement() { start() }
     suspend fun refresh()
     suspend fun revokeComputer(target: NativeComputerTarget) { error("Computer removal is unavailable") }
     suspend fun refreshNetworking() { refresh() }
@@ -61,6 +62,7 @@ internal class NativeIrohBackend(
         }
     }
     override suspend fun refresh() { control.refreshDirectory() }
+    override suspend fun startManagement() { control.connect() }
     override suspend fun revokeComputer(target: NativeComputerTarget) { requireCurrent(); control.revokeComputer(target); requireCurrent() }
     override suspend fun refreshNetworking() {
         requireCurrent()

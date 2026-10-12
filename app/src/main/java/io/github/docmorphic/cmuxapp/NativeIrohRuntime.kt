@@ -360,6 +360,30 @@ internal class NativeIrohRuntime(
         } finally { gate.unlock() }
     }
 
+    /** Account control only: an explicitly confirmed original-owner target never opens a Mac transport. */
+    suspend fun forgetForegroundComputer(permit: NativeForegroundComputerRevoke, timeoutMillis: Long = 30_000) {
+        if (!permit.begin()) return
+        var control: IrohAccountBackend? = null
+        try {
+            withTimeout(timeoutMillis) {
+                check(permit.current()) { "Computer removal owner changed" }
+                check(!synchronized(lock) { closed }) { "Networking is closed" }
+                control = backend(permit.team) { permit.current() && !synchronized(lock) { closed } }
+                check(permit.current())
+                control!!.startManagement()
+                check(permit.current())
+                control!!.revokeComputer(permit.target)
+                currentCoroutineContext().ensureActive()
+                permit.acknowledge()
+            }
+        } finally {
+            try {
+                control?.close()
+                withContext(NonCancellable) { withTimeoutOrNull(2000) { control?.awaitClosed() } }
+            } finally { permit.finish() }
+        }
+    }
+
     fun powerSession(team: NativeTeamScope, target: NativeComputerTarget): NativeMacPowerSession? {
         if (audience?.allowsTag(target.buildTag) == false) return null
         if (savedTailscale?.selected(team, target) == true) return savedTailscale.powerSession(team, target)

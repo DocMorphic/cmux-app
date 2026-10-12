@@ -58,6 +58,15 @@ internal class NativeForegroundSessionAuthority(
         return scopeFor(mac.code, client).takeIf { binding.get() === captured }
     }
 
+    fun computerManagement(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient): NativeForegroundComputerManagement? {
+        val captured = binding.get() ?: return null
+        val owner = scopeFor(mac, client) ?: return null
+        if (binding.get() !== captured) return null
+        return NativeForegroundComputerManagement(owner, mac,
+            rootCurrent = { scopeFor(mac, client) == owner && binding.get() === captured },
+            memberAndRecordCurrent = { teams.allowsContinuation(captured.proof) && NativeComputerMenuPairing.isCurrent(mac, pairings()) })
+    }
+
     /** An old composition's disposal cannot erase the replacement foreground binding. */
     fun release(client: MobileRpcClient) {
         val captured = binding.get() ?: return

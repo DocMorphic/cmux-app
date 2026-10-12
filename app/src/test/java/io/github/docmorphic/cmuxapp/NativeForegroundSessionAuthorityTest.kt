@@ -49,6 +49,39 @@ class NativeForegroundSessionAuthorityTest {
         }
     }
 
+    @Test fun managementUsesOriginalBoundRecordAndConfirmedRevokeSurvivesRootStopButNotMembershipLoss() = runBlocking<Unit> {
+        fixture {
+            val record = mac.copy(code = "cmux-ios://attach?v=2&r=100.64.0.7:58465&ub=user")
+            saved = listOf(record)
+            val (client, _) = client(); authority.admit(initial, record, client)
+            selection("two"); account.select("two")
+            val management = checkNotNull(authority.computerManagement(record, client))
+            assertTrue(management.available()); assertEquals(initial, management.team)
+            assertNull(authority.computerManagement(record.copy(accountTeamId = "two", stableOrigin = "other"), client))
+            val (replacement, _) = client(); assertNull(authority.computerManagement(record, replacement))
+            val permit = management.beginRevoke()
+            client.close(); authority.release(client)
+            assertFalse(management.available()); assertTrue(runCatching { management.beginRevoke() }.isFailure)
+            assertTrue(permit.current())
+            profile("two", "two"); account.refresh()
+            assertFalse(permit.current()); permit.close()
+        }
+    }
+
+    @Test fun managementRecordRevisionCannotBeRevivedByRenameOrAnotherSameLocatorPairing() = runBlocking<Unit> {
+        fixture {
+            val record = mac.copy(code = "cmux-ios://attach?v=2&r=100.64.0.7:58465&ub=user")
+            saved = listOf(record)
+            val (client, _) = client(); authority.admit(initial, record, client)
+            val management = checkNotNull(authority.computerManagement(record, client))
+            val permit = management.beginRevoke()
+            saved = listOf(record.copy(name = "Renamed")); assertTrue(management.available()); assertTrue(permit.current())
+            saved = listOf(record.copy(nativeRouteCode = "changed"))
+            assertFalse(management.available()); assertFalse(permit.current())
+            assertNull(authority.computerManagement(record, client)); permit.close()
+        }
+    }
+
     @Test fun existingForegroundKeepsOriginalScopeAndRpcWhileSelectedTeamChanges() = runBlocking<Unit> {
         fixture {
             val (client, wire) = client()

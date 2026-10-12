@@ -27,7 +27,7 @@ internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: N
         title = { Text(if (state.remoteConfirmed) "Finish removing $name?" else "Forget $name?") },
         text = { Column {
             Text(if (state.remoteConfirmed) "The server has already confirmed removal. Finish clearing the saved pairing on this phone."
-                else "Removes this computer’s $buildTag registration from the selected team on all your devices. An online Mac may reappear when it registers again.")
+                else "Removes this computer’s $buildTag registration from its owning cmux team on all your devices. An online Mac may reappear when it registers again.")
             state.error?.let { Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(top = 12.dp)) }
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 16.dp))
         } },

@@ -63,6 +63,13 @@ internal class NativeFeedSession(
     fun foregroundScope(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient?) = foregroundAuthority?.scopeFor(mac, client)
     fun allowsForegroundMac(mac: NativeCredentialStore.PairedMac) = foregroundAuthority?.scopeFor(mac) != null
     fun releaseForeground(client: MobileRpcClient) { foregroundAuthority?.release(client) }
+    fun foregroundComputerManagement(mac: NativeCredentialStore.PairedMac): NativeForegroundComputerManagement? {
+        val state = screenConnection ?: return null
+        val client = state.client ?: return null
+        if (!nativeForegroundMacSelected(mac, state.admittedMac, state.connectionReady, state.code, state.connectedCode,
+            canRetainForeground(mac, client))) return null
+        return foregroundAuthority?.computerManagement(mac, client)
+    }
     private var screenConnection: NativeScreenConnectionState? = null
     private var foregroundSizing: Job? = null
     private var foregroundArtifactWatcher: Job? = null

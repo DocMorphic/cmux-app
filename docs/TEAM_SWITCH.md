@@ -1,5 +1,52 @@
 # Team switching and the active Mac session
 
+## Original-owner confirmed computer-removal foundation — 2026-10-12
+
+A management context can now be captured only from the exact live admitted
+record/client and verified original account continuation. A confirmed revoke
+creates a target-specific permit before stopping the root. That permit can finish
+or explicitly retry the same removal while original membership and the unchanged
+pairing remain valid. It cannot begin a new action after root loss, admit a Mac
+transport, change target, survive membership/record changes, or start duplicate
+concurrent control operations. A confirmed acknowledgement prevents another revoke.
+
+`NativeIrohRuntime.forgetForegroundComputer` uses a short-lived account control
+backend for the permit's original scope. Production `startManagement` connects the
+control session without starting endpoint observation or dialing a Mac. Setup,
+revoke and acknowledgement are guarded; every path closes the control backend.
+The selected team and ordinary selected-operation/dial policy remain unchanged.
+This also avoids depending on a stopped saved-Tailscale root's native backend.
+
+The new foreground Forget flow captures this permit before the existing stop
+callback, then shares exact-owner credential/appearance/connection cleanup with
+the selected flow. Local-save retry after a confirmed revoke neither requires the
+stopped root nor repeats the remote call. Confirmation copy now says the owning
+cmux team, rather than incorrectly calling it the selected team.
+
+**66 focused JVM cases pass**, including real membership/record authority tests,
+control-only scope isolation, permission loss, explicit retry, duplicate/closed
+runtime handling, and the existing 37-case Iroh runtime suite. Debug/test APKs build
+and nine classes pass Android 17 ART reflection. **Three runtime cases pass in
+9.089s**: the new confirmation/credential pipeline after root stop preserves the
+other team's same-locator binding and selection; failed local save retries without
+another revoke; and the existing selected-flow cleanup retry remains correct.
+
+Evidence/XML/source and APK hashes are ignored under
+`captures/runtime/foreground-computer-management-*`. The sole existing 16 KB AVD
+was stopped/reaped; no physical device was touched. The control backend is a
+fixture and no production account registration was revoked. These checks do not
+prove actual team-switch UI, Pixel/Mac/Iroh or FCM acceptance. Signed 654 predates
+this source; full parity remains unverified.
+
+This is the removal foundation, not completed detail-page integration. Next wire
+the exact original-owner detail route and its live check, power, appearance,
+connection/private-route settings and confirmed removal. Preserve the original
+live record guard for new actions, retain only the explicitly confirmed removal
+permit after stopping its root, and keep general new Mac admission selected-team
+scoped. The Settings inventory still omits the original-team row until that route
+can handle its full actions. Explicit Settings selection/create and Iroh eligibility
+teardown remain enabled: **team selection still disconnects the app**.
+
 ## Captured-owner local removal and root-stop fencing — 2026-10-12
 
 The local Settings removal action now captures login, pane owner, exact saved Mac,
