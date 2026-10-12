@@ -113,6 +113,7 @@ internal class NativeIrohRuntime(
 
     fun reserveForeground(proof: NativeTeamContinuation, client: MobileRpcClient): NativeForegroundTransport? {
         if (!allowsContinuation(proof)) return null
+        savedTailscale?.reserveForeground(proof, client)?.let { return it }
         val run = synchronized(lock) { owner } ?: return null
         if (!current(run, proof.admittedScope)) return null
         val pool = synchronized(lock) { run.connections }

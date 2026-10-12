@@ -1,5 +1,30 @@
 # Codex laptop handoff — 2026-09-28
 
+## Saved Tailscale foreground transport — 2026-10-12
+
+Saved native identities routed over Tailscale now have separate selected-team and
+foreground ownership. A verified, already admitted pooled client can activate one
+foreground reservation through the native runtime facade. Selection retires
+secondary wires and pending admissions; returning to the retained team reuses its
+wire/manual ticket with a fresh selection generation. Grant/route replacement,
+membership removal and logout invalidate continuation. Unknown, forged and
+unactivated reservations cannot preserve a client. Settings construction occurs
+outside the runtime monitor; a selected-team configuration failure reports an
+error without retiring another team's valid foreground.
+
+All **109 focused JVM cases pass**: 28 saved-route, 36 Iroh, 15 pool, eight
+foreground-holder and 22 account cases. Debug/test APKs build in 1m16s. Original
+logs, final XML and source/APK hashes are retained under ignored
+`captures/runtime/saved-tailscale-continuation-*`. These use fixture wires and
+MockWebServer account membership. No emulator or physical phone was used for this
+batch, and no new AVD was created.
+
+This is transport ownership support. Existing ticket guards, legacy pairing,
+compatibility tracking, per-Mac pane/feed/browser/notification state and Activity
+ownership still need integration before removing explicit Settings teardown.
+**The app still disconnects on team selection.** Signed build 654 predates these
+saved-route changes; neither live Tailscale nor full UI continuation is verified.
+
 ## Signed integration milestone 654 — in progress
 
 Manual [run 38198098744](https://github.com/DocMorphic/cmux-app/actions/runs/38198098744)

@@ -10,8 +10,158 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.MockResponse
 
 class NativeSavedTailscaleRuntimeTest {
+    private fun MockWebServer.profile(selected: String, vararg members: String) {
+        enqueue(MockResponse().setBody(JSONObject().put("id", "user").put("selected_team", JSONObject().put("id", selected)).toString()))
+        enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray(members.map {
+            JSONObject().put("id", it).put("display_name", it)
+        })).toString()))
+    }
+    private suspend fun continuation(block: suspend (Fixture, NativeAccountTeams, MockWebServer) -> Unit) {
+        MockWebServer().use { server ->
+            NativeAccountTeams({ "fixture-token" }, { "login" }, server.url("/api/v1/")).use { account ->
+                server.profile("team", "team", "other"); account.refresh()
+                Fixture(manualTickets = true, continuation = account::allowsContinuation).use { f ->
+                    f.teams.value = account.state.value
+                    block(f, account, server)
+                }
+            }
+        }
+    }
+    private suspend fun select(f: Fixture, account: NativeAccountTeams, server: MockWebServer, id: String): NativeTeamScope {
+        server.enqueue(MockResponse().setBody(JSONObject().put("id", "user")
+            .put("selected_team", JSONObject().put("id", id)).toString()))
+        val result = account.select(id); f.teams.value = result
+        val scope = checkNotNull(result.scope)
+        withTimeout(2000) { f.local.state.first { it.account == scope } }
+        return scope
+    }
+
+    @Test fun savedForegroundKeepsTicketAndWireAcrossTeamRoundTripWhileOldAdmissionsStayFenced() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val first = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            val proof = checkNotNull(account.captureContinuation(f.team))
+            val hold = checkNotNull(f.local.reserveForeground(proof, first))
+            try {
+                hold.activate { true }; assertTrue(runCatching { hold.activate { true } }.isFailure)
+                select(f, account, server, "other")
+                assertFalse(first.isClosed); first.workspaces()
+                assertTrue(f.wires.single().allowed()); assertNull(f.local.powerSession(f.team, f.target))
+                assertTrue(runCatching { f.local.connectIfSelected(f.team, f.target) }.isFailure)
+                val returned = select(f, account, server, "team")
+                assertNotEquals(f.team.generation, returned.generation)
+                checkNotNull(f.local.connectIfSelected(returned, f.target)).use { it.workspaces() }
+                first.workspaces(); assertEquals(1, f.wires.size)
+                assertEquals(1, f.wires.single().methods.count { it == "mobile.attach_ticket.create" })
+                hold.close(); select(f, account, server, "other")
+                withTimeout(2000) { first.disconnected.first() }
+            } finally { hold.close(); first.close() }
+        }
+    }
+
+    @Test fun onlySavedForegroundSurvivesSelectionAndPendingHostProbeCannotCompleteAfterReturn() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val sibling = f.target.copy(deviceId = "secondary")
+            val pendingTarget = f.target.copy(deviceId = "pending")
+            f.settings.update(sibling, { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
+            f.settings.update(pendingTarget, { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
+            f.setRoutes(listOf(f.grant, f.grant.copy(id = UUID.randomUUID().toString(), source = "b".repeat(64), device = sibling.deviceId),
+                f.grant.copy(id = UUID.randomUUID().toString(), source = "c".repeat(64), device = pendingTarget.deviceId)))
+            val first = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            val secondary = checkNotNull(f.local.connectIfSelected(f.pairing(sibling)))
+            val hold = checkNotNull(f.local.reserveForeground(checkNotNull(account.captureContinuation(f.team)), first))
+            hold.activate { true }
+            val gate = CompletableDeferred<Unit>(); f.hostGates[pendingTarget.deviceId to pendingTarget.buildTag] = gate
+            val pending = async { runCatching { f.local.connectIfSelected(f.pairing(pendingTarget)) } }
+            try {
+                withTimeout(2000) { while (f.wires.size < 3 || f.wires.last().methods.isEmpty()) delay(1) }
+                select(f, account, server, "other")
+                assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+                withTimeout(2000) { secondary.disconnected.first() }
+                first.workspaces(); assertFalse(first.isClosed)
+                select(f, account, server, "team"); gate.complete(Unit)
+                assertEquals(3, f.wires.size); first.workspaces()
+            } finally { hold.close(); first.close(); secondary.close(); gate.cancel(); pending.cancel(); pending.join() }
+        }
+    }
+
+    @Test fun savedForegroundCannotOutliveGrantReplacementOrMembershipRemovalAndReaddition() = runBlocking<Unit> {
+        for (removeMembership in listOf(true, false)) continuation { f, account, server ->
+            val first = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            val proof = checkNotNull(account.captureContinuation(f.team))
+            val hold = checkNotNull(f.local.reserveForeground(proof, first)); hold.activate { true }
+            try {
+                select(f, account, server, "other")
+                if (removeMembership) {
+                    server.profile("other", "other"); f.teams.value = account.refresh()
+                } else f.setRoutes(listOf(f.grant.copy(id = UUID.randomUUID().toString())))
+                withTimeout(2000) { first.disconnected.first() }
+                assertFalse(f.wires.first().allowed())
+                server.profile("other", "team", "other"); f.teams.value = account.refresh()
+                f.setRoutes(listOf(f.grant))
+                assertTrue(runCatching { hold.activate { true } }.isFailure)
+                val returned = select(f, account, server, "team")
+                checkNotNull(f.local.connectIfSelected(returned, f.target)).use { it.workspaces() }
+                assertEquals(2, f.wires.size)
+            } finally { hold.close(); first.close() }
+        }
+    }
+
+    @Test fun savedForegroundReservationCannotKeepUnknownOrUnactivatedClient() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val first = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            val proof = checkNotNull(account.captureContinuation(f.team))
+            MobileRpcClient(PoolTestTransport(), { "fixture" }).use { foreign ->
+                foreign.connect(); assertNull(f.local.reserveForeground(proof, foreign))
+            }
+            assertNull(f.local.reserveForeground(NativeTeamContinuation(f.team, Any()), first))
+            val hold = checkNotNull(f.local.reserveForeground(proof, first))
+            assertTrue(runCatching { hold.activate { false } }.isFailure)
+            select(f, account, server, "other")
+            withTimeout(2000) { first.disconnected.first() }
+            assertTrue(runCatching { hold.activate { true } }.isFailure)
+            hold.close(); first.close()
+        }
+    }
+
+    @Test fun nativeFacadeRetainsSavedTailscaleWithoutAnyIrohEnrollmentOrEndpoint() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            var nativeAttempts = 0
+            NativeIrohRuntime(f.teams, { f.teams.value.scope == it }, { "unused" }, { _, _ ->
+                nativeAttempts++; throw IrohV2ServerFailure("unauthorized", false)
+            }, savedTailscale = f.local, allowsContinuation = account::allowsContinuation).use { facade ->
+                val first = checkNotNull(f.local.connectIfSelected(f.pairing()))
+                val hold = checkNotNull(facade.reserveForeground(checkNotNull(account.captureContinuation(f.team)), first))
+                try {
+                    hold.activate { true }; select(f, account, server, "other")
+                    first.workspaces(); assertEquals(1, f.wires.size); assertFalse(first.isClosed)
+                    assertTrue(nativeAttempts <= 2)
+                } finally { hold.close(); first.close() }
+            }
+        }
+    }
+
+    @Test fun accountFactoryFailurePublishesErrorAndLaterRefreshRecoversWithoutRetiringForeground() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val first = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            val hold = checkNotNull(f.local.reserveForeground(checkNotNull(account.captureContinuation(f.team)), first))
+            try {
+                hold.activate { true }
+                f.accountHook = { selected -> if (selected.teamId == "other") error("Fixture settings unavailable") }
+                val other = select(f, account, server, "other")
+                withTimeout(2000) { f.local.state.first { it.account == other && it.error != null } }
+                first.workspaces(); assertFalse(first.isClosed)
+                f.accountHook = {}
+                f.teams.value = account.state.value.copy(loading = true)
+                withTimeout(2000) { f.local.state.first { it.account == other && it.error == null } }
+                first.workspaces(); select(f, account, server, "team")
+                assertEquals(1, f.wires.size)
+            } finally { hold.close(); first.close() }
+        }
+    }
     @Test fun sharedSavedTailscaleRefreshesRejectedTokenBeforeManualTicketAndWorkspaceAdmission() = runBlocking<Unit> {
         Fixture(manualTickets = true, tokenRecovery = true).use { f ->
             f.rejectAccessToken = "fixture-token"
@@ -106,7 +256,8 @@ class NativeSavedTailscaleRuntimeTest {
     }
 
     private class Fixture(private val enforceCompatibility: Boolean = false,
-        audience: NativeMacBuildAudience? = null, manualTickets: Boolean = false, tokenRecovery: Boolean = false) : AutoCloseable {
+        audience: NativeMacBuildAudience? = null, manualTickets: Boolean = false, tokenRecovery: Boolean = false,
+        continuation: (NativeTeamContinuation) -> Boolean = { false }) : AutoCloseable {
         val team = NativeTeamScope("login", "user", "team", 1)
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
         val target = NativeComputerTarget("mac", "default", "Mac")
@@ -132,6 +283,7 @@ class NativeSavedTailscaleRuntimeTest {
         var ticketHook: () -> Unit = {}
         var expectedTicket: String? = if (manualTickets) "saved-ticket" else null
         var resolveHook: () -> Unit = {}
+        var accountHook: (NativeTeamScope) -> Unit = {}
         val compatibility = NativeMacCompatibilityGate({ teams.value.scope == it })
         val local: NativeSavedTailscaleRuntime
         init {
@@ -140,9 +292,11 @@ class NativeSavedTailscaleRuntimeTest {
                 admitCompatibility = { owner, client, host -> if (enforceCompatibility) compatibility.admit(owner, client, host, true) },
                 audience = audience,
                 forceToken = if (tokenRecovery) ({ forcedRefreshes++; accessToken = "fresh-fixture"; accessToken }) else null,
+                allowsContinuation = continuation,
                 manualTicket = { client, route, host, scope, email ->
                     if (manualTickets) ManualAttachTicketRequest.request(client, route, host, scope, email) else null
                 }) { owner ->
+                accountHook(owner)
                 NativeSavedTailscaleAccount(settings, revisions, { selected -> grants.value.filter {
                     it.user == owner.userId && it.team == owner.teamId && it.device == selected.deviceId && it.build == selected.buildTag
                 } }, { selected, allowed ->
