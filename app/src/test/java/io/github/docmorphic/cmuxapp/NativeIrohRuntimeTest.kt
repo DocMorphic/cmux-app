@@ -7,8 +7,215 @@ import kotlinx.coroutines.flow.first
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.MockResponse
+import org.json.JSONObject
+import org.json.JSONArray
 
 class NativeIrohRuntimeTest {
+    private data class Created(val account: NativeTeamScope, val backend: IrohAccountBackend, val alive: () -> Boolean)
+    private inner class ContinuationFixture(val account: NativeAccountTeams, val server: MockWebServer,
+        val runtime: NativeIrohRuntime, val initial: NativeTeamScope, val created: List<Created>) {
+        val clients = mutableListOf<MobileRpcClient>()
+        val holds = mutableListOf<NativeForegroundTransport>()
+        fun backend(id: String = initial.teamId) = created.first { it.account.teamId == id }.backend as Backend
+        suspend fun select(id: String): NativeTeamScope {
+            server.enqueue(MockResponse().setBody(user(id).toString()))
+            val next = checkNotNull(account.select(id).scope)
+            withTimeout(2000) { runtime.state.first { it.account == next && it.ready } }
+            return next
+        }
+        suspend fun refresh(selected: String, vararg members: String) {
+            server.enqueue(MockResponse().setBody(user(selected).toString()))
+            server.enqueue(MockResponse().setBody(members(*members).toString()))
+            account.refresh()
+        }
+        suspend fun connect(scope: NativeTeamScope = initial, host: IrohV2Computer = mac): MobileRpcClient =
+            runtime.connect(PairingCodeParser.parse(PairingCodeParser.computer(host, scope)).getOrThrow() as PairingCode.Iroh)
+                .also { clients += it }
+        fun reserve(client: MobileRpcClient, scope: NativeTeamScope = initial): NativeForegroundTransport =
+            checkNotNull(runtime.reserveForeground(checkNotNull(account.captureContinuation(scope)), client)).also { holds += it }
+        suspend fun foregroundRpc(client: MobileRpcClient, wire: PoolTestTransport) = coroutineScope {
+            val read = async { client.workspaces() }
+            wire.answer(withTimeout(2000) { wire.sent.receive() })
+            assertEquals("mobile.workspace.list", withTimeout(2000) { read.await() }.getString("method"))
+        }
+    }
+    private fun user(selected: String) = JSONObject().put("id", team.userId)
+        .put("selected_team", JSONObject().put("id", selected))
+    private fun members(vararg ids: String) = JSONObject().put("items", JSONArray(ids.map {
+        JSONObject().put("id", it).put("display_name", it)
+    }))
+    private suspend fun continuation(block: suspend ContinuationFixture.() -> Unit) {
+        MockWebServer().use { server ->
+            NativeAccountTeams({ "fixture" }, { team.login }, server.url("/api/v1/")).use { account ->
+                server.enqueue(MockResponse().setBody(user(team.teamId).toString()))
+                server.enqueue(MockResponse().setBody(members(team.teamId, "team-b").toString()))
+                val initial = checkNotNull(account.refresh().scope)
+                val created = java.util.concurrent.CopyOnWriteArrayList<Created>()
+                NativeIrohRuntime(account.state, account::isCurrent, { "fixture" }, { selected, alive ->
+                    Backend().also { created += Created(selected, it, alive) }
+                }, { 1000 }, allowsContinuation = account::allowsContinuation).use { runtime ->
+                    withTimeout(2000) { runtime.state.first { it.ready } }
+                    val fixture = ContinuationFixture(account, server, runtime, initial, created)
+                    try { fixture.block() }
+                    finally { fixture.holds.forEach { it.close() }; fixture.clients.forEach { it.close() } }
+                }
+            }
+        }
+    }
+
+    @Test fun foregroundSurvivesTeamSelectionWhileSecondaryAndPendingConnectionsRetireAndReturnReusesEndpoint() = runBlocking<Unit> {
+        continuation {
+            val firstBackend = backend()
+            val sibling = mac.copy(recordId = "secondary", endpointId = "cd".repeat(32), deviceId = "secondary-device")
+            val stalled = mac.copy(recordId = "stalled", endpointId = "ef".repeat(32), deviceId = "stalled-device")
+            firstBackend.state.value = ready().copy(computers = listOf(mac, sibling, stalled))
+            val primary = connect(); val secondary = connect(host = sibling)
+            val foregroundWire = firstBackend.transports.first()
+            val hold = reserve(primary); hold.activate { true }
+            val entered = CompletableDeferred<Unit>()
+            firstBackend.prepareWire = { selected, wire -> if (selected == stalled) {
+                wire.gate = CompletableDeferred(); entered.complete(Unit)
+            } }
+            val pending = async { runCatching { connect(host = stalled) } }
+            try {
+                withTimeout(2000) { entered.await() }
+                val b = select("team-b")
+                assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+                withTimeout(2000) { secondary.disconnected.first() }
+                assertFalse(primary.isClosed); assertEquals(0, firstBackend.closes.get())
+                assertTrue(created.first().alive()); assertTrue(firstBackend.permissions[0]())
+                assertFalse(firstBackend.permissions[1]()); assertFalse(firstBackend.permissions[2]())
+                assertEquals(b, runtime.state.value.account)
+                assertTrue(runCatching { runtime.connectSaved(pairing(initial), NativeComputerTarget.from(mac), initial) }.isFailure)
+                assertTrue(runCatching { runtime.networking(initial) }.isFailure)
+                assertNull(runtime.powerSession(initial, NativeComputerTarget.from(mac)))
+                foregroundRpc(primary, foregroundWire)
+                val returned = select(initial.teamId)
+                assertNotEquals(initial.generation, returned.generation)
+                assertEquals(1, created.count { it.account.teamId == initial.teamId })
+                connect(returned).close()
+                assertEquals(3, firstBackend.transports.size) // foreground, secondary and retired stalled candidate
+                foregroundRpc(primary, foregroundWire)
+                hold.close(); select("team-b")
+                withTimeout(2000) { primary.disconnected.first(); while (firstBackend.closes.get() == 0) delay(1) }
+            } finally { pending.cancel(); pending.join() }
+        }
+    }
+
+    @Test fun continuationCannotSurviveMembershipRemovalOrReviveOnReaddition() = runBlocking<Unit> {
+        continuation {
+            val primary = connect(); val firstBackend = backend(); val hold = reserve(primary)
+            hold.activate { true }; select("team-b")
+            refresh("team-b", "team-b")
+            withTimeout(2000) { primary.disconnected.first(); while (firstBackend.closes.get() == 0) delay(1) }
+            assertFalse(created.first().alive()); assertEquals(0, backend("team-b").closes.get())
+            refresh("team-b", initial.teamId, "team-b")
+            assertTrue(runCatching { hold.activate { true } }.isFailure)
+            val returned = select(initial.teamId)
+            connect(returned).use { assertFalse(it.isClosed) }
+            assertEquals(2, created.count { it.account.teamId == initial.teamId })
+        }
+    }
+
+    @Test fun parkedForegroundStillRequiresLiveDirectoryAndExactConnectionSettings() = runBlocking<Unit> {
+        for (remove in listOf(true, false)) continuation {
+            val firstBackend = backend(); val primary = connect(); reserve(primary).activate { true }
+            select("team-b")
+            if (remove) firstBackend.state.value = ready().copy(computers = emptyList())
+            else firstBackend.connectionSettings.update(NativeComputerTarget.from(mac), { true }) {
+                it.copy(method = NativeMacConnectionMethod.DIRECT)
+            }
+            assertFalse(firstBackend.permissions[0]())
+            withTimeout(2000) { primary.disconnected.first(); while (firstBackend.closes.get() == 0) delay(1) }
+            assertEquals(0, backend("team-b").closes.get())
+        }
+    }
+
+    @Test fun lateSelectedOperationCannotPublishAfterTeamRoundTripEvenWhenForegroundBackendIsReused() = runBlocking<Unit> {
+        continuation {
+            val primary = connect(); reserve(primary).activate { true }
+            val firstBackend = backend(); val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+            firstBackend.networkRefresh = { entered.complete(Unit); withContext(NonCancellable) { release.await() } }
+            val pending = async { runCatching { runtime.networking(initial, true) } }
+            try {
+                withTimeout(2000) { entered.await() }
+                select("team-b"); val returned = select(initial.teamId)
+                release.complete(Unit)
+                assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+                assertEquals(returned, runtime.state.value.account)
+                assertEquals(1, created.count { it.account.teamId == initial.teamId })
+                assertNotNull(runtime.networking(returned))
+                foregroundRpc(primary, firstBackend.transports.first())
+            } finally { release.complete(Unit); pending.cancel(); pending.join() }
+        }
+    }
+
+    @Test fun unactivatedUnownedOrRejectedReservationCannotKeepOrPromoteAConnection() = runBlocking<Unit> {
+        continuation {
+            val primary = connect(); val hold = reserve(primary)
+            assertTrue(runCatching { hold.activate { false } }.isFailure)
+            val proof = checkNotNull(account.captureContinuation(initial))
+            MobileRpcClient(PoolTestTransport(), { "fixture" }).use { unknown ->
+                unknown.connect(); assertNull(runtime.reserveForeground(proof, unknown))
+            }
+            assertNull(runtime.reserveForeground(NativeTeamContinuation(initial, Any()), primary))
+            select("team-b"); withTimeout(2000) { primary.disconnected.first() }
+            assertTrue(runCatching { hold.activate { true } }.isFailure)
+        }
+    }
+
+    @Test fun replacementForegroundAndOldHandleCleanupCannotRetireNewSelectedTransport() = runBlocking<Unit> {
+        continuation {
+            val primary = connect(); val firstBackend = backend(); val old = reserve(primary)
+            old.activate { true }; val b = select("team-b")
+            val replacement = connect(b); val next = reserve(replacement, b); next.activate { true }
+            old.close()
+            withTimeout(2000) { primary.disconnected.first(); while (firstBackend.closes.get() == 0) delay(1) }
+            assertFalse(replacement.isClosed); assertEquals(0, backend("team-b").closes.get())
+            foregroundRpc(replacement, backend("team-b").transports.first())
+            next.close(); assertFalse(replacement.isClosed)
+        }
+    }
+
+    @Test fun foregroundReservationIsSingleUseAndBackendAuthFailureRetiresItWithoutOldTeamReenrollment() = runBlocking<Unit> {
+        continuation {
+            val primary = connect(); val firstBackend = backend(); val hold = reserve(primary)
+            hold.activate { true }
+            assertTrue(runCatching { hold.activate { true } }.isFailure)
+            select("team-b")
+            firstBackend.state.value = IrohV2ControlState(failure = "unauthorized")
+            val failure = withTimeout(2000) { primary.disconnected.first() }
+            assertTrue(failure is IrohV2ServerFailure)
+            assertEquals("unauthorized", (failure as IrohV2ServerFailure).code)
+            assertTrue(nativeAutomaticReconnectStops(failure))
+            withTimeout(2000) { while (firstBackend.closes.get() == 0) delay(1) }
+            assertEquals(1, created.count { it.account.teamId == initial.teamId })
+            assertEquals(0, backend("team-b").closes.get())
+        }
+    }
+
+    @Test fun replacementKeyOwnerWaitsForOldEndpointTeardownAndSkipsSupersededSelection() = runBlocking<Unit> {
+        continuation {
+            val firstBackend = backend(); val closing = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+            firstBackend.awaitClose = { closing.complete(Unit); release.await() }
+            server.enqueue(MockResponse().setBody(user("team-b").toString()))
+            account.select("team-b")
+            try {
+                withTimeout(2000) { closing.await() }
+                server.enqueue(MockResponse().setBody(user(initial.teamId).toString()))
+                val returned = checkNotNull(account.select(initial.teamId).scope)
+                assertEquals(1, created.size)
+                release.complete(Unit)
+                withTimeout(2000) { runtime.state.first { it.account == returned && it.ready } }
+                assertEquals(2, created.size)
+                assertTrue(created.all { it.account.teamId == initial.teamId })
+                assertEquals(1, firstBackend.closes.get())
+            } finally { release.complete(Unit) }
+        }
+    }
+
     @Test fun consumerDiscoveryExcludesDevAndCannotDialItThroughAStaleLocatorOrDiagnostic() = runBlocking<Unit> {
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
         val dev = mac.copy(endpointId = "cd".repeat(32), recordId = "dev", buildTag = "dev")
@@ -94,6 +301,8 @@ class NativeIrohRuntimeTest {
         var dial: suspend () -> Unit = { }
         var prepareWire: (IrohV2Computer, PoolTestTransport) -> Unit = { _, _ -> }
         var networkRefresh: suspend () -> Unit = { refreshes.incrementAndGet() }
+        var awaitClose: suspend () -> Unit = {}
+        override suspend fun awaitClosed() { awaitClose() }
         override suspend fun refreshNetworking() { networkRefresh() }
         override suspend fun start() { startAction() }
         override suspend fun refresh() { refreshes.incrementAndGet() }

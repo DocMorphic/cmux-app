@@ -1,5 +1,17 @@
 # Consumer Mac build compatibility — 2026-10-03
 
+## Private companion integration blocker — 2026-10-12
+
+The subsequently built custom Mac companion uses launch tag `android-push` and
+bundle `com.cmuxterm.app.debug.android.push`; its authenticated namespace is
+`mac:com.cmuxterm.app.debug.android.push`. This consumer policy deliberately rejects
+it, including discovery, host admission and pinned FCM/reply tuples. The private
+Firebase/custom Mac choice therefore needs an explicitly scoped companion profile
+before live pairing. Its tag/namespace, descriptor, version and push coverage remain
+unimplemented; this finding is not permission to admit arbitrary development tags.
+The existing public consumer policy and its original verification below remain
+unchanged. See REMAINING_WORK.md for the current integration gate.
+
 ## Explicit Android audience
 
 Both Android debug and release builds select the distributed iOS consumer policy.

@@ -1,5 +1,51 @@
 # Team switching and the active Mac session
 
+## Native transport ownership — 2026-10-12
+
+The production Iroh runtime now separates selected-team discovery from an admitted
+foreground wire. Each live login/user/team owns its backend and pool. The current
+foreground can retain that owner under its verified continuation proof while
+discovery moves to another team. Returning to that team reuses the retained
+backend/endpoint with a fresh selection generation. Retiring an owner joins its
+in-flight binds and endpoint teardown before a replacement starts.
+
+Foreground reservation uses the exact already admitted pooled wire; an unknown
+client, a candidate handshake or a locator cannot claim it. The reservation takes
+effect only when the foreground holder accepts the verified client/Mac record and
+activates it. Activation is single-use, and stale disposal cannot clear a newer
+holder. Failed activation preserves the previous binding. Reservation release
+signals cleanup atomically, without taking the runtime monitor inside a credential
+transaction. The production feed/screen factory now supplies this runtime hook.
+
+New admissions and management/diagnostic operations still require the selected
+scope. Their child jobs capture that exact generation and are cancelled on scope
+change; A → B → A cannot revive an old operation on the reused backend. A returned
+client is closed if cancellation discards its result. Old-team secondary wires and
+pending candidates retire; the retained foreground still checks its original
+directory record, permission expiry, audience and exact dial intent. Its transport
+is also bound to the specific backend/pool incarnation.
+
+Verification: **92 focused JVM cases pass** (35 runtime, 15 pool, eight foreground
+holder, 22 account, eight profile-cache and four recovery-gate cases). They include
+fixture foreground RPC across selection/return with one endpoint owner, secondary
+and pending retirement, membership removal/re-addition, stale delayed operations,
+rejected/unowned reservations, ownership transfer, teardown ordering and typed
+backend auth failure. The final debug/test build succeeded in 1m21s. Original
+compiler failures and the 91/92 run are retained. The auth case reproduced generic
+EOF masking the control-plane rejection; failure is now classified and delivered
+before ordinary directory trimming retires the wire.
+
+All ten changed debug classes also pass Android 17 ART loading/reflection on the
+existing 16 KB AVD. The owned emulator was stopped/reaped; no new AVD was created
+and no APK was installed or cleared. Exact source/APK hashes, final XML and the
+ART/lifecycle receipt are retained under ignored `captures/runtime/team-switch-transport-*`.
+
+This is the native transport layer. Saved/legacy Tailscale continuation, retained
+compatibility tracking, per-Mac pane/feed/browser/notification scopes, Activity
+ownership and the explicit Settings close calls still need wiring. **Android still
+disconnects on team selection.** These fixture results do not prove actual QUIC,
+Pixel/Mac, lifecycle UI or full parity. Signed 652 predates this source batch.
+
 ## Scoped source audit — 2026-10-12
 
 This is an implementation contract and a confirmed parity gap, **not a completed

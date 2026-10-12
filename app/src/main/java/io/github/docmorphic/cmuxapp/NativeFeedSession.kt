@@ -18,7 +18,8 @@ import kotlinx.coroutines.flow.collect
 /** Activity recreation retains account-scoped snapshots; process death refetches from the Mac. */
 internal class NativeFeedSession(
     private val connector: NativeConnector, private val account: NativeAccount, private val store: NativeCredentialStore,
-    teams: NativeAccountTeams? = null
+    teams: NativeAccountTeams? = null,
+    reserveForeground: (NativeTeamContinuation, MobileRpcClient) -> NativeForegroundTransport? = { _, _ -> null }
 ) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var foreground = false
@@ -36,7 +37,7 @@ internal class NativeFeedSession(
     val macSwitchRecovery = NativeMacSwitchRecovery()
     val foregroundRecovery = NativeConnectionRecoveryGate()
     val foregroundRetryState = mutableIntStateOf(0)
-    private val foregroundAuthority = teams?.let { NativeForegroundSessionAuthority(it, store::visiblePairedMacs) }
+    private val foregroundAuthority = teams?.let { NativeForegroundSessionAuthority(it, store::visiblePairedMacs, reserveForeground) }
     init { if (teams != null) scope.launch { teams.state.collect { foregroundAuthority?.reconcile() } } }
     init { if (teams != null) scope.launch { store.revisions.collect { foregroundAuthority?.reconcile() } } }
     fun admitForeground(team: NativeTeamScope?, mac: NativeCredentialStore.PairedMac, client: MobileRpcClient) {
@@ -204,11 +205,12 @@ internal class NativeFeedSession(
     override fun onCleared() { foregroundAuthority?.clear(); ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,
-        private val store: NativeCredentialStore, private val teams: NativeAccountTeams? = null) : ViewModelProvider.Factory {
+        private val store: NativeCredentialStore, private val teams: NativeAccountTeams? = null,
+        private val reserveForeground: (NativeTeamContinuation, MobileRpcClient) -> NativeForegroundTransport? = { _, _ -> null }) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass == NativeFeedSession::class.java)
-            return NativeFeedSession(connector, account, store, teams) as T
+            return NativeFeedSession(connector, account, store, teams, reserveForeground) as T
         }
     }
 }

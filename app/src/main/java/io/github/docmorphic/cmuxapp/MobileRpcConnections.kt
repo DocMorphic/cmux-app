@@ -17,6 +17,13 @@ internal class MobileRpcConnections : AutoCloseable {
     private val candidates = mutableMapOf<String, MobileRpcClient>()
     private var closed = false
 
+    /** Exact admitted wire only; locators and candidate handshakes cannot reserve foreground ownership. */
+    fun keyFor(client: MobileRpcClient): String? = synchronized(lock) {
+        if (closed || client.isClosed) return@synchronized null
+        entries.entries.singleOrNull { !it.value.client.isClosed &&
+            it.value.client.compatibilityWire === client.compatibilityWire }?.key
+    }
+
     /** Inspect an already-live Mac without making opening a settings page dial it. */
     fun borrowIfConnected(key: String, permits: () -> Boolean): MobileRpcClient? = synchronized(lock) {
         if (closed || !permits()) return@synchronized null
@@ -102,7 +109,9 @@ internal class MobileRpcConnections : AutoCloseable {
         removed.forEach { it.retire() }
     }
 
-    override fun close() {
+    fun fail(reason: Throwable) = retireAll(reason)
+    override fun close() = retireAll(null)
+    private fun retireAll(reason: Throwable?) {
         val all = synchronized(lock) {
             if (closed) return
             closed = true
@@ -110,6 +119,6 @@ internal class MobileRpcConnections : AutoCloseable {
                 entries.clear(); candidates.clear()
             }
         }
-        all.forEach { it.retire() }
+        all.forEach { if (reason == null) it.retire() else it.retireForOwnerFailure(reason) }
     }
 }

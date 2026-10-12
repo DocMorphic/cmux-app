@@ -1,5 +1,38 @@
 # Remaining work for iOS parity
 
+## Native foreground transport ownership — 2026-10-12
+
+Iroh discovery now follows the selected team while an admitted foreground wire can
+retain its original backend under a verified membership proof. Returning to its
+team reuses the endpoint; fresh selection generations still fence admissions and
+delayed operations. Other old-team wires/candidates retire. Endpoint teardown is
+joined, rejected reservations grant nothing and cancellation cannot leak a returned
+client. The foreground holder supplies this reservation hook in production.
+
+All 92 focused JVM cases pass; debug/test APKs build in 1m21s. A new case reproduced
+generic EOF hiding a backend auth rejection; its original failure is retained and
+the classified rejection now precedes directory cleanup. Tests use fixture wires
+and verified MockWebServer memberships, not actual QUIC or live accounts.
+Saved/legacy Tailscale, compatibility/pane/feed/notification/lifecycle ownership and
+Settings teardown remain open: the app still disconnects on selection. See
+[TEAM_SWITCH.md](TEAM_SWITCH.md). Signed 652 predates this batch.
+
+Ten changed debug classes pass Android 17 ART loading/reflection on the existing
+16 KB AVD, which was stopped/reaped. No new AVD, install or app clear. This checks
+the compiled classes, not retained native UI or physical pairing.
+
+## Custom Mac audience blocker — 2026-10-12
+
+The verified tagged Mac build declares `android-push` and bundle
+`com.cmuxterm.app.debug.android.push`. Scoped upstream `MobileHostIdentity.swift`
+publishes the launch tag, and `CmxIrohMacBundleNamespace.swift` derives the exact
+bundle namespace. Android's immutable consumer policy accepts only default/nightly/
+RC tags and official namespaces, including in FCM/reply workers. It will reject
+this custom app. Before live pairing, implement an explicitly scoped companion
+profile and audit its namespace/identity, version policy, discovery and push paths.
+Preserve the existing consumer and account/host checks. No broad development-build
+allowance or private companion admission is implemented or verified yet.
+
 ## Team-switch authority foundation — 2026-10-12
 
 Verified account memberships now have memory-only continuation stamps separate

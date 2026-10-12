@@ -179,4 +179,30 @@ class NativeForegroundSessionAuthorityTest {
             assertNull(read.get()); assertNull(authority.scopeFor(mac.code, client))
         }
     }
+
+    @Test fun transportActivationFailureRestoresPreviousBindingAndOnlyClosesRejectedReservation() = runBlocking<Unit> {
+        fixture {
+            val reservations = mutableListOf<Pair<MobileRpcClient, java.util.concurrent.atomic.AtomicInteger>>()
+            var reject = false
+            val owner = NativeForegroundSessionAuthority(account, { saved }, { _, client ->
+                val closes = java.util.concurrent.atomic.AtomicInteger(); reservations += client to closes
+                object : NativeForegroundTransport {
+                    override fun activate(stillCurrent: () -> Boolean) {
+                        check(stillCurrent()); if (reject) error("Fixture activation rejection")
+                    }
+                    override fun close() { closes.incrementAndGet() }
+                }
+            })
+            val (first, _) = client(); val (second, _) = client()
+            owner.admit(initial, mac, first)
+            reject = true
+            assertTrue(runCatching { owner.admit(initial, mac, second) }.isFailure)
+            assertSame(initial, owner.scopeFor(mac.code, first)); assertNull(owner.scopeFor(mac.code, second))
+            assertEquals(0, reservations[0].second.get()); assertEquals(1, reservations[1].second.get())
+            reject = false; owner.admit(initial, mac, second)
+            assertEquals(1, reservations[0].second.get()); owner.release(first)
+            assertSame(initial, owner.scopeFor(mac.code, second)); assertEquals(0, reservations[2].second.get())
+            owner.clear(); owner.clear(); assertEquals(1, reservations[2].second.get())
+        }
+    }
 }

@@ -1,5 +1,40 @@
 # Codex laptop handoff — 2026-09-28
 
+## Native foreground transport ownership — 2026-10-12
+
+Production Iroh runtime now keeps an admitted foreground backend/pool separately
+from selected-team discovery. A → B → A reuses that team's retained endpoint with
+a fresh selection generation, and cancelled old operations cannot publish.
+Reservations identify an existing wire and activate only after the foreground
+holder accepts it; the screen/feed factory supplies the runtime hook. Secondary
+wires and candidates retire, exact grant/intent/backend checks remain, and retired
+binds/endpoints are joined before replacement. Returned clients are closed if
+selection cancellation drops their result.
+
+All 92 focused JVM cases pass and debug/test assembly succeeds in 1m21s. The new
+backend-auth case failed initially: directory trimming delivered EOF before the
+classified rejection. The corrected order now preserves its cause. Original
+compiler/test failures and final XML are retained under ignored
+`captures/runtime/team-switch-transport-*`. These are fixture wire/controller
+cases; no actual QUIC, lifecycle UI or Pixel workflow is established.
+
+Ten changed debug classes pass Android 17 ART loading/reflection. The existing
+16 KB AVD was stopped/reaped, without a new AVD, installation or app clear. See
+the ignored exact source/APK, XML and ART/lifecycle receipts for this source.
+
+Still wire saved/legacy Tailscale, compatibility tracking, per-Mac panes/feeds,
+browser/notifications and Activity ownership before removing Settings teardown.
+The app still disconnects on selection; signed 652 is unchanged. Read TEAM_SWITCH.md.
+
+Also fix the verified custom Mac's admission profile before asking for live native
+pairing: its launch tag is `android-push`, and its namespace is
+`mac:com.cmuxterm.app.debug.android.push`. NativeMacBuildAudience.consumer and the
+FCM/reply audience currently reject that tuple. Audit the explicitly expected
+companion tag/namespace, descriptor identity and independent minimum-version and
+push gates; do not globally admit arbitrary development builds. No companion
+profile code has been added yet. The custom Mac still needs completed sign-in,
+and the phone remains absent; the existing owner question is pending.
+
 ## Team-switch authority foundation — 2026-10-12
 
 Production now captures a verified membership continuation and foreground

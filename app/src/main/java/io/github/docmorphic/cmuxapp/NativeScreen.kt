@@ -138,7 +138,8 @@ internal fun NativeScreen(
     val account = remember(store) { sharedConnections?.account ?: NativeAccount(store) }
     val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
     val feedSession = remember(runtimeOwner) {
-        ViewModelProvider(runtimeOwner, NativeFeedSession.Factory(connection, account, store, sharedConnections?.teams))
+        ViewModelProvider(runtimeOwner, NativeFeedSession.Factory(connection, account, store, sharedConnections?.teams,
+            sharedConnections?.native?.let { it::reserveForeground } ?: { _, _ -> null }))
             .get(NativeFeedSession::class.java)
     }
     val whatsNewModel = remember(runtimeOwner, connector) {
