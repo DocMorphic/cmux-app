@@ -17,7 +17,7 @@ internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: N
     val scope = rememberCoroutineScope()
     val currentFinished by rememberUpdatedState(onFinished)
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
-        TextButton(onClick = { confirm = true }, enabled = (enabled || state.remoteConfirmed) && !state.busy) {
+        TextButton(onClick = { confirm = true }, enabled = (enabled || state.remoteConfirmed || flow.canRetry()) && !state.busy) {
             Text(if (state.remoteConfirmed) "Finish forgetting this computer" else "Forget This Computer", color = Color(0xFFFF9999))
         }
     }

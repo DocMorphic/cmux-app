@@ -2706,7 +2706,8 @@ internal fun NativeScreen(
                                     val target = owner.team?.let { NativeComputerTarget.from(mac, it) }
                                     if (target != null && sharedConnections != null) {
                                         if (computerState.account == owner.team)
-                                            computerDetails = NativeComputerDetailsPresentation(checkNotNull(owner.team), target, machineColorIndices[mac.colorIdentity])
+                                            computerDetails = NativeComputerDetailsPresentation(checkNotNull(owner.team), target, machineColorIndices[mac.colorIdentity],
+                                                feedSession.foregroundComputerDetails(mac)?.takeIf { it.team == owner.team })
                                         else error = "Computer settings are still loading. Try again."
                                     } else legacyDetails = mac
                                 } }, onPair = ::pairMac, hiddenOrigins = hiddenOrigins, onVisibility = ::setComputerVisibility,
@@ -2776,7 +2777,8 @@ internal fun NativeScreen(
                             val target = settingsOwner.team?.let { NativeComputerTarget.from(mac, it) }
                             if (target != null && sharedConnections != null) {
                                 if (computerState.account == settingsOwner.team)
-                                    computerDetails = NativeComputerDetailsPresentation(checkNotNull(settingsOwner.team), target, machineColorIndices[mac.colorIdentity])
+                                    computerDetails = NativeComputerDetailsPresentation(checkNotNull(settingsOwner.team), target, machineColorIndices[mac.colorIdentity],
+                                        feedSession.foregroundComputerDetails(mac)?.takeIf { it.team == settingsOwner.team })
                                 else error = "Computer settings are still loading. Try again."
                             } else legacyOrigin = mac.origin
                         }

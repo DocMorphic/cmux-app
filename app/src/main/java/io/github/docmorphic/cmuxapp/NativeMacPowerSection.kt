@@ -28,14 +28,26 @@ internal fun NativeOnboardingMacPowerSettings(runtime: NativeIrohRuntime?, team:
 
 @Composable
 internal fun NativeMacPowerSettings(runtime: NativeIrohRuntime, team: NativeTeamScope, target: NativeComputerTarget, offerOnly: Boolean = false) {
-    var session by remember(runtime, team, target) { mutableStateOf<NativeMacPowerSession?>(null) }
-    var state by remember(runtime, team, target) { mutableStateOf(NativeMacPowerState()) }
+    NativeOwnedMacPowerSettings(listOf(runtime, team, target), { runtime.powerSession(team, target) }, offerOnly)
+}
+
+@Composable
+internal fun NativeForegroundMacPowerSettings(access: NativeForegroundComputerDetailAccess) {
+    NativeOwnedMacPowerSettings(access, access::power)
+}
+
+/** Each lifecycle start gets a fresh observer; foreground observers never close their root. */
+@Composable
+private fun NativeOwnedMacPowerSettings(owner: Any, acquire: suspend () -> NativeMacPowerSession?, offerOnly: Boolean = false) {
+    var session by remember(owner) { mutableStateOf<NativeMacPowerSession?>(null) }
+    var state by remember(owner) { mutableStateOf(NativeMacPowerState()) }
+    val currentAcquire by rememberUpdatedState(acquire)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(runtime, team, target, lifecycle) {
+    LaunchedEffect(owner, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             try {
                 while (isActive) {
-                    val active = runtime.powerSession(team, target)
+                    val active = currentAcquire()
                     session = active
                     if (active != null) {
                         val observer = launch { active.state.collect { state = it } }

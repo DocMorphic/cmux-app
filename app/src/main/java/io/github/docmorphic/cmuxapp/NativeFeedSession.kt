@@ -70,17 +70,32 @@ internal class NativeFeedSession(
             canRetainForeground(mac, client))) return null
         return foregroundAuthority?.computerManagement(mac, client)
     }
+    fun foregroundComputerDetails(mac: NativeCredentialStore.PairedMac): NativeForegroundComputerDetailAccess? {
+        val state = screenConnection ?: return null
+        val client = state.client ?: return null
+        foregroundDetailAccess?.let { (record, wire, access) ->
+            if (wire === client && NativeComputerMenuPairing.isCurrent(mac, listOf(record)) && access.current()) return access
+        }
+        val management = foregroundComputerManagement(mac) ?: return null
+        if (NativeComputerTarget.from(mac, management.team) == null) return null
+        return NativeForegroundComputerDetailAccess(management.team, mac, client, management) {
+            !viewModelCleared && state.client === client &&
+                nativeForegroundMacSelected(mac, state.admittedMac, state.connectionReady, state.code, state.connectedCode, canRetainForeground(mac, client))
+        }.also { foregroundDetailAccess = Triple(mac, client, it) }
+    }
     private var screenConnection: NativeScreenConnectionState? = null
     private var foregroundSizing: Job? = null
     private var foregroundArtifactWatcher: Job? = null
     private var foregroundWorkspaceAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundWorkspaceAccess>? = null
     private var foregroundNotificationAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundNotificationAccess>? = null
     private var foregroundAgentAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundAgentFeed>? = null
+    private var foregroundDetailAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundComputerDetailAccess>? = null
     private val foregroundChanges = mutableMapOf<String, Triple<NativeCredentialStore.PairedMac, MobileRpcClient, WorkspaceChangesAccess>>()
     fun connectionState(initialCode: String): NativeScreenConnectionState = screenConnection
         ?: NativeScreenConnectionState(initialCode, ::changeForegroundClient).also { screenConnection = it }
     private fun changeForegroundClient(previous: MobileRpcClient?, next: MobileRpcClient?) {
         foregroundWorkspaceAccess = null
+        foregroundDetailAccess = null
         foregroundNotificationAccess = null
         foregroundAgentAccess?.third?.close(); foregroundAgentAccess = null
         foregroundChanges.clear()

@@ -51,8 +51,17 @@ internal data class NativeComputerTarget(val deviceId: String, val buildTag: Str
 }
 
 internal data class NativeComputerDetailsPresentation(
-    val team: NativeTeamScope, val target: NativeComputerTarget, val colorIndex: Int? = null
-)
+    val team: NativeTeamScope, val target: NativeComputerTarget, val colorIndex: Int? = null,
+    val foreground: NativeForegroundComputerDetailAccess? = null
+) {
+    init {
+        require(foreground == null || (foreground.team == team &&
+            canonicalMacDeviceId(foreground.target.deviceId) == canonicalMacDeviceId(target.deviceId) &&
+            foreground.target.buildTag == target.buildTag)) {
+            "Computer detail presentation must use its captured owner and target"
+        }
+    }
+}
 
 @Composable
 internal fun NativeSavedComputerDetailsButton(runtime: NativeIrohRuntime?, state: NativeComputersState,
@@ -110,7 +119,11 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
         return
     }
     val target = presentation.target
-    key(runtime, team, target.deviceId, target.buildTag) {
+    val foreground = presentation.foreground
+    // Original-owner route settings are not yet enabled; the host still requires
+    // its selected owner. Live controls nevertheless use the captured root now.
+    val permits = { if (foreground != null) foreground.current() else runtime.permitsAppearance(team) }
+    key(runtime, team, target.deviceId, target.buildTag, foreground) {
         val context = LocalContext.current
         val appearanceStore = checkNotNull(rememberNativeAppearanceStore(team))
         val appearances = appearanceStore.state.collectAsState().value
@@ -136,9 +149,10 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
         }
         val latestCallbacks by rememberUpdatedState(forgetCallbacks)
         val forgetFlow = remember(runtime, team, target, store, appearanceStore, connectionStore) {
-            nativeComputerForgetFlow(runtime, team, target, store, appearanceStore, connectionStore) {
-                latestCallbacks.started(team, target, it)
-            }
+            val prepare: (List<NativeCredentialStore.PairedMac>) -> Unit = { latestCallbacks.started(team, target, it) }
+            if (foreground != null) nativeForegroundComputerForgetFlow(runtime, foreground.management, store,
+                appearanceStore, connectionStore, prepare)
+            else nativeComputerForgetFlow(runtime, team, target, store, appearanceStore, connectionStore, prepare)
         }
         val forgetting = forgetFlow.state.collectAsState().value.busy
         val title = appearances.get(target.deviceId, target.buildTag).displayName(target.name)
@@ -146,9 +160,11 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false,
                 dismissOnBackPress = !forgetting, dismissOnClickOutside = !forgetting)) {
             NativeComputerDetailsScreen(target, available = state.computers.any { target.matches(it) },
-                canCheck = if (rawOnly) savedCheck?.available() == true || runtime.usesSavedTailscale(team, target)
+                canCheck = if (foreground != null) foreground.current()
+                    else if (rawOnly) savedCheck?.available() == true || runtime.usesSavedTailscale(team, target)
                     else state.ready || runtime.usesSavedTailscale(team, target),
-                check = { if (rawOnly && savedCheck != null && !runtime.usesSavedTailscale(team, target)) savedCheck.run()
+                check = { if (foreground != null) foreground.check()
+                    else if (rawOnly && savedCheck != null && !runtime.usesSavedTailscale(team, target)) savedCheck.run()
                     else runtime.checkComputer(team, target) },
                 paths = { runtime.privatePaths(team).filter { target.matches(it) } },
                 changePaths = { action -> runtime.privatePaths(team, action).filter { target.matches(it) } },
@@ -157,14 +173,15 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                         .putExtra(android.content.Intent.EXTRA_TEXT, report)
                     context.startActivity(android.content.Intent.createChooser(intent, "Share Connection Report"))
                 }, onBack = { if (!forgetting) onDismiss() }, backEnabled = !forgetting,
-                forget = { NativeComputerForgetSection(title, target.buildTag, forgetFlow, enabled = state.ready) {
+                forget = { NativeComputerForgetSection(title, target.buildTag, forgetFlow,
+                    enabled = if (foreground != null) foreground.management.available() else state.ready) {
                     latestCallbacks.finished()
                     onDismiss()
                     if (runtime.permitsAppearance(team)) runtime.refresh()
                 } },
                 connectionMethod = { NativeMacConnectionSection(target, connectionPreferences, save = { change ->
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        connectionStore.update(target, { runtime.permitsAppearance(team) }, change)
+                        connectionStore.update(target, permits, change)
                     }
                 }, retry = { connectionStore.reload() })
                     NativeTailscaleSection(target, connectionPreferences.get(target).method, tailscale,
@@ -185,10 +202,11 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                             grants.removeRoute(team, target, grant) { runtime.permitsAppearance(team) }
                         } }, reload = { routeReload++ }, enabled = !forgetting && runtime.permitsAppearance(team))
                 },
-                power = { if (savedPower != null) NativeBorrowedMacPowerSettings(savedPower)
+                power = { if (foreground != null) NativeForegroundMacPowerSettings(foreground)
+                    else if (savedPower != null) NativeBorrowedMacPowerSettings(savedPower)
                     else NativeMacPowerSettings(runtime, team, target) }, displayName = title, connection = connection,
                 showPrivateAddresses = connectionPreferences.get(target).method == NativeMacConnectionMethod.IROH,
-                appearance = { NativeMacAppearanceSettings(team, target, presentation.colorIndex) { runtime.permitsAppearance(team) } },
+                appearance = { NativeMacAppearanceSettings(team, target, presentation.colorIndex, permits) },
                 checkDisabledMessage = if (rawOnly) "Choose an available connection method or add this Mac’s Tailscale address, then try again."
                     else "Wait for your account’s computer list, then try again.")
         }

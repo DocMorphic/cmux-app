@@ -425,6 +425,23 @@ class MobileRpcClient internal constructor(
         }
     }
 
+    internal suspend fun computerDetailRequest(method: String, params: JSONObject = JSONObject(), timeoutMillis: Long = 10_000,
+        isCurrent: () -> Boolean): JSONObject {
+        require(method in setOf("mobile.host.status", "mobile.workspace.list", "caffeine.status", "caffeine.set"))
+        return requestAdmitted(method, params, timeoutMillis) {
+            check(isCurrent()) { "Computer detail owner changed" }
+        }.also { check(isCurrent()) { "Computer detail owner changed" } }
+    }
+
+    internal suspend fun subscribeComputerPower(streamId: String, isCurrent: () -> Boolean): JSONObject {
+        prepareIndependentEvents(streamId)
+        val params = JSONObject().put("client_id", clientId).put("stream_id", streamId)
+            .put("topics", org.json.JSONArray(listOf("caffeine.status.changed")))
+        return requestAdmitted("mobile.events.subscribe", params, 5_000) {
+            check(isCurrent()) { "Computer detail owner changed" }
+        }.also { check(isCurrent()) { "Computer detail owner changed" } }
+    }
+
     internal suspend fun changePhonePushSettings(change: PhoneMacPushChange, isCurrent: () -> Boolean): JSONObject =
         requestAdmitted("phone_push.settings.update", change.wire(), 15_000) {
             check(isCurrent()) { "Mac connection changed" }

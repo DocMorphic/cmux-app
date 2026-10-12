@@ -37,12 +37,12 @@ internal data class NativeConnectionReport(
 
 internal object NativeConnectionCheck {
     suspend fun run(client: MobileRpcClient, mac: NativeCredentialStore.PairedMac,
-                    timeoutMillis: Long = 10_000): NativeConnectionReport {
+                    timeoutMillis: Long = 10_000, isCurrent: () -> Boolean = { true }): NativeConnectionReport {
         var identity = false
         var authenticated = false
         try {
             return withTimeout(timeoutMillis) {
-                val status = client.request("mobile.host.status", timeoutMillis = timeoutMillis)
+                val status = client.computerDetailRequest("mobile.host.status", timeoutMillis = timeoutMillis, isCurrent = isCurrent)
                 val matches = runCatching {
                     require(mac.deviceId.isNotBlank())
                     mac.requireMatchingHost(status)
@@ -50,7 +50,7 @@ internal object NativeConnectionCheck {
                 if (!matches) return@withTimeout NativeConnectionReport(failure = NativeConnectionReport.Failure.IDENTITY)
                 identity = true
                 val started = System.nanoTime()
-                client.request("mobile.workspace.list", timeoutMillis = timeoutMillis)
+                client.computerDetailRequest("mobile.workspace.list", timeoutMillis = timeoutMillis, isCurrent = isCurrent)
                 val elapsed = ((System.nanoTime() - started) / 1_000_000).coerceAtLeast(0)
                 authenticated = true
                 NativeConnectionReport(true, true, client.transportDiagnostics(), elapsed)

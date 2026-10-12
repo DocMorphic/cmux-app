@@ -59,16 +59,19 @@ class NativeComputerForgetSectionTest {
 
     @Test fun unconfirmedRemovalKeepsDialogAndOffersExplicitRetry() {
         var revokes = 0; var finished = 0
-        val flow = NativeComputerForgetFlow({ true }, { emptyList() }, {}, {
+        var rootConnected by mutableStateOf(true)
+        val flow = NativeComputerForgetFlow({ true }, { emptyList() }, { rootConnected = false }, {
             if (++revokes == 1) error("fixture lost acknowledgement")
         }, {})
         compose.setContent { CmuxTheme { Surface {
-            NativeComputerForgetSection("Fixture Mac", "default", flow, true) { finished++ }
+            NativeComputerForgetSection("Fixture Mac", "default", flow, rootConnected) { finished++ }
         } } }
         compose.onNodeWithText("Forget This Computer").performClick()
         compose.onNodeWithText("Forget Computer").performClick()
         compose.onNodeWithText(NativeComputerForgetFlow.REMOTE_ERROR).assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, finished) }
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithText("Forget This Computer").assertIsEnabled().performClick()
         compose.onNodeWithText("Retry").performClick()
         compose.waitUntil(5000) { finished == 1 }
         assertEquals(2, revokes)

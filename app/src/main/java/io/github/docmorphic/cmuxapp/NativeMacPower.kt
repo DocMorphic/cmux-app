@@ -101,7 +101,7 @@ internal class NativeMacPowerSession(
             }
             try {
                 if (state.value.supported == null) {
-                    val host = client.request("mobile.host.status", timeoutMillis = timeoutMillis)
+                    val host = client.computerDetailRequest("mobile.host.status", timeoutMillis = timeoutMillis, isCurrent = ::valid)
                     NativeCredentialStore.PairedMac("", target.deviceId, target.name, target.buildTag).requireMatchingHost(host)
                     val capabilities = host.optJSONArray("capabilities")
                     val supported = capabilities != null && (0 until capabilities.length()).any {
@@ -116,7 +116,7 @@ internal class NativeMacPowerSession(
                 if (!subscribed) {
                     // Subscribe before reading so an event can invalidate an older status reply.
                     subscriptionAttempted = true
-                    withTimeout(timeoutMillis) { client.subscribe(listOf("caffeine.status.changed"), stream) }
+                    withTimeout(timeoutMillis) { client.subscribeComputerPower(stream, ::valid) }
                     subscribed = true
                 }
                 readStatus(start)
@@ -134,7 +134,7 @@ internal class NativeMacPowerSession(
     }
 
     private suspend fun readStatus(start: Long) {
-        val result = client.request("caffeine.status", timeoutMillis = timeoutMillis)
+        val result = client.computerDetailRequest("caffeine.status", timeoutMillis = timeoutMillis, isCurrent = ::valid)
         val enabled = result.opt("enabled") as? Boolean ?: error("Invalid caffeine status")
         synchronized(lock) {
             if (valid() && revision == start) {
@@ -158,7 +158,7 @@ internal class NativeMacPowerSession(
                 revision
             }
             try {
-                val result = client.request("caffeine.set", JSONObject().put("enabled", enabled), timeoutMillis)
+                val result = client.computerDetailRequest("caffeine.set", JSONObject().put("enabled", enabled), timeoutMillis, ::valid)
                 val actual = result.opt("enabled") as? Boolean ?: error("Invalid caffeine status")
                 synchronized(lock) {
                     if (valid() && revision == start) {

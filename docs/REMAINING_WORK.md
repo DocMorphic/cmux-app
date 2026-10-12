@@ -1,5 +1,38 @@
 # Remaining work for iOS parity
 
+## Connected Mac detail controls — 2026-10-12
+
+Computer Details now captures a stable, exact foreground access object from the
+admitted record/client and original management authority. The presentation rejects
+another owner or device/build; a harmless name change remains valid. Connection
+checks use the existing root instead of dialing a second connection. Host/status,
+workspace reads, power status/mutations and the fixed power subscription recheck
+permission through token lookup and after response admission.
+
+The detail page starts a fresh power observer on each lifecycle entry. Stopping
+that observer unsubscribes without closing the terminal root; reentry reads current
+Mac state and does not replay a mutation. Foreground appearance and connection
+preference saves use the captured live guard. Confirmed foreground removal uses
+the original-owner management flow. An unconfirmed failure can be cancelled,
+reopened and explicitly retried through its still-valid removal permit after root
+stop; it does not permit a new arbitrary action after connection loss.
+
+**44 focused JVM tests pass; debug/test APKs build. Eleven changed classes pass
+Android 17 ART reflection on 16 KB pages. Four UI cases pass in 9.643s**, including
+the actual detail host's connection check, power toggle, dismissal/reentry on one
+root; existing saved-Tailscale check; local cleanup without another revoke; and
+cancel/reopen of an unconfirmed removal after root stop. The fresh detail screenshot
+was inspected. Evidence, XML and source/APK hashes are ignored under
+`captures/runtime/foreground-computer-details-20261012`. Only the existing AVD was
+used and stopped/reaped; no physical device or production account was touched.
+
+**Remaining:** the host still requires its selected team, and Settings still lists
+selected-team rows only. Integrate original-owner private paths and Tailscale route
+probes/tickets, durable detail/removal presentation, then the original row and full
+team-switch flow before removing selected-team teardown. These fixture checks do
+not prove Pixel/Mac, Iroh, actual team switching or FCM acceptance. Signed preview
+654 predates this source; full parity remains unverified.
+
 ## Original-owner confirmed computer-removal foundation — 2026-10-12
 
 A management context can now be captured only from the exact live admitted

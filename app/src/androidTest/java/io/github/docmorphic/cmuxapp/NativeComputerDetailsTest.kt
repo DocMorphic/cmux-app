@@ -20,6 +20,81 @@ class NativeComputerDetailsTest {
     private val mac = IrohV2Computer("record", "ab".repeat(32), "fixture-mac", "default", "Test Mac", emptyList())
     private val target = NativeComputerTarget.from(mac)
 
+    @Test fun foregroundDetailsReuseRootForChecksAndPowerAcrossPageReentry() = runBlocking {
+        val team = NativeTeamScope("foreground-details-login", "foreground-details-user", "foreground-details-team", 1)
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "foreground-details-${java.util.UUID.randomUUID()}"
+        val store = NativeCredentialStore(context, name)
+        val raw = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(
+            "cmux-ios://attach?v=2&r=100.64.0.7:58465&ub=foreground-details-user", mac.deviceId, mac.name, mac.buildTag), team)
+        val methods = java.util.concurrent.CopyOnWriteArrayList<String>()
+        var awake = false
+        val wire = object : MobileRpcTransport {
+            val input = kotlinx.coroutines.channels.Channel<ByteArray>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+            override suspend fun connect() {}
+            override suspend fun read() = input.receiveCatching().getOrNull()
+            override suspend fun write(bytes: ByteArray) {
+                val request = org.json.JSONObject(MobileFrameDecoder().feed(bytes).single().decodeToString())
+                val method = request.getString("method"); methods += method
+                val result = when (method) {
+                    "mobile.host.status" -> org.json.JSONObject().put("mac_device_id", mac.deviceId).put("mac_instance_tag", mac.buildTag)
+                        .put("capabilities", org.json.JSONArray(listOf("caffeine.control.v1")))
+                    "caffeine.set" -> org.json.JSONObject().put("enabled", request.getJSONObject("params").getBoolean("enabled").also { awake = it })
+                    "caffeine.status" -> org.json.JSONObject().put("enabled", awake)
+                    else -> org.json.JSONObject()
+                }
+                input.send(MobileFrameCodec.encode(org.json.JSONObject().put("id", request.getString("id"))
+                    .put("ok", true).put("result", result).toString().toByteArray()))
+            }
+            override fun close() { input.close() }
+        }
+        val backend = object : IrohAccountBackend {
+            override val state = MutableStateFlow(IrohV2ControlState(ready = true, computers = listOf(mac), permissionExpiresAt = 2000))
+            override suspend fun start() {}
+            override suspend fun refresh() {}
+            override fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport = error("Details must reuse root")
+            override fun close() {}
+        }
+        try {
+            store.update { it.put("task_session", team.login).put("refresh_token", "fixture")
+                .put("pairings", org.json.JSONArray().put(NativePairingRecords.encode(raw))) }
+            MobileRpcClient(wire, { "fixture" }).use { client ->
+                client.connect()
+                val management = NativeForegroundComputerManagement(team, raw, { !client.isClosed }, { store.taskSession() == team.login })
+                val access = NativeForegroundComputerDetailAccess(team, raw, client, management) { !client.isClosed }
+                NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+                    withTimeout(5000) { runtime.state.first { it.ready } }
+                    val page = androidx.compose.runtime.mutableStateOf<NativeComputerDetailsPresentation?>(
+                        NativeComputerDetailsPresentation(team, target, foreground = access))
+                    compose.setContent { CmuxTheme {
+                        NativeComputerDetailsPresentationHost(runtime, runtime.state.value, page.value,
+                            NativeComputerConnection(NativeFeedAvailability.CONNECTED, true, 3), NativeComputerForgetCallbacks(),
+                            credentialStore = store) { page.value = null }
+                    } }
+                    compose.waitUntil(5000) { methods.contains("caffeine.status") }
+                    compose.onNodeWithText("Check Connection").performScrollTo().performClick()
+                    compose.waitUntil(5000) { methods.contains("mobile.workspace.list") }
+                    compose.onAllNodesWithText("Verified").assertCountEquals(2)
+                    compose.onNodeWithContentDescription("Keep Mac Awake").performScrollTo().assertIsOff().performClick()
+                    compose.waitUntil(5000) { methods.contains("caffeine.set") }
+                    compose.onNodeWithContentDescription("Keep Mac Awake").assertIsOn().assertIsEnabled()
+                    capture("foreground-computer-details")
+                    compose.onNodeWithText("‹  Back").performClick()
+                    compose.waitUntil(5000) { methods.count { it == "mobile.events.unsubscribe" } == 1 }
+                    assertFalse(client.isClosed)
+                    compose.runOnIdle { page.value = NativeComputerDetailsPresentation(team, target, foreground = access) }
+                    compose.waitUntil(5000) { methods.count { it == "mobile.events.subscribe" } == 2 }
+                    compose.onNodeWithContentDescription("Keep Mac Awake").performScrollTo().assertIsOn().assertIsEnabled()
+                    assertEquals(1, methods.count { it == "caffeine.set" })
+                    compose.onNodeWithText("‹  Back").performClick()
+                    compose.waitUntil(5000) { methods.count { it == "mobile.events.unsubscribe" } == 2 }
+                    assertFalse(client.isClosed)
+                }
+            }
+        } finally { store.clear(); context.deleteSharedPreferences(name) }
+    }
+
     @Test fun checksUndiscoveredMacWithoutSelectingItAndSharesSafeFailure() {
         val answer = CompletableDeferred<NativeConnectionReport>()
         var checks = 0

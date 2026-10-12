@@ -27,6 +27,7 @@ internal class NativeComputerForgetFlow(
     private var rows: List<NativeCredentialStore.PairedMac>? = null
     private val mutableState = MutableStateFlow(NativeComputerForgetState())
     val state = mutableState.asStateFlow()
+    fun canRetry() = state.value.error != null && !state.value.finished && permits()
 
     suspend fun confirm(): Boolean {
         if (!gate.tryLock()) return false
