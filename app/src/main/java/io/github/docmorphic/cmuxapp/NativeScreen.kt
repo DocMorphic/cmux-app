@@ -492,16 +492,18 @@ internal fun NativeScreen(
         }
         fun openNewBrowser(source: NativeFeedSource, workspace: NativeWorkspace) {
             workspaceTabs.cancel()
-            val owner = teamState.scope
+            val owner = browserOwner(source.mac)
             val key = localBrowserKey(browserLogin, owner, source.mac, workspace.id) ?: return
             val entryContext = browserNavigationContext()
             focusManager.clearFocus(); softwareKeyboard?.hide()
             localBrowsers.open(key, workspace, selectedTerminal?.id.takeIf { selectedWorkspace?.id == workspace.id && code == source.mac.code },
                 LocalBrowserNavigation.canCreate(source.availability == NativeFeedAvailability.CONNECTED, source.capabilities),
-                create = { localBrowserCreatedPanel(feedCoordinator.workspaceAction(source.mac, workspace.id, "browser.create"), workspace.id) },
-                stillCurrent = { signedIn && store.taskSession() == browserLogin && teamState.scope == owner && browserNavigationContext() == entryContext &&
-                    store.visiblePairedMacs().contains(source.mac) && connection.allowsSaved(source.mac) &&
-                    localBrowserWorkspacePresent(feedCoordinator.sources.value[source.mac.origin], workspace.id) },
+                create = { localBrowserCreatedPanel(feedSession.workspaceAction(source.mac, workspace.id, "browser.create",
+                    canSend = { browserNavigationContext() == entryContext }), workspace.id) },
+                stillCurrent = { signedIn && store.taskSession() == browserLogin && browserOwner(source.mac) == owner && browserNavigationContext() == entryContext &&
+                    NativeComputerMenuPairing.isCurrent(source.mac, store.visiblePairedMacs()) &&
+                    (connection.allowsSaved(source.mac) || feedSession.foregroundScope(source.mac, client) != null) &&
+                    localBrowserWorkspacePresent(feedSession.workspaceSource(source.mac), workspace.id) },
                 onLocal = {
                     workspaceRoute = null; inAppNotification = null
                     selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null; selectedChangesWorkspace = null
@@ -510,10 +512,13 @@ internal fun NativeScreen(
                     inAppNotification = null; workspaceRoute = NativeWorkspaceRoute(source.mac.origin, workspace.id, browserId = panel)
                 })
         }
+        fun creationNavigationContext(owner: NativeTeamScope?) =
+            browserNavigationContext().mapIndexed { index, value -> if (index == 1) owner else value } + selectedComputerOrigin
         fun beginNativeCreation(mac: NativeCredentialStore.PairedMac, workspaceId: String? = null, groupId: String? = null) {
             val login = browserLogin ?: return
-            val id = nativeCreation.begin(login, mac, workspaceId, groupId, teamState.scope) ?: return
-            creationNavigation.begin(id, login, browserNavigationContext() + selectedComputerOrigin, teamState.scope)
+            val owner = browserOwner(mac)
+            val id = nativeCreation.begin(login, mac, workspaceId, groupId, owner) ?: return
+            creationNavigation.begin(id, login, creationNavigationContext(owner), owner)
             workspaceTabs.cancel()
         }
         fun createTerminal(source: NativeFeedSource, workspace: NativeWorkspace) {
@@ -541,8 +546,8 @@ internal fun NativeScreen(
             }
         }
 
-        fun workspaceSourceForPane(): NativeFeedSource? = pairedMacs.singleOrNull { it.code == code }?.let { mac ->
-            feedSources[mac.origin] ?: NativeFeedSource(mac)
+        fun workspaceSourceForPane(): NativeFeedSource? = paneContext.mac?.let { mac ->
+            feedSession.workspaceSource(mac) ?: NativeFeedSource(mac)
         }
         LaunchedEffect(feedSources) { feedSources.values.forEach(localBrowsers::observeWorkspaces) }
         val workspaceMoves = feedSession.workspaceMoves
@@ -566,13 +571,17 @@ internal fun NativeScreen(
                 completed = { sshSession?.workspaceCreation?.clearCompleted(it) })?.let { error = it }
         }
 
+        // Read during composition: reading only inside SideEffect misses completed foreground
+        // writes when no secondary feed publication happens to recompose this owner.
+        val creationNavigationState = nativeCreationState
         SideEffect {
             // Wait for restored pane/account admission before binding the saved waiter to this Activity.
             if (screenResume.pending == null && (connector != null || teamState.scope != null || !signedIn)) {
-                creationNavigation.reconcile(browserLogin, nativeCreationState,
-                    browserNavigationContext() + selectedComputerOrigin,
-                    admitted = { request -> request.team == teamState.scope && feedSession.allowsCreation(request) },
-                    completed = nativeCreation::clearCompleted, team = teamState.scope) { request, destination ->
+                val creationOwner = creationNavigationState.request?.mac?.let(::browserOwner) ?: paneTeam
+                creationNavigation.reconcile(browserLogin, creationNavigationState,
+                    creationNavigationContext(creationOwner),
+                    admitted = feedSession::allowsCreation,
+                    completed = nativeCreation::clearCompleted, team = creationOwner) { request, destination ->
                     inAppNotification = null; error = null
                     workspaceRoute = NativeWorkspaceRoute(request.mac.origin, destination.workspace.id,
                         terminalId = destination.terminalId, createdWorkspace = destination.workspace,
@@ -1466,7 +1475,7 @@ internal fun NativeScreen(
 
             fun createWorkspace() {
                 if (creatingWorkspace || creatingTerminal || !canCreateInCurrentPane) return
-                val mac = pairedMacs.singleOrNull { it.code == code } ?: return
+                val mac = paneContext.mac ?: return
                 rawKeyboardView?.finishComposition(); directTyping = false
                 stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide()
                 beginNativeCreation(mac)
@@ -1498,16 +1507,17 @@ internal fun NativeScreen(
             fun createWorkspaceGroup(mac: NativeCredentialStore.PairedMac) {
                 if (creatingGroup || creatingWorkspace || creatingTerminal || sshCreationBusy) return
                 val login = browserLogin
-                val team = teamState.scope
+                val team = browserOwner(mac)
                 val selection = selectedComputerOrigin
-                fun current() = signedIn && store.taskSession() == login && accountTeams.state.value.scope == team &&
+                fun current() = signedIn && store.taskSession() == login && browserOwner(mac) == team &&
                     code == mac.code && connectedCode == mac.code && selectedComputerOrigin == selection &&
-                    (selection.isBlank() || mac.ownsOrigin(selection)) && store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
+                    (selection.isBlank() || mac.ownsOrigin(selection)) && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+                    (connection.allowsSaved(mac) || feedSession.foregroundScope(mac, client) != null)
                 if (!current()) return
                 creatingGroup = true
                 scope.launch {
                     try {
-                        feedCoordinator.createGroup(mac, ::current)
+                        feedSession.createGroup(mac, ::current)
                         if (current()) { error = null; refreshFeed() }
                     } catch (failure: Exception) {
                         if (failure is CancellationException) throw failure
@@ -2774,9 +2784,9 @@ internal fun NativeScreen(
                     LaunchedEffect(restored?.origin, pairedMacs) {
                         if (restoredMac != null && code != restoredMac.code) selectComputer(restoredMac)
                     }
-                    val taskMac = pairedMacs.firstOrNull { it.code == code }
+                    val taskMac = paneContext.mac
                     val taskOrigin = restored?.origin ?: taskMac?.origin ?: pairingOrigin(code)
-                    val selectedTaskMac = pairedMacs.firstOrNull { it.ownsOrigin(taskOrigin) }
+                    val selectedTaskMac = paneMacs.firstOrNull { it.ownsOrigin(taskOrigin) }
                     val taskCode = selectedTaskMac?.code
                     val taskConnected = connectionReady && taskCode != null && connectedCode == taskCode && code == taskCode
                     val active = client.takeIf { taskConnected }
@@ -2788,7 +2798,13 @@ internal fun NativeScreen(
                             val target = checkNotNull(selectedTaskMac) { "This Mac is no longer paired" }
                             val taskClient = checkNotNull(active) { "That Mac is not connected" }
                             requireWorkspaceConnection(taskClient, target)
-                            workspaceSnapshots.mutate(target) { taskClient.request("workspace.create", parameters, timeoutMillis = 30_000) }
+                            feedSession.createTask(target, taskClient, parameters) {
+                                signedIn && taskDraftRepository === repository && showTaskComposer &&
+                                    store.taskSession() == browserLogin && client === taskClient &&
+                                    connectionReady && connectedCode == target.code && code == target.code &&
+                                    NativeComputerMenuPairing.isCurrent(target, store.visiblePairedMacs()) &&
+                                    (connection.allowsSaved(target) || feedSession.foregroundScope(target, taskClient) != null)
+                            }
                         },
                         origin = taskOrigin,
                         models = feedSession.taskModels,
@@ -2804,7 +2820,7 @@ internal fun NativeScreen(
                                 it.id == response.optString("created_terminal_id")
                             } ?: created.preferredTerminal
                             selectedTerminal?.let { terminal -> selectedTaskMac?.let { mac ->
-                                workspaceTabKey(browserLogin, teamState.scope, mac, created.id)?.let { key ->
+                                workspaceTabKey(browserLogin, browserOwner(mac), mac, created.id)?.let { key ->
                                     workspaceTabs.cancel(); terminalStartup.begin(key, terminal)
                                 }
                             } }
@@ -3598,7 +3614,7 @@ internal fun NativeScreen(
                                             store.update { it.put("collapsed_groups", JSONObject(collapsedGroups)) }
                                         },
                                         onAction = { action, title -> scope.launch {
-                                            try { feedCoordinator.groupAction(owner.mac, group.id, action, title) }
+                                            try { feedSession.groupAction(owner.mac, group.id, action, title) }
                                             catch (failure: Exception) { recordWorkspaceActionFailure(failure) }
                                         } })
                                 } else if (entry is WorkspaceListEntry.Footer) {
@@ -3635,7 +3651,7 @@ internal fun NativeScreen(
                                             move(owner, workspace.id, NativeWorkspaceMove(target, null))
                                         } else {
                                             scope.launch {
-                                                try { feedCoordinator.workspaceAction(owner.mac, workspace.id, action, title) }
+                                                try { feedSession.workspaceAction(owner.mac, workspace.id, action, title) }
                                                 catch (failure: Exception) { recordWorkspaceActionFailure(failure) }
                                             }
                                         }
@@ -3840,8 +3856,8 @@ internal fun NativeScreen(
                         history = feedSession.sidebarHistory, mutateWorkspace = { target, command, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }
                             val permitted = { currentOwner() && canSend() }
-                            if (target.group) feedCoordinator.groupAction(target.mac, target.id, command.kind.verb, command.title, permitted)
-                            else feedCoordinator.workspaceAction(target.mac, target.id, command.kind.verb, command.title, permitted)
+                            if (target.group) feedSession.groupAction(target.mac, target.id, command.kind.verb, command.title, permitted)
+                            else feedSession.workspaceAction(target.mac, target.id, command.kind.verb, command.title, permitted)
                         }, moveWorkspace = { source, workspace, intent, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }
                             workspaceMoves.submit(source, workspace, intent) { currentOwner() && canSend() }
@@ -3850,7 +3866,7 @@ internal fun NativeScreen(
                             feedCoordinator.customizeWorkspace(target.mac, target.id, baseline, submitted) { currentOwner() && canSend() }
                         }, createWorkspaceGroup = { mac, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }
-                            feedCoordinator.createGroup(mac) { currentOwner() && canSend() }
+                            feedSession.createGroup(mac) { currentOwner() && canSend() }
                         }, readChanges = { mac, workspace, permitted ->
                             feedCoordinator.changesAccess(mac, workspace) { currentOwner() && permitted() }
                         }, canCloseSsh = { row -> currentOwner() && sshSession?.workspaceFeed?.isCloseAvailable(row) == true },
@@ -3986,7 +4002,7 @@ internal fun NativeScreen(
                             }
                         }
                     }
-                    if (signedIn) NativeCreationNoticeBanner(creationNavigation.noticeFor(browserLogin, teamState.scope), creationNavigation::dismissNotice)
+                    if (signedIn) NativeCreationNoticeBanner(creationNavigation.noticeFor(browserLogin, paneTeam), creationNavigation::dismissNotice)
                     val visibleError = error ?: connectionError.takeIf { sshRoute == null && (selectedTerminal != null || selectedBrowser != null || (workspaceSources.isEmpty() && sshTargets.isEmpty())) }
                     if (signedIn && visibleError != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically) {

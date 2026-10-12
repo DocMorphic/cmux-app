@@ -1,5 +1,39 @@
 # Team switching and the active Mac session
 
+## Foreground workspace and task actions — 2026-10-12
+
+Workspace actions, terminal/browser creation, workspace/group creation and group
+actions now prefer the exact admitted foreground client. Task creation also uses
+that owner. A retained adapter serializes foreground mutations, resolves current
+window/group destinations, keeps capability and attach-ticket checks, and checks
+admission before and after asynchronous work. Authorization rejection retires the
+client; rejection during the subsequent refresh cannot return success. Each write
+reconciles the workspace list, including failed or uncertain outcomes, without
+repeating the write. Secondary Macs retain their existing feed path.
+
+Creation requests and saved waiters use their Mac's original team scope. Pane
+creation and task/browser destinations use the foreground Mac context. The first
+runtime check with the feed paused exposed a completed creation stuck in Ready:
+SideEffect read the result without observing it during composition. The navigation
+owner now observes that state eagerly, so completion opens the terminal without
+waiting for an unrelated feed publication. The original failure and diagnostic
+are preserved.
+
+**116 focused JVM cases pass**, including eight new mutation-wire cases; debug/test
+APKs build. Four changed classes pass Android 17 ART reflection. **Three runtime
+checks pass in 27.548s**: creation on the existing client with secondary feed paused
+and restoration without another write; a delayed pre-create refresh cannot remove
+the new terminal; and explicit terminal/back navigation survives recreation.
+Evidence, XML and source/APK hashes are under
+`captures/runtime/foreground-workspace-actions-*` (ignored). Only the existing
+16 KB AVD was used and stopped/reaped; no physical phone was touched. Task/group
+wire cases are local fixtures, not full physical UI acceptance. Signed 654 predates
+this source.
+
+Reorder/customization, notification/sidebar/tab recovery and remaining presentation
+scopes still require integration. Settings teardown remains enabled: **team
+selection still disconnects the app**. Complete Pixel/Mac parity remains unverified.
+
 ## Foreground browser ownership — 2026-10-12
 
 Existing browser tabs and Mac tunnel networks now retain the admitted foreground

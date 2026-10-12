@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.first
 /** Activity recreation retains account-scoped snapshots; process death refetches from the Mac. */
 internal class NativeFeedSession(
     private val connector: NativeConnector, private val account: NativeAccount, private val store: NativeCredentialStore,
-    teams: NativeAccountTeams? = null,
+    private val teams: NativeAccountTeams? = null,
     reserveForeground: (NativeTeamContinuation, MobileRpcClient) -> NativeForegroundTransport? = { _, _ -> null }
 ) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -55,9 +55,11 @@ internal class NativeFeedSession(
     private var screenConnection: NativeScreenConnectionState? = null
     private var foregroundSizing: Job? = null
     private var foregroundArtifactWatcher: Job? = null
+    private var foregroundWorkspaceAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundWorkspaceAccess>? = null
     fun connectionState(initialCode: String): NativeScreenConnectionState = screenConnection
         ?: NativeScreenConnectionState(initialCode, ::changeForegroundClient).also { screenConnection = it }
     private fun changeForegroundClient(previous: MobileRpcClient?, next: MobileRpcClient?) {
+        foregroundWorkspaceAccess = null
         foregroundSizing?.cancel(); foregroundSizing = null
         foregroundArtifactWatcher?.cancel(); foregroundArtifactWatcher = null
         previous?.let { releaseForeground(it); terminalSizing.unbind(it); terminalInputs.detach(it); it.close() }
@@ -106,15 +108,51 @@ internal class NativeFeedSession(
 
     val workspaceMoves = NativeWorkspaceMoves(scope, coordinator)
     fun allowsCreation(request: NativeCreationRequest): Boolean = !viewModelCleared && account.isSignedIn() &&
-        store.taskSession() == request.login && store.visiblePairedMacs().contains(request.mac) && connector.allowsSaved(request.mac)
-    val workspaceCreation = NativeWorkspaceCreationCoordinator(scope, ::allowsCreation, ::holdBrowser, create = { request ->
+        store.taskSession() == request.login && NativeComputerMenuPairing.isCurrent(request.mac, store.visiblePairedMacs()) &&
+        ((request.team != null && foregroundAuthority?.scopeFor(request.mac) == request.team) ||
+            ((teams == null || request.team?.let(teams::isCurrent) == true) && connector.allowsSaved(request.mac)))
+    val workspaceCreation = NativeWorkspaceCreationCoordinator(scope, ::allowsCreation, ::artifactHold, create = { request ->
         val canSend = { allowsCreation(request) }
         when {
-            request.workspaceId != null -> coordinator.workspaceAction(request.mac, request.workspaceId, "terminal.create", canSend = canSend)
-            request.groupId != null -> coordinator.createWorkspaceInGroup(request.mac, request.groupId, canSend)
-            else -> coordinator.createWorkspace(request.mac, canSend)
+            request.workspaceId != null -> workspaceAction(request.mac, request.workspaceId, "terminal.create", canSend = canSend)
+            else -> foregroundWorkspace(request.mac)?.createWorkspace(request.groupId, canSend)
+                ?: if (request.groupId != null) coordinator.createWorkspaceInGroup(request.mac, request.groupId, canSend)
+                else coordinator.createWorkspace(request.mac, canSend)
         }
     }, latest = workspaceSnapshots::createdWorkspace)
+    private fun foregroundWorkspace(mac: NativeCredentialStore.PairedMac): NativeForegroundWorkspaceAccess? {
+        val state = screenConnection ?: return null
+        val client = state.client ?: return null
+        fun live() = !viewModelCleared && state.client === client && state.connectionReady && state.connectedCode == mac.code &&
+            state.code == mac.code && canRetainForeground(mac, client)
+        if (!live()) return null
+        foregroundWorkspaceAccess?.takeIf { it.second === client && NativeComputerMenuPairing.isCurrent(mac, listOf(it.first)) }?.let { return it.third }
+        return NativeForegroundWorkspaceAccess(scope, mac, client, workspaceSnapshots, { state.hostCapabilities }, ::live)
+            .also { foregroundWorkspaceAccess = Triple(mac, client, it) }
+    }
+    fun workspaceSource(mac: NativeCredentialStore.PairedMac): NativeFeedSource? {
+        if (foregroundWorkspace(mac) == null) return coordinator.sources.value[mac.origin]?.takeIf { it.mac == mac }
+        val state = checkNotNull(screenConnection)
+        val snapshot = workspaceSnapshots.latest(mac) ?: return null
+        return NativeFeedSource(mac, workspaces = snapshot.workspaces, groups = parseGroups(snapshot.value),
+            capabilities = state.hostCapabilities, availability = NativeFeedAvailability.CONNECTED,
+            hasWorkspaceSnapshot = true, macMutationTicket = state.client?.macMutationTicket())
+    }
+    suspend fun workspaceAction(mac: NativeCredentialStore.PairedMac, workspaceId: String, action: String,
+        title: String? = null, canSend: () -> Boolean = { true }) =
+        foregroundWorkspace(mac)?.workspaceAction(workspaceId, action, title, canSend)
+            ?: coordinator.workspaceAction(mac, workspaceId, action, title, canSend)
+    suspend fun createGroup(mac: NativeCredentialStore.PairedMac, canSend: () -> Boolean = { true }) =
+        foregroundWorkspace(mac)?.createGroup(canSend) ?: coordinator.createGroup(mac, canSend)
+    suspend fun groupAction(mac: NativeCredentialStore.PairedMac, groupId: String, action: String,
+        title: String? = null, canSend: () -> Boolean = { true }) =
+        foregroundWorkspace(mac)?.groupAction(groupId, action, title, canSend)
+            ?: coordinator.groupAction(mac, groupId, action, title, canSend)
+    suspend fun createTask(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient,
+        params: org.json.JSONObject, canSend: () -> Boolean): org.json.JSONObject {
+        check(screenConnection?.client === client) { "Task connection changed" }
+        return checkNotNull(foregroundWorkspace(mac)) { "Task connection is no longer available" }.createTask(params, canSend)
+    }
     val taskModels = TaskModelRepository(scope)
     private val taskModelPrefetch = TaskModelPrefetch(scope, taskModels)
     init { scope.launch { coordinator.taskModelIdentities.collect { reconcileTaskModelPrefetch() } } }

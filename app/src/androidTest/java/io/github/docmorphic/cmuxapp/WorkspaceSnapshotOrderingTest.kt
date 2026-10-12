@@ -23,6 +23,7 @@ class WorkspaceSnapshotOrderingTest {
     private lateinit var peer: NativeFixturePeer
     private lateinit var session: NativeFeedSession
     private var scenario: ActivityScenario<NativeLifecycleTestActivity>? = null
+    private val connections = AtomicInteger()
     private val code = "cmux-ios://attach?v=2&r=100.64.0.1:58465"
     @Before fun setup() {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")) { "Emulator-only fixture" }
@@ -31,6 +32,7 @@ class WorkspaceSnapshotOrderingTest {
         store.rememberMac(code, "fixture-mac", "Fixture Mac")
         peer = NativeFixturePeer(); peer.customWorkspaceListing = listing()
         NativeLifecycleTestActivity.connector = NativeConnector { _, _ ->
+            connections.incrementAndGet()
             MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
         }
     }
@@ -47,6 +49,40 @@ class WorkspaceSnapshotOrderingTest {
         compose.waitUntil(15_000) { session.coordinator.sources.value.values.any { it.hasWorkspaceSnapshot } }
     }
     private fun waitFor(text: String) = compose.waitUntil(15_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+
+    @Test fun connectedPaneCreatesThroughItsExistingClientWhenTheSecondaryFeedIsPaused() {
+        launch()
+        compose.onNodeWithText("Ordered workspace").performClick(); waitFor("Ready shell ▾")
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+        compose.runOnIdle { session.coordinator.pause() }
+        compose.waitUntil(5_000) { session.coordinator.sources.value.values.all { it.availability == NativeFeedAvailability.OFFLINE } }
+        val admittedConnections = connections.get()
+        peer.terminalCreationResponse = {
+            peer.customWorkspaceListing = listing(created = true)
+            JSONObject(peer.customWorkspaceListing.toString()).put("created_terminal_id", "new-terminal")
+        }
+        compose.onNodeWithContentDescription("Choose terminal or pane").performClick()
+        compose.onNodeWithText("New Terminal").performClick()
+        try { waitFor("New shell ▾") } catch (failure: Throwable) {
+            val connection = session.connectionState(code)
+            val state = session.workspaceCreation.state.value
+            val diagnostic = JSONObject().put("creationState", state.javaClass.simpleName)
+                .put("creationStillAllowed", state.request?.let(session::allowsCreation))
+                .put("ready", connection.connectionReady).put("clientClosed", connection.client?.isClosed)
+                .put("snapshotWorkspaces", JSONArray(session.workspaceSnapshots.latest(store.pairedMacs().single())?.workspaces?.map { it.id }.orEmpty()))
+                .put("methods", JSONObject(peer.requests.groupingBy { it.optString("method") }.eachCount()))
+                .put("ui", compose.onRoot(useUnmergedTree = true).printToString())
+            InstrumentationRegistry.getInstrumentation().sendStatus(0,
+                android.os.Bundle().apply { putString("stream", "\nFOREGROUND_CREATION_DIAGNOSTIC $diagnostic\n") })
+            throw failure
+        }
+        compose.onNodeWithTag("TerminalStarting").assertExists()
+        assertEquals(1, peer.requests.count { it.optString("method") == "terminal.create" })
+        assertEquals(admittedConnections, connections.get())
+        assertTrue(session.coordinator.sources.value.values.all { it.availability == NativeFeedAvailability.OFFLINE })
+        scenario!!.recreate(); waitFor("New shell ▾")
+        assertEquals(1, peer.requests.count { it.optString("method") == "terminal.create" })
+    }
 
     @Test fun slowForegroundReadFromBeforeCreateCannotRemoveTheNewTerminal() {
         val gate = CountDownLatch(1); val blocked = AtomicBoolean(); val armed = AtomicBoolean(true)
