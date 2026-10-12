@@ -1,5 +1,19 @@
 # Remaining work for iOS parity
 
+## Signed Android milestone 652 — in progress
+
+Manual [run 38188383241](https://github.com/DocMorphic/cmux-app/actions/runs/38188383241)
+was dispatched with preview publication from main at
+`0445cab230770bed5540f6a9c477280c19f879a3`, created 2026-10-12 00:32:14 UTC.
+It is the exact current combined signing/CI handle; inspect its terminal result
+and downloaded bytes before calling 652 verified or installing it. Do not
+redispatch while it is active. Signed 650 remains the published verified download.
+
+The verified custom Mac app is running separately, but its initial browser sign-in
+attempt timed out without a returned account session. Its real UI offers Try Again;
+the owner is asked to complete sign-in there and reconnect the Pixel if available.
+No native account/helper/FCM acceptance is implied by the completed build/launch.
+
 ## Custom Mac artifact and local launch — 2026-10-12
 
 Hosted retry 38180269049 succeeded: full tagged build (67m42s), packaging and upload.
