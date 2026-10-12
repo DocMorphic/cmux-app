@@ -108,7 +108,12 @@ class NativeIrohRuntimeTest {
             firstBackend.state.value = ready().copy(computers = listOf(mac, sibling, stalled))
             val primary = connect(); val secondary = connect(host = sibling)
             val foregroundWire = firstBackend.transports.first()
-            val hold = reserve(primary); hold.activate { true }
+            val hold = reserve(primary)
+            assertFalse(runtime.retainsForeground(initial, primary))
+            hold.activate { true }
+            assertTrue(runtime.retainsForeground(initial, primary.compatibilityWire))
+            assertFalse(runtime.retainsForeground(initial, secondary))
+            assertFalse(runtime.retainsForeground(initial.copy(login = "other-login"), primary))
             val entered = CompletableDeferred<Unit>()
             firstBackend.prepareWire = { selected, wire -> if (selected == stalled) {
                 wire.gate = CompletableDeferred(); entered.complete(Unit)
@@ -129,6 +134,7 @@ class NativeIrohRuntimeTest {
                 foregroundRpc(primary, foregroundWire)
                 val returned = select(initial.teamId)
                 assertNotEquals(initial.generation, returned.generation)
+                assertTrue(runtime.retainsForeground(returned, primary))
                 assertEquals(1, created.count { it.account.teamId == initial.teamId })
                 connect(returned).close()
                 assertEquals(3, firstBackend.transports.size) // foreground, secondary and retired stalled candidate

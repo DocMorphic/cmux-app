@@ -123,6 +123,16 @@ internal class NativeIrohRuntime(
 
     private fun wakeOwnership() { ownership.value = ownershipSequence.incrementAndGet() }
 
+    /** Selected-team admission remains separate; only the activated exact wire can continue. */
+    fun retainsForeground(owner: NativeTeamScope, client: MobileRpcClient): Boolean {
+        if (savedTailscale?.retainsForeground(owner, client) == true) return true
+        val lease = foreground.get() ?: return false
+        val admitted = lease.proof.admittedScope
+        return !lease.closed.get() && !lease.client.isClosed && !client.isClosed &&
+            admitted.login == owner.login && admitted.userId == owner.userId && admitted.teamId == owner.teamId &&
+            lease.client.compatibilityWire === client.compatibilityWire && allowsContinuation(lease.proof)
+    }
+
     private fun held(run: Owner): ForegroundLease? = foreground.get()?.takeIf {
         it.run === run && !it.closed.get() && !it.client.isClosed && allowsContinuation(it.proof)
     }

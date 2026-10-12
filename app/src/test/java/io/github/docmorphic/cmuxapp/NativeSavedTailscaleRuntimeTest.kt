@@ -46,17 +46,21 @@ class NativeSavedTailscaleRuntimeTest {
             val proof = checkNotNull(account.captureContinuation(f.team))
             val hold = checkNotNull(f.local.reserveForeground(proof, first))
             try {
+                assertFalse(f.local.retainsForeground(f.team, first))
                 hold.activate { true }; assertTrue(runCatching { hold.activate { true } }.isFailure)
+                assertTrue(f.local.retainsForeground(f.team, first.compatibilityWire))
+                assertFalse(f.local.retainsForeground(f.team.copy(login = "other-login"), first))
                 select(f, account, server, "other")
                 assertFalse(first.isClosed); first.workspaces()
                 assertTrue(f.wires.single().allowed()); assertNull(f.local.powerSession(f.team, f.target))
                 assertTrue(runCatching { f.local.connectIfSelected(f.team, f.target) }.isFailure)
                 val returned = select(f, account, server, "team")
                 assertNotEquals(f.team.generation, returned.generation)
+                assertTrue(f.local.retainsForeground(returned, first))
                 checkNotNull(f.local.connectIfSelected(returned, f.target)).use { it.workspaces() }
                 first.workspaces(); assertEquals(1, f.wires.size)
                 assertEquals(1, f.wires.single().methods.count { it == "mobile.attach_ticket.create" })
-                hold.close(); select(f, account, server, "other")
+                hold.close(); assertFalse(f.local.retainsForeground(f.team, first)); select(f, account, server, "other")
                 withTimeout(2000) { first.disconnected.first() }
             } finally { hold.close(); first.close() }
         }
@@ -137,10 +141,30 @@ class NativeSavedTailscaleRuntimeTest {
                 val hold = checkNotNull(facade.reserveForeground(checkNotNull(account.captureContinuation(f.team)), first))
                 try {
                     hold.activate { true }; select(f, account, server, "other")
+                    assertTrue(facade.retainsForeground(f.team, first.compatibilityWire))
                     first.workspaces(); assertEquals(1, f.wires.size); assertFalse(first.isClosed)
                     assertTrue(nativeAttempts <= 2)
                 } finally { hold.close(); first.close() }
             }
+        }
+    }
+
+    @Test fun savedForegroundCompatibilityIsRecheckedAfterSelectedTeamChanges() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val first = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            val gate = NativeMacCompatibilityGate(account::isCurrent, retainsForeground = f.local::retainsForeground)
+            val host = first.hostStatus().put("mac_app_version", "0.64.25")
+            gate.admit(f.team, first, host)
+            val hold = checkNotNull(f.local.reserveForeground(checkNotNull(account.captureContinuation(f.team)), first))
+            try {
+                hold.activate { true }; select(f, account, server, "other"); gate.reconcile()
+                assertTrue(gate.observations.value.isEmpty())
+                gate.replace(checkNotNull(NativeMacCompatibilityPolicy.decode(
+                    """{"entries":[{"minIOSVersion":"1.0.6","stableMinVersion":"0.65.0"}]}""")))
+                assertTrue(withTimeout(2000) { first.disconnected.first() } is MacUpdateRequired)
+                assertFalse(f.local.retainsForeground(f.team, first))
+                assertTrue(gate.warnings.value.isEmpty())
+            } finally { hold.close(); first.close() }
         }
     }
 

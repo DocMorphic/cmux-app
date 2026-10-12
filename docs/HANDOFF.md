@@ -1,5 +1,33 @@
 # Codex laptop handoff — 2026-09-28
 
+## Foreground compatibility policy tracking — 2026-10-12
+
+The version gate now keeps tracking an already admitted foreground Iroh or saved
+Tailscale wire after selected-team discovery changes. It consults the runtime's
+activated exact wire and verified continuation, using a read-only atomic lease
+lookup without taking the runtime monitor. A matching pooled borrower refers to
+the same authenticated wire; another wire, login/user/team, unactivated or closed
+reservation does not qualify. A fresh selection generation in the same verified
+account/team can reuse that live wire. New admissions remain selected-team scoped.
+
+Remote policy refresh still retires every borrower of an incompatible retained
+wire with `MacUpdateRequired`. Observations and cached picker warnings remain
+selected-team scoped; warning restoration cannot register or revive a wire.
+Releasing ownership removes its exception, and runtime logout/revocation/route
+retirement still closes the transport independently.
+
+All **126 focused JVM cases pass**, including an actual saved-runtime reservation
+with verified MockWebServer membership followed by a policy rejection after team
+selection, pooled-borrower rejection, stale-admission/cache regressions and exact
+Iroh/saved ownership checks. Debug/test APK assembly succeeds in 1m08s. Evidence
+is ignored under `captures/runtime/foreground-compatibility-*`. These are fixture
+transports, not actual QUIC, Pixel or live policy-service acceptance. No emulator
+was started and no physical data was touched. Signed 654 predates this source.
+
+Still integrate saved/external ticket continuation, legacy Tailscale ownership,
+per-Mac panes/feeds/browser/notifications and Activity lifetime before removing
+Settings teardown. **The app still disconnects on team selection.**
+
 ## Saved Tailscale foreground transport — 2026-10-12
 
 Saved native identities routed over Tailscale now have separate selected-team and

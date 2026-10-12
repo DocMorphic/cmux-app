@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import java.util.concurrent.atomic.AtomicReference
 
 /** Activity recreation and the notification service share one enrolled endpoint per process. */
 internal class NativeAppConnections private constructor(context: Context) : AutoCloseable {
@@ -15,7 +16,11 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     private val activityLock = Any()
     private val activityOwners = mutableSetOf<Any>()
     private val applicationActive = MutableStateFlow(IrxProbeActivity(false))
-    val compatibility = NativeMacCompatibilityRuntime(context.applicationContext, store, applicationActive, teams.state, teams::isCurrent)
+    private val compatibilityForeground = AtomicReference<NativeIrohRuntime?>(null)
+    val compatibility = NativeMacCompatibilityRuntime(context.applicationContext, store, applicationActive, teams.state,
+        teams::isCurrent, retainsForeground = { owner, client ->
+            compatibilityForeground.get()?.retainsForeground(owner, client) == true
+        })
     private val savedTailscale = NativeSavedTailscaleRuntime(teams.state, teams::isCurrent, { account.accessToken() },
         admitCompatibility = { team, client, host -> compatibility.gate.admit(team, client, host, locallyAuthorizedTailscale = true) },
         audience = compatibility.audience, forceToken = { account.accessToken(true) }, allowsContinuation = teams::allowsContinuation) { team ->
@@ -34,7 +39,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) },
         savedTailscale = savedTailscale,
         admitCompatibility = { team, client, host, tailscale -> compatibility.gate.admit(team, client, host, tailscale) },
-        audience = compatibility.audience, allowsContinuation = teams::allowsContinuation)
+        audience = compatibility.audience, allowsContinuation = teams::allowsContinuation).also { compatibilityForeground.set(it) }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->

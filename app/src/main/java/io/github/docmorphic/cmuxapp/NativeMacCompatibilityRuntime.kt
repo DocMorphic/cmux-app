@@ -12,7 +12,8 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 internal class NativeMacCompatibilityRuntime(context: Context, private val store: NativeCredentialStore, active: StateFlow<IrxProbeActivity>,
-    teams: StateFlow<NativeAccountTeamsState>, private val isCurrent: (NativeTeamScope) -> Boolean) : AutoCloseable {
+    teams: StateFlow<NativeAccountTeamsState>, private val isCurrent: (NativeTeamScope) -> Boolean,
+    retainsForeground: (NativeTeamScope, MobileRpcClient) -> Boolean = { _, _ -> false }) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val preferences = context.getSharedPreferences("native_mac_compatibility", Context.MODE_PRIVATE)
     private val stamp = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -22,7 +23,7 @@ internal class NativeMacCompatibilityRuntime(context: Context, private val store
         preferences.edit().clear().putString(key, it).apply()
     }
     val audience = NativeMacBuildAudience.application
-    val gate = NativeMacCompatibilityGate(isCurrent, cache.policy, audience) { owner, _, _ -> persist(owner) }
+    val gate = NativeMacCompatibilityGate(isCurrent, cache.policy, audience, retainsForeground) { owner, _, _ -> persist(owner) }
     private val http = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS)
         .followRedirects(false).followSslRedirects(false).build()
     private val refreshLock = Mutex()

@@ -12,6 +12,7 @@ internal class NativeMacCompatibilityGate(
     private val isCurrent: (NativeTeamScope) -> Boolean,
     initial: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked,
     private val audience: NativeMacBuildAudience? = null,
+    private val retainsForeground: (NativeTeamScope, MobileRpcClient) -> Boolean = { _, _ -> false },
     private val recordObservation: (NativeTeamScope, NativeMacIdentity, String?) -> Unit = { _, _, _ -> }
 ) {
     private data class Host(val key: MacCompatibilityKey, val version: String?)
@@ -84,7 +85,8 @@ internal class NativeMacCompatibilityGate(
 
     fun reconcile() = synchronized(lock) { prune(); publish() }
     private fun prune() {
-        wires.entries.removeAll { it.key.isClosed || !isCurrent(it.value.key.owner) }
+        wires.entries.removeAll { (client, host) -> client.isClosed ||
+            (!isCurrent(host.key.owner) && !retainsForeground(host.key.owner, client)) }
         observed.keys.removeAll { !isCurrent(it.owner) }
         restored.keys.removeAll { !isCurrent(it.owner) }
     }

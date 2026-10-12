@@ -87,6 +87,15 @@ internal class NativeSavedTailscaleRuntime(
         return ForegroundLease(run, key, proof, client)
     }
 
+    /** Read-only wire ownership; takes no runtime monitor inside the compatibility gate. */
+    fun retainsForeground(owner: NativeTeamScope, client: MobileRpcClient): Boolean {
+        val lease = foreground.get() ?: return false
+        val admitted = lease.proof.admittedScope
+        return !lease.closed.get() && !lease.client.isClosed && !client.isClosed &&
+            admitted.login == owner.login && admitted.userId == owner.userId && admitted.teamId == owner.teamId &&
+            lease.client.compatibilityWire === client.compatibilityWire && allowsContinuation(lease.proof)
+    }
+
     private fun dispose(run: Owner) {
         synchronized(lock) {
             if (run.disposed) return

@@ -13,6 +13,48 @@ class NativeMacCompatibilityGateTest {
     private fun stricter() = checkNotNull(NativeMacCompatibilityPolicy.decode(
         """{"entries":[{"minIOSVersion":"1.0.6","stableMinVersion":"0.65.0"}]}"""))
 
+    @Test fun retainedWireStillReceivesPolicyRejectionWithoutOldTeamPickerWarnings() = runBlocking<Unit> {
+        var selected = team
+        var held: MobileRpcClient? = null
+        val gate = NativeMacCompatibilityGate({ it == selected }, retainsForeground = { owner, wire ->
+            owner == team && held?.compatibilityWire === wire
+        })
+        MobileRpcConnections().use { pool ->
+            val primary = pool.acquire("mac", { true }, validate = { gate.admit(team, it, host()) }) {
+                MobileRpcClient(PoolTestTransport(), { "fixture" })
+            }
+            val borrower = checkNotNull(pool.borrowIfConnected("mac", { true }))
+            held = primary
+            selected = team.copy(teamId = "other", generation = 2)
+            gate.reconcile()
+            assertTrue(gate.observations.value.isEmpty()); assertTrue(gate.warnings.value.isEmpty())
+            assertTrue(runCatching { gate.admit(team, primary, host()) }.isFailure)
+            gate.replace(stricter())
+            assertTrue(withTimeout(1000) { primary.disconnected.first() } is MacUpdateRequired)
+            assertTrue(withTimeout(1000) { borrower.disconnected.first() } is MacUpdateRequired)
+            assertNull(pool.borrowIfConnected("mac", { true }))
+            assertTrue(gate.warnings.value.isEmpty())
+            primary.close(); borrower.close()
+        }
+    }
+
+    @Test fun releasedContinuationAndCachedObservationsCannotReviveRetiredWireTracking() = runBlocking<Unit> {
+        var selected = team
+        var continuing = true
+        val gate = NativeMacCompatibilityGate({ it == selected }, retainsForeground = { _, _ -> continuing })
+        MobileRpcClient(PoolTestTransport(), { "fixture" }).use { client ->
+            client.connect(); gate.admit(team, client, host())
+            selected = team.copy(teamId = "other", generation = 2)
+            continuing = false; gate.reconcile()
+            continuing = true
+            gate.restore(team, mapOf(NativeMacIdentity("mac", "default") to "0.1"))
+            gate.replace(stricter())
+            assertFalse(client.isClosed)
+            assertTrue(gate.observations.value.isEmpty()); assertTrue(gate.warnings.value.isEmpty())
+            assertTrue(runCatching { gate.admit(team, client, host()) }.isFailure)
+        }
+    }
+
     @Test fun restoredVersionWarnsWithoutRegisteringAWireAndReevaluatesCurrentPolicy() {
         val gate = NativeMacCompatibilityGate({ it == team })
         val identity = NativeMacIdentity("mac", "default")
