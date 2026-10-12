@@ -3,35 +3,33 @@
 Current source development is on `main`. These are development milestones;
 see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
-## Current verified signed development APK — build 652 (2026-10-12)
+## Current verified signed development APK — build 654 (2026-10-12)
 
-[Download build 652](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-652/app-release.apk)
-from the [published development preview](https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-652).
-[Workflow 652](https://github.com/DocMorphic/cmux-app/actions/runs/38188383241) passed
-at `0445cab230770bed5540f6a9c477280c19f879a3`.
+[Download build 654](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-654/app-release.apk)
+from the [published development preview](https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-654).
+[Workflow 654](https://github.com/DocMorphic/cmux-app/actions/runs/38198098744) passed
+at `5ea6573c104d9512a3eac091900decefd5ecc3ef`.
 
-- Package: `io.github.docmorphic.cmuxapp`; version code **652**, version **0.2.0**.
-- SHA-256: `d01aee86676a076b8bd1075afa3c6e70db8dd567dc75b4090fd97ed99783a162`.
+- Package: `io.github.docmorphic.cmuxapp`; version code **654**, version **0.2.0**.
+- SHA-256: `f41674047e59466b69ad622f9c24f148178c114f64e57a6c2ec6c854a8347dec`.
 - Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
-- APK: **277,120,738 bytes**.
-- Local file: `captures/runtime/release-0445cab/signed/app-release.apk`.
+- APK: **277,153,506 bytes**.
+- Local file: `captures/runtime/release-5ea6573/signed/app-release.apk`.
 
-This integration milestone includes the source batches in 650 plus the subsequent
-Settings header/groups/inline teams, connected Mac rows with actual connection
-method, setup help with highlighted guidance, authorization recovery and the
-current private notification source. It does not implement foreground terminal
-retention on team selection; see [TEAM_SWITCH.md](TEAM_SWITCH.md).
+This milestone includes 652 plus the verified membership/foreground ownership
+foundation, Iroh foreground transport support and configured private Mac companion
+profile. The subsequent saved-Tailscale continuation source is not included.
+The UI still disconnects on team selection; see [TEAM_SWITCH.md](TEAM_SWITCH.md).
 
-CI passed the policy/helper/viewer, JVM/APK, signature/native alignment and six
-Android 17 ART release class-loading gates. The Cloud job restored and verified
-the matching native checkpoint; it did not perform fresh native compilation.
-Independent downloaded-byte checks matched the published source, version, digest,
-size, checksum file and CI receipt. The local verifier passed all **21 viewer
-assets**, **22 native libraries** with 16 KiB ELF/RELRO/ZIP alignment and exclusion
-of **14 debug components**. Compiled Firebase resources match the Gmail-owned
-project `cmux-app-push-private-20261011`; client API keys are checked in memory and
-omitted from receipts. CI and local verification receipts match exactly. Evidence
-is ignored under `captures/runtime/release-0445cab/`.
+CI passed helper/viewer, JVM/APK, signature/native alignment and six Android 17
+ART release class-loading gates. The Cloud job restored and verified the matching
+native checkpoint; it did not perform fresh native compilation. Independent
+checks matched the published source, version, digest, size, checksum file, CI APK
+and CI receipt. The verifier passed **21 viewer assets**, **22 native libraries**
+with 16 KiB ELF/RELRO/ZIP alignment and exclusion of **14 debug components**.
+Compiled Firebase resources match `cmux-app-push-private-20261011`; client API
+keys are checked in memory and omitted from receipts. Evidence is ignored under
+`captures/runtime/release-5ea6573/`. The duplicate CI APK was removed after comparison.
 
 Install as an update to the existing release app, preserving sign-in, pairing and
 data. Do not uninstall or clear it; the debug package has separate data. No Pixel

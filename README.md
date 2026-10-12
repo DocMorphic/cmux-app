@@ -6,7 +6,7 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 652 APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-652/app-release.apk)
+**Signed download:** [build 654 APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-654/app-release.apk)
 from `d34daed5` is the current verified development preview, including worksheet
 charts and the Gmail-owned Firebase client configuration. Signing, native 16 KiB
 alignment, assets and compiled Firebase resources are verified. Signed-in Pixel

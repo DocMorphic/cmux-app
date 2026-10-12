@@ -25,16 +25,23 @@ ownership still need integration before removing explicit Settings teardown.
 **The app still disconnects on team selection.** Signed build 654 predates these
 saved-route changes; neither live Tailscale nor full UI continuation is verified.
 
-## Signed integration milestone 654 — in progress
+## Signed integration milestone 654 — verified and published
 
-Manual [run 38198098744](https://github.com/DocMorphic/cmux-app/actions/runs/38198098744)
-is confirmed in progress at `5ea6573c104d9512a3eac091900decefd5ecc3ef`, created
-2026-10-12 03:01:16 UTC, with preview publication requested. It combines the two
-foreground ownership source batches and the configured companion profile. Follow
-this same handle; do not redispatch or call the artifact verified before inspecting
-the terminal CI result and independently checking downloaded bytes. Signed 652 is
-still the verified published download. Physical pairing/FCM, UI retention and the
-full objective remain unverified.
+[Run 38198098744](https://github.com/DocMorphic/cmux-app/actions/runs/38198098744)
+completed successfully at `5ea6573c104d9512a3eac091900decefd5ecc3ef`.
+[Download signed 654](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-654/app-release.apk).
+The published manifest/checksum, CI APK and local verification receipt agree:
+277,153,506 bytes, SHA-256
+`f41674047e59466b69ad622f9c24f148178c114f64e57a6c2ec6c854a8347dec`, unchanged
+signer, 21 viewer assets, 22 native libraries with 16 KB ELF/RELRO/ZIP alignment,
+14 debug components excluded and the selected Gmail Firebase resources. Six CI
+Android 17 ART release probes passed. The Cloud native checkpoint was reused and
+verified, not freshly compiled. Evidence is ignored under
+`captures/runtime/release-5ea6573/`; its duplicate CI APK was removed after comparison.
+
+This includes the Iroh foreground foundation and configured companion audience,
+but predates the subsequent saved-Tailscale source batch. No physical update,
+live custom Mac/FCM acceptance or full UI parity is established.
 
 ## Configured Mac companion profile — 2026-10-12
 
