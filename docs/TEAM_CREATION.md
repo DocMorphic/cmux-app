@@ -1,5 +1,9 @@
 # Android team creation
 
+For the separately audited iOS behavior that preserves a live Mac terminal during
+team selection, see [TEAM_SWITCH.md](TEAM_SWITCH.md). Android foreground retention
+is still unimplemented; the creation and picker checks below do not establish it.
+
 Reference: cmux commit `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`:
 
 - `Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TeamSelection.swift`

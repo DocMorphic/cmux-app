@@ -1,18 +1,34 @@
 # Codex laptop handoff — 2026-09-28
 
-## Signed Android milestone 652 — in progress
+## Next ownership batch — team switching
+
+The scoped iOS implementation retains an already connected foreground Mac on team
+selection while clearing secondary subscriptions, old-team lists and pending
+startup/restore attempts. Android does not. Read [TEAM_SWITCH.md](TEAM_SWITCH.md)
+before changing teardown: discovery, Iroh/legacy/Tailscale transports, saved tickets,
+foreground panes/tabs/browser and asynchronous operation guards currently share
+the selected-team generation. New admissions must remain selected-team scoped;
+the live continuation needs its original authority and separate lifetime. This
+audit adds no production retention and passes no new acceptance cases.
+
+## Signed Android milestone 652 — verified and published
 
 Manual [run 38188383241](https://github.com/DocMorphic/cmux-app/actions/runs/38188383241)
-was dispatched with preview publication from main at
-`0445cab230770bed5540f6a9c477280c19f879a3`, created 2026-10-12 00:32:14 UTC.
-It is the exact current combined signing/CI handle; inspect its terminal result
-and downloaded bytes before calling 652 verified or installing it. Do not
-redispatch while it is active. Signed 650 remains the published verified download.
+succeeded at `0445cab230770bed5540f6a9c477280c19f879a3` and published
+[preview 652](https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-652).
+Independent downloaded-byte verification matches published source/version/digest,
+size, checksum and the CI receipt. The stable signer is unchanged; all 21 viewer
+assets, 22 native libraries with 16 KiB ELF/RELRO/ZIP alignment and exclusion of 14
+debug components pass. Compiled Firebase resources match the Gmail-owned client.
+CI passed JVM/APK gates and six Android 17 ART class-loading probes; Cloud restored
+and verified the matching native checkpoint without recompiling it. See
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the exact hash, download and evidence.
 
-The verified custom Mac app is running separately, but its initial browser sign-in
-attempt timed out without a returned account session. Its real UI offers Try Again;
-the owner is asked to complete sign-in there and reconnect the Pixel if available.
-No native account/helper/FCM acceptance is implied by the completed build/launch.
+This includes the subsequent Settings/setup/auth-recovery batches. No Pixel update
+or live account/pairing/FCM acceptance is established. No local AVD was started.
+The separately running custom Mac app still awaits completed sign-in after its
+initial browser attempt timed out; the existing owner question remains pending.
+No helper/native authority or full parity is implied by either verified artifact.
 
 ## Custom Mac artifact and local launch — 2026-10-12
 
