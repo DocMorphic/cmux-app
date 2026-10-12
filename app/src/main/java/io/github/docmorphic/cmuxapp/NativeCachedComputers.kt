@@ -11,7 +11,7 @@ internal data class NativeCachedComputers(
     val tailscaleRoutes: Map<NativeMacIdentity, String>
 ) {
     fun warnings(policy: NativeMacCompatibilityPolicy) = versions.mapNotNull { (identity, version) ->
-        policy.violation(identity.buildTag, version)?.let { identity to it }
+        NativeMacBuildAudience.application.violation(policy, identity.buildTag, version)?.let { identity to it }
     }.toMap()
 
     companion object {
@@ -30,7 +30,7 @@ internal data class NativeCachedComputers(
             val owner = NativeComputerDisplayOwner(login, user, team)
             val grants = TailscaleGrantStore({ state }, { error("Display only") })
             val rows = NativeComputerVisibility.saved(state).filter {
-                NativeMacBuildAudience.consumer.allowsSavedTag(it.instanceTag) &&
+                NativeMacBuildAudience.application.allowsSavedTag(it.instanceTag) &&
                     NativePairingRecords.owner(it, grants) == (user to team)
             }
             val identities = rows.map { NativeMacIdentity(canonicalMacDeviceId(it.deviceId), it.instanceTag) }.toSet()

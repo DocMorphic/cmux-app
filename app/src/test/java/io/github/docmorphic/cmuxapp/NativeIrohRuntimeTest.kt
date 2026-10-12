@@ -13,6 +13,41 @@ import org.json.JSONObject
 import org.json.JSONArray
 
 class NativeIrohRuntimeTest {
+    @Test fun applicationDiscoversExactCompanionButAdmissionStillRejectsAnotherAuthenticatedBundle() = runBlocking<Unit> {
+        val account = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val backend = Backend()
+        val companion = mac.copy(recordId = "companion", endpointId = "cd".repeat(32), buildTag = NativeMacBuildAudience.COMPANION_TAG)
+        backend.state.value = ready().copy(computers = listOf(mac, companion, mac.copy(recordId = "dev", endpointId = "ef".repeat(32), buildTag = "dev")))
+        val gate = NativeMacCompatibilityGate({ account.value.scope == it }, audience = NativeMacBuildAudience.application)
+        NativeIrohRuntime(account, { account.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 },
+            audience = NativeMacBuildAudience.application,
+            admitCompatibility = { owner, client, status, tailscale -> gate.admit(owner, client, status, tailscale) }).use { runtime ->
+            val directory = withTimeout(2000) { runtime.state.first { it.ready } }
+            assertEquals(setOf("default", NativeMacBuildAudience.COMPANION_TAG), directory.computers.map { it.buildTag }.toSet())
+            suspend fun answer(index: Int, namespace: String) {
+                val wire = withTimeout(2000) {
+                    while (synchronized(backend.transports) { backend.transports.size <= index }) delay(1)
+                    synchronized(backend.transports) { backend.transports[index] }
+                }
+                val request = withTimeout(2000) { wire.sent.receive() }
+                assertEquals("mobile.host.status", request.getString("method"))
+                wire.incoming.send(MobileFrameCodec.encode(JSONObject().put("id", request.getString("id"))
+                    .put("ok", true).put("result", JSONObject().put("mac_device_id", companion.deviceId)
+                        .put("mac_instance_tag", companion.buildTag).put("mac_client_namespace", namespace)
+                        .put("mac_app_version", "0.65.0")).toString().toByteArray()))
+                wire.answer(withTimeout(2000) { wire.sent.receive() })
+            }
+            val locator = PairingCodeParser.parse(PairingCodeParser.computer(companion, team)).getOrThrow() as PairingCode.Iroh
+            val wrong = async { runCatching { runtime.connect(locator) } }
+            answer(0, "mac:com.cmuxterm.app.debug.other")
+            assertTrue(withTimeout(2000) { wrong.await() }.exceptionOrNull() is MacBuildNotSupported)
+            assertTrue(gate.observations.value.isEmpty())
+            val correct = async { runtime.connect(locator) }
+            answer(1, NativeMacBuildAudience.COMPANION_NAMESPACE)
+            withTimeout(2000) { correct.await() }.use { assertFalse(it.isClosed) }
+            assertEquals(1, gate.observations.value.size)
+        }
+    }
     private data class Created(val account: NativeTeamScope, val backend: IrohAccountBackend, val alive: () -> Boolean)
     private inner class ContinuationFixture(val account: NativeAccountTeams, val server: MockWebServer,
         val runtime: NativeIrohRuntime, val initial: NativeTeamScope, val created: List<Created>) {

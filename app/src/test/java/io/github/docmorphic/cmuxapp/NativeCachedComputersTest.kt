@@ -6,6 +6,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NativeCachedComputersTest {
+    @Test fun cachedCompanionIsPresentationOnlyAndKeepsItsIndependentVersionWarning() {
+        val companion = mac("Notification companion", tag = NativeMacBuildAudience.COMPANION_TAG)
+        val root = state(companion, mac("Other development build", tag = "dev"))
+        val identity = NativeMacIdentity(companion.deviceId, companion.instanceTag)
+        NativeMacVersionHistory.record(root, team, mapOf(identity to "0.64.25")) { true }
+        val before = root.toString(); val profile = cached(root)
+        val projection = NativeCachedComputers.project(root, team.login, profile)!!
+        assertEquals(listOf(companion), projection.macs); assertNull(profile.scope); assertTrue(profile.cached)
+        assertTrue(projection.warnings(NativeMacCompatibilityPolicy(emptyList()))[identity]!!.companion)
+        assertEquals(before, root.toString())
+    }
     private val team = NativeTeamScope("login", "user", "team", 1)
     private val profile = NativeAccountTeamsState(userId = "user", teams = listOf(NativeTeam("team", "My Team")), selectedTeamId = "team")
     private fun mac(name: String = "Studio", owner: NativeTeamScope = team, tag: String? = "default") =

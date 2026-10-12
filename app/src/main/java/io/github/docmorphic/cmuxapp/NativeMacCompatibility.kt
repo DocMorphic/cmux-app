@@ -37,12 +37,14 @@ internal data class MacNightlyVersion(val base: MacNumericVersion, val build: UL
 }
 
 internal data class MacVersionRequirement(val stable: MacNumericVersion, val nightly: MacNightlyVersion? = null)
-internal data class MacCompatibilityViolation(val nightly: Boolean, val reported: String?, val required: String?) {
-    val message: String get() = "Update cmux${if (nightly) " Nightly" else ""} on your Mac" +
+internal data class MacCompatibilityViolation(val nightly: Boolean, val reported: String?, val required: String?, val companion: Boolean = false) {
+    val message: String get() = (if (companion) "Update the cmux-app Mac notification companion"
+        else "Update cmux${if (nightly) " Nightly" else ""} on your Mac") +
         (required?.let { " to $it or later" } ?: " to a current version") +
         ". ${reported?.let { "The Mac reports $it." } ?: "The Mac did not report a supported version."} Then reconnect."
     // Remote policy download fields are never used as navigation authority.
-    val downloadUrl: String get() = if (nightly) "https://github.com/manaflow-ai/cmux/releases/tag/nightly"
+    val downloadUrl: String get() = if (companion) "https://github.com/DocMorphic/cmux-app/blob/main/docs/MAC_NOTIFICATION_BUILD.md"
+        else if (nightly) "https://github.com/manaflow-ai/cmux/releases/tag/nightly"
         else "https://github.com/manaflow-ai/cmux/releases/latest"
 }
 internal class MacUpdateRequired(val violation: MacCompatibilityViolation) : IOException(violation.message)

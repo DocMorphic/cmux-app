@@ -1,20 +1,32 @@
 # Consumer Mac build compatibility — 2026-10-03
 
-## Private companion integration blocker — 2026-10-12
+## Configured application companion — 2026-10-12
+
+The application explicitly adds the exact `android-push` notification companion
+and `mac:com.cmuxterm.app.debug.android.push` namespace. The pure consumer policy
+below is unchanged. Admission and pinned push/reply tuples require the complete
+companion identity; other development bundles are rejected. An independent
+companion version gate survives empty remote policies and follows raised protocol
+floors. All 84 focused JVM and six Android worker cases pass, with seven ART probes.
+See [PRIVATE_COMPANION_PROFILE.md](PRIVATE_COMPANION_PROFILE.md) for source,
+coverage and actual Mac/Pixel/Firebase gates. Signed 652 predates this source.
+
+## Initial companion integration finding — 2026-10-12
 
 The subsequently built custom Mac companion uses launch tag `android-push` and
 bundle `com.cmuxterm.app.debug.android.push`; its authenticated namespace is
 `mac:com.cmuxterm.app.debug.android.push`. This consumer policy deliberately rejects
 it, including discovery, host admission and pinned FCM/reply tuples. The private
 Firebase/custom Mac choice therefore needs an explicitly scoped companion profile
-before live pairing. Its tag/namespace, descriptor, version and push coverage remain
-unimplemented; this finding is not permission to admit arbitrary development tags.
+before live pairing. The application profile above now implements its scoped
+tag/namespace and version/worker coverage; actual pairing/delivery remains open.
 The existing public consumer policy and its original verification below remain
 unchanged. See REMAINING_WORK.md for the current integration gate.
 
 ## Explicit Android audience
 
-Both Android debug and release builds select the distributed iOS consumer policy.
+At the original checkpoint, both Android package variants selected the public
+iOS consumer policy. The configured application profile above adds the companion.
 Android's debuggable flag does not select upstream's internal development audience.
 The reference is cmux `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`, specifically
 MobileMacBuildCompatibilityPolicy, MobileMacCompatiblePairedMacStore and

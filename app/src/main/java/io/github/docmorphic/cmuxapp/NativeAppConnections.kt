@@ -91,7 +91,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         }
         override fun pairingCompatibilityError(pairing: PairingCode): String? =
             (pairing as? PairingCode.Iroh)?.buildTag?.takeUnless(compatibility.audience::allowsTag)
-                ?.let { MacBuildNotSupported().message }
+                ?.let { compatibility.audience.unsupportedMessage }
         override suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient {
             val team = checkNotNull(teams.state.value.scope) { "Refresh your account teams before connecting." }
             check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden, changed, or belongs to another account or team." }

@@ -32,7 +32,7 @@ class PhoneFcmIngressTest {
     private val manager get() = context.getSystemService(NotificationManager::class.java)
     private val team = NativeTeamScope("fcm-fixture-login", "fixture-user", "fixture-team", 1)
     private val remote = PhonePushIdentity.generate()
-    private val mac = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(PairingCodeParser.computer(
+    private var mac = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(PairingCodeParser.computer(
         IrohV2Computer("record", "a".repeat(64), "directory-mac", "stable", "Fixture Mac", emptyList()), team),
         "directory-mac", "Fixture Mac", "stable"), team)
 
@@ -79,6 +79,40 @@ class PhoneFcmIngressTest {
                         audience = audience)
                 }
         }).build()
+
+    private fun companionPeer(bundle: String = NativeMacBuildAudience.COMPANION_BUNDLE) {
+        val tag = NativeMacBuildAudience.COMPANION_TAG
+        val code = PairingCodeParser.computer(IrohV2Computer("record", "a".repeat(64), mac.deviceId, tag, mac.name, emptyList()), team)
+        mac = NativePairingRecords.scoped(mac.copy(code = code, instanceTag = tag, stableOrigin = null), team)
+        store.update { state ->
+            state.put("pairings", JSONArray().put(NativePairingRecords.encode(mac)))
+            val keys = PhonePushKeyState(state); val local = keys.existingIdentity(team.login)!!
+            keys.pin(team, mac.origin, PhonePushPeer(PhonePushTuple(team.userId, team.teamId, context.packageName,
+                local.installationID, "physical-mac", tag, bundle), remote.descriptor()))
+        }
+    }
+
+    @Test fun configuredCompanionCiphertextPostsAfterFreshMembershipAndDismissesWithoutFirebaseNetwork() = runBlocking {
+        companionPeer(); queue(raw())
+        MockWebServer().use { server ->
+            server.profile()
+            assertEquals(ListenableWorker.Result.success(), worker(server, NativeMacBuildAudience.application).doWork())
+            waitFor { alerts().size == 1 }
+            assertEquals("Private ingress λ", alerts().single().notification.extras.getString(Notification.EXTRA_TEXT))
+            queue(raw("dismiss")); server.profile()
+            assertEquals(ListenableWorker.Result.success(), worker(server, NativeMacBuildAudience.application).doWork())
+            waitFor { alerts().isEmpty() }
+        }
+    }
+
+    @Test fun companionTagCannotPostCiphertextPinnedToAnotherDevelopmentBundle() = runBlocking {
+        companionPeer("com.cmuxterm.app.debug.other"); queue(raw())
+        MockWebServer().use { server ->
+            server.profile()
+            assertEquals(ListenableWorker.Result.success(), worker(server, NativeMacBuildAudience.application).doWork())
+            assertTrue(alerts().isEmpty()); assertTrue(PhoneFcmQueue(store.load()!!).waiting(System.currentTimeMillis()).isEmpty())
+        }
+    }
 
     @Test fun consumerAudienceDiscardsAnAuthenticatedPushFromUnsupportedBuild() = runBlocking {
         queue(raw())

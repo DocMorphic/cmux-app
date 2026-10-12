@@ -1,5 +1,22 @@
 # Remaining work for iOS parity
 
+## Configured Mac companion profile — 2026-10-12
+
+The application supports the exact `android-push` / private bundle namespace
+alongside public Macs. Compatibility, discovery/presence, cached presentation and
+FCM/reply workers consistently select it. Its independent 0.65.0 baseline follows
+higher remote protocol floors; Android enrollment identity is unchanged. Public
+consumer rules remain available. Unknown development builds, missing/wrong
+namespaces and incorrect pinned bundles cannot use this companion profile.
+
+All 84 focused JVM cases, six Android worker cases (8.95s) and seven ART probes
+pass; debug/test APKs built in 42s. The existing 16 KB AVD was stopped/reaped and
+the Pixel untouched. These use fixture crypto and local storage/HTTP. Live Mac
+account/key-store/listener, broker/QUIC, trusted pairing, actual FCM and reply
+execution remain open. Signed 652 predates the change. See
+[PRIVATE_COMPANION_PROFILE.md](PRIVATE_COMPANION_PROFILE.md). The local audience
+blocker below is resolved in source; full parity remains unverified.
+
 ## Native foreground transport ownership — 2026-10-12
 
 Iroh discovery now follows the selected team while an admitted foreground wire can

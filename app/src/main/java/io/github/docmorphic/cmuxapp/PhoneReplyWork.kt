@@ -63,7 +63,7 @@ internal class NativePhoneReplyBackground(
         fun create(context: Context): NativePhoneReplyBackground {
             val store = NativeCredentialStore(context); val account = NativeAccount(store)
             return NativePhoneReplyBackground(store, NativeAccountTeams(account, store), { account.accessToken() }, ORIGIN,
-                { PhoneReplyNotices(context).sync() }, audience = NativeMacBuildAudience.consumer)
+                { PhoneReplyNotices(context).sync() }, audience = NativeMacBuildAudience.application)
         }
     }
 }

@@ -1,5 +1,27 @@
 # Codex laptop handoff — 2026-09-28
 
+## Configured Mac companion profile — 2026-10-12
+
+The application profile supports the exact `android-push` tag and
+`mac:com.cmuxterm.app.debug.android.push`, alongside public Macs. Live compatibility,
+discovery/presence, cached presentation, FCM and reply workers select it; the pure
+consumer policy is unchanged. Companion status requires the exact namespace and
+a numeric version meeting the greater of 0.65.0 and the remote stable protocol
+floor. Empty policies cannot disable its baseline. The Android descriptor retains
+its actual package/display name and existing wire discriminator.
+
+All 84 focused JVM cases pass. Six Android encrypted-alert/reply cases passed in
+8.95s, including another-bundle rejection and public-consumer regressions. Seven
+debug ART probes pass; debug/test assembly took 42s. The existing 16 KB AVD was
+stopped/reaped; no physical Pixel was touched. These are local crypto/storage/HTTP
+fixtures. Actual broker/QUIC, Mac key-store/listener, FCM/relay delivery and Mac
+reply execution remain open. Signed 652 predates this source. See
+PRIVATE_COMPANION_PROFILE.md and ignored `captures/runtime/private-companion-audience-*`.
+
+The local audience blocker below is resolved in source. Arbitrary development/
+staging access and mutable sibling-tag grants are unsupported. The existing
+custom Mac sign-in question remains pending; full parity remains unverified.
+
 ## Native foreground transport ownership — 2026-10-12
 
 Production Iroh runtime now keeps an admitted foreground backend/pool separately

@@ -1,5 +1,16 @@
 # Custom Mac notification build
 
+## Android companion admission — 2026-10-12
+
+Android source now explicitly supports this build's `android-push` tag and exact
+bundle namespace. Discovery alone does not authorize it: authenticated status and
+push/reply pins must match `mac:com.cmuxterm.app.debug.android.push`, and the host
+version must meet the 0.65.0 companion baseline plus any higher protocol floor.
+See [PRIVATE_COMPANION_PROFILE.md](PRIVATE_COMPANION_PROFILE.md) for passing local
+coverage and open broker/key-store/listener/Pixel/FCM gates. Signed 652 predates this
+profile, so its private-build rejection is expected until an updated milestone is
+verified. This Android change does not require rebuilding the existing Mac artifact.
+
 ## Verified artifact and first local launch — 2026-10-12
 
 Retry [38180269049](https://github.com/DocMorphic/cmux-app/actions/runs/38180269049)

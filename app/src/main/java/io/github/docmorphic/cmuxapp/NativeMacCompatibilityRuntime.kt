@@ -21,7 +21,7 @@ internal class NativeMacCompatibilityRuntime(context: Context, private val store
     private val cache = NativeMacPolicyCache({ preferences.getString(key, null) }) {
         preferences.edit().clear().putString(key, it).apply()
     }
-    val audience = NativeMacBuildAudience.consumer
+    val audience = NativeMacBuildAudience.application
     val gate = NativeMacCompatibilityGate(isCurrent, cache.policy, audience) { owner, _, _ -> persist(owner) }
     private val http = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS)
         .followRedirects(false).followSslRedirects(false).build()

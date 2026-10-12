@@ -51,7 +51,7 @@ internal class PhoneFcmBackground(
         fun create(context: Context): PhoneFcmBackground {
             val store = NativeCredentialStore(context)
             return PhoneFcmBackground(context, store, NativeAccountTeams(NativeAccount(store), store),
-                audience = NativeMacBuildAudience.consumer)
+                audience = NativeMacBuildAudience.application)
         }
     }
 }

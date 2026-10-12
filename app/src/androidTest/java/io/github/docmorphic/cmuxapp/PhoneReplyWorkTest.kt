@@ -29,7 +29,7 @@ class PhoneReplyWorkTest {
     private val store get() = NativeCredentialStore(context)
     private val manager get() = context.getSystemService(NotificationManager::class.java)
     private val team = NativeTeamScope("reply-work-login", "fixture-user", "fixture-team", 1)
-    private val mac = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(PairingCodeParser.computer(
+    private var mac = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(PairingCodeParser.computer(
         IrohV2Computer("record", "a".repeat(64), "directory-mac", "stable", "Fixture Mac", emptyList()), team),
         "directory-mac", "Fixture Mac", "stable"), team)
     private val text = "Private worker fixture λ 中"
@@ -79,6 +79,41 @@ class PhoneReplyWorkTest {
                 }
             }
         }).build()
+
+    private fun companionPeer(bundle: String = NativeMacBuildAudience.COMPANION_BUNDLE) {
+        val tag = NativeMacBuildAudience.COMPANION_TAG
+        val code = PairingCodeParser.computer(IrohV2Computer("record", "a".repeat(64), mac.deviceId, tag, mac.name, emptyList()), team)
+        mac = NativePairingRecords.scoped(mac.copy(code = code, instanceTag = tag, stableOrigin = null), team)
+        store.update { state ->
+            state.put("pairings", JSONArray().put(NativePairingRecords.encode(mac)))
+            val keys = PhonePushKeyState(state); val local = keys.existingIdentity(team.login)!!
+            keys.pin(team, mac.origin, PhonePushPeer(PhonePushTuple(team.userId, team.teamId, context.packageName,
+                local.installationID, "physical-mac", tag, bundle), PhonePushIdentity.generate().descriptor()))
+        }
+    }
+
+    @Test fun configuredCompanionReplyUsesFreshMembershipAndEncryptedHttpsBody() = runBlocking {
+        companionPeer(); val reply = queue()
+        MockWebServer().use { server ->
+            server.profile(); server.enqueue(MockResponse().setResponseCode(202))
+            assertEquals(ListenableWorker.Result.success(), worker(server, NativeMacBuildAudience.application).doWork())
+            repeat(2) { assertEquals("GET", server.takeRequest(1, TimeUnit.SECONDS)!!.method) }
+            val sent = server.takeRequest(1, TimeUnit.SECONDS)!!
+            assertEquals("/v1/replies/e2e", sent.path); assertEquals(reply.body, sent.body.readUtf8())
+            assertFalse(reply.body.contains(text)); assertEquals("Bearer fixture-token", sent.getHeader("Authorization"))
+            assertEquals("accepted", PhoneReplyOutbox(store.load()!!).receipts(System.currentTimeMillis()).single().status)
+        }
+    }
+
+    @Test fun companionTagCannotRelayReplyForAnotherPinnedDevelopmentBundle() = runBlocking {
+        companionPeer("com.cmuxterm.app.debug.other"); queue()
+        MockWebServer().use { server ->
+            server.profile()
+            assertEquals(ListenableWorker.Result.retry(), worker(server, NativeMacBuildAudience.application).doWork())
+            assertEquals(2, server.requestCount)
+            repeat(2) { assertEquals("GET", server.takeRequest(1, TimeUnit.SECONDS)!!.method) }
+        }
+    }
     @Test fun consumerAudienceNeverSendsQueuedReplyToUnsupportedMacBuild() = runBlocking {
         queue()
         MockWebServer().use { server ->

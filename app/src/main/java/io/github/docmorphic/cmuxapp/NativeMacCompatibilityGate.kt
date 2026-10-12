@@ -26,6 +26,8 @@ internal class NativeMacCompatibilityGate(
     val observations = mutableObservations.asStateFlow()
     private val mutableWarnings = MutableStateFlow<Map<MacCompatibilityKey, MacCompatibilityViolation>>(emptyMap())
     val warnings = mutableWarnings.asStateFlow()
+    private fun violation(tag: String?, version: String?) = if (audience == null) policy.violation(tag, version)
+        else audience.violation(policy, tag, version)
 
     /** Invoke only after transport/account authorization and exact expected-host checks. */
     fun admit(owner: NativeTeamScope, client: MobileRpcClient, status: JSONObject, locallyAuthorizedTailscale: Boolean = false) {
@@ -43,7 +45,7 @@ internal class NativeMacCompatibilityGate(
             observed[host.key] = host
             while (observed.size > 256) observed.remove(observed.keys.first())
             publish()
-            policy.violation(tag, host.version)?.let(::MacUpdateRequired).also {
+            violation(tag, host.version)?.let(::MacUpdateRequired).also {
                 if (it == null) wires[client.compatibilityWire] = host
             }
         }
@@ -74,7 +76,7 @@ internal class NativeMacCompatibilityGate(
             prune()
             publish()
             wires.entries.mapNotNull { (client, host) ->
-                next.violation(host.key.identity.buildTag, host.version)?.let { client to MacUpdateRequired(it) }
+                violation(host.key.identity.buildTag, host.version)?.let { client to MacUpdateRequired(it) }
             }.also { entries -> entries.forEach { wires.remove(it.first) } }
         }
         retired.forEach { (client, reason) -> client.retireForCompatibility(reason) }
@@ -89,7 +91,7 @@ internal class NativeMacCompatibilityGate(
     private fun publish() {
         mutableObservations.value = observed.mapValues { it.value.version }
         mutableWarnings.value = (restored + observed).mapNotNull { (key, host) ->
-            policy.violation(key.identity.buildTag, host.version)?.let { key to it }
+            violation(key.identity.buildTag, host.version)?.let { key to it }
         }.toMap()
     }
 }
