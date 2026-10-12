@@ -1,5 +1,16 @@
 # Remaining work for iOS parity
 
+## Signed integration milestone 654 — in progress
+
+Manual [run 38198098744](https://github.com/DocMorphic/cmux-app/actions/runs/38198098744)
+is confirmed in progress at `5ea6573c104d9512a3eac091900decefd5ecc3ef`, created
+2026-10-12 03:01:16 UTC, with preview publication requested. It combines the two
+foreground ownership source batches and the configured companion profile. Follow
+this same handle; do not redispatch or call the artifact verified before inspecting
+the terminal CI result and independently checking downloaded bytes. Signed 652 is
+still the verified published download. Physical pairing/FCM, UI retention and the
+full objective remain unverified.
+
 ## Configured Mac companion profile — 2026-10-12
 
 The application supports the exact `android-push` / private bundle namespace

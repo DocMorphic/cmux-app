@@ -1,5 +1,17 @@
 # Codex laptop handoff — 2026-09-28
 
+## Signed integration milestone 654 — in progress
+
+Manual [run 38198098744](https://github.com/DocMorphic/cmux-app/actions/runs/38198098744)
+was dispatched with preview publication from main at
+`5ea6573c104d9512a3eac091900decefd5ecc3ef`, created 2026-10-12 03:01:16 UTC.
+It contains both foreground authority/transport batches plus the configured Mac
+companion profile. It is confirmed in progress; follow this exact handle and do
+not redispatch while live. Inspect the terminal CI result and downloaded APK
+provenance, signer, contents, alignment, Firebase resources and ART receipts before
+calling 654 verified or installing it. Signed 652 remains the verified download.
+No Pixel update, actual custom Mac/FCM acceptance or full parity is established.
+
 ## Configured Mac companion profile — 2026-10-12
 
 The application profile supports the exact `android-push` tag and
