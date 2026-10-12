@@ -25,12 +25,17 @@ class NativeSetupGuidanceTest {
         }
     }
 
-    @Test fun onlyTypedAuthenticationRejectionHighlightsAccountRecovery() {
+    @Test fun hostAuthCodesAndMessagesMatchSourceWhileLocalTextDoesNotDiagnoseAccounts() {
         assertTrue(nativeSetupRequiresReauth(MobileRpcException("unauthorized", "anything", true)))
         assertTrue(nativeSetupRequiresReauth(IOException("wrapped", IrohV2HttpFailure(401, null))))
         assertTrue(nativeSetupRequiresReauth(IrohV2ServerFailure("ticket_expired", false)))
         assertFalse(nativeSetupRequiresReauth(MobileRpcException("unauthorized", "local error")))
-        assertFalse(nativeSetupRequiresReauth(MobileRpcException("forbidden", "permission denied", true)))
+        for (code in listOf("unauthorized", "forbidden", "invalid_token", "token_expired", "expired_token", "auth_required"))
+            assertTrue(nativeSetupRequiresReauth(MobileRpcException("  ${code.uppercase()}  ", "anything", true)))
+        for (message in listOf("unauthorized", "forbidden", "invalid token", "expired token", "token expired"))
+            assertTrue(nativeSetupRequiresReauth(MobileRpcException("unknown", "  ${message.uppercase()}  ", true)))
+        assertFalse(nativeSetupRequiresReauth(MobileRpcException("permission_denied", "File access unavailable", true)))
+        assertFalse(nativeSetupRequiresReauth(MobileRpcException("unknown", "token expired", false)))
         assertFalse(nativeSetupRequiresReauth(IrohV2HttpFailure(503, null)))
         assertFalse(nativeSetupRequiresReauth(SocketTimeoutException("unauthorized account mismatch")))
         assertFalse(nativeSetupRequiresReauth(IllegalStateException("Mac is signed in to another account")))

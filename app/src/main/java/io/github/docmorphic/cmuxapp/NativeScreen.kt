@@ -212,7 +212,8 @@ internal fun NativeScreen(
         NativeScreenTransientState(
             initialCode = ticketPairing.resumeCode() ?: store.load()?.optString("pairing_code").orEmpty(),
             initialPairedMacs = store.pairedMacs(),
-            initialBackgroundNotifications = NativeNotificationService.isEnabled(context)
+            initialBackgroundNotifications = NativeNotificationService.isEnabled(context),
+            retryState = feedSession.foregroundRetryState
         )
     }
     with(transientState) {
@@ -365,7 +366,9 @@ internal fun NativeScreen(
         val localBrowserState by localBrowsers.state.collectAsState()
         val localBrowser = localBrowserState.local
         val browserLogin = if (signedIn) store.taskSession() else null
-        var setupRequiresReauth by remember(code, browserLogin, teamState.scope) { mutableStateOf(false) }
+        val recoveryOwner = NativeConnectionRecoveryOwner(browserLogin, code, teamState.scope)
+        val recoveryBlock by feedSession.foregroundRecovery.state.collectAsState()
+        val setupRequiresReauth = recoveryBlock?.takeIf { it.owner == recoveryOwner }?.requiresReauth == true
         var selectedComputerOrigin by rememberSaveable(signedIn) {
             mutableStateOf(store.load()?.optString("computer_selection").orEmpty())
         }
@@ -1864,6 +1867,12 @@ internal fun NativeScreen(
                     if (deferStartupForPairing) return@LaunchedEffect
                     if (pendingPickerCode != code) pendingPickerCode = null
                     if (pairingSelectionCode != code) pairingSelectionCode = null
+                    val attemptGeneration = retry
+                    if (signedIn && code.isNotBlank() && !feedSession.foregroundRecovery.begin(recoveryOwner, attemptGeneration)) {
+                        connectionReady = false; busy = false
+                        connectionError = recoveryBlock?.failure?.let(::nativeConnectionFailure)
+                        return@LaunchedEffect
+                    }
                     val switchAttempt = macSwitchRecovery.entering(switchOwner(), code)
                     connectionReady = false
                     client?.close(); client = null; connectedCode = null
@@ -1913,6 +1922,7 @@ internal fun NativeScreen(
                             val feed = try { parseNotifications(active.notifications()) }
                                 catch (failure: Exception) {
                                     if (failure is CancellationException) throw failure
+                                    if (nativeAutomaticReconnectStops(failure)) throw failure
                                     emptyList()
                                 }
                             ensureActive()
@@ -1991,7 +2001,8 @@ internal fun NativeScreen(
                             switchOwner()?.let { macSwitchRecovery.connected(it, remembered) }
                             savedPairedMacs = store.pairedMacs()
                             connectionError = null
-                            setupRequiresReauth = false
+                            feedSession.foregroundRecovery.connected(recoveryOwner, attemptGeneration)
+                            feedCoordinator.resumeAfterVerifiedConnection(remembered)
                             retryDelay = 2_000
                         } catch (failure: Throwable) { active.close(); throw failure }
                     } catch (failure: Throwable) {
@@ -2000,10 +2011,12 @@ internal fun NativeScreen(
                         ensureActive()
                         if (failure is CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
                         connectionError = nativeConnectionFailure(failure)
-                        setupRequiresReauth = nativeSetupRequiresReauth(failure)
+                        feedSession.foregroundRecovery.failed(recoveryOwner, attemptGeneration, failure)
                         busy = false
                         if (pendingPickerCode == requestedCode) pendingPickerCode = null
-                        val restore = macSwitchRecovery.failed(switchAttempt, switchOwner(), requestedCode, ::canRestoreMac)
+                        val requiresReauth = nativeSetupRequiresReauth(failure)
+                        if (requiresReauth) macSwitchRecovery.cancel()
+                        val restore = if (requiresReauth) null else macSwitchRecovery.failed(switchAttempt, switchOwner(), requestedCode, ::canRestoreMac)
                         if (restore != null) {
                             // Restore only a previously verified, still-authorized route. Clear a
                             // target-specific UI intent before it can redial the failed computer.
@@ -2014,8 +2027,9 @@ internal fun NativeScreen(
                             error = "Could not switch computers. Your previous computer is selected again."
                             return@LaunchedEffect
                         }
+                        if (nativeAutomaticReconnectStops(failure)) return@LaunchedEffect
                         delay(retryDelay)
-                        retryDelay = (retryDelay * 2).coerceAtMost(30_000)
+                        retryDelay = (retryDelay * 2).coerceAtMost(60_000)
                         retry++
                     }
                     busy = false
@@ -2032,10 +2046,14 @@ internal fun NativeScreen(
 
                 LaunchedEffect(client) {
                     val active = client ?: return@LaunchedEffect
+                    val connectedGeneration = retry
                     active.disconnected.collect { failure ->
+                        if (client !== active || connectedCode != recoveryOwner.code || store.taskSession() != recoveryOwner.login ||
+                            accountTeams.state.value.scope != recoveryOwner.team) return@collect
                         connectionReady = false
                         connectionError = nativeConnectionFailure(failure)
-                        setupRequiresReauth = nativeSetupRequiresReauth(failure)
+                        feedSession.foregroundRecovery.failed(recoveryOwner, connectedGeneration, failure)
+                        if (nativeAutomaticReconnectStops(failure)) return@collect
                         delay(2_000)
                         retry++
                     }
@@ -2892,6 +2910,11 @@ internal fun NativeScreen(
                             forgetCallbacks = forgetCallbacks, presentDetails = { computerDetails = it },
                             connectingCode = code.takeIf { busy && cachedComputers == null }, connectionFailure = error ?: connectionError,
                             hasAccountMismatch = setupRequiresReauth,
+                            onSignOut = {
+                                if (isReconnectOwnerCurrent() && feedSession.foregroundRecovery.state.value?.let {
+                                    it.owner == recoveryOwner && it.requiresReauth
+                                } == true) signOutCurrentAccount()
+                            },
                             onCancelConnect = { ticketPairing.clear(); macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null
                                 code = ""; connectionError = null; error = null; showReconnectList = false },
                             canSelectSaved = { mac -> isReconnectOwnerCurrent() &&
@@ -4143,6 +4166,7 @@ internal fun NativeComputerPicker(
     macPolicy: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked,
     connectingCode: String? = null, connectionFailure: String? = null, onCancelConnect: () -> Unit = {},
     hasAccountMismatch: Boolean = false,
+    onSignOut: (() -> Unit)? = null,
     canSelectSaved: (NativeCredentialStore.PairedMac) -> Boolean,
     canSelectDiscovered: (IrohV2Computer) -> Boolean,
     onSelectSaved: (NativeCredentialStore.PairedMac) -> Unit,
@@ -4189,6 +4213,12 @@ internal fun NativeComputerPicker(
             Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(vertical = 10.dp))
         }
         connectionFailure?.let { Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(vertical = 10.dp)) }
+        if (hasAccountMismatch && onSignOut != null) key(teamState.userId, teamState.scope) {
+            var admitted by remember { mutableStateOf(true) }
+            DisposableEffect(Unit) { onDispose { admitted = false } }
+            TextButton(onClick = { if (admitted) onSignOut() },
+                modifier = Modifier.testTag("computers.auth.sign-out")) { Text("Sign out") }
+        }
         if (connectingCode != null) TextButton(onClick = onCancelConnect) { Text("Cancel connection") }
         if (computerState.ready && reconnect.isEmpty) {
             Text("No computers available in this team.", color = nativeMuted,

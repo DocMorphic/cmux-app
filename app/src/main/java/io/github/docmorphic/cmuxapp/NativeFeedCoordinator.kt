@@ -31,8 +31,11 @@ internal class NativeFeedCoordinator(
         var changesListEvent = false
         var power: NativeMacPowerSession? = null
         var agentFeed: NativeAgentFeedSession? = null
+        var stoppedFailure: Throwable? = null
     }
     private val handles = mutableMapOf<String, Handle>()
+    private data class Stopped(val mac: NativeCredentialStore.PairedMac, val routeKey: String?, val failure: Throwable)
+    private val stopped = mutableMapOf<String, Stopped>()
     private val revisions = mutableMapOf<String, NativeFeedRevision>()
     private val mutableSources = MutableStateFlow<Map<String, NativeFeedSource>>(emptyMap())
     val sources = mutableSources.asStateFlow()
@@ -77,17 +80,36 @@ internal class NativeFeedCoordinator(
             localRouteKeys[NativeMacIdentity(canonicalMacDeviceId(mac.deviceId), mac.instanceTag)] ?:
                 (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
         val allowed = macs.filter(isAllowed).associateBy { it.origin }
+        stopped.keys.toList().filter { origin -> allowed[origin]?.let { mac ->
+            NativeComputerMenuPairing.isCurrent(stopped.getValue(origin).mac, listOf(mac)) &&
+                routeKey(mac) == stopped.getValue(origin).routeKey
+        } != true }.forEach(stopped::remove)
         handles.keys.toList().filter { origin -> allowed[origin] != handles[origin]?.mac ||
             allowed[origin]?.let(::routeKey) != handles[origin]?.routeKey }.forEach { remove(it) }
         mutableSources.value = mutableSources.value.filterKeys { it in allowed }
         revisions.keys.retainAll(allowed.keys)
-        for ((origin, mac) in allowed) if (origin !in handles) {
+        for ((origin, mac) in allowed) if (origin !in handles && origin !in stopped) {
             val handle = Handle(mac, revisions.getOrPut(origin) { NativeFeedRevision() }, routeKey(mac))
             handles[origin] = handle
             publish(handle, (mutableSources.value[origin] ?: NativeFeedSource(mac))
                 .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null, keepAwake = null, changes = emptyMap(), connectionTransport = null))
             handle.job = scope.launch { monitor(handle) }
         }
+    }
+
+    /** Called on the owner scope only after foreground host verification, never by a timer/event. */
+    fun resumeAfterVerifiedConnection(mac: NativeCredentialStore.PairedMac) {
+        val failure = stopped[mac.origin]?.takeIf {
+            NativeComputerMenuPairing.isCurrent(it.mac, listOf(mac)) && isAllowed(mac)
+        } ?: return
+        if (handles[mac.origin]?.job?.isActive == true) return
+        remove(mac.origin)
+        stopped.remove(mac.origin)
+        val handle = Handle(mac, revisions.getOrPut(mac.origin) { NativeFeedRevision() }, failure.routeKey)
+        handles[mac.origin] = handle
+        publish(handle, (mutableSources.value[mac.origin] ?: NativeFeedSource(mac))
+            .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null, connectionTransport = null))
+        handle.job = scope.launch { monitor(handle) }
     }
 
     /** Reuse this verified session's power controller; the Details page does not dial or own it. */
@@ -117,7 +139,7 @@ internal class NativeFeedCoordinator(
         mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE, keepAwake = null, changes = emptyMap(), connectionTransport = null,
             agentFeed = source.agentFeed.copy(loading = false, pending = emptySet())) }
     }
-    override fun close() { pause(); mutableSources.value = emptyMap(); revisions.clear() }
+    override fun close() { pause(); mutableSources.value = emptyMap(); revisions.clear(); stopped.clear() }
     private fun remove(origin: String) {
         // The monitor's finally releases its client after bounded stream cleanup.
         // Closing here would prevent unsubscribe while another consumer keeps the wire alive.
@@ -289,6 +311,11 @@ internal class NativeFeedCoordinator(
                 // monitor. Parent/account/route cancellation must still stop it.
                 currentCoroutineContext().ensureActive()
                 if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
+                if (nativeAutomaticReconnectStops(failure)) {
+                    handle.stoppedFailure = failure
+                    if (current(handle)) stopped[handle.mac.origin] = Stopped(handle.mac, handle.routeKey, failure)
+                    active?.retireForOwnerFailure(failure)
+                }
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
                     error = failure.message ?: "Computer unavailable", keepAwake = null, changes = emptyMap(), connectionTransport = null,
@@ -296,6 +323,7 @@ internal class NativeFeedCoordinator(
                         else NativeAgentFeedState(error = "Feed access is no longer authorized"),
                     panelCacheToken = source.panelCacheToken.takeIf { NativePanelCachePolicy.retains(failure) }))
             } finally { handle.agentFeed?.close(); handle.agentFeed = null; handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBorrowedOperations(handle); active?.close(); handle.client = null; publishTaskModelIdentities() }
+            if (handle.stoppedFailure != null) return
             handle.refresh.awaitRequest(10_000)
         }
     }
@@ -355,6 +383,7 @@ internal class NativeFeedCoordinator(
             if (!NativePanelCachePolicy.retains(failure)) mutableSources.value[handle.mac.origin]?.let {
                 publish(handle, it.copy(panelCacheToken = null))
             }
+            if (nativeAutomaticReconnectStops(failure) && current(handle, client)) client.retireForOwnerFailure(failure)
             throw failure
         }
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
@@ -627,10 +656,12 @@ internal class NativeFeedCoordinator(
             checkNotNull(handles[mac.origin]?.takeIf { it.mac == mac && current(it) }) { "Computer selection changed." }
         }
         targets.map { handle -> async {
+            handle.stoppedFailure?.let { throw it }
             if (handle.client == null || !handle.verified) {
                 handle.refresh.request()
-                sources.first { !current(handle) || (handle.client != null && handle.verified) }
+                sources.first { !current(handle) || handle.stoppedFailure != null || (handle.client != null && handle.verified) }
             }
+            handle.stoppedFailure?.let { throw it }
             ensureActiveSession(handle)
             val client = checkNotNull(handle.client) { "Computer unavailable." }
             handle.mutex.withLock {
@@ -645,11 +676,13 @@ internal class NativeFeedCoordinator(
     suspend fun refresh() = withContext(scope.coroutineContext.minusKey(Job)) {
         handles.values.toList().map { handle -> async {
             val client = handle.client
+            if (handle.stoppedFailure != null) return@async
             handle.agentFeed?.refresh()
             if (client == null || !handle.verified) handle.refresh.request()
             else try { if (!fetch(handle, client)) handle.refresh.request(); handle.changes?.request(force = true) } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
-                handle.refresh.request()
+                if (nativeAutomaticReconnectStops(failure) && current(handle, client)) client.retireForOwnerFailure(failure)
+                else handle.refresh.request()
             }
         } }.awaitAll()
         Unit

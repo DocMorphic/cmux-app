@@ -1,5 +1,22 @@
 # Codex laptop handoff — 2026-09-28
 
+## Authorization recovery — 2026-10-12
+
+The scoped iOS auth sink now maps to Android's normalized host RPC codes/messages.
+Foreground auth/terminal failures stop automatic redial and survive Activity
+recreation in the retained owner/generation gate. Primary feed failures retire
+only that Mac's shared wire and remain parked across pause/name changes until
+fresh verified foreground recovery. Core auth errors are not silently swallowed;
+network failures still retry, capped at 60s. The Sign Out action is scoped and
+retired when its auth-error UI disappears.
+
+87 distinct JVM cases have passing evidence (initial 86/87, corrected explicit
+verification case passed separately). Both Android checks passed in 20.132s,
+including real recreation with no extra rejected dial, explicit recovery and
+terminal input. No crash/ANR records; timeout restored and sole AVD stopped/reaped.
+Signed 650/global pin unchanged; physical/full auth acceptance remains open.
+See SETUP_HELP.md for source, original expectation failure and exact evidence.
+
 ## Highlighted setup guidance — 2026-10-12
 
 Sign-in, disconnected Computers and onboarding now open setup help with the

@@ -9,6 +9,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 /** A transport interruption may retain already downloaded bytes, never RPC admission. */
 internal object NativePanelCachePolicy {
     fun retains(failure: Throwable): Boolean {
+        if (nativeSetupRequiresReauth(failure)) return false
         if (decision(failure) != true) return false
         // Native wrappers can retain an explicit rejection as their cause.
         // Such rejection wins over the outer IOException's transport category.

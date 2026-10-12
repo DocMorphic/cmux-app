@@ -17,9 +17,23 @@ internal enum class NativeSetupGuidance(val id: String) {
     }
 }
 
-/** Only typed authentication rejection counts; display/error text is never evidence. */
+/** Match the iOS auth sink only for host-reported RPC errors or typed control failures.
+ * General network/local exception text never establishes an authentication failure. */
 internal fun nativeSetupRequiresReauth(failure: Throwable): Boolean =
     generateSequence(failure) { it.cause }.take(8).any {
-        (it is MobileRpcException && it.fromHostResponse && it.code == "unauthorized") ||
+        (it is MobileRpcException && it.fromHostResponse && (
+            it.code?.trim()?.lowercase() in setOf("unauthorized", "forbidden", "invalid_token",
+                "token_expired", "expired_token", "auth_required") ||
+            it.message?.trim()?.lowercase()?.let { message ->
+                listOf("unauthorized", "forbidden", "invalid token", "expired token", "token expired")
+                    .any(message::contains)
+            } == true)) ||
             IrohV2Wire.isAuthenticationFailure(it)
+    }
+
+/** A new automatic session cannot repair an auth/permission/protocol terminal failure. */
+internal fun nativeAutomaticReconnectStops(failure: Throwable): Boolean =
+    nativeSetupRequiresReauth(failure) || generateSequence(failure) { it.cause }.take(8).any {
+        IrohV2Recovery.stops(it) || (it is io.github.docmorphic.cmuxapp.iroh.IrxWire.AdmissionRejected &&
+            it.code.terminalForRedial)
     }

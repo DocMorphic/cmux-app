@@ -129,6 +129,8 @@ class MobileRpcClient internal constructor(
     internal val connectionTransport: MobileConnectionTransport? get() =
         if (isClosed) null else delegate?.connectionTransport ?: transport.connectionTransport
     internal fun retireForCompatibility(reason: java.io.IOException) = compatibilityWire.failConnection(reason)
+    /** Primary host owners may retire all leases after a final authorization/transport failure. */
+    internal fun retireForOwnerFailure(reason: Throwable) = compatibilityWire.failConnection(reason)
 
     internal suspend fun transportDiagnostics(): MobileTransportDiagnostics? {
         if (delegate != null) return borrowing { it.transportDiagnostics() }

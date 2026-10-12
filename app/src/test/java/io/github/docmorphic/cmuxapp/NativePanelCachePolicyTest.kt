@@ -9,6 +9,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NativePanelCachePolicyTest {
+    @Test fun hostReportedAuthMessageOverridesRetryableCodeButLocalNetworkTextDoesNot() {
+        val rejected = MobileRpcException("timeout", "Token expired", true)
+        assertFalse(NativePanelCachePolicy.retains(rejected))
+        assertFalse(NativePanelCachePolicy.retains(IOException("wrapped", rejected)))
+        assertTrue(NativePanelCachePolicy.retains(SocketTimeoutException("token expired")))
+    }
+
     @Test fun transportLossRetainsCompletedBytes() {
         for (error in listOf(EOFException(), SocketTimeoutException(), IOException(),
             MobileRpcException("connection_recovering", "recovering"), IrohV2HttpFailure(503, null)))

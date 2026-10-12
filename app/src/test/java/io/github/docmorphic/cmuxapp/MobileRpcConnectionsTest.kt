@@ -46,6 +46,21 @@ class MobileRpcConnectionsTest {
         }
     }
 
+    @Test fun primaryOwnerFailureRetiresItsSharedWireAndPreservesReasonWithoutClosingOtherMacs() = runBlocking<Unit> {
+        MobileRpcConnections().use { pool ->
+            val wire = PoolTestTransport(); val healthy = PoolTestTransport()
+            val first = pool.acquire("a", { true }) { MobileRpcClient(wire, { "fixture" }) }
+            val borrowed = pool.acquire("a", { true }) { error("Share the admitted wire") }
+            val other = pool.acquire("b", { true }) { MobileRpcClient(healthy, { "fixture" }) }
+            val rejection = MobileRpcException("auth_required", "Rejected by fixture", true)
+            borrowed.retireForOwnerFailure(rejection)
+            assertTrue(first.isClosed); assertTrue(borrowed.isClosed); assertFalse(other.isClosed)
+            assertSame(rejection, first.disconnected.first()); assertSame(rejection, borrowed.disconnected.first())
+            assertEquals(1, wire.closes.get()); assertEquals(0, healthy.closes.get())
+            first.close(); borrowed.close(); other.close()
+        }
+    }
+
     @Test fun slowMacAdmissionDoesNotDelayOtherMacs() = runBlocking<Unit> {
         val slow = PoolTestTransport().apply { gate = CompletableDeferred() }
         val healthy = PoolTestTransport()

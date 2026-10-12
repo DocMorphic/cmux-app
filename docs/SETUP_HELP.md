@@ -1,5 +1,41 @@
 # Settings setup reference — 2026-10-12
 
+## Authorization recovery follow-up — 2026-10-12
+
+Reading the complete scoped iOS auth sink (`MobileShellComposite.swift`, lines
+17283–17307) found that the first Android guidance checkpoint recognized too few
+host auth errors. The source recognizes six normalized RPC codes and five auth
+message fragments inside host-reported RPC failures. Android now matches those;
+general local/network exception text still does not diagnose account mismatch.
+The iOS automatic-recovery owner also stops redial after auth rejection. Android's
+foreground recovery now holds terminal failures until an explicit new connection
+request or changed route/login/team. The gate and request generation live in the
+Activity ViewModel; directory updates, background return and recreation cannot
+restart the rejected generation. Ordinary network backoff now caps at 60s.
+
+Primary feed failures retire their shared wire with the original cause, leaving
+other Macs alone. Per-Mac stops survive feed pause/return and cosmetic name changes;
+a fresh foreground verification resumes that exact allowed pairing. Explicit
+workspace refresh fails promptly while held. Core auth rejection is not swallowed
+as an empty notification feed. Cached-byte admission declines host auth messages
+with retryable-looking codes. Disconnected Computers offers Sign Out, and stale
+Sign Out actions cannot remove a recovered account. Auth-failed Mac switching does
+not automatically restore/retry another Mac under the rejected session.
+
+All **87 distinct JVM cases have passing results** across the recorded runs. The
+initial suite passed 86/87; its old native-revocation test expected pause/return to
+implicitly resume. That expectation now uses independent fresh host verification
+and the explicit recovery hook; its cache/admission assertions still pass. Initial
+XML/failure logs are retained. Main/test builds passed (final 1m19s).
+
+Both Android cases passed unassisted in **20.132s**: the connected Settings/Details
+→ terminal flow, and host auth rejection held across 70s of test-clock advancement,
+real Activity recreation, another 70s, then explicit saved-Mac selection and
+terminal input. The stale Sign Out action left sign-in intact. No crash/ANR records;
+timeout restored and sole existing AVD stopped/reaped. These are fixtures, not
+physical Mac/Pixel or complete auth/network acceptance. Signed 650/global pin stay
+unchanged. Evidence/hashes: `captures/runtime/auth-recovery-verification.json`.
+
 ## Highlighted connection guidance — 2026-10-12
 
 Scoped reference remains `f4b1509054949eaad5d695569ad443c4c18ed68d`:

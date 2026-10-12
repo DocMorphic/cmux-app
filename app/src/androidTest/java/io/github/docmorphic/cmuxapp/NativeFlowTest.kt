@@ -17,6 +17,7 @@ import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -148,11 +149,13 @@ class NativeFlowTest {
         peer.rejectedMethodCode = "unauthorized"
         peer.notificationFeed = searchNotifications()
         val before = NativeCredentialStore(context).load()?.optString("pairing_code")
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+        NativeCredentialStore(context).rememberMac(checkNotNull(before), "fixture-mac", "Fixture Mac")
+        fun content() { compose.runOnUiThread { compose.activity.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
             NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
                 MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
             })
-        } } }
+        } } } } }
+        content()
         compose.waitUntil(15_000) {
             peer.requests.any { it.optString("method") == "mobile.host.status" } &&
                 compose.onAllNodesWithTag("computers.setup-help").fetchSemanticsNodes().isNotEmpty()
@@ -162,8 +165,26 @@ class NativeFlowTest {
             .assert(hasAnyAncestor(hasTestTag("setup.help.gate:accountMismatch")))
         screenshot("setup-help-auth-rejection")
         compose.onNodeWithTag("setup.help.done").performClick()
+        compose.onNodeWithTag("computers.auth.sign-out").assertExists()
+        compose.waitUntil(10_000) {
+            androidx.lifecycle.ViewModelProvider(compose.activity).get(NativeFeedSession::class.java)
+                .coordinator.sources.value.values.any { it.error != null }
+        }
+        val rejectedRequests = peer.requests.count { it.optString("method") == "mobile.host.status" }
+        compose.mainClock.advanceTimeBy(70_000)
+        compose.runOnIdle { assertEquals(rejectedRequests, peer.requests.count { it.optString("method") == "mobile.host.status" }) }
+        compose.activityRule.scenario.recreate()
+        content()
+        compose.onNodeWithTag("computers.auth.sign-out").assertExists()
+        compose.mainClock.advanceTimeBy(70_000)
+        compose.runOnIdle { assertEquals(rejectedRequests, peer.requests.count { it.optString("method") == "mobile.host.status" }) }
+        val staleSignOut = compose.onNodeWithTag("computers.auth.sign-out").fetchSemanticsNode()
+            .config[SemanticsActions.OnClick].action!!
         peer.rejectedMethods = emptySet()
+        compose.onNodeWithText("Fixture Mac").performScrollTo().performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("computers.auth.sign-out").assertDoesNotExist()
+        compose.runOnIdle { staleSignOut(); assertTrue(NativeAccount(NativeCredentialStore(context)).isSignedIn()) }
         compose.onNodeWithText("Claude Code task").performClick()
         waitForTerminalText()
         compose.onNodeWithTag("native.composer").performTextInput("setup-recovery-input")

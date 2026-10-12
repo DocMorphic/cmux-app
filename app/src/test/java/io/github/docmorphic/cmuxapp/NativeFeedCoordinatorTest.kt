@@ -34,6 +34,37 @@ class NativeFeedCoordinatorTest {
         } }
     }
 
+    @Test fun authorizationFailureParksOnlyItsMacAcrossRefreshAndPauseUntilVerifiedRecovery() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            a.rejectedMethods = setOf("mobile.host.status"); a.rejectedCode = "forbidden"
+            var allowedA = true; var aDials = 0; var bDials = 0
+            val coordinator = NativeFeedCoordinator(this, {
+                if (it.deviceId == "a") { aDials++; a.connect() } else { bDials++; b.connect() }
+            }, { it.deviceId != "a" || allowedA })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.error != null &&
+                    coordinator.sources.value[mac("b").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                assertEquals(1, aDials); assertEquals(1, bDials)
+                coordinator.refresh()
+                assertTrue(runCatching { coordinator.refreshWorkspaceLists(listOf(mac("a"))) }.isFailure)
+                delay(50); assertEquals(1, aDials)
+                coordinator.pause()
+                val renamed = mac("a").copy(name = "New display name")
+                coordinator.updateMacs(listOf(renamed, mac("b")))
+                awaitState { coordinator.sources.value[mac("b").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                assertEquals(1, aDials); assertEquals(2, bDials)
+                allowedA = false; coordinator.resumeAfterVerifiedConnection(renamed)
+                delay(50); assertEquals(1, aDials)
+                allowedA = true; a.rejectedMethods = emptySet()
+                a.connect().use { fresh -> renamed.requireMatchingHost(fresh.hostStatus()) }
+                coordinator.resumeAfterVerifiedConnection(renamed)
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                assertEquals(2, aDials); assertEquals(2, bDials)
+            } finally { coordinator.close() }
+        } }
+    }
+
     @Test fun taskModelDiscoveryBorrowsExactWireAndOptionalRejectionDoesNotChangeHostHealth() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             var allowed = setOf("a", "b"); var connections = 0
@@ -213,6 +244,8 @@ class NativeFeedCoordinatorTest {
                 // Returning the same listing after independent verification produces a
                 // new cache admission. Old callbacks cannot regain authority.
                 rejection = null; coordinator.pause(); coordinator.updateMacs(listOf(mac("a")))
+                peer.connect().use { fresh -> mac("a").requireMatchingHost(fresh.hostStatus()) }
+                coordinator.resumeAfterVerifiedConnection(mac("a"))
                 awaitState { coordinator.sources.value[mac("a").origin]?.let {
                     it.availability == NativeFeedAvailability.CONNECTED && it.panelCacheToken != null
                 } == true }

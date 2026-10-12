@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.MutableIntState
 
 /**
  * Composition-local state with no keys or saved-state restoration.
@@ -20,12 +21,14 @@ import androidx.compose.runtime.mutableDoubleStateOf
 internal class NativeScreenTransientState(
     initialCode: String,
     initialPairedMacs: List<NativeCredentialStore.PairedMac>,
-    initialBackgroundNotifications: Boolean
+    initialBackgroundNotifications: Boolean,
+    retryState: MutableIntState = mutableIntStateOf(0)
 ) {
     var code by mutableStateOf(initialCode)
     var error by mutableStateOf<String?>(null)
     var busy by mutableStateOf(false)
-    var retry by mutableIntStateOf(0)
+    // The supplied ViewModel counter retains an explicit recovery request through recreation.
+    var retry by retryState
     var retryDelay by mutableLongStateOf(2_000)
     var client by mutableStateOf<MobileRpcClient?>(null)
     var connectedCode by mutableStateOf<String?>(null)

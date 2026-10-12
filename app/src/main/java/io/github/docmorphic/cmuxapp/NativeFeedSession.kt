@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,8 @@ internal class NativeFeedSession(
     val terminalSizing = NativeTerminalSizingSession()
     val macColorSlots = NativeMacColorSlots()
     val macSwitchRecovery = NativeMacSwitchRecovery()
+    val foregroundRecovery = NativeConnectionRecoveryGate()
+    val foregroundRetryState = mutableIntStateOf(0)
     val workspaceSnapshots = NativeWorkspaceSnapshots(store::taskSession)
     val coordinator = NativeFeedCoordinator(scope, connect = { mac ->
         connector.connectSaved(mac, account).also { client ->
@@ -187,7 +190,7 @@ internal class NativeFeedSession(
     }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModelPrefetch.update(emptyList()); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { foregroundRecovery.clear(); foregroundRetryState.intValue = 0; workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModelPrefetch.update(emptyList()); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
     override fun onCleared() { ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
