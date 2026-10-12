@@ -136,8 +136,9 @@ internal fun NativeScreen(
     var viewportRequestGeneration by remember { mutableLongStateOf(0L) }
     val store = remember(context, sharedConnections) { sharedConnections?.store ?: NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { sharedConnections?.account ?: NativeAccount(store) }
+    val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
     val feedSession = remember(runtimeOwner) {
-        ViewModelProvider(runtimeOwner, NativeFeedSession.Factory(connection, account, store))
+        ViewModelProvider(runtimeOwner, NativeFeedSession.Factory(connection, account, store, sharedConnections?.teams))
             .get(NativeFeedSession::class.java)
     }
     val whatsNewModel = remember(runtimeOwner, connector) {
@@ -161,7 +162,6 @@ internal fun NativeScreen(
     LaunchedEffect(store, accountDeletion) {
         store.revisions.collect { accountDeletion.reconcile(); signedIn = account.isSignedIn() }
     }
-    val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
     val teamState by accountTeams.state.collectAsState()
     val cloudModel = remember(runtimeOwner, connector, accountTeams) {
         if (connector == null) ViewModelProvider(runtimeOwner, NativeCloudViewModel.Factory(context, account, store, accountTeams))
@@ -1960,6 +1960,7 @@ internal fun NativeScreen(
                                 return@LaunchedEffect
                             }
                             feedSession.recordMacSeen(remembered)
+                            feedSession.admitForeground(pairingOwner, remembered, active)
                             hostName = displayName; hostCapabilities = capabilities
                             terminalTransport = TerminalTransport.resolve(capabilities, status.optString("terminal_fidelity"))
                             applyListing(listing); notifications = feed
@@ -2004,7 +2005,7 @@ internal fun NativeScreen(
                             feedSession.foregroundRecovery.connected(recoveryOwner, attemptGeneration)
                             feedCoordinator.resumeAfterVerifiedConnection(remembered)
                             retryDelay = 2_000
-                        } catch (failure: Throwable) { active.close(); throw failure }
+                        } catch (failure: Throwable) { feedSession.releaseForeground(active); active.close(); throw failure }
                     } catch (failure: Throwable) {
                         // A child RPC/dial deadline is a connection failure, not retirement
                         // of this screen's attempt. A newer attempt still wins cancellation.
@@ -2047,9 +2048,10 @@ internal fun NativeScreen(
                 LaunchedEffect(client) {
                     val active = client ?: return@LaunchedEffect
                     val connectedGeneration = retry
+                    val connectedScope = feedSession.foregroundScope(connectedCode.orEmpty(), active) ?: recoveryOwner.team
                     active.disconnected.collect { failure ->
                         if (client !== active || connectedCode != recoveryOwner.code || store.taskSession() != recoveryOwner.login ||
-                            accountTeams.state.value.scope != recoveryOwner.team) return@collect
+                            accountTeams.state.value.scope != connectedScope) return@collect
                         connectionReady = false
                         connectionError = nativeConnectionFailure(failure)
                         feedSession.foregroundRecovery.failed(recoveryOwner, connectedGeneration, failure)
@@ -2341,7 +2343,7 @@ internal fun NativeScreen(
                 // Reading the mutable state inside it can assign the next session to old cleanup.
                 val disposableClient = client
                 DisposableEffect(disposableClient) {
-                    onDispose { disposableClient?.let { terminalSizing.unbind(it); terminalInputs.detach(it); it.close() } }
+                    onDispose { disposableClient?.let { feedSession.releaseForeground(it); terminalSizing.unbind(it); terminalInputs.detach(it); it.close() } }
                 }
             }
             foregroundEffects()

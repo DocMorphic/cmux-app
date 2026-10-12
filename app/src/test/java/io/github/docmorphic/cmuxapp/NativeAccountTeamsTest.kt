@@ -14,6 +14,86 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 class NativeAccountTeamsTest {
+    @Test fun admittedContinuationSurvivesSelectionWithoutRevivingOldAdmissionGeneration() = runBlocking<Unit> {
+        MockWebServer().use { server -> controller(server).use { account ->
+            server.profile()
+            val first = checkNotNull(account.refresh().scope)
+            val proof = checkNotNull(account.captureContinuation(first))
+            server.reply(user("two")); account.select("two")
+            assertFalse(account.isCurrent(first)); assertNull(account.captureContinuation(first))
+            assertTrue(account.allowsContinuation(proof)); assertSame(first, proof.admittedScope)
+            server.reply(user("one")); val returned = checkNotNull(account.select("one").scope)
+            assertNotEquals(first.generation, returned.generation)
+            assertFalse(account.isCurrent(first)); assertTrue(account.allowsContinuation(proof))
+            assertNotNull(account.captureContinuation(returned))
+        } }
+    }
+
+    @Test fun membershipRemovalAndReadditionCannotRevivePreviouslyAdmittedContinuation() = runBlocking<Unit> {
+        MockWebServer().use { server -> controller(server).use { account ->
+            server.profile(); val first = checkNotNull(account.refresh().scope)
+            val old = checkNotNull(account.captureContinuation(first))
+            server.reply(user("two")); val second = checkNotNull(account.select("two").scope)
+            val kept = checkNotNull(account.captureContinuation(second))
+            server.profile("two", "two"); account.refresh()
+            assertFalse(account.allowsContinuation(old)); assertTrue(account.allowsContinuation(kept))
+            server.profile("two", "one", "two"); account.refresh()
+            assertFalse(account.allowsContinuation(old)); assertTrue(account.allowsContinuation(kept))
+            server.reply(user("one")); val fresh = checkNotNull(account.select("one").scope)
+            assertTrue(account.allowsContinuation(checkNotNull(account.captureContinuation(fresh))))
+            assertFalse(account.allowsContinuation(old))
+        } }
+    }
+
+    @Test fun replacementPrincipalInvalidatesContinuationBeforeFailedMembershipFetch() = runBlocking<Unit> {
+        MockWebServer().use { server -> controller(server).use { account ->
+            server.profile(); val first = checkNotNull(account.refresh().scope)
+            val proof = checkNotNull(account.captureContinuation(first))
+            server.reply(user(id = "replacement")); server.enqueue(MockResponse().setResponseCode(503))
+            assertTrue(runCatching { account.refresh() }.isFailure)
+            assertFalse(account.allowsContinuation(proof)); assertNull(account.captureContinuation(first))
+            server.profile(); account.refresh()
+            assertFalse(account.allowsContinuation(proof))
+        } }
+    }
+
+    @Test fun continuationRetainsVerifiedAuthorityOnTransientFailureButNotAuthenticationRejection() = runBlocking<Unit> {
+        for (status in listOf(401, 403)) MockWebServer().use { server -> controller(server).use { account ->
+            server.profile(); val first = checkNotNull(account.refresh().scope)
+            val proof = checkNotNull(account.captureContinuation(first))
+            server.enqueue(MockResponse().setResponseCode(503))
+            assertTrue(runCatching { account.refresh() }.isFailure)
+            assertTrue(account.allowsContinuation(proof)); assertTrue(account.isCurrent(first))
+            server.enqueue(MockResponse().setResponseCode(status))
+            if (status == 401) server.enqueue(MockResponse().setResponseCode(401))
+            assertTrue(runCatching { account.refresh() }.isFailure)
+            assertFalse(account.allowsContinuation(proof)); assertNull(account.captureContinuation(first))
+            server.profile(); account.refresh()
+            assertFalse(account.allowsContinuation(proof))
+        } }
+    }
+
+    @Test fun continuationIsBoundToControllerLoginIncarnationAndClear() = runBlocking<Unit> {
+        val login = AtomicReference<String?>("login")
+        MockWebServer().use { server -> controller(server, login).use { account ->
+            server.profile(); val first = checkNotNull(account.refresh().scope)
+            val proof = checkNotNull(account.captureContinuation(first))
+            assertFalse(account.allowsContinuation(NativeTeamContinuation(first, Any())))
+            controller(server, login).use { replacement ->
+                server.profile(); replacement.refresh()
+                assertFalse(replacement.allowsContinuation(proof))
+            }
+            login.set(null); assertFalse(account.allowsContinuation(proof)); account.reconcileLogin()
+            login.set("login"); account.reconcileLogin(); server.profile(); account.refresh()
+            assertFalse(account.allowsContinuation(proof))
+            val new = checkNotNull(account.captureContinuation(checkNotNull(account.state.value.scope)))
+            account.clear(); assertFalse(account.allowsContinuation(new))
+            server.profile(); account.refresh(); assertFalse(account.allowsContinuation(new))
+            val last = checkNotNull(account.captureContinuation(checkNotNull(account.state.value.scope)))
+            account.close(); assertFalse(account.allowsContinuation(last))
+        } }
+    }
+
     @Test fun credentialTransactionAndConnectionAdmissionShareLockWithoutWeakeningRetirement() = runBlocking<Unit> {
         val credentialLock = Any()
         var login: String? = "login"

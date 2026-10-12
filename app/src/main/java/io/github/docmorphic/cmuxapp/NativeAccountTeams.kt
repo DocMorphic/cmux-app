@@ -22,6 +22,10 @@ import java.util.concurrent.TimeUnit
 
 internal data class NativeTeam(val id: String, val name: String)
 internal data class NativeTeamScope(val login: String, val userId: String, val teamId: String, val generation: Long)
+/** Memory-only proof for an already admitted session; never authorizes a new dial. */
+internal class NativeTeamContinuation internal constructor(val admittedScope: NativeTeamScope, internal val stamp: Any) {
+    override fun toString() = "NativeTeamContinuation"
+}
 internal data class NativeAccountTeamsState(
     val userId: String? = null,
     val teams: List<NativeTeam> = emptyList(),
@@ -60,6 +64,8 @@ internal class NativeAccountTeams(
     private var run = 0L
     private var scopeGeneration = 0L
     private var verifiedLogin: String? = null
+    private var membershipUser: String? = null
+    private val membershipStamps = mutableMapOf<String, Any>()
     private var presentationLogin: String? = null
     private val cacheEnvironment = "$origin#${NativeAccount.PROJECT_ID}"
     private val mutableState = MutableStateFlow(NativeAccountTeamsState())
@@ -80,6 +86,26 @@ internal class NativeAccountTeams(
         !closed && captured == mutableState.value.scope && login() == captured.login
     }
 
+    /** Capture only while this scope can admit a connection, after online verification. */
+    fun captureContinuation(captured: NativeTeamScope): NativeTeamContinuation? = synchronized(lock) {
+        if (!isCurrent(captured) || verifiedLogin != captured.login || membershipUser != captured.userId ||
+            mutableState.value.cached) return@synchronized null
+        membershipStamps[captured.teamId]?.let { NativeTeamContinuation(captured, it) }
+    }
+
+    /** Selection can change; logout, principal replacement and membership removal cannot. */
+    fun allowsContinuation(proof: NativeTeamContinuation): Boolean = synchronized(lock) {
+        val admitted = proof.admittedScope
+        !closed && login() == admitted.login && verifiedLogin == admitted.login && membershipUser == admitted.userId &&
+            membershipStamps[admitted.teamId] === proof.stamp
+    }
+
+    private fun clearVerification() {
+        verifiedLogin = null
+        membershipUser = null
+        membershipStamps.clear()
+    }
+
     suspend fun refresh(): NativeAccountTeamsState = perform { owner, epoch ->
         val user = request("users/me", owner, epoch)
         val userId = identifier(user.getString("id"))
@@ -89,7 +115,7 @@ internal class NativeAccountTeams(
                 // The authenticated identity changed even if local credentials
                 // retained their incarnation. Old teams must not survive a
                 // subsequent failed membership request for the new principal.
-                verifiedLogin = null
+                clearVerification()
                 mutableState.value = NativeAccountTeamsState(loading = true)
                 runCatching { cache?.remove(owner) }
             }
@@ -184,7 +210,7 @@ internal class NativeAccountTeams(
         val epoch = synchronized(lock) {
             check(!closed) { "Account team session closed" }
             if (presentationLogin != owner) {
-                verifiedLogin = null
+                clearVerification()
                 presentationLogin = owner
                 mutableState.value = restore(owner)
             }
@@ -210,7 +236,7 @@ internal class NativeAccountTeams(
                 if (!closed && run == epoch) {
                     if (login() != owner || (failure is StackFailure &&
                             (failure.status == 401 || (failure.status == 403 && clearOnForbidden)))) {
-                        verifiedLogin = null
+                        clearVerification()
                         // Clear only this login's display cache. A late rejection
                         // must not erase the replacement account's snapshot.
                         runCatching { cache?.remove(owner) }
@@ -224,7 +250,12 @@ internal class NativeAccountTeams(
 
     private fun publish(owner: String, epoch: Long, user: String, teams: List<NativeTeam>, selected: String?): NativeAccountTeamsState = synchronized(lock) {
         checkCurrent(owner, epoch)
+        if (verifiedLogin != owner || membershipUser != user) clearVerification()
         verifiedLogin = owner
+        membershipUser = user
+        val memberIds = teams.map { it.id }.toSet()
+        membershipStamps.keys.retainAll(memberIds)
+        memberIds.forEach { membershipStamps.getOrPut(it) { Any() } }
         val previous = mutableState.value.scope
         val scope = selected?.let {
             if (previous?.login == owner && previous.userId == user && previous.teamId == selected) previous
@@ -298,7 +329,7 @@ internal class NativeAccountTeams(
     fun clear() {
         val old = synchronized(lock) {
             ++run
-            verifiedLogin = null
+            clearVerification()
             presentationLogin = null
             mutableState.value = NativeAccountTeamsState()
             calls.toList().also { calls.clear() }
@@ -314,7 +345,7 @@ internal class NativeAccountTeams(
             if (closed) return
             val owner = login()
             if (presentationLogin == owner) return
-            ++run; verifiedLogin = null; presentationLogin = owner
+            ++run; clearVerification(); presentationLogin = owner
             mutableState.value = restore(owner)
             calls.toList().also { calls.clear() }
         }

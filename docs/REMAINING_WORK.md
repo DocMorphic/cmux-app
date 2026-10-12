@@ -1,5 +1,27 @@
 # Remaining work for iOS parity
 
+## Team-switch authority foundation — 2026-10-12
+
+Verified account memberships now have memory-only continuation stamps separate
+from selected-team admission generations. A captured proof survives selection
+but retires on logout, account replacement, auth rejection and membership removal;
+re-addition cannot revive it. Offline profile caches cannot mint a proof. The
+foreground holder captures the actual verified client/Mac scope and supplies that
+scope to disconnect ownership, with atomic replacement and exact-handle cleanup.
+The existing selected-team `isCurrent()` guard remains unchanged.
+
+This is the authority foundation, not completed terminal retention. Backend
+lifetime, Iroh/legacy/Tailscale permission callbacks and per-Mac pane/feed scopes
+still need separation; Android continues to disconnect on selection. See
+[TEAM_SWITCH.md](TEAM_SWITCH.md). Signed 652 is unchanged and predates this batch.
+
+All 41 focused JVM cases passed on the final source, including two deterministic
+concurrency checks. Debug/test APKs built in 55s. All five affected debug APK
+classes passed Android 17 ART loading/reflection on the existing 16 KB AVD; the
+owned emulator was stopped/reaped after 17.763s. No new AVD was created and no app
+was installed or cleared. This verifies the capture foundation and compiler
+output, not native backend continuation, Activity/UI or physical workflows.
+
 ## Team-switch source audit — 2026-10-12
 
 At scoped upstream `f4b1509054949eaad5d695569ad443c4c18ed68d`, iOS retains the
@@ -10,8 +32,9 @@ runtime, tickets and pane ownership, in addition to its explicit Settings closes
 This is a confirmed unimplemented parity gap. [TEAM_SWITCH.md](TEAM_SWITCH.md)
 records the source sinks, affected production owners, implementation order and
 acceptance matrix. Removing just the Settings closes or globally weakening
-`isCurrent()` would leave incorrect transport/operation ownership. No continuation
-code or acceptance is claimed; the global source pin remains unchanged.
+`isCurrent()` would leave incorrect transport/operation ownership. The subsequent
+authority foundation above does not establish transport/UI retention acceptance;
+the global source pin remains unchanged.
 
 ## Signed Android milestone 652 — verified and published
 

@@ -45,6 +45,7 @@ class NativeAccountProfileCacheTest {
                 assertEquals("two", restored.state.value.selectedTeamId)
                 assertTrue(restored.state.value.cached); assertNull(restored.state.value.scope)
                 assertFalse(restored.isCurrent(previous)); assertEquals(2, server.requestCount)
+                assertNull(restored.captureContinuation(previous))
                 assertTrue(runCatching { restored.select("one") }.isFailure)
                 assertTrue(runCatching { restored.create("Never sent") }.isFailure)
                 assertEquals(2, server.requestCount)

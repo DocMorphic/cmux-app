@@ -64,7 +64,50 @@ the app. Existing generation/ABA and cached-profile protections remain necessary
    apply the pinned iOS recovery policy using the newly selected scope; never
    resurrect an unverified old lease from persisted UI state.
 
-No portion of these steps is claimed implemented by this audit.
+The authority capture below implements part of the first step. Transport and
+screen retention still require the remaining ownership work.
+
+## Authority foundation — 2026-10-12
+
+`NativeAccountTeams` now keeps memory-only stamps for verified memberships,
+separately from the selected-team generation. `captureContinuation()` can issue
+a proof only for the current selected scope after online account verification;
+it cannot use the offline profile cache. `allowsContinuation()` preserves that
+proof during selection and ordinary transient account request failures. It
+invalidates it on confirmed membership removal, principal/login replacement,
+authentication rejection, clear or close. Removal and later re-addition creates
+a different stamp, so the old proof cannot revive. The existing `isCurrent()`
+selection/generation semantics are unchanged.
+
+`NativeForegroundSessionAuthority` binds the original scope to the exact admitted
+client and authenticated saved Mac record. The production screen captures this
+after host identity, ticket, workspace and persistence verification, and its
+disconnect observer uses the captured live scope separately from the selected
+scope used for admission/retry. The holder belongs to `NativeFeedSession` and
+reconciles account and saved-record changes. Route, ticket, ownership, visibility
+or ambiguous-record replacement retires an observed binding; renaming is harmless.
+Disposing an old handle cannot clear a different replacement handle. The holder
+does not own or extend the backend wire, and does not replace its authorization.
+
+The holder uses an atomic reference rather than a second monitor around account
+or credential operations. This avoids introducing another lock order into the
+shared account/credential transaction. Admission uses compare-and-set so a delayed
+old admission cannot overwrite a newer foreground binding.
+
+All 41 focused JVM cases pass, including controller generation/cache regressions,
+holder-level RPC after selection and two deterministic concurrency checks.
+Debug/test APKs build; all five affected debug classes pass Android 17 ART
+loading/reflection. One existing 16 KB AVD was started and stopped/reaped in
+17.763s; no new AVD or app installation/clear. Original and final XML, source/APK
+hashes and ART/lifecycle evidence are in ignored `captures/runtime/team-switch-authority-*`.
+The holder-level RPC uses a fixture wire and does not exercise native backend
+ownership. Native
+Iroh, saved/legacy Tailscale, selected-team eligibility and pane/feed teardown are
+still unchanged: **Android still disconnects on a team switch**. The next batch
+must keep the foreground backend/transport alive while retiring secondary and
+pending work, then wire per-Mac screen/operation scopes. The continuation proof
+does not authorize a new dial or prove a host grant, ticket, backend or Pixel flow.
+Signed build 652 does not contain this subsequent source batch.
 
 ## Acceptance cases
 

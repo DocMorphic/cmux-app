@@ -1,5 +1,31 @@
 # Codex laptop handoff — 2026-09-28
 
+## Team-switch authority foundation — 2026-10-12
+
+Production now captures a verified membership continuation and foreground
+client/Mac scope after host/ticket/workspace/persistence verification. Membership
+stamps are separate from selected-team generations; removals/re-additions and
+account incarnations retire old proofs. Cached profiles remain presentation-only.
+The disconnect observer uses the captured live scope while admission/retry still
+uses the selected scope. Atomic foreground replacement avoids a second monitor
+around the shared account/credential lock and rejects delayed old admissions.
+
+Next: separate foreground backend/transport lifetime from selected-team discovery,
+then wire per-Mac panes/operations and retire old-team secondary work. The current
+Iroh/legacy/Tailscale teardown and explicit Settings close calls remain; Android
+still disconnects on a team switch. Read [TEAM_SWITCH.md](TEAM_SWITCH.md). Signed
+652 predates this source batch; no new full/native/Pixel retention is established.
+
+Final verification: all 41 focused JVM cases pass; debug/test APKs build in 55s.
+The five changed debug APK classes pass Android 17 ART loading/reflection on the
+existing 16 KB AVD, stopped/reaped after 17.763s. No new AVD, install or app clear.
+Evidence: ignored `captures/runtime/team-switch-authority-*`, including original
+39-case results, final XML, exact source/APK hashes, class probe and lifecycle.
+The extra foreground monitor was removed after lock-order review, before the two
+new concurrency checks. No reproduced physical deadlock or native/UI acceptance
+is claimed. The custom Mac UI was rechecked and still shows Sign-in timed out;
+the existing owner question remains pending. ADB currently has no physical Pixel.
+
 ## Next ownership batch — team switching
 
 The scoped iOS implementation retains an already connected foreground Mac on team
@@ -9,7 +35,8 @@ before changing teardown: discovery, Iroh/legacy/Tailscale transports, saved tic
 foreground panes/tabs/browser and asynchronous operation guards currently share
 the selected-team generation. New admissions must remain selected-team scoped;
 the live continuation needs its original authority and separate lifetime. This
-audit adds no production retention and passes no new acceptance cases.
+audit identifies the still-open transport/UI retention work. The authority
+foundation above adds scoped capture, not complete retention acceptance.
 
 ## Signed Android milestone 652 — verified and published
 

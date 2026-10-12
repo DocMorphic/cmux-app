@@ -17,7 +17,8 @@ import kotlinx.coroutines.flow.collect
 
 /** Activity recreation retains account-scoped snapshots; process death refetches from the Mac. */
 internal class NativeFeedSession(
-    private val connector: NativeConnector, private val account: NativeAccount, private val store: NativeCredentialStore
+    private val connector: NativeConnector, private val account: NativeAccount, private val store: NativeCredentialStore,
+    teams: NativeAccountTeams? = null
 ) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var foreground = false
@@ -35,6 +36,14 @@ internal class NativeFeedSession(
     val macSwitchRecovery = NativeMacSwitchRecovery()
     val foregroundRecovery = NativeConnectionRecoveryGate()
     val foregroundRetryState = mutableIntStateOf(0)
+    private val foregroundAuthority = teams?.let { NativeForegroundSessionAuthority(it, store::visiblePairedMacs) }
+    init { if (teams != null) scope.launch { teams.state.collect { foregroundAuthority?.reconcile() } } }
+    init { if (teams != null) scope.launch { store.revisions.collect { foregroundAuthority?.reconcile() } } }
+    fun admitForeground(team: NativeTeamScope?, mac: NativeCredentialStore.PairedMac, client: MobileRpcClient) {
+        if (team != null) foregroundAuthority?.admit(team, mac, client)
+    }
+    fun foregroundScope(code: String, client: MobileRpcClient?) = foregroundAuthority?.scopeFor(code, client)
+    fun releaseForeground(client: MobileRpcClient) { foregroundAuthority?.release(client) }
     val workspaceSnapshots = NativeWorkspaceSnapshots(store::taskSession)
     val coordinator = NativeFeedCoordinator(scope, connect = { mac ->
         connector.connectSaved(mac, account).also { client ->
@@ -190,16 +199,16 @@ internal class NativeFeedSession(
     }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { foregroundRecovery.clear(); foregroundRetryState.intValue = 0; workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModelPrefetch.update(emptyList()); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { foregroundAuthority?.clear(); foregroundRecovery.clear(); foregroundRetryState.intValue = 0; workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModelPrefetch.update(emptyList()); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
-    override fun onCleared() { ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
+    override fun onCleared() { foregroundAuthority?.clear(); ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,
-        private val store: NativeCredentialStore) : ViewModelProvider.Factory {
+        private val store: NativeCredentialStore, private val teams: NativeAccountTeams? = null) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass == NativeFeedSession::class.java)
-            return NativeFeedSession(connector, account, store) as T
+            return NativeFeedSession(connector, account, store, teams) as T
         }
     }
 }
