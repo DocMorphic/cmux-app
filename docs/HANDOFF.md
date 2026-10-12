@@ -1,5 +1,58 @@
 # Codex laptop handoff — 2026-09-28
 
+## Foreground replies, workspace inventory and display metadata — 2026-10-12
+
+The direct notification reply provider now finds the individually admitted pane Mac
+and uses its original live owner. Historical action generation zero is matched by
+login/user/team identity to that live owner; it grants no fresh connection. The
+exact admitted record/client/codes/readiness and saved pairing guard still apply.
+Other Macs remain selected-team feed scoped. Existing encrypted action, peer epoch,
+helper epoch and outbox permission fences remain in the receiver.
+
+New `nativeForegroundReplyAttempt` captures one ready workspace/surface on the
+existing handle, keeps input ordering and literal text/Return submission, and
+rechecks topology and authorization through asynchronous token lookup and after
+acknowledgement. Authorization rejection retires that handle. `pasteAdmitted`
+passes this request-local guard through the normal input dispatcher and identified
+input RPC; it does not replace the input stream identity. Secondary feed replies
+also use admitted paste. A lost acknowledgement remains unconfirmed and cannot
+automatically become a relay duplicate.
+
+The workspace list, selected computer and sort inventory now include the admitted
+pane Mac. Root snapshot fallback and sort connection status require `paneConnected`
+instead of code equality. Inventory memoization tracks the live owner, record and
+readiness. A retained Mac also prevents empty-computer onboarding and participates
+in additive color slots when absent from the newly selected directory. Scoped
+presence/build-label reads reject another team's same-device metadata; local
+last-seen history and build-tag fallback remain available. Legacy unscoped selected
+rows retain their prior display behavior.
+
+**68 focused JVM cases pass**, debug/test APKs build, and seven classes pass
+Android 17 ART reflection. **Four runtime cases pass in 14.261s**: real encrypted
+notification/action/receiver delivery on the existing connection after an injected
+picker change; lost acknowledgement without relay/second write; original/picker
+same-device presence and build labels; and root workspace reordering while the
+secondary feed is paused. JVM cases include original-owner isolation, zero paste
+bytes after proof loss during token lookup, authorization retirement, literal text,
+ready-topology confinement and identified dispatcher submission.
+
+The first JVM run had a new fixture expecting input sequence zero; the actual
+protocol starts at one. Only the expectation was corrected, and its original XML
+is preserved. A missing test-tag import in the Android fixture was also repaired.
+Final XML/logs/source and APK hashes are ignored under
+`captures/runtime/foreground-reply-metadata-*`. The sole existing 16 KB AVD was
+stopped/reaped; no physical device was touched. These are local fixtures with
+injected scope/proof, not actual account team switching or Mac/Iroh/Pixel/FCM
+acceptance. Signed 654 predates this source; full parity remains unverified.
+
+Remaining integration found by source review: owner-qualified selected-computer
+connection/count/transport presentation (the shared identity map still belongs to
+the picker), foreground Settings/detail/local-removal actions, and agent-feed
+source/read/action presentation while the original secondary feed is retired.
+Explicit Settings selection/create and Iroh eligibility teardown remain enabled.
+**Team selection still disconnects the app.** Keep teardown until those remaining
+paths and actual account-switch UI acceptance work together.
+
 ## Foreground Mac forwarding settings — 2026-10-12
 
 Mac forwarding controls now use the admitted pane's original team and appearance

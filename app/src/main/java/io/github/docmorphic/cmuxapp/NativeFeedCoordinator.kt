@@ -197,7 +197,7 @@ internal class NativeFeedCoordinator(
         if (!ready()) return null
         return PhoneReplyDirectAttempt(target, ::ready) { text, allowed ->
             if (!allowed()) false else {
-                checkPhoneReplyPaste(client.paste(workspace, target.surface, text, submit = true))
+                checkPhoneReplyPaste(client.pasteAdmitted(workspace, target.surface, text, submit = true, isCurrent = allowed))
                 true
             }
         }

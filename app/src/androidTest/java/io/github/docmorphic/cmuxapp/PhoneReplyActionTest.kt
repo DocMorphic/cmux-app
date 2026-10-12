@@ -114,16 +114,21 @@ class PhoneReplyActionTest {
         button.actionIntent.send(context, 0, fill)
     }
     private val directEnabled = androidx.compose.runtime.mutableStateOf(true)
+    private val selectedTeam = androidx.compose.runtime.mutableStateOf(team)
+    private val foregroundProof = androidx.compose.runtime.mutableStateOf<NativeTeamScope?>(team)
     private fun clearDirect() { compose.runOnUiThread { directEnabled.value = false }; compose.waitForIdle() }
     private fun registerDirect(client: MobileRpcClient, ready: () -> Boolean = { true }) {
         compose.setContent {
+            val selected = selectedTeam.value
+            val proof = foregroundProof.value
             if (directEnabled.value) ObservePhoneReplyDirect(compose.activity.lifecycle) { target ->
-                PhoneReplyDirectAttempt(target, ready) { text, allowed ->
-                    if (!allowed()) false else {
-                        checkPhoneReplyPaste(client.paste(checkNotNull(target.workspace), target.surface, text, submit = true))
-                        true
-                    }
-                }
+                val owner = proof ?: selected
+                fun current() = ready() && nativePhoneReplyOwnerMatches(target, owner) &&
+                    nativeForegroundMacSettingsCurrent(store.taskSession(), owner, mac, client, client, mac, true,
+                        mac.code, mac.code, store.visiblePairedMacs(), { it == selected }, { true }, { _, _ -> proof })
+                val workspace = NativeWorkspace("workspace", "Fixture", listOf(NativeTerminal("surface", "Shell")),
+                    null, false, null, null, false, emptyList(), null, null, null)
+                nativeForegroundReplyAttempt(target, mac, client, { listOf(workspace) }, ::current)
             }
         }
         compose.waitForIdle()
@@ -131,6 +136,23 @@ class PhoneReplyActionTest {
     private fun receipts() = store.load()?.let { PhoneReplyOutbox(it).receipts(System.currentTimeMillis()) }.orEmpty()
     private fun sendJobs() = WorkManager.getInstance(context).getWorkInfosByTag(PhoneReplyWork.SEND)
         .get(2, TimeUnit.SECONDS).filterNot { it.state.isFinished }
+
+    @Test fun retainedOriginalOwnerRepliesAfterPickerChangeWithoutDialingOrRelaying() {
+        val peer = ReplyActionRpcPeer { }
+        val client = MobileRpcClient(peer, { "fixture-token" })
+        try {
+            kotlinx.coroutines.runBlocking { client.connect() }; registerDirect(client)
+            compose.runOnUiThread { selectedTeam.value = team.copy(teamId = "picker-team", generation = 2) }
+            compose.waitForIdle()
+            send(post("retained-owner").notification.actions.single(), " original owner λ 中\n")
+            waitFor { receipts().singleOrNull()?.status == "accepted" }
+            waitFor { alerts().isEmpty() }
+            assertTrue(queued().isEmpty()); assertTrue(sendJobs().isEmpty()); assertEquals(1, peer.connects)
+            val params = peer.requests.single().getJSONObject("params")
+            assertEquals("workspace", params.getString("workspace_id")); assertEquals("surface", params.getString("surface_id"))
+            assertEquals(" original owner λ 中\n", params.getString("text")); assertEquals("return", params.getString("submit_key"))
+        } finally { clearDirect(); client.close() }
+    }
 
     @Test fun foregroundReplyUsesExistingRpcAfterDurableFenceAndNeverSchedulesRelay() {
         var fencedAtWrite = false; var plaintext: JSONObject? = null

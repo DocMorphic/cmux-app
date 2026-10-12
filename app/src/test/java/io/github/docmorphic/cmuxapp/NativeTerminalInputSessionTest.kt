@@ -26,6 +26,7 @@ class NativeTerminalInputSessionTest {
             val request = JSONObject(String(bytes.copyOfRange(4, bytes.size), Charsets.UTF_8)); requests += request
             val params = request.getJSONObject("params")
             val result = JSONObject().put("fixture_field", "preserved")
+            if (request.getString("method") == "terminal.paste") result.put("submitted", true)
             if (request.getString("method") == "mobile.terminal.scroll") result.put("render_grid", JSONObject().put("rows", 17))
             if (identifiedReply && params.has("input_stream_id")) result.put("input_ack", JSONObject().put("status", "applied")
                 .put("stream_id", params.getString("input_stream_id")).put("sequence", params.getString("input_stream_seq")).put("expected", "0"))
@@ -38,6 +39,21 @@ class NativeTerminalInputSessionTest {
         TerminalInputAcknowledgement.Status.APPLIED, delivery.stream, delivery.sequence)
     private suspend fun idle(session: NativeTerminalInputSession) = withTimeout(3000) {
         session.status.first { it[key]?.pendingUnits == 0 }
+    }
+
+    @Test fun admittedReplyPasteKeepsIdentifiedDispatcherAndItsLiteralSubmissionShape() = runBlocking<Unit> {
+        val wire = Wire(); val client = MobileRpcClient(wire, { "fixture" })
+        NativeTerminalInputSession(this).use { session ->
+            try {
+                client.connect(); session.attach(owner, client, capabilities, targets) { true }
+                val result = client.pasteAdmitted("workspace", surface, " literal reply λ\n", true) { true }
+                assertTrue(result.getBoolean("submitted"))
+                val params = wire.requests.single().getJSONObject("params")
+                assertTrue(params.has("input_stream_id")); assertEquals("1", params.getString("input_stream_seq"))
+                assertEquals(" literal reply λ\n", params.getString("text")); assertEquals("return", params.getString("submit_key"))
+                assertEquals(surface, params.getString("surface_id")); idle(session)
+            } finally { client.close() }
+        }
     }
 
     @Test fun composerClientResolverWaitsForOriginalOwnerAndRejectsMacReplacement() = runBlocking<Unit> {

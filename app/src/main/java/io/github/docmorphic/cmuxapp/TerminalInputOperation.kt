@@ -10,9 +10,10 @@ internal sealed class TerminalInputOperation(val workspace: String, val surface:
         override val byteCount = text.toByteArray(Charsets.UTF_8).size
         override suspend fun rpc(client: MobileRpcClient, delivery: TerminalInputDelivery?) = client.input(workspace, surface, text, delivery)
     }
-    class Paste(workspace: String, surface: String, val text: String, val submit: Boolean) : TerminalInputOperation(workspace, surface) {
+    class Paste(workspace: String, surface: String, val text: String, val submit: Boolean,
+        private val isCurrent: (() -> Boolean)? = null) : TerminalInputOperation(workspace, surface) {
         override val byteCount = text.toByteArray(Charsets.UTF_8).size
-        override suspend fun rpc(client: MobileRpcClient, delivery: TerminalInputDelivery?) = client.paste(workspace, surface, text, submit, delivery)
+        override suspend fun rpc(client: MobileRpcClient, delivery: TerminalInputDelivery?) = client.paste(workspace, surface, text, submit, delivery, isCurrent)
     }
     class Image(workspace: String, surface: String, bytes: ByteArray, val format: String) : TerminalInputOperation(workspace, surface) {
         private val snapshot = bytes.copyOf()

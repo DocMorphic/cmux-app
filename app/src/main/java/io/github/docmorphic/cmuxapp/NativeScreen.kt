@@ -273,7 +273,7 @@ internal fun NativeScreen(
             }.getOrDefault(emptyMap())
         }
         val machineColorIndices = feedSession.macColorSlots.select(if (signedIn) store.taskSession() else null,
-            teamState.scope, pairedMacs, computerState.computers.takeIf { computerState.account == teamState.scope }.orEmpty(),
+            teamState.scope, paneMacs, computerState.computers.takeIf { computerState.account == teamState.scope }.orEmpty(),
             foreground = paneContext.mac?.takeIf { connectionReady && it.code == connectedCode }?.colorIdentity)
         val paneSelection = feedSession.paneNavigation.select(if (signedIn) store.taskSession() else null,
             paneContext.mac, paneTeam)
@@ -406,7 +406,7 @@ internal fun NativeScreen(
             else sshRuntimeState?.resource?.takeIf { sshRuntimeState.login == browserLogin && it.isOpen }
         val sshCreationState = sshSession?.workspaceCreation?.state?.collectAsState()?.value
         val sshTargets = nativeSshCreateTargets(sshSession)
-        val noKnownComputers = pairedMacs.isEmpty() && hiddenMacs.isEmpty() && sshTargets.isEmpty() && allCloudSnapshots.isEmpty()
+        val noKnownComputers = paneMacs.isEmpty() && hiddenMacs.isEmpty() && sshTargets.isEmpty() && allCloudSnapshots.isEmpty()
         val cloudTabState = key(browserLogin, teamState.scope) { rememberSaveableStateHolder() }
         val sshFeed = sshSession?.workspaceFeed?.state?.collectAsState()?.value.orEmpty()
         val sshNavigation = rememberSaveable(saver = NativeSshCreationNavigation.saver) { NativeSshCreationNavigation() }
@@ -566,7 +566,7 @@ internal fun NativeScreen(
         val workspaceMoves = feedSession.workspaceMoves
         val moveSources by workspaceMoves.sources.collectAsState()
         val moveStatus by workspaceMoves.status.collectAsState()
-        val selectedComputer = pairedMacs.firstOrNull { it.ownsOrigin(selectedComputerOrigin) }
+        val selectedComputer = paneMacs.firstOrNull { it.ownsOrigin(selectedComputerOrigin) }
         val selectedOrigin = selectedComputer?.origin
         val selectedSshComputer = sshTargets.singleOrNull { "ssh:${it.host.id}" == selectedComputerOrigin }
         // Preserve the Cloud host identity even before its catalog loads or after removal.
@@ -921,12 +921,12 @@ internal fun NativeScreen(
             DisposableEffect(emptyWorkspaceRecovery) { onDispose { emptyWorkspaceRecovery.close() } }
             LaunchedEffect(feedForeground, emptyWorkspaceRecovery) { if (!feedForeground) emptyWorkspaceRecovery.cancel() }
             val searchLocale = configuration.locales[0]
-            val workspaceSources = remember(pairedMacs, feedSources, moveSources, selectedOrigin, selectedSshComputer, selectedCloudId, connectedCode, client, workspaces, groups, hostCapabilities, mutationAuthorityTick) {
-                pairedMacs.filter { selectedCloudId == null && selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) }.map { mac ->
+            val workspaceSources = remember(paneMacs, paneTeam, signedIn, connectionReady, connectionState.admittedMac, feedSources, moveSources, selectedOrigin, selectedSshComputer, selectedCloudId, connectedCode, client, workspaces, groups, hostCapabilities, mutationAuthorityTick) {
+                paneMacs.filter { selectedCloudId == null && selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) }.map { mac ->
                     val snapshot = (moveSources[mac.origin] ?: feedSources[mac.origin])
                         ?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
                     if (snapshot?.hasWorkspaceSnapshot == true) snapshot
-                    else if (client != null && connectedCode == mac.code) NativeFeedSource(mac, workspaces = workspaces,
+                    else if (paneConnected(mac)) NativeFeedSource(mac, workspaces = workspaces,
                         groups = groups, capabilities = hostCapabilities, availability = NativeFeedAvailability.CONNECTED,
                         hasWorkspaceSnapshot = true, macMutationTicket = client?.macMutationTicket())
                     else snapshot ?: NativeFeedSource(mac)
@@ -942,8 +942,8 @@ internal fun NativeScreen(
                 selectedOrigin != null || selectedSshComputer != null || selectedCloudId != null)
             SideEffect { if (workspaceFilter != effectiveWorkspaceFilter) workspaceFilter = effectiveWorkspaceFilter }
             val allWorkspaceComputers = selectedOrigin == null && selectedSshComputer == null && selectedCloudId == null
-            val sortComputers = pairedMacs.mapNotNull { mac -> workspaceMacFilterId(mac.deviceId, mac.instanceTag)?.let {
-                NativeSortComputer(it, appearances.name(mac), connectedCode == mac.code && connectionReady, scopedPresence.buildLabel(mac))
+            val sortComputers = paneMacs.mapNotNull { mac -> workspaceMacFilterId(mac.deviceId, mac.instanceTag)?.let {
+                NativeSortComputer(it, appearances.name(mac), paneConnected(mac), scopedPresence.buildLabel(mac))
             } } + sshTargets.map { NativeSortComputer(workspaceSshFilterId(it.host.id), it.name) } +
                 cloudSnapshots.values.map { NativeSortComputer(CloudAddress(it.machine.id).identifier, it.machine.preferredName, buildLabel = "Cloud") }
             LaunchedEffect(browserLogin, connectedCode, connectionReady) {
@@ -1174,31 +1174,26 @@ internal fun NativeScreen(
                 }
             }
             ObservePhoneReplyDirect(lifecycle) { target ->
-                val mac = pairedMacs.singleOrNull { it.ownsOrigin(target.origin) }
-                fun admitted() = feedForeground && signedIn && store.taskSession() == target.team.login &&
-                    teamState.scope?.let { accountTeams.isCurrent(it) && it.login == target.team.login &&
-                        it.userId == target.team.userId && it.teamId == target.team.teamId } == true &&
-                    mac != null && store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
-                if (mac == null || !admitted()) null
+                val mac = paneMacs.singleOrNull { it.ownsOrigin(target.origin) }
+                fun selectedAdmission() = feedForeground && signedIn && store.taskSession() == target.team.login &&
+                    teamState.scope?.let { accountTeams.isCurrent(it) && nativePhoneReplyOwnerMatches(target, it) } == true &&
+                    mac != null && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac)
+                if (mac == null) null
                 else if (mac.code == code) {
                     val active = client
+                    val owner = active?.let { feedSession.foregroundScope(mac, it) } ?: teamState.scope
                     val workspace = target.resolve(workspaces)
-                    fun ready() = admitted() && active != null && client === active && !active.isClosed &&
-                        connectionReady && connectedCode == mac.code && code == mac.code && target.resolve(workspaces) == workspace &&
-                        active.terminalTrafficAllowed(target.surface)
-                    if (active == null || workspace == null || !ready()) null else {
+                    fun admitted() = feedForeground && signedIn && active != null && owner != null &&
+                        nativePhoneReplyOwnerMatches(target, owner) &&
+                        nativeForegroundMacSettingsCurrent(store.taskSession(), owner, mac, active, client,
+                            connectionState.admittedMac, connectionReady, code, connectedCode, store.visiblePairedMacs(),
+                            accountTeams::isCurrent, connection::allowsSaved, feedSession::foregroundScope)
+                    if (active == null || workspace == null || !admitted()) null else {
                         val queue = if (inputClient === active && inputTarget?.workspace == workspace && inputTarget?.surface == target.surface)
                             inputQueue else terminalInputs.orderedQueue(active, workspace, target.surface)
-                        PhoneReplyDirectAttempt(target, ::ready) { text, allowed ->
-                            suspend fun paste(): Boolean {
-                                if (!allowed()) return false
-                                checkPhoneReplyPaste(active.paste(workspace, target.surface, text, submit = true))
-                                return true
-                            }
-                            if (queue != null) queue.performOrdered { paste() } else paste()
-                        }
+                        nativeForegroundReplyAttempt(target, mac, active, { workspaces }, ::admitted, queue)
                     }
-                } else feedCoordinator.replyAttempt(mac, target, ::admitted)
+                } else if (selectedAdmission()) feedCoordinator.replyAttempt(mac, target, ::selectedAdmission) else null
             }
             val inputStatus by inputQueue.status.collectAsState()
             DisposableEffect(inputQueue) { onDispose { if (inputQueue !== retainedInputQueue) inputQueue.close() } }

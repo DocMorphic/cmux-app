@@ -13,7 +13,11 @@ internal data class NativeMacPresenceState(val owner: NativeTeamScope? = null,
         return if (tag == null) instances.values.filter { it.identity.deviceId == device }.singleOrNull()
             else instances[NativeMacIdentity(device, tag.trim().takeIf(String::isNotEmpty))]
     }
-    fun buildLabel(mac: NativeCredentialStore.PairedMac) = buildLabel(mac.deviceId, mac.instanceTag)
+    private fun matchesOwner(mac: NativeCredentialStore.PairedMac) =
+        (mac.accountUserId == null && mac.accountTeamId == null) ||
+        (owner != null && mac.accountUserId == owner.userId && mac.accountTeamId == owner.teamId)
+    fun buildLabel(mac: NativeCredentialStore.PairedMac) = if (matchesOwner(mac)) buildLabel(mac.deviceId, mac.instanceTag)
+        else NativeMacBuildLabel.label(null, mac.instanceTag)
     fun buildLabel(deviceId: String, tag: String?): String? = instance(deviceId, tag)?.let {
         NativeMacBuildLabel.label(it.bundleId, it.identity.buildTag)
     } ?: NativeMacBuildLabel.label(null, tag)
@@ -22,6 +26,9 @@ internal data class NativeMacPresenceState(val owner: NativeTeamScope? = null,
         val instance = instance(deviceId, tag)
         return NativeComputerPresence(instance?.online, listOfNotNull(instance?.lastSeenAtMillis, savedLastSeen).maxOrNull())
     }
+    fun presence(mac: NativeCredentialStore.PairedMac, savedLastSeen: Long? = null): NativeComputerPresence =
+        if (matchesOwner(mac)) presence(mac.deviceId, mac.instanceTag, savedLastSeen)
+        else NativeComputerPresence(lastSeenAtMillis = savedLastSeen)
 }
 
 /** Bounded snapshot-first projection of the official presence stream for display metadata.

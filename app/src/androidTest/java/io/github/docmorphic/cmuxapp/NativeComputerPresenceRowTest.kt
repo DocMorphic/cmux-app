@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -24,6 +25,28 @@ class NativeComputerPresenceRowTest {
             NativeComputerStatusDot(connection, presence, reconnect)
         }
     } } }
+
+    @Test fun originalAndPickerRowsKeepSeparateSameDevicePresenceAndBuildLabels() {
+        val owner = NativeTeamScope("fixture-login", "user", "original", 1)
+        val selected = owner.copy(teamId = "picker", generation = 2)
+        val original = NativeCredentialStore.PairedMac("original-route", "mac", "Original", "default", "user", "original", "original")
+        val picker = original.copy(code = "picker-route", name = "Picker", accountTeamId = "picker", stableOrigin = "picker")
+        val selectedPresence = NativeMacPresenceState(selected, mapOf(NativeMacIdentity("mac", "default") to
+            NativeMacPresenceInstance(NativeMacIdentity("mac", "default"), "com.cmuxterm.app.nightly", online = true)))
+        compose.setContent { CmuxTheme { Column(Modifier.statusBarsPadding().padding(22.dp)) {
+            Row(Modifier.testTag("original.presence")) {
+                NativeComputerRowLabel(original.name, selectedPresence.buildLabel(original),
+                    NativeComputerConnection(NativeFeedAvailability.CONNECTED, workspaceCount = 2), selectedPresence.presence(original), false)
+            }
+            Row(Modifier.testTag("picker.presence")) {
+                NativeComputerRowLabel(picker.name, selectedPresence.buildLabel(picker), NativeComputerConnection(), selectedPresence.presence(picker), false)
+            }
+        } } }
+        compose.onNodeWithText("Stable").assertIsDisplayed(); compose.onNodeWithText("Nightly").assertIsDisplayed()
+        compose.onNodeWithText("Connected · 2 workspaces").assertIsDisplayed()
+        compose.onNodeWithText("Presence: Online · no route").assertIsDisplayed()
+        compose.onNodeWithText("Not connected").assertIsDisplayed()
+    }
     @Test fun onlinePresenceDoesNotClaimPhoneConnectionAndReconnectUsesHeartbeat() {
         content()
         compose.onNodeWithText("Not connected").assertIsDisplayed()

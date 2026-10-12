@@ -59,7 +59,7 @@ internal object NativeComputerList {
         directory: List<IrohV2Computer>, tailscale: Map<NativeMacIdentity, String>): List<NativeComputerListRow> {
         val ordered = macs.map { mac ->
             NativeComputerListRow(mac, appearances.name(mac),
-                presence.presence(mac.deviceId, mac.instanceTag, NativeMacLastSeen.read(history, mac)),
+                presence.presence(mac, NativeMacLastSeen.read(history, mac)),
                 route(mac.deviceId, mac.instanceTag, preferences, directory, tailscale, mac.code))
         }.sortedByDescending { it.presence.lastSeenAtMillis ?: Long.MIN_VALUE }
         val seenNames = mutableSetOf<String>()

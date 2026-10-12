@@ -9,6 +9,20 @@ class NativeMacPresenceTest {
     private val team = NativeTeamScope("login", "user", "team", 1)
     private fun mac(tag: String? = "default") = NativeCredentialStore.PairedMac("route", "mac", "Studio", tag)
 
+    @Test fun scopedForegroundCannotBorrowAnotherTeamsSameDeviceHeartbeatOrBuildMetadata() {
+        val other = team.copy(teamId = "other", generation = 2)
+        val state = NativeMacPresenceReducer(other).apply(snapshot("other",
+            instance(bundle = "com.cmuxterm.app.nightly").put("online", true).put("lastSeenAt", 2000)))
+        val original = mac().copy(accountUserId = team.userId, accountTeamId = team.teamId, stableOrigin = "original")
+        val picker = original.copy(accountTeamId = other.teamId, stableOrigin = "picker")
+        assertEquals("Nightly", state.buildLabel(picker)); assertEquals(NativeComputerPresence(true, 2000), state.presence(picker))
+        assertEquals("Stable", state.buildLabel(original)); assertEquals(NativeComputerPresence(null, 1000), state.presence(original, 1000))
+        assertEquals("Stable", state.copy(owner = null).buildLabel(original))
+        assertEquals(NativeComputerPresence(), state.copy(owner = null).presence(original))
+        assertEquals(NativeComputerPresence(), state.presence(original.copy(accountTeamId = null)))
+        assertEquals("Nightly", state.buildLabel(mac())) // Unscoped legacy rows still use their caller's selected snapshot.
+    }
+
     @Test fun upstreamBuildChannelExamplesAndUnknownChannels() {
         val cases = listOf(
             Triple("com.cmuxterm.app", "default", "Stable"),

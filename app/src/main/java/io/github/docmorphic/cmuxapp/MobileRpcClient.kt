@@ -806,12 +806,21 @@ class MobileRpcClient internal constructor(
     suspend fun paste(workspaceId: String, surfaceId: String, text: String, submit: Boolean): JSONObject =
         terminalOperation(TerminalInputOperation.Paste(workspaceId, surfaceId, text, submit))
 
+    /** Keep the input dispatcher/identity, with request-local admission through token lookup and retries. */
+    internal suspend fun pasteAdmitted(workspaceId: String, surfaceId: String, text: String, submit: Boolean,
+        isCurrent: () -> Boolean): JSONObject =
+        terminalOperation(TerminalInputOperation.Paste(workspaceId, surfaceId, text, submit, isCurrent))
+
     internal suspend fun paste(workspaceId: String, surfaceId: String, text: String, submit: Boolean,
-        delivery: TerminalInputDelivery?): JSONObject =
-        request("terminal.paste", JSONObject()
+        delivery: TerminalInputDelivery?, isCurrent: (() -> Boolean)? = null): JSONObject {
+        val params = JSONObject()
             .put("workspace_id", workspaceId).put("surface_id", surfaceId)
             .put("client_id", clientId).put("text", text)
-            .put("submit_key", if (submit) "return" else "none").withInputDelivery(delivery))
+            .put("submit_key", if (submit) "return" else "none").withInputDelivery(delivery)
+        if (isCurrent == null) return request("terminal.paste", params)
+        fun admitted() { check(isCurrent()) { "Reply destination changed" }; checkTerminalTraffic(surfaceId) }
+        return requestAdmitted("terminal.paste", params, 15_000, admitted = ::admitted).also { admitted() }
+    }
 
     suspend fun pasteImage(workspaceId: String, surfaceId: String, bytes: ByteArray, format: String): JSONObject =
         terminalOperation(TerminalInputOperation.Image(workspaceId, surfaceId, bytes, format))

@@ -210,4 +210,26 @@ class NativeMacAppearanceTest {
         val newUser = owner.select("login", team.copy(userId = "other"), listOf(z), emptyList(), z.colorIdentity)
         assertEquals(mapOf(z.colorIdentity to 0), newUser)
     }
+
+    @Test fun paneMacInventoryKeepsOriginalColorWhenSelectedDirectoryNoLongerContainsIt() {
+        val slots = NativeMacColorSlots()
+        val first = NativeTeamScope("login", "user", "first", 1)
+        val second = first.copy(teamId = "second", generation = 2)
+        val original = NativeCredentialStore.PairedMac("route-z", "z", "Original", "default", "user", "first")
+        val oldSibling = original.copy(code = "route-a", deviceId = "a", name = "Old sibling")
+        val initial = slots.select("login", first, listOf(original, oldSibling), emptyList())
+        val selected = original.copy(code = "route-b", deviceId = "b", name = "Selected", accountTeamId = "second")
+        kotlinx.coroutines.runBlocking {
+            MobileRpcClient(PoolTestTransport(), { "fixture" }).use { client ->
+                client.connect()
+                val pane = nativeForegroundPaneContext("login", second, listOf(selected), listOf(original, selected), original.code, client) { row, _ ->
+                    first.takeIf { row == original }
+                }
+                val colors = slots.select("login", second, pane.macs, emptyList(), pane.mac?.colorIdentity)
+                assertEquals(initial[original.colorIdentity], colors[original.colorIdentity])
+                assertFalse(oldSibling.colorIdentity in colors); assertTrue(selected.colorIdentity in colors)
+                assertEquals(listOf(original, selected), pane.macs)
+            }
+        }
+    }
 }
