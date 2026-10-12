@@ -6,6 +6,8 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 
 internal data class NativeWorkspaceOrder(
     val entries: List<NativeWorkspaceOrderEntry>, val groupPins: Map<String, Boolean>,
@@ -59,7 +61,10 @@ internal fun NativeFeedSource.canReorderWorkspaces(): Boolean =
 internal data class NativeWorkspaceMoveStatus(val pending: Int = 0, val error: String? = null)
 
 /** UI-scope, bounded per-owner move chains. Host snapshots retain all live row content. */
-internal class NativeWorkspaceMoves(private val scope: CoroutineScope, private val coordinator: NativeFeedCoordinator) {
+internal class NativeWorkspaceMoves(private val scope: CoroutineScope, coordinator: NativeFeedCoordinator,
+    foreground: StateFlow<NativeFeedSource?> = MutableStateFlow(null),
+    private val move: suspend (NativeCredentialStore.PairedMac, String, NativeWorkspaceMove, NativeWorkspaceOrder, () -> Boolean) -> Unit =
+        { mac, id, intent, base, canSend -> coordinator.moveWorkspace(mac, id, intent, base, canSend); Unit }) {
     private class Chain(val mac: NativeCredentialStore.PairedMac) {
         var epoch = 0L
         var pending = 0
@@ -73,7 +78,17 @@ internal class NativeWorkspaceMoves(private val scope: CoroutineScope, private v
     val sources = mutableSources.asStateFlow()
     private val mutableStatus = MutableStateFlow<Map<String, NativeWorkspaceMoveStatus>>(emptyMap())
     val status = mutableStatus.asStateFlow()
-    init { scope.launch { coordinator.sources.collect { update(it) } } }
+    init { scope.launch {
+        combine(coordinator.sources, foreground) { sources, active ->
+            if (active == null) sources else {
+                val feed = sources[active.mac.origin]?.takeIf { NativeComputerMenuPairing.isCurrent(active.mac, listOf(it.mac)) }
+                val merged = feed?.copy(mac = active.mac, workspaces = active.workspaces, groups = active.groups,
+                    availability = active.availability, capabilities = active.capabilities,
+                    hasWorkspaceSnapshot = active.hasWorkspaceSnapshot, macMutationTicket = active.macMutationTicket) ?: active
+                sources + (active.mac.origin to merged)
+            }
+        }.collect { update(it) }
+    } }
 
     private fun update(sources: Map<String, NativeFeedSource>) {
         authoritative = sources
@@ -139,7 +154,7 @@ internal class NativeWorkspaceMoves(private val scope: CoroutineScope, private v
             try {
                 previous?.await()?.getOrThrow()
                 check(currentChain()) { "Workspace order changed. Refresh the sidebar." }
-                coordinator.moveWorkspace(source.mac, movedId, intent, base) { currentChain() && canSend() }
+                move(source.mac, movedId, intent, base) { currentChain() && canSend() }
                 Result.success(Unit)
             } catch (failure: Exception) {
                 if (currentChain()) {

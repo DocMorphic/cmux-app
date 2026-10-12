@@ -43,8 +43,15 @@ internal class NativeFeedSession(
     val foregroundRecovery = NativeConnectionRecoveryGate()
     val foregroundRetryState = mutableIntStateOf(0)
     private val foregroundAuthority = teams?.let { NativeForegroundSessionAuthority(it, store::visiblePairedMacs, reserveForeground) }
-    init { if (teams != null) scope.launch { teams.state.collect { foregroundAuthority?.reconcile() } } }
-    init { if (teams != null) scope.launch { store.revisions.collect { foregroundAuthority?.reconcile() } } }
+    private val foregroundWorkspaceProjection = kotlinx.coroutines.flow.MutableStateFlow<NativeFeedSource?>(null)
+    init { if (teams != null) scope.launch { teams.state.collect {
+        foregroundAuthority?.reconcile()
+        foregroundWorkspaceProjection.value?.let { if (!allowsForegroundMac(it.mac)) foregroundWorkspaceProjection.value = null }
+    } } }
+    init { if (teams != null) scope.launch { store.revisions.collect {
+        foregroundAuthority?.reconcile()
+        foregroundWorkspaceProjection.value?.let { if (!allowsForegroundMac(it.mac)) foregroundWorkspaceProjection.value = null }
+    } } }
     fun admitForeground(team: NativeTeamScope?, mac: NativeCredentialStore.PairedMac, client: MobileRpcClient) {
         if (team != null) foregroundAuthority?.admit(team, mac, client)
     }
@@ -60,12 +67,14 @@ internal class NativeFeedSession(
         ?: NativeScreenConnectionState(initialCode, ::changeForegroundClient).also { screenConnection = it }
     private fun changeForegroundClient(previous: MobileRpcClient?, next: MobileRpcClient?) {
         foregroundWorkspaceAccess = null
+        foregroundWorkspaceProjection.value = null
         foregroundSizing?.cancel(); foregroundSizing = null
         foregroundArtifactWatcher?.cancel(); foregroundArtifactWatcher = null
         previous?.let { releaseForeground(it); terminalSizing.unbind(it); terminalInputs.detach(it); it.close() }
         val active = next ?: return
         foregroundArtifactWatcher = scope.launch {
             active.disconnected.first()
+            if (screenConnection?.client === active) foregroundWorkspaceProjection.value = null
             panelPreview?.let { if (!it.current()) dismissPanel(it) else if (!it.access.current()) it.preview.connectionLost() }
             filesSheet?.let { if (!it.current()) dismissFiles(it) else if (!it.access.current()) it.connectionLost() }
         }
@@ -106,7 +115,12 @@ internal class NativeFeedSession(
         }
     }
 
-    val workspaceMoves = NativeWorkspaceMoves(scope, coordinator)
+    val workspaceMoves = NativeWorkspaceMoves(scope, coordinator, foregroundWorkspaceProjection) { mac, id, intent, base, canSend ->
+        val active = foregroundWorkspace(mac)
+        if (active != null) active.moveWorkspace(id, intent, base, canSend)
+        else coordinator.moveWorkspace(mac, id, intent, base, canSend)
+        Unit
+    }
     fun allowsCreation(request: NativeCreationRequest): Boolean = !viewModelCleared && account.isSignedIn() &&
         store.taskSession() == request.login && NativeComputerMenuPairing.isCurrent(request.mac, store.visiblePairedMacs()) &&
         ((request.team != null && foregroundAuthority?.scopeFor(request.mac) == request.team) ||
@@ -123,17 +137,29 @@ internal class NativeFeedSession(
     private fun foregroundWorkspace(mac: NativeCredentialStore.PairedMac): NativeForegroundWorkspaceAccess? {
         val state = screenConnection ?: return null
         val client = state.client ?: return null
-        fun live() = !viewModelCleared && state.client === client && state.connectionReady && state.connectedCode == mac.code &&
+        fun live() = !viewModelCleared && !client.isClosed && state.client === client && state.connectionReady && state.connectedCode == mac.code &&
             state.code == mac.code && canRetainForeground(mac, client)
         if (!live()) return null
         foregroundWorkspaceAccess?.takeIf { it.second === client && NativeComputerMenuPairing.isCurrent(mac, listOf(it.first)) }?.let { return it.third }
-        return NativeForegroundWorkspaceAccess(scope, mac, client, workspaceSnapshots, { state.hostCapabilities }, ::live)
+        return NativeForegroundWorkspaceAccess(scope, mac, client, workspaceSnapshots, { state.hostCapabilities }, ::live,
+            onSnapshot = { updateForegroundWorkspaceSource(mac) })
             .also { foregroundWorkspaceAccess = Triple(mac, client, it) }
+    }
+    fun updateForegroundWorkspaceSource(mac: NativeCredentialStore.PairedMac?) {
+        if (mac == null || foregroundWorkspace(mac) == null) { foregroundWorkspaceProjection.value = null; return }
+        val next = workspaceSource(mac)
+        if (next != null) foregroundWorkspaceProjection.value = next
+        else if (foregroundWorkspaceProjection.value?.mac?.let { NativeComputerMenuPairing.isCurrent(mac, listOf(it)) } != true)
+            foregroundWorkspaceProjection.value = null
     }
     fun workspaceSource(mac: NativeCredentialStore.PairedMac): NativeFeedSource? {
         if (foregroundWorkspace(mac) == null) return coordinator.sources.value[mac.origin]?.takeIf { it.mac == mac }
         val state = checkNotNull(screenConnection)
-        val snapshot = workspaceSnapshots.latest(mac) ?: return null
+        val snapshot = workspaceSnapshots.latest(mac) ?: return foregroundWorkspaceProjection.value
+            ?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
+            ?.copy(mac = mac, capabilities = state.hostCapabilities, macMutationTicket = state.client?.macMutationTicket())
+        // Presentation can retain the last accepted rows while a write is in flight. The mutation
+        // adapter independently requires a fresh snapshot before admitting a subsequent write.
         return NativeFeedSource(mac, workspaces = snapshot.workspaces, groups = parseGroups(snapshot.value),
             capabilities = state.hostCapabilities, availability = NativeFeedAvailability.CONNECTED,
             hasWorkspaceSnapshot = true, macMutationTicket = state.client?.macMutationTicket())
@@ -148,6 +174,10 @@ internal class NativeFeedSession(
         title: String? = null, canSend: () -> Boolean = { true }) =
         foregroundWorkspace(mac)?.groupAction(groupId, action, title, canSend)
             ?: coordinator.groupAction(mac, groupId, action, title, canSend)
+    suspend fun customizeWorkspace(mac: NativeCredentialStore.PairedMac, workspaceId: String,
+        baseline: WorkspaceCustomizationDraft, submitted: WorkspaceCustomizationDraft, canSend: () -> Boolean = { true }) =
+        foregroundWorkspace(mac)?.customizeWorkspace(workspaceId, baseline, submitted, canSend)
+            ?: coordinator.customizeWorkspace(mac, workspaceId, baseline, submitted, canSend)
     suspend fun createTask(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient,
         params: org.json.JSONObject, canSend: () -> Boolean): org.json.JSONObject {
         check(screenConnection?.client === client) { "Task connection changed" }

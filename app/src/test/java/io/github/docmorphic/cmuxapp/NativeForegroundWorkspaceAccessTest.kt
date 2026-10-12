@@ -12,7 +12,7 @@ class NativeForegroundWorkspaceAccessTest {
     private val mac = NativeCredentialStore.PairedMac("fixture-route", "fixture-mac", "Fixture Mac", "default", "user", "team", "fixture-origin")
     private val supported = setOf(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY, "workspace.actions.v1", "workspace.read_state.v1",
         "workspace.close.v1", "workspace.move.v1", "workspace.group_create.v1", "workspace.group_actions.v1",
-        "workspace.create_in_group.v1", "workspace.task_create.v1")
+        "workspace.create_in_group.v1", "workspace.task_create.v1", WORKSPACE_METADATA_CAPABILITY)
     private fun listing(window: String = "current-window", pinned: Boolean = false) = JSONObject()
         .put("workspaces", JSONArray().put(JSONObject().put("id", "workspace").put("title", "Fixture")
             .put("window_id", window).put("terminals", JSONArray())))
@@ -26,6 +26,7 @@ class NativeForegroundWorkspaceAccessTest {
         var capabilities = supported
         var fresh = listing()
         var connects = 0
+        var observedSnapshot: () -> Unit = {}
         var reply: suspend (JSONObject) -> JSONObject = { req ->
             when (req.getString("method")) {
                 "mobile.host.status" -> JSONObject().put("capabilities", JSONArray(capabilities.toList()))
@@ -49,7 +50,7 @@ class NativeForegroundWorkspaceAccessTest {
         }
         val client = MobileRpcClient(wire, { "fixture" })
         val snapshots = NativeWorkspaceSnapshots { "login" }
-        val access = NativeForegroundWorkspaceAccess(scope, mac, client, snapshots, { capabilities }, { live })
+        val access = NativeForegroundWorkspaceAccess(scope, mac, client, snapshots, { capabilities }, { live }, { observedSnapshot() })
         suspend fun start() { client.connect(); client.hostStatus(); assertTrue(snapshots.read(mac, client).accept()); frames.clear() }
         fun methods() = frames.map { it.getString("method") }
         override fun close() { client.close(); scope.cancel() }
@@ -157,6 +158,94 @@ class NativeForegroundWorkspaceAccessTest {
         fixture { f ->
             assertTrue(runCatching { f.access.workspaceAction("workspace", "pin", canSend = { false }) }.isFailure)
             assertTrue(f.frames.isEmpty()); assertFalse(f.client.isClosed); assertNotNull(f.snapshots.latest(mac))
+        }
+    }
+
+    @Test fun authoritativeMoveConfirmationCanConsumeTheQueueWithoutRejectingItsAcknowledgement() = runBlocking<Unit> {
+        fixture { f ->
+            val base = NativeWorkspaceOrder(parseAuthoritativeWorkspaces(f.fresh), parseGroups(f.fresh))
+            var pending = true
+            f.observedSnapshot = { pending = false }
+            f.access.moveWorkspace("workspace", NativeWorkspaceMove("group", null), base) { pending }
+            assertFalse(pending)
+            assertEquals(listOf("workspace.move", "mobile.workspace.list"), f.methods())
+            val params = f.frames.first().getJSONObject("params")
+            assertEquals("current-window", params.getString("window_id")); assertEquals("group", params.getString("group_id"))
+            assertEquals(1, f.connects)
+        }
+    }
+
+    @Test fun staleOrderRemovedGroupAndChangedAnchorCannotSendAMove() = runBlocking<Unit> {
+        fixture { f ->
+            val base = NativeWorkspaceOrder(parseAuthoritativeWorkspaces(f.fresh), parseGroups(f.fresh))
+            assertTrue(runCatching { f.access.moveWorkspace("workspace", NativeWorkspaceMove("removed", null), base) { true } }.isFailure)
+            val wrongAnchor = base.copy(groupAnchors = mapOf("group" to "workspace"))
+            assertTrue(runCatching { f.access.moveWorkspace("workspace", NativeWorkspaceMove("group", null), wrongAnchor) { true } }.isFailure)
+            f.fresh.getJSONArray("workspaces").getJSONObject(0).put("is_pinned", true)
+            assertTrue(f.snapshots.read(mac, f.client).accept())
+            assertTrue(runCatching { f.access.moveWorkspace("workspace", NativeWorkspaceMove("group", null), base) { true } }.isFailure)
+            assertTrue(f.methods().all { it == "mobile.workspace.list" })
+        }
+    }
+
+    @Test fun customizationRebasesUntouchedFieldsAndUsesFreshWindowsForEachWrite() = runBlocking<Unit> {
+        fixture { f ->
+            val baseline = WorkspaceCustomizationDraft("Fixture", null, null, false)
+            f.fresh.getJSONArray("workspaces").getJSONObject(0).put("description", "Changed on Mac").put("window_id", "new-window")
+            f.reply = { request ->
+                if (request.getString("method") == "workspace.action") {
+                    val params = request.getJSONObject("params")
+                    when (params.getString("action")) {
+                        "rename" -> f.fresh.getJSONArray("workspaces").getJSONObject(0).put("title", params.getString("title"))
+                        "pin" -> f.fresh.getJSONArray("workspaces").getJSONObject(0).put("is_pinned", true)
+                    }
+                }
+                f.fresh
+            }
+            val result = f.access.customizeWorkspace("workspace", baseline, baseline.copy(name = "Phone edit", pinned = true)) { true }
+            assertTrue(result.succeeded)
+            val writes = f.frames.filter { it.getString("method") == "workspace.action" }
+            assertEquals(listOf("rename", "pin"), writes.map { it.getJSONObject("params").getString("action") })
+            assertTrue(writes.all { it.getJSONObject("params").getString("window_id") == "new-window" })
+            val final = f.snapshots.latest(mac)!!.workspaces.single()
+            assertEquals("Changed on Mac", final.description); assertEquals("Phone edit", final.title); assertTrue(final.isPinned)
+        }
+    }
+
+    @Test fun customizationConflictDoesNotOverwriteTheMacAndPartialFailureKeepsEdits() = runBlocking<Unit> {
+        fixture { f ->
+            val baseline = WorkspaceCustomizationDraft("Fixture", null, null, false)
+            f.fresh.getJSONArray("workspaces").getJSONObject(0).put("title", "Mac edit")
+            val conflict = f.access.customizeWorkspace("workspace", baseline, baseline.copy(name = "Phone edit")) { true }
+            assertFalse(conflict.succeeded); assertEquals("Mac edit", conflict.display?.name)
+            assertTrue(f.methods().all { it == "mobile.workspace.list" })
+            f.fresh = listing(); f.frames.clear()
+            f.reply = { request ->
+                if (request.getString("method") == "workspace.action") {
+                    val params = request.getJSONObject("params")
+                    if (params.getString("action") == "pin") throw MobileRpcException("internal_error", "Fixture", true)
+                    f.fresh.getJSONArray("workspaces").getJSONObject(0).put("title", params.getString("title"))
+                }
+                f.fresh
+            }
+            val partial = f.access.customizeWorkspace("workspace", baseline, baseline.copy(name = "Phone edit", pinned = true)) { true }
+            assertFalse(partial.succeeded); assertEquals("Phone edit", partial.baseline?.name)
+            assertFalse(partial.baseline!!.pinned); assertTrue(partial.display!!.pinned)
+            assertEquals(listOf("rename", "pin"), f.frames.filter { it.getString("method") == "workspace.action" }
+                .map { it.getJSONObject("params").getString("action") })
+        }
+    }
+
+    @Test fun lostCustomizationAuthorityCannotSendAnotherFieldOrReturnSuccess() = runBlocking<Unit> {
+        fixture { f ->
+            val baseline = WorkspaceCustomizationDraft("Fixture", null, null, false)
+            f.reply = { request ->
+                if (request.getString("method") == "workspace.action") f.live = false
+                f.fresh
+            }
+            val result = f.access.customizeWorkspace("workspace", baseline, baseline.copy(name = "Phone edit", pinned = true)) { true }
+            assertFalse(result.succeeded)
+            assertEquals(1, f.methods().count { it == "workspace.action" })
         }
     }
 }

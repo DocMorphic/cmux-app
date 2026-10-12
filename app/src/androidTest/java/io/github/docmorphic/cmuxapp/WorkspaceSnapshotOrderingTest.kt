@@ -7,6 +7,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.*
@@ -116,6 +120,33 @@ class WorkspaceSnapshotOrderingTest {
             assertEquals(originalReplays, peer.requests.count { it.optString("method") == "mobile.terminal.replay" &&
                 it.optJSONObject("params")?.optString("surface_id") == "terminal-1" })
         } finally { gate.countDown() }
+    }
+
+    @Test fun connectedWorkspaceReordersThroughItsExistingClientWithTheSecondaryFeedPaused() {
+        peer.customWorkspaceListing = JSONObject("""{"workspaces":[
+            {"id":"workspace-1","title":"Ordered workspace","window_id":"fixture-window","terminals":[{"id":"terminal-1","title":"Ready shell","is_focused":true}]},
+            {"id":"workspace-2","title":"Second workspace","window_id":"fixture-window","terminals":[]}]}""")
+        launch()
+        compose.onNodeWithText("Ordered workspace").performClick(); waitFor("Ready shell ▾")
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+        compose.runOnIdle { session.coordinator.pause() }
+        val mac = store.pairedMacs().single()
+        compose.waitUntil(5_000) { session.workspaceMoves.sources.value[mac.origin]?.canReorderWorkspaces() == true }
+        val source = session.workspaceMoves.sources.value.getValue(mac.origin)
+        val admittedConnections = connections.get()
+        runBlocking { withTimeout(10_000) { withContext(Dispatchers.Main) {
+            session.workspaceMoves.submit(source, "workspace-2", NativeWorkspaceMove(null, "workspace-1")) { true }
+        } } }
+        compose.waitUntil(5_000) {
+            session.workspaceMoves.sources.value[mac.origin]?.workspaces?.map { it.id } == listOf("workspace-2", "workspace-1") &&
+                session.workspaceMoves.status.value[mac.origin]?.pending == 0
+        }
+        assertNull(session.workspaceMoves.status.value.getValue(mac.origin).error)
+        val writes = peer.requests.filter { it.optString("method") == "workspace.move" }
+        assertEquals(1, writes.size); assertEquals("fixture-window", writes.single().getJSONObject("params").getString("window_id"))
+        assertEquals(admittedConnections, connections.get())
+        assertTrue(session.coordinator.sources.value.values.all { it.availability == NativeFeedAvailability.OFFLINE })
+        compose.onNodeWithText("Ready shell ▾").assertExists()
     }
 
     @Test fun lateBrowserDiscoveryCannotRestoreAWorkspaceDeletedByANewerFeedSnapshot() {

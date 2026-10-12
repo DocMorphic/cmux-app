@@ -1,5 +1,39 @@
 # Remaining work for iOS parity
 
+## Foreground reordering and customization — 2026-10-12
+
+Optimistic workspace moves now accept a live foreground projection and dispatch
+through the exact admitted client. The queue retains its three-request bound,
+intermediate-order reconciliation, rollback and owner-removal behavior. Fresh
+window, destination, pin and group-anchor checks remain. A refresh that consumes
+the prediction does not turn its confirmed acknowledgement into a failure; live
+connection authority is still checked after the response and refresh.
+
+Customization uses the same admitted client and serialized owner. The existing
+field-by-field save/rebase workflow keeps fresh reads, conflicts, truncated
+descriptions, partial results and explicit retry behavior. Each read/write checks
+owner and capabilities, and authorization rejection retires the client. Editor
+keys and browser customization use their Mac's original team context. The last
+accepted presentation rows remain available during an in-flight mutation; subsequent
+writes independently require a fresh snapshot. Foreground projections retire on
+client replacement, disconnect or lost membership/saved-record proof. Feed metadata
+is merged only for the same saved identity.
+
+**115 JVM cases pass**, including 13 foreground-wire cases and 14 move-queue cases.
+Debug/test APKs build, and five changed classes pass Android 17 ART reflection.
+**Three actual Android runtime checks pass in 26.027s**: reordering and terminal
+creation on the existing client while the secondary feed is paused, plus offline
+editor recreation/reconnect with no automatic edit replay and all four metadata
+writes. Evidence/XML/source and APK hashes are ignored under
+`captures/runtime/foreground-workspace-editing-*`. The existing 16 KB AVD was
+stopped/reaped after 56.161s; no new AVD or physical phone was used. These are local
+fixtures, not complete Mac/Iroh/Pixel or team-switch acceptance. Signed 654 predates
+this source.
+
+Remaining selected-scope sidebar/browser creation, notification, tab/recovery and
+presentation guards still need integration before removing Settings teardown.
+**Team selection still disconnects the app.** Full parity remains unverified.
+
 ## Foreground workspace and task actions — 2026-10-12
 
 Workspace actions, terminal/browser creation, workspace/group creation and group

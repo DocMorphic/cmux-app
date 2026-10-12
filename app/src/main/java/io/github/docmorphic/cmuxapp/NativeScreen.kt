@@ -529,19 +529,23 @@ internal fun NativeScreen(
             mutableStateOf<WorkspaceCustomizationTarget?>(null)
         }
         val activeCustomization = customizationTarget
-        val customizationMac = pairedMacs.singleOrNull { mac ->
-            activeCustomization?.matches(browserLogin, teamState.scope, mac) == true && connection.allowsSaved(mac)
+        val customizationMac = paneMacs.singleOrNull { mac ->
+            activeCustomization?.matches(browserLogin, browserOwner(mac), mac) == true &&
+                (connection.allowsSaved(mac) || feedSession.foregroundScope(mac, client) != null)
         }
         SideEffect { if (activeCustomization != null && customizationMac == null) customizationTarget = null }
-        val customizationWorkspace = customizationMac?.let { feedSources[it.origin]?.workspaces?.singleOrNull { row -> row.id == customizationTarget?.workspaceId } }
+        val customizationWorkspace = customizationMac?.let { feedSession.workspaceSource(it)?.workspaces?.singleOrNull { row -> row.id == customizationTarget?.workspaceId } }
         if (signedIn && activeCustomization != null && customizationMac != null && customizationWorkspace != null) {
             // An unconsumed restored child draft must never attach to a later editor owned by another login/team.
             key(activeCustomization) {
                 NativeWorkspaceCustomizationSheet(customizationWorkspace, onDismiss = { customizationTarget = null }) { baseline, draft ->
-                    check(activeCustomization.matches(store.taskSession(), accountTeams.state.value.scope, customizationMac)) {
+                    check(activeCustomization.matches(store.taskSession(), browserOwner(customizationMac), customizationMac)) {
                         "Workspace account changed. Reopen the editor."
                     }
-                    feedCoordinator.customizeWorkspace(customizationMac, customizationWorkspace.id, baseline, draft)
+                    feedSession.customizeWorkspace(customizationMac, customizationWorkspace.id, baseline, draft) {
+                        customizationTarget == activeCustomization &&
+                            activeCustomization.matches(store.taskSession(), browserOwner(customizationMac), customizationMac)
+                    }
                 }
             }
         }
@@ -550,6 +554,7 @@ internal fun NativeScreen(
             feedSession.workspaceSource(mac) ?: NativeFeedSource(mac)
         }
         LaunchedEffect(feedSources) { feedSources.values.forEach(localBrowsers::observeWorkspaces) }
+        SideEffect { feedSession.updateForegroundWorkspaceSource(paneContext.mac) }
         val workspaceMoves = feedSession.workspaceMoves
         val moveSources by workspaceMoves.sources.collectAsState()
         val moveStatus by workspaceMoves.status.collectAsState()
@@ -878,7 +883,8 @@ internal fun NativeScreen(
             val searchLocale = configuration.locales[0]
             val workspaceSources = remember(pairedMacs, feedSources, moveSources, selectedOrigin, selectedSshComputer, selectedCloudId, connectedCode, client, workspaces, groups, hostCapabilities, mutationAuthorityTick) {
                 pairedMacs.filter { selectedCloudId == null && selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) }.map { mac ->
-                    val snapshot = moveSources[mac.origin] ?: feedSources[mac.origin]
+                    val snapshot = (moveSources[mac.origin] ?: feedSources[mac.origin])
+                        ?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
                     if (snapshot?.hasWorkspaceSnapshot == true) snapshot
                     else if (client != null && connectedCode == mac.code) NativeFeedSource(mac, workspaces = workspaces,
                         groups = groups, capabilities = hostCapabilities, availability = NativeFeedAvailability.CONNECTED,
@@ -1423,9 +1429,10 @@ internal fun NativeScreen(
             fun applyListing(snapshot: NativeWorkspaceSnapshot) {
                 if (!snapshot.accept()) throw NativeWorkspaceSnapshotSuperseded()
                 val value = snapshot.value
-                val owner = pairedMacs.singleOrNull { it.code == code }
+                val owner = paneContext.mac?.takeIf { it.code == code }
+                feedSession.updateForegroundWorkspaceSource(owner)
                 val updated = snapshot.workspaces.map { workspace ->
-                    val key = owner?.let { workspaceTabKey(browserLogin, teamState.scope, it, workspace.id) }
+                    val key = owner?.let { workspaceTabKey(browserLogin, browserOwner(it), it, workspace.id) }
                     if (key != null) workspaceTabs.withDiscoveredBrowsers(key, workspace) else workspace
                 }
                 workspaces = updated
@@ -2916,9 +2923,13 @@ internal fun NativeScreen(
                         onNewTerminal = { createFromBrowser(NativeWorkspaceCreation.TERMINAL) },
                         onNewBrowser = { createFromBrowser(NativeWorkspaceCreation.BROWSER) }, menuSource = ::browserMenu, sidebarSelection = NativeSidebarSelection.Mac(browserMac, localBrowser.key.workspaceId),
                         customizeWorkspace = { baseline, submitted ->
-                            check(browserMenu()?.customizationEnabled == true && connection.allowsSaved(browserMac) &&
-                                store.visiblePairedMacs().contains(browserMac) && ownsBrowserDestination(localBrowser, localBrowsers.state.value.local)) { "Browser workspace changed." }
-                            feedCoordinator.customizeWorkspace(browserMac, localBrowser.key.workspaceId, baseline, submitted)
+                            check(browserMenu()?.customizationEnabled == true &&
+                                (connection.allowsSaved(browserMac) || feedSession.foregroundScope(browserMac, client) != null) &&
+                                NativeComputerMenuPairing.isCurrent(browserMac, store.visiblePairedMacs()) && ownsBrowserDestination(localBrowser, localBrowsers.state.value.local)) { "Browser workspace changed." }
+                            feedSession.customizeWorkspace(browserMac, localBrowser.key.workspaceId, baseline, submitted) {
+                                browserMenu()?.customizationEnabled == true &&
+                                    ownsBrowserDestination(localBrowser, localBrowsers.state.value.local)
+                            }
                         })
                 }
                 val reconnectContent: @Composable ColumnScope.() -> Unit = {
@@ -3638,7 +3649,7 @@ internal fun NativeScreen(
                                         moveStatus[owner.mac.origin]?.pending ?: 0),
                                     onOpen = { open() },
                                     onAction = { action, title ->
-                                        if (action == "customize") customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, owner.mac, workspace.id)
+                                        if (action == "customize") customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, browserOwner(owner.mac), owner.mac, workspace.id)
                                         else if (action == "changes") {
                                             try { feedSession.openChanges(owner.mac, workspace) }
                                             catch (failure: Exception) {
@@ -3690,7 +3701,7 @@ internal fun NativeScreen(
                 val showWorkspaceReconnect = !agentFeedTab && selectedCloudId == null && allCloudSnapshots.isEmpty() && ((cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
                             (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()))))
                 val customizePane: ((NativeWorkspace) -> Unit)? = workspaceSourceForPane()?.takeIf { it.canCustomizeWorkspace() }?.let { source ->
-                    { workspace -> customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, source.mac, workspace.id) }
+                    { workspace -> customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, browserOwner(source.mac), source.mac, workspace.id) }
                 }
                 val sidebarOwner = remember(browserLogin, teamState.scope) { browserLogin?.let { NativeComputerMenuOwner(it, teamState.scope) } }
                 fun sidebarCurrent() = sidebarOwner != null && account.isSignedIn() && store.taskSession() == sidebarOwner.login &&
@@ -3863,7 +3874,7 @@ internal fun NativeScreen(
                             workspaceMoves.submit(source, workspace, intent) { currentOwner() && canSend() }
                         }, customizeWorkspace = { target, baseline, submitted, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }
-                            feedCoordinator.customizeWorkspace(target.mac, target.id, baseline, submitted) { currentOwner() && canSend() }
+                            feedSession.customizeWorkspace(target.mac, target.id, baseline, submitted) { currentOwner() && canSend() }
                         }, createWorkspaceGroup = { mac, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }
                             feedSession.createGroup(mac) { currentOwner() && canSend() }

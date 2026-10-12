@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -12,6 +13,36 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class NativeWorkspaceMovesTest {
+    @Test fun foregroundProjectionAndDispatcherWorkWithoutASecondaryFeedAndRetireOnRemoval() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val coordinator = NativeFeedCoordinator(scope, connect = { error("No secondary dial expected") }, isAllowed = { true })
+        val mac = NativeCredentialStore.PairedMac("fixture-route", "fore", "Foreground Mac", "default", "user", "original-team", "fore-origin")
+        val workspaces = parseAuthoritativeWorkspaces(JSONObject("""{"workspaces":[
+            {"id":"a","title":"A","window_id":"window","terminals":[]},
+            {"id":"b","title":"B","window_id":"window","terminals":[]}]}"""))
+        val original = NativeFeedSource(mac, workspaces = workspaces, availability = NativeFeedAvailability.CONNECTED,
+            capabilities = setOf("workspace.move.v1", WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY), hasWorkspaceSnapshot = true)
+        val foreground = MutableStateFlow<NativeFeedSource?>(original)
+        var writes = 0
+        val moves = NativeWorkspaceMoves(scope, coordinator, foreground) { owner, id, intent, base, permitted ->
+            check(permitted()); assertEquals(mac, owner); assertTrue(base.matches(original.workspaces, original.groups))
+            writes++
+            foreground.value = original.copy(workspaces = NativeWorkspaceMovePolicy(original.workspaces, original.groups).applying(intent, id))
+        }
+        try {
+            awaitState { moves.sources.value[mac.origin]?.canReorderWorkspaces() == true }
+            coordinator.pause()
+            moves.submit(original, "b", NativeWorkspaceMove(null, "a")) { true }
+            awaitState { moves.status.value[mac.origin]?.pending == 0 }
+            assertEquals(1, writes); assertEquals(listOf("b", "a"), ids(moves.sources.value.getValue(mac.origin)))
+            assertNull(moves.status.value.getValue(mac.origin).error)
+            assertTrue(coordinator.sources.value.isEmpty())
+            foreground.value = null
+            awaitState { moves.sources.value.isEmpty() }
+            assertFalse(moves.enqueue(original, "a", NativeWorkspaceMove(null, "b")))
+            assertEquals(1, writes)
+        } finally { moves.clear(); coordinator.close(); scope.cancel() }
+    }
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(5) }
     private fun ids(source: NativeFeedSource) = source.workspaces.map { it.id }
 

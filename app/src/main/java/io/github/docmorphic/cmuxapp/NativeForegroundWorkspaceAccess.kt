@@ -9,16 +9,25 @@ import org.json.JSONObject
 internal class NativeForegroundWorkspaceAccess(private val scope: CoroutineScope,
     private val mac: NativeCredentialStore.PairedMac, private val client: MobileRpcClient,
     private val snapshots: NativeWorkspaceSnapshots, private val capabilities: () -> Set<String>,
-    private val permits: () -> Boolean) {
+    private val permits: () -> Boolean, private val onSnapshot: () -> Unit = {}) {
     private val mutex = Mutex()
     private fun current() = !client.isClosed && permits()
     private fun source(): NativeFeedSource {
         check(current()) { "Workspace connection changed" }
         val snapshot = snapshots.latest(mac) ?: error("Refresh this Mac's workspaces before changing them.")
         return NativeFeedSource(mac, workspaces = snapshot.workspaces, groups = parseGroups(snapshot.value),
-            capabilities = capabilities(), macMutationTicket = client.macMutationTicket(), hasWorkspaceSnapshot = true)
+            capabilities = capabilities(), macMutationTicket = client.macMutationTicket(), hasWorkspaceSnapshot = true,
+            availability = NativeFeedAvailability.CONNECTED)
     }
-    private suspend fun <T> use(canSend: () -> Boolean, operation: suspend (NativeFeedSource) -> T): T =
+    private suspend fun refresh(canSend: () -> Boolean = { true }) {
+        check(current() && canSend()) { "Workspace connection changed while refreshing" }
+        val fresh = snapshots.read(mac, client)
+        check(current() && canSend()) { "Workspace connection changed while refreshing" }
+        if (!fresh.accept()) throw NativeWorkspaceSnapshotSuperseded()
+        onSnapshot()
+    }
+    private suspend fun <T> use(canSend: () -> Boolean, verifyResult: Boolean = true,
+        operation: suspend (NativeFeedSource) -> T): T =
         withContext(scope.coroutineContext.minusKey(Job)) {
             mutex.withLock {
                 check(current() && canSend()) { "Workspace action is no longer available" }
@@ -26,7 +35,7 @@ internal class NativeForegroundWorkspaceAccess(private val scope: CoroutineScope
                     val source = source()
                     val result = snapshots.mutate(mac) { operation(source) }
                     ensureActive()
-                    check(current() && canSend()) { "Workspace connection changed while saving" }
+                    check(current() && (!verifyResult || canSend())) { "Workspace connection changed while saving" }
                     result
                 } catch (failure: Exception) {
                     if (nativeSetupRequiresReauth(failure) && !client.isClosed) client.retireForOwnerFailure(failure)
@@ -35,9 +44,7 @@ internal class NativeForegroundWorkspaceAccess(private val scope: CoroutineScope
                     // Reconcile even after a no-op or uncertain outcome, without repeating the write.
                     if (currentCoroutineContext().isActive && current()) {
                         try {
-                            val fresh = snapshots.read(mac, client)
-                            check(current()) { "Workspace connection changed while refreshing" }
-                            fresh.accept()
+                            refresh()
                         } catch (failure: Exception) {
                             currentCoroutineContext().ensureActive()
                             if (nativeSetupRequiresReauth(failure) && !client.isClosed) client.retireForOwnerFailure(failure)
@@ -45,7 +52,7 @@ internal class NativeForegroundWorkspaceAccess(private val scope: CoroutineScope
                     }
                 }
                 ensureActive()
-                check(current() && canSend()) { "Workspace connection changed while refreshing" }
+                check(current() && (!verifyResult || canSend())) { "Workspace connection changed while refreshing" }
                 result
             }
         }
@@ -106,4 +113,55 @@ internal class NativeForegroundWorkspaceAccess(private val scope: CoroutineScope
         }
         client.request("workspace.create", params, timeoutMillis = 30_000)
     }
+
+    suspend fun moveWorkspace(workspaceId: String, intent: NativeWorkspaceMove, base: NativeWorkspaceOrder,
+        canSend: () -> Boolean): JSONObject = use(canSend, verifyResult = false) { source ->
+        // The authoritative refresh can consume this queue's prediction before the acknowledgement
+        // is returned. Only admission to the write depends on that pending queue entry.
+        check(source.canReorderWorkspaces() && base.matches(source.workspaces, source.groups)) {
+            "Workspace order changed. Try moving it again."
+        }
+        val workspace = source.workspaces.singleOrNull { it.id == workspaceId } ?: error("This workspace is no longer available.")
+        check(intent.beforeWorkspaceId == null || source.workspaces.any { it.id == intent.beforeWorkspaceId && it.windowId == workspace.windowId }) {
+            "The destination workspace is no longer available in this window."
+        }
+        check(intent.groupId == null || source.groups.any { it.id == intent.groupId }) { "This group is no longer available." }
+        check(!intent.movesGroup || source.groups.any { it.liveAnchorWorkspaceId == workspaceId }) { "This group anchor changed." }
+        check(base.groupAnchors == null || base.groupAnchors == source.groups.associate { it.id to it.liveAnchorWorkspaceId }) {
+            "Workspace group anchors changed. Try moving it again."
+        }
+        client.moveWorkspace(workspaceId, workspace.windowId, intent.groupId, intent.beforeWorkspaceId, intent.movesGroup)
+    }
+
+    suspend fun customizeWorkspace(workspaceId: String, baseline: WorkspaceCustomizationDraft,
+        submitted: WorkspaceCustomizationDraft, canSend: () -> Boolean): WorkspaceCustomizationResult =
+        withContext(scope.coroutineContext.minusKey(Job)) {
+            mutex.withLock {
+                fun owner() {
+                    check(current() && canSend()) { "Workspace editor is no longer active." }
+                    check(WORKSPACE_METADATA_CAPABILITY in capabilities() && "workspace.actions.v1" in capabilities()) {
+                        "Update cmux on this Mac to customize workspaces."
+                    }
+                }
+                fun workspace() = source().workspaces.singleOrNull { it.id == workspaceId }
+                    ?: error("This workspace is no longer available. Reopen the workspace list and try again.")
+                owner()
+                saveWorkspaceCustomization(baseline, submitted, read = {
+                    owner()
+                    try { refresh(canSend) } catch (failure: Exception) {
+                        if (nativeSetupRequiresReauth(failure) && !client.isClosed) client.retireForOwnerFailure(failure)
+                        throw failure
+                    }
+                    owner(); WorkspaceCustomizationDraft.from(workspace())
+                }, write = { field, draft ->
+                    owner(); val latest = workspace()
+                    try { snapshots.mutate(mac) { client.customizeWorkspace(latest, field, draft) } }
+                    catch (failure: Exception) {
+                        if (nativeSetupRequiresReauth(failure) && !client.isClosed) client.retireForOwnerFailure(failure)
+                        throw failure
+                    }
+                    owner()
+                })
+            }
+        }
 }
