@@ -6,6 +6,37 @@ import org.junit.Test
 class NativeMacAppearanceTest {
     private val mac = NativeMacIdentity("mac", "default")
 
+    @Test fun admittedAppearanceKeepsItsOwnTeamWithoutOverwritingSameDevicePickerRows() {
+        val team = NativeTeamScope("login", "user", "a", 1)
+        val foreground = NativeCredentialStore.PairedMac("shared", "ABCDEFAB-0123-4567-89AB-0123456789AB", "Original A", "default", "user", "a", "origin-a")
+        val picker = foreground.copy(name = "Original B", accountTeamId = "b", stableOrigin = "origin-b")
+        val selected = NativeMacAppearances(mapOf(NativeMacIdentity("abcdefab-0123-4567-89ab-0123456789ab", "default") to NativeMacAppearance("Picker B", "palette:2", "server.rack")))
+        val original = NativeMacAppearances(mapOf(NativeMacIdentity("abcdefab-0123-4567-89ab-0123456789ab", "default") to NativeMacAppearance("Foreground A", "palette:5", "terminal")))
+        val merged = selected.withForeground(team, foreground, original)
+        assertEquals("Foreground A", merged.name(foreground)); assertEquals("palette:5", merged.get(foreground).color)
+        assertEquals("terminal", merged.get(foreground).icon)
+        assertEquals("Picker B", merged.name(picker)); assertEquals("palette:2", merged.get(picker).color)
+        assertEquals("Picker B", merged.get("abcdefab-0123-4567-89ab-0123456789ab", "default").name)
+        assertEquals(selected.values, merged.values)
+    }
+    @Test fun unreadableForegroundAppearanceUsesItsHostNameWithoutBorrowingAnotherTeamsAlias() {
+        val team = NativeTeamScope("login", "user", "a", 1)
+        val foreground = NativeCredentialStore.PairedMac("route", "mac", "Original A", "default", "user", "a")
+        val selected = NativeMacAppearances(mapOf(mac to NativeMacAppearance(name = "Picker B")))
+        val merged = selected.withForeground(team, foreground, NativeMacAppearances(error = true))
+        assertEquals("Original A", merged.name(foreground)); assertNull(merged.get(foreground).color)
+        assertFalse(merged.error); assertEquals("Picker B", merged.get("mac", "default").name)
+    }
+    @Test fun missingOrMismatchedOwnerCannotOverlayForegroundAppearance() {
+        val team = NativeTeamScope("login", "user", "a", 1)
+        val row = NativeCredentialStore.PairedMac("route", "mac", "Original", "default", "user", "a")
+        val selected = NativeMacAppearances(mapOf(mac to NativeMacAppearance(name = "Selected")))
+        val original = NativeMacAppearances(mapOf(mac to NativeMacAppearance(name = "Original override")))
+        for ((owner, record) in listOf(null to row, team to null, team.copy(userId = "other") to row,
+            team.copy(teamId = "other") to row, team to row.copy(accountUserId = null)))
+            assertSame(selected, selected.withForeground(owner, record, original))
+    }
+
     @Test fun independentFieldEditsPersistAndBlankNameRestoresHostName() {
         var disk: String? = null
         val store = NativeMacAppearanceStore({ disk }, { disk = it })

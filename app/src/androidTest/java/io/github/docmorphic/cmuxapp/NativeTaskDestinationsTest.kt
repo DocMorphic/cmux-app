@@ -43,8 +43,9 @@ class NativeTaskDestinationsTest {
         TaskDraftRepository.clearMemory()
         repository = TaskDraftRepository.get(context, store.taskSession()!!)
         peer = NativeFixturePeer()
+        peer.taskGroupsSupported = true
         client = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
-        runBlocking { client.connect() }
+        runBlocking { client.connect(); client.hostStatus() }
     }
     @After fun cleanup() { compose.activity.finish(); if (::client.isInitialized) client.close(); if (::peer.isInitialized) peer.close(); TaskDraftRepository.clearMemory(); NativeCredentialStore(context).clear() }
     private fun show(directory: String = "/root") {

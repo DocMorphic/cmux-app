@@ -1,5 +1,31 @@
 # Codex laptop handoff — 2026-09-28
 
+## Foreground appearance and task choices — 2026-10-12
+
+The admitted pane now reads name, color and icon from its original user/team.
+An owner-qualified appearance overlay preserves same-device picker rows in the
+selected team. Failed foreground reads fall back to that Mac's host name; appearance
+metadata grants no connection authority. Task draft restoration, Mac choices and
+model-cache retention use the admitted pane's available Macs. Routed sidebar actions
+use the existing exact-record pane admission guard, and workspace shell ownership
+follows the pane team.
+
+**70 focused JVM cases pass**, debug/test APKs build, and five changed classes pass
+Android 17 ART reflection. **Three runtime cases pass in 24.232s**: real appearance
+editing/reopening, paginated folder selection with exact path/name/group, and task
+model/effort submission. The folder fixture initially skipped host capability
+negotiation; it now requests host status and advertises group support before
+creation. Product mutation admission checks remain intact. An appearance fixture
+was also corrected to use UUID case normalization rather than arbitrary identifiers.
+Initial failures, XML, source/APK hashes and final logs are preserved under ignored
+`captures/runtime/foreground-appearance-task-*`.
+
+The sole existing 16 KB AVD was stopped/reaped; no physical device was touched.
+These are fixture checks, not actual Mac/Iroh/Pixel or full cross-team UI acceptance.
+Settings, push controls and remaining selected-scope presentation still need review
+before retention is enabled. **Team selection still disconnects the app.** Signed
+654 predates this source; full parity and Mermaid pixel acceptance remain unverified.
+
 ## Foreground Changes access and reconnect — 2026-10-12
 
 Changes file lists, diffs, stat and fetch requests now prefer the exact admitted

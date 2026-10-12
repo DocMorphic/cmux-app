@@ -193,7 +193,7 @@ internal fun NativeScreen(
         cachedComputers?.owner?.let { NativeMacAppearanceStore.display(context, it) }
     }
     val liveAppearances = nativeMacAppearances(teamState.scope)
-    val appearances = cachedAppearanceState?.collectAsState()?.value ?: liveAppearances
+    val selectedAppearances = cachedAppearanceState?.collectAsState()?.value ?: liveAppearances
     val scopedPresence = presenceState.takeIf { it.owner != null && it.owner == teamState.scope && accountTeams.isCurrent(it.owner) }
         ?: NativeMacPresenceState()
     val lastSeenHistory = remember(store, historyRevision) { runCatching { NativeMacLastSeen.values(store.load()) }.getOrDefault(emptyMap()) }
@@ -248,6 +248,9 @@ internal fun NativeScreen(
             pairedMacs, store.visiblePairedMacs(), code, client, feedSession::foregroundScope)
         val paneMacs = paneContext.macs
         val paneTeam = paneContext.team
+        val foregroundAppearanceTeam = paneTeam?.takeIf { paneContext.foreground }
+        val foregroundAppearances = nativeMacAppearances(foregroundAppearanceTeam)
+        val appearances = selectedAppearances.withForeground(foregroundAppearanceTeam, paneContext.mac, foregroundAppearances)
         val browserContinuation = if (paneContext.foreground && paneContext.mac != null && paneTeam != null)
             NativeBrowserContinuation(paneContext.mac, paneTeam) else null
         val computerPreferenceStore = remember(context, teamState.scope) {
@@ -762,13 +765,13 @@ internal fun NativeScreen(
         }, finished = { savedPairedMacs = store.pairedMacs() })
         fun newTaskDraft() {
             taskDraftRepository?.templates?.state?.value?.lastOrigin?.let { origin ->
-                pairedMacs.firstOrNull { it.ownsOrigin(origin) }?.let(::selectComputer)
+                paneMacs.firstOrNull { it.ownsOrigin(origin) }?.let(::selectComputer)
             }
             taskDraftId = java.util.UUID.randomUUID().toString()
             showTaskComposer = true
         }
-        LaunchedEffect(pairedMacs, selectedComputerOrigin, sshTargets, sshSession) {
-            feedSession.taskModels.retainOrigins(pairedMacs.flatMap { it.origins }.toSet())
+        LaunchedEffect(paneMacs, selectedComputerOrigin, sshTargets, sshSession) {
+            feedSession.taskModels.retainOrigins(paneMacs.flatMap { it.origins }.toSet())
             if (selectedComputerOrigin.isNotBlank() && selectedComputer == null && selectedSshComputer == null && selectedCloudId == null &&
                 (!selectedComputerOrigin.startsWith("ssh:") || sshSession != null)) selectComputer(null)
         }
@@ -2851,8 +2854,8 @@ internal fun NativeScreen(
                 val taskComposerContent: @Composable ColumnScope.() -> Unit = {
                     val repository = taskDraftRepository
                     val restored = taskDraftEntries[taskDraftId]
-                    val restoredMac = restored?.let { draft -> pairedMacs.firstOrNull { it.ownsOrigin(draft.origin) } }
-                    LaunchedEffect(restored?.origin, pairedMacs) {
+                    val restoredMac = restored?.let { draft -> paneMacs.firstOrNull { it.ownsOrigin(draft.origin) } }
+                    LaunchedEffect(restored?.origin, paneMacs) {
                         if (restoredMac != null && code != restoredMac.code) selectComputer(restoredMac)
                     }
                     val taskMac = paneContext.mac
@@ -2904,26 +2907,26 @@ internal fun NativeScreen(
                         resolvedMacOrigin = taskMac?.origin.takeIf { selectedTaskMac == null && taskOrigin == pairingOrigin(code) },
                         savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
                         attachmentRepository = repository, supportsAttachments = taskMac?.ownsOrigin(taskOrigin) == true && ComposerAttachment.FILE_CAPABILITY in hostCapabilities,
-                        macs = pairedMacs, workspaceGroups = if (taskMac?.ownsOrigin(taskOrigin) == true) groups else emptyList(),
+                        macs = paneMacs, workspaceGroups = if (taskMac?.ownsOrigin(taskOrigin) == true) groups else emptyList(),
                         supportsGroups = if (taskConnected) currentMacMutationAllowed && "workspace.create_in_group.v1" in hostCapabilities else null,
                         groupsLoaded = taskConnected && taskGroupsLoaded,
                         groupIsCurrent = { group -> group == null || (currentMacMutationAllowed && connectionReady && connectedCode == taskCode && code == taskCode && "workspace.create_in_group.v1" in hostCapabilities &&
                             taskGroupsLoaded && groups.count { it.id == group } == 1) },
                         directoryWorkspaces = taskWorkspaces, selectedWorkspaceId = selectedWorkspace?.id,
                         selectMac = { editor, nextOrigin ->
-                            val target = requireNotNull(pairedMacs.singleOrNull { it.ownsOrigin(nextOrigin) }) { "This Mac is no longer paired" }
+                            val target = requireNotNull(paneMacs.singleOrNull { it.ownsOrigin(nextOrigin) }) { "This Mac is no longer paired" }
                             val snapshot = workspaceSources.firstOrNull { it.mac.origin == nextOrigin && it.availability == NativeFeedAvailability.CONNECTED }
                             val currentDraft = checkNotNull(repository.drafts.state.value[editor.id])
                             val openDirectory = snapshot?.let { preferredTaskDirectories(it.workspaces, null).firstOrNull() }
                             repository.selectMac(editor, nextOrigin, target.name, openDirectory,
                                 adoptingIdentity = selectedTaskMac == null && currentDraft.origin == pairingOrigin(code))
-                            check(signedIn && taskDraftRepository === repository && pairedMacs.any { it.ownsOrigin(nextOrigin) }) { "Task account or Mac changed" }
+                            check(signedIn && taskDraftRepository === repository && paneMacs.any { it.ownsOrigin(nextOrigin) }) { "Task account or Mac changed" }
                             selectComputer(target)
                         },
                         persistDrafts = repository::persistNow, flushDrafts = repository::flush,
                         onResumeDraft = { draft ->
                             taskDraftId = draft.id
-                            pairedMacs.firstOrNull { it.ownsOrigin(draft.origin) }?.let(::selectComputer)
+                            paneMacs.firstOrNull { it.ownsOrigin(draft.origin) }?.let(::selectComputer)
                         }, onNewDraft = { newTaskDraft() },
                         supportsTaskCreation = if (taskConnected) currentMacMutationAllowed && "workspace.task_create.v1" in hostCapabilities else null,
                         refreshWorkspaces = {
@@ -3794,7 +3797,8 @@ internal fun NativeScreen(
                             SshConnectionPhase.CONNECTING -> NativeFeedAvailability.CONNECTING
                             else -> NativeFeedAvailability.OFFLINE
                         } }
-                        val display = cachedAppearanceState?.value ?: appearances
+                        val display = (cachedAppearanceState?.value ?: selectedAppearances)
+                            .withForeground(foregroundAppearanceTeam, paneContext.mac, foregroundAppearances)
                         NativeSidebarInput(sources, rows, macs.mapNotNull { mac -> workspaceMacFilterId(mac.deviceId, mac.instanceTag)?.let {
                             NativeSortComputer(it, display.name(mac), paneConnected(mac), scopedPresence.buildLabel(mac))
                         } } + hosts.map { NativeSortComputer(workspaceSshFilterId(it.id), it.name) } +
@@ -3849,7 +3853,7 @@ internal fun NativeScreen(
                         }
                         is NativeSidebarTarget.CreateWorkspace -> {
                             check(!creatingWorkspace && !creatingTerminal && !sshCreationBusy) { "Workspace creation is in progress" }
-                            check(store.visiblePairedMacs().contains(target.mac) && connection.allowsSaved(target.mac)) { "Saved computer changed" }
+                            check(allowsPaneMac(target.mac)) { "Saved computer changed" }
                             finishSearch(); createWorkspaceOnMac(target.mac, target.groupId)
                         }
                         is NativeSidebarTarget.CreateSsh -> {
@@ -3869,7 +3873,7 @@ internal fun NativeScreen(
                         }
                         is NativeSidebarTarget.Workspace -> {
                             cloudModel?.leaveWorkspace()
-                            check(store.visiblePairedMacs().contains(target.mac) && connection.allowsSaved(target.mac))
+                            check(allowsPaneMac(target.mac))
                             sshNavigation.leave(); screenResume.cancel(); inAppNotification = null
                             workspaceRoute = NativeWorkspaceRoute(target.mac.origin, target.id)
                         }
@@ -3886,7 +3890,7 @@ internal fun NativeScreen(
                         }
                         is NativeSidebarTarget.Agent -> {
                             val entry = target.entry
-                            check(store.visiblePairedMacs().contains(entry.source.mac) && connection.allowsSaved(entry.source.mac))
+                            check(allowsPaneMac(entry.source.mac))
                             cloudModel?.leaveWorkspace(); sshNavigation.leave(); screenResume.cancel(); inAppNotification = null
                             agentFeedTab = true; notificationTab = false; cloudTab = false
                             workspaceRoute = NativeWorkspaceRoute(entry.source.mac.origin, checkNotNull(entry.item.workspaceId),
@@ -3895,7 +3899,7 @@ internal fun NativeScreen(
                         is NativeSidebarTarget.Notification -> {
                             cloudModel?.leaveWorkspace()
                             val entry = target.entry
-                            check(store.visiblePairedMacs().contains(entry.source.mac) && connection.allowsSaved(entry.source.mac))
+                            check(allowsPaneMac(entry.source.mac))
                             sshNavigation.leave(); screenResume.cancel(); workspaceRoute = null
                             inAppNotification = NotificationDestination(java.util.UUID.randomUUID().toString(), entry.source.mac.origin,
                                 entry.notification.id, entry.notification.workspaceId, entry.notification.surfaceId, entry.notification.retargetsToLiveSurfaceOwner)
@@ -3996,7 +4000,7 @@ internal fun NativeScreen(
                         showSettings && computersOwner != null -> computersContent()
                         showSettings -> settingsContent()
                         showTaskComposer -> taskComposerContent()
-                        else -> NativeWorkspaceShell(owner = browserLogin to teamState.scope,
+                        else -> NativeWorkspaceShell(owner = browserLogin to paneTeam,
                             hasDetail = cloudRoute != null || sshRoute != null || screenResume.pending != null || localBrowser != null ||
                                 selectedWorkspace != null || selectedTerminal != null || selectedBrowser != null ||
                                 selectedChangesWorkspace != null || (showWorkspaceReconnect && !cloudTab),

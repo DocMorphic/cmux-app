@@ -42,13 +42,29 @@ internal data class NativeMacAppearance(val name: String? = null, val color: Str
     }
 }
 
+internal data class NativeMacAppearanceOwner(val user: String, val team: String, val identity: NativeMacIdentity) {
+    companion object {
+        fun from(mac: NativeCredentialStore.PairedMac): NativeMacAppearanceOwner? {
+            val user = mac.accountUserId?.takeIf(String::isNotBlank) ?: return null
+            val team = mac.accountTeamId?.takeIf(String::isNotBlank) ?: return null
+            return NativeMacAppearanceOwner(user, team, NativeMacIdentity(canonicalMacDeviceId(mac.deviceId), mac.instanceTag))
+        }
+    }
+}
 internal data class NativeMacAppearances(val values: Map<NativeMacIdentity, NativeMacAppearance> = emptyMap(),
-    val error: Boolean = false) {
+    val error: Boolean = false, val ownedValues: Map<NativeMacAppearanceOwner, NativeMacAppearance> = emptyMap()) {
     fun get(deviceId: String, buildTag: String?) = values[NativeMacIdentity(deviceId, buildTag)] ?: values.entries.singleOrNull {
         canonicalMacDeviceId(it.key.deviceId) == canonicalMacDeviceId(deviceId) && it.key.buildTag == buildTag
     }?.value ?: NativeMacAppearance()
-    fun get(mac: NativeCredentialStore.PairedMac) = get(mac.deviceId, mac.instanceTag)
+    fun get(mac: NativeCredentialStore.PairedMac) = NativeMacAppearanceOwner.from(mac)?.let(ownedValues::get)
+        ?: get(mac.deviceId, mac.instanceTag)
     fun name(mac: NativeCredentialStore.PairedMac) = get(mac).displayName(mac.name)
+    /** Display only. The caller supplies a live admitted pane context; no permissions come from appearance. */
+    fun withForeground(team: NativeTeamScope?, mac: NativeCredentialStore.PairedMac?, foreground: NativeMacAppearances): NativeMacAppearances {
+        if (team == null || mac == null || mac.accountUserId != team.userId || mac.accountTeamId != team.teamId) return this
+        val owner = NativeMacAppearanceOwner.from(mac) ?: return this
+        return copy(ownedValues = ownedValues + (owner to if (foreground.error) NativeMacAppearance() else foreground.get(mac)))
+    }
 }
 
 /** Appearance never modifies PairedMac, pairing origins, discovery records, or RPC destinations. */
