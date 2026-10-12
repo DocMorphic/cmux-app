@@ -1,5 +1,49 @@
 # Team switching and the active Mac session
 
+## Foreground Mac forwarding settings — 2026-10-12
+
+Mac forwarding controls now use the admitted pane's original team and appearance
+name. Read and write guards require the exact current handle, admitted saved Mac
+record, login/user/team, both code bindings, readiness and live selected or retained
+foreground authority. A same-locator selected-team sibling cannot borrow the old
+handle after its proof disappears. Route/ticket/record changes, removal, ambiguity,
+logout, replacement and disconnect deny settings traffic. Controls disappear when
+the guard becomes false; cached settings never grant permission.
+
+**37 focused JVM cases pass**, including four new identity/authority cases. The
+existing authenticated RPC test now exercises the actual foreground guard with the
+picker scope unavailable; revoking its proof during token lookup sends no mutation
+bytes. Debug/test APKs build and four classes pass Android 17 ART reflection.
+**Two runtime cases pass in 4.847s**: real Mac settings RPC/UI preserves the original
+owner and alias across an injected picker change, changes a setting once, and removes
+controls after proof loss; the confirmed/stale controls case also passes.
+
+Evidence/XML/source and APK hashes are ignored under
+`captures/runtime/foreground-mac-settings-*`. The sole existing 16 KB AVD was
+stopped/reaped. No physical device was touched. The picker change is a component
+fixture, not actual account team selection or full Mac/Iroh/Pixel acceptance.
+Signed 654 predates this source; FCM delivery and full parity remain unverified.
+
+Targeted source review found remaining work before removing Settings teardown:
+
+- `NativeScreen.settingsContent`: connection rows/current-detail guards use the
+  selected team, and local pairing removal captures the selected owner for the
+  active code. Retained foreground controls need their own owner-qualified route.
+- `NativeComputerDetailsPresentationHost`: `state.account != team` dismisses the
+  details view. The original foreground's details need valid per-owner state;
+  do not relax the runtime's selected-team authority for new connections.
+- `ObservePhoneReplyDirect`: the direct reply provider still requires the selected
+  team and selected paired-Mac list. Retained foreground replies need exact owner,
+  record, workspace/surface and reply authority before/after delivery.
+- `machineColorIndices`/`scopedPresence`: verify foreground display metadata when
+  the original Mac is absent from the selected directory, including same-device
+  rows. Root sort-computer status still compares code rather than `paneConnected`.
+- Explicit Settings selection/creation and the Iroh eligibility effect still close
+  the root. Keep those until remaining integration and actual team-switch UI
+  acceptance are proven. **Team selection still disconnects the app.**
+
+These findings are a targeted audit, not a claim that all scope sites are complete.
+
 ## Foreground appearance and task choices — 2026-10-12
 
 The admitted pane now reads name, color and icon from its original user/team.

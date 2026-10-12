@@ -33,12 +33,16 @@ class PhoneMacPushRpcTest {
             }.apply { start() }
             val client = MobileRpcClient(PairingCode.Route("127.0.0.1", server.localPort), { "fixture-token" },
                 MobileAttachTicketContext("workspace", "surface", "fixture-ticket", null))
+            val owner = NativeTeamScope("login", "user", "original", 1)
+            val mac = NativeCredentialStore.PairedMac("route", "device", "Original", "default", "user", "original")
+            fun admitted() = nativeForegroundMacSettingsCurrent("login", owner, mac, client, client, mac, true,
+                mac.code, mac.code, listOf(mac), { false }, { false }, { _, _ -> owner })
             try {
                 client.connect()
-                client.phonePushHostStatus { true }
-                client.changePhonePushSettings(PhoneMacPushChange.Enabled(false)) { true }
-                client.changePhonePushSettings(PhoneMacPushChange.Mode(PhoneMacPushMode.ALWAYS)) { true }
-                client.changePhonePushSettings(PhoneMacPushChange.HideContent(true)) { true }
+                client.phonePushHostStatus(::admitted)
+                client.changePhonePushSettings(PhoneMacPushChange.Enabled(false), ::admitted)
+                client.changePhonePushSettings(PhoneMacPushChange.Mode(PhoneMacPushMode.ALWAYS), ::admitted)
+                client.changePhonePushSettings(PhoneMacPushChange.HideContent(true), ::admitted)
             } finally { finish.countDown(); client.close(); peer.join(6000) }
             failure.get()?.let { throw AssertionError(it) }; assertFalse(peer.isAlive)
             assertEquals(listOf("mobile.host.status") + List(3) { "phone_push.settings.update" }, observed.map { it.getString("method") })
@@ -65,9 +69,13 @@ class PhoneMacPushRpcTest {
             var current = true
             val lookup = CompletableDeferred<Unit>(); val token = CompletableDeferred<String>()
             val client = MobileRpcClient(PairingCode.Route("127.0.0.1", server.localPort), { lookup.complete(Unit); token.await() })
+            val owner = NativeTeamScope("login", "user", "original", 1)
+            val mac = NativeCredentialStore.PairedMac("route", "device", "Original", "default", "user", "original")
+            fun admitted() = nativeForegroundMacSettingsCurrent("login", owner, mac, client, client, mac, true,
+                mac.code, mac.code, listOf(mac), { false }, { false }, { _, _ -> owner.takeIf { current } })
             try {
                 client.connect()
-                val result = async { runCatching { client.changePhonePushSettings(PhoneMacPushChange.Enabled(false)) { current } } }
+                val result = async { runCatching { client.changePhonePushSettings(PhoneMacPushChange.Enabled(false), ::admitted) } }
                 lookup.await(); current = false; token.complete("fixture-token")
                 assertTrue(result.await().isFailure)
             } finally { client.close(); peer.join(4000) }

@@ -2811,12 +2811,13 @@ internal fun NativeScreen(
                     PhonePushSettings(teamState.scope, accountTeams::isCurrent,
                         onEnableBackground = { enableNotifications(false) }, onConnect = ::presentComputers)
                     PhoneMacPushSettings(client.takeIf { connectionReady && connectedCode == code },
-                        notificationSyncMac, teamState.scope,
+                        notificationSyncMac, paneTeam,
                         isCurrent = { active, mac, owner ->
-                            signedIn && accountTeams.isCurrent(owner) && client === active && connectionReady &&
-                                code == mac.code && connectedCode == mac.code && store.taskSession() == owner.login &&
-                                store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
-                        }, onConnect = ::presentComputers)
+                            signedIn && nativeForegroundMacSettingsCurrent(store.taskSession(), owner, mac,
+                                active, client, connectionState.admittedMac, connectionReady, code, connectedCode, store.visiblePairedMacs(),
+                                accountTeams::isCurrent, connection::allowsSaved, feedSession::foregroundScope)
+                        }, onConnect = ::presentComputers,
+                        displayName = notificationSyncMac?.let(appearances::name).orEmpty())
                     NativeNotificationSettings()
                     }, preferences = {
                     NativeTerminalPreferenceSettings(artifactPreferences, displayState)

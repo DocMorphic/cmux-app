@@ -3159,6 +3159,8 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var rejectedMethods: Set<String> = emptySet()
     @Volatile var rejectedMethodCode = "surface_unavailable"
     @Volatile var accountMutationsSupported = true
+    @Volatile var phonePushStatus: JSONObject? = null
+    @Volatile var phonePushUpdate: ((JSONObject) -> JSONObject)? = null
     @Volatile var groupActionsSupported = false
     @Volatile var workspaceMetadataSupported = false
     @Volatile var workspaceChangesSupported = false
@@ -3368,6 +3370,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (groupActionsSupported) it.put("workspace.group_actions.v1")
                 if (accountMutationsSupported) it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)
+                if (phonePushStatus != null) it.put("phone_push.settings.v1")
                 it.put("workspace.actions.v1").put("workspace.read_state.v1").put("workspace.close.v1")
                 if (workspaceMetadataSupported) it.put(WORKSPACE_METADATA_CAPABILITY)
                 if (workspaceChangesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)
@@ -3378,7 +3381,8 @@ internal class NativeFixturePeer : AutoCloseable {
                 if (artifactsSupported) it.put("terminal.artifact.v1").put("chat.artifact.gallery.v1").put("terminal.artifact.list.v1")
                 if (rawTerminal) it.put("terminal.bytes.v1")
                 else { it.put("terminal.render_grid.v1"); if (screenAnchor) it.put("terminal.render_grid.screen_anchor.v1") }
-            })
+            }).also { host -> phonePushStatus?.let { host.put("phone_push", JSONObject(it.toString())) } }
+        "phone_push.settings.update" -> phonePushUpdate?.invoke(params) ?: JSONObject()
         "mobile.workspace.list" -> (customWorkspaceListing?.let { JSONObject(it.toString()) } ?: JSONObject("""{
             "groups":[{"id":"complete","name":"Completed group","is_collapsed":false,"anchor_workspace_id":"workspace-2"}],
             "workspaces":[

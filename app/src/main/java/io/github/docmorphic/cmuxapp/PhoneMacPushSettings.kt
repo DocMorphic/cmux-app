@@ -17,7 +17,8 @@ import java.util.UUID
 
 @Composable
 internal fun PhoneMacPushSettings(client: MobileRpcClient?, mac: NativeCredentialStore.PairedMac?, team: NativeTeamScope?,
-    isCurrent: (MobileRpcClient, NativeCredentialStore.PairedMac, NativeTeamScope) -> Boolean, onConnect: () -> Unit) {
+    isCurrent: (MobileRpcClient, NativeCredentialStore.PairedMac, NativeTeamScope) -> Boolean, onConnect: () -> Unit,
+    displayName: String = mac?.name.orEmpty()) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val current by rememberUpdatedState(isCurrent)
     key(client, mac, team) {
@@ -61,7 +62,8 @@ internal fun PhoneMacPushSettings(client: MobileRpcClient?, mac: NativeCredentia
                     }
                 }
             }
-            PhoneMacPushSettingsContent(mac.name, model, onChange = { change -> scope.launch { controller.change(change) } },
+            val visibleModel = if (admitted()) model else PhoneMacPushState(loading = false)
+            PhoneMacPushSettingsContent(displayName, visibleModel, onChange = { change -> scope.launch { controller.change(change) } },
                 onRefresh = { scope.launch { controller.refresh() } })
         }
     }
