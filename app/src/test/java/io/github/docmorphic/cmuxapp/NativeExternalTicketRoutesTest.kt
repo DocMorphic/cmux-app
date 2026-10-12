@@ -124,4 +124,50 @@ class NativeExternalTicketRoutesTest {
         f.directory = f.directory.copy(computers = emptyList())
         assertTrue(runCatching { native.requireCurrent() }.isFailure)
     }
+
+    @Test fun nativeContinuationKeepsCapturedIntentWhileNewSelectedDirectoryCannotAdmitIt() {
+        val f = Fixture()
+        val admission = f.routes.choices(ticket(true)).values.single()
+        admission.requireCurrent()
+        f.current = false
+        f.directory = NativeComputersState(owner.copy(teamId = "other", generation = 2), ready = true)
+        assertTrue(runCatching { admission.requireCurrent() }.isFailure)
+        admission.requireContinuation()
+        f.method(NativeMacConnectionMethod.DIRECT); f.method(NativeMacConnectionMethod.IROH)
+        assertTrue(runCatching { admission.requireContinuation() }.isFailure)
+    }
+
+    @Test fun coldNativeContinuationCannotResolveItselfFromANewDirectory() {
+        val f = Fixture(); val ready = f.directory
+        f.directory = NativeComputersState(owner, loading = true)
+        val admission = f.routes.choices(ticket(true)).values.single()
+        assertTrue(runCatching { admission.requireContinuation() }.isFailure)
+        f.directory = ready
+        assertTrue(runCatching { admission.requireContinuation() }.isFailure)
+        admission.requireCurrent(); admission.requireContinuation()
+        f.current = false; f.directory = NativeComputersState(owner, loading = true)
+        admission.requireContinuation()
+    }
+
+    @Test fun tailscaleContinuationStillNeedsOriginalGrantAndCapturedRoutingEpoch() {
+        for (replaceGrant in listOf(true, false)) {
+            val f = Fixture(); f.grant()
+            val admission = f.routes.choices(ticket()).values.single()
+            admission.requireCurrent(); f.current = false
+            assertTrue(runCatching { admission.requireCurrent() }.isFailure)
+            admission.requireContinuation()
+            if (replaceGrant) f.grant() else {
+                f.method(NativeMacConnectionMethod.TAILSCALE); f.method(NativeMacConnectionMethod.IROH)
+            }
+            assertTrue(runCatching { admission.requireContinuation() }.isFailure)
+        }
+    }
+
+    @Test fun unspecifiedContinuationPreservesTheExistingStrictAdmissionCheck() {
+        var current = true
+        val admission = NativeTicketConnectionAdmission { current }
+        admission.requireContinuation(); current = false
+        assertTrue(runCatching { admission.requireCurrent() }.isFailure)
+        assertTrue(runCatching { admission.requireContinuation() }.isFailure)
+    }
 }

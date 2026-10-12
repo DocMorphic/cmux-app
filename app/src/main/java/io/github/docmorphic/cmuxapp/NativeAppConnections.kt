@@ -80,9 +80,9 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
                 check(teams.isCurrent(owner)) { "Account or team changed" }
                 ticket.requireHost(client.hostStatus())
                 admission?.requireCurrent()
-                return client.withAttachTicket(ticket.context()) {
-                    check(teams.isCurrent(owner)) { "Account or team changed" }
-                    admission?.requireCurrent()
+                return attachAdmittedTicket(client, ticket.context(), { teams.isCurrent(owner) },
+                    { handle -> native.retainsForeground(owner, handle) }) {
+                    admission?.requireContinuation()
                 }
             } catch (failure: Throwable) { client.close(); throw failure }
         }

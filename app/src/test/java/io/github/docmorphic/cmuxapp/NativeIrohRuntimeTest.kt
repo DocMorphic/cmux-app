@@ -100,6 +100,32 @@ class NativeIrohRuntimeTest {
         }
     }
 
+    @Test fun initialTicketViewUsesActualForegroundRuntimeOwnershipAcrossSelectionAndReturn() = runBlocking<Unit> {
+        continuation {
+            val base = connect(); val wire = backend().transports.single()
+            var authorizedRoute = true
+            val client = attachAdmittedTicket(base, MobileAttachTicketContext("", null, "fixture-ticket", null),
+                { account.isCurrent(initial) }, { runtime.retainsForeground(initial, it) }) { check(authorizedRoute) }
+            clients += client
+            val hold = reserve(client); hold.activate { true }
+            select("team-b")
+            coroutineScope {
+                val rpc = async { client.workspaces() }
+                val request = withTimeout(2000) { wire.sent.receive() }
+                assertEquals("fixture-ticket", request.getJSONObject("auth").getString("attach_token"))
+                wire.answer(request); withTimeout(2000) { rpc.await() }
+            }
+            select(initial.teamId); foregroundRpc(client, wire)
+            assertEquals(1, backend().transports.size)
+            authorizedRoute = false
+            assertTrue(runCatching { client.workspaces() }.isFailure)
+            assertTrue(wire.sent.tryReceive().isFailure)
+            authorizedRoute = true; hold.close()
+            assertTrue(runCatching { client.workspaces() }.isFailure)
+            assertTrue(wire.sent.tryReceive().isFailure)
+        }
+    }
+
     @Test fun foregroundSurvivesTeamSelectionWhileSecondaryAndPendingConnectionsRetireAndReturnReusesEndpoint() = runBlocking<Unit> {
         continuation {
             val firstBackend = backend()

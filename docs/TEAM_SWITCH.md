@@ -1,5 +1,40 @@
 # Team switching and the active Mac session
 
+## Initial native ticket continuation — 2026-10-12
+
+Native `connectTicket()` now attaches the initial ticket through the same bound
+client/session guard used for saved tickets. Account, ticket-route, expected-host
+and selected-scope admission checks still run before binding. The returned ticket
+view can continue only under the runtime's activated original foreground wire.
+Failed attachment/binding closes the acquired handle; foreground ownership cannot
+admit a new ticket view while that scope is not selected.
+
+External-link admission now has separate confirmation and route-only continuation
+checks. Confirmation still requires the selected generation and matching discovery.
+Continuation preserves the captured native build/method/epoch or exact Tailscale
+grant and routing policy, rather than resolving from the newly selected team's
+list. An unresolved cold proposal cannot capture identity through continuation.
+These route-only checks grant nothing without the separately bound session and
+live runtime ownership. Unspecified continuation preserves the original strict
+check. Native wire identity, directory grants, namespace/audience and revocation
+remain enforced by its runtime. Ticket expiry/narrowing policies are unchanged.
+
+All **175 focused JVM cases pass**: 14 external-route, 15 ticket-pairing, five
+saved/common-session, 37 Iroh, 30 saved-runtime, 58 legacy-authority, eight foreground
+holder and eight RPC-ticket cases. A production-runtime fixture uses the actual
+attachment factory, retains the original ticket through verified team selection/
+return on one wire, and rejects writes after route/foreground loss. Other cases
+cover cold confirmation, method round trips, grant replacement, strict fallback
+and acquired-handle cleanup. Debug/test APKs build in 1m33s. Exact source/APK hashes,
+XML and logs are ignored under `captures/runtime/initial-ticket-continuation-*`.
+These use fixture HTTP/credentials/wires; no actual QUIC, Pixel or live ticket
+service was tested. No emulator was started. Signed 654 predates this source.
+
+The Tailscale initial/external path still invokes its strict legacy authority:
+its transport, saved-route and learned-route guards need foreground integration.
+Per-Mac panes/feeds/browser/notifications and Activity ownership still need work
+before removing Settings teardown. **The app still disconnects on team selection.**
+
 ## Saved primary-ticket continuation — 2026-10-12
 
 `connectSaved()` now binds its primary-ticket guard to the one returned client.

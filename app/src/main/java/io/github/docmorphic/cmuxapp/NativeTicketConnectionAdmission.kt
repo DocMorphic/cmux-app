@@ -3,9 +3,14 @@ package io.github.docmorphic.cmuxapp
 /** Memory-only captured authority. Neither a ticket nor an Android Intent can construct it. */
 class NativeTicketConnectionAdmission internal constructor(
     internal val savedGrant: TailscaleSavedGrant? = null,
+    private val continuation: (() -> Boolean)? = null,
     private val current: () -> Boolean
 ) {
     internal fun requireCurrent() = check(current()) { "The saved route or connection settings changed. Open the link again." }
+    /** Only the separately bound, live foreground session may use this route-only check. */
+    internal fun requireContinuation() = check((continuation ?: current)()) {
+        "The connected ticket route or connection settings changed. Reconnect to the Mac."
+    }
     override fun toString() = "TicketConnectionAdmission(redacted)"
 }
 
@@ -45,11 +50,15 @@ internal class NativeExternalTicketRoutes(
                         if (capturedTargets.size > 1) continue
                         val grant = grants.destination(owner, ticket.deviceId, route, capturedTargets.singleOrNull()) ?: continue
                         val captured = intent(grant.build)
-                        fun permits() = isCurrent() && nativeTargets() == capturedTargets && intent(grant.build) == captured &&
+                        fun routePermits() = intent(grant.build) == captured &&
                             grants.find(owner, grant.source) == grant &&
                             NativeLegacyTailscalePolicy.permits(captured.method, hasTicketNative ||
                                 NativeLegacyTailscalePolicy.hasNativeIdentity(grant, owner, saved(), grants))
-                        if (permits()) put(choice, NativeTicketConnectionAdmission(grant) { runCatching { permits() }.getOrDefault(false) })
+                        fun permits() = isCurrent() && nativeTargets() == capturedTargets && routePermits()
+                        if (permits()) put(choice, NativeTicketConnectionAdmission(grant,
+                            continuation = { runCatching { routePermits() }.getOrDefault(false) }) {
+                            runCatching { permits() }.getOrDefault(false)
+                        })
                     }
                     is PairingCode.Iroh -> {
                         // Keep a cold-launch proposal available while discovery loads.
@@ -59,7 +68,13 @@ internal class NativeExternalTicketRoutes(
                         var native = resolved(choice)
                         var captured = native?.let { intent(it.buildTag) }
                         if (captured?.method == NativeMacConnectionMethod.TAILSCALE) continue
-                        put(choice, NativeTicketConnectionAdmission {
+                        put(choice, NativeTicketConnectionAdmission(continuation = {
+                            runCatching { synchronized(lock) {
+                                val identity = native
+                                identity != null && captured != null && intent(identity.buildTag) == captured &&
+                                    captured?.method != NativeMacConnectionMethod.TAILSCALE
+                            } }.getOrDefault(false)
+                        }) {
                             runCatching { synchronized(lock) {
                                 val now = resolved(choice)
                                 if (!isCurrent() || now == null) false else {

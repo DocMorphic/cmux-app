@@ -7,6 +7,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NativeSavedTicketSessionTest {
+    @Test fun initialTicketFactoryClosesAcquiredHandleWhenScopeOrRouteFailsFinalAdmission() = runBlocking<Unit> {
+        for (mode in listOf("scope", "route", "race")) {
+            val wire = PoolTestTransport()
+            val client = MobileRpcClient(wire, { "fixture-account" }); client.connect()
+            var selected = mode != "scope"
+            val failure = runCatching { attachAdmittedTicket(client, MobileAttachTicketContext("", null, "fixture-ticket", null),
+                { selected }, { true }) {
+                if (mode == "route") error("Fixture route replaced")
+                if (mode == "race") selected = false
+            } }
+            assertTrue(failure.isFailure); assertTrue(client.isClosed)
+            assertEquals(1, wire.closes.get()); assertTrue(wire.sent.tryReceive().isFailure)
+        }
+    }
+
     private class Fixture {
         val owner = NativeTeamScope("login", "user", "team", 1)
         val peer = "a".repeat(64)
