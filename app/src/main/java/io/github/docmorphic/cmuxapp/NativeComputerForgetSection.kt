@@ -11,18 +11,19 @@ import kotlinx.coroutines.launch
 
 @Composable
 internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: NativeComputerForgetFlow,
-    enabled: Boolean, onFinished: () -> Unit) {
-    var confirm by remember(flow) { mutableStateOf(false) }
+    enabled: Boolean, confirmation: MutableState<Boolean>? = null, confirm: (() -> Unit)? = null, onFinished: () -> Unit) {
+    val showingState: MutableState<Boolean> = confirmation ?: remember(flow) { mutableStateOf(false) }
+    var showing by showingState
     val state by flow.state.collectAsState()
     val scope = rememberCoroutineScope()
     val currentFinished by rememberUpdatedState(onFinished)
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
-        TextButton(onClick = { confirm = true }, enabled = (enabled || state.remoteConfirmed || flow.canRetry()) && !state.busy) {
+        TextButton(onClick = { showing = true }, enabled = (enabled || state.remoteConfirmed || flow.canRetry()) && !state.busy) {
             Text(if (state.remoteConfirmed) "Finish forgetting this computer" else "Forget This Computer", color = Color(0xFFFF9999))
         }
     }
-    if (confirm) AlertDialog(
-        onDismissRequest = { if (!state.busy) confirm = false },
+    if (showing) AlertDialog(
+        onDismissRequest = { if (!state.busy) showing = false },
         properties = DialogProperties(dismissOnBackPress = !state.busy, dismissOnClickOutside = !state.busy),
         title = { Text(if (state.remoteConfirmed) "Finish removing $name?" else "Forget $name?") },
         text = { Column {
@@ -32,8 +33,8 @@ internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: N
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 16.dp))
         } },
         confirmButton = { TextButton(enabled = !state.busy, onClick = {
-            scope.launch {
-                if (flow.confirm()) { confirm = false; currentFinished() }
+            if (confirm != null) confirm() else scope.launch {
+                if (flow.confirm()) { showing = false; currentFinished() }
             }
         }) { Text(when {
             state.busy -> "Forgetting…"
@@ -41,6 +42,6 @@ internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: N
             state.error != null -> "Retry"
             else -> "Forget Computer"
         }, color = Color(0xFFFF9999)) } },
-        dismissButton = { TextButton(onClick = { confirm = false }, enabled = !state.busy) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = { showing = false }, enabled = !state.busy) { Text("Cancel") } }
     )
 }

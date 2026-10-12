@@ -34,6 +34,7 @@ internal class NativeScreenConnectionState(initialCode: String,
     var admittedRetry: Int? = null
     var admittedOwner by mutableStateOf<NativeConnectionRecoveryOwner?>(null)
     var admittedMac by mutableStateOf<NativeCredentialStore.PairedMac?>(null)
+    val expectedReconnect = mutableStateOf<NativeCredentialStore.PairedMac?>(null)
     val replayGeneration = mutableIntStateOf(0)
     val viewportGeneration = mutableLongStateOf(0L)
     var hostName by mutableStateOf("cmux")
@@ -46,5 +47,5 @@ internal class NativeScreenConnectionState(initialCode: String,
         client?.takeIf { !it.isClosed && connectionReady && connectedCode == requested && code == requested &&
             admittedRetry == retry && permits(it) }
 
-    override fun close() { client = null; connectionReady = false; connectedCode = null; admittedRetry = null; code = "" }
+    override fun close() { client = null; connectionReady = false; connectedCode = null; admittedRetry = null; code = ""; expectedReconnect.value = null }
 }

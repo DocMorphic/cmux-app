@@ -218,7 +218,7 @@ internal fun NativeScreen(
             initialPairedMacs = store.pairedMacs(),
             initialBackgroundNotifications = NativeNotificationService.isEnabled(context),
             retryState = feedSession.foregroundRetryState,
-            connectionState = connectionState
+            connectionState = connectionState, computerDetailsState = feedSession.computerDetailsState
         )
     }
     with(transientState) {
@@ -604,7 +604,8 @@ internal fun NativeScreen(
         }
 
         var pendingPickerCode by remember(signedIn) { mutableStateOf<String?>(null) }
-        var expectedReconnect by remember(signedIn) { mutableStateOf<NativeCredentialStore.PairedMac?>(null) }
+        var expectedReconnect by connectionState.expectedReconnect
+        LaunchedEffect(signedIn) { if (!signedIn) expectedReconnect = null }
         LaunchedEffect(store, historyRevision) {
             val latest = store.pairedMacs()
             val selected = savedPairedMacs.singleOrNull { it.code == code }
@@ -789,8 +790,11 @@ internal fun NativeScreen(
                     NativeComputerMenuPairing.isCurrent(mac, listOf(pendingConnectionMac))
             })
         val computerConnections = recordConnections.selectedValues(pairedMacs)
-        NativeSavedComputerDetailsHost(sharedConnections?.native, computerState, computerDetails,
-            computerConnections, forgetCallbacks, store, connection, feedCoordinator) { computerDetails = null }
+        val presentedDetails = computerDetails
+        NativeSavedComputerDetailsHost(sharedConnections?.native, computerState, presentedDetails,
+            computerConnections, forgetCallbacks, store, connection, feedCoordinator,
+            confirm = feedSession::confirmComputerForget, prepareDetached = feedSession::prepareComputerForget,
+            connectionFor = recordConnections::get) { if (computerDetails === presentedDetails) computerDetails = null }
         // Separate feed/terminal/route setup from account and computer state.
         // Nested groups keep callback capture code below ART's method-size guard.
         val workspaceContent: @Composable () -> Unit = {

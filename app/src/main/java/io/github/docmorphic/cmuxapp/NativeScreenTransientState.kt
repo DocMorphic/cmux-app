@@ -23,7 +23,8 @@ internal class NativeScreenTransientState(
     initialPairedMacs: List<NativeCredentialStore.PairedMac>,
     initialBackgroundNotifications: Boolean,
     retryState: MutableIntState = mutableIntStateOf(0),
-    val connectionState: NativeScreenConnectionState = NativeScreenConnectionState(initialCode)
+    val connectionState: NativeScreenConnectionState = NativeScreenConnectionState(initialCode),
+    private val computerDetailsState: NativeComputerDetailsState = NativeComputerDetailsState()
 ) {
     var code: String
         get() = connectionState.code
@@ -64,7 +65,9 @@ internal class NativeScreenTransientState(
     var workspaceRoute by mutableStateOf<NativeWorkspaceRoute?>(null)
     var inAppNotification by mutableStateOf<NotificationDestination?>(null)
     var notificationNow by mutableLongStateOf(System.currentTimeMillis())
-    var computerDetails by mutableStateOf<NativeComputerDetailsPresentation?>(null)
+    var computerDetails: NativeComputerDetailsPresentation?
+        get() = computerDetailsState.value
+        set(value) { computerDetailsState.value = value }
     var notificationFilterMenu by mutableStateOf(false)
     var confirmReadAll by mutableStateOf(false)
     var pendingReadAllOrigin by mutableStateOf<String?>(null)

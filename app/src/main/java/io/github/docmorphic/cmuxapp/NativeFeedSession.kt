@@ -44,6 +44,19 @@ internal class NativeFeedSession(
     val foregroundRecovery = NativeConnectionRecoveryGate()
     val connectionHistory = NativeForegroundConnectionHistory(store::load, store::update)
     val foregroundRetryState = mutableIntStateOf(0)
+    val computerDetailsState = NativeComputerDetailsState()
+    fun confirmComputerForget(presentation: NativeComputerDetailsPresentation) {
+        if (!viewModelCleared && computerDetailsState.value === presentation) presentation.lifetime.confirm(scope)
+    }
+    fun prepareComputerForget(owner: NativeTeamScope, target: NativeComputerTarget,
+        rows: List<NativeCredentialStore.PairedMac>) {
+        val state = screenConnection ?: return
+        if (nativeForgetOwnsRoot(owner, target, rows, state.admittedMac, state.expectedReconnect.value, state.code,
+            state.connectionReady && state.client?.isClosed == false)) {
+            macSwitchRecovery.cancel()
+            state.close()
+        }
+    }
     private val foregroundAuthority = teams?.let { NativeForegroundSessionAuthority(it, store::visiblePairedMacs, reserveForeground) }
     private val foregroundWorkspaceProjection = kotlinx.coroutines.flow.MutableStateFlow<NativeFeedSource?>(null)
     init { if (teams != null) scope.launch { teams.state.collect {
@@ -536,9 +549,9 @@ internal class NativeFeedSession(
     }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { screenConnection?.close(); foregroundAuthority?.clear(); foregroundRecovery.clear(); foregroundRetryState.intValue = 0; workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModelPrefetch.update(emptyList()); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { computerDetailsState.value = null; screenConnection?.close(); foregroundAuthority?.clear(); foregroundRecovery.clear(); foregroundRetryState.intValue = 0; workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModelPrefetch.update(emptyList()); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
-    override fun onCleared() { screenConnection?.close(); foregroundAuthority?.clear(); ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
+    override fun onCleared() { computerDetailsState.value = null; screenConnection?.close(); foregroundAuthority?.clear(); ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,
         private val store: NativeCredentialStore, private val teams: NativeAccountTeams? = null,

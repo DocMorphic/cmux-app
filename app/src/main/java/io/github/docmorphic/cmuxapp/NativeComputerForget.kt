@@ -136,18 +136,19 @@ internal fun nativeComputerForgetFlow(runtime: NativeIrohRuntime, team: NativeTe
 
 internal fun nativeForegroundComputerForgetFlow(runtime: NativeIrohRuntime, management: NativeForegroundComputerManagement,
     store: NativeCredentialStore, appearance: NativeMacAppearanceStore, connectionSettings: NativeMacConnectionStore,
+    beginAllowed: () -> Boolean = management::available,
     prepare: (List<NativeCredentialStore.PairedMac>) -> Unit): NativeComputerForgetFlow {
     val team = management.team
     val target = checkNotNull(NativeComputerTarget.from(management.mac, team))
     var permit: NativeForegroundComputerRevoke? = null
     return NativeComputerForgetFlow(
-        permits = { permit?.current() == true || management.available() },
+        permits = { permit?.current() == true || (beginAllowed() && management.available()) },
         capture = { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             check(store.taskSession() == team.login)
             NativeComputerForgetLocal.capture(store.pairedMacs(), team, target)
         } },
         prepare = { rows ->
-            if (permit == null) permit = management.beginRevoke()
+            if (permit == null) { check(beginAllowed()); permit = management.beginRevoke() }
             check(permit?.current() == true)
             prepare(rows)
         },

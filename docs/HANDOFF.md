@@ -1,5 +1,40 @@
 # Codex laptop handoff — 2026-09-28
 
+## Detail presentation and removal lifetime — 2026-10-12
+
+The ViewModel now owns Computer Details and the exact pending reconnect record.
+The host accepts an original-owner foreground detail after the list switches
+teams, uses record-qualified connection data, and stops claiming a live connection
+once that captured root closes. Controls still address the original owner; an
+already approved removal may remain visible for server completion/local cleanup.
+Ordinary selected-team operation and new Mac admission guards remain unchanged.
+
+A presentation retains one Forget flow and its confirmation state. The ViewModel
+runs confirmed actions independently of Activity composition. Attachment tokens
+replace view callbacks on recreation; stale detach/update cannot overwrite the
+new view, and detached preparation can stop the exact root through ViewModel data.
+Completion is delivered once to the current view. Replacing/clearing a presentation
+cancels its action and drops callbacks; logout clears the retained state. A late
+change of screen context also blocks beginning a foreground revoke.
+
+**42 focused JVM tests pass; debug/test APKs build. Ten classes pass Android 17 ART
+reflection on 16 KB pages. Three UI tests pass in 9.138s**: online membership
+verification with a mock Stack server, original detail/check after selection changes,
+actual Activity recreation while server removal is paused, one original-scope revoke,
+completion to the new view, and preservation of the other team's identical-code
+pairing/selection; plus existing root check/power/reentry and local cleanup retry.
+The build exposed a Compose/D8 non-local-return marker; an explicit conditional
+fixes it. Two initial UI assertions were corrected for duplicate title/name nodes
+and asynchronous RPC completion. Original diagnostic logs are preserved.
+
+Evidence/XML/source/APK hashes are ignored under
+`captures/runtime/computer-details-lifetime-20261012`. The sole AVD was stopped/
+reaped; no production account or physical phone was touched. **Remaining:** add
+the original row to Settings, audit the combined team-switch flow before removing
+explicit selection/create/eligibility teardown, then verify Pixel/Mac workflows.
+Actual Settings team selection still disconnects; these isolated host fixtures
+are not full-flow acceptance. Signed 654 predates this source; parity is unproven.
+
 ## Original-owner Tailscale route management — 2026-10-12
 
 Connected Mac details now uses `NativeForegroundTailscaleRoutes` for explicit
