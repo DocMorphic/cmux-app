@@ -793,9 +793,10 @@ internal fun NativeScreen(
         // Separate feed/terminal/route setup from account and computer state.
         // Nested groups keep callback capture code below ART's method-size guard.
         val workspaceContent: @Composable () -> Unit = {
-            val visibleFeedSources = remember(feedSources, moveSources, pairedMacs) {
-                pairedMacs.mapNotNull { mac ->
+            val visibleFeedSources = remember(feedSources, moveSources, paneMacs, paneTeam, client, connectionReady) {
+                paneMacs.mapNotNull { mac ->
                     moveSources[mac.origin]?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
+                        ?: feedSession.workspaceSource(mac)?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
                         ?: feedSources[mac.origin]?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
                 }
             }
@@ -803,12 +804,10 @@ internal fun NativeScreen(
                 visibleFeedSources.filter { selectedCloudId == null && selectedSshComputer == null && (selectedOrigin == null || it.mac.origin == selectedOrigin) }
             }
             val agentReadPrefs = remember(context) { context.getSharedPreferences("native_agent_feed_read", android.content.Context.MODE_PRIVATE) }
-            val agentReadOwner = remember(browserLogin, teamState.scope) {
-                java.security.MessageDigest.getInstance("SHA-256").digest(org.json.JSONArray(listOf(browserLogin, teamState.scope?.toString())).toString().toByteArray())
-                    .joinToString("") { "%02x".format(it) }
-            }
+            val agentReadOwner = remember(browserLogin, paneTeam?.userId, paneTeam?.teamId) { nativeAgentFeedReadOwner(browserLogin, paneTeam) }
             var agentReadState by remember(agentReadOwner) { mutableStateOf(NativeAgentFeedReadState.decode(
-                agentReadPrefs.getString(agentReadOwner, null), System.currentTimeMillis() / 1000.0)) }
+                agentReadPrefs.getString(agentReadOwner, null) ?: agentReadPrefs.getString(nativeAgentFeedLegacyReadOwner(browserLogin, paneTeam), null),
+                System.currentTimeMillis() / 1000.0)) }
             LaunchedEffect(agentReadOwner, agentReadState) { agentReadPrefs.edit().putString(agentReadOwner, agentReadState.encode()).apply() }
             val stopReasons = remember(agentReadOwner) { NativeAgentFeedStopReasonCache() }
             val agentEntries = remember(scopedFeedSources, stopReasons) { aggregateNativeAgentFeed(scopedFeedSources, stopReasons) }
@@ -887,7 +886,7 @@ internal fun NativeScreen(
                 if (feedRefreshing) return
                 scope.launch {
                     feedRefreshing = true
-                    try { feedCoordinator.refresh() } finally { feedRefreshing = false }
+                    try { feedSession.refreshAgentFeed() } finally { feedRefreshing = false }
                 }
             }
             fun setNotificationRead(entry: NativeFeedEntry, read: Boolean) {
@@ -3528,12 +3527,13 @@ internal fun NativeScreen(
                         agentFeedState.SaveableStateProvider("feed") {
                         key(agentReadOwner, selectedComputerOrigin) {
                             NativeAgentFeedView(scopedFeedSources, search, agentNeedsInputOnly, agentReadState,
-                                onReadState = { agentReadState = it }, session = feedCoordinator::agentFeedSession,
+                                onReadState = { agentReadState = it }, session = feedSession::agentFeedSession,
                                 computerName = appearances::name, onRefresh = ::refreshFeed, modifier = Modifier.weight(1f), locale = searchLocale, display = displayState,
-                                scopeKey = agentReadOwner, allowedMacs = pairedMacs.filter { connection.allowsSaved(it) },
+                                scopeKey = agentReadOwner, allowedMacs = paneMacs.filter(::allowsPaneMac),
                                 onOpen = { entry, openTab ->
-                                    val owner = store.visiblePairedMacs().singleOrNull { it == entry.source.mac && connection.allowsSaved(it) }
-                                    val workspace = feedCoordinator.sources.value[owner?.origin]?.workspaces?.singleOrNull { it.id == entry.item.workspaceId }
+                                    val owner = store.visiblePairedMacs().singleOrNull {
+                                        NativeComputerMenuPairing.isCurrent(entry.source.mac, listOf(it)) && allowsPaneMac(it) }
+                                    val workspace = owner?.let(feedSession::workspaceSource)?.workspaces?.singleOrNull { it.id == entry.item.workspaceId }
                                     val terminal = workspace?.terminals?.singleOrNull { it.id == entry.item.surfaceId }
                                     if (owner == null || workspace == null || openTab && terminal == null) error = "This Feed destination is no longer available."
                                     else {
@@ -3933,11 +3933,11 @@ internal fun NativeScreen(
                         }, refreshNotifications = {
                             check(currentOwner()) { "Sidebar account changed" }
                             feedCoordinator.refresh()
-                        }, agentSession = { if (currentOwner()) feedCoordinator.agentFeedSession(it) else null },
+                        }, agentSession = { if (currentOwner()) feedSession.agentFeedSession(it) else null },
                         readAgent = { entry, needs ->
                             check(currentOwner()) { "Sidebar account changed" }
                             agentReadState = if (needs == null) agentReadState.interacted(entry) else agentReadState.triage(entry, needs)
-                        }, refreshAgent = { check(currentOwner()); feedCoordinator.refresh() },
+                        }, refreshAgent = { check(currentOwner()); feedSession.refreshAgentFeed() },
                         history = feedSession.sidebarHistory, mutateWorkspace = { target, command, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }
                             val permitted = { currentOwner() && canSend() }

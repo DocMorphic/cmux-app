@@ -122,6 +122,34 @@ class WorkspaceSnapshotOrderingTest {
         } finally { gate.countDown() }
     }
 
+    @Test fun agentFeedUsesRetainedRootWithSecondaryFeedPausedAndSurvivesRecreationWithoutActionReplay() {
+        val rows = JSONArray("""[{"id":"root-permission","workstream_id":"root-turn","source":"claude",
+          "kind":"permissionRequest","status":"pending","request_id":"root-request","created_at":200,"updated_at":200,
+          "title":"Root permission","tool_name":"Read","workspace_id":"workspace-1","surface_id":"terminal-1"}]""")
+        var revision = 1
+        peer.agentFeedResponse = { method, _ -> synchronized(rows) {
+            if (method == "feed.list") JSONObject().put("revision", revision).put("items", JSONArray(rows.toString()))
+            else { rows.getJSONObject(0).put("status", "resolved"); revision++; JSONObject() }
+        } }
+        launch()
+        val mac = store.pairedMacs().single()
+        compose.waitUntil(10_000) { session.agentFeedSession(mac)?.state?.value?.snapshot?.items?.any { it.id == "root-permission" } == true }
+        val root = session.connectionState("").client
+        val agent = session.agentFeedSession(mac)
+        compose.runOnIdle { session.coordinator.pause() }
+        compose.onNode(hasText("Feed", substring = true) and isSelectable()).performClick()
+        compose.onNodeWithText("Allow Once").performClick()
+        compose.waitUntil(10_000) { peer.requests.count { it.optString("method") == "feed.permission.reply" } == 1 }
+        compose.waitUntil(10_000) { agent?.state?.value?.snapshot?.items?.singleOrNull()?.status == AgentFeedStatus.RESOLVED }
+        assertTrue(session.coordinator.sources.value.values.all { it.availability == NativeFeedAvailability.OFFLINE })
+        assertSame(root, session.connectionState("").client)
+        scenario!!.recreate()
+        compose.waitUntil(10_000) { session.agentFeedSession(mac) != null }
+        assertSame(root, session.connectionState("").client)
+        assertSame(agent, session.agentFeedSession(mac))
+        assertEquals(1, peer.requests.count { it.optString("method") == "feed.permission.reply" })
+    }
+
     @Test fun connectedWorkspaceReordersThroughItsExistingClientWithTheSecondaryFeedPaused() {
         peer.customWorkspaceListing = JSONObject("""{"workspaces":[
             {"id":"workspace-1","title":"Ordered workspace","window_id":"fixture-window","terminals":[{"id":"terminal-1","title":"Ready shell","is_focused":true}]},

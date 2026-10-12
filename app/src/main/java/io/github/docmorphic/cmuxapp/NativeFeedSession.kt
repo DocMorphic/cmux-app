@@ -48,10 +48,12 @@ internal class NativeFeedSession(
     private val foregroundWorkspaceProjection = kotlinx.coroutines.flow.MutableStateFlow<NativeFeedSource?>(null)
     init { if (teams != null) scope.launch { teams.state.collect {
         foregroundAuthority?.reconcile()
+        reconcileForegroundAgent()
         foregroundWorkspaceProjection.value?.let { if (!allowsForegroundMac(it.mac)) foregroundWorkspaceProjection.value = null }
     } } }
     init { if (teams != null) scope.launch { store.revisions.collect {
         foregroundAuthority?.reconcile()
+        reconcileForegroundAgent()
         foregroundWorkspaceProjection.value?.let { if (!allowsForegroundMac(it.mac)) foregroundWorkspaceProjection.value = null }
     } } }
     fun admitForeground(team: NativeTeamScope?, mac: NativeCredentialStore.PairedMac, client: MobileRpcClient) {
@@ -66,12 +68,14 @@ internal class NativeFeedSession(
     private var foregroundArtifactWatcher: Job? = null
     private var foregroundWorkspaceAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundWorkspaceAccess>? = null
     private var foregroundNotificationAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundNotificationAccess>? = null
+    private var foregroundAgentAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundAgentFeed>? = null
     private val foregroundChanges = mutableMapOf<String, Triple<NativeCredentialStore.PairedMac, MobileRpcClient, WorkspaceChangesAccess>>()
     fun connectionState(initialCode: String): NativeScreenConnectionState = screenConnection
         ?: NativeScreenConnectionState(initialCode, ::changeForegroundClient).also { screenConnection = it }
     private fun changeForegroundClient(previous: MobileRpcClient?, next: MobileRpcClient?) {
         foregroundWorkspaceAccess = null
         foregroundNotificationAccess = null
+        foregroundAgentAccess?.third?.close(); foregroundAgentAccess = null
         foregroundChanges.clear()
         foregroundWorkspaceProjection.value = null
         foregroundSizing?.cancel(); foregroundSizing = null
@@ -80,7 +84,10 @@ internal class NativeFeedSession(
         val active = next ?: return
         foregroundArtifactWatcher = scope.launch {
             active.disconnected.first()
-            if (screenConnection?.client === active) foregroundWorkspaceProjection.value = null
+            if (screenConnection?.client === active) {
+                foregroundAgentAccess?.third?.close(); foregroundAgentAccess = null
+                foregroundWorkspaceProjection.value = null
+            }
             panelPreview?.let { if (!it.current()) dismissPanel(it) else if (!it.access.current()) it.preview.connectionLost() }
             filesSheet?.let { if (!it.current()) dismissFiles(it) else if (!it.access.current()) it.connectionLost() }
         }
@@ -152,7 +159,9 @@ internal class NativeFeedSession(
             .also { foregroundWorkspaceAccess = Triple(mac, client, it) }
     }
     fun updateForegroundWorkspaceSource(mac: NativeCredentialStore.PairedMac?) {
+        reconcileForegroundAgent()
         if (mac == null || foregroundWorkspace(mac) == null) { foregroundWorkspaceProjection.value = null; return }
+        foregroundAgent(mac)
         val next = workspaceSource(mac)
         if (next != null) foregroundWorkspaceProjection.value = next
         else if (foregroundWorkspaceProjection.value?.mac?.let { NativeComputerMenuPairing.isCurrent(mac, listOf(it)) } != true)
@@ -161,17 +170,46 @@ internal class NativeFeedSession(
     fun workspaceSource(mac: NativeCredentialStore.PairedMac): NativeFeedSource? {
         if (foregroundWorkspace(mac) == null) return coordinator.sources.value[mac.origin]?.takeIf { it.mac == mac }
         val state = checkNotNull(screenConnection)
+        val agent = foregroundAgentAccess?.takeIf { it.second === state.client &&
+            NativeComputerMenuPairing.isCurrent(mac, listOf(it.first)) && it.third.current() }?.third?.session?.state?.value ?: NativeAgentFeedState()
         val snapshot = workspaceSnapshots.latest(mac) ?: return foregroundWorkspaceProjection.value
             ?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
             ?.copy(mac = mac, items = state.notifications, revision = state.notificationsRevision,
-                capabilities = state.hostCapabilities, macMutationTicket = state.client?.macMutationTicket())
+                capabilities = state.hostCapabilities, macMutationTicket = state.client?.macMutationTicket(), agentFeed = agent)
         // Presentation can retain the last accepted rows while a write is in flight. The mutation
         // adapter independently requires a fresh snapshot before admitting a subsequent write.
         return NativeFeedSource(mac, items = state.notifications, revision = state.notificationsRevision,
             workspaces = snapshot.workspaces, groups = parseGroups(snapshot.value),
             capabilities = state.hostCapabilities, availability = NativeFeedAvailability.CONNECTED,
-            hasWorkspaceSnapshot = true, macMutationTicket = state.client?.macMutationTicket())
+            hasWorkspaceSnapshot = true, macMutationTicket = state.client?.macMutationTicket(), agentFeed = agent)
     }
+    private fun reconcileForegroundAgent() {
+        val previous = foregroundAgentAccess ?: return
+        if (!previous.third.current()) { previous.third.close(); foregroundAgentAccess = null }
+        else previous.third.setActive(foreground || sidebarHolds.values.any { it })
+    }
+    private fun foregroundAgent(mac: NativeCredentialStore.PairedMac): NativeForegroundAgentFeed? {
+        val state = screenConnection ?: return null
+        val client = state.client ?: return null
+        fun live() = !viewModelCleared && AGENT_FEED_CAPABILITY in state.hostCapabilities && state.client === client && !client.isClosed &&
+            nativeForegroundMacSelected(mac, state.admittedMac, state.connectionReady, state.code, state.connectedCode, canRetainForeground(mac, client))
+        if (!live()) return null
+        foregroundAgentAccess?.takeIf { it.second === client && NativeComputerMenuPairing.isCurrent(mac, listOf(it.first)) }
+            ?.let { return it.third }
+        foregroundAgentAccess?.third?.close()
+        foregroundAgentAccess = null
+        return NativeForegroundAgentFeed(scope, client, ::live) {
+            if (foregroundAgentAccess?.second === client && live()) updateForegroundWorkspaceSource(mac)
+        }.also { access ->
+            foregroundAgentAccess = Triple(mac, client, access)
+            access.setActive(foreground || sidebarHolds.values.any { it })
+        }
+    }
+    fun agentFeedSession(mac: NativeCredentialStore.PairedMac): NativeAgentFeedSession? {
+        val owner = foregroundAgent(mac)
+        return if (owner != null) owner.readySession() else coordinator.agentFeedSession(mac)
+    }
+    suspend fun refreshAgentFeed() { reconcileForegroundAgent(); foregroundAgentAccess?.third?.refresh(); coordinator.refresh() }
     private fun foregroundNotifications(mac: NativeCredentialStore.PairedMac): NativeForegroundNotificationAccess? {
         val state = screenConnection ?: return null
         val client = state.client ?: return null
@@ -442,6 +480,7 @@ internal class NativeFeedSession(
     }
     fun leaveMainScreen() { foreground = false; reconcileFeed() }
     private fun reconcileFeed() {
+        reconcileForegroundAgent()
         coordinator.retainMacs(feedMacs)
         val wanted = if (foreground || sidebarHolds.values.any { it }) feedMacs else feedMacs.filter { it.origin in browserHolds.values }
         if (wanted.isEmpty()) coordinator.pause() else coordinator.updateMacs(wanted, routeKeys, localRouteKeys)

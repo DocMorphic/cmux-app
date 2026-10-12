@@ -20,6 +20,9 @@ internal class NativeAgentFeedSession(
     private val request: suspend (String, JSONObject) -> JSONObject,
     initial: NativeAgentFeedSnapshot? = null,
     private val fatal: (Exception) -> Unit = {},
+    private val requestCurrent: (suspend (String, JSONObject, () -> Boolean) -> JSONObject)? = null,
+    private val snapshotAccepted: () -> Unit = {},
+    private val cacheCurrent: () -> Boolean = admitted,
     private val decodeDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val decode: (JSONObject, () -> Unit) -> NativeAgentFeedSnapshot = NativeAgentFeedWire::decode
 ) : AutoCloseable {
@@ -35,14 +38,27 @@ internal class NativeAgentFeedSession(
 
     fun start() {
         if (monitor != null) return
-        monitor = scope.launch { refresh.run { fetch() } }
+        monitor = scope.launch {
+            try { refresh.run { fetch() } }
+            catch (failure: Exception) {
+                currentCoroutineContext().ensureActive()
+                if (job.isActive && !admitted()) mutableState.value = NativeAgentFeedState(error = "Feed computer is no longer connected")
+                else { mutableState.value = state.value.copy(loading = false, error = "Could not refresh agent activity"); failed(failure) }
+            }
+        }
     }
+    fun pause() { monitor?.cancel(); monitor = null }
     fun refresh() = refresh.request()
     fun changed(payload: JSONObject) {
         val raw = payload.opt("revision") as? Number
         if (raw == null || raw.toLong() < 0 || revision.observe(raw.toLong()) || state.value.error != null) refresh.request()
     }
     private fun checkOwner() { check(job.isActive && admitted()) { "Feed computer is no longer connected" } }
+    private suspend fun guardedRequest(method: String, params: JSONObject, canUse: () -> Boolean = { true }): JSONObject {
+        val current = { job.isActive && admitted() && canUse() && (method == "feed.list" || !revision.needsRefresh()) }
+        check(current()) { "Feed computer or action changed" }
+        return requestCurrent?.invoke(method, params, current) ?: request(method, params)
+    }
     private fun failed(error: Exception) {
         if (error is MobileRpcException && error.code in setOf("unauthorized", "forbidden", "permission_denied", "team_access_revoked")) {
             mutableState.value = NativeAgentFeedState(error = "Feed access is no longer authorized")
@@ -53,7 +69,7 @@ internal class NativeAgentFeedSession(
         checkOwner()
         mutableState.value = state.value.copy(loading = true)
         try {
-            val response = request("feed.list", JSONObject())
+            val response = guardedRequest("feed.list", JSONObject())
             val snapshot = withContext(decodeDispatcher) {
                 val context = currentCoroutineContext()
                 context.ensureActive()
@@ -73,6 +89,7 @@ internal class NativeAgentFeedSession(
             })
             mutableState.value = state.value.copy(snapshot = projected, error = null,
                 failures = state.value.failures.filterKeys { it in ids })
+            snapshotAccepted()
             return true
         } catch (error: Exception) {
             currentCoroutineContext().ensureActive()
@@ -122,7 +139,8 @@ internal class NativeAgentFeedSession(
         if (decision.selections.isNotEmpty()) params.put("selections", JSONArray(decision.selections))
         decision.feedback?.takeIf { it.isNotEmpty() }?.let { params.put("feedback", it) }
         send(row, null) {
-            check(canSend()) { "Feed is no longer visible" }; request(method, params)
+            check(canSend()) { "Feed is no longer visible" }
+            guardedRequest(method, params) { canSend() && runCatching { live(row).needsInput }.getOrDefault(false) }
             currentCoroutineContext().ensureActive(); checkOwner()
             localDecisions[checkNotNull(row.requestId)] = decision
             mutableState.value = state.value.copy(snapshot = state.value.snapshot?.let { snapshot ->
@@ -137,8 +155,9 @@ internal class NativeAgentFeedSession(
         require(trimmed.isNotEmpty() && row.supportsTerminalReply && row.replyText == null && row.id !in localReplies)
         send(row, trimmed) {
             check(canSend()) { "Feed is no longer visible" }
-            val result = request("mobile.terminal.paste", JSONObject().put("workspace_id", row.workspaceId)
+            val result = guardedRequest("mobile.terminal.paste", JSONObject().put("workspace_id", row.workspaceId)
                 .put("surface_id", row.surfaceId).put("text", trimmed).put("submit_key", "return").put("feed_event_id", row.id))
+                { canSend() && runCatching { live(row).let { it.supportsTerminalReply && it.replyText == null } }.getOrDefault(false) }
             currentCoroutineContext().ensureActive(); checkOwner()
             check(result.opt("submitted") == true) { "Text may have reached the terminal, but submission was not confirmed" }
             localReplies[row.id] = trimmed
@@ -162,7 +181,7 @@ internal class NativeAgentFeedSession(
         } catch (error: Exception) {
             // Leaving the browser can cancel an admitted write after the Mac received it.
             // Retain uncertainty on the still-owned session instead of silently offering a clean retry.
-            if (job.isActive && admitted()) {
+            if (job.isActive && cacheCurrent()) {
                 mutableState.value = state.value.copy(failures = state.value.failures +
                     (row.id to AgentFeedFailure("Delivery could not be confirmed. Check the terminal before trying again.", AgentFeedDelivery.UNCONFIRMED, draft)))
                 refresh.request()
@@ -182,7 +201,7 @@ internal class NativeAgentFeedSession(
             currentCoroutineContext().ensureActive(); checkOwner(); check(canRead()) { "Feed is no longer visible" }
             val params = JSONObject().put("item_id", item.id).put("offset", offset)
             version?.let { params.put("version", it) }
-            val page = request("feed.text", params)
+            val page = guardedRequest("feed.text", params) { canRead() && runCatching { live(item) }.isSuccess }
             currentCoroutineContext().ensureActive(); checkOwner()
             check(canRead()) { "Feed is no longer visible" }
             val text = page.opt("text") as? String ?: error("Invalid Feed text")

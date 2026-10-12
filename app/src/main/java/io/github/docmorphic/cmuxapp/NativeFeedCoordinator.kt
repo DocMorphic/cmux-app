@@ -245,6 +245,9 @@ internal class NativeFeedCoordinator(
                     val agentFeed = if (AGENT_FEED_CAPABILITY in capabilities) NativeAgentFeedSession(this,
                         admitted = { current(handle, client) && handle.verified && !client.isClosed },
                         request = { method, params -> client.request(method, params) },
+                        requestCurrent = { method, params, canUse -> client.agentFeedRequest(method, params) {
+                            current(handle, client) && handle.verified && !client.isClosed && canUse()
+                        } },
                         initial = mutableSources.value[handle.mac.origin]?.agentFeed?.snapshot,
                         fatal = { failure -> summaryFailure.complete(failure) }).also { session ->
                         handle.agentFeed = session

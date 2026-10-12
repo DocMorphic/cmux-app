@@ -1,5 +1,51 @@
 # Team switching and the active Mac session
 
+## Foreground agent-feed ownership and lifecycle — 2026-10-12
+
+`NativeFeedSession` now owns one agent-feed session on the exact admitted root
+record/client/codes/capability and original live permission. It shares the existing
+connection, survives Activity recreation, publishes into the foreground workspace
+projection, and retires on client replacement, disconnect, record/permission loss
+or disposal. Main and routed agent views use this owner before selected-team feed
+sessions. Source inventory, allowed rows and workspace/tab navigation use the pane
+Mac; secondary admission remains selected-team scoped.
+
+Subscriptions/polling pause in the background and resume with a fresh snapshot
+before actions are available. Newer event revisions also require refresh before
+action. Decisions, terminal replies and text reads carry ownership, visibility and
+item guards through asynchronous token lookup and wire admission on both root and
+secondary feeds. Interrupted writes retain uncertainty while the owner is still
+valid, including while inactive; resuming never automatically replays them. A
+monitor that loses its owner stops safely instead of throwing out of its parent.
+Authorization rejection retires the root.
+
+Read-marker/modal owner keys now follow original login/user/team identity without
+a membership-refresh generation. The matching prior generation-key entry is a
+migration fallback; unrelated account/team preferences are not scanned. Pull-to-
+refresh and routed refresh wake the root session as well as existing feeds.
+
+**114 focused JVM cases pass**, including five new foreground lifecycle, fresh-read,
+token-lookup, uncertainty, rejection and read-owner cases, plus the existing 60-case
+feed coordinator suite. Debug/test APKs build and seven classes pass Android 17 ART
+reflection. **Three runtime cases pass in 23.539s**: an action on the retained root
+with the secondary feed paused, then recreation with identical root/session and no
+replay; real feed-tab/search/question/permission/reply/tab navigation; and delayed
+IME submission using the newest draft with dismissal confinement. The initial
+compile identified a refresh method needing `suspend`; it was corrected before the
+final verification.
+
+Evidence/XML/source and APK hashes are ignored under
+`captures/runtime/foreground-agent-feed-*`. The sole existing 16 KB AVD was
+stopped/reaped; no physical device was touched. These are local fixtures, not actual
+account team selection or Mac/Iroh/Pixel/FCM acceptance. Signed 654 predates this
+source; full parity remains unverified.
+
+Remaining: foreground Settings/detail/local-pairing-removal operations, final
+combined scope integration and actual account-switch UI acceptance. The selected-
+team detail host still needs a valid original-owner path. Explicit Settings
+selection/create and Iroh eligibility teardown remain enabled: **team selection
+still disconnects the app**. Keep fresh connection admission selected-team scoped.
+
 ## Record-qualified connection presentation and same-locator replies — 2026-10-12
 
 Connection status now has a record projection keyed by account owner and app

@@ -416,6 +416,15 @@ class MobileRpcClient internal constructor(
             check(isCurrent()) { "Mac connection changed" }
         }.also { check(isCurrent()) { "Mac connection changed" } }
 
+    /** Feed operations retain request-local ownership through token lookup and transport admission. */
+    internal suspend fun agentFeedRequest(method: String, params: JSONObject, isCurrent: () -> Boolean): JSONObject {
+        require(method in setOf("feed.list", "feed.text", "feed.permission.reply", "feed.exit_plan.reply", "feed.question.reply", "mobile.terminal.paste"))
+        return requestAdmitted(method, params, 15_000) {
+            check(isCurrent()) { "Feed computer or action changed" }
+            if (TerminalSizingTraffic.guarded(method)) checkTerminalTraffic(params.optString("surface_id"))
+        }
+    }
+
     internal suspend fun changePhonePushSettings(change: PhoneMacPushChange, isCurrent: () -> Boolean): JSONObject =
         requestAdmitted("phone_push.settings.update", change.wire(), 15_000) {
             check(isCurrent()) { "Mac connection changed" }
