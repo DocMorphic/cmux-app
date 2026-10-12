@@ -1,5 +1,47 @@
 # Codex laptop handoff — 2026-09-28
 
+## Captured foreground disconnect recovery — 2026-10-12
+
+The screen connection now retains the admitted recovery owner and retry generation
+through Activity recreation. Disconnect handling identifies the actual client,
+login, code and generation instead of requiring the picker to remain on its team.
+Replacement handles, login/code changes and newer retry generations ignore stale
+failures. The timer rechecks ownership and selected scope before retrying; a picker
+change during that delay enters selected-scope recovery. Cold connection entry also
+consumes a closed client's recorded failure before starting another attempt.
+
+Admission rejection remains held across a fresh generation of the same team, so
+A → B → A cannot erase its failure without explicit retry. Other users/teams/routes
+do not inherit that block. New admissions still capture the selected exact scope;
+recovery metadata never authorizes a connection.
+
+An encrypted per-user/team bookmark records only a fully admitted foreground's
+origin/device/build, without its pairing code or credentials. Following a drop in
+a different selected scope, recovery uses that scope's current, unhidden, permitted
+saved candidate and normal fresh admission. Missing, replaced, ambiguous or
+unpermitted candidates return to the selected team's computer list. Foreground
+panes/routes and stale connection ownership retire; saved pairings remain.
+
+**40 focused JVM cases pass**, including new disconnect decisions, candidate history
+and same-team rejection-generation coverage. Debug/test APKs build and five changed
+classes pass Android 17 ART reflection. **Three runtime cases pass in 11.091s**:
+ordinary loss enters a fresh connection and retains the pane; a rejected admitted
+foreground stays the same closed handle/generation through recreation until explicit
+retry; and a live admitted client survives recreation and still performs RPC.
+The first rejection case counted all factory connections and saw the independently
+resumed feed. The repaired check explicitly proves the foreground handle, generation,
+readiness and rejection block. The original run is preserved.
+
+Evidence/XML/source and APK hashes are ignored under
+`captures/runtime/foreground-disconnect-recovery-*`. The existing 16 KB AVD was
+stopped/reaped; no new AVD or physical phone was used. Cross-team recovery choices
+are controller/metadata tests, not complete real-account UI, Mac/Iroh/Pixel or
+process-death acceptance. Signed 654 predates this source.
+
+Remaining tab/sidebar/browser creation and presentation scopes still need integration
+before removing Settings teardown. **Team selection still disconnects the app.**
+Full parity remains unverified.
+
 ## Foreground notification actions — 2026-10-12
 
 Notification reads, read/unread acknowledgements and mark-all actions now prefer

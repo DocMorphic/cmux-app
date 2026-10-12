@@ -181,6 +181,43 @@ class WorkspaceSnapshotOrderingTest {
         assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_all_read" })
     }
 
+    @Test fun rejectedAdmittedForegroundRemainsHeldThroughRecreationUntilExplicitRetry() {
+        launch(); compose.onNodeWithText("Ordered workspace").performClick(); waitFor("Ready shell ▾")
+        val state = session.connectionState(code)
+        val original = checkNotNull(state.client)
+        val admitted = checkNotNull(state.admittedOwner)
+        compose.runOnIdle { session.coordinator.pause(); original.retireForOwnerFailure(MobileRpcException("forbidden", "Fixture rejection", true)) }
+        compose.waitUntil(5_000) { session.foregroundRecovery.state.value?.requiresReauth == true && !state.connectionReady }
+        val attempts = connections.get()
+        val admittedGeneration = state.admittedRetry
+        assertTrue(session.foregroundRecovery.state.value!!.owner.sameIdentity(admitted))
+        scenario!!.recreate()
+        compose.waitUntil(5_000) { session.foregroundRecovery.state.value?.requiresReauth == true }
+        compose.waitForIdle()
+        // Recreation may resume the selected-team feed. The rejected foreground must remain
+        // the same closed handle and admission generation until an explicit retry.
+        assertTrue(connections.get() <= attempts + 1)
+        assertSame(original, state.client); assertFalse(state.connectionReady)
+        assertEquals(admitted, state.admittedOwner); assertEquals(admittedGeneration, state.admittedRetry)
+        compose.runOnIdle { session.foregroundRetryState.intValue++ }
+        compose.waitUntil(15_000) { state.connectionReady && state.client !== original }
+        assertNull(session.foregroundRecovery.state.value)
+        assertEquals(admitted.login, state.admittedOwner!!.login); assertEquals(admitted.code, state.admittedOwner!!.code)
+    }
+
+    @Test fun ordinaryForegroundDropReentersFreshAdmissionAndRetainsThePane() {
+        launch(); compose.onNodeWithText("Ordered workspace").performClick(); waitFor("Ready shell ▾")
+        val state = session.connectionState(code)
+        val original = checkNotNull(state.client)
+        val admitted = checkNotNull(state.admittedOwner)
+        peer.disconnectClients()
+        compose.waitUntil(20_000) { state.connectionReady && state.client !== original }
+        waitFor("Ready shell ▾")
+        assertTrue(original.isClosed); assertNull(session.foregroundRecovery.state.value)
+        assertEquals(admitted, state.admittedOwner)
+        assertTrue(state.admittedRetry!! > 0)
+    }
+
     @Test fun lateBrowserDiscoveryCannotRestoreAWorkspaceDeletedByANewerFeedSnapshot() {
         val gate = CountDownLatch(1)
         peer.browserCreationSupported = true

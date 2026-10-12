@@ -379,7 +379,7 @@ internal fun NativeScreen(
         val browserLogin = if (signedIn) store.taskSession() else null
         val recoveryOwner = NativeConnectionRecoveryOwner(browserLogin, code, teamState.scope)
         val recoveryBlock by feedSession.foregroundRecovery.state.collectAsState()
-        val setupRequiresReauth = recoveryBlock?.takeIf { it.owner == recoveryOwner }?.requiresReauth == true
+        val setupRequiresReauth = recoveryBlock?.takeIf { it.owner.sameIdentity(recoveryOwner) }?.requiresReauth == true
         var selectedComputerOrigin by rememberSaveable(signedIn) {
             mutableStateOf(store.load()?.optString("computer_selection").orEmpty())
         }
@@ -625,6 +625,27 @@ internal fun NativeScreen(
                     connectedCode.takeIf { connectionReady && client?.isClosed == false }, selectedComputerOrigin)
             }
             code = target; error = null; retryDelay = 2_000
+        }
+        fun recoverSelectedForeground(active: MobileRpcClient, owner: NativeConnectionRecoveryOwner, generation: Int,
+            failure: Throwable): Boolean {
+            val selected = accountTeams.state.value.scope
+            if (nativeForegroundDisconnect(owner, active, client, store.taskSession(), code, connectedCode, generation,
+                    retry, selected, failure) != NativeForegroundDisconnect.SELECTED_SCOPE) return false
+            val next = runCatching {
+                feedSession.connectionHistory.candidate(selected, store.visiblePairedMacs()) {
+                    selected != null && accountTeams.isCurrent(selected) && connection.allowsSaved(it)
+                }
+            }.getOrNull()
+            macSwitchRecovery.cancel(); expectedReconnect = null; pendingPickerCode = null; pairingSelectionCode = null
+            screenResume.cancel(); workspaceRoute = null; workspaceTabs.cancel(); terminalStartup.cancelPin()
+            localBrowsers.leave(close = false)
+            selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null; selectedSurface = null; selectedChangesWorkspace = null
+            workspaces = emptyList(); groups = emptyList(); notifications = emptyList()
+            connectionState.close()
+            selectedComputerOrigin = next?.origin.orEmpty(); code = next?.code.orEmpty()
+            store.update { it.put("pairing_code", code).put("computer_selection", selectedComputerOrigin) }
+            retryDelay = 2_000; retry++
+            return true
         }
         fun selectPairingCode(target: String, usingTicket: Boolean = false) {
             if (!usingTicket) ticketPairing.clear()
@@ -1905,10 +1926,19 @@ internal fun NativeScreen(
                         busy = false
                         return@LaunchedEffect
                     }
+                    val lost = client?.takeIf { it.isClosed }
+                    val admitted = connectionState.admittedOwner
+                    val admittedGeneration = connectionState.admittedRetry
+                    val lostFailure = lost?.disconnected?.replayCache?.lastOrNull()
+                    if (lost != null && admitted != null && admittedGeneration != null && lostFailure != null) {
+                        if (recoverSelectedForeground(lost, admitted, admittedGeneration, lostFailure)) return@LaunchedEffect
+                        feedSession.foregroundRecovery.failed(admitted, admittedGeneration, lostFailure)
+                    }
                     if (pendingPickerCode != code) pendingPickerCode = null
                     if (pairingSelectionCode != code) pairingSelectionCode = null
                     val attemptGeneration = retry
-                    if (signedIn && code.isNotBlank() && !feedSession.foregroundRecovery.begin(recoveryOwner, attemptGeneration)) {
+                    val attemptOwner = NativeConnectionRecoveryOwner(browserLogin, code, teamState.scope)
+                    if (signedIn && code.isNotBlank() && !feedSession.foregroundRecovery.begin(attemptOwner, attemptGeneration)) {
                         connectionReady = false; busy = false
                         connectionError = recoveryBlock?.failure?.let(::nativeConnectionFailure)
                         return@LaunchedEffect
@@ -2032,6 +2062,7 @@ internal fun NativeScreen(
                             }
                             client = active; connectedCode = requestedCode
                             connectionState.admittedRetry = attemptGeneration
+                            connectionState.admittedOwner = attemptOwner
                             connectionReady = true
                             if (expectedReconnect == capturedReconnect) expectedReconnect = null
                             if (pairingSelectionCode == requestedCode || pendingPickerCode == requestedCode) {
@@ -2043,7 +2074,13 @@ internal fun NativeScreen(
                             switchOwner()?.let { macSwitchRecovery.connected(it, remembered) }
                             savedPairedMacs = store.pairedMacs()
                             connectionError = null
-                            feedSession.foregroundRecovery.connected(recoveryOwner, attemptGeneration)
+                            feedSession.foregroundRecovery.connected(attemptOwner, attemptGeneration)
+                            if (pairingOwner != null) runCatching {
+                                feedSession.connectionHistory.record(pairingOwner, remembered) {
+                                    client === active && code == remembered.code &&
+                                        feedSession.foregroundScope(remembered, active) == pairingOwner
+                                }
+                            }
                             feedCoordinator.resumeAfterVerifiedConnection(remembered)
                             retryDelay = 2_000
                         } catch (failure: Throwable) { feedSession.releaseForeground(active); active.close(); throw failure }
@@ -2053,7 +2090,7 @@ internal fun NativeScreen(
                         ensureActive()
                         if (failure is CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
                         connectionError = nativeConnectionFailure(failure)
-                        feedSession.foregroundRecovery.failed(recoveryOwner, attemptGeneration, failure)
+                        feedSession.foregroundRecovery.failed(attemptOwner, attemptGeneration, failure)
                         busy = false
                         if (pendingPickerCode == requestedCode) pendingPickerCode = null
                         val requiresReauth = nativeSetupRequiresReauth(failure)
@@ -2079,17 +2116,27 @@ internal fun NativeScreen(
 
                 LaunchedEffect(client) {
                     val active = client ?: return@LaunchedEffect
-                    val connectedGeneration = retry
-                    val connectedScope = feedSession.foregroundScope(connectedCode.orEmpty(), active) ?: recoveryOwner.team
+                    val connectedGeneration = connectionState.admittedRetry ?: retry
+                    val connectedOwner = connectionState.admittedOwner ?: recoveryOwner
                     active.disconnected.collect { failure ->
-                        if (client !== active || connectedCode != recoveryOwner.code || store.taskSession() != recoveryOwner.login ||
-                            accountTeams.state.value.scope != connectedScope) return@collect
+                        val selected = accountTeams.state.value.scope
+                        val decision = nativeForegroundDisconnect(connectedOwner, active, client, store.taskSession(), code,
+                            connectedCode, connectedGeneration, retry, selected, failure)
+                        if (decision == NativeForegroundDisconnect.IGNORE) return@collect
                         connectionReady = false
                         connectionError = nativeConnectionFailure(failure)
-                        feedSession.foregroundRecovery.failed(recoveryOwner, connectedGeneration, failure)
-                        if (nativeAutomaticReconnectStops(failure)) return@collect
+                        feedSession.foregroundRecovery.failed(connectedOwner, connectedGeneration, failure)
+                        if (decision == NativeForegroundDisconnect.SELECTED_SCOPE) {
+                            recoverSelectedForeground(active, connectedOwner, connectedGeneration, failure)
+                            return@collect
+                        }
+                        if (decision == NativeForegroundDisconnect.HOLD) return@collect
                         delay(2_000)
-                        retry++
+                        val afterDelay = nativeForegroundDisconnect(connectedOwner, active, client, store.taskSession(), code,
+                            connectedCode, connectedGeneration, retry, accountTeams.state.value.scope, failure)
+                        if (afterDelay == NativeForegroundDisconnect.SELECTED_SCOPE)
+                            recoverSelectedForeground(active, connectedOwner, connectedGeneration, failure)
+                        else if (afterDelay == NativeForegroundDisconnect.RETRY) retry++
                     }
                 }
 
@@ -2952,7 +2999,7 @@ internal fun NativeScreen(
                             hasAccountMismatch = setupRequiresReauth,
                             onSignOut = {
                                 if (isReconnectOwnerCurrent() && feedSession.foregroundRecovery.state.value?.let {
-                                    it.owner == recoveryOwner && it.requiresReauth
+                                    it.owner.sameIdentity(recoveryOwner) && it.requiresReauth
                                 } == true) signOutCurrentAccount()
                             },
                             onCancelConnect = { ticketPairing.clear(); macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null

@@ -32,6 +32,14 @@ class NativeConnectionRecoveryGateTest {
             assertNull(gate.state.value)
         }
     }
+    @Test fun aFreshGenerationOfTheSameTeamCannotEraseARejectedForegroundAttempt() {
+        val gate = NativeConnectionRecoveryGate()
+        val current = owner.copy(team = owner.team!!.copy(generation = 3))
+        gate.begin(owner, 3); gate.failed(owner, 3, denied())
+        assertFalse(gate.begin(current, 3)); assertEquals(current, gate.state.value!!.owner)
+        gate.failed(owner, 3, denied()); assertEquals(current, gate.state.value!!.owner)
+        assertTrue(gate.begin(current, 4)); gate.failed(owner, 3, denied()); assertNull(gate.state.value)
+    }
     @Test fun networkFailuresRetryButTerminalAdmissionFailureWaitsWithoutClaimingAccountMismatch() {
         val gate = NativeConnectionRecoveryGate()
         gate.begin(owner, 0); gate.failed(owner, 0, SocketTimeoutException("unreachable"))

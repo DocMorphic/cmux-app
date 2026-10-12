@@ -42,6 +42,7 @@ internal class NativeFeedSession(
     val macColorSlots = NativeMacColorSlots()
     val macSwitchRecovery = NativeMacSwitchRecovery()
     val foregroundRecovery = NativeConnectionRecoveryGate()
+    val connectionHistory = NativeForegroundConnectionHistory(store::load, store::update)
     val foregroundRetryState = mutableIntStateOf(0)
     private val foregroundAuthority = teams?.let { NativeForegroundSessionAuthority(it, store::visiblePairedMacs, reserveForeground) }
     private val foregroundWorkspaceProjection = kotlinx.coroutines.flow.MutableStateFlow<NativeFeedSource?>(null)
