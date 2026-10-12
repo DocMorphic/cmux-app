@@ -7,11 +7,29 @@ internal class NativeForegroundComputerManagement internal constructor(val team:
     val mac: NativeCredentialStore.PairedMac, private val rootCurrent: () -> Boolean,
     private val memberAndRecordCurrent: () -> Boolean) {
     fun available() = rootCurrent() && memberAndRecordCurrent()
+    fun routeProbe(detailCurrent: () -> Boolean): NativeForegroundRouteProbe {
+        check(available() && detailCurrent()) { "Computer owner changed. Reopen Computer Details." }
+        return NativeForegroundRouteProbe({ available() && detailCurrent() }, memberAndRecordCurrent)
+    }
     fun beginRevoke(): NativeForegroundComputerRevoke {
         check(available()) { "Computer owner changed. Reopen Computer Details." }
         val target = checkNotNull(NativeComputerTarget.from(mac, team)) { "Computer identity is unavailable" }
         return NativeForegroundComputerRevoke(team, target, memberAndRecordCurrent)
     }
+}
+
+/** One route save may finish after it retires its old root grant. No further dialing/RPC is allowed. */
+internal class NativeForegroundRouteProbe(private val rootCurrent: () -> Boolean,
+    private val memberAndRecordCurrent: () -> Boolean) : AutoCloseable {
+    private val closed = AtomicBoolean(false)
+    private val committing = AtomicBoolean(false)
+    fun canProbe() = !closed.get() && !committing.get() && rootCurrent()
+    fun current() = !closed.get() && memberAndRecordCurrent() && (committing.get() || rootCurrent())
+    fun beginCommit() {
+        check(canProbe()) { "Computer route owner changed" }
+        check(committing.compareAndSet(false, true)) { "Computer route commit already started" }
+    }
+    override fun close() { closed.set(true) }
 }
 
 /** One explicitly confirmed target survives stopping its root while account/record validity remains. */

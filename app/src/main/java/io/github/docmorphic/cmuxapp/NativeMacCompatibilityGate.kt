@@ -30,6 +30,20 @@ internal class NativeMacCompatibilityGate(
     private fun violation(tag: String?, version: String?) = if (audience == null) policy.violation(tag, version)
         else audience.violation(policy, tag, version)
 
+    /** A short-lived, exact-target route probe is validated without admitting a new foreground wire. */
+    fun verifyComputerRoute(access: NativeForegroundComputerDetailAccess, client: MobileRpcClient, status: JSONObject) {
+        check(access.current() && !client.isClosed) { "Computer route owner changed" }
+        access.mac.requireMatchingHost(status)
+        try { audience?.requireAuthenticated(status, locallyAuthorizedTailscale = true) }
+        catch (failure: MacBuildNotSupported) { client.retireForCompatibility(failure); throw failure }
+        val tag = (status.opt("mac_instance_tag") as? String)?.takeIf { it.isNotBlank() }
+        val version = (status.opt("mac_app_version") as? String)?.take(1024)
+        val failure = synchronized(lock) { violation(tag, version)?.let(::MacUpdateRequired) }
+        check(access.current() && !client.isClosed) { "Computer route owner changed" }
+        if (failure != null) { client.retireForCompatibility(failure); throw failure }
+        // Future connections still pass ordinary selected-team admission and the latest policy.
+    }
+
     /** Invoke only after transport/account authorization and exact expected-host checks. */
     fun admit(owner: NativeTeamScope, client: MobileRpcClient, status: JSONObject, locallyAuthorizedTailscale: Boolean = false) {
         check(isCurrent(owner) && !client.isClosed) { "Account or connection changed" }

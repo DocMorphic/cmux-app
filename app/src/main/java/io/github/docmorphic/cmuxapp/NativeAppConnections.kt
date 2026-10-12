@@ -40,7 +40,8 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) },
         savedTailscale = savedTailscale,
         admitCompatibility = { team, client, host, tailscale -> compatibility.gate.admit(team, client, host, tailscale) },
-        audience = compatibility.audience, allowsContinuation = teams::allowsContinuation)
+        audience = compatibility.audience, allowsContinuation = teams::allowsContinuation,
+        validateForegroundRoute = compatibility.gate::verifyComputerRoute)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->

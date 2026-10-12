@@ -47,7 +47,8 @@ internal class NativeIrohRuntime(
     private val savedTailscale: NativeSavedTailscaleRuntime? = null,
     private val admitCompatibility: (suspend (NativeTeamScope, MobileRpcClient, org.json.JSONObject, Boolean) -> Unit)? = null,
     private val audience: NativeMacBuildAudience? = null,
-    private val allowsContinuation: (NativeTeamContinuation) -> Boolean = { false }
+    private val allowsContinuation: (NativeTeamContinuation) -> Boolean = { false },
+    private val validateForegroundRoute: ((NativeForegroundComputerDetailAccess, MobileRpcClient, org.json.JSONObject) -> Unit)? = null
 ) : AutoCloseable {
     private class BackendLease(val backend: IrohAccountBackend) {
         private val closed = AtomicBoolean(false)
@@ -405,6 +406,27 @@ internal class NativeIrohRuntime(
     /** Local appearance may be edited offline, but never through a retired account/team page. */
     fun permitsAppearance(team: NativeTeamScope): Boolean = synchronized(lock) { !closed && isCurrent(team) }
     fun usesSavedTailscale(team: NativeTeamScope, target: NativeComputerTarget) = savedTailscale?.selected(team, target) == true
+
+    private fun requireForegroundRoute(access: NativeForegroundComputerDetailAccess, client: MobileRpcClient,
+        host: org.json.JSONObject) {
+        check(access.current() && !client.isClosed && !synchronized(lock) { closed }) { "Computer route owner changed" }
+        require(client.compatibilityWire !== access.client.compatibilityWire) { "Computer route probe borrowed its root" }
+        access.mac.requireMatchingHost(host)
+    }
+
+    fun admitForegroundRoute(access: NativeForegroundComputerDetailAccess, client: MobileRpcClient, host: org.json.JSONObject) {
+        requireForegroundRoute(access, client, host)
+        checkNotNull(validateForegroundRoute) { "Computer route compatibility validation is unavailable" }(access, client, host)
+        requireForegroundRoute(access, client, host)
+    }
+
+    suspend fun requestForegroundRouteTicket(access: NativeForegroundComputerDetailAccess, client: MobileRpcClient,
+        route: PairingCode.Route, host: org.json.JSONObject): MobileAttachTicket? {
+        requireForegroundRoute(access, client, host)
+        return ManualAttachTicketRequest.request(client, route, host, access.team, teams.value.email).also {
+            requireForegroundRoute(access, client, host)
+        }
+    }
 
     suspend fun requestManualAttachTicket(client: MobileRpcClient, route: PairingCode.Route,
         host: org.json.JSONObject, team: NativeTeamScope): MobileAttachTicket? = selectedOperation(team) {

@@ -144,8 +144,11 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
         }
         var routeReload by remember { mutableIntStateOf(0) }
         val grants = remember(store) { TailscaleGrantStore(store::load, store::update) }
+        val foregroundRoutes = remember(context, foreground, runtime, store) { foreground?.let {
+            NativeForegroundTailscaleRoutes.create(context, it, runtime, store)
+        } }
         val tailscale = remember(grants, credentialRevision, routeReload, team, target) {
-            runCatching { grants.computer(team, target) }.getOrNull()
+            runCatching { foregroundRoutes?.routes() ?: grants.computer(team, target) }.getOrNull()
         }
         val latestCallbacks by rememberUpdatedState(forgetCallbacks)
         val forgetFlow = remember(runtime, team, target, store, appearanceStore, connectionStore) {
@@ -189,6 +192,7 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                     NativeTailscaleSection(target, connectionPreferences.get(target).method, tailscale,
                         pair = { input, replacing -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                             val pairing = tailscalePairingInput(input)
+                            if (foregroundRoutes != null) foregroundRoutes.pair(pairing, replacing) else {
                             val permits = { runtime.permitsAppearance(team) && store.taskSession() == team.login }
                             val account = NativeAccount(store)
                             TailscalePairingAuthority({ team }, { it == team && permits() }, grants,
@@ -200,9 +204,11 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                                     authority.authorize(pairing)
                                     authority.connect(pairing, forceToken = { account.accessToken(true) }, token = account::accessToken).use { }
                                 }
+                            }
                         } }, remove = { grant -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            grants.removeRoute(team, target, grant) { runtime.permitsAppearance(team) }
-                        } }, reload = { routeReload++ }, enabled = !forgetting && runtime.permitsAppearance(team))
+                            if (foregroundRoutes != null) foregroundRoutes.remove(grant)
+                            else grants.removeRoute(team, target, grant) { runtime.permitsAppearance(team) }
+                        } }, reload = { routeReload++ }, enabled = !forgetting && permits())
                 },
                 power = { if (foreground != null) NativeForegroundMacPowerSettings(foreground)
                     else if (savedPower != null) NativeBorrowedMacPowerSettings(savedPower)

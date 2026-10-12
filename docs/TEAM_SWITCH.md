@@ -1,5 +1,39 @@
 # Team switching and the active Mac session
 
+## Original-owner Tailscale route management — 2026-10-12
+
+Connected Mac details now uses `NativeForegroundTailscaleRoutes` for explicit
+add/edit/remove actions under its original account/team. Each probe verifies the
+captured Mac/build, requests a constrained manual ticket (only definitive unsupported
+methods may fall back), performs the authenticated workspace read and validates the
+current compatibility policy. It closes the temporary connection on every exit;
+it cannot borrow the terminal root, return a session, or relax ordinary selected
+team admission. Production supplies the compatibility validator explicitly.
+
+Credential writes check both membership/record authority and the captured screen's
+connection context inside the shared account/credential transaction. Another team's
+identical route and sibling builds survive. One commit fence permits completion
+when replacing the active grant retires the old root, while forbidding further
+probes, RPCs or token refresh. Permission loss cancels blocked probes; failed edits
+preserve the previous route. The original root stays separate from probe ownership.
+
+**144 focused JVM tests pass; debug/test APKs build. Eight classes pass Android 17
+ART reflection on 16 KB pages. Three UI tests pass in 11.104s**, including actual
+online-verification/team-switch continuation with mock Stack/peer servers, add/
+edit/remove through encrypted storage, and an attempted commit after the screen
+context changes while its management root remains live. Existing encrypted-login
+fencing and route-edit retry checks also pass. Initial tests caught and fixed
+refresh configuration on the wrong handle and the missing screen-context guard;
+original failure logs are retained. Evidence/XML/source/APK hashes are ignored
+under `captures/runtime/foreground-tailscale-routes-20261012`. The sole AVD was
+stopped/reaped; no production account, actual VPN or physical phone was used.
+
+**Remaining:** durable detail/removal presentation, original-row Settings inventory,
+full original-owner detail hosting across team selection, combined scope/UI audit,
+and real Pixel/Mac acceptance. The host still requires the selected team; explicit
+selection/create/eligibility teardown still disconnects. Route operation fixtures
+do not prove that entire flow or full parity. Signed preview 654 predates this source.
+
 ## Original-owner private addresses — 2026-10-12
 
 Computer Details now loads and changes private addresses through its captured
