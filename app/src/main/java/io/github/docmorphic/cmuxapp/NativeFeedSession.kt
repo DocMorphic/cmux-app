@@ -14,6 +14,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /** Activity recreation retains account-scoped snapshots; process death refetches from the Mac. */
 internal class NativeFeedSession(
@@ -45,6 +49,28 @@ internal class NativeFeedSession(
     }
     fun foregroundScope(code: String, client: MobileRpcClient?) = foregroundAuthority?.scopeFor(code, client)
     fun releaseForeground(client: MobileRpcClient) { foregroundAuthority?.release(client) }
+    private var screenConnection: NativeScreenConnectionState? = null
+    private var foregroundSizing: Job? = null
+    fun connectionState(initialCode: String): NativeScreenConnectionState = screenConnection
+        ?: NativeScreenConnectionState(initialCode, ::changeForegroundClient).also { screenConnection = it }
+    private fun changeForegroundClient(previous: MobileRpcClient?, next: MobileRpcClient?) {
+        foregroundSizing?.cancel(); foregroundSizing = null
+        previous?.let { releaseForeground(it); terminalSizing.unbind(it); terminalInputs.detach(it); it.close() }
+        val active = next ?: return
+        val subscription = terminalSizing.subscription(active) ?: return
+        foregroundSizing = scope.launch {
+            try { active.useEventSession { wire ->
+                try { awaitCancellation() }
+                finally { withContext(NonCancellable) { runCatching { wire.unsubscribe(subscription) } } }
+            } } catch (failure: Exception) {
+                currentCoroutineContext().ensureActive()
+                if (!active.isClosed) active.retireForOwnerFailure(failure)
+            }
+        }
+    }
+    fun canRetainForeground(code: String, client: MobileRpcClient): Boolean = if (foregroundAuthority != null)
+        foregroundAuthority.scopeFor(code, client) != null
+    else account.isSignedIn() && store.visiblePairedMacs().any { it.code == code && connector.allowsSaved(it) }
     val workspaceSnapshots = NativeWorkspaceSnapshots(store::taskSession)
     val coordinator = NativeFeedCoordinator(scope, connect = { mac ->
         connector.connectSaved(mac, account).also { client ->
@@ -200,9 +226,9 @@ internal class NativeFeedSession(
     }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { foregroundAuthority?.clear(); foregroundRecovery.clear(); foregroundRetryState.intValue = 0; workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModelPrefetch.update(emptyList()); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { screenConnection?.close(); foregroundAuthority?.clear(); foregroundRecovery.clear(); foregroundRetryState.intValue = 0; workspaceCreation.clear(); ticketPairing.clear(); dismissPanel(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModelPrefetch.update(emptyList()); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
-    override fun onCleared() { foregroundAuthority?.clear(); ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
+    override fun onCleared() { screenConnection?.close(); foregroundAuthority?.clear(); ticketPairing.clear(); viewModelCleared = true; dismissPanel(); dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,
         private val store: NativeCredentialStore, private val teams: NativeAccountTeams? = null,

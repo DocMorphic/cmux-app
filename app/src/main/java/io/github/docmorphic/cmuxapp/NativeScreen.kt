@@ -133,7 +133,6 @@ internal fun NativeScreen(
         context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE)
     }
     val toolbarStore = rememberTerminalToolbar(displayPreferences)
-    var viewportRequestGeneration by remember { mutableLongStateOf(0L) }
     val store = remember(context, sharedConnections) { sharedConnections?.store ?: NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { sharedConnections?.account ?: NativeAccount(store) }
     val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
@@ -209,12 +208,17 @@ internal fun NativeScreen(
     }
     // One stable receiver keeps callbacks from capturing dozens of separate state delegates.
     // Keyed and saveable state below retains its own reset/restoration boundaries.
+    val connectionState = remember(feedSession) {
+        feedSession.connectionState(ticketPairing.resumeCode() ?: store.load()?.optString("pairing_code").orEmpty())
+    }
+    var viewportRequestGeneration by connectionState.viewportGeneration
     val transientState = remember {
         NativeScreenTransientState(
             initialCode = ticketPairing.resumeCode() ?: store.load()?.optString("pairing_code").orEmpty(),
             initialPairedMacs = store.pairedMacs(),
             initialBackgroundNotifications = NativeNotificationService.isEnabled(context),
-            retryState = feedSession.foregroundRetryState
+            retryState = feedSession.foregroundRetryState,
+            connectionState = connectionState
         )
     }
     with(transientState) {
@@ -223,8 +227,6 @@ internal fun NativeScreen(
         var startedForegroundConnection by rememberSaveable(signedIn) { mutableStateOf(false) }
         val deferStartupForPairing = !startedForegroundConnection && (incomingCode != null || pendingPairingCode != null || ticketProposal != null)
         var connectionError by remember(code) { mutableStateOf<String?>(null) }
-        var hostName by remember(code) { mutableStateOf("cmux") }
-        var hostCapabilities by remember(code) { mutableStateOf<Set<String>>(emptySet()) }
         var mutationAuthorityTick by remember(client) { mutableIntStateOf(0) }
         LaunchedEffect(client) {
             client?.macMutationTicket()?.expiresAtMillis?.let { expiry ->
@@ -314,7 +316,6 @@ internal fun NativeScreen(
             mutableStateOf(saved?.keys()?.asSequence()?.filter { saved.opt(it) is Boolean }
                 ?.associateWith { saved.optBoolean(it) }.orEmpty())
         }
-        var notifications by remember(code) { mutableStateOf<List<NativeNotification>>(emptyList()) }
         var notificationTab by rememberSaveable(signedIn) { mutableStateOf(false) }
         var agentFeedTab by rememberSaveable(signedIn) { mutableStateOf(false) }
         var cloudTab by rememberSaveable(signedIn) { mutableStateOf(false) }
@@ -1866,6 +1867,12 @@ internal fun NativeScreen(
                     if (explicitPairingAttempt) NativeForegroundReconnectKey(teamState.scope, null, null, null)
                     else nativeForegroundReconnectKey(computerState, pairedMacs, teamState.scope, code)) {
                     if (deferStartupForPairing) return@LaunchedEffect
+                    if (signedIn && connectionState.retained(code, retry) {
+                            feedSession.canRetainForeground(code, it)
+                        } != null) {
+                        busy = false
+                        return@LaunchedEffect
+                    }
                     if (pendingPickerCode != code) pendingPickerCode = null
                     if (pairingSelectionCode != code) pairingSelectionCode = null
                     val attemptGeneration = retry
@@ -1992,6 +1999,7 @@ internal fun NativeScreen(
                                 terminalInputs.attach(owner, active, capabilities, inputTargets(workspaces)) { feedSession.allowsTerminalInput(owner) }
                             }
                             client = active; connectedCode = requestedCode
+                            connectionState.admittedRetry = attemptGeneration
                             connectionReady = true
                             if (expectedReconnect == capturedReconnect) expectedReconnect = null
                             if (pairingSelectionCode == requestedCode || pendingPickerCode == requestedCode) {
@@ -2035,15 +2043,6 @@ internal fun NativeScreen(
                         retry++
                     }
                     busy = false
-                }
-
-                LaunchedEffect(client) {
-                    val active = client ?: return@LaunchedEffect
-                    val subscription = terminalSizing.subscription(active) ?: return@LaunchedEffect
-                    active.useEventSession { wire ->
-                        try { awaitCancellation() }
-                        finally { withContext(NonCancellable) { runCatching { wire.unsubscribe(subscription) } } }
-                    }
                 }
 
                 LaunchedEffect(client) {
@@ -2340,12 +2339,7 @@ internal fun NativeScreen(
                     }
                 }
 
-                // Capture during composition: the effect callback may run after client changes.
-                // Reading the mutable state inside it can assign the next session to old cleanup.
-                val disposableClient = client
-                DisposableEffect(disposableClient) {
-                    onDispose { disposableClient?.let { feedSession.releaseForeground(it); terminalSizing.unbind(it); terminalInputs.detach(it); it.close() } }
-                }
+                // The ViewModel owns the admitted client and sizing subscription through recreation.
             }
             foregroundEffects()
 

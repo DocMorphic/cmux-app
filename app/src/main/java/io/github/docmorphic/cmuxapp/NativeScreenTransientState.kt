@@ -10,29 +10,47 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.MutableIntState
 
 /**
- * Composition-local state with no keys or saved-state restoration.
+ * Composition-local UI callbacks and state, with connection data delegated to its owner.
  *
  * NativeScreen remembers this once, just as it previously remembered each delegate.
  * Account-, connection- and target-keyed state must stay at its existing keyed call site.
  * Every mutable property is snapshot-backed, so reads still invalidate their reader.
- * This holder does not own client disposal or survive a removed screen.
+ * The connection owner handles client disposal; view callbacks remain local to this holder.
  */
 @Stable
 internal class NativeScreenTransientState(
     initialCode: String,
     initialPairedMacs: List<NativeCredentialStore.PairedMac>,
     initialBackgroundNotifications: Boolean,
-    retryState: MutableIntState = mutableIntStateOf(0)
+    retryState: MutableIntState = mutableIntStateOf(0),
+    val connectionState: NativeScreenConnectionState = NativeScreenConnectionState(initialCode)
 ) {
-    var code by mutableStateOf(initialCode)
+    var code: String
+        get() = connectionState.code
+        set(value) { connectionState.code = value }
     var error by mutableStateOf<String?>(null)
     var busy by mutableStateOf(false)
     // The supplied ViewModel counter retains an explicit recovery request through recreation.
     var retry by retryState
     var retryDelay by mutableLongStateOf(2_000)
-    var client by mutableStateOf<MobileRpcClient?>(null)
-    var connectedCode by mutableStateOf<String?>(null)
-    var connectionReady by mutableStateOf(false)
+    var client: MobileRpcClient?
+        get() = connectionState.client
+        set(value) { connectionState.client = value }
+    var connectedCode: String?
+        get() = connectionState.connectedCode
+        set(value) { connectionState.connectedCode = value }
+    var connectionReady: Boolean
+        get() = connectionState.connectionReady
+        set(value) { connectionState.connectionReady = value }
+    var hostName: String
+        get() = connectionState.hostName
+        set(value) { connectionState.hostName = value }
+    var hostCapabilities: Set<String>
+        get() = connectionState.hostCapabilities
+        set(value) { connectionState.hostCapabilities = value }
+    var notifications: List<NativeNotification>
+        get() = connectionState.notifications
+        set(value) { connectionState.notifications = value }
     var savedPairedMacs by mutableStateOf(initialPairedMacs)
     var computersReturnToSettings by mutableStateOf(false)
     var showLicenses by mutableStateOf(false)
@@ -55,8 +73,10 @@ internal class NativeScreenTransientState(
     var feedRefreshing by mutableStateOf(false)
     var changingNotifications by mutableStateOf<Set<String>>(emptySet())
     var gridRevision by mutableIntStateOf(0)
-    var replayGeneration by mutableIntStateOf(0)
-    var terminalTransport by mutableStateOf(TerminalTransport.resolve(emptySet()))
+    var replayGeneration by connectionState.replayGeneration
+    var terminalTransport: TerminalTransport
+        get() = connectionState.terminalTransport
+        set(value) { connectionState.terminalTransport = value }
     var scrollPosition by mutableDoubleStateOf(0.0)
     var terminalClick by mutableStateOf<((TerminalGeometry.Cell) -> Unit)?>(null)
     var terminalScroll by mutableStateOf<((Double, TerminalGeometry.Cell) -> Boolean)?>(null)

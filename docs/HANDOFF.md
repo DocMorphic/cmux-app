@@ -1,5 +1,44 @@
 # Codex laptop handoff — 2026-09-28
 
+## Foreground Activity ownership — 2026-10-12
+
+`NativeFeedSession` now owns the admitted screen connection and sizing subscription
+through Activity recreation. Connection data (client/code/readiness, retry admission,
+host capabilities/name, notification snapshot and terminal transport) lives in a
+memory-only owner. Recreated compositions read that owner; view/touch/scroll callbacks
+remain local. Repeated client assignment does nothing; replacement or ViewModel
+clear closes only the previous handle and releases its foreground/input/sizing
+resources. Cold process restart constructs a new owner and performs fresh admission.
+
+The connection effect reuses a ready, live, still-authorized handle only for its
+same code and admitted retry generation. Explicit retry, changed code, lost proof,
+closed client or failed readiness follows normal recovery. Terminal replay and
+viewport request generations now belong to the retained owner, preventing an old
+composition's cleanup from clearing a newer viewport on the same connection.
+The sizing event-session job belongs to the ViewModel and handles connection loss.
+
+All **37 focused JVM cases pass** (three connection-state, ten resume, eight
+foreground-holder, four recovery and 12 Mac-switch cases). Debug/test APKs build;
+the final source build took 57s and Android-test corrections assembled in 21s.
+All four changed classes pass Android 17 ART loading/reflection. **Three actual
+Activity lifecycle cases pass in 12.688s**: identical foreground client and RPC
+following recreation, closure when the Activity finishes, task-draft/background
+restoration, and loaded notification-window restoration with the server offline.
+The existing 16 KB AVD was stopped/reaped after 40.855s; no new AVD or physical
+phone was used. These run against an emulator-local TCP fixture, not the live
+Pixel/Mac or Iroh/Tailscale transport. Evidence/source/APK hashes are ignored under
+`captures/runtime/activity-foreground-ownership-*`.
+
+The first runtime run had two test setup failures, preserved separately: the new
+case enabled a background-feed action without opening a foreground connection;
+the existing pagination case used obsolete list keys. It now explicitly opens
+and waits for foreground admission, while pagination uses the renderer's current
+keys (unchanged from the prior commit). The same three cases then passed.
+
+Per-Mac scopes for panes/feeds/browser/notifications and Settings team selection
+still require integration. **The app still disconnects on team selection.** Signed
+build 654 predates this source; full parity and physical workflow remain unverified.
+
 ## Legacy Tailscale foreground ownership — 2026-10-12
 
 The legacy authority now distinguishes admitted sessions from pending connection

@@ -20,6 +20,39 @@ class NativeLifecycleTest {
     @get:Rule internal val legacyNotifications = LegacyNotificationsTestPreference()
     @get:Rule val compose = createEmptyComposeRule(effectContext = StandardTestDispatcher())
 
+    @Test fun admittedForegroundClientSurvivesActivityRecreationAndStillPerformsRpc() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = NativeCredentialStore(context)
+        val peer = NativeFixturePeer()
+        var before: MobileRpcClient? = null
+        try {
+            store.clear(); store.update { it.put("refresh_token", "foreground-recreation-fixture") }
+            store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+            store.update { it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
+            NativeLifecycleTestActivity.connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            }
+            ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use { scenario ->
+                compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+                compose.waitUntil(15_000) {
+                    scenario.onActivity { activity ->
+                        val state = androidx.lifecycle.ViewModelProvider(activity).get(NativeFeedSession::class.java).connectionState("")
+                        before = state.client.takeIf { state.connectionReady }
+                    }
+                    before != null
+                }
+                org.junit.Assert.assertNotNull(before)
+                scenario.recreate()
+                compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+                scenario.onActivity { activity -> org.junit.Assert.assertSame(before, androidx.lifecycle.ViewModelProvider(activity)
+                    .get(NativeFeedSession::class.java).connectionState("").client) }
+                org.junit.Assert.assertFalse(checkNotNull(before).isClosed)
+                runBlocking { checkNotNull(before).workspaces() }
+            }
+            org.junit.Assert.assertTrue(checkNotNull(before).isClosed)
+        } finally { NativeLifecycleTestActivity.connector = null; peer.close(); store.clear() }
+    }
+
     @Test fun unfinishedTemplateFormSurvivesActivityRecreation() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = NativeCredentialStore(context)
@@ -125,17 +158,17 @@ class NativeLifecycleTest {
                 compose.waitUntil(15_000) { compose.onAllNodesWithText("Notifications (302)").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Notifications (302)").performClick()
                 val feed = compose.onNode(hasScrollAction() and !hasSetTextAction())
-                feed.performScrollToKey("more")
+                feed.performScrollToKey(NativeFeedListRow.More.key)
                 compose.waitUntil(10_000) { compose.onAllNodesWithText("Load more notifications").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Load more notifications").performClick()
-                feed.performScrollToKey(store.pairedMacs().single().origin + ":window-301")
+                feed.performScrollToKey("feed:item:" + store.pairedMacs().single().origin + ":window-301")
                 compose.waitUntil(10_000) { compose.onAllNodesWithText("Task 301").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Task 301").assertIsDisplayed()
                 peer.close()
                 scenario.recreate()
                 compose.waitForIdle()
                 compose.onNode(hasScrollAction() and !hasSetTextAction())
-                    .performScrollToKey(store.pairedMacs().single().origin + ":window-301")
+                    .performScrollToKey("feed:item:" + store.pairedMacs().single().origin + ":window-301")
                 compose.waitUntil(10_000) { compose.onAllNodesWithText("Task 301").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Task 301").assertIsDisplayed()
                 compose.onNodeWithText("Load more notifications").assertDoesNotExist()
