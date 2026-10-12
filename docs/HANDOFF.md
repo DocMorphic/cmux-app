@@ -1,5 +1,44 @@
 # Codex laptop handoff — 2026-09-28
 
+## Foreground notification actions — 2026-10-12
+
+Notification reads, read/unread acknowledgements and mark-all actions now prefer
+the exact admitted foreground client. Notification navigation and resume/banner
+reconciliation accept that Mac's original live scope; saved/cached membership alone
+does not authorize it. A navigation acknowledgement is pinned to its captured
+client and cannot fall back to another feed connection. Secondary Macs keep their
+existing verified feed path. Foreground acknowledgements wake an existing matching
+feed without admitting a new connection.
+
+The retained adapter serializes reads and writes, verifies current notification
+IDs, and fences snapshots with server revisions. Older post-acknowledgement feeds
+get up to three reads without repeating the mutation; they cannot publish old
+unread state. Authorization rejection retires the client. Its revision survives
+Activity recreation and resets on client/code replacement. Foreground projections
+can supply newer notifications while preserving newer feed revisions and exact
+saved identity. Selected-team feed filtering remains in place.
+
+**91 focused JVM cases pass**, including seven new wire/failure cases. Debug/test
+APKs build, and five changed classes pass Android 17 ART reflection. **Three actual
+runtime cases pass in 12.512s**: read and mark-all through the retained client with
+secondary feed paused, revision retention without replay through recreation,
+Mac-specific banner reconciliation on resume, and late-background reconciliation
+rejection with a later resume retry. The first runtime action case completed both
+writes but failed its revision assertion because the shared fixture omitted
+revisions. Optional versioned fixture responses now exercise that assertion;
+the original failure is retained. Production checks were not weakened.
+
+Evidence, XML and source/APK hashes are ignored under
+`captures/runtime/foreground-notification-actions-*`. Only the existing 16 KB AVD
+was used and stopped/reaped; the physical phone was untouched. These are local TCP
+fixtures, not actual Mac/Iroh/Pixel, FCM/Doze or complete team-switch acceptance.
+Signed 654 predates this source.
+
+The disconnect handler still ignores a foreground failure when the picker scope
+changed. Fix its captured-client recovery ownership, remaining tab/sidebar/browser
+creation and presentation guards before removing Settings teardown. **Team
+selection still disconnects the app.** Full parity remains unverified.
+
 ## Foreground reordering and customization — 2026-10-12
 
 Optimistic workspace moves now accept a live foreground projection and dispatch

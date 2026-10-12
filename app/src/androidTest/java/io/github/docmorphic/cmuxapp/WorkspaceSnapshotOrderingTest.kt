@@ -149,6 +149,38 @@ class WorkspaceSnapshotOrderingTest {
         compose.onNodeWithText("Ready shell ▾").assertExists()
     }
 
+    @Test fun notificationReadActionsUseTheRetainedClientWithTheSecondaryFeedPaused() {
+        peer.notificationRevisionsSupported = true
+        peer.notificationFeed = JSONArray().put(JSONObject().put("id", "note-one").put("workspace_id", "workspace-1")
+            .put("surface_id", "terminal-1").put("title", "First fixture alert"))
+            .put(JSONObject().put("id", "note-two").put("workspace_id", "workspace-1")
+                .put("surface_id", "terminal-1").put("title", "Second fixture alert"))
+        launch()
+        compose.onNodeWithText("Ordered workspace").performClick(); waitFor("Ready shell ▾")
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+        compose.runOnIdle { session.coordinator.pause() }
+        val mac = store.pairedMacs().single()
+        val owner = session.connectionState(code)
+        val client = checkNotNull(owner.client)
+        val admittedConnections = connections.get()
+        runBlocking { withTimeout(10_000) { withContext(Dispatchers.Main) {
+            val items = session.refreshNotifications(mac, client)
+            session.setNotificationRead(NativeFeedEntry(NativeFeedSource(mac), items.single { it.id == "note-one" }), true)
+            session.markNotificationsRead(listOf(mac))
+        } } }
+        assertTrue(owner.notifications.all { it.isRead }); assertEquals(2, owner.notifications.size)
+        assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_read" })
+        assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_all_read" })
+        assertEquals(admittedConnections, connections.get())
+        assertTrue(session.coordinator.sources.value.values.all { it.availability == NativeFeedAvailability.OFFLINE })
+        val acknowledgedRevision = owner.notificationsRevision
+        assertTrue(acknowledgedRevision >= 0)
+        scenario!!.recreate(); waitFor("Ready shell ▾")
+        assertSame(client, owner.client); assertEquals(acknowledgedRevision, owner.notificationsRevision)
+        assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_read" })
+        assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_all_read" })
+    }
+
     @Test fun lateBrowserDiscoveryCannotRestoreAWorkspaceDeletedByANewerFeedSnapshot() {
         val gate = CountDownLatch(1)
         peer.browserCreationSupported = true

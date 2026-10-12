@@ -46,10 +46,13 @@ class NativeScreenConnectionStateTest {
         val first = MobileRpcClient(firstWire, { "fixture" }); first.connect()
         val second = MobileRpcClient(secondWire, { "fixture" }); second.connect()
         val owner = NativeScreenConnectionState("one")
-        owner.client = first; owner.client = second; owner.client = second
+        owner.client = first; owner.notificationsRevision = 7
+        owner.client = second; assertEquals(-1L, owner.notificationsRevision)
+        owner.notificationsRevision = 2; owner.client = second; assertEquals(2L, owner.notificationsRevision)
         assertTrue(first.isClosed); assertFalse(second.isClosed)
         assertEquals(1, firstWire.closes.get()); assertEquals(0, secondWire.closes.get())
         owner.hostName = "old"; owner.hostCapabilities = setOf("old"); owner.code = "two"
+        assertEquals(-1L, owner.notificationsRevision)
         assertEquals("cmux", owner.hostName); assertTrue(owner.hostCapabilities.isEmpty())
         owner.close(); owner.close(); assertEquals(1, secondWire.closes.get())
     }

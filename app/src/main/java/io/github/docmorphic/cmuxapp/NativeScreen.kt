@@ -751,8 +751,11 @@ internal fun NativeScreen(
         // Separate feed/terminal/route setup from account and computer state.
         // Nested groups keep callback capture code below ART's method-size guard.
         val workspaceContent: @Composable () -> Unit = {
-            val visibleFeedSources = remember(feedSources, pairedMacs) {
-                feedSources.values.filter { source -> pairedMacs.any { it.origin == source.mac.origin } }
+            val visibleFeedSources = remember(feedSources, moveSources, pairedMacs) {
+                pairedMacs.mapNotNull { mac ->
+                    moveSources[mac.origin]?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
+                        ?: feedSources[mac.origin]?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
+                }
             }
             val scopedFeedSources = remember(visibleFeedSources, selectedOrigin, selectedSshComputer, selectedCloudId) {
                 visibleFeedSources.filter { selectedCloudId == null && selectedSshComputer == null && (selectedOrigin == null || it.mac.origin == selectedOrigin) }
@@ -808,7 +811,7 @@ internal fun NativeScreen(
             }
             DisposableEffect(feedCoordinator) { onDispose { feedSession.leaveMainScreen() } }
 
-            val notificationSyncMac = pairedMacs.singleOrNull { it.code == connectedCode }
+            val notificationSyncMac = paneContext.mac?.takeIf { it.code == connectedCode }
             LaunchedEffect(client, lifecycle, browserLogin, notificationSyncMac, connectionReady) {
                 val active = client ?: return@LaunchedEffect
                 val mac = notificationSyncMac ?: return@LaunchedEffect
@@ -821,7 +824,8 @@ internal fun NativeScreen(
                     fun isCurrent() = attempt.isActive && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
                         signedIn && connectionReady && client === active && !active.isClosed &&
                         code == mac.code && connectedCode == mac.code && store.taskSession() == login &&
-                        store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
+                        NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+                        (connection.allowsSaved(mac) || feedSession.foregroundScope(mac, active) != null)
                     withContext(kotlinx.coroutines.Dispatchers.IO) {
                         reconcileNativeNotifications(NativeNotificationSync(
                             delivered = { notificationDelivery.deliveredIDs(mac.origin, ::isCurrent) },
@@ -848,7 +852,7 @@ internal fun NativeScreen(
                 if (entry.id in changingNotifications) return
                 changingNotifications += entry.id
                 scope.launch {
-                    try { feedCoordinator.setRead(entry, read); error = null }
+                    try { feedSession.setNotificationRead(entry, read); error = null }
                     catch (failure: Exception) {
                         if (failure is CancellationException) throw failure
                         error = failure.message
@@ -861,7 +865,7 @@ internal fun NativeScreen(
                 confirmButton = { TextButton(onClick = {
                     confirmReadAll = false; readAllBusy = true
                     scope.launch {
-                        try { feedCoordinator.markAllRead(pendingReadAllOrigin); error = null }
+                        try { feedSession.markAllNotificationsRead(pendingReadAllOrigin); error = null }
                         catch (failure: Exception) {
                             if (failure is CancellationException) throw failure
                             error = failure.message
@@ -1636,7 +1640,7 @@ internal fun NativeScreen(
                     }
                     if (!routeSignedIn || currentIncomingRoute != routeId || (connector == null && teamState.scope == null)) return@LaunchedEffect
                     val route = if (openedFromFeed) routeInAppNotification else notificationDelivery.destination(routeId)
-                    val mac = store.visiblePairedMacs().singleOrNull { it.ownsOrigin(route?.origin) && connection.allowsSaved(it) }
+                    val mac = store.visiblePairedMacs().singleOrNull { it.ownsOrigin(route?.origin) && (connection.allowsSaved(it) || feedSession.foregroundScope(it, routeClient) != null) }
                     if (route == null || mac == null || (route.login != null && route.login != routeLogin)) {
                         error = "This notification's saved Mac is no longer available."
                         notificationRecovery = notificationRecovery.complete()
@@ -1657,10 +1661,11 @@ internal fun NativeScreen(
                     if (!notificationRecovery.allows(active)) return@LaunchedEffect
                     notificationRecovery = notificationRecovery.resolving()
                     fun isCurrent() = currentIncomingRoute == routeId && client === active && code == mac.code &&
-                        signedIn && store.taskSession() == routeLogin && store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
+                        signedIn && store.taskSession() == routeLogin && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+                        (connection.allowsSaved(mac) || feedSession.foregroundScope(mac, active) != null)
                     var navigationCommitted = false
                     try {
-                        val feed = parseNotifications(active.notifications())
+                        val feed = feedSession.refreshNotifications(mac, active)
                         val listing = workspaceSnapshots.read(mac, active)
                         if (!isCurrent() || !notificationRecovery.allows(active)) return@LaunchedEffect
                         listing.requireCurrent()
@@ -1693,10 +1698,9 @@ internal fun NativeScreen(
                         navigationCommitted = true
                         notificationRecovery = notificationRecovery.complete()
                         // Navigation is committed. A failed read acknowledgment never targets a different session.
-                        active.markNotificationRead(notification.id)
+                        feedSession.acknowledgeNotification(mac, active, notification.id)
                         if (!isCurrent()) return@LaunchedEffect
-                        notifications = feed.map { if (it.id == notification.id) it.copy(isRead = true) else it }
-                        scope.launch { feedCoordinator.refresh() }
+                        // The admitted adapter publishes the fresh acknowledged feed with its revision fence.
                         error = null
                     } catch (failure: Exception) {
                         if (failure is CancellationException) throw failure
@@ -2120,9 +2124,9 @@ internal fun NativeScreen(
                                 val listing = workspaceSnapshots.read(workspaceOwner(requestedCode), active)
                                 if (client !== active || code != requestedCode || !signedIn) return@repeatOnLifecycle
                                 connectionError = null; applyListing(listing)
-                                val feed = active.notifications()
+                                val feed = feedSession.refreshNotifications(workspaceOwner(requestedCode), active)
                                 if (client !== active || code != requestedCode || !signedIn) return@repeatOnLifecycle
-                                notifications = parseNotifications(feed)
+                                notifications = feed
                             } catch (failure: Exception) {
                                 if (failure is CancellationException) throw failure
                                 if (failure !is NativeWorkspaceSnapshotSuperseded && client === active && code == requestedCode) connectionError = nativeConnectionFailure(failure)
@@ -3852,10 +3856,10 @@ internal fun NativeScreen(
                             mode?.let(workspaceSortStore::setMode); order?.let(workspaceSortStore::setPriority)
                         }, readNotification = { entry, read, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }
-                            feedCoordinator.setRead(entry, read) { currentOwner() && canSend() }
+                            feedSession.setNotificationRead(entry, read) { currentOwner() && canSend() }
                         }, readAllNotifications = { macs, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }
-                            feedCoordinator.markNotificationsRead(macs) { currentOwner() && canSend() }
+                            feedSession.markNotificationsRead(macs) { currentOwner() && canSend() }
                         }, refreshNotifications = {
                             check(currentOwner()) { "Sidebar account changed" }
                             feedCoordinator.refresh()

@@ -14,7 +14,7 @@ internal class NativeScreenConnectionState(initialCode: String,
         get() = selectedCode
         set(value) {
             if (selectedCode == value) return
-            selectedCode = value; hostName = "cmux"; hostCapabilities = emptySet(); notifications = emptyList()
+            selectedCode = value; hostName = "cmux"; hostCapabilities = emptySet(); notifications = emptyList(); notificationsRevision = -1
             terminalTransport = TerminalTransport.resolve(emptySet())
         }
     private var ownedClient by mutableStateOf<MobileRpcClient?>(null)
@@ -24,6 +24,7 @@ internal class NativeScreenConnectionState(initialCode: String,
             val previous = ownedClient
             if (previous === value) return
             ownedClient = value
+            notificationsRevision = -1
             changed(previous, value)
         }
     var connectedCode by mutableStateOf<String?>(null)
@@ -34,6 +35,7 @@ internal class NativeScreenConnectionState(initialCode: String,
     var hostName by mutableStateOf("cmux")
     var hostCapabilities by mutableStateOf<Set<String>>(emptySet())
     var notifications by mutableStateOf<List<NativeNotification>>(emptyList())
+    var notificationsRevision by mutableLongStateOf(-1L)
     var terminalTransport by mutableStateOf(TerminalTransport.resolve(emptySet()))
 
     fun retained(requested: String, retry: Int, permits: (MobileRpcClient) -> Boolean): MobileRpcClient? =

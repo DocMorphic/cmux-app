@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collect
@@ -63,10 +64,12 @@ internal class NativeFeedSession(
     private var foregroundSizing: Job? = null
     private var foregroundArtifactWatcher: Job? = null
     private var foregroundWorkspaceAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundWorkspaceAccess>? = null
+    private var foregroundNotificationAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundNotificationAccess>? = null
     fun connectionState(initialCode: String): NativeScreenConnectionState = screenConnection
         ?: NativeScreenConnectionState(initialCode, ::changeForegroundClient).also { screenConnection = it }
     private fun changeForegroundClient(previous: MobileRpcClient?, next: MobileRpcClient?) {
         foregroundWorkspaceAccess = null
+        foregroundNotificationAccess = null
         foregroundWorkspaceProjection.value = null
         foregroundSizing?.cancel(); foregroundSizing = null
         foregroundArtifactWatcher?.cancel(); foregroundArtifactWatcher = null
@@ -157,12 +160,67 @@ internal class NativeFeedSession(
         val state = checkNotNull(screenConnection)
         val snapshot = workspaceSnapshots.latest(mac) ?: return foregroundWorkspaceProjection.value
             ?.takeIf { NativeComputerMenuPairing.isCurrent(mac, listOf(it.mac)) }
-            ?.copy(mac = mac, capabilities = state.hostCapabilities, macMutationTicket = state.client?.macMutationTicket())
+            ?.copy(mac = mac, items = state.notifications, revision = state.notificationsRevision,
+                capabilities = state.hostCapabilities, macMutationTicket = state.client?.macMutationTicket())
         // Presentation can retain the last accepted rows while a write is in flight. The mutation
         // adapter independently requires a fresh snapshot before admitting a subsequent write.
-        return NativeFeedSource(mac, workspaces = snapshot.workspaces, groups = parseGroups(snapshot.value),
+        return NativeFeedSource(mac, items = state.notifications, revision = state.notificationsRevision,
+            workspaces = snapshot.workspaces, groups = parseGroups(snapshot.value),
             capabilities = state.hostCapabilities, availability = NativeFeedAvailability.CONNECTED,
             hasWorkspaceSnapshot = true, macMutationTicket = state.client?.macMutationTicket())
+    }
+    private fun foregroundNotifications(mac: NativeCredentialStore.PairedMac): NativeForegroundNotificationAccess? {
+        val state = screenConnection ?: return null
+        val client = state.client ?: return null
+        fun live() = !viewModelCleared && !client.isClosed && state.client === client && state.connectionReady &&
+            state.code == mac.code && state.connectedCode == mac.code && canRetainForeground(mac, client)
+        if (!live()) return null
+        foregroundNotificationAccess?.takeIf { it.second === client && NativeComputerMenuPairing.isCurrent(mac, listOf(it.first)) }
+            ?.let { return it.third }
+        return NativeForegroundNotificationAccess(scope, client, ::live) { items, revision ->
+            check(live()) { "Notification owner changed" }
+            state.notifications = items; state.notificationsRevision = revision
+            updateForegroundWorkspaceSource(mac)
+        }.also { foregroundNotificationAccess = Triple(mac, client, it) }
+    }
+    suspend fun refreshNotifications(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient): List<NativeNotification> {
+        check(screenConnection?.client === client) { "Notification client changed" }
+        return checkNotNull(foregroundNotifications(mac)) { "Notification connection is unavailable" }.refresh()
+    }
+    suspend fun acknowledgeNotification(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient, id: String) {
+        check(screenConnection?.client === client) { "Notification client changed" }
+        checkNotNull(foregroundNotifications(mac)) { "Notification connection is unavailable" }.setRead(id, true)
+        coordinator.refreshNotificationsAfterForeground(mac)
+    }
+    suspend fun setNotificationRead(entry: NativeFeedEntry, read: Boolean, canSend: () -> Boolean = { true }) {
+        val access = foregroundNotifications(entry.source.mac)
+        if (access == null) coordinator.setRead(entry, read, canSend)
+        else { access.setRead(entry.notification.id, read, canSend); coordinator.refreshNotificationsAfterForeground(entry.source.mac) }
+    }
+    suspend fun markNotificationsRead(macs: List<NativeCredentialStore.PairedMac>, canSend: () -> Boolean = { true }) =
+        withContext(scope.coroutineContext.minusKey(Job)) {
+            check(macs.map { it.origin }.distinct().size == macs.size)
+            val failures = macs.map { mac -> async {
+                try {
+                    val access = foregroundNotifications(mac)
+                    if (access == null) coordinator.markNotificationsRead(listOf(mac), canSend)
+                    else { access.markAllRead(canSend); coordinator.refreshNotificationsAfterForeground(mac) }
+                    null
+                } catch (failure: Exception) {
+                    currentCoroutineContext().ensureActive()
+                    if (failure is kotlinx.coroutines.CancellationException) throw failure
+                    mac.name
+                }
+            } }.map { it.await() }.filterNotNull()
+            check(failures.isEmpty()) { "Could not mark notifications read on: ${failures.joinToString()}. Reconnect and retry." }
+        }
+    suspend fun markAllNotificationsRead(selectedOrigin: String?) {
+        val wanted = coordinator.sources.value.values.filter { selectedOrigin == null || it.mac.origin == selectedOrigin }.map { it.mac }.toMutableList()
+        val client = screenConnection?.client
+        if (selectedOrigin != null && client != null) store.visiblePairedMacs()
+            .singleOrNull { it.ownsOrigin(selectedOrigin) && canRetainForeground(it, client) }
+            ?.let { if (wanted.none { existing -> existing.origin == it.origin }) wanted += it }
+        markNotificationsRead(wanted)
     }
     suspend fun workspaceAction(mac: NativeCredentialStore.PairedMac, workspaceId: String, action: String,
         title: String? = null, canSend: () -> Boolean = { true }) =

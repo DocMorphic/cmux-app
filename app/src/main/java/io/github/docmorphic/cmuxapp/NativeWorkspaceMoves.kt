@@ -84,7 +84,9 @@ internal class NativeWorkspaceMoves(private val scope: CoroutineScope, coordinat
                 val feed = sources[active.mac.origin]?.takeIf { NativeComputerMenuPairing.isCurrent(active.mac, listOf(it.mac)) }
                 val merged = feed?.copy(mac = active.mac, workspaces = active.workspaces, groups = active.groups,
                     availability = active.availability, capabilities = active.capabilities,
-                    hasWorkspaceSnapshot = active.hasWorkspaceSnapshot, macMutationTicket = active.macMutationTicket) ?: active
+                    hasWorkspaceSnapshot = active.hasWorkspaceSnapshot, macMutationTicket = active.macMutationTicket,
+                    items = if (active.revision >= 0 && active.revision >= feed.revision) active.items else feed.items,
+                    revision = maxOf(active.revision, feed.revision)) ?: active
                 sources + (active.mac.origin to merged)
             }
         }.collect { update(it) }

@@ -3175,6 +3175,8 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var instanceTag: String? = null
     @Volatile var displayName = "Fixture Mac"
     @Volatile var notificationFeed = JSONArray()
+    @Volatile var notificationRevisionsSupported = false
+    private val notificationRevision = java.util.concurrent.atomic.AtomicLong()
     @Volatile var renamedWorkspace: String? = null
     @Volatile var hiddenWorkspaceId: String? = null
     @Volatile var customWorkspaceListing: JSONObject? = null
@@ -3430,9 +3432,11 @@ internal class NativeFixturePeer : AutoCloseable {
                 val id = ids.getString(index)
                 if (method == "notification.feed.mark_read") readNotifications.add(id) else readNotifications.remove(id)
             }
+            if (notificationRevisionsSupported) it.put("revision", notificationRevision.incrementAndGet())
         }
         "notification.feed.mark_all_read" -> JSONObject().also {
             for (index in 0 until notificationFeed.length()) readNotifications.add(notificationFeed.getJSONObject(index).getString("id"))
+            if (notificationRevisionsSupported) it.put("revision", notificationRevision.incrementAndGet())
         }
         "notification.reconcile" -> JSONObject().put("handled_ids", JSONArray(reconciledNotificationIds))
         "notification.feed.list" -> JSONObject().put("notifications", JSONArray().also { output ->
@@ -3441,7 +3445,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 if (item.getString("id") in readNotifications) item.put("is_read", true)
                 output.put(item)
             }
-        })
+        }).also { if (notificationRevisionsSupported) it.put("revision", notificationRevision.get()) }
         "mobile.events.subscribe" -> JSONObject().put("stream_id", params.optString("stream_id").also {
             if (params.optJSONArray("topics")?.toString()?.contains("terminal.") == true) terminalStreamId = it
         })

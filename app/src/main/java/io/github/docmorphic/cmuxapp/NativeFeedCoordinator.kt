@@ -689,6 +689,10 @@ internal class NativeFeedCoordinator(
         Unit
     }
 
+    /** A foreground acknowledgement wakes an existing feed; it never admits another connection. */
+    fun refreshNotificationsAfterForeground(mac: NativeCredentialStore.PairedMac) {
+        handles[mac.origin]?.takeIf { it.mac == mac && isAllowed(mac) }?.refresh?.request()
+    }
     suspend fun setRead(entry: NativeFeedEntry, read: Boolean, canSend: () -> Boolean = { true }) = withContext(scope.coroutineContext.minusKey(Job)) {
         val handle = handles[entry.source.mac.origin] ?: error("Connect to ${entry.computer} to change this notification.")
         check(handle.mac == entry.source.mac) { "Saved computer changed" }
