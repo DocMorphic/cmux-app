@@ -437,6 +437,25 @@ internal class NativeIrohRuntime(
             NativeNetworkingSnapshot.from(control, endpoint, now()).also { requireCurrent(run) }
         } }
 
+    /** Local settings only, addressed through the original enrolled identity. No control login or Mac dial. */
+    suspend fun foregroundPrivatePaths(access: NativeForegroundComputerDetailAccess,
+        change: ((NativePrivatePathStore) -> Unit)? = null): List<NativePrivatePath> = withContext(Dispatchers.IO) {
+        val allowed = { access.current() && !synchronized(lock) { closed } }
+        check(allowed()) { "Computer detail owner changed" }
+        var settings: IrohAccountBackend? = null
+        try {
+            settings = backend(access.team, allowed)
+            check(allowed()) { "Computer detail owner changed" }
+            val store = checkNotNull(settings.privatePaths) { "Private address settings are unavailable" }
+                .computer(access.target, allowed)
+            change?.invoke(store)
+            store.load().also { check(allowed()) { "Computer detail owner changed" } }
+        } finally {
+            settings?.close()
+            withContext(NonCancellable) { withTimeoutOrNull(2000) { settings?.awaitClosed() } }
+        }
+    }
+
     suspend fun privatePaths(team: NativeTeamScope, change: ((NativePrivatePathStore) -> Unit)? = null): List<NativePrivatePath> =
         withContext(Dispatchers.IO) { selectedOperation(team) {
             val run = synchronized(lock) { owner } ?: error("Account session changed")

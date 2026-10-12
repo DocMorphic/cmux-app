@@ -1,5 +1,40 @@
 # Remaining work for iOS parity
 
+## Original-owner private addresses — 2026-10-12
+
+Computer Details now loads and changes private addresses through its captured
+foreground owner. `foregroundPrivatePaths` constructs settings for that owner's
+enrolled identity without starting account control, directory observation, endpoint
+binding or a Mac connection. It checks the exact live record/membership/runtime
+before and after setup and access, and closes/awaits the temporary backend on every
+normal and failure path. The constructor rejects a management record from another
+owner or pairing.
+
+`NativePrivatePathStore.computer` exposes only the captured device/build. Reads,
+upserts, removal and reset are restricted to that projection; commits merge with
+the owning file under the shared storage lock, preserving sibling Macs/builds.
+Retargeted writes fail, and a late permission loss during the final merge prevents
+a write. Another selected team's identity file remains separate. Source review at
+scoped upstream pin f4b15090 confirms the iOS editor is pinned to this Mac/build.
+
+**68 focused JVM tests pass**, including the original-owner local settings tests,
+existing 37-case runtime and 11-case continuation authority suites. Debug/test APKs
+build in 1m20s; six changed/relevant classes pass Android 17 ART reflection on 16 KB
+pages. **Three UI tests pass in 13.717s**: the actual editor persists into separate
+AtomicFile identities while preserving a sibling and the selected team's file,
+rejects a late membership loss, keeps its root alive; the previous detail check/
+power/reentry flow; and the existing exact-build editor without global reset. The
+fresh failed-save screenshot was inspected. Evidence/XML/source and APK hashes
+are ignored under `captures/runtime/foreground-private-addresses-20261012`.
+The sole existing AVD was stopped/reaped; no physical phone/account was touched.
+
+**Remaining:** original-owner Tailscale add/edit/remove admission and ticket/
+compatibility checks, durable detail/removal presentation, original-row Settings
+inventory, and combined team-switch UI/real-device acceptance. The host still
+requires the selected team and explicit selection/create/eligibility teardown
+still disconnects. These fixtures do not prove actual Pixel/Mac networking or
+full parity. Signed preview 654 predates this source.
+
 ## Connected Mac detail controls — 2026-10-12
 
 Computer Details now captures a stable, exact foreground access object from the

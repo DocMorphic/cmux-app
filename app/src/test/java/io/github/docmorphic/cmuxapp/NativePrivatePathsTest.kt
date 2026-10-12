@@ -26,6 +26,39 @@ class NativePrivatePathsTest {
     }
     private val path = NativePrivatePath("mac", "default", "Test Mac", listOf("10.0.0.2:58470"), true)
     private val mac = IrohV2Computer("record", "a".repeat(64), "mac", "default", "Mac", emptyList())
+    @Test fun computerViewLimitsReadsEditsResetAndRemovalToItsExactBuild() {
+        var disk: String? = null
+        val store = NativePrivatePathStore({ disk }, { disk = it })
+        val sibling = path.copy(buildTag = "nightly")
+        val other = path.copy(deviceId = "other")
+        store.upsert(path); store.upsert(sibling); store.upsert(other)
+        val view = store.computer(NativeComputerTarget.from(mac)) { true }
+        assertEquals(listOf(path), view.load())
+        assertTrue(runCatching { view.upsert(other) }.isFailure)
+        assertTrue(runCatching { view.upsert(sibling) }.isFailure)
+        view.reset()
+        assertFalse(view.load().single().enabled)
+        assertTrue(store.load().filter { it != path.copy(enabled = false) }.all { it.enabled })
+        view.upsert(path.copy(addresses = listOf("10.0.0.8:58470")))
+        view.remove(path.deviceId, path.buildTag)
+        assertTrue(view.load().isEmpty())
+        assertEquals(listOf(sibling, other), store.load())
+    }
+
+    @Test fun computerViewRejectsPermissionLossDuringFinalMergeWithoutWriting() {
+        var disk: String? = null; var current = true; var reads = 0; var revokeOnRead = Int.MAX_VALUE
+        val store = NativePrivatePathStore({ if (++reads == revokeOnRead) current = false; disk }, { disk = it })
+        store.upsert(path)
+        val previous = disk
+        val view = store.computer(NativeComputerTarget.from(mac)) { current }
+        // The scoped read succeeds; permission then expires while loading siblings for the commit.
+        revokeOnRead = reads + 2
+        assertTrue(runCatching { view.upsert(path.copy(enabled = false)) }.isFailure)
+        assertEquals(previous, disk)
+        assertTrue(runCatching { view.load() }.isFailure)
+        assertTrue(runCatching { view.remove(path.deviceId, path.buildTag) }.isFailure)
+    }
+
     @Test fun persistedPathsMatchExactMacAndBuildAndRespectEnabled() {
         var disk: String? = null
         val store = NativePrivatePathStore({ disk }, { disk = it })

@@ -59,6 +59,22 @@ internal data class NativePrivatePath(val deviceId: String, val buildTag: String
 
 /** One atomic, no-backup file per complete enrolled identity. No network synchronization. */
 internal class NativePrivatePathStore(private val read: () -> String?, private val write: (String) -> Unit) {
+    /** A detail action can edit only its captured Mac; siblings remain in the owning file. */
+    fun computer(target: NativeComputerTarget, permits: () -> Boolean): NativePrivatePathStore = NativePrivatePathStore(
+        read = { synchronized(lock) {
+            check(permits()) { "Computer detail owner changed" }
+            encode(load().filter { target.matches(it) }).toString()
+        } },
+        write = { text -> synchronized(lock) {
+            check(permits()) { "Computer detail owner changed" }
+            val proposed = NativePrivatePathStore({ text }, { error("Read-only validation") }).load()
+            require(proposed.size <= 1 && proposed.all { target.matches(it) }) { "Private addresses target changed" }
+            val remaining = load().filterNot { target.matches(it) }
+            require(remaining.size + proposed.size <= 64)
+            check(permits()) { "Computer detail owner changed" }
+            save(remaining + proposed)
+        } })
+
     fun load(): List<NativePrivatePath> = synchronized(lock) {
         val array = JSONArray(read() ?: "[]")
         require(array.length() <= 64)
@@ -91,10 +107,12 @@ internal class NativePrivatePathStore(private val read: () -> String?, private v
       catch (_: Exception) { emptyList() }
 
     private fun save(paths: List<NativePrivatePath>) {
-        write(JSONArray(paths.map { path -> JSONObject().put("deviceId", path.deviceId)
-            .put("buildTag", path.buildTag).put("name", path.name)
-            .put("addresses", JSONArray(path.addresses)).put("enabled", path.enabled) }).toString())
+        write(encode(paths).toString())
     }
+
+    private fun encode(paths: List<NativePrivatePath>) = JSONArray(paths.map { path -> JSONObject().put("deviceId", path.deviceId)
+            .put("buildTag", path.buildTag).put("name", path.name)
+            .put("addresses", JSONArray(path.addresses)).put("enabled", path.enabled) })
 
     companion object {
         private val lock = Any()

@@ -7,6 +7,11 @@ internal class NativeForegroundComputerDetailAccess(val team: NativeTeamScope, v
     val client: MobileRpcClient, val management: NativeForegroundComputerManagement,
     private val permits: () -> Boolean) {
     val target = checkNotNull(NativeComputerTarget.from(mac, team))
+    init {
+        require(team == management.team && NativeComputerMenuPairing.isCurrent(mac, listOf(management.mac))) {
+            "Computer details must use their admitted management record"
+        }
+    }
     private val powerGate = Mutex()
     fun current() = !client.isClosed && permits() && management.available()
     suspend fun check(): NativeConnectionReport {

@@ -166,8 +166,10 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                 check = { if (foreground != null) foreground.check()
                     else if (rawOnly && savedCheck != null && !runtime.usesSavedTailscale(team, target)) savedCheck.run()
                     else runtime.checkComputer(team, target) },
-                paths = { runtime.privatePaths(team).filter { target.matches(it) } },
-                changePaths = { action -> runtime.privatePaths(team, action).filter { target.matches(it) } },
+                paths = { if (foreground != null) runtime.foregroundPrivatePaths(foreground)
+                    else runtime.privatePaths(team).filter { target.matches(it) } },
+                changePaths = { action -> if (foreground != null) runtime.foregroundPrivatePaths(foreground, action)
+                    else runtime.privatePaths(team, action).filter { target.matches(it) } },
                 share = { report ->
                     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
                         .putExtra(android.content.Intent.EXTRA_TEXT, report)
