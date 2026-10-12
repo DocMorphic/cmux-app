@@ -1,5 +1,45 @@
 # Custom Mac notification build
 
+## Verified artifact and first local launch — 2026-10-12
+
+Retry [38180269049](https://github.com/DocMorphic/cmux-app/actions/runs/38180269049)
+completed successfully at 23:34:38 UTC. Full compilation took **67m42s**; packaging
+and verified artifact upload also passed. Source is
+`686b012d4a8aca76e7839c24cd40ca9fe2fbaabb`, upstream `f4b1509054949eaad5d695569ad443c4c18ed68d`.
+Artifact `cmux-mac-notification-companion-arm64` (ID `11719137216`) was downloaded.
+Inner archive SHA-256:
+`3d99fb87347709a9c785f63fd3a0d2bc4d9f6fd13a896439a978e95644d29bee`.
+The manifest/receipt/archive agree; all **22** locally regenerated patch hashes
+match the manifest. Archive paths and 12 relative symlinks were checked before
+extraction. Local inspection verifies the isolated bundle ID, ARM64, production
+routes, absence of baked runner/private paths, and deep strict ad-hoc signatures.
+Version is **0.65.0**, minimum macOS **14.0**, built with Xcode **26.6 / 17F113**.
+The signed app declares no entitlements; actual native Keychain support is still a
+runtime gate. Auth's reviewed bundle-specific file fallback handles ad-hoc token
+storage; this does not prove native push/transport key storage.
+
+The extracted `cmux DEV android-push.app` launched through the new
+`scripts/launch-mac-notification-companion.swift` with the three selected private
+owner paths. The launcher admits only the isolated production bundle, keeps
+ordinary user environment rather than agent credentials, and refuses a second
+running tagged instance. No process is stopped. An explicit unknown debug auth
+profile uses the pinned resolver's documented fail-closed behavior, so no default
+`~/.secrets` files or ambient test credentials are selected for auto-login.
+The launch helper passes Swift 6 typechecking.
+
+Actual Mac UI inspection shows the isolated app, its own new terminal workspace
+and **Sign In**. Its production sign-in pane was opened and reports Waiting for
+sign-in in the separate auth window. Token service, fallback directory and session
+snapshot repository are scoped by bundle ID; no official app credentials or
+workspace snapshot were copied. The owner is asked to sign in with the same cmux
+account/team as the Pixel and reconnect the phone if available. Account/native
+key publication, helper startup/enrollment and actual FCM delivery remain open.
+
+Evidence: ignored `captures/runtime/mac-companion-38180269049-verified/`,
+`mac-companion-38180269049-local-app/`, launch/typecheck logs and the current native
+UI observation. This development app remains unnotarized; verified build/launch
+is not whole Mac/Pixel or full iOS parity acceptance.
+
 `mac-notification-companion.yml` builds the full pinned upstream app plus the
 reviewed Android source/QR pairing hooks on a standard GitHub `macos-26` ARM64
 runner. Local Xcode installation and a local full upstream checkout are not needed

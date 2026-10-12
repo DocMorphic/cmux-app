@@ -1,5 +1,18 @@
 # Remaining work for iOS parity
 
+## Custom Mac artifact and local launch — 2026-10-12
+
+Hosted retry 38180269049 succeeded: full tagged build (67m42s), packaging and upload.
+Downloaded bytes independently match the archive receipt and all 22 current
+reviewed patch hashes. Local deep signatures, ARM64, isolated ID and production
+routing pass. The 0.65.0 ad-hoc app launched with the private owner paths through
+the checked isolated launcher; no process was stopped or official state copied.
+Its actual UI is signed out, and the production sign-in pane is open. The owner
+is asked to sign in there with the Pixel's cmux account/team and reconnect the
+phone. Native Keychain/account authority, helper startup/enrollment and real FCM
+remain open. See MAC_NOTIFICATION_BUILD.md for exact archive/source hashes and
+runtime scope. Signed Android 650 remains published; full parity is unverified.
+
 ## Authorization recovery — 2026-10-12
 
 The scoped iOS auth sink now maps to Android's normalized host RPC codes/messages.
