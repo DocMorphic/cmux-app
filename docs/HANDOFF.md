@@ -1,5 +1,40 @@
 # Codex laptop handoff — 2026-09-28
 
+## Foreground pane and input scopes — 2026-10-12
+
+The main pane now derives its saved Mac/team from the exact admitted foreground
+binding, separately from selected-team computer discovery. The binding query checks
+route, device/build, account/team, origin, native route and ticket revision;
+renaming is harmless. A same-code record in another team cannot borrow it. The
+pane context requires the active client and verified matching login/user/team;
+saved/cached records cannot supply continuation, and ambiguous candidates fail.
+Picker data remains selected-team scoped. For identical public locators, only the
+admitted identity wins in the pane's list; the picker list is unchanged.
+
+Pane navigation, displayed/checkpoint tab identity, workspace snapshot retention
+and input/sizing owner retention use this context. Foreground workspace access
+checks the exact client/record, while new admissions still use the selected scope.
+Terminal input compares the complete computed owner instead of treating missing
+account fields as wildcards; the admitted foreground can continue independently
+of the picker. Workspace events/polling use the client's connected code, so a late
+old-client event cannot fetch under a newly selected locator and mislabel its cache.
+
+All **50 focused JVM cases pass**: four pane-context, nine foreground-holder, five
+pane-navigation, ten tab-navigation, eight tab-restoration, 11 input-session and
+three retained-connection cases. They include actual verified MockWebServer
+membership selection, exact bound-record rejection, same public locators in two
+teams, original pane/tab identity, ambiguous/closed/missing-proof contexts and old
+event retirement. Debug/test APKs build in 1m25s. Evidence and source/APK hashes are
+ignored under `captures/runtime/foreground-pane-scope-*`. These are controller/data
+and fixture-wire tests; no emulator or Pixel/Mac workflow was run for this batch.
+Signed 654 predates it.
+
+Browser, Files/panel, creation/task, notification and remaining tab/recovery guards
+still need their per-Mac contexts. Settings selection and the old selected-scope
+teardown remain enabled until those owners work together. **The app still
+disconnects on team selection.** Complete team-switch UI and full parity remain
+unverified.
+
 ## Foreground Activity ownership — 2026-10-12
 
 `NativeFeedSession` now owns the admitted screen connection and sizing subscription

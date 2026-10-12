@@ -51,6 +51,13 @@ internal class NativeForegroundSessionAuthority(
         return captured.proof.admittedScope.takeIf { binding.get() === captured }
     }
 
+    /** Exact saved identity, including route/ticket revision; a same-code sibling cannot borrow it. */
+    fun scopeFor(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient? = binding.get()?.client): NativeTeamScope? {
+        val captured = binding.get() ?: return null
+        if (captured.client !== client || !NativeComputerMenuPairing.isCurrent(captured.mac, listOf(mac))) return null
+        return scopeFor(mac.code, client).takeIf { binding.get() === captured }
+    }
+
     /** An old composition's disposal cannot erase the replacement foreground binding. */
     fun release(client: MobileRpcClient) {
         val captured = binding.get() ?: return

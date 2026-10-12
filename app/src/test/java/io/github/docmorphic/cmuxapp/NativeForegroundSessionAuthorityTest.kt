@@ -69,6 +69,26 @@ class NativeForegroundSessionAuthorityTest {
         }
     }
 
+    @Test fun paneScopeRequiresExactBoundRecordAndVerifiedContinuationAfterTeamSelection() = runBlocking<Unit> {
+        fixture {
+            val (client, _) = client(); authority.admit(initial, mac, client)
+            selection("two"); account.select("two")
+            val sibling = mac.copy(accountTeamId = "two", stableOrigin = "sibling-origin")
+            val context = nativeForegroundPaneContext(initial.login, account.state.value.scope, listOf(sibling),
+                saved + sibling, mac.code, client, authority::scopeFor)
+            assertTrue(context.foreground); assertEquals(initial, context.team); assertEquals(mac, context.mac)
+            assertEquals(listOf(mac), context.macs)
+            for (changed in listOf(sibling, mac.copy(deviceId = "other"), mac.copy(ticketRevision = "replacement"),
+                mac.copy(nativeRouteCode = "different"))) assertNull(authority.scopeFor(changed, client))
+            assertEquals(initial, authority.scopeFor(mac.copy(name = "Renamed"), client))
+            profile("two", "two"); account.refresh()
+            assertNull(authority.scopeFor(mac, client))
+            val retired = nativeForegroundPaneContext(initial.login, account.state.value.scope, listOf(sibling),
+                saved + sibling, mac.code, client, authority::scopeFor)
+            assertFalse(retired.foreground); assertEquals(sibling, retired.mac)
+        }
+    }
+
     @Test fun lateReleaseAndQueriesForOtherHandlesCannotEraseReplacementBinding() = runBlocking<Unit> {
         fixture {
             val (old, _) = client(); val (replacement, _) = client()

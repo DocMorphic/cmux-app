@@ -244,6 +244,10 @@ internal fun NativeScreen(
         val hiddenOrigins = remember(store, historyRevision) { NativeComputerVisibility.hiddenOrigins(store.load()) }
         val hiddenMacs = eligibleMacs.filter { NativeComputerVisibility.isHidden(hiddenOrigins, it) }
         val pairedMacs = eligibleMacs.filterNot { NativeComputerVisibility.isHidden(hiddenOrigins, it) }
+        val paneContext = nativeForegroundPaneContext(if (signedIn) store.taskSession() else null, teamState.scope,
+            pairedMacs, store.visiblePairedMacs(), code, client, feedSession::foregroundScope)
+        val paneMacs = paneContext.macs
+        val paneTeam = paneContext.team
         val computerPreferenceStore = remember(context, teamState.scope) {
             teamState.scope?.let { NativeMacConnectionStore.create(context.applicationContext, it) }
         }
@@ -267,7 +271,7 @@ internal fun NativeScreen(
             teamState.scope, pairedMacs, computerState.computers.takeIf { computerState.account == teamState.scope }.orEmpty(),
             foreground = pairedMacs.singleOrNull { connectionReady && it.code == connectedCode }?.colorIdentity)
         val paneSelection = feedSession.paneNavigation.select(if (signedIn) store.taskSession() else null,
-            pairedMacs.singleOrNull { it.code == code }, teamState.scope)
+            paneContext.mac, paneTeam)
         val onboardingPrefs = remember(context) { context.getSharedPreferences("native_onboarding", android.content.Context.MODE_PRIVATE) }
         val onboardingStore = remember(onboardingPrefs) { NativeOnboardingProgressStore(
             { onboardingPrefs.getString(NativeOnboardingProgressStore.KEY, null) },
@@ -360,9 +364,12 @@ internal fun NativeScreen(
         val handleNotification by rememberUpdatedState(onNotificationHandled)
         val feedCoordinator = feedSession.coordinator
         val workspaceSnapshots = feedSession.workspaceSnapshots
-        fun workspaceOwner(requestedCode: String = code) = store.visiblePairedMacs().singleOrNull {
-            it.code == requestedCode && connection.allowsSaved(it)
-        } ?: throw java.io.IOException("This workspace's saved Mac is no longer available.")
+        fun workspaceOwner(requestedCode: String = code): NativeCredentialStore.PairedMac {
+            paneContext.mac?.takeIf { paneContext.foreground && it.code == requestedCode &&
+                feedSession.foregroundScope(it, client) != null }?.let { return it }
+            return store.visiblePairedMacs().singleOrNull { it.code == requestedCode && connection.allowsSaved(it) }
+                ?: throw java.io.IOException("This workspace's saved Mac is no longer available.")
+        }
         val localBrowsers = feedSession.localBrowsers
         DisposableEffect(localBrowsers) { onDispose { localBrowsers.cancelRequest() } }
         val localBrowserState by localBrowsers.state.collectAsState()
@@ -407,7 +414,7 @@ internal fun NativeScreen(
         var notificationRecovery by remember(currentIncomingRoute, browserLogin) { mutableStateOf(NativeNotificationRouteRecovery()) }
         fun inputOwner(mac: NativeCredentialStore.PairedMac, login: String?) = nativeTerminalInputOwner(mac, login)
         SideEffect {
-            val owner = pairedMacs.singleOrNull { it.code == code }?.let { inputOwner(it, browserLogin) }
+            val owner = paneContext.mac?.let { inputOwner(it, browserLogin) }
             terminalInputs.retainOwner(owner); terminalSizing.retainOwner(owner)
         }
         fun inputTargets(rows: List<NativeWorkspace>) = rows.flatMap { workspace -> workspace.terminals.filter { it.isReady }
@@ -422,7 +429,8 @@ internal fun NativeScreen(
         val screenBootCount = rememberNativeScreenBootCount()
         fun requireWorkspaceConnection(active: MobileRpcClient, owner: NativeCredentialStore.PairedMac) {
             check(signedIn && client === active && connectionReady && connectedCode == owner.code && code == owner.code &&
-                store.taskSession() == browserLogin && store.visiblePairedMacs().contains(owner) && connection.allowsSaved(owner)) {
+                store.taskSession() == browserLogin && NativeComputerMenuPairing.isCurrent(owner, store.visiblePairedMacs()) &&
+                (connection.allowsSaved(owner) || feedSession.foregroundScope(owner, active) != null)) {
                 "Workspace connection changed. Reconnect to this Mac."
             }
         }
@@ -431,8 +439,8 @@ internal fun NativeScreen(
         val terminalStartupState by terminalStartup.state.collectAsState()
         val pendingWorkspaceTab by workspaceTabs.pending.collectAsState()
         val displayedTab = if (sshRoute != null || showSettings || showTaskComposer || selectedChangesWorkspace != null || workspaceRoute != null || currentIncomingRoute != null) null
-            else workspaceTabDisplay(browserLogin, teamState.scope, pairedMacs, code, selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, localBrowser)
-        LaunchedEffect(browserLogin, pairedMacs) { workspaceSnapshots.retain(pairedMacs) }
+            else workspaceTabDisplay(browserLogin, paneTeam, paneMacs, code, selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, localBrowser)
+        LaunchedEffect(browserLogin, paneMacs) { workspaceSnapshots.retain(paneMacs) }
         SideEffect {
             if (screenResume.pending == null) {
                 workspaceTabs.observe(browserLogin, displayedTab?.first, displayedTab?.second)
@@ -442,7 +450,7 @@ internal fun NativeScreen(
             }
             if (workspaceRoute == null && !creatingTerminal && localBrowserState.creating == null) {
                 val destination = if (sshRoute != null || showSettings || showTaskComposer || currentIncomingRoute != null || (pendingPairingCode != null || ticketProposal != null)) null else
-                    workspaceTabDisplay(browserLogin, teamState.scope, pairedMacs, code,
+                    workspaceTabDisplay(browserLogin, paneTeam, paneMacs, code,
                         selectedChangesWorkspace ?: selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, localBrowser)
                 screenResume.observe(destination?.let { (key, tab) ->
                     NativeScreenCheckpoint(checkNotNull(browserLogin), key,
@@ -465,7 +473,7 @@ internal fun NativeScreen(
             terminalStartup.cancelPin()
             selectedTerminal = pane.terminal; selectedBrowser = pane.browser; selectedSurface = pane.surface
             val login = browserLogin ?: return
-            workspaceTabDisplay(login, teamState.scope, pairedMacs, code, selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, null)
+            workspaceTabDisplay(login, paneTeam, paneMacs, code, selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, null)
                 ?.let { workspaceTabs.explicit(login, it.first, checkNotNull(it.second)) }
         }
         val navigationGeneration = remember { NativeNavigationGeneration() }
@@ -2065,10 +2073,11 @@ internal fun NativeScreen(
                     val active = client ?: return@LaunchedEffect
                     active.events.collect { event ->
                         if (event.topic == "workspace.list.changed" || event.topic == "workspace.updated") {
-                            val requestedCode = code
+                            val requestedCode = nativeForegroundEventCode(active, client, code, connectedCode) ?: return@collect
+                            if (!signedIn) return@collect
                             try {
                                 val listing = workspaceSnapshots.read(workspaceOwner(requestedCode), active)
-                                if (client === active && code == requestedCode && signedIn) { applyListing(listing); connectionError = null }
+                                if (client === active && code == requestedCode && connectedCode == requestedCode && signedIn) { applyListing(listing); connectionError = null }
                             } catch (failure: Exception) {
                                 if (failure is CancellationException) throw failure
                                 if (failure !is NativeWorkspaceSnapshotSuperseded && client === active && code == requestedCode)
@@ -2084,9 +2093,9 @@ internal fun NativeScreen(
                     // Pane recovery/discovery owns the visible workspace's polling while active.
                     if (pendingWorkspaceTab != null || (discoveryKey != null && "browser.stream.v1" in hostCapabilities && !creatingTerminal)) return@LaunchedEffect
                     if (selectedTerminal?.isReady == true && selectedSurface == null && terminalStartupState.failure == null) return@LaunchedEffect
-                    val requestedCode = code
+                    val requestedCode = nativeForegroundEventCode(active, client, code, connectedCode) ?: return@LaunchedEffect
                     lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                        while (client === active && code == requestedCode && signedIn) {
+                        while (client === active && code == requestedCode && connectedCode == requestedCode && signedIn) {
                             try {
                                 val listing = workspaceSnapshots.read(workspaceOwner(requestedCode), active)
                                 if (client !== active || code != requestedCode || !signedIn) return@repeatOnLifecycle

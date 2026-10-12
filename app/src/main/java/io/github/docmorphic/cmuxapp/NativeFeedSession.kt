@@ -48,6 +48,8 @@ internal class NativeFeedSession(
         if (team != null) foregroundAuthority?.admit(team, mac, client)
     }
     fun foregroundScope(code: String, client: MobileRpcClient?) = foregroundAuthority?.scopeFor(code, client)
+    fun foregroundScope(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient?) = foregroundAuthority?.scopeFor(mac, client)
+    fun allowsForegroundMac(mac: NativeCredentialStore.PairedMac) = foregroundAuthority?.scopeFor(mac) != null
     fun releaseForeground(client: MobileRpcClient) { foregroundAuthority?.release(client) }
     private var screenConnection: NativeScreenConnectionState? = null
     private var foregroundSizing: Job? = null
@@ -208,9 +210,7 @@ internal class NativeFeedSession(
     }
     fun allowsTerminalInput(owner: TerminalInputSender.Owner): Boolean = account.isSignedIn() &&
         store.taskSession() == owner.login && store.visiblePairedMacs().any { mac ->
-            canonicalMacDeviceId(mac.deviceId) == owner.device && mac.instanceTag?.trim()?.takeIf(String::isNotEmpty) == owner.build &&
-                (mac.accountUserId == null || mac.accountUserId == owner.user) &&
-                (mac.accountTeamId == null || mac.accountTeamId == owner.team) && connector.allowsSaved(mac)
+            nativeTerminalInputOwner(mac, owner.login) == owner && (connector.allowsSaved(mac) || allowsForegroundMac(mac))
         }
 
     fun holdSidebar(isCurrent: () -> Boolean): RoutedSidebarLease {
