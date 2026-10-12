@@ -1,5 +1,46 @@
 # Codex laptop handoff — 2026-09-28
 
+## Foreground Changes access and reconnect — 2026-10-12
+
+Changes file lists, diffs, stat and fetch requests now prefer the exact admitted
+foreground workspace. Requests check client/record/account/capability/descriptor
+before and after asynchronous work. Ordinary loss can retain authorized cached
+presentation; authorization rejection retires the client and invalidates it.
+Main-pane and browser/row Changes actions use this access path, while other Macs
+keep their verified feed access.
+
+The modal presentation can rebind to a newly admitted replacement while retaining
+its navigation and store. An unchanged foreground does not refresh on recreation;
+a healthy feed-backed viewer is not opportunistically upgraded by recreation.
+Neither access changes nor cached metadata admit a new connection. Child browser
+lifetime guards wrap shared access independently.
+
+**90 focused JVM cases pass**, including five new guarded-wire cases covering all
+four read types, descriptor/authority changes, ordinary loss and rejection.
+Debug/test APKs build; five changed classes pass Android 17 ART reflection.
+**Three runtime cases pass in 39.599s**: foreground Changes with secondary feed
+paused, Activity recreation and fresh-client reconnect; selected diff/scroll across
+recreation/rotation and retirement on sign-out; and renamed-image Before bytes,
+zoom/pan and PDF page retention through recreation without refetching.
+
+Initial failures and screenshots are preserved. The reconnect test initially
+observed an old cached page before the asynchronous fresh read; it now waits for
+that confirmed read. A preview pixel probe sampled the antialiased center boundary
+of a correctly restored green/red pan. The unchanged interior green/red probes,
+artifact identity, fetch counts and PDF page checks prove restoration; the redundant
+boundary expectation was removed. Successful image and page-2 screenshots were
+pulled and visually inspected. Rendering was not changed to satisfy that probe.
+
+Evidence/XML/source and APK hashes are ignored under
+`captures/runtime/foreground-changes-access-*`. The existing 16 KB AVD was
+stopped/reaped; no new AVD or physical phone was used. These are local fixtures,
+not actual Mac/Iroh/Pixel or full cross-team UI acceptance. Signed 654 predates
+this source.
+
+Appearance and remaining task/presentation guards still need review before removing
+Settings teardown. **Team selection still disconnects the app.** Full parity remains
+unverified; Markdown/Mermaid pixel acceptance remains a separate outstanding gate.
+
 ## Foreground pane, tab and picker guards — 2026-10-12
 
 Pane recovery, browser discovery, terminal startup expiry, workspace routes and

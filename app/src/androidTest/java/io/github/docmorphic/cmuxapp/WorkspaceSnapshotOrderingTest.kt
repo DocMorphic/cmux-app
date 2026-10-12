@@ -218,6 +218,43 @@ class WorkspaceSnapshotOrderingTest {
         assertTrue(state.admittedRetry!! > 0)
     }
 
+    @Test fun foregroundChangesReadsRetainPresentationThroughRecreationAndRecoverOnANewAdmittedClient() {
+        peer.workspaceChangesSupported = true
+        peer.changesResponse = { method, params ->
+            assertEquals("workspace-1", params.getString("workspace_id"))
+            if (method.endsWith(".file_diff")) JSONObject().put("path", "README.md")
+                .put("unified_diff", "@@ -1 +1 @@\n-old\n+Foreground fixture diff\n").put("truncated", false)
+            else JSONObject("""{"workspace_id":"workspace-1","repo_root":"/fixture","files":[{"path":"README.md","status":"modified"}]}""")
+        }
+        launch(); compose.onNodeWithText("Ordered workspace").performClick(); waitFor("Ready shell ▾")
+        val mac = store.pairedMacs().single()
+        val state = session.connectionState(code)
+        val originalClient = checkNotNull(state.client)
+        val admittedConnections = connections.get()
+        compose.runOnIdle {
+            session.coordinator.pause()
+            session.openChanges(mac, checkNotNull(session.workspaceSnapshots.latest(mac)).workspaces.single())
+        }
+        val presentation = checkNotNull(session.changesSheet)
+        compose.waitUntil(5_000) { presentation.store.listing.value.snapshot?.files?.singleOrNull()?.path == "README.md" }
+        compose.runOnIdle { presentation.navigation.selected = "README.md"; presentation.store.select("README.md") }
+        compose.waitUntil(5_000) { presentation.store.page("README.md").value.document != null }
+        assertEquals(admittedConnections, connections.get())
+        val originalReads = peer.requests.count { it.optString("method") == "mobile.workspace.changes.files" }
+        scenario!!.recreate()
+        compose.waitForIdle(); assertSame(presentation, session.changesSheet)
+        assertEquals("README.md", presentation.navigation.selected)
+        assertEquals(originalReads, peer.requests.count { it.optString("method") == "mobile.workspace.changes.files" })
+        peer.disconnectClients()
+        compose.waitUntil(20_000) { state.connectionReady && state.client !== originalClient }
+        compose.waitUntil(10_000) {
+            peer.requests.count { it.optString("method") == "mobile.workspace.changes.files" } > originalReads &&
+                presentation.store.page("README.md").value.document != null && !presentation.store.listing.value.loading
+        }
+        assertSame(presentation, session.changesSheet); assertEquals("README.md", presentation.navigation.selected)
+        assertTrue(peer.requests.count { it.optString("method") == "mobile.workspace.changes.files" } > originalReads)
+    }
+
     @Test fun lateBrowserDiscoveryCannotRestoreAWorkspaceDeletedByANewerFeedSnapshot() {
         val gate = CountDownLatch(1)
         peer.browserCreationSupported = true

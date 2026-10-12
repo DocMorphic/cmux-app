@@ -108,7 +108,9 @@ class ChangesPreviewRetentionRuntimeTest {
                     val artifact = checkNotNull(original!!.store.previews.state.value.artifact).file
                     fun fetches() = peer.requests.count { it.optString("method") == "mobile.workspace.changes.file_fetch" }
                     val imageReads = fetches()
-                    scenario.recreate(); find(By.desc("Before preview old/image.png")); assertColor("Image preview image.png", Color.RED)
+                    scenario.recreate(); find(By.desc("Before preview old/image.png"))
+                    // The retained pan puts an antialiased stripe boundary near the center.
+                    // Interior samples prove the original transform without demanding a boundary color.
                     assertColor(imageDescription, Color.GREEN, .2f)
                     assertColor(imageDescription, Color.RED, .8f)
                     scenario.onActivity { assertSame(original, ViewModelProvider(it)[NativeFeedSession::class.java].changesSheet)

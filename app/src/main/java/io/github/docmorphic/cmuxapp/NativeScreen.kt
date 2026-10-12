@@ -3366,16 +3366,19 @@ internal fun NativeScreen(
                         })
                 }
                 val sidebarChanges = feedSession.changesSheet
+                LaunchedEffect(sidebarChanges, client, connectionReady) { sidebarChanges?.let(feedSession::recoverChanges) }
                 val changesContent: @Composable ColumnScope.() -> Unit = {
                     val active = client
                     val workspace = selectedChangesWorkspace!!
                     val ownerKey = paneContext.mac?.let {
                         workspaceTabKey(browserLogin, paneOwner(it), it, workspace.id)
                     }
-                    if (active != null && connectionReady && connectedCode == code && browserLogin != null && ownerKey != null)
-                        NativeChangesView(active, workspace.id, workspace.title,
-                            onBack = { selectedChangesWorkspace = null; selectedWorkspace = null },
-                            navigation = changesNavigation.bind(browserLogin, ownerKey))
+                    val mac = paneContext.mac
+                    val access = if (active != null && connectionReady && connectedCode == code && browserLogin != null &&
+                        ownerKey != null && mac != null) feedSession.changesAccess(mac, workspace) else null
+                    if (access != null && access.current())
+                        NativeChangesView(access, onBack = { selectedChangesWorkspace = null; selectedWorkspace = null },
+                            navigation = changesNavigation.bind(checkNotNull(browserLogin), checkNotNull(ownerKey)))
                     else {
                         BackHandler { selectedChangesWorkspace = null; selectedWorkspace = null }
                         Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -3943,7 +3946,7 @@ internal fun NativeScreen(
                             check(currentOwner()) { "Sidebar account changed" }
                             feedSession.createGroup(mac) { currentOwner() && canSend() }
                         }, readChanges = { mac, workspace, permitted ->
-                            feedCoordinator.changesAccess(mac, workspace) { currentOwner() && permitted() }
+                            feedSession.changesAccess(mac, workspace) { currentOwner() && permitted() }
                         }, canCloseSsh = { row -> currentOwner() && sshSession?.workspaceFeed?.isCloseAvailable(row) == true },
                         closeSsh = { row, canSend ->
                             check(currentOwner()) { "Sidebar account changed" }

@@ -44,6 +44,18 @@ internal fun NativeChangesView(client: MobileRpcClient, workspaceId: String, tit
     ChangesContent(store, title, onBack, content, detail)
 }
 
+@Composable
+internal fun NativeChangesView(access: WorkspaceChangesAccess, onBack: () -> Unit, navigation: ChangesNavigationState? = null) {
+    val scope = rememberCoroutineScope()
+    val store = remember(access) { ChangesStore(scope, access.workspaceId,
+        { access.read(WorkspaceChangesRead.Files) }, { path, budget -> access.read(WorkspaceChangesRead.Diff(path, budget)) },
+        fetchLines = { path -> access.content.currentLines(path) }) }
+    DisposableEffect(store) { onDispose { store.close() } }
+    LaunchedEffect(store) { store.refresh().join() }
+    val detail = navigation ?: remember(access) { ChangesNavigationState() }
+    ChangesContent(store, access.title, onBack, access.content, detail)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Unit, content: ChangesContentTransfer? = null,

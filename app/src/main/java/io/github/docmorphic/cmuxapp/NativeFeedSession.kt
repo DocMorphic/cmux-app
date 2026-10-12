@@ -66,11 +66,13 @@ internal class NativeFeedSession(
     private var foregroundArtifactWatcher: Job? = null
     private var foregroundWorkspaceAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundWorkspaceAccess>? = null
     private var foregroundNotificationAccess: Triple<NativeCredentialStore.PairedMac, MobileRpcClient, NativeForegroundNotificationAccess>? = null
+    private val foregroundChanges = mutableMapOf<String, Triple<NativeCredentialStore.PairedMac, MobileRpcClient, WorkspaceChangesAccess>>()
     fun connectionState(initialCode: String): NativeScreenConnectionState = screenConnection
         ?: NativeScreenConnectionState(initialCode, ::changeForegroundClient).also { screenConnection = it }
     private fun changeForegroundClient(previous: MobileRpcClient?, next: MobileRpcClient?) {
         foregroundWorkspaceAccess = null
         foregroundNotificationAccess = null
+        foregroundChanges.clear()
         foregroundWorkspaceProjection.value = null
         foregroundSizing?.cancel(); foregroundSizing = null
         foregroundArtifactWatcher?.cancel(); foregroundArtifactWatcher = null
@@ -372,18 +374,65 @@ internal class NativeFeedSession(
     }
     var changesSheet by mutableStateOf<WorkspaceChangesPresentation?>(null)
         private set
+    private var changesMac: NativeCredentialStore.PairedMac? = null
+    private var changesLogin: String? = null
+    private var changesConnection: MobileRpcClient? = null
+    fun changesAccess(mac: NativeCredentialStore.PairedMac, workspace: NativeWorkspace,
+        permits: (() -> Boolean)? = null): WorkspaceChangesAccess {
+        val state = screenConnection
+        val client = state?.client
+        val login = store.taskSession()
+        fun cached() = !viewModelCleared && account.isSignedIn() && store.taskSession() == login &&
+            state != null && state.code == mac.code && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+            WORKSPACE_CHANGES_CAPABILITY in state.hostCapabilities && coordinator.sources.value[mac.origin]?.artifactCacheDenied != true &&
+            (connector.allowsSaved(mac) || foregroundScope(mac, client) != null)
+        fun live() = cached() && client != null && !client.isClosed && state != null && state.client === client && state.connectionReady &&
+            state.connectedCode == mac.code && state.admittedMac?.let { NativeComputerMenuPairing.isCurrent(mac, listOf(it)) } == true &&
+            canRetainForeground(mac, client)
+        if (client == null || !live()) return coordinator.changesAccess(mac, workspace, permits ?: { true })
+        // A child browser supplies its own lifetime guard; it must not inherit another viewer's callback.
+        val shared = foregroundChanges[workspace.id]?.takeIf { it.second === client &&
+            NativeComputerMenuPairing.isCurrent(mac, listOf(it.first)) && it.third.title == workspace.title }
+        val base = shared?.third ?: checkNotNull(NativeForegroundChangesAccess(scope, client, ::live, ::cached)
+            .workspace(workspace.id, workspace.title) {
+                workspaceSource(mac)?.workspaces?.any { it.id == workspace.id } == true
+            }).also { foregroundChanges[workspace.id] = Triple(mac, client, it) }
+        return if (permits == null) base else
+            WorkspaceChangesAccess(base.workspaceId, base.title, { permits() && base.current() }) { base.read(it) }
+    }
     fun openChanges(mac: NativeCredentialStore.PairedMac, workspace: NativeWorkspace) {
         val login = checkNotNull(store.taskSession()) { "Sign in to view changes" }
-        val access = coordinator.changesAccess(mac, workspace) {
+        val access = changesAccess(mac, workspace) {
             !viewModelCleared && account.isSignedIn() && store.taskSession() == login
         }
         check(access.current()) { "Changes workspace is no longer available" }
         changesSheet?.close()
+        changesMac = mac; changesLogin = login
+        changesConnection = foregroundChanges[workspace.id]?.second?.takeIf { it === screenConnection?.client && !it.isClosed }
         changesSheet = WorkspaceChangesPresentation(scope, access)
+    }
+    fun recoverChanges(expected: WorkspaceChangesPresentation) {
+        if (changesSheet !== expected) return
+        val mac = changesMac ?: return
+        val login = changesLogin ?: return
+        if (!account.isSignedIn() || store.taskSession() != login) { dismissChanges(expected); return }
+        // A healthy feed-backed presentation already resolves its current handle dynamically.
+        // Merely recreating the Activity must not upgrade it and invalidate its preview bytes.
+        if (changesConnection == null && expected.access.current()) return
+        val state = screenConnection ?: return
+        val active = state.client?.takeUnless { it.isClosed } ?: return
+        if (!state.connectionReady || state.connectedCode != mac.code ||
+            state.admittedMac?.let { NativeComputerMenuPairing.isCurrent(mac, listOf(it)) } != true) return
+        if (changesConnection === active && expected.access.current()) return
+        val workspace = workspaceSource(mac)?.workspaces?.singleOrNull { it.id == expected.access.workspaceId } ?: return
+        val next = changesAccess(mac, workspace) { !viewModelCleared && account.isSignedIn() && store.taskSession() == login }
+        val connection = foregroundChanges[workspace.id]?.second?.takeIf { it === screenConnection?.client && !it.isClosed }
+        if (changesConnection === connection && expected.access.current()) return
+        if (next.current()) { changesConnection = connection; expected.replaceAccess(next) }
     }
     fun dismissChanges(expected: WorkspaceChangesPresentation? = changesSheet) {
         if (changesSheet !== expected) return
-        changesSheet?.close(); changesSheet = null
+        changesSheet?.close(); changesSheet = null; changesMac = null; changesLogin = null; changesConnection = null
     }
     val terminalInputs = NativeTerminalInputSession(scope)
     fun configureFeed(macs: List<NativeCredentialStore.PairedMac>, routes: Map<String, String>,
