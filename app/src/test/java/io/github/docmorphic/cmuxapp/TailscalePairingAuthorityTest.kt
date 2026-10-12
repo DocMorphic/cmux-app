@@ -5,9 +5,14 @@ import kotlinx.coroutines.channels.Channel
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.MockResponse
+import org.json.JSONArray
+import kotlinx.coroutines.flow.first
 
 class TailscalePairingAuthorityTest {
-    private class Fixture(audience: NativeMacBuildAudience? = null) {
+    private class Fixture(audience: NativeMacBuildAudience? = null,
+        continuation: (NativeTeamContinuation) -> Boolean = { false }) {
         var scope: NativeTeamScope? = NativeTeamScope("login", "user", "team", 1)
         var state = JSONObject().put("task_session", "login").put("refresh_token", "fixture-refresh")
         var failSave = false
@@ -60,7 +65,7 @@ class TailscalePairingAuthorityTest {
             }, savedRouteAdmission = { _, grant ->
                 val captured = routeEpoch
                 ({ routeAllowed && routeEpoch == captured && grantRouteAllowed(grant) })
-            })
+            }, allowsContinuation = continuation)
         suspend fun connect(admission: NativeTicketConnectionAdmission? = null, selected: PairingCode.Tailscale = pairing) =
             authority.connect(selected, attachTicket = ticket, savedTicket = savedTicket, admission = admission, savedRoute = savedRoute, forceToken = forceRefresh) { tokenCalls++; tokenHook(); accessToken }
         fun authorize() = authority.authorize(pairing)
@@ -69,6 +74,154 @@ class TailscalePairingAuthorityTest {
             scope = next
             if (next == null) { state.remove("task_session"); state.remove("refresh_token") }
             else state.put("task_session", next.login)
+        }
+    }
+
+    private fun MockWebServer.profile(selected: String, vararg members: String) {
+        enqueue(MockResponse().setBody(JSONObject().put("id", "user")
+            .put("selected_team", JSONObject().put("id", selected)).toString()))
+        enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray(members.map {
+            JSONObject().put("id", it).put("display_name", it)
+        })).toString()))
+    }
+    private suspend fun continuation(block: suspend (Fixture, NativeAccountTeams, MockWebServer) -> Unit) {
+        MockWebServer().use { server ->
+            NativeAccountTeams({ "fixture-access" }, { "login" }, server.url("/api/v1/")).use { account ->
+                server.profile("team", "team", "other"); account.refresh()
+                val f = Fixture(continuation = account::allowsContinuation)
+                f.switch(account.state.value.scope)
+                try { block(f, account, server) } finally { f.authority.close() }
+            }
+        }
+    }
+    private suspend fun select(f: Fixture, account: NativeAccountTeams, server: MockWebServer, id: String) {
+        server.enqueue(MockResponse().setBody(JSONObject().put("id", "user")
+            .put("selected_team", JSONObject().put("id", id)).toString()))
+        f.switch(account.select(id).scope); f.authority.retireInvalid()
+    }
+
+    @Test fun cancelledAdmissionCannotLeakItsReturnedClientOrCancelTheCaller() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        var owned: Job? = null
+        f.resolveHook = { owned = currentCoroutineContext()[Job] }
+        f.beforeGrantWrite = { checkNotNull(owned).cancel() }
+        try {
+            assertTrue(runCatching { f.connect() }.exceptionOrNull() is CancellationException)
+            assertTrue(currentCoroutineContext().isActive)
+            assertTrue(f.transports.single().closed)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun legacyForegroundKeepsTicketWhileSecondaryAndPendingResolveRetireAcrossTeamRoundTrip() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val owner = checkNotNull(f.scope)
+            f.manual = true; f.authorize()
+            val first = f.connect(); val secondary = f.connect()
+            val hold = checkNotNull(f.authority.reserveForeground(checkNotNull(account.captureContinuation(owner)), first))
+            assertFalse(f.authority.retainsForeground(owner, first)); hold.activate { true }
+            assertTrue(f.authority.retainsForeground(owner, first.compatibilityWire))
+            assertFalse(f.authority.retainsForeground(owner, secondary))
+            val other = f.pairing.copy(routes = listOf(f.numeric.copy(host = "100.99.1.3")))
+            f.authority.authorize(other)
+            val entered = CompletableDeferred<Unit>()
+            f.resolveHook = { entered.complete(Unit); awaitCancellation() }
+            val pending = async { runCatching { f.authority.connect(other) { "fixture-access" } } }
+            try {
+                withTimeout(2000) { entered.await() }
+                select(f, account, server, "other")
+                assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+                withTimeout(2000) { secondary.disconnected.first() }
+                first.workspaces(); assertFalse(first.isClosed)
+                select(f, account, server, "team"); first.workspaces()
+                assertNotEquals(owner.generation, checkNotNull(f.scope).generation)
+                assertTrue(runCatching { f.authority.connect(f.pairing, owner) { "fixture-access" } }.isFailure)
+                assertEquals(2, f.transports.size)
+                assertEquals(1, f.transports.first().methods.count { it == "mobile.attach_ticket.create" })
+                hold.close(); f.authority.retireInvalid()
+                withTimeout(2000) { first.disconnected.first() }
+            } finally { hold.close(); first.close(); secondary.close(); pending.cancel(); pending.join() }
+        }
+    }
+
+    @Test fun legacyForegroundCannotSurviveGrantReplacementOrMembershipRemovalAndReaddition() = runBlocking<Unit> {
+        for (removeMember in listOf(true, false)) continuation { f, account, server ->
+            val owner = checkNotNull(f.scope)
+            f.authorize(); val first = f.connect(); val original = checkNotNull(f.grant())
+            val proof = checkNotNull(account.captureContinuation(owner))
+            val hold = checkNotNull(f.authority.reserveForeground(proof, first)); hold.activate { true }
+            try {
+                select(f, account, server, "other")
+                if (removeMember) {
+                    server.profile("other", "other"); f.switch(account.refresh().scope)
+                } else f.grants.save(owner, original.copy(id = java.util.UUID.randomUUID().toString())) { true }
+                f.authority.retireInvalid(); withTimeout(2000) { first.disconnected.first() }
+                server.profile("other", "team", "other"); f.switch(account.refresh().scope)
+                f.grants.save(owner, original) { true }; f.authority.retireInvalid()
+                assertFalse(f.authority.retainsForeground(owner, first))
+                assertTrue(runCatching { hold.activate { true } }.isFailure)
+                assertNull(f.authority.reserveForeground(proof, first))
+            } finally { hold.close(); first.close() }
+        }
+    }
+
+    @Test fun unknownForgedAndUnactivatedLegacyReservationsCannotPreserveASession() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val owner = checkNotNull(f.scope)
+            f.authorize(); val first = f.connect(); val proof = checkNotNull(account.captureContinuation(owner))
+            MobileRpcClient(PoolTestTransport(), { "fixture-access" }).use { unknown ->
+                unknown.connect(); assertNull(f.authority.reserveForeground(proof, unknown))
+            }
+            assertNull(f.authority.reserveForeground(NativeTeamContinuation(owner, Any()), first))
+            val hold = checkNotNull(f.authority.reserveForeground(proof, first))
+            assertTrue(runCatching { hold.activate { false } }.isFailure)
+            select(f, account, server, "other")
+            withTimeout(2000) { first.disconnected.first() }
+            assertTrue(runCatching { hold.activate { true } }.isFailure)
+            hold.close(); first.close()
+        }
+    }
+
+    @Test fun externalLegacyTicketUsesOriginalRouteGuardOnlyAfterForegroundActivation() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val owner = checkNotNull(f.scope)
+            f.authorize(); f.connect().close(); val original = checkNotNull(f.grant())
+            f.ticket = externalTicket()
+            val route = PairingCode.Tailscale(listOf(f.numeric), "user")
+            var selected = true
+            val admission = NativeTicketConnectionAdmission(original,
+                continuation = { f.grants.find(owner, original.source) == original }) {
+                selected && f.grants.find(owner, original.source) == original
+            }
+            val first = f.connect(admission, route)
+            val hold = checkNotNull(f.authority.reserveForeground(checkNotNull(account.captureContinuation(owner)), first))
+            hold.activate { true }
+            try {
+                selected = false; select(f, account, server, "other")
+                first.workspaces(); assertFalse(first.isClosed)
+                f.grants.save(owner, original.copy(id = java.util.UUID.randomUUID().toString())) { true }
+                f.authority.retireInvalid(); withTimeout(2000) { first.disconnected.first() }
+            } finally { hold.close(); first.close() }
+        }
+    }
+
+    @Test fun savedLegacyTicketGuardUsesTheReturnedForegroundHandleWithoutExtendingSavedAuthority() = runBlocking<Unit> {
+        continuation { f, account, server ->
+            val owner = checkNotNull(f.scope)
+            f.authorize(); f.connect().close()
+            val mac = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(
+                "cmux-ios://attach?v=2&r=mac.tail.ts.net%3A58465&ub=user", "mac", "Mac", "default"), owner)
+                .copy(ticketRevision = java.util.UUID.randomUUID().toString())
+            val session = NativeSavedTicketSession(mac, MobileAttachTicketContext("work", "term", "saved-fixture", null),
+                { f.scope == owner }, { f.authority.retainsForeground(owner, it) }) { check(f.savedCurrent) }
+            f.savedTicket = session.admission
+            val first = f.connect(); session.bind(first)
+            val hold = checkNotNull(f.authority.reserveForeground(checkNotNull(account.captureContinuation(owner)), first))
+            hold.activate { true }
+            try {
+                select(f, account, server, "other"); first.workspaces(); assertFalse(first.isClosed)
+                f.savedCurrent = false; f.authority.retireInvalid()
+                withTimeout(2000) { first.disconnected.first() }
+            } finally { hold.close(); first.close() }
         }
     }
     private fun externalTicket() = MobileAttachTicketCodec.decodeJson("""{"version":1,"workspaceID":"w","macDeviceID":"mac","macUserID":"user","auth_token":"synthetic-ticket",

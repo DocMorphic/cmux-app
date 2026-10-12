@@ -1,5 +1,42 @@
 # Remaining work for iOS parity
 
+## Legacy Tailscale foreground ownership — 2026-10-12
+
+The legacy authority now distinguishes admitted sessions from pending connection
+attempts. Only an exact registered, admitted wire can activate a single foreground
+reservation under the verified account membership proof. Unknown, forged, pending
+and unactivated handles cannot keep a session. The original owner/grant, captured
+routing epoch, learned build and saved/external ticket guards remain required.
+Selected-scope confirmation and new connections are unchanged. Foreground release
+and membership, grant, visibility or routing invalidation retire the original wire.
+
+Each pending admission has an owned child coroutine, including resolver waits.
+Retirement cancels invalid attempts and closes secondary sessions without cancelling
+the caller. Cancellation at the dispatcher/scope return boundary closes an acquired
+client even if its result is discarded. The production screen's reservation hook,
+compatibility predicate and saved-ticket guard now select both native and legacy
+transport ownership. Legacy route predicates carry their own route authorization;
+the authority separately enforces selected scope or exact foreground continuation.
+Credential revision caching uses an atomic stamp instead of a monitor around reads.
+
+Initial tests exposed five missing disconnect signals: explicit socket close
+suppressed the root event observed by UI/foreground ownership. Retirement now
+fails the root wire before disposing its view, delivering the disconnect event.
+Original failure XML/logs are preserved. All **175 focused JVM cases pass**: 64
+legacy-authority, five common-ticket, 14 external-route, six saved-route, 30
+saved-runtime, 37 Iroh, eight foreground-holder and 11 compatibility cases. New
+cases verify a manual ticket across verified team selection/return, secondary
+retirement, pending resolver cancellation, membership removal/re-addition, grant
+replacement, rejected reservations, external and saved ticket guards, and cancelled
+result cleanup. Debug/test APKs build in 1m16s. Evidence is ignored under
+`captures/runtime/legacy-tailscale-continuation-*`, with source/APK hashes and XML.
+These use fixture sockets/credentials and MockWebServer memberships, not actual
+Pixel/Tailscale or Mac workflow acceptance. No emulator was started.
+
+Per-Mac panes/feeds/browser/notifications, Activity lifetime and actual terminal UI
+still need integration before removing Settings teardown. **The app still
+disconnects on team selection.** Signed build 654 predates this source batch.
+
 ## Initial native ticket continuation — 2026-10-12
 
 Native `connectTicket()` now attaches the initial ticket through the same bound

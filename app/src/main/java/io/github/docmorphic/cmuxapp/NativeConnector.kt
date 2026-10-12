@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicReference
 
 /** Connection boundary shared by the UI and its on-device contract tests. */
 fun interface NativeConnector {
@@ -66,23 +67,22 @@ internal class TailscaleConnector(private val context: Context, private val stor
                 return target?.let { settings.state.value.intent(it) } ?: NativeMacDialIntent(recovery = settings.state.value.recovery)
             }
             val captured = intent()
-            val admissionLock = Any()
-            var checkedRevision = Long.MIN_VALUE
-            var nativeIdentity = false
-            fun hasNativeIdentity() = synchronized(admissionLock) {
+            val identityRevision = AtomicReference(Long.MIN_VALUE to false)
+            fun hasNativeIdentity(): Boolean {
                 val revision = store.revisions.value
-                if (revision != checkedRevision) {
-                    nativeIdentity = NativeLegacyTailscalePolicy.hasNativeIdentity(grant, owner, store.pairedMacs(), grants)
-                    checkedRevision = revision
-                }
-                nativeIdentity
+                val cached = identityRevision.get()
+                if (revision == cached.first) return cached.second
+                val value = NativeLegacyTailscalePolicy.hasNativeIdentity(grant, owner, store.pairedMacs(), grants)
+                check(store.revisions.value == revision) { "Saved identity changed during route authorization" }
+                identityRevision.set(revision to value)
+                return value
             }
             val admitted = {
-                teams.isCurrent(owner) && intent() == captured &&
+                intent() == captured &&
                     NativeLegacyTailscalePolicy.permits(captured.method, hasNativeIdentity())
             }
             admitted
-        })
+        }, allowsContinuation = teams::allowsContinuation)
     override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = connectOwned(pairing, account, null)
     suspend fun connectTicket(pairing: PairingCode.Tailscale, ticket: MobileAttachTicket, account: NativeAccount, team: NativeTeamScope,
                               admission: NativeTicketConnectionAdmission? = null) =
@@ -107,7 +107,7 @@ internal class TailscaleConnector(private val context: Context, private val stor
         val capturedIntent = intent()
         return connectSavedTailscaleRoutes(pairing, candidates, savedTicket, admission = { grant ->
             NativeSavedTailscaleRouteAdmission(mac, grant) {
-                teams.isCurrent(team) && intent() == capturedIntent && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+                intent() == capturedIntent && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
                     grants.find(team, grant.source) == grant
             }
         }) { admission, ticket -> connectOwned(pairing, account, team, savedTicket = ticket, savedRoute = admission) }
@@ -127,5 +127,7 @@ internal class TailscaleConnector(private val context: Context, private val stor
     override fun authorizePairing(pairing: PairingCode.Tailscale) = authority.authorize(pairing)
     override fun allowsSaved(pairing: PairingCode) = pairing is PairingCode.Tailscale && authority.allowsSaved(pairing)
     fun retireInvalid() = authority.retireInvalid()
+    fun reserveForeground(proof: NativeTeamContinuation, client: MobileRpcClient) = authority.reserveForeground(proof, client)
+    fun retainsForeground(owner: NativeTeamScope, client: MobileRpcClient) = authority.retainsForeground(owner, client)
     override fun close() = authority.close()
 }

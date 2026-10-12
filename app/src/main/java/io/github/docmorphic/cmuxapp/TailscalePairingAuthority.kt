@@ -3,11 +3,20 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.coroutineScope
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
 
 internal data class TailscaleSavedGrant(val id: String, val user: String, val team: String,
@@ -152,15 +161,73 @@ internal class TailscalePairingAuthority(
     private val replacing: TailscaleSavedGrant? = null,
     private val admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, JSONObject) -> Unit = { _, _, _ -> },
     private val manualTicket: suspend (MobileRpcClient, PairingCode.Route, JSONObject, NativeTeamScope) -> MobileAttachTicket? = { _, _, _, _ -> null },
-    private val savedRouteAdmission: (NativeTeamScope, TailscaleSavedGrant) -> (() -> Boolean) = { _, _ -> { true } }
+    private val savedRouteAdmission: (NativeTeamScope, TailscaleSavedGrant) -> (() -> Boolean) = { _, _ -> { true } },
+    private val allowsContinuation: (NativeTeamContinuation) -> Boolean = { false }
 ) : AutoCloseable {
     private data class Consent(val scope: NativeTeamScope, val nonce: String = UUID.randomUUID().toString()) {
         val resolved = ConcurrentHashMap<PairingCode.Route, PairingCode.Route>()
     }
     private val lock = Any()
     private val consents = mutableMapOf<String, Consent>()
-    private val clients = mutableMapOf<MobileRpcClient, () -> Boolean>()
+    private class Session(val owner: NativeTeamScope, val attempt: Job) {
+        val admitted = AtomicBoolean(false)
+        var allows: () -> Boolean = { false }
+    }
+    private val clients = mutableMapOf<MobileRpcClient, Session>()
+    private val attempts = mutableSetOf<Session>()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val foreground = AtomicReference<ForegroundLease?>(null)
     private var closed = false
+
+    private inner class ForegroundLease(val session: Session, val proof: NativeTeamContinuation,
+        val client: MobileRpcClient) : NativeForegroundTransport {
+        val closed = AtomicBoolean(false)
+        private val activated = AtomicBoolean(false)
+        private val monitor = AtomicReference<Job?>(null)
+        override fun activate(stillCurrent: () -> Boolean) {
+            check(permits(proof.admittedScope) && allowsContinuation(proof) && session.allows()) { "Tailscale foreground admission changed" }
+            synchronized(lock) {
+                check(!this@TailscalePairingAuthority.closed && !closed.get() && !client.isClosed &&
+                    session.admitted.get() && clients.values.any { it === session } && stillCurrent() &&
+                    activated.compareAndSet(false, true)) { "Tailscale foreground connection changed" }
+                foreground.set(this)
+            }
+            val watching = scope.launch { client.disconnected.first(); close() }
+            monitor.set(watching); if (closed.get()) watching.cancel()
+            scope.launch { retireInvalid() }
+        }
+        override fun close() {
+            if (closed.compareAndSet(false, true)) {
+                monitor.getAndSet(null)?.cancel()
+                // Never take the registry/storage locks inside the credential transaction.
+                scope.launch { retireInvalid() }
+            }
+        }
+    }
+
+    private fun continues(session: Session): Boolean {
+        val lease = foreground.get() ?: return false
+        return lease.session === session && session.admitted.get() && !lease.closed.get() &&
+            !lease.client.isClosed && allowsContinuation(lease.proof)
+    }
+
+    fun reserveForeground(proof: NativeTeamContinuation, client: MobileRpcClient): NativeForegroundTransport? {
+        if (!permits(proof.admittedScope) || !allowsContinuation(proof) || client.isClosed) return null
+        val session = synchronized(lock) {
+            if (closed) null else clients.entries.singleOrNull { (handle, session) ->
+                session.admitted.get() && session.owner == proof.admittedScope && !handle.isClosed &&
+                    handle.compatibilityWire === client.compatibilityWire
+            }?.value
+        } ?: return null
+        return ForegroundLease(session, proof, client)
+    }
+
+    fun retainsForeground(owner: NativeTeamScope, client: MobileRpcClient): Boolean {
+        val lease = foreground.get() ?: return false
+        val admitted = lease.proof.admittedScope
+        return admitted.login == owner.login && admitted.userId == owner.userId && admitted.teamId == owner.teamId &&
+            !client.isClosed && lease.client.compatibilityWire === client.compatibilityWire && continues(lease.session)
+    }
 
     fun authorize(pairing: PairingCode.Tailscale) {
         val owner = owner(pairing)
@@ -196,6 +263,17 @@ internal class TailscalePairingAuthority(
                         savedRoute: NativeSavedTailscaleRouteAdmission? = null,
                         forceToken: (suspend () -> String?)? = null,
                         token: suspend () -> String?): MobileRpcClient {
+        var acquired: MobileRpcClient? = null
+        try { return coroutineScope {
+            connectSelected(pairing, expectedScope, attachTicket, savedTicket, admission, savedRoute, forceToken, token)
+                .also { acquired = it }
+        } } catch (failure: Throwable) { acquired?.close(); throw failure }
+    }
+
+    private suspend fun connectSelected(pairing: PairingCode.Tailscale, expectedScope: NativeTeamScope?,
+        attachTicket: MobileAttachTicket?, savedTicket: NativeSavedTicketAdmission?,
+        admission: NativeTicketConnectionAdmission?, savedRoute: NativeSavedTailscaleRouteAdmission?,
+        forceToken: (suspend () -> String?)?, token: suspend () -> String?): MobileRpcClient {
         val owner = owner(pairing)
         check(expectedScope == null || expectedScope == owner) { "Account or team changed. Reconnect to the Mac." }
         require(attachTicket == null || NativeTicketPairingRoutes.covers(attachTicket, pairing)) { "Ticket does not cover this route" }
@@ -224,112 +302,119 @@ internal class TailscalePairingAuthority(
         val capturedExpected = expected(pairing)
         val learnedRoutePermits = AtomicReference<(() -> Boolean)?>(null)
         val promoted = AtomicReference<TailscaleSavedGrant?>(if (consent == null) saved else null)
+        val session = Session(owner, checkNotNull(currentCoroutineContext()[Job]))
         fun allowed(): Boolean = runCatching {
+            val continuing = continues(session)
             savedTicket?.requireCurrent()
             savedRoute?.requireCurrent()
-            admission?.requireCurrent()
-            permits(owner) && routePermits() && (learnedRoutePermits.get()?.invoke() != false) && synchronized(lock) { !closed } &&
+            if (continuing) admission?.requireContinuation() else admission?.requireCurrent()
+            (permits(owner) || continuing) && routePermits() && (learnedRoutePermits.get()?.invoke() != false) && synchronized(lock) { !closed } &&
                 (promoted.get()?.let { grants.find(owner, it.source) == it }
                     ?: synchronized(lock) { consents[source] == consent })
         }.getOrDefault(false)
+        session.allows = ::allowed
         fun requireAllowed() = check(allowed()) { "The Tailscale authorization changed. Pair this Mac again." }
-        val routes = if (consent != null) pairing.routes else listOf(checkNotNull(saved).route)
-        var lastError: Exception? = null
-        for (hint in routes) {
-            currentCoroutineContext().ensureActive(); requireAllowed()
-            var candidate: MobileRpcClient? = null
-            var requestingManualTicket = false
-            try {
-                // Saved reconnects use the captured numeric destination, never another DNS answer.
-                val route = if (consent == null) hint else consent.resolved[hint] ?: resolve(hint, ::allowed).let { resolved ->
-                    require(TailscalePeerAddress.canonical(resolved.host) == resolved.host && resolved.port == hint.port)
-                    val numericHint = TailscalePeerAddress.canonical(hint.host)
-                    require(numericHint == null || numericHint == resolved.host)
-                    requireAllowed()
-                    // One user confirmation cannot follow a different DNS answer on a later retry.
-                    consent.resolved.putIfAbsent(hint, resolved) ?: resolved
-                }
-                require(TailscalePeerAddress.canonical(route.host) == route.host && route.port == hint.port)
-                requireAllowed()
-                val base = dial(route, ::allowed) {
-                    requireAllowed()
-                    val value = token()
-                    requireAllowed()
-                    checkNotNull(value?.takeIf { it.isNotBlank() }) { "Sign in before connecting to this Mac." }
-                }
-                candidate = base
-                forceToken?.let { refresh -> base.configureAccountTokenRefresh {
-                    requireAllowed()
-                    refresh().also { requireAllowed() }
-                } }
-                requireAllowed()
-                synchronized(lock) { check(!closed); clients[base] = ::allowed }
-                base.connect()
-                val status = base.hostStatus()
-                requireAllowed()
-                val device = status.optString("mac_device_id")
-                require(device.isNotBlank() && device == device.trim() && device.length <= 128) { "The Mac did not provide a valid device identity." }
-                capturedExpected?.requireMatchingHost(status)
-                val legacyConfirmation = if (consent != null && saved != null && saved.build == null &&
-                    capturedExpected != null && capturedExpected.instanceTag == null)
-                    NativeSavedTailscaleRouteAdmission(capturedExpected, saved) { allowed() } else null
-                legacyConfirmation?.requireBinding(pairing, owner)
-                val learnedBuild = (savedRoute ?: legacyConfirmation)?.verifyHost(status, owner)
-                if (learnedBuild != null && consent == null) {
-                    learnedRoutePermits.set(savedRouteAdmission(owner, checkNotNull(saved).copy(build = learnedBuild)))
-                    requireAllowed() // Apply this now-known build's method before session-ticket/workspace admission.
-                }
-                if (savedRoute == null && legacyConfirmation == null) saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
-                attachTicket?.requireHost(status)
-                savedTicket?.mac?.requireMatchingHost(status)
-                // The old ticket's untagged binding is not the host's newly learned
-                // build. Obtain a current session context before account admission.
-                val sessionContext = savedTicket?.takeIf { learnedBuild == null }?.context ?: attachTicket?.context() ?: run {
-                    requestingManualTicket = true
-                    manualTicket(base, route, status, owner)?.context().also { requestingManualTicket = false }
-                }
-                requireAllowed()
-                val client = if (sessionContext == null) base else base.withAttachTicket(sessionContext, ::requireAllowed)
-                candidate = client
-                if (client !== base) synchronized(lock) { clients.remove(base); check(!closed); clients[client] = ::allowed }
-                // Host status alone is not a successful account-authenticated session.
-                client.workspaces()
+        synchronized(lock) { check(!closed); attempts += session }
+        try {
+            val routes = if (consent != null) pairing.routes else listOf(checkNotNull(saved).route)
+            var lastError: Exception? = null
+            for (hint in routes) {
                 currentCoroutineContext().ensureActive(); requireAllowed()
-                admitCompatibility(owner, client, status)
-                requireAllowed()
-                if (consent != null) {
-                    val build = status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() }
-                    val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId, source,
-                        canonicalMacDeviceId(device), build, route)
-                    fun activateGrant() {
-                        promoted.set(grant)
-                        synchronized(lock) { if (consents[source] == consent) consents.remove(source) }
+                var candidate: MobileRpcClient? = null
+                var requestingManualTicket = false
+                try {
+                    // Saved reconnects use the captured numeric destination, never another DNS answer.
+                    val route = if (consent == null) hint else consent.resolved[hint] ?: resolve(hint, ::allowed).let { resolved ->
+                        require(TailscalePeerAddress.canonical(resolved.host) == resolved.host && resolved.port == hint.port)
+                        val numericHint = TailscalePeerAddress.canonical(hint.host)
+                        require(numericHint == null || numericHint == resolved.host)
+                        requireAllowed()
+                        // One user confirmation cannot follow a different DNS answer on a later retry.
+                        consent.resolved.putIfAbsent(hint, resolved) ?: resolved
                     }
-                    if (legacyConfirmation != null && learnedBuild != null) {
-                        client.confirmedTailscaleUpgrade = NativeConfirmedTailscaleUpgrade(owner, legacyConfirmation.mac,
-                            checkNotNull(saved), grant, { check(!client.isClosed) { "Pairing connection closed" }; requireAllowed() }, ::activateGrant)
-                    } else {
-                        grants.save(owner, grant, replacing, permits = ::allowed)
-                        activateGrant()
+                    require(TailscalePeerAddress.canonical(route.host) == route.host && route.port == hint.port)
+                    requireAllowed()
+                    val base = dial(route, ::allowed) {
+                        requireAllowed()
+                        val value = token()
+                        requireAllowed()
+                        checkNotNull(value?.takeIf { it.isNotBlank() }) { "Sign in before connecting to this Mac." }
                     }
+                    candidate = base
+                    forceToken?.let { refresh -> base.configureAccountTokenRefresh {
+                        requireAllowed()
+                        refresh().also { requireAllowed() }
+                    } }
+                    requireAllowed()
+                    synchronized(lock) { check(!closed); clients[base] = session }
+                    base.connect()
+                    val status = base.hostStatus()
+                    requireAllowed()
+                    val device = status.optString("mac_device_id")
+                    require(device.isNotBlank() && device == device.trim() && device.length <= 128) { "The Mac did not provide a valid device identity." }
+                    capturedExpected?.requireMatchingHost(status)
+                    val legacyConfirmation = if (consent != null && saved != null && saved.build == null &&
+                        capturedExpected != null && capturedExpected.instanceTag == null)
+                        NativeSavedTailscaleRouteAdmission(capturedExpected, saved) { allowed() } else null
+                    legacyConfirmation?.requireBinding(pairing, owner)
+                    val learnedBuild = (savedRoute ?: legacyConfirmation)?.verifyHost(status, owner)
+                    if (learnedBuild != null && consent == null) {
+                        learnedRoutePermits.set(savedRouteAdmission(owner, checkNotNull(saved).copy(build = learnedBuild)))
+                        requireAllowed() // Apply this now-known build's method before session-ticket/workspace admission.
+                    }
+                    if (savedRoute == null && legacyConfirmation == null) saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
+                    attachTicket?.requireHost(status)
+                    savedTicket?.mac?.requireMatchingHost(status)
+                    // The old ticket's untagged binding is not the host's newly learned
+                    // build. Obtain a current session context before account admission.
+                    val sessionContext = savedTicket?.takeIf { learnedBuild == null }?.context ?: attachTicket?.context() ?: run {
+                        requestingManualTicket = true
+                        manualTicket(base, route, status, owner)?.context().also { requestingManualTicket = false }
+                    }
+                    requireAllowed()
+                    val client = if (sessionContext == null) base else base.withAttachTicket(sessionContext, ::requireAllowed)
+                    candidate = client
+                    if (client !== base) synchronized(lock) { clients.remove(base); check(!closed); clients[client] = session }
+                    // Host status alone is not a successful account-authenticated session.
+                    client.workspaces()
+                    currentCoroutineContext().ensureActive(); requireAllowed()
+                    admitCompatibility(owner, client, status)
+                    requireAllowed()
+                    if (consent != null) {
+                        val build = status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() }
+                        val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId, source,
+                            canonicalMacDeviceId(device), build, route)
+                        fun activateGrant() {
+                            promoted.set(grant)
+                            synchronized(lock) { if (consents[source] == consent) consents.remove(source) }
+                        }
+                        if (legacyConfirmation != null && learnedBuild != null) {
+                            client.confirmedTailscaleUpgrade = NativeConfirmedTailscaleUpgrade(owner, legacyConfirmation.mac,
+                                checkNotNull(saved), grant, { check(!client.isClosed) { "Pairing connection closed" }; requireAllowed() }, ::activateGrant)
+                        } else {
+                            grants.save(owner, grant, replacing, permits = ::allowed)
+                            activateGrant()
+                        }
+                    }
+                    // Bind the public ticket locator to the already authenticated exact
+                    // numeric destination (the original grant may have a DNS/multi-route source).
+                    // This creates no new destination authority and leaves the original grant intact.
+                    if (admission != null && saved != null && saved.source != source) {
+                        val alias = saved.copy(id = UUID.randomUUID().toString(), source = source)
+                        grants.save(owner, alias, deriving = saved, permits = ::allowed)
+                        promoted.set(alias)
+                    }
+                    requireAllowed()
+                    session.admitted.set(true)
+                    return client
+                } catch (failure: Exception) {
+                    candidate?.let { synchronized(lock) { clients.remove(it) }; it.close() }
+                    if (requestingManualTicket || failure is CancellationException || failure is TailscaleReadinessException || failure is InvalidManualAttachTicket) throw failure
+                    lastError = failure
                 }
-                // Bind the public ticket locator to the already authenticated exact
-                // numeric destination (the original grant may have a DNS/multi-route source).
-                // This creates no new destination authority and leaves the original grant intact.
-                if (admission != null && saved != null && saved.source != source) {
-                    val alias = saved.copy(id = UUID.randomUUID().toString(), source = source)
-                    grants.save(owner, alias, deriving = saved, permits = ::allowed)
-                    promoted.set(alias)
-                }
-                requireAllowed()
-                return client
-            } catch (failure: Exception) {
-                candidate?.let { synchronized(lock) { clients.remove(it) }; it.close() }
-                if (requestingManualTicket || failure is CancellationException || failure is TailscaleReadinessException || failure is InvalidManualAttachTicket) throw failure
-                lastError = failure
             }
-        }
-        throw lastError ?: IllegalStateException("No Tailscale route is reachable")
+            throw lastError ?: IllegalStateException("No Tailscale route is reachable")
+        } finally { synchronized(lock) { attempts.remove(session) } }
     }
 
     /** Account/team changes close blocked reads too; write/read guards check synchronously. */
@@ -338,17 +423,26 @@ internal class TailscalePairingAuthority(
         val pending = synchronized(lock) { consents.toMap() }
         val invalid = pending.filterValues { !permits(it.scope) }
         val observed = synchronized(lock) { clients.toMap() }
-        val retired = observed.filter { (client, allows) -> client.isClosed || !allows() }.keys
+        val pendingAttempts = synchronized(lock) { attempts.toList() }
+        val cancelled = pendingAttempts.filter { !it.allows() }
+        val retired = observed.filter { (client, session) -> client.isClosed || !session.allows() }.keys
         synchronized(lock) {
             invalid.forEach { (key, value) -> if (consents[key] == value) consents.remove(key) }
             retired.forEach { clients.remove(it) }
         }
-        retired.forEach { it.close() }
+        retired.forEach { it.compatibilityWire.retire(); it.close() }
+        cancelled.forEach { it.attempt.cancel(CancellationException("Tailscale admission changed")) }
+        foreground.get()?.let { lease -> if (!continues(lease.session)) {
+            if (foreground.compareAndSet(lease, null)) lease.close()
+        } }
     }
     override fun close() {
-        val retired = synchronized(lock) {
-            closed = true; consents.clear(); clients.keys.toList().also { clients.clear() }
+        val (retired, pending) = synchronized(lock) {
+            closed = true; consents.clear()
+            (clients.keys.toList() to attempts.toList()).also { clients.clear(); attempts.clear() }
         }
-        retired.forEach { it.close() }
+        retired.forEach { it.compatibilityWire.retire(); it.close() }
+        pending.forEach { it.attempt.cancel(CancellationException("Tailscale authority closed")) }
+        foreground.getAndSet(null)?.close(); scope.cancel()
     }
 }

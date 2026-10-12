@@ -17,10 +17,10 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     private val activityLock = Any()
     private val activityOwners = mutableSetOf<Any>()
     private val applicationActive = MutableStateFlow(IrxProbeActivity(false))
-    private val compatibilityForeground = AtomicReference<NativeIrohRuntime?>(null)
+    private val compatibilityForeground = AtomicReference<(NativeTeamScope, MobileRpcClient) -> Boolean>({ _, _ -> false })
     val compatibility = NativeMacCompatibilityRuntime(context.applicationContext, store, applicationActive, teams.state,
         teams::isCurrent, retainsForeground = { owner, client ->
-            compatibilityForeground.get()?.retainsForeground(owner, client) == true
+            compatibilityForeground.get()(owner, client)
         })
     private val savedTailscale = NativeSavedTailscaleRuntime(teams.state, teams::isCurrent, { account.accessToken() },
         admitCompatibility = { team, client, host -> compatibility.gate.admit(team, client, host, locallyAuthorizedTailscale = true) },
@@ -40,7 +40,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) },
         savedTailscale = savedTailscale,
         admitCompatibility = { team, client, host, tailscale -> compatibility.gate.admit(team, client, host, tailscale) },
-        audience = compatibility.audience, allowsContinuation = teams::allowsContinuation).also { compatibilityForeground.set(it) }
+        audience = compatibility.audience, allowsContinuation = teams::allowsContinuation)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
@@ -52,6 +52,10 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     private val tailscale = TailscaleConnector(context, store, teams) { team, client, host ->
         compatibility.gate.admit(team, client, host, locallyAuthorizedTailscale = true)
     }
+    fun reserveForeground(proof: NativeTeamContinuation, client: MobileRpcClient): NativeForegroundTransport? =
+        native.reserveForeground(proof, client) ?: tailscale.reserveForeground(proof, client)
+    fun retainsForeground(owner: NativeTeamScope, client: MobileRpcClient): Boolean =
+        native.retainsForeground(owner, client) || tailscale.retainsForeground(owner, client)
     fun externalTicketRoutes(owner: NativeTeamScope) = NativeExternalTicketRoutes(owner,
         TailscaleGrantStore(store::load, store::update), store::visiblePairedMacs,
         { native.state.value }, { NativeMacConnectionStore.create(appContext, owner).state.value }, { teams.isCurrent(owner) })
@@ -81,7 +85,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
                 ticket.requireHost(client.hostStatus())
                 admission?.requireCurrent()
                 return attachAdmittedTicket(client, ticket.context(), { teams.isCurrent(owner) },
-                    { handle -> native.retainsForeground(owner, handle) }) {
+                    { handle -> retainsForeground(owner, handle) }) {
                     admission?.requireContinuation()
                 }
             } catch (failure: Throwable) { client.close(); throw failure }
@@ -108,7 +112,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
                 val context = checkNotNull(store.attachTicket(team, mac))
                 val checkedRevision = AtomicLong(Long.MIN_VALUE)
                 NativeSavedTicketSession(mac, context, { teams.isCurrent(team) },
-                    { handle -> native.retainsForeground(team, handle) }) {
+                    { handle -> retainsForeground(team, handle) }) {
                     check(compatibility.audience.allowsSavedTag(mac.instanceTag) && savedRoute(mac, team) == selected) {
                         "Saved route authorization changed"
                     }
@@ -162,6 +166,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     }
 
     init {
+        compatibilityForeground.set(::retainsForeground)
         scope.launch {
             combine(teams.state, store.revisions, applicationActive) { team, _, _ -> team.scope }.collect { owner ->
                 if (owner == null || !teams.isCurrent(owner)) return@collect
