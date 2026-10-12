@@ -15,8 +15,9 @@ internal fun rememberNativePanel(session: NativeFeedSession, login: String?, tea
     val key = target?.let { t -> mac?.let { workspaceTabKey(login, team, it, t.workspace) } }
     val retained = session.panelPreview
     // Observe descriptor/account invalidation while retaining completed documents and errors through wire recovery.
-    val sources by session.coordinator.sources.collectAsState()
-    val source = mac?.let { sources[it.origin] }
+    // Read the flow even when foreground access wins, so a feed-side rejection invalidates the preview.
+    val sources = session.coordinator.sources.collectAsState().value
+    val source = mac?.let { session.artifactSource(it) ?: sources[it.origin] }
     val previewState = retained?.preview?.state?.collectAsState()?.value
     val allowed = source != null && retained?.let { it.matches(login, key, mac, target) && it.current() } == true
     SideEffect {

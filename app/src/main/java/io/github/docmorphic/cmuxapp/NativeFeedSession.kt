@@ -18,6 +18,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 
 /** Activity recreation retains account-scoped snapshots; process death refetches from the Mac. */
 internal class NativeFeedSession(
@@ -53,12 +54,19 @@ internal class NativeFeedSession(
     fun releaseForeground(client: MobileRpcClient) { foregroundAuthority?.release(client) }
     private var screenConnection: NativeScreenConnectionState? = null
     private var foregroundSizing: Job? = null
+    private var foregroundArtifactWatcher: Job? = null
     fun connectionState(initialCode: String): NativeScreenConnectionState = screenConnection
         ?: NativeScreenConnectionState(initialCode, ::changeForegroundClient).also { screenConnection = it }
     private fun changeForegroundClient(previous: MobileRpcClient?, next: MobileRpcClient?) {
         foregroundSizing?.cancel(); foregroundSizing = null
+        foregroundArtifactWatcher?.cancel(); foregroundArtifactWatcher = null
         previous?.let { releaseForeground(it); terminalSizing.unbind(it); terminalInputs.detach(it); it.close() }
         val active = next ?: return
+        foregroundArtifactWatcher = scope.launch {
+            active.disconnected.first()
+            panelPreview?.let { if (!it.current()) dismissPanel(it) else if (!it.access.current()) it.preview.connectionLost() }
+            filesSheet?.let { if (!it.current()) dismissFiles(it) else if (!it.access.current()) it.connectionLost() }
+        }
         val subscription = terminalSizing.subscription(active) ?: return
         foregroundSizing = scope.launch {
             try { active.useEventSession { wire ->
@@ -73,6 +81,9 @@ internal class NativeFeedSession(
     fun canRetainForeground(code: String, client: MobileRpcClient): Boolean = if (foregroundAuthority != null)
         foregroundAuthority.scopeFor(code, client) != null
     else account.isSignedIn() && store.visiblePairedMacs().any { it.code == code && connector.allowsSaved(it) }
+    private fun canRetainForeground(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient): Boolean =
+        if (foregroundAuthority != null) foregroundAuthority.scopeFor(mac, client) != null
+        else account.isSignedIn() && NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connector.allowsSaved(mac)
     val workspaceSnapshots = NativeWorkspaceSnapshots(store::taskSession)
     val coordinator = NativeFeedCoordinator(scope, connect = { mac ->
         connector.connectSaved(mac, account).also { client ->
@@ -121,15 +132,61 @@ internal class NativeFeedSession(
     val workspaceTabs = NativeWorkspaceTabNavigation(store)
     val terminalStartup = NativeTerminalStartup()
     val paneNavigation = NativePaneNavigation()
+    private fun foregroundArtifactConnection(mac: NativeCredentialStore.PairedMac): NativeForegroundArtifactAccess? {
+        val state = screenConnection ?: return null
+        val client = state.client?.takeUnless { it.isClosed } ?: return null
+        val login = store.taskSession() ?: return null
+        val capabilities = ArtifactCapabilities.read(state.hostCapabilities)
+        fun cached() = !viewModelCleared && account.isSignedIn() && store.taskSession() == login && state.code == mac.code &&
+            NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+            ArtifactCapabilities.read(state.hostCapabilities) == capabilities &&
+            coordinator.sources.value[mac.origin]?.artifactCacheDenied != true &&
+            (connector.allowsSaved(mac) || foregroundScope(mac, client) != null)
+        fun live() = cached() && state.client === client && state.connectionReady && state.connectedCode == mac.code &&
+            canRetainForeground(mac, client)
+        if (!live()) return null
+        return NativeForegroundArtifactAccess(scope, client, ::live, ::cached)
+    }
+    private fun foregroundPanelAccess(mac: NativeCredentialStore.PairedMac, target: NativePanelTarget): PanelArtifactAccess? {
+        if ("panel.artifact.v1" !in screenConnection?.hostCapabilities.orEmpty()) return null
+        return foregroundArtifactConnection(mac)?.panel(target) {
+            workspaceSnapshots.latest(mac)?.workspaces?.singleOrNull { it.id == target.workspace }?.macSurfaces
+                ?.singleOrNull { it.id == target.surface }?.let { NativePanelTarget.from(target.workspace, it) == target } == true
+        }
+    }
+    private fun foregroundTerminalAccess(mac: NativeCredentialStore.PairedMac,
+        terminal: ArtifactAuthorization.Terminal): TerminalArtifactAccess? {
+        val capabilities = ArtifactCapabilities.read(screenConnection?.hostCapabilities.orEmpty())
+        return foregroundArtifactConnection(mac)?.terminal(terminal, capabilities) {
+            workspaceSnapshots.latest(mac)?.workspaces?.singleOrNull { it.id == terminal.workspaceId }
+                ?.terminals?.singleOrNull { it.id == terminal.surfaceId } != null
+        }
+    }
+    fun artifactSource(mac: NativeCredentialStore.PairedMac): NativeFeedSource? {
+        coordinator.sources.value[mac.origin]?.takeIf { it.artifactCacheDenied }?.let { return it }
+        val state = screenConnection
+        val snapshot = workspaceSnapshots.latest(mac)
+        if (state != null && state.code == mac.code && snapshot != null &&
+            (allowsForegroundMac(mac) || connector.allowsSaved(mac))) {
+            val live = state.client?.let { !it.isClosed && state.connectionReady && state.connectedCode == mac.code &&
+                canRetainForeground(mac, it) } == true
+            if (live) return NativeFeedSource(mac, workspaces = snapshot.workspaces, capabilities = state.hostCapabilities,
+                hasWorkspaceSnapshot = true, availability = NativeFeedAvailability.CONNECTED, panelCacheToken = state.client)
+        }
+        return coordinator.sources.value[mac.origin]
+    }
+    private fun artifactHold(mac: NativeCredentialStore.PairedMac): AutoCloseable =
+        if (allowsForegroundMac(mac) || screenConnection?.client?.let { canRetainForeground(mac, it) } == true)
+            AutoCloseable {} else holdBrowser(mac)
     var panelPreview by mutableStateOf<NativePanelPresentation?>(null)
         private set
     fun openPanel(login: String, key: NativeWorkspaceTabKey, mac: NativeCredentialStore.PairedMac, target: NativePanelTarget) {
         panelPreview?.let { if (it.matches(login, key, mac, target) && it.current()) return }
-        val access = coordinator.panelArtifactAccess(mac, target) {
+        val access = foregroundPanelAccess(mac, target) ?: coordinator.panelArtifactAccess(mac, target) {
             !viewModelCleared && account.isSignedIn() && store.taskSession() == login
         } ?: return
         dismissPanel()
-        panelPreview = NativePanelPresentation(scope, login, key, mac, target, access, holdBrowser(mac))
+        panelPreview = NativePanelPresentation(scope, login, key, mac, target, access, artifactHold(mac))
     }
     fun dismissPanel(expected: NativePanelPresentation? = panelPreview) {
         if (panelPreview !== expected) return
@@ -138,13 +195,13 @@ internal class NativeFeedSession(
     fun retryPanel(expected: NativePanelPresentation) {
         if (panelPreview !== expected || !expected.current() || expected.preview.state.value.error == null) return
         if (expected.access.current()) { expected.preview.retry(); return }
-        val access = coordinator.panelArtifactAccess(expected.mac, expected.target) {
+        val access = foregroundPanelAccess(expected.mac, expected.target) ?: coordinator.panelArtifactAccess(expected.mac, expected.target) {
             !viewModelCleared && account.isSignedIn() && store.taskSession() == expected.login
         }
         if (access == null) { expected.preview.retryUnavailable(); return }
         // Acquire the replacement's hold before releasing the old one, so retry cannot pause its own feed.
         val replacement = NativePanelPresentation(scope, expected.login, expected.key, expected.mac, expected.target,
-            access, holdBrowser(expected.mac))
+            access, artifactHold(expected.mac))
         dismissPanel(expected)
         panelPreview = replacement
     }
@@ -153,16 +210,16 @@ internal class NativeFeedSession(
     fun openFiles(login: String, key: NativeWorkspaceTabKey, mac: NativeCredentialStore.PairedMac,
                   terminal: ArtifactAuthorization.Terminal, navigation: TerminalFilesState) {
         filesSheet?.let { if (it.matches(login, key, terminal.surfaceId) && it.mac == mac && it.current()) return }
-        val access = coordinator.terminalArtifactAccess(mac, terminal) {
+        val access = foregroundTerminalAccess(mac, terminal) ?: coordinator.terminalArtifactAccess(mac, terminal) {
             !viewModelCleared && account.isSignedIn() && store.taskSession() == login
         } ?: return
         dismissFiles()
-        filesSheet = TerminalFilesPresentation(scope, login, key, mac, terminal, navigation, access, holdBrowser(mac))
+        filesSheet = TerminalFilesPresentation(scope, login, key, mac, terminal, navigation, access, artifactHold(mac))
     }
     fun recoverFiles(expected: TerminalFilesPresentation) {
         if (filesSheet !== expected || !expected.current() || expected.access.current()) return
         expected.connectionLost()
-        val next = coordinator.terminalArtifactAccess(expected.mac, expected.terminal) {
+        val next = foregroundTerminalAccess(expected.mac, expected.terminal) ?: coordinator.terminalArtifactAccess(expected.mac, expected.terminal) {
             !viewModelCleared && account.isSignedIn() && store.taskSession() == expected.login
         } ?: return
         expected.replaceConnection(next)

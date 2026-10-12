@@ -21,6 +21,7 @@ internal data class NativeFeedSource(
     val macMutationTicket: NativeMacMutationTicket? = null,
     // Identity of the last authorized panel snapshot; never authorizes network requests.
     val panelCacheToken: Any? = null,
+    val artifactCacheDenied: Boolean = false,
     val agentFeed: NativeAgentFeedState = NativeAgentFeedState(),
     val connectionTransport: MobileConnectionTransport? = null
 )

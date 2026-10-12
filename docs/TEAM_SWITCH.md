@@ -1,5 +1,45 @@
 # Team switching and the active Mac session
 
+## Foreground Files and panel access — 2026-10-12
+
+Files and file panels now prefer the exact admitted foreground client instead of
+requiring a secondary selected-team feed connection. Existing feed access remains
+a recovery fallback. The pane's original Mac/team supplies the panel and Files
+keys. Foreground admission checks the exact saved identity, live client, account,
+capabilities and current workspace/surface descriptor. A same public locator in
+another team cannot reuse that client. Panel requests are limited to the displayed
+workspace/surface/path; terminal requests keep their terminal binding and existing
+same-Mac chat gallery/folder capabilities. Native artifact lanes still use the
+server-issued resource capability after the authorized RPC.
+
+Every transfer checks admission before and after asynchronous work. Descriptor,
+capability, visibility, saved-record or authority changes reject old results.
+Completed bytes can survive ordinary transport loss under valid saved admission;
+explicit authorization/trust rejection invalidates them. A rejected foreground
+artifact RPC retires its client. Foreground presentations do not hold a secondary
+feed merely to keep their transfer alive.
+
+All **108 focused JVM cases pass** (five new foreground-access, four pane-context,
+nine foreground-holder, five cache-policy, 59 feed-coordinator, 13 preview-controller,
+nine preview-failure and four Files-memory cases). Debug/test APKs build, and four
+changed classes pass Android 17 ART loading/reflection. **Three actual panel runtime
+cases pass in 28.458s**: transfer through recreation/removal, rendered reading state
+through network loss/recreation/refresh, and private-byte deletion on native and
+workspace-refresh revocation. The first runtime run reproduced retained bytes
+after explicit refresh rejection. All rejection paths now set the cache-denial
+flag; foreground access honors it immediately, and panel composition observes
+feed-side denial even when foreground access wins. The original failure is retained.
+
+Evidence, XML and source/APK hashes are ignored under
+`captures/runtime/foreground-artifact-access-*`. The existing 16 KB AVD was
+stopped/reaped after 60.335s on the final run; no new AVD or physical phone was used.
+These use an emulator-local TCP fixture, not actual Mac/Iroh/Tailscale/Pixel or
+complete team-switch UI acceptance. Signed 654 predates this source.
+
+Still integrate browser, creation/task, notification and remaining tab/recovery
+scopes before removing Settings teardown. **The app still disconnects on team
+selection.** Full parity and the physical workflow remain unverified.
+
 ## Foreground pane and input scopes — 2026-10-12
 
 The main pane now derives its saved Mac/team from the exact admitted foreground

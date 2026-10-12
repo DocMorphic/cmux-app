@@ -265,7 +265,7 @@ internal class NativeFeedCoordinator(
                             failed = { error ->
                                 if (error is MobileRpcException && error.code in setOf("unauthorized", "forbidden", "permission_denied", "team_access_revoked")) {
                                     handle.verified = false
-                                    mutableSources.value[handle.mac.origin]?.let { publish(handle, it.copy(changes = emptyMap(), panelCacheToken = null)) }
+                                    mutableSources.value[handle.mac.origin]?.let { publish(handle, it.copy(changes = emptyMap(), panelCacheToken = null, artifactCacheDenied = true)) }
                                     summaryFailure.complete(error)
                                 }
                             })
@@ -321,7 +321,8 @@ internal class NativeFeedCoordinator(
                     error = failure.message ?: "Computer unavailable", keepAwake = null, changes = emptyMap(), connectionTransport = null,
                     agentFeed = if (NativePanelCachePolicy.retains(failure)) source.agentFeed.copy(loading = false, pending = emptySet())
                         else NativeAgentFeedState(error = "Feed access is no longer authorized"),
-                    panelCacheToken = source.panelCacheToken.takeIf { NativePanelCachePolicy.retains(failure) }))
+                    panelCacheToken = source.panelCacheToken.takeIf { NativePanelCachePolicy.retains(failure) },
+                    artifactCacheDenied = !NativePanelCachePolicy.retains(failure)))
             } finally { handle.agentFeed?.close(); handle.agentFeed = null; handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBorrowedOperations(handle); active?.close(); handle.client = null; publishTaskModelIdentities() }
             if (handle.stoppedFailure != null) return
             handle.refresh.awaitRequest(10_000)
@@ -381,7 +382,7 @@ internal class NativeFeedCoordinator(
             currentCoroutineContext().ensureActive()
             if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
             if (!NativePanelCachePolicy.retains(failure)) mutableSources.value[handle.mac.origin]?.let {
-                publish(handle, it.copy(panelCacheToken = null))
+                publish(handle, it.copy(panelCacheToken = null, artifactCacheDenied = true))
             }
             if (nativeAutomaticReconnectStops(failure) && current(handle, client)) client.retireForOwnerFailure(failure)
             throw failure
@@ -393,7 +394,7 @@ internal class NativeFeedCoordinator(
         val groups = parseGroups(listing.value)
         val groupOnly = groups != source.groups && listing.workspaces == source.workspaces
         publish(handle, source.copy(workspaces = listing.workspaces, groups = groups, hasWorkspaceSnapshot = true,
-            panelCacheToken = source.panelCacheToken ?: Any()))
+            panelCacheToken = source.panelCacheToken ?: Any(), artifactCacheDenied = false))
         handle.changes?.retain(listing.workspaces.map { it.id })
         if (handle.changesListEvent && !groupOnly) handle.changes?.request()
         handle.changesListEvent = false

@@ -941,13 +941,13 @@ internal fun NativeScreen(
                 textSnapshot = terminalTextSource(target) { grid === target }
             }
             textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
-            val retainedPanel = rememberNativePanel(feedSession, browserLogin, teamState.scope, pairedMacs, code,
+            val retainedPanel = rememberNativePanel(feedSession, browserLogin, paneTeam, paneMacs, code,
                 selectedWorkspace, selectedSurface, showSettings || showTaskComposer || sshRoute != null || localBrowser != null || selectedChangesWorkspace != null)
             val filesMemory = rememberSaveable(saver = TerminalFilesMemory.saver) { TerminalFilesMemory() }
-            val filesMac = pairedMacs.singleOrNull { it.code == code }
+            val filesMac = paneContext.mac
             val retainedFiles = feedSession.filesSheet
             val filesKey = draftTarget?.let { target -> filesMac?.let {
-                workspaceTabKey(browserLogin, teamState.scope, it, target.workspace)
+                workspaceTabKey(browserLogin, paneTeam, it, target.workspace)
             } }
             val emptyFilesState = remember { TerminalFilesState() }
             val filesState = if (connectionReady && connectedCode == code && browserLogin != null && filesKey != null && draftTarget != null)
@@ -993,7 +993,7 @@ internal fun NativeScreen(
             val artifactRefresh = artifactController?.galleryRefresh?.collectAsState()?.value ?: 0
             // The verified feed channel and its lease survive main-screen reconnection during recreation.
             // Observing feedSources also rechecks admission after a host/capability/workspace change.
-            val filesFeed = filesMac?.let { feedSources[it.origin] }
+            val filesFeed = filesMac?.let { feedSession.artifactSource(it) ?: feedSources[it.origin] }
             val retainedFilesAllowed = retainedFiles?.let {
                 it.login == browserLogin && it.mac.code == code && it.current() &&
                     (!connectionReady || draftTarget != null && it.matches(browserLogin, filesKey, draftTarget.surface))
