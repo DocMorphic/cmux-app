@@ -134,6 +134,11 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         update { NativePairingRecords.removeLocal(it, code, team) }
     }
 
+    internal fun forgetLocalPairing(action: NativeLocalPairingRemoval, permits: () -> Boolean) {
+        check(permits()) { "Account or pairing changed. Reopen Settings." }
+        update { action.remove(it, permits) }
+    }
+
     internal fun forgetCapturedNativeMac(team: NativeTeamScope, captured: List<PairedMac>, target: NativeComputerTarget) =
         update { state ->
             NativeComputerForgetLocal.remove(state, team, captured)

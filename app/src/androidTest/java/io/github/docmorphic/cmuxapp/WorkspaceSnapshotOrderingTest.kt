@@ -122,6 +122,19 @@ class WorkspaceSnapshotOrderingTest {
         } finally { gate.countDown() }
     }
 
+    @Test fun settingsLocalRemovalClearsOnlyTheRenderedPairingAndClosesItsRootWithoutSigningOut() {
+        launch()
+        val login = store.taskSession()
+        val root = checkNotNull(session.connectionState("").client)
+        assertEquals(1, store.pairedMacs().size)
+        compose.onNodeWithContentDescription("cmux settings").performClick()
+        compose.onNodeWithTag("settings.remove-local-pairing").performScrollTo().assertIsEnabled().performClick()
+        compose.waitUntil(10_000) { store.pairedMacs().isEmpty() && session.connectionState("").client == null }
+        assertTrue(root.isClosed); assertEquals(login, store.taskSession())
+        assertEquals("snapshot-order-emulator-fixture", store.load()!!.getString("refresh_token"))
+        assertEquals("", store.load()!!.optString("pairing_code"))
+    }
+
     @Test fun agentFeedUsesRetainedRootWithSecondaryFeedPausedAndSurvivesRecreationWithoutActionReplay() {
         val rows = JSONArray("""[{"id":"root-permission","workstream_id":"root-turn","source":"claude",
           "kind":"permissionRequest","status":"pending","request_id":"root-request","created_at":200,"updated_at":200,

@@ -755,7 +755,8 @@ internal fun NativeScreen(
             cloudWorkspaces?.refresh(snapshot.machine.id)
         }
         val forgetCallbacks = NativeComputerForgetCallbacks(started = { owner, target, rows ->
-            if (teamState.scope == owner && NativeComputerForgetLocal.ownsForeground(code, owner, target, rows)) {
+            if (nativeForgetOwnsRoot(owner, target, rows, connectionState.admittedMac, expectedReconnect, code,
+                connectionReady && client?.isClosed == false)) {
                 // Stop this foreground handshake/reconnect before remote removal, so it
                 // cannot persist the old pairing after the confirmed cleanup commits.
                 code = ""; connectionReady = false; client?.close(); client = null; connectedCode = null
@@ -2782,19 +2783,29 @@ internal fun NativeScreen(
                     }, onComputers = ::presentComputers,
                         fallbackName = hostName.takeIf { connectionReady && connectedCode == code && client?.isClosed == false },
                         fallbackTransport = client?.connectionTransport)
-                    if (code.isNotBlank() && (PairingCodeParser.parse(code).getOrNull() !is PairingCode.Iroh ||
-                        pairedMacs.none { it.code == code && computerState.account?.let { team -> NativeComputerTarget.from(it, team) } != null })) TextButton(onClick = {
+                    val localPairingCode = code
+                    val localPairingClient = client
+                    val localPairingRetry = retry
+                    val localPairingMac = paneContext.mac
+                    val localPairingOwner = paneTeam
+                    val localPairingAction = browserLogin?.let { NativeLocalPairingRemoval(it, localPairingOwner, localPairingMac, localPairingCode) }
+                    fun canRemoveLocalPairing() = localPairingAction != null && signedIn && store.taskSession() == localPairingAction.login &&
+                        code == localPairingCode && client === localPairingClient && retry == localPairingRetry &&
+                        (if (localPairingMac != null) allowsPaneMac(localPairingMac, localPairingClient)
+                        else accountTeams.state.value.scope == localPairingOwner && (localPairingOwner == null || accountTeams.isCurrent(localPairingOwner)))
+                    if (localPairingCode.isNotBlank() && (PairingCodeParser.parse(localPairingCode).getOrNull() !is PairingCode.Iroh ||
+                        localPairingMac?.let { mac -> localPairingOwner?.let { NativeComputerTarget.from(mac, it) } } == null)) TextButton(onClick = {
                         runCatching {
-                            val owner = teamState.scope
-                            if (sharedConnections != null) {
-                                checkNotNull(owner) { "Refresh your account teams first" }
-                                store.forgetMac(code, owner) { accountTeams.isCurrent(owner) }
-                            } else store.forgetMac(code)
+                            store.forgetLocalPairing(checkNotNull(localPairingAction), ::canRemoveLocalPairing)
+                            localPairingClient?.close(); client = null; connectionReady = false; connectedCode = null
+                            selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null; selectedChangesWorkspace = null
+                            workspaceRoute = null
                             savedPairedMacs = store.pairedMacs()
-                            code = store.load()?.optString("pairing_code").orEmpty()
+                            code = ""
                             showSettings = false
                         }.onFailure { error = it.message }
-                    }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Remove local pairing", color = Color(0xFFFF9999)) }
+                    }, enabled = canRemoveLocalPairing(), modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.remove-local-pairing")) {
+                        Text("Remove local pairing", color = Color(0xFFFF9999)) }
                     NativeSettingsSetupHelp(displayPolicy)
                     TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
                     }, notifications = {

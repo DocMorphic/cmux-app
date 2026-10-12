@@ -1,5 +1,51 @@
 # Remaining work for iOS parity
 
+## Captured-owner local removal and root-stop fencing — 2026-10-12
+
+The local Settings removal action now captures login, pane owner, exact saved Mac,
+code, client and retry generation. It checks current presentation/permission before
+and inside the credential transaction. Only the unchanged captured pairing is
+removed; same-code other-team rows and sibling builds survive. Changed routes or
+tickets, ambiguous records, account changes and lost permission cannot mutate it.
+An unsaved pasted code can be cleared without deleting saved records. Scoped route
+grants/tickets are pruned for the captured owner. Drafts, sign-in and another saved
+selection/code remain intact. The accepted action closes its captured root and
+clears its pane instead of rebinding to a same-code sibling.
+
+Remote Forget preparation now distinguishes the exact live admitted record from
+its exact pending reconnect record. A selected-team row sharing the root's public
+locator cannot stop that root; a genuinely pending matching request can be stopped.
+Owner/target identity remains checked. This corrects the preparation callback; it
+does not yet enable remote removal through a retained original-team detail page.
+
+**56 focused JVM cases pass**, including six new same-locator/build, revision,
+account, late-guard, unsaved-code and live/pending-root cases. Debug/test APKs build
+and five classes pass Android 17 ART reflection. **Three runtime cases pass in
+6.292s**: the real Settings button removes its pairing/closes the root while keeping
+sign-in; encrypted storage rejects a late guard without a disk change and retains
+the other team's same-locator row on success; and local cleanup retry does not
+repeat an already confirmed remote revoke.
+
+Evidence/XML/source and APK hashes are ignored under
+`captures/runtime/foreground-local-removal-*`. The sole existing 16 KB AVD was
+stopped/reaped; no physical device was touched. These are local fixtures, not actual
+account team switching, Mac/Iroh/Pixel or server revoke acceptance. Signed 654
+predates this source; full parity remains unverified.
+
+Source review confirmed iOS `MacComputerDetailView.forgetComputer()` builds removal
+from the pairing's own stored user/team (reviewed scoped pin f4b15090), and
+`NativeIrohRuntime` retains an original native backend while its foreground lease
+is held. Android's selected detail host and runtime operations still require the
+selected owner. Next: an exact-target original-owner detail/management path for
+appearance, connection settings, live checks, power, private paths/routes and
+remote Forget; preserve selected-only new Mac admission and safe post-revoke local
+cleanup. Saved Tailscale transport retention also needs its original control-owner
+path. Do not simply relax global `isCurrent` or bypass the selected operation guard.
+
+Explicit Settings selection/create and Iroh eligibility teardown remain enabled:
+**team selection still disconnects the app**. Combined scope/UI and real-device
+acceptance are still required before removing them.
+
 ## Foreground agent-feed ownership and lifecycle — 2026-10-12
 
 `NativeFeedSession` now owns one agent-feed session on the exact admitted root
