@@ -140,6 +140,9 @@ class NativeComputerDetailsLifetimeRuntimeTest {
                         compose.waitUntil(5000) { feed.computerDetailsState.value == null }
                         assertEquals(listOf(2), finished); assertEquals(1, revokes.get())
                         assertEquals(listOf(picker), store.pairedMacs()); assertEquals(picker.origin, store.load()!!.getString("computer_selection"))
+                        val reopened = NativeCredentialStore(context, preferenceName)
+                        assertEquals(picker.code, reopened.load()!!.getString("pairing_code"))
+                        assertEquals(picker.origin, reopened.load()!!.getString("computer_selection"))
                         assertEquals(selected, teams.state.value.scope)
                         application.unregisterActivityLifecycleCallbacks(lifecycle); lifecycle = null
                     }

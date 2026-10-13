@@ -30,6 +30,7 @@ class NativeLocalPairingRemovalTest {
             val reopened = NativeCredentialStore(context, name)
             assertEquals(listOf(picker), reopened.pairedMacs()); assertEquals("Keep work", reopened.load()!!.getString("draft"))
             assertEquals(picker.origin, reopened.load()!!.getString("computer_selection"))
+            assertEquals(code, reopened.load()!!.getString("pairing_code"))
             assertEquals(first.login, reopened.taskSession()); assertEquals("fixture", reopened.load()!!.getString("refresh_token"))
         } finally { store.clear() }
     }

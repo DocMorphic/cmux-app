@@ -1,3 +1,25 @@
+## Android connection cleanup validation batch — 2026-10-13
+
+Latest debug/test APKs built in **2m59s**. Six selected classes pass Android 17
+ART loading/reflection on **16 KB pages**, including `NativeScreenKt`,
+`NativeFeedSession` and the four cleanup/visibility classes. This checks the
+changed class boundary; it is not an authenticated MainActivity/NativeScreen run.
+
+**Three runtime cases pass in 8.587s**: actual Settings team-picker components
+keep the original mock-server root; confirmed removal survives real Activity
+recreation while preserving the other team's identical locator/selection; and
+encrypted local removal rejects a late guard without a disk change, then preserves
+the other team's resume locator on storage reopen. The latter two cases now assert
+`pairing_code` explicitly, closing the prior gap where surviving rows/selection
+could pass while the resume code was accidentally cleared.
+
+This is verified mock Stack/peer, encrypted Android storage and component/lifecycle
+evidence. It does not establish Pixel/Mac Iroh, signed upgrades or physical UI
+parity. No new signed preview is published. The sole existing AVD was stopped and
+reaped after 42.987s; Gradle was stopped before starting it. APK/test-source hashes,
+ART output, runner, lifecycle and original instrumentation logs are ignored under
+`captures/runtime/android-selection-milestone-20261013`.
+
 ## Backend update coverage — 2026-10-13
 
 The watcher now includes website API routes, auth handlers/callback policy,
