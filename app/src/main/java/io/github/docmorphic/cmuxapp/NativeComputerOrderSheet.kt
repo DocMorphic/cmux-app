@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
@@ -67,7 +69,7 @@ internal fun NativeComputerOrderSheet(computers: List<NativeSortComputer>, onDis
         Column(Modifier.fillMaxWidth().heightIn(max = 560.dp).navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Computer Order", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                TextButton(onClick = onDismiss) { Text("Done") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
             }
             if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
             error?.let { Text(it, Modifier.padding(horizontal = 20.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.error) }

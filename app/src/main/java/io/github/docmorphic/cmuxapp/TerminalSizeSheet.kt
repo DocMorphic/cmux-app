@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
@@ -60,7 +62,7 @@ internal fun TerminalSizeSheet(presentation: TerminalSizingPresentation, enabled
                         modifier = Modifier.testTag("terminal-size-grid"))
                     Text("Size set by ${presentation.ownerLabel}", style = MaterialTheme.typography.bodySmall)
                 }
-                TextButton(onClick = onDismiss) { Text("Done") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
             }
             Box {
                 TextButton(onClick = { modeMenu = true }, enabled = editable,
@@ -102,7 +104,7 @@ internal fun TerminalSizeSheet(presentation: TerminalSizingPresentation, enabled
     confirmOthers?.let { ids -> AlertDialog(onDismissRequest = { confirmOthers = null },
         title = { Text("Disconnect other devices?") },
         text = { Text("Disconnect ${ids.size} other ${if (ids.size == 1) "device" else "devices"} from this terminal. They can reattach later.") },
-        dismissButton = { TextButton(onClick = { confirmOthers = null }) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = { confirmOthers = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } },
         confirmButton = { TextButton(enabled = editable, modifier = Modifier.testTag("terminal-size-confirm-disconnect"), onClick = {
             confirmOthers = null; run(TerminalSizingAction.Disconnect(ids))
         }) { Text("Disconnect Others") } }) }

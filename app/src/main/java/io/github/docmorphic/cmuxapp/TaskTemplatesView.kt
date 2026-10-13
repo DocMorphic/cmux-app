@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -78,7 +80,7 @@ internal fun TaskTemplatesView(state: TaskTemplateState, onDismiss: () -> Unit,
             var directory by rememberSaveable { mutableStateOf(initial?.defaultDirectory.orEmpty()) }
             Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { back() }, enabled = !busy) { Text("Cancel") }
+                    TextButton(onClick = { back() }, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
                     Text(if (adding) "Add Template" else "Edit Template", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                     TextButton(enabled = !busy && name.isNotBlank(), onClick = {
                         val template = TaskTemplate(initial?.id ?: newId, name, icon, command, directory).normalized()
@@ -87,7 +89,7 @@ internal fun TaskTemplatesView(state: TaskTemplateState, onDismiss: () -> Unit,
                     }) { Text(if (busy) "Saving…" else "Save") }
                 }
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true, label = { Text("Name") })
+                    OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true, label = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb)) })
                     Text("Icon", color = Color(0xFF9B9FA8))
                     templateSymbols.chunked(6).forEach { row ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -121,7 +123,7 @@ internal fun TaskTemplatesView(state: TaskTemplateState, onDismiss: () -> Unit,
             }
         } else Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onDismiss, enabled = !busy) { Text("Done") }
+                TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
                 Text("Task Templates", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 TextButton(onClick = { newId = UUID.randomUUID().toString(); adding = true; error = null }, enabled = !busy,
                     modifier = Modifier.semantics { contentDescription = "Add Template" }) { Text("＋") }

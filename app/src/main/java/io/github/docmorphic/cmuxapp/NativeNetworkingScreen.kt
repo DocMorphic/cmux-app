@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -89,7 +91,7 @@ internal fun NativeNetworkingScreen(load: suspend (Boolean) -> NativeNetworkingS
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onBack) { Text("‹  Back") }
-                Text("Networking", Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.cmux_ui_mobile_iroh_title_9b93784d), Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 if (reset != null) NativeNetworkingResetButton(reset, !pending) { resetPending = it }
             }
             Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
@@ -172,7 +174,7 @@ private fun NativeNetworkingResetButton(reset: suspend () -> Unit, enabled: Bool
     TextButton(enabled = enabled && !pending, onClick = { error = false; confirm = true },
         modifier = Modifier.semantics { contentDescription = "Reset Networking Settings" }) { Text("Reset") }
     if (confirm) AlertDialog(onDismissRequest = { if (!pending) confirm = false },
-        title = { Text("Reset Networking Settings?") },
+        title = { Text(stringResource(R.string.cmux_ui_mobile_iroh_reset_title_9115ca3c)) },
         text = { Column {
             Text("Disable all private addresses in this team. Saved addresses will remain so you can enable them again.")
             if (error) Text("Could not reset networking. Try again.", color = Color(0xFFFFC170))
@@ -189,5 +191,5 @@ private fun NativeNetworkingResetButton(reset: suspend () -> Unit, enabled: Bool
                 }
             }
         }) { Text(if (pending) "Resetting…" else "Reset to Defaults") } },
-        dismissButton = { TextButton(enabled = !pending, onClick = { confirm = false }) { Text("Cancel") } })
+        dismissButton = { TextButton(enabled = !pending, onClick = { confirm = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }

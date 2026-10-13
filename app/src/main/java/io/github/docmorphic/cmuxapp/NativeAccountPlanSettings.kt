@@ -3,6 +3,8 @@
  * GPL-3.0-or-later. See NOTICE.md. */
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
@@ -70,7 +72,7 @@ internal fun AccountPlanSettings(controller: AccountPlanController, openExternal
                 Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Plans", Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                     TextButton(onClick = { controller.refresh() }, enabled = !state.loading) { Text("Refresh") }
-                    TextButton(onClick = { expanded = false }) { Text("Done") }
+                    TextButton(onClick = { expanded = false }) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
                 }
                 if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(20.dp),
@@ -95,7 +97,7 @@ internal fun AccountPlanSettings(controller: AccountPlanController, openExternal
                     }
                     state.failure?.let {
                         Text(it, color = MaterialTheme.colorScheme.error)
-                        TextButton(onClick = { controller.refresh() }, enabled = !state.loading) { Text("Try Again") }
+                        TextButton(onClick = { controller.refresh() }, enabled = !state.loading) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_retry_7efcec96)) }
                     }
                     linkFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     HorizontalDivider()

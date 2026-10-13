@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -122,7 +124,7 @@ internal fun AgentFeedTimeline(
             if (actionError != null) item("error") {
                 Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(actionError!!, Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = { actionError = null }) { Text("Dismiss") }
+                    TextButton(onClick = { actionError = null }) { Text(stringResource(R.string.cmux_ui_mobile_terminal_outputrecovery_dismiss_c572c42a)) }
                 }
             }
             if (snapshot.refreshFailed) item("refresh-error") {
@@ -231,8 +233,8 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
         containerColor = Color(0xFF111317), contentColor = Color(0xFFE9E9EC)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("AgentFeedFullTextSheet")) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onDismiss, modifier = Modifier.width(96.dp)) { Text("Close") }
-                Text("Full text", Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
+                TextButton(onClick = onDismiss, modifier = Modifier.width(96.dp)) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619)) }
+                Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_title_257807f0), Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 TextButton(onClick = { onChange(modal.copy(raw = !modal.raw)) }, enabled = text != null,
                     modifier = Modifier.width(96.dp)) { Text(if (modal.raw) "Formatted" else "Source") }
@@ -240,13 +242,13 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
             when {
                 error != null -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Couldn’t load the full text from this Mac. Reconnect and try again.")
+                    Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_unavailable_b62af026))
                     Text(error!!, color = agentFeedMuted)
-                    TextButton(onClick = { attempt++ }) { Text("Try again") }
+                    TextButton(onClick = { attempt++ }) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) }
                 }
                 text == null -> Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CircularProgressIndicator(Modifier.size(24.dp)); Text("Loading full text…")
+                    CircularProgressIndicator(Modifier.size(24.dp)); Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_loading_fa5e4486))
                 }
                 modal.raw -> AgentFeedSourceReader(text!!, sourcePosition)
                 else -> MarkdownWebPreview(text!!, viewport, onFailure = { onChange(modal.copy(raw = true)) })

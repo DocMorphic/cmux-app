@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -68,7 +70,7 @@ internal fun NativeMacAppearanceSection(target: NativeComputerTarget, value: Nat
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(name, { name = it.take(256) }, Modifier.weight(1f), enabled = !pending && !readError,
-                label = { Text("Name") }, placeholder = { Text(target.name.ifBlank { "Mac" }) }, singleLine = true,
+                label = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb)) }, placeholder = { Text(target.name.ifBlank { "Mac" }) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { val text = name; change { it.copy(name = text) } }))
             TextButton(enabled = !pending && !readError, onClick = { val text = name; change { it.copy(name = text) } }) { Text("Save name") }
@@ -146,5 +148,5 @@ private fun NativeAppearanceColorDialog(current: String?, dismiss: () -> Unit, s
             }
         }
     }, confirmButton = { TextButton(enabled = valid, onClick = { save(hex) }) { Text("Use color") } },
-        dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = dismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }

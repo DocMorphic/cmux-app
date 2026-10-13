@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.net.Uri
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -100,7 +102,7 @@ internal fun LocalBrowserPane(surface: LocalBrowserSurface, beforeNavigation: (s
             .semantics { contentDescription = "Browser loading" }) else Spacer(Modifier.height(2.dp))
         state.error?.let { message -> Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(message, color = Color(0xFFFFB2B2), fontSize = 12.sp, modifier = Modifier.weight(1f))
-            TextButton(onClick = { surface.request(LocalBrowserCommand.RELOAD) }, enabled = !state.closed) { Text("Retry") }
+            TextButton(onClick = { surface.request(LocalBrowserCommand.RELOAD) }, enabled = !state.closed) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
         } }
         key(surface.id) {
             var lease by remember(surface, retainedWeb) { mutableStateOf<LocalBrowserWebOwner.Lease?>(null) }

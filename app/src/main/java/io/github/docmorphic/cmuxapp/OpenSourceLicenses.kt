@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -93,7 +95,7 @@ internal fun OpenSourceLicensesContent(
                     state == null -> Text("Loading licenses…")
                     state.isFailure -> Column {
                         Text("Licenses could not be loaded.")
-                        TextButton(onClick = { attempt++ }) { Text("Retry") }
+                        TextButton(onClick = { attempt++ }) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
                     }
                     else -> LazyColumn(Modifier.fillMaxWidth().testTag("license-list")) {
                         state.getOrThrow().forEach { document ->
@@ -111,6 +113,6 @@ internal fun OpenSourceLicensesContent(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) } },
     )
 }

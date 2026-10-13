@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.app.Activity
 import android.net.VpnService
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -66,5 +68,5 @@ import androidx.compose.ui.unit.dp
                     if (!runtime.enable(expected)) error = "Your account changed. Turn on the Cloud VPN again."
                 } else { permissionOwner = expected; launcher.launch(intent) }
             } catch (_: Exception) { permissionOwner = null; error = "Could not request VPN permission." }
-        }) { Text("Continue") } }, dismissButton = { TextButton(onClick = { confirming = null }) { Text("Cancel") } }) }
+        }) { Text("Continue") } }, dismissButton = { TextButton(onClick = { confirming = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }) }
 }

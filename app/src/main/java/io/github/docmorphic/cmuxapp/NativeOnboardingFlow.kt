@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -104,7 +106,7 @@ internal fun NativeOnboardingFlow(initialProgress: NativeOnboardingProgress, rep
                         Text("On your Mac, open cmux Settings > Mobile and turn on Enable iOS pairing. This setting also enables the Android companion.", textAlign = TextAlign.Center)
                         Image(painterResource(if (MaterialTheme.colorScheme.surface.luminance() < .5f) R.drawable.mac_pairing_settings_dark else R.drawable.mac_pairing_settings_light),
                             "Mac Settings showing Enable iOS pairing", Modifier.fillMaxWidth().aspectRatio(618f / 171f).testTag("onboarding.pairing.image"))
-                        Text("Required for Mac discovery", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.cmux_ui_mobile_onboarding_pairing_required_2350deb0), fontWeight = FontWeight.SemiBold)
                         Text("Sign in on your Mac and this phone with the same cmux account and team.", textAlign = TextAlign.Center)
                         policy.pairingMinimumCopy()?.let { Text(it, textAlign = TextAlign.Center) }
                         TextButton(enabled = active, onClick = { runCatching { uri.openUri("https://github.com/manaflow-ai/cmux/releases/latest") } }) { Text("Download cmux for Mac") }
@@ -123,11 +125,11 @@ internal fun NativeOnboardingFlow(initialProgress: NativeOnboardingProgress, rep
                             FilterChip(method == NativeOnboardingMethod.AUTOMATIC, {
                                 method = NativeOnboardingMethod.AUTOMATIC; onMethod(method)
                                 if (canConnect && phase != NativeOnboardingPhase.READY) onRetry()
-                            }, { Text("Automatic") }, enabled = active, modifier = Modifier.testTag("onboarding.automatic"))
+                            }, { Text(stringResource(R.string.cmux_ui_mobile_iroh_private_automatic_d7b5c73d)) }, enabled = active, modifier = Modifier.testTag("onboarding.automatic"))
                             FilterChip(method == NativeOnboardingMethod.TAILSCALE, {
                                 method = NativeOnboardingMethod.TAILSCALE; onMethod(method)
                                 if (canConnect && phase == NativeOnboardingPhase.READY) onScan()
-                            }, { Text("Tailscale") }, enabled = active, modifier = Modifier.testTag("onboarding.tailscale"))
+                            }, { Text(stringResource(R.string.cmux_ui_diagnostics_transport_tailscale_21287e0f)) }, enabled = active, modifier = Modifier.testTag("onboarding.tailscale"))
                         }
                         if (active && method == NativeOnboardingMethod.AUTOMATIC && phase != NativeOnboardingPhase.READY) computers()
                         if (method == NativeOnboardingMethod.TAILSCALE) {

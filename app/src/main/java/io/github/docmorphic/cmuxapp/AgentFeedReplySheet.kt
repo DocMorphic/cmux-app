@@ -2,6 +2,8 @@
  * f4b1509054949eaad5d695569ad443c4c18ed68d. GPL-3.0-or-later. See NOTICE.md. */
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -48,7 +50,7 @@ internal fun AgentFeedWaitingSheet(onDismiss: () -> Unit, onRefresh: () -> Unit,
             Text("Waiting for this Mac’s Feed", fontWeight = FontWeight.SemiBold)
             Text(if (reader) "This message will reopen when this computer reconnects and the message is available."
                 else "Your draft will reopen when this computer reconnects and the message is available.")
-            Row { TextButton(onRefresh) { Text("Retry") }; TextButton(onDismiss) { Text("Cancel") } }
+            Row { TextButton(onRefresh) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }; TextButton(onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }
         }
     }
 }
@@ -114,7 +116,7 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).imePadding().testTag("AgentFeedReplySheet")) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onDismiss) { Text("Cancel") }
+                TextButton(onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
                 Button(::send, enabled = canSend, modifier = Modifier.testTag("AgentFeedComposeSend"),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF176FC1), contentColor = Color.White,
                         disabledContainerColor = Color(0xFF282C32), disabledContentColor = Color(0xFF737983)),
@@ -138,7 +140,7 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
                         when {
                             !modal.expanded -> AgentFeedInlinePreview(preview, item.fullTextTruncated, 6, ready,
                                 { update { it.copy(expanded = true) } }, color = Color(0xFF9CA3AF))
-                            failed -> TextButton(onClick = { attempt++ }, enabled = ready) { Text("Couldn't load the full message. Try again") }
+                            failed -> TextButton(onClick = { attempt++ }, enabled = ready) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_compose_fulltextretry_8d76f687)) }
                             else -> LinearProgressIndicator(Modifier.fillMaxWidth())
                         }
                     }

@@ -1,0 +1,1373 @@
+{
+  "version": 1,
+  "repository": "manaflow-ai/cmux",
+  "upstream": "f4b1509054949eaad5d695569ad443c4c18ed68d",
+  "catalogs": [
+    {
+      "path": "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/Resources/Localizable.xcstrings",
+      "sha256": "5d7d159fa65713d6614386733d1961a4214357a5dfe232b164079ccc182457c0"
+    },
+    {
+      "path": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "sha256": "9b9aa8bc6572b760cb8df0709948473fb717f6af15a665e4a57c961b212d5719"
+    },
+    {
+      "path": "Packages/iOS/CmuxMobileChanges/Sources/CmuxMobileChanges/Resources/Localizable.xcstrings",
+      "sha256": "b1d889ac4186f0cc41592b97971fb3516f588fc3497e9a6baa3db5adc1ef198f"
+    },
+    {
+      "path": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "sha256": "37941efb71aed88e06d78298d6f159bc5eb670034ffc0c6fea874d6dc798d576"
+    }
+  ],
+  "reviewedGenericActions": {
+    "Done": "terminal.artifact.gallery.done",
+    "Try Again": "mobile.agentFeed.retry"
+  },
+  "strings": [
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.filter.all",
+      "translations": {
+        "en": "All Activity",
+        "ar": "كل النشاط",
+        "de": "Alle Aktivitäten",
+        "es": "Toda la actividad",
+        "fr": "Toute l’activité",
+        "ja": "すべて",
+        "ko": "모든 활동",
+        "zh-Hans": "全部活动",
+        "zh-Hant": "所有活動"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_filter_all_e2a92565"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.answer",
+      "translations": {
+        "en": "Answer",
+        "ar": "إجابة",
+        "de": "Antwort",
+        "es": "Responder",
+        "fr": "Répondre",
+        "ja": "回答",
+        "ko": "답변",
+        "zh-Hans": "回答",
+        "zh-Hant": "回答"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_answer_275e3dd6"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.answerTitle",
+      "translations": {
+        "en": "Answer questions",
+        "ar": "أجب عن الأسئلة",
+        "de": "Fragen beantworten",
+        "es": "Responde a las preguntas",
+        "fr": "Répondre aux questions",
+        "ja": "質問に回答",
+        "ko": "질문에 답하기",
+        "zh-Hans": "回答问题",
+        "zh-Hant": "回答問題"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_answertitle_49016a9e"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.answeredShort",
+      "translations": {
+        "en": "Answered",
+        "ar": "تمت الإجابة",
+        "de": "Beantwortet",
+        "es": "Respondida",
+        "fr": "Répondu",
+        "ja": "回答済み",
+        "ko": "답변함",
+        "zh-Hans": "已回答",
+        "zh-Hant": "已回答"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_answeredshort_8b2f1fa6"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.exitPlan.approve",
+      "translations": {
+        "en": "Approve",
+        "ar": "موافقة",
+        "de": "Genehmigen",
+        "es": "Aprobar",
+        "fr": "Approuver",
+        "ja": "承認",
+        "ko": "승인",
+        "zh-Hans": "批准",
+        "zh-Hant": "核准"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_exitplan_approve_50301655"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.private.automatic",
+      "translations": {
+        "en": "Automatic",
+        "ar": "تلقائي",
+        "de": "Automatisch",
+        "es": "Automático",
+        "fr": "Automatique",
+        "ja": "自動",
+        "ko": "자동",
+        "zh-Hans": "自动",
+        "zh-Hant": "自動"
+      },
+      "resource": "cmux_ui_mobile_iroh_private_automatic_d7b5c73d"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileChanges/Sources/CmuxMobileChanges/Resources/Localizable.xcstrings",
+      "key": "changes.binary.badge",
+      "translations": {
+        "en": "Binary",
+        "ar": "ثنائي",
+        "de": "Binär",
+        "es": "Binario",
+        "fr": "Binaire",
+        "ja": "バイナリ",
+        "ko": "바이너리",
+        "zh-Hans": "二进制",
+        "zh-Hant": "二進位"
+      },
+      "resource": "cmux_ui_changes_binary_badge_7023994d"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.browse_folder",
+      "translations": {
+        "en": "Browse folder",
+        "ar": "تصفح المجلد",
+        "de": "Ordner durchsuchen",
+        "es": "Explorar carpeta",
+        "fr": "Parcourir le dossier",
+        "ja": "フォルダを表示",
+        "ko": "폴더 찾아보기",
+        "zh-Hans": "浏览文件夹",
+        "zh-Hant": "瀏覽資料夾"
+      },
+      "resource": "cmux_ui_chat_artifact_browse_folder_315e8927"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.common.cancel",
+      "translations": {
+        "en": "Cancel",
+        "ar": "إلغاء",
+        "de": "Abbrechen",
+        "es": "Cancelar",
+        "fr": "Annuler",
+        "ja": "キャンセル",
+        "ko": "취소",
+        "zh-Hans": "取消",
+        "zh-Hant": "取消"
+      },
+      "resource": "cmux_ui_mobile_common_cancel_fa7c525e"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "workspace.changes.title",
+      "translations": {
+        "en": "Changes",
+        "ar": "التغييرات",
+        "de": "Änderungen",
+        "es": "Cambios",
+        "fr": "Changements",
+        "ja": "変更",
+        "ko": "변경 사항",
+        "zh-Hans": "变化",
+        "zh-Hant": "變化"
+      },
+      "resource": "cmux_ui_workspace_changes_title_3c6233fa"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.answerSubtitle",
+      "translations": {
+        "en": "Choose an option or write an answer for each prompt.",
+        "ar": "اختر خيارًا أو اكتب إجابة لكل سؤال.",
+        "de": "Wähle eine Option oder schreibe eine Antwort für jede Frage.",
+        "es": "Elige una opción o escribe una respuesta para cada pregunta.",
+        "fr": "Choisissez une option ou écrivez une réponse pour chaque question.",
+        "ja": "各質問の選択肢を選ぶか、回答を入力してください。",
+        "ko": "각 질문에 대한 옵션을 선택하거나 답변을 입력하세요.",
+        "zh-Hans": "为每个问题选择选项或输入回答。",
+        "zh-Hant": "為每個問題選擇選項或輸入回答。"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_answersubtitle_4498fb53"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.diagnostics.clear",
+      "translations": {
+        "en": "Clear Logs",
+        "ar": "مسح السجلات",
+        "de": "Protokolle löschen",
+        "es": "Borrar registros",
+        "fr": "Effacer les journaux",
+        "ja": "ログを消去",
+        "ko": "로그 지우기",
+        "zh-Hans": "清除日志",
+        "zh-Hant": "清除日誌"
+      },
+      "resource": "cmux_ui_mobile_iroh_diagnostics_clear_81e1aaec"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.diagnostics.clear.confirm",
+      "translations": {
+        "en": "Clear all diagnostic logs?",
+        "ar": "هل تريد مسح جميع سجلات التشخيص؟",
+        "de": "Alle Diagnoseprotokolle löschen?",
+        "es": "¿Borrar todos los registros de diagnóstico?",
+        "fr": "Effacer tous les journaux de diagnostic ?",
+        "ja": "すべての診断ログを消去しますか？",
+        "ko": "모든 진단 로그를 삭제하시겠습니까?",
+        "zh-Hans": "要清除所有诊断日志吗？",
+        "zh-Hant": "要清除所有診斷日誌嗎？"
+      },
+      "resource": "cmux_ui_mobile_iroh_diagnostics_clear_confirm_f1b8b9cb"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.fullText.close",
+      "translations": {
+        "en": "Close",
+        "ar": "إغلاق",
+        "de": "Schließen",
+        "es": "Cerrar",
+        "fr": "Fermer",
+        "ja": "閉じる",
+        "ko": "닫기",
+        "zh-Hans": "关闭",
+        "zh-Hant": "關閉"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_fulltext_close_4053e619"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileChanges/Sources/CmuxMobileChanges/Resources/Localizable.xcstrings",
+      "key": "changes.copy.hunk",
+      "translations": {
+        "en": "Copy Hunk",
+        "ar": "نسخ قطعة كبيرة",
+        "de": "Kopiere Hunk",
+        "es": "Copiar trozo",
+        "fr": "Copier un morceau",
+        "ja": "ハンクをコピー",
+        "ko": "헝크 복사",
+        "zh-Hans": "复制大块头",
+        "zh-Hant": "複製大塊頭"
+      },
+      "resource": "cmux_ui_changes_copy_hunk_b9e91fa2"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileChanges/Sources/CmuxMobileChanges/Resources/Localizable.xcstrings",
+      "key": "changes.copy.line",
+      "translations": {
+        "en": "Copy Line",
+        "ar": "خط النسخ",
+        "de": "Zeile kopieren",
+        "es": "Copiar línea",
+        "fr": "Copier la ligne",
+        "ja": "行をコピー",
+        "ko": "라인 복사",
+        "zh-Hans": "复制行",
+        "zh-Hant": "複製行"
+      },
+      "resource": "cmux_ui_changes_copy_line_7f707dea"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.copy_path",
+      "translations": {
+        "en": "Copy path",
+        "ar": "نسخ المسار",
+        "de": "Pfad kopieren",
+        "es": "Copiar ruta",
+        "fr": "Copier le chemin",
+        "ja": "パスをコピー",
+        "ko": "경로 복사",
+        "zh-Hans": "复制路径",
+        "zh-Hant": "複製路徑"
+      },
+      "resource": "cmux_ui_chat_artifact_copy_path_56643fb4"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.compose.fullTextRetry",
+      "translations": {
+        "en": "Couldn't load the full message. Try again",
+        "ar": "تعذّر تحميل الرسالة الكاملة. أعد المحاولة",
+        "de": "Vollständige Nachricht konnte nicht geladen werden. Erneut versuchen",
+        "es": "No se pudo cargar el mensaje completo. Reintentar",
+        "fr": "Impossible de charger le message complet. Réessayer",
+        "ja": "メッセージ全文を読み込めませんでした。再試行",
+        "ko": "전체 메시지를 불러오지 못했습니다. 다시 시도",
+        "zh-Hans": "无法加载完整消息。重试",
+        "zh-Hant": "無法載入完整訊息。再試一次"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_compose_fulltextretry_8d76f687"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.fullText.unavailable",
+      "translations": {
+        "en": "Couldn’t load the full text from this Mac. Reconnect and try again.",
+        "ar": "تعذّر تحميل النص الكامل من جهاز Mac هذا. أعد الاتصال وحاول مرة أخرى.",
+        "de": "Der vollständige Text konnte von diesem Mac nicht geladen werden. Stelle die Verbindung wieder her und versuche es erneut.",
+        "es": "No se pudo cargar el texto completo desde este Mac. Vuelve a conectarte e inténtalo de nuevo.",
+        "fr": "Impossible de charger le texte intégral depuis ce Mac. Reconnectez-vous et réessayez.",
+        "ja": "このMacから全文を読み込めませんでした。再接続してから、もう一度お試しください。",
+        "ko": "이 Mac에서 전체 텍스트를 불러오지 못했습니다. 다시 연결한 후 시도하세요.",
+        "zh-Hans": "无法从这台 Mac 加载全文。请重新连接后重试。",
+        "zh-Hant": "無法從這部 Mac 載入全文。請重新連線後再試一次。"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_fulltext_unavailable_b62af026"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.permission.deny",
+      "translations": {
+        "en": "Deny",
+        "ar": "رفض",
+        "de": "Ablehnen",
+        "es": "Denegar",
+        "fr": "Refuser",
+        "ja": "拒否",
+        "ko": "거부",
+        "zh-Hans": "拒绝",
+        "zh-Hant": "拒絕"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_permission_deny_bd30db41"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.terminal.outputRecovery.dismiss",
+      "translations": {
+        "en": "Dismiss",
+        "ar": "رفض",
+        "de": "Zurückweisen",
+        "es": "Despedir",
+        "fr": "Rejeter",
+        "ja": "閉じる",
+        "ko": "해고하다",
+        "zh-Hans": "解雇",
+        "zh-Hant": "解僱"
+      },
+      "resource": "cmux_ui_mobile_terminal_outputrecovery_dismiss_c572c42a"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "terminal.artifact.gallery.done",
+      "translations": {
+        "en": "Done",
+        "ar": "منتهي",
+        "de": "Erledigt",
+        "es": "Hecho",
+        "fr": "Fait",
+        "ja": "完了",
+        "ko": "완료",
+        "zh-Hans": "完毕",
+        "zh-Hant": "完畢"
+      },
+      "resource": "cmux_ui_terminal_artifact_gallery_done_ca8c7883"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.common.edit",
+      "translations": {
+        "en": "Edit",
+        "ar": "يحرر",
+        "de": "Bearbeiten",
+        "es": "Editar",
+        "fr": "Modifier",
+        "ja": "編集",
+        "ko": "편집하다",
+        "zh-Hans": "编辑",
+        "zh-Hant": "編輯"
+      },
+      "resource": "cmux_ui_mobile_common_edit_a2a4d958"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.onboarding.pairing.title",
+      "translations": {
+        "en": "Enable iOS pairing on your Mac",
+        "ar": "فعّل اقتران iOS على جهاز Mac",
+        "de": "iOS-Kopplung auf Ihrem Mac aktivieren",
+        "es": "Activa el enlace con iOS en tu Mac",
+        "fr": "Activez le jumelage iOS sur votre Mac",
+        "ja": "Mac で iOS ペアリングを有効にする",
+        "ko": "Mac에서 iOS 페어링 활성화",
+        "zh-Hans": "在 Mac 上启用 iOS 配对",
+        "zh-Hant": "在 Mac 上啟用 iOS 配對"
+      },
+      "resource": "cmux_ui_mobile_onboarding_pairing_title_73ebf3a9"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.settings.resetLocalData.confirm.action",
+      "translations": {
+        "en": "Erase",
+        "ar": "مسح",
+        "de": "Löschen",
+        "es": "Borrar",
+        "fr": "Effacer",
+        "ja": "消去",
+        "ko": "지우기",
+        "zh-Hans": "清除",
+        "zh-Hant": "清除"
+      },
+      "resource": "cmux_ui_mobile_settings_resetlocaldata_confirm_action_8e769d92"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.settings.resetLocalData.confirm.title",
+      "translations": {
+        "en": "Erase all cmux data on this device?",
+        "ar": "هل تريد مسح جميع بيانات cmux على هذا الجهاز؟",
+        "de": "Alle cmux-Daten auf diesem Gerät löschen?",
+        "es": "¿Borrar todos los datos de cmux de este dispositivo?",
+        "fr": "Effacer toutes les données cmux de cet appareil ?",
+        "ja": "このデバイスのすべての cmux データを消去しますか？",
+        "ko": "이 기기의 모든 cmux 데이터를 지우시겠습니까?",
+        "zh-Hans": "要清除此设备上的所有 cmux 数据吗？",
+        "zh-Hant": "要清除此裝置上的所有 cmux 資料嗎？"
+      },
+      "resource": "cmux_ui_mobile_settings_resetlocaldata_confirm_title_91046c47"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.title",
+      "translations": {
+        "en": "Feed",
+        "ar": "الموجز",
+        "de": "Feed",
+        "es": "Feed",
+        "fr": "Flux",
+        "ja": "フィード",
+        "ko": "피드",
+        "zh-Hans": "动态",
+        "zh-Hant": "動態"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_title_36feab50"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "terminal.artifact.gallery.title",
+      "translations": {
+        "en": "Files",
+        "ar": "ملفات",
+        "de": "Dateien",
+        "es": "Archivos",
+        "fr": "Fichiers",
+        "ja": "ファイル",
+        "ko": "파일",
+        "zh-Hans": "文件",
+        "zh-Hant": "文件"
+      },
+      "resource": "cmux_ui_terminal_artifact_gallery_title_62a1ff61"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.search.placeholder",
+      "translations": {
+        "en": "Find in file",
+        "ar": "البحث في الملف",
+        "de": "In der Datei suchen",
+        "es": "buscar en el archivo",
+        "fr": "Rechercher dans le fichier",
+        "ja": "ファイル内を検索",
+        "ko": "파일에서 찾기",
+        "zh-Hans": "在文件中查找",
+        "zh-Hant": "在文件中尋找"
+      },
+      "resource": "cmux_ui_chat_artifact_search_placeholder_14e837c4"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.fullText.title",
+      "translations": {
+        "en": "Full text",
+        "ar": "النص الكامل",
+        "de": "Vollständiger Text",
+        "es": "Texto completo",
+        "fr": "Texte intégral",
+        "ja": "全文",
+        "ko": "전체 텍스트",
+        "zh-Hans": "全文",
+        "zh-Hant": "全文"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_fulltext_title_257807f0"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.line.go",
+      "translations": {
+        "en": "Go",
+        "ar": "يذهب",
+        "de": "Gehen",
+        "es": "Ir",
+        "fr": "Aller",
+        "ja": "移動",
+        "ko": "가다",
+        "zh-Hans": "去",
+        "zh-Hant": "去"
+      },
+      "resource": "cmux_ui_chat_artifact_line_go_dc26378e"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.line.goto",
+      "translations": {
+        "en": "Go to line",
+        "ar": "اذهب إلى السطر",
+        "de": "Gehen Sie zur Zeile",
+        "es": "ir a la linea",
+        "fr": "Aller à la ligne",
+        "ja": "行へ移動",
+        "ko": "라인으로 이동",
+        "zh-Hans": "前往线路",
+        "zh-Hant": "前往線路"
+      },
+      "resource": "cmux_ui_chat_artifact_line_goto_a188158f"
+    },
+    {
+      "catalog": "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/Resources/Localizable.xcstrings",
+      "key": "diagnostics.simulator.button.home",
+      "translations": {
+        "en": "Home",
+        "ar": "بيت",
+        "de": "Heim",
+        "es": "Hogar",
+        "fr": "Maison",
+        "ja": "ホーム",
+        "ko": "집",
+        "zh-Hans": "家",
+        "zh-Hant": "家"
+      },
+      "resource": "cmux_ui_diagnostics_simulator_button_home_a816032a"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.v2.private.addresses",
+      "translations": {
+        "en": "IP Addresses and Ports",
+        "ar": "عناوين IP والمنافذ",
+        "de": "IP-Adressen und Ports",
+        "es": "Direcciones IP y puertos",
+        "fr": "Adresses IP et ports",
+        "ja": "IPアドレスとポート",
+        "ko": "IP 주소 및 포트",
+        "zh-Hans": "IP 地址和端口",
+        "zh-Hant": "IP 位址與連接埠"
+      },
+      "resource": "cmux_ui_mobile_iroh_v2_private_addresses_a9ee4f75"
+    },
+    {
+      "catalog": "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/Resources/Localizable.xcstrings",
+      "key": "diagnostics.transport.iroh",
+      "translations": {
+        "en": "Iroh",
+        "ar": "إيروه",
+        "de": "Iroh",
+        "es": "Iroh",
+        "fr": "Iroh",
+        "ja": "Iroh",
+        "ko": "이로",
+        "zh-Hans": "伊罗",
+        "zh-Hant": "伊羅"
+      },
+      "resource": "cmux_ui_diagnostics_transport_iroh_b604d1b1"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.jump.latest",
+      "translations": {
+        "en": "Latest",
+        "ar": "أحدث",
+        "de": "Letzte",
+        "es": "El último",
+        "fr": "Dernier",
+        "ja": "最新",
+        "ko": "최신",
+        "zh-Hans": "最新的",
+        "zh-Hant": "最新的"
+      },
+      "resource": "cmux_ui_chat_artifact_jump_latest_6bb0810c"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.line.placeholder",
+      "translations": {
+        "en": "Line number",
+        "ar": "رقم السطر",
+        "de": "Zeilennummer",
+        "es": "Número de línea",
+        "fr": "Numéro de ligne",
+        "ja": "行番号",
+        "ko": "줄 번호",
+        "zh-Hans": "行号",
+        "zh-Hant": "行號"
+      },
+      "resource": "cmux_ui_chat_artifact_line_placeholder_7869f4e5"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.line.numbers",
+      "translations": {
+        "en": "Line numbers",
+        "ar": "أرقام الأسطر",
+        "de": "Zeilennummern",
+        "es": "Números de línea",
+        "fr": "Numéros de ligne",
+        "ja": "行番号",
+        "ko": "줄 번호",
+        "zh-Hans": "行号",
+        "zh-Hant": "行號"
+      },
+      "resource": "cmux_ui_chat_artifact_line_numbers_c3d9ce0f"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "terminal.artifact.gallery.loading",
+      "translations": {
+        "en": "Loading files…",
+        "ar": "جارٍ تحميل الملفات...",
+        "de": "Dateien werden geladen…",
+        "es": "Cargando archivos…",
+        "fr": "Chargement des fichiers…",
+        "ja": "ファイルを読み込み中…",
+        "ko": "파일 로드 중…",
+        "zh-Hans": "正在加载文件...",
+        "zh-Hant": "正在加載檔案..."
+      },
+      "resource": "cmux_ui_terminal_artifact_gallery_loading_16b01c72"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.fullText.loading",
+      "translations": {
+        "en": "Loading full text…",
+        "ar": "جارٍ تحميل النص الكامل…",
+        "de": "Vollständiger Text wird geladen…",
+        "es": "Cargando el texto completo…",
+        "fr": "Chargement du texte intégral…",
+        "ja": "全文を読み込み中…",
+        "ko": "전체 텍스트 로딩 중…",
+        "zh-Hans": "正在加载全文…",
+        "zh-Hant": "正在載入全文…"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_fulltext_loading_fa5e4486"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.loading",
+      "translations": {
+        "en": "Loading preview",
+        "ar": "جارٍ تحميل المعاينة",
+        "de": "Vorschau wird geladen",
+        "es": "Cargando vista previa",
+        "fr": "Aperçu du chargement",
+        "ja": "プレビューを読み込み中",
+        "ko": "미리보기 로드 중",
+        "zh-Hans": "加载预览",
+        "zh-Hant": "載入預覽"
+      },
+      "resource": "cmux_ui_chat_artifact_loading_2c608fbe"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.whatsNew.pairing.compatibilityTitle",
+      "translations": {
+        "en": "Mac version required",
+        "ar": "إصدار Mac المطلوب",
+        "de": "Erforderliche Mac-Version",
+        "es": "Versión de Mac requerida",
+        "fr": "Version Mac requise",
+        "ja": "必要な Mac のバージョン",
+        "ko": "필요한 Mac 버전",
+        "zh-Hans": "所需的 Mac 版本",
+        "zh-Hant": "所需的 Mac 版本"
+      },
+      "resource": "cmux_ui_mobile_whatsnew_pairing_compatibilitytitle_8b6e4de3"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "terminal.artifact.gallery.sort.name",
+      "translations": {
+        "en": "Name",
+        "ar": "اسم",
+        "de": "Name",
+        "es": "Nombre",
+        "fr": "Nom",
+        "ja": "名前",
+        "ko": "이름",
+        "zh-Hans": "姓名",
+        "zh-Hant": "姓名"
+      },
+      "resource": "cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.pendingTitle",
+      "translations": {
+        "en": "Needs your input",
+        "ar": "يحتاج وكيلك إلى إجابة",
+        "de": "Dein Agent benötigt eine Antwort",
+        "es": "Tu agente necesita una respuesta",
+        "fr": "Votre agent attend une réponse",
+        "ja": "エージェントが回答を待っています",
+        "ko": "에이전트가 답변을 기다리고 있습니다",
+        "zh-Hans": "需要你的输入",
+        "zh-Hant": "需要你的輸入"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_pendingtitle_cd8e4680"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.title",
+      "translations": {
+        "en": "Networking",
+        "ar": "الشبكات",
+        "de": "Vernetzung",
+        "es": "Redes",
+        "fr": "Réseautage",
+        "ja": "ネットワーク",
+        "ko": "네트워킹",
+        "zh-Hans": "联网",
+        "zh-Hant": "聯網"
+      },
+      "resource": "cmux_ui_mobile_iroh_title_9b93784d"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.next",
+      "translations": {
+        "en": "Next",
+        "ar": "التالي",
+        "de": "Weiter",
+        "es": "Siguiente",
+        "fr": "Suivant",
+        "ja": "次へ",
+        "ko": "다음",
+        "zh-Hans": "下一个",
+        "zh-Hant": "下一個"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_next_6bce096b"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.search.next",
+      "translations": {
+        "en": "Next match",
+        "ar": "المباراة القادمة",
+        "de": "Nächstes Spiel",
+        "es": "Próximo partido",
+        "fr": "Prochain match",
+        "ja": "次の一致",
+        "ko": "다음 경기",
+        "zh-Hans": "下一场比赛",
+        "zh-Hant": "下一場比賽"
+      },
+      "resource": "cmux_ui_chat_artifact_search_next_9cad5f3a"
+    },
+    {
+      "catalog": "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/Resources/Localizable.xcstrings",
+      "key": "diagnostics.responder.none",
+      "translations": {
+        "en": "None",
+        "ar": "لا شيء",
+        "de": "Keine",
+        "es": "Ninguno",
+        "fr": "Aucun",
+        "ja": "なし",
+        "ko": "없음",
+        "zh-Hans": "无",
+        "zh-Hant": "無"
+      },
+      "resource": "cmux_ui_diagnostics_responder_none_4f68c409"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.ok",
+      "translations": {
+        "en": "OK",
+        "ar": "حسنًا",
+        "de": "OK",
+        "es": "Aceptar",
+        "fr": "D'ACCORD",
+        "ja": "OK",
+        "ko": "확인",
+        "zh-Hans": "确定",
+        "zh-Hant": "確定"
+      },
+      "resource": "cmux_ui_chat_artifact_ok_fa3d181e"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.onboarding.pairing.body",
+      "translations": {
+        "en": "On your Mac, open cmux Settings > Mobile and turn on Enable iOS pairing. Your Mac stays hidden until you do.",
+        "ar": "على جهاز Mac، افتح cmux > الإعدادات > الهاتف المحمول وفعّل اقتران iOS. سيظل Mac مخفيًا حتى تفعل ذلك.",
+        "de": "Öffnen Sie auf dem Mac cmux > Einstellungen > Mobile und aktivieren Sie die iOS-Kopplung. Bis dahin bleibt der Mac verborgen.",
+        "es": "En tu Mac, abre cmux > Ajustes > Móvil y activa el enlace con iOS. El Mac permanece oculto hasta entonces.",
+        "fr": "Sur votre Mac, ouvrez cmux > Réglages > Mobile et activez le jumelage iOS. Le Mac reste masqué jusque-là.",
+        "ja": "Mac で cmux の「設定」>「Mobile」を開き、「iOS ペアリングを有効にする」をオンにしてください。オンにするまで Mac は非表示です。",
+        "ko": "Mac의 cmux에서 설정 > 모바일을 열고 iOS 페어링을 켜세요. 켜기 전에는 Mac이 숨겨집니다.",
+        "zh-Hans": "请在 Mac 上打开 cmux“设置”>“移动”，并启用 iOS 配对。在启用前，Mac 会保持隐藏。",
+        "zh-Hant": "請在 Mac 上開啟 cmux「設定」>「行動裝置」，並啟用 iOS 配對。在啟用前，Mac 會保持隱藏。"
+      },
+      "resource": "cmux_ui_mobile_onboarding_pairing_body_68837a12"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.open",
+      "translations": {
+        "en": "Open",
+        "ar": "فتح",
+        "de": "Öffnen",
+        "es": "Abrir",
+        "fr": "Ouvrir",
+        "ja": "開く",
+        "ko": "열기",
+        "zh-Hans": "打开",
+        "zh-Hant": "開啟"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_open_993dd114"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.reply.failed.openTerminal",
+      "translations": {
+        "en": "Open Terminal",
+        "ar": "فتح الطرفية",
+        "de": "Terminal öffnen",
+        "es": "Abrir terminal",
+        "fr": "Ouvrir le terminal",
+        "ja": "ターミナルを開く",
+        "ko": "터미널 열기",
+        "zh-Hans": "打开终端",
+        "zh-Hant": "打開終端機"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_reply_failed_openterminal_7b5de8c4"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.openTab",
+      "translations": {
+        "en": "Open tab",
+        "ar": "فتح علامة التبويب",
+        "de": "Tab öffnen",
+        "es": "Abrir pestaña",
+        "fr": "Ouvrir l’onglet",
+        "ja": "タブを開く",
+        "ko": "탭 열기",
+        "zh-Hans": "打开标签页",
+        "zh-Hant": "開啟分頁"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_opentab_765b750e"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.openWorkspace",
+      "translations": {
+        "en": "Open workspace",
+        "ar": "فتح مساحة العمل",
+        "de": "Arbeitsbereich öffnen",
+        "es": "Abrir espacio de trabajo",
+        "fr": "Ouvrir l’espace de travail",
+        "ja": "ワークスペースを開く",
+        "ko": "작업 공간 열기",
+        "zh-Hans": "打开工作区",
+        "zh-Hant": "開啟工作區"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_openworkspace_c54bf018"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.forbidden.title",
+      "translations": {
+        "en": "Preview unavailable",
+        "ar": "المعاينة غير متاحة",
+        "de": "Vorschau nicht verfügbar",
+        "es": "Vista previa no disponible",
+        "fr": "Aperçu indisponible",
+        "ja": "プレビューできません",
+        "ko": "미리보기를 사용할 수 없습니다.",
+        "zh-Hans": "预览不可用",
+        "zh-Hant": "預覽不可用"
+      },
+      "resource": "cmux_ui_chat_artifact_forbidden_title_fbbb23ce"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.previous",
+      "translations": {
+        "en": "Previous",
+        "ar": "السابق",
+        "de": "Zurück",
+        "es": "Anterior",
+        "fr": "Précédent",
+        "ja": "前へ",
+        "ko": "이전",
+        "zh-Hans": "上一个",
+        "zh-Hant": "上一個"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_previous_89684cb9"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.search.previous",
+      "translations": {
+        "en": "Previous match",
+        "ar": "المباراة السابقة",
+        "de": "Vorheriges Spiel",
+        "es": "Partido anterior",
+        "fr": "Match précédent",
+        "ja": "前の一致",
+        "ko": "이전 경기",
+        "zh-Hans": "上一场比赛",
+        "zh-Hant": "上一場比賽"
+      },
+      "resource": "cmux_ui_chat_artifact_search_previous_ef48ed1f"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.markdown.raw",
+      "translations": {
+        "en": "Raw",
+        "ar": "خام",
+        "de": "Roh",
+        "es": "Crudo",
+        "fr": "Brut",
+        "ja": "ソース",
+        "ko": "날것의",
+        "zh-Hans": "生的",
+        "zh-Hant": "生的"
+      },
+      "resource": "cmux_ui_chat_artifact_markdown_raw_c7f2638a"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.diagnostics.verboseLog.footer",
+      "translations": {
+        "en": "Records detailed connection activity to a file on this device for troubleshooting. Terminal contents and credentials are never written.",
+        "ar": "يسجل نشاط الاتصال التفصيلي بملف على هذا الجهاز لاستكشاف الأخطاء وإصلاحها. لا تتم كتابة محتويات المحطة وبيانات الاعتماد أبدًا.",
+        "de": "Zeichnet zur Fehlerbehebung detaillierte Verbindungsaktivitäten in einer Datei auf diesem Gerät auf. Terminalinhalte und Anmeldeinformationen werden niemals geschrieben.",
+        "es": "Registra la actividad de conexión detallada en un archivo en este dispositivo para solucionar problemas. El contenido y las credenciales del terminal nunca se escriben.",
+        "fr": "Enregistre l'activité de connexion détaillée à un fichier sur cet appareil à des fins de dépannage. Le contenu du terminal et les informations d'identification ne sont jamais écrits.",
+        "ja": "トラブルシューティングのため、接続の詳細な動作をこのデバイス上のファイルに記録します。ターミナルの内容や認証情報は書き込まれません。",
+        "ko": "문제 해결을 위해 자세한 연결 활동을 이 장치의 파일에 기록합니다. 터미널 내용과 자격 증명은 기록되지 않습니다.",
+        "zh-Hans": "将详细的连接活动记录到该设备上的文件中以进行故障排除。终端内容和凭据永远不会被写入。",
+        "zh-Hant": "將詳細的連接活動記錄到該裝置上的檔案中以進行故障排除。終端內容和憑證永遠不會被寫入。"
+      },
+      "resource": "cmux_ui_mobile_iroh_diagnostics_verboselog_footer_2b74565c"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.common.remove",
+      "translations": {
+        "en": "Remove",
+        "ar": "إزالة",
+        "de": "Entfernen",
+        "es": "Eliminar",
+        "fr": "Supprimer",
+        "ja": "削除",
+        "ko": "제거",
+        "zh-Hans": "移除",
+        "zh-Hant": "移除"
+      },
+      "resource": "cmux_ui_mobile_common_remove_8640ef68"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.markdown.rendered",
+      "translations": {
+        "en": "Rendered",
+        "ar": "المقدمة",
+        "de": "Gerendert",
+        "es": "Renderizado",
+        "fr": "Rendu",
+        "ja": "プレビュー",
+        "ko": "렌더링됨",
+        "zh-Hans": "渲染的",
+        "zh-Hant": "渲染的"
+      },
+      "resource": "cmux_ui_chat_artifact_markdown_rendered_269d67e5"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.onboarding.pairing.required",
+      "translations": {
+        "en": "Required for Mac discovery",
+        "ar": "مطلوب لاكتشاف جهاز Mac",
+        "de": "Für die Mac-Erkennung erforderlich",
+        "es": "Necesario para detectar el Mac",
+        "fr": "Requis pour détecter le Mac",
+        "ja": "Mac の検出に必要",
+        "ko": "Mac 검색에 필요",
+        "zh-Hans": "Mac 检测所需",
+        "zh-Hant": "Mac 偵測所需"
+      },
+      "resource": "cmux_ui_mobile_onboarding_pairing_required_2350deb0"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.reset.title",
+      "translations": {
+        "en": "Reset Networking Settings?",
+        "ar": "إعادة ضبط إعدادات الشبكة؟",
+        "de": "Netzwerkeinstellungen zurücksetzen?",
+        "es": "¿Restablecer la configuración de red?",
+        "fr": "Réinitialiser les paramètres réseau ?",
+        "ja": "ネットワーク設定をデフォルトに戻しますか？",
+        "ko": "네트워킹 설정을 재설정하시겠습니까?",
+        "zh-Hans": "重置网络设置？",
+        "zh-Hant": "重置網路設定？"
+      },
+      "resource": "cmux_ui_mobile_iroh_reset_title_9115ca3c"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.reset",
+      "translations": {
+        "en": "Reset to Defaults",
+        "ar": "إعادة التعيين إلى الإعدادات الافتراضية",
+        "de": "Auf Standardeinstellungen zurücksetzen",
+        "es": "Restablecer los valores predeterminados",
+        "fr": "Réinitialiser aux valeurs par défaut",
+        "ja": "デフォルトに戻す",
+        "ko": "기본값으로 재설정",
+        "zh-Hans": "重置为默认值",
+        "zh-Hant": "重設為預設值"
+      },
+      "resource": "cmux_ui_mobile_iroh_reset_905429eb"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileChanges/Sources/CmuxMobileChanges/Resources/Localizable.xcstrings",
+      "key": "changes.retry",
+      "translations": {
+        "en": "Retry",
+        "ar": "إعادة المحاولة",
+        "de": "Erneut versuchen",
+        "es": "Reintentar",
+        "fr": "Réessayer",
+        "ja": "再試行",
+        "ko": "재시도",
+        "zh-Hans": "重试",
+        "zh-Hant": "重試"
+      },
+      "resource": "cmux_ui_changes_retry_d64c31a6"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.common.save",
+      "translations": {
+        "en": "Save",
+        "ar": "حفظ",
+        "de": "Speichern",
+        "es": "Guardar",
+        "fr": "Enregistrer",
+        "ja": "保存",
+        "ko": "저장",
+        "zh-Hans": "保存",
+        "zh-Hant": "儲存"
+      },
+      "resource": "cmux_ui_mobile_common_save_102a3c89"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.search.title",
+      "translations": {
+        "en": "Search",
+        "ar": "بحث",
+        "de": "Suchen",
+        "es": "Buscar",
+        "fr": "Rechercher",
+        "ja": "検索",
+        "ko": "검색",
+        "zh-Hans": "搜索",
+        "zh-Hant": "搜尋"
+      },
+      "resource": "cmux_ui_chat_artifact_search_title_19161c34"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "terminal.artifact.gallery.search",
+      "translations": {
+        "en": "Search session files",
+        "ar": "البحث في ملفات الجلسة",
+        "de": "Sitzungsdateien durchsuchen",
+        "es": "Buscar archivos de sesión",
+        "fr": "Rechercher des fichiers de session",
+        "ja": "セッションのファイルを検索",
+        "ko": "세션 파일 검색",
+        "zh-Hans": "搜索会话文件",
+        "zh-Hant": "搜尋會話文件"
+      },
+      "resource": "cmux_ui_terminal_artifact_gallery_search_e891948e"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.workspaces.empty.setupGuide",
+      "translations": {
+        "en": "See Docs",
+        "ar": "عرض المستندات",
+        "de": "Doku anzeigen",
+        "es": "Ver documentación",
+        "fr": "Voir la documentation",
+        "ja": "ドキュメントを見る",
+        "ko": "문서 보기",
+        "zh-Hans": "查看文档",
+        "zh-Hant": "查看文件"
+      },
+      "resource": "cmux_ui_mobile_workspaces_empty_setupguide_5cc36d8e"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.multiSelect",
+      "translations": {
+        "en": "Select all that apply",
+        "ar": "حدد كل ما ينطبق",
+        "de": "Alle zutreffenden auswählen",
+        "es": "Selecciona todas las que correspondan",
+        "fr": "Sélectionnez toutes les réponses applicables",
+        "ja": "該当するものをすべて選択",
+        "ko": "해당하는 항목을 모두 선택하세요",
+        "zh-Hans": "选择所有适用项",
+        "zh-Hant": "選取所有適用項目"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_multiselect_28b029e3"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.share",
+      "translations": {
+        "en": "Share",
+        "ar": "مشاركة",
+        "de": "Teilen",
+        "es": "Compartir",
+        "fr": "Partager",
+        "ja": "共有",
+        "ko": "공유",
+        "zh-Hans": "共享",
+        "zh-Hant": "分享"
+      },
+      "resource": "cmux_ui_chat_artifact_share_73005afd"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.check.shareReport",
+      "translations": {
+        "en": "Share Connection Report",
+        "ar": "مشاركة تقرير الاتصال",
+        "de": "Verbindungsbericht teilen",
+        "es": "Compartir informe de conexión",
+        "fr": "Partager le rapport de connexion",
+        "ja": "接続レポートを共有",
+        "ko": "공유 연결 보고서",
+        "zh-Hans": "共享连接报告",
+        "zh-Hant": "共享連接報告"
+      },
+      "resource": "cmux_ui_mobile_iroh_check_sharereport_3580df6b"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.submitShort",
+      "translations": {
+        "en": "Submit",
+        "ar": "إرسال",
+        "de": "Senden",
+        "es": "Enviar",
+        "fr": "Envoyer",
+        "ja": "送信",
+        "ko": "제출",
+        "zh-Hans": "提交",
+        "zh-Hant": "送出"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_submitshort_4be616d1"
+    },
+    {
+      "catalog": "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/Resources/Localizable.xcstrings",
+      "key": "diagnostics.transport.tailscale",
+      "translations": {
+        "en": "Tailscale",
+        "ar": "الأجهزة المحمولة",
+        "de": "Mobilgeräte",
+        "es": "Móvil",
+        "fr": "Mobile",
+        "ja": "Tailscale",
+        "ko": "모바일",
+        "zh-Hans": "移动设备",
+        "zh-Hant": "行動裝置"
+      },
+      "resource": "cmux_ui_diagnostics_transport_tailscale_21287e0f"
+    },
+    {
+      "catalog": "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/Resources/Localizable.xcstrings",
+      "key": "diagnostics.simulator.inputKind.text",
+      "translations": {
+        "en": "Text",
+        "ar": "نص",
+        "de": "Text",
+        "es": "Texto",
+        "fr": "Texte",
+        "ja": "テキスト",
+        "ko": "텍스트",
+        "zh-Hans": "文本",
+        "zh-Hant": "文字"
+      },
+      "resource": "cmux_ui_diagnostics_simulator_inputkind_text_a415cd03"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.jump.top",
+      "translations": {
+        "en": "Top",
+        "ar": "الأعلى",
+        "de": "Oben",
+        "es": "Inicio",
+        "fr": "Début",
+        "ja": "先頭",
+        "ko": "맨 위",
+        "zh-Hans": "顶部",
+        "zh-Hant": "最上方"
+      },
+      "resource": "cmux_ui_chat_artifact_jump_top_b7fcfbb1"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.retry",
+      "translations": {
+        "en": "Try Again",
+        "ar": "إعادة المحاولة",
+        "de": "Erneut versuchen",
+        "es": "Reintentar",
+        "fr": "Réessayer",
+        "ja": "再試行",
+        "ko": "다시 시도",
+        "zh-Hans": "重试",
+        "zh-Hant": "再試一次"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_retry_7efcec96"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.fullText.retry",
+      "translations": {
+        "en": "Try again",
+        "ar": "إعادة المحاولة",
+        "de": "Erneut versuchen",
+        "es": "Reintentar",
+        "fr": "Réessayer",
+        "ja": "再試行",
+        "ko": "다시 시도",
+        "zh-Hans": "重试",
+        "zh-Hant": "重試"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.private.custom.enabled",
+      "translations": {
+        "en": "Use These Addresses",
+        "ar": "استخدم هذه العناوين",
+        "de": "Verwenden Sie diese Adressen",
+        "es": "Utilice estas direcciones",
+        "fr": "Utilisez ces adresses",
+        "ja": "これらのアドレスを使用",
+        "ko": "이 주소를 사용하세요",
+        "zh-Hans": "使用这些地址",
+        "zh-Hant": "使用這些地址"
+      },
+      "resource": "cmux_ui_mobile_iroh_private_custom_enabled_dd00c1e2"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.iroh.diagnostics.verboseLog",
+      "translations": {
+        "en": "Verbose Connection Log",
+        "ar": "سجل الاتصال المطول",
+        "de": "Ausführliches Verbindungsprotokoll",
+        "es": "Registro de conexión detallado",
+        "fr": "Journal de connexion détaillé",
+        "ja": "詳細な接続ログ",
+        "ko": "자세한 연결 로그",
+        "zh-Hans": "详细连接日志",
+        "zh-Hant": "詳細連線日誌"
+      },
+      "resource": "cmux_ui_mobile_iroh_diagnostics_verboselog_65e63819"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.settings.hapticFeedbackFooter",
+      "translations": {
+        "en": "When off, cmux does not vibrate for actions, confirmations, warnings, or errors.",
+        "ar": "عند إيقاف التشغيل، لا يهتز cmux عند اتخاذ إجراءات أو تأكيدات أو تحذيرات أو أخطاء.",
+        "de": "Wenn diese Option deaktiviert ist, vibriert cmux nicht bei Aktionen, Bestätigungen, Warnungen oder Fehlern.",
+        "es": "Cuando está apagado, cmux no vibra para acciones, confirmaciones, advertencias o errores.",
+        "fr": "Lorsqu'il est désactivé, cmux ne vibre pas pour les actions, confirmations, avertissements ou erreurs.",
+        "ja": "オフにすると、操作、確認、警告、エラーでcmuxが振動しなくなります。",
+        "ko": "꺼져 있으면 cmux는 작업, 확인, 경고 또는 오류가 발생해도 진동하지 않습니다.",
+        "zh-Hans": "关闭时，cmux 不会因操作、确认、警告或错误而振动。",
+        "zh-Hant": "關閉時，cmux 不會因操作、確認、警告或錯誤而振動。"
+      },
+      "resource": "cmux_ui_mobile_settings_hapticfeedbackfooter_21450b04"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+      "key": "chat.artifact.wrap",
+      "translations": {
+        "en": "Word wrap",
+        "ar": "التفاف الكلمة",
+        "de": "Zeilenumbruch",
+        "es": "ajuste de palabras",
+        "fr": "Retour à la ligne",
+        "ja": "行を折り返す",
+        "ko": "줄 바꿈",
+        "zh-Hans": "自动换行",
+        "zh-Hant": "自動換行"
+      },
+      "resource": "cmux_ui_chat_artifact_wrap_ae3bf150"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.reply.youLabel",
+      "translations": {
+        "en": "You",
+        "ar": "أنت",
+        "de": "Sie",
+        "es": "Tú",
+        "fr": "Vous",
+        "ja": "自分",
+        "ko": "나",
+        "zh-Hans": "您",
+        "zh-Hant": "您"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_reply_youlabel_2c112319"
+    },
+    {
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "key": "mobile.agentFeed.question.otherPlaceholder",
+      "translations": {
+        "en": "Your answer",
+        "ar": "إجابتك",
+        "de": "Ihre Antwort",
+        "es": "Tu respuesta",
+        "fr": "Votre réponse",
+        "ja": "回答を入力",
+        "ko": "답변",
+        "zh-Hans": "您的回答",
+        "zh-Hant": "您的回答"
+      },
+      "resource": "cmux_ui_mobile_agentfeed_question_otherplaceholder_386379ae"
+    }
+  ]
+}

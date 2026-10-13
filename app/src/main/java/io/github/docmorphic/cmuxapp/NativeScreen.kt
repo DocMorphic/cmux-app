@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -919,7 +921,7 @@ internal fun NativeScreen(
                         } finally { readAllBusy = false }
                     }
                 }) { Text("Mark All Read") } },
-                dismissButton = { TextButton(onClick = { confirmReadAll = false }) { Text("Cancel") } })
+                dismissButton = { TextButton(onClick = { confirmReadAll = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 
             LaunchedEffect(notificationTab) {
                 if (notificationTab) while (true) {
@@ -2461,7 +2463,7 @@ internal fun NativeScreen(
                 if (pairingLookup != null) AlertDialog(onDismissRequest = { handlePairing(pairingLookup) },
                     title = { Text("Finding this Mac…") },
                     text = { Text("Checking your account and selected team's computers.") },
-                    confirmButton = {}, dismissButton = { TextButton(onClick = { handlePairing(pairingLookup) }) { Text("Cancel") } })
+                    confirmButton = {}, dismissButton = { TextButton(onClick = { handlePairing(pairingLookup) }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
                 if (signedIn) ticketProposal?.let { proposal ->
                     NativeTicketPairingConfirmation(proposal, onDismiss = ticketPairing::dismiss) { choice ->
                         try {
@@ -2964,7 +2966,7 @@ internal fun NativeScreen(
                     } else Column(Modifier.fillMaxSize().padding(22.dp)) {
                         TextButton(onClick = { showTaskComposer = false }) { Text("‹  Workspaces") }
                         Text(taskDraftLoadError ?: "Loading saved drafts…")
-                        if (taskDraftLoadError != null) TextButton(onClick = { taskDraftLoadAttempt++ }) { Text("Retry") }
+                        if (taskDraftLoadError != null) TextButton(onClick = { taskDraftLoadAttempt++ }) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
                     }
                 }
                 val localBrowserContent: @Composable ColumnScope.() -> Unit = {
@@ -3197,7 +3199,7 @@ internal fun NativeScreen(
                             .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),
                             verticalAlignment = Alignment.CenterVertically) {
                             Text("Scrollback · $scrollOffset rows", color = nativeMuted, fontSize = 12.sp)
-                            TextButton(onClick = { stopTerminalScrolling(); scrollPosition = 0.0 }) { Text("Latest") }
+                            TextButton(onClick = { stopTerminalScrolling(); scrollPosition = 0.0 }) { Text(stringResource(R.string.cmux_ui_chat_artifact_jump_latest_6bb0810c)) }
                         }
                         artifactChipCount?.takeUnless { terminalZoom.overlayVisible }?.let { count ->
                             TerminalArtifactChip(count, Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = if (scrollOffset > 0) 62.dp else 10.dp)) {
@@ -3476,7 +3478,7 @@ internal fun NativeScreen(
                                         "Feed filter", tint = if (agentNeedsInputOnly) nativeAccent else nativeMuted, modifier = Modifier.size(23.dp))
                                 }
                                 DropdownMenu(agentFilterMenu, { agentFilterMenu = false }) {
-                                    DropdownMenuItem(text = { Text("All Activity") }, onClick = { agentNeedsInputOnly = false; agentFilterMenu = false })
+                                    DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_filter_all_e2a92565)) }, onClick = { agentNeedsInputOnly = false; agentFilterMenu = false })
                                     DropdownMenuItem(text = { Text("Needs Input ($agentNeedsInputCount)") }, onClick = { agentNeedsInputOnly = true; agentFilterMenu = false })
                                 }
                             }
@@ -4263,8 +4265,8 @@ internal fun NativeWorkspaceRow(
         onDismissRequest = { rename = false },
         title = { Text("Rename workspace") },
         text = { OutlinedTextField(title, { title = it }, singleLine = true) },
-        confirmButton = { TextButton(onClick = { rename = false; dispatchAction("rename", title) }, enabled = title.isNotBlank()) { Text("Save") } },
-        dismissButton = { TextButton(onClick = { rename = false }) { Text("Cancel") } }
+        confirmButton = { TextButton(onClick = { rename = false; dispatchAction("rename", title) }, enabled = title.isNotBlank()) { Text(stringResource(R.string.cmux_ui_mobile_common_save_102a3c89)) } },
+        dismissButton = { TextButton(onClick = { rename = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }
     )
     pendingClose?.let { pending -> WorkspaceCloseDialog(pending.first,
         onDismiss = { pendingClose = null }, onConfirm = { pendingClose = null; pending.second() }) }
@@ -4552,7 +4554,7 @@ private fun NativePairingConfirmation(code: String?, onDismiss: () -> Unit, onCo
             Text("Continue only if this address came from your Mac’s pairing QR.", color = nativeMuted)
         } },
         confirmButton = { TextButton(onClick = { onConnect(code) }) { Text("Connect") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }
 
 @Composable

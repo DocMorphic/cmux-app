@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
@@ -70,7 +72,7 @@ internal fun NativeHapticSettings(preferences: SharedPreferences, state: NativeD
         NativeSettingsToggleRow("Haptic Feedback", state.hapticFeedbackEnabled, {
                 preferences.edit().putBoolean(NativeDisplayPreferences.hapticsKey, it).apply()
             }, Modifier.testTag("settings.haptics"))
-        Text("When off, cmux does not vibrate for actions, confirmations, warnings, or errors.",
+        Text(stringResource(R.string.cmux_ui_mobile_settings_hapticfeedbackfooter_21450b04),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

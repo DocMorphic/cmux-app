@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -72,7 +74,7 @@ internal fun NativeSshKeysRoute(store: NativeCredentialStore, login: String?, on
             SshKeyHeader("SSH Keys", onBack)
             if (failure == null) CircularProgressIndicator(Modifier.padding(22.dp)) else {
                 Text(failure!!, Modifier.padding(22.dp))
-                TextButton(onClick = { failure = null; retry++ }) { Text("Try again") }
+                TextButton(onClick = { failure = null; retry++ }) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) }
             }
         }
     }
@@ -150,18 +152,18 @@ internal fun SshKeysScreen(vault: SshKeyVault, permits: () -> Boolean, onBack: (
             } },
             confirmButton = { TextButton(enabled = !busy, modifier = Modifier.testTag("ssh.keys.delete.confirm"), onClick = {
                 mutate({ vault.delete(UUID.fromString(raw)) }, { deleteId = null })
-            }) { Text("Delete") } }, dismissButton = { TextButton(enabled = !busy, onClick = { deleteId = null }) { Text("Cancel") } })
+            }) { Text("Delete") } }, dismissButton = { TextButton(enabled = !busy, onClick = { deleteId = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     }
     renameId?.let { raw ->
         AlertDialog(onDismissRequest = { if (!busy) renameId = null }, title = { Text("Rename Key") },
-            text = { Column { OutlinedTextField(renameLabel, { if (it.length <= 256) renameLabel = it }, label = { Text("Name") },
+            text = { Column { OutlinedTextField(renameLabel, { if (it.length <= 256) renameLabel = it }, label = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb)) },
                 singleLine = true, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false), modifier = Modifier.testTag("ssh.keys.rename.label"))
                 failure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             } },
             confirmButton = { TextButton(enabled = !busy && renameLabel.isNotBlank(), onClick = {
                 mutate({ vault.rename(UUID.fromString(raw), renameLabel.trim()) }, { renameId = null })
-            }, modifier = Modifier.testTag("ssh.keys.rename.confirm")) { Text("Save") } },
-            dismissButton = { TextButton(enabled = !busy, onClick = { renameId = null }) { Text("Cancel") } })
+            }, modifier = Modifier.testTag("ssh.keys.rename.confirm")) { Text(stringResource(R.string.cmux_ui_mobile_common_save_102a3c89)) } },
+            dismissButton = { TextButton(enabled = !busy, onClick = { renameId = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     }
 }
 
@@ -239,7 +241,7 @@ private fun SshKeyForm(importing: Boolean, busy: Boolean, failure: String?, perm
             }) { Text(if (importing) "Import" else "Create") }
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedTextField(label, { if (it.length <= 256) label = it }, label = { Text("Name") },
+            OutlinedTextField(label, { if (it.length <= 256) label = it }, label = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb)) },
                 placeholder = { Text(if (importing) "Imported Key" else "${Build.MODEL} Key") }, singleLine = true,
                 enabled = !blocked, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false), modifier = Modifier.fillMaxWidth().testTag("ssh.keys.label"))
             if (importing) {

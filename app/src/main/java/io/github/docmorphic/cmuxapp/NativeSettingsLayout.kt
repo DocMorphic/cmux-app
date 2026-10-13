@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,7 +27,7 @@ internal fun NativeSettingsLayout(onBack: () -> Unit, account: @Composable () ->
         Row(Modifier.fillMaxWidth().heightIn(min = 62.dp).padding(horizontal = 14.dp)
             .testTag("settings.header"), verticalAlignment = Alignment.CenterVertically) {
             Text("Settings", Modifier.weight(1f).semantics { heading() }, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            TextButton(onClick = onBack, modifier = Modifier.testTag("settings.done")) { Text("Done") }
+            TextButton(onClick = onBack, modifier = Modifier.testTag("settings.done")) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("settings.content")) {
             account(); computers(); connections(); preferences(); notifications(); footer()

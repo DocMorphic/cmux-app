@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -97,7 +99,7 @@ internal fun NativeTodoView(authoritative: TodoSnapshot, enabled: Boolean,
     if (model.failure) AlertDialog(onDismissRequest = model::dismissFailure,
         title = { Text("Couldn’t Update Checklist") },
         text = { Text("The change could not be confirmed. Check the refreshed checklist before trying again.") },
-        confirmButton = { TextButton(onClick = model::dismissFailure) { Text("OK") } })
+        confirmButton = { TextButton(onClick = model::dismissFailure) { Text(stringResource(R.string.cmux_ui_chat_artifact_ok_fa3d181e)) } })
 }
 
 private fun TodoStatus.tint() = when (this) {
@@ -121,7 +123,7 @@ private fun TodoStatusPicker(snapshot: TodoSnapshot, enabled: Boolean, choose: (
             Text("$title  ⌃⌄", fontSize = 12.sp)
         }
         DropdownMenu(open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(text = { Text("Automatic") }, onClick = { open = false; choose(null) }, enabled = enabled)
+            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_mobile_iroh_private_automatic_d7b5c73d)) }, onClick = { open = false; choose(null) }, enabled = enabled)
             TodoStatus.entries.forEach { status -> DropdownMenuItem(text = { Text(status.title) },
                 trailingIcon = { if (!snapshot.statusHidden && snapshot.status == status) Text("✓") },
                 onClick = { open = false; choose(status) }, enabled = enabled) }

@@ -1,5 +1,33 @@
 # Android parity tracker
 
+## Static UI localization and RTL declaration — 2026-10-13
+
+Source review identified hardcoded English labels and a missing Android RTL
+declaration. **212 static Text calls in 84 UI files** now use **84** selected,
+verbatim upstream translations in English, Arabic, German, Spanish, French,
+Japanese, Korean and simplified/traditional Chinese. Four scoped iOS/shared
+catalogs at `f4b15090` supply source keys and hashes; the global pin is unchanged.
+Android resources follow the system locale. No per-app language picker or device
+language change is introduced; this is not complete nine-language localization.
+
+The migration lexer excludes comments, embedded scripts, templates, computed
+expressions and qualified protocol/model Text constructors. Only complete static
+UI arguments change; request strings and user/terminal/workspace content remain
+outside it. Ambiguous translation groups require explicit reviewed actions or are
+deferred. Resource generation preserves literal whitespace, quotes, backslashes
+and markup. The manifest now declares RTL support; physical direction/gesture and
+terminal behavior still need acceptance.
+
+**Eight focused parser/resource checks pass. Main and instrumentation Kotlin and
+Android resources compiled in 2m39s.** Independent AAPT inspection confirms all
+**756 compiled locale values** equal their source strings, and each selected
+translation/catalog hash matches the actual pinned Git source. Generated resource
+checks are included in the Android milestone workflow. No APK/ART/emulator/Pixel
+run or signed release is claimed; Gradle is stopped. Evidence is ignored under
+`captures/runtime/mobile-ui-localization-20261013/` and the compile log. Dynamic/
+formatted/plural text, unmatched labels, accessibility strings and matched-iOS/
+RTL/enlarged-text/TalkBack checks remain open. Signed 659 predates this source.
+
 ## 2026-10-11 — Configured signed Android 650 and native phone trust
 
 Signed development preview 650 passed and is published at `d34daed5`. Independent

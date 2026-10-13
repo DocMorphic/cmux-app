@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,7 +35,7 @@ internal fun NativeSshComputersRoute(runtime: NativeSshRuntime, onBack: () -> Un
                 state.login == null -> Text("Sign in to manage SSH computers.")
                 state.failed -> {
                     Text("Could not open saved SSH computers. Your saved data has been retained.")
-                    TextButton(onClick = runtime::retry) { Text("Try again") }
+                    TextButton(onClick = runtime::retry) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) }
                 }
                 else -> CircularProgressIndicator()
             }
@@ -215,7 +217,7 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit,
                                 TextButton(onClick = { mutate({ session.connections.disconnect(host.id) }) }, enabled = !busy) { Text("Disconnect") }
                             else TextButton(onClick = { connect(host.id) }, enabled = !busy,
                                 modifier = Modifier.testTag("ssh.host.${host.id}.connect")) { Text("Connect") }
-                            TextButton(onClick = { editing = host.id.toString(); failure = null }, enabled = !busy) { Text("Edit") }
+                            TextButton(onClick = { editing = host.id.toString(); failure = null }, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_edit_a2a4d958)) }
                             TextButton(onClick = { deleting = host.id.toString() }, enabled = !busy) { Text("Delete") }
                         }
                         TextButton(onClick = {
@@ -236,7 +238,7 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit,
                                 TextButton(onClick = { selectedShell = shell.id }, modifier = Modifier.weight(1f).testTag("ssh.shell.${shell.id}.open")) {
                                     Text(shell.title + if (shellState.phase == SshShellPhase.ENDED) " · Ended" else "")
                                 }
-                                TextButton(onClick = { session.shells.remove(shell.id) }) { Text("Close") }
+                                TextButton(onClick = { session.shells.remove(shell.id) }) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619)) }
                             }
                         }
                     }
@@ -250,7 +252,7 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit,
         AlertDialog(onDismissRequest = { if (!busy) deleting = null }, title = { Text("Delete ${host.name}?") },
             text = { Text("This removes the saved computer and disconnects its SSH sessions. Computers using it as a jump host will lose that route.") },
             confirmButton = { TextButton(onClick = { mutate({ session.hosts.delete(host.id) }) { deleting = null } }, enabled = !busy) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = { deleting = null }, enabled = !busy) { Text("Cancel") } })
+            dismissButton = { TextButton(onClick = { deleting = null }, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     }
 }
 
@@ -308,12 +310,12 @@ private fun SshComputerEditor(original: SshHostRecord?, hosts: List<SshHostRecor
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp).testTag("ssh.host.editor"),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            TextButton(onClick = onBack, enabled = !blocked) { Text("Cancel") }
+            TextButton(onClick = onBack, enabled = !blocked) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = {
                 onSave(record())
             }, enabled = !blocked && valid,
-                modifier = Modifier.testTag("ssh.host.save")) { Text("Save") }
+                modifier = Modifier.testTag("ssh.host.save")) { Text(stringResource(R.string.cmux_ui_mobile_common_save_102a3c89)) }
         }
         Text(if (original == null) "Add SSH Computer" else "Edit SSH Computer", style = MaterialTheme.typography.headlineSmall)
         OutlinedTextField(name, { name = it }, label = { Text("Name (optional)") }, enabled = !blocked, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("ssh.host.name"))

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -156,7 +158,7 @@ private fun ArtifactSearchBar(state: ArtifactViewerState) {
     LaunchedEffect(Unit) { focus.requestFocus() }
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(state.query, { state.query = it }, Modifier.weight(1f).focusRequester(focus), singleLine = true,
-            placeholder = { Text("Find in file") }, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Search),
+            placeholder = { Text(stringResource(R.string.cmux_ui_chat_artifact_search_placeholder_14e837c4)) }, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { keyboard?.hide(); state.next(1) }))
         if (state.query.isNotEmpty()) Text("${if (state.matches.isEmpty()) 0 else state.selected + 1}/${state.matches.size}", Modifier.padding(4.dp), color = filesMuted)
         IconButton(onClick = { state.next(-1) }, enabled = state.matches.isNotEmpty()) { Text("⌃", Modifier.semantics { contentDescription = "Previous match" }) }
@@ -176,12 +178,12 @@ private fun ArtifactLineDialog(state: ArtifactViewerState) {
         state.document?.let { state.jumpTo(it.offset(target)) }
         keyboard?.hide(); state.goToLineOpen = false
     }
-    AlertDialog(onDismissRequest = { state.goToLineOpen = false }, title = { Text("Go to line") }, text = {
-        OutlinedTextField(line, { line = it.filter(Char::isDigit) }, Modifier.focusRequester(focus), label = { Text("Line number") }, singleLine = true,
+    AlertDialog(onDismissRequest = { state.goToLineOpen = false }, title = { Text(stringResource(R.string.cmux_ui_chat_artifact_line_goto_a188158f)) }, text = {
+        OutlinedTextField(line, { line = it.filter(Char::isDigit) }, Modifier.focusRequester(focus), label = { Text(stringResource(R.string.cmux_ui_chat_artifact_line_placeholder_7869f4e5)) }, singleLine = true,
             supportingText = { Text("1–${state.document?.lineCount ?: 1}") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
             keyboardActions = KeyboardActions(onGo = { go() }))
-    }, confirmButton = { TextButton(onClick = { go() }, enabled = line.toIntOrNull() != null && state.document != null) { Text("Go") } },
-        dismissButton = { TextButton(onClick = { state.goToLineOpen = false }) { Text("Cancel") } })
+    }, confirmButton = { TextButton(onClick = { go() }, enabled = line.toIntOrNull() != null && state.document != null) { Text(stringResource(R.string.cmux_ui_chat_artifact_line_go_dc26378e)) } },
+        dismissButton = { TextButton(onClick = { state.goToLineOpen = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     LaunchedEffect(Unit) { focus.requestFocus() }
 }
 

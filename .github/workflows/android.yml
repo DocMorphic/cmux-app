@@ -55,7 +55,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Test update policy and native alignment verifier
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+        run: |
+          python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+          python3 scripts/mobile-ui-localization.py --check
       - name: Decide whether to build
         id: decision
         env:

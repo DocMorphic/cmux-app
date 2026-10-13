@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -154,8 +156,8 @@ private fun ChangesDiffRow(line: ChangesDiffLine, hunk: String, gutter: androidx
             }
         }
         DropdownMenu(menu, { menu = false }) {
-            DropdownMenuItem(text = { Text("Copy Line") }, onClick = { copy(line.text); menu = false })
-            if (hunk.isNotEmpty()) DropdownMenuItem(text = { Text("Copy Hunk") }, onClick = { copy(hunk); menu = false })
+            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_changes_copy_line_7f707dea)) }, onClick = { copy(line.text); menu = false })
+            if (hunk.isNotEmpty()) DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_changes_copy_hunk_b9e91fa2)) }, onClick = { copy(hunk); menu = false })
         }
     }
 }

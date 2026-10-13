@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.app.Application
 import android.content.*
 import android.os.*
@@ -302,7 +304,7 @@ class RoutedBrowserActivity : ComponentActivity() {
                 }
                 when {
                     ui.error != null -> Column(Modifier.padding(20.dp)) {
-                        Text(checkNotNull(ui.error)); TextButton(onClick = { leave("restart") }) { Text("Retry") }
+                        Text(checkNotNull(ui.error)); TextButton(onClick = { leave("restart") }) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
                     }
                     ui.surface == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                     else -> LocalBrowserPane(checkNotNull(ui.surface), beforeNavigation = controller::prepare, retainedWeb = controller.web) { leave("close") }

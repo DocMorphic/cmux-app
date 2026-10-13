@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.selection.selectable
@@ -92,6 +94,6 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
                 }
             }
         }) { Text(if (busy) "Creating…" else "Create") } },
-        dismissButton = { TextButton(onClick = { creating = false }, enabled = !busy) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = { creating = false }, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }
     )
 }

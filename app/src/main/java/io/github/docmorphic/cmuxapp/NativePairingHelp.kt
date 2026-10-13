@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -52,13 +54,13 @@ internal fun NativePairingHelp(policy: NativeMacCompatibilityPolicy, signedIn: B
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("Connect your Mac", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                    TextButton(onClick = onDismiss, modifier = Modifier.testTag("pairing.help.done")) { Text("Done") }
+                    TextButton(onClick = onDismiss, modifier = Modifier.testTag("pairing.help.done")) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
                 }
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Text("Enable iOS pairing on your Mac", style = MaterialTheme.typography.headlineMedium,
+                    Text(stringResource(R.string.cmux_ui_mobile_onboarding_pairing_title_73ebf3a9), style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.SemiBold)
-                    Text("On your Mac, open cmux Settings > Mobile and turn on Enable iOS pairing. Your Mac stays hidden until you do.")
+                    Text(stringResource(R.string.cmux_ui_mobile_onboarding_pairing_body_68837a12))
                     Image(painterResource(if (MaterialTheme.colorScheme.surface.luminance() < .5f)
                         R.drawable.mac_pairing_settings_dark else R.drawable.mac_pairing_settings_light),
                         contentDescription = "cmux Mac Settings, Mobile section, showing Enable iOS pairing.",
@@ -66,7 +68,7 @@ internal fun NativePairingHelp(policy: NativeMacCompatibilityPolicy, signedIn: B
                             .testTag("pairing.help.screenshot"))
                     Text("This Mac setting also enables this Android companion.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium) {
-                        Text("Required for Mac discovery", Modifier.padding(14.dp), fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.cmux_ui_mobile_onboarding_pairing_required_2350deb0), Modifier.padding(14.dp), fontWeight = FontWeight.SemiBold)
                     }
                     Text("Use the same cmux account", style = MaterialTheme.typography.titleMedium)
                     Text("Sign in on your Mac and this phone with the same account, and select the same team.")

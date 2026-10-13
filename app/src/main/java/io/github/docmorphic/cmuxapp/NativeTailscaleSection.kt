@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,7 +47,7 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
                 color = Color(0xFFFFBC70), fontSize = 13.sp)
         }
         Text("ROUTES", Modifier.padding(top = 12.dp, bottom = 8.dp), color = Color(0xFF9B9FA8), fontSize = 11.sp)
-        Text("Iroh", fontSize = 15.sp)
+        Text(stringResource(R.string.cmux_ui_diagnostics_transport_iroh_b604d1b1), fontSize = 15.sp)
         Text("This Mac’s enrolled identity", color = Color(0xFF9B9FA8), fontSize = 12.sp)
         if (routes == null) {
             Text("Could not read saved Tailscale connections.", color = Color(0xFFFFBC70))
@@ -54,7 +56,7 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
             var menu by remember { mutableStateOf(false) }
             Row(Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f).padding(vertical = 12.dp)) {
-                    Text("Tailscale", fontSize = 15.sp)
+                    Text(stringResource(R.string.cmux_ui_diagnostics_transport_tailscale_21287e0f), fontSize = 15.sp)
                     Text(route.route.displayAddress(), color = Color(0xFF9B9FA8), fontSize = 13.sp)
                 }
                 Box {
@@ -111,7 +113,7 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
             }) { Text("Connect") } },
         dismissButton = {
             val keyboard = LocalSoftwareKeyboardController.current
-            TextButton(onClick = { keyboard?.hide(); editor = false }, enabled = !busy) { Text("Cancel") }
+            TextButton(onClick = { keyboard?.hide(); editor = false }, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
         })
     removing?.let { route -> AlertDialog(onDismissRequest = { if (!busy) removing = null },
         properties = DialogProperties(dismissOnBackPress = !busy, dismissOnClickOutside = !busy),
@@ -131,8 +133,8 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
                     error = "Could not remove this connection. Check your account and retry."
                 } finally { busy = false }
             }
-        }) { Text("Remove") } },
-        dismissButton = { TextButton(onClick = { removing = null }, enabled = !busy) { Text("Cancel") } }) }
+        }) { Text(stringResource(R.string.cmux_ui_mobile_common_remove_8640ef68)) } },
+        dismissButton = { TextButton(onClick = { removing = null }, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }) }
 }
 
 internal fun PairingCode.Route.displayAddress() = "${if (':' in host) "[$host]" else host}:$port"

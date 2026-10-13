@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -38,7 +40,7 @@ internal fun TaskDraftsSheet(
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
             TextButton(onClick = onNew, enabled = !busy) { Text("＋ New Draft") }
             Text("Drafts", Modifier.weight(1f).padding(12.dp), style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = onDismiss, enabled = !busy) { Text("Done") }
+            TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
         }
         error?.let { Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
         if (drafts.isEmpty()) Column(Modifier.fillMaxWidth().padding(28.dp)) {

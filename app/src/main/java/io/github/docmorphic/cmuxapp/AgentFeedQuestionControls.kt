@@ -2,6 +2,8 @@
  * f4b1509054949eaad5d695569ad443c4c18ed68d. GPL-3.0-or-later. See NOTICE.md. */
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,7 +35,7 @@ internal fun AgentFeedQuestionControls(item: NativeAgentFeedItem, enabled: Boole
         .border(1.dp, questionAccent.copy(alpha = .24f), shape).padding(14.dp).testTag("AgentFeedQuestions"),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Needs your input", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_pendingtitle_cd8e4680), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             Text(if (item.questions.size == 1) "1 question" else "${item.questions.size} questions", fontSize = 12.sp, color = questionMuted)
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -57,7 +59,7 @@ internal fun AgentFeedQuestionControls(item: NativeAgentFeedItem, enabled: Boole
                 Row(Modifier.height(32.dp).background(questionAccent.copy(alpha = .14f), capsule)
                     .border(1.dp, questionAccent.copy(alpha = .3f), capsule).padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Answer", color = questionAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_answer_275e3dd6), color = questionAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(16.dp).rotate(-45f), tint = questionAccent)
                 }
             }

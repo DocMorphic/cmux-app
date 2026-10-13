@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
@@ -86,7 +88,7 @@ internal fun FilePreviewContent(artifact: LocalFilePreview, remote: RemoteArtifa
                     ChangesPreviewRoute.RICH_TEXT -> OfficeFilePreview(artifact, OfficePreviewKind.RICH_TEXT)
                     ChangesPreviewRoute.EXTERNAL -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Preview unavailable", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.cmux_ui_chat_artifact_forbidden_title_fbbb23ce), style = MaterialTheme.typography.titleMedium)
                         Text("Use Viewer actions to open, share or save this file.", color = changesMuted)
                     }
                 }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -195,8 +197,8 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                 }
                 }
             }
-            TextButton(onClick = ::showText, modifier = Modifier.testTag("ssh.shell.text")) { Text("Text") }
-            if (onFiles != null) TextButton(onClick = ::showFiles, enabled = !preparing && inputStatus.error == null && !inputStatus.closed, modifier = Modifier.testTag("ssh.shell.files")) { Text("Files") }
+            TextButton(onClick = ::showText, modifier = Modifier.testTag("ssh.shell.text")) { Text(stringResource(R.string.cmux_ui_diagnostics_simulator_inputkind_text_a415cd03)) }
+            if (onFiles != null) TextButton(onClick = ::showFiles, enabled = !preparing && inputStatus.error == null && !inputStatus.closed, modifier = Modifier.testTag("ssh.shell.files")) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_title_62a1ff61)) }
             TextButton(onClick = {
                 modifiers = TerminalInputModifiers()
                 if (direct) { rawKeyboard?.finishComposition(); direct = false; keyboard?.hide() } else showKeyboard()
@@ -233,7 +235,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                     onScroll = { rows, cell -> scrollTerminal(rows, cell) }),
                 scrollPosition = scroll)
             if (state.phase == SshShellPhase.OPENING) CircularProgressIndicator(Modifier.align(Alignment.Center))
-            if (scroll > 0) TextButton(onClick = { motion.stop(); scrollTo(0.0) }, modifier = Modifier.align(Alignment.BottomEnd)) { Text("Latest") }
+            if (scroll > 0) TextButton(onClick = { motion.stop(); scrollTo(0.0) }, modifier = Modifier.align(Alignment.BottomEnd)) { Text(stringResource(R.string.cmux_ui_chat_artifact_jump_latest_6bb0810c)) }
             TerminalZoomOverlay(zoom, preferences, foreground = Color(0xFFE0E5EB), background = Color(0xFF111316), modifier = Modifier.align(Alignment.Center))
         }
         inputStatus.error?.let { error ->

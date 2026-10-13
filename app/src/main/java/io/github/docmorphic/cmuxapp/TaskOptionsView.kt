@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -41,7 +43,7 @@ internal fun TaskOptionsView(draft: TaskDraft, macs: List<NativeCredentialStore.
         Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Task Options", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = onDismiss, enabled = enabled) { Text("Done") }
+                TextButton(onClick = onDismiss, enabled = enabled) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1C1E)) {
@@ -73,7 +75,7 @@ internal fun TaskOptionsView(draft: TaskDraft, macs: List<NativeCredentialStore.
                             groups.groups.singleOrNull { it.id == groups.id }?.iconSymbol?.let(::nativeWorkspaceGroupIcon) ?: R.drawable.ic_primary_workspaces,
                             "Workspace group", enabled, menu = true, onClick = { groupMenu = true })
                         DropdownMenu(groupMenu, { groupMenu = false }) {
-                            DropdownMenuItem(text = { Text("None") }, onClick = { groupMenu = false; onGroup(null) }, trailingIcon = { if (groups.id == null) Text("✓") })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_diagnostics_responder_none_4f68c409)) }, onClick = { groupMenu = false; onGroup(null) }, trailingIcon = { if (groups.id == null) Text("✓") })
                             if (groups.supported == true && groups.loaded) groups.groups.distinctBy { it.id }.forEach { group ->
                                 DropdownMenuItem(text = { Text(group.name) }, enabled = groups.groups.count { it.id == group.id } == 1,
                                     trailingIcon = { if (groups.id == group.id) Text("✓") }, onClick = { groupMenu = false; onGroup(group.id) })

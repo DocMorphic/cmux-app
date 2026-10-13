@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -34,7 +36,7 @@ internal fun NativeComputersRoute(ssh: NativeSshRuntime?, onDone: () -> Unit, on
                     when {
                         state?.failed == true -> {
                             Text("Could not open saved SSH computers. Your saved data has been retained.")
-                            TextButton(onClick = ssh::retry) { Text("Try again") }
+                            TextButton(onClick = ssh::retry) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) }
                         }
                         state?.login == null -> Text("Sign in to manage SSH computers.")
                         else -> CircularProgressIndicator()
@@ -58,7 +60,7 @@ internal fun NativeComputersHeader(onDone: () -> Unit, onPair: () -> Unit, onAdd
             }
         }
         Text("Computers", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-        TextButton(onClick = onDone, modifier = Modifier.testTag("computers.done")) { Text("Done") }
+        TextButton(onClick = onDone, modifier = Modifier.testTag("computers.done")) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
     }
 }
 

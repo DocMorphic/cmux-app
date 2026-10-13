@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.*
@@ -23,7 +25,7 @@ internal fun ComposerAttachmentMenu(owner: Any?, enabled: Boolean, onPhotos: () 
         }
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(text = { Text("Photos") }, onClick = { expanded = false; onPhotos() })
-            if (onFiles != null) DropdownMenuItem(text = { Text("Files") }, onClick = { expanded = false; onFiles() })
+            if (onFiles != null) DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_title_62a1ff61)) }, onClick = { expanded = false; onFiles() })
             DropdownMenuItem(text = { Text("Paste attachment") }, onClick = { expanded = false; onPaste() })
         }
     }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -56,7 +58,7 @@ internal fun NativeConnectionCheckSection(enabled: Boolean, run: suspend () -> N
             result.transport?.roundTripMillis?.let { CheckRow("Transport RTT", "$it ms") }
             result.responseMillis?.let { CheckRow("RPC Response", "$it ms") }
             result.failure?.let { Text(it.advice, color = Color(0xFFFFC170), fontSize = 13.sp) }
-            TextButton(onClick = { share(result.shareText()) }) { Text("Share Connection Report") }
+            TextButton(onClick = { share(result.shareText()) }) { Text(stringResource(R.string.cmux_ui_mobile_iroh_check_sharereport_3580df6b)) }
         }
         Text("Reports exclude computer names, terminal content, network addresses and credentials.",
             fontSize = 12.sp, color = Color(0xFF9B9FA8))

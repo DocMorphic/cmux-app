@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -51,7 +53,7 @@ internal fun NativeWorkspaceCustomizationSheet(workspaceId: String, initial: Wor
         Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             Column {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancel") }
+                    TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
                     Text("Customize Workspace", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                     TextButton(enabled = canSave, modifier = Modifier.testTag("workspace.customize.save"), onClick = saveClick@{
                         if (busy) return@saveClick
@@ -78,7 +80,7 @@ internal fun NativeWorkspaceCustomizationSheet(workspaceId: String, initial: Wor
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Identity", style = MaterialTheme.typography.titleSmall)
                     OutlinedTextField(draft.name, { draft = draft.copy(name = it) }, enabled = !busy,
-                        label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("workspace.customize.name"))
+                        label = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb)) }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("workspace.customize.name"))
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Pinned", Modifier.weight(1f))
                         Switch(draft.pinned, { draft = draft.copy(pinned = it) }, enabled = !busy,
@@ -109,7 +111,7 @@ internal fun NativeWorkspaceCustomizationSheet(workspaceId: String, initial: Wor
         }
         failure?.let { message -> AlertDialog(onDismissRequest = { failure = null },
             title = { Text("Couldn't save workspace") }, text = { Text(message) },
-            confirmButton = { TextButton(onClick = { failure = null }) { Text("OK") } }) }
+            confirmButton = { TextButton(onClick = { failure = null }) { Text(stringResource(R.string.cmux_ui_chat_artifact_ok_fa3d181e)) } }) }
     }
 }
 

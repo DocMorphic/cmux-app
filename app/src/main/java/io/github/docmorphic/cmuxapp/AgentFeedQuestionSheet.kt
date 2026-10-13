@@ -2,6 +2,8 @@
  * f4b1509054949eaad5d695569ad443c4c18ed68d. GPL-3.0-or-later. See NOTICE.md. */
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -57,8 +59,8 @@ internal fun AgentFeedQuestionSheet(entry: AgentFeedUiEntry, modal: AgentFeedMod
         val focus = LocalFocusManager.current
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).imePadding().testTag("AgentFeedQuestionSheet")) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onDismiss) { Text("Cancel") }
-                Text("Answer questions", Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
+                TextButton(onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
+                Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_answertitle_49016a9e), Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Button(onClick = {
                     val currentAnswers = drafts.answers(questions)
@@ -69,15 +71,15 @@ internal fun AgentFeedQuestionSheet(entry: AgentFeedUiEntry, modal: AgentFeedMod
                     modifier = Modifier.testTag("AgentFeedQuestionSubmit"),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF176FC1), contentColor = Color.White,
                         disabledContainerColor = Color(0xFF282C32), disabledContentColor = Color(0xFF737983)),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) { Text("Submit") }
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_submitshort_4be616d1)) }
             }
             Column(Modifier.weight(1f).fillMaxWidth().onSizeChanged { viewportHeight = it.height }
                 .imeNestedScroll().verticalScroll(scroll).testTag("AgentFeedQuestionScroll")
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Needs your input", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-                    Text("Choose an option or write an answer for each prompt.", color = questionMuted, fontSize = 14.sp)
+                    Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_pendingtitle_cd8e4680), fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                    Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_answersubtitle_4498fb53), color = questionMuted, fontSize = 14.sp)
                     val answered = questions.count { drafts.answered(it) != null }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LinearProgressIndicator(progress = { answered.toFloat() / questions.size.coerceAtLeast(1) },
@@ -113,7 +115,7 @@ private fun QuestionCard(question: AgentFeedQuestion, index: Int, drafts: AgentF
                 .padding(horizontal = 7.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Icon(Icons.Default.CheckCircle, null, Modifier.size(14.dp), tint = Color(0xFF69CE8D))
-                Text("Answered", color = Color(0xFF69CE8D), fontSize = 12.sp)
+                Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_answeredshort_8b2f1fa6), color = Color(0xFF69CE8D), fontSize = 12.sp)
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -121,7 +123,7 @@ private fun QuestionCard(question: AgentFeedQuestion, index: Int, drafts: AgentF
             ProvideTextStyle(LocalTextStyle.current.copy(fontWeight = FontWeight.SemiBold)) {
                 AgentFeedMarkdownText(question.prompt, fontSize = 20)
             }
-            if (question.multiSelect) Text("Select all that apply", color = questionMuted, fontSize = 12.sp)
+            if (question.multiSelect) Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_multiselect_28b029e3), color = questionMuted, fontSize = 12.sp)
         }
         if (question.options.isNotEmpty()) Column(Modifier.fillMaxWidth()
             .background(Color.White.copy(alpha = .035f), RoundedCornerShape(14.dp)).padding(4.dp),
@@ -187,6 +189,6 @@ private fun QuestionCustomAnswer(question: AgentFeedQuestion, text: String, sele
             cursorBrush = SolidColor(questionAccent), modifier = Modifier.weight(1f)
                 .focusRequester(focus).onFocusChanged { focused = it.isFocused; if (it.isFocused) onCustom() }
                 .testTag("AgentFeedQuestionOtherText:${question.id}").padding(top = 10.dp, bottom = 10.dp, end = 12.dp),
-            decorationBox = { field -> Box { if (text.isEmpty()) Text("Your answer", color = questionMuted, fontSize = 16.sp); field() } })
+            decorationBox = { field -> Box { if (text.isEmpty()) Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_otherplaceholder_386379ae), color = questionMuted, fontSize = 16.sp); field() } })
     }
 }

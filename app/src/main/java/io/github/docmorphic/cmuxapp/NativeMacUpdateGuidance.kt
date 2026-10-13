@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalUriHandler
@@ -16,5 +18,5 @@ internal fun NativeMacUpdateGuidance(identity: NativeMacIdentity?) {
     if (show) AlertDialog(onDismissRequest = { show = false }, title = { Text("Update cmux on your Mac") },
         text = { Text(warning.message) }, confirmButton = {
             TextButton(onClick = { runCatching { uri.openUri(warning.downloadUrl) } }) { Text("View Mac release") }
-        }, dismissButton = { TextButton(onClick = { show = false }) { Text("Done") } })
+        }, dismissButton = { TextButton(onClick = { show = false }) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) } })
 }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -88,11 +90,11 @@ internal fun FileExportHost(content: @Composable () -> Unit) {
     if (state.phase == FileExportPhase.READY && state.needsConfirmation) AlertDialog(onDismissRequest = controller::clear,
         title = { Text("Continue file action?") }, text = { Text(state.title) },
         confirmButton = { TextButton(onClick = { controller.continueRestored(state) }) { Text("Continue") } },
-        dismissButton = { TextButton(onClick = controller::clear) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = controller::clear) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     if (state.phase == FileExportPhase.PREPARING) AlertDialog(onDismissRequest = controller::clear,
         title = { Text("Preparing file…") }, text = { Column { Text(state.title); LinearProgressIndicator() } },
-        confirmButton = {}, dismissButton = { TextButton(onClick = controller::clear) { Text("Cancel") } })
+        confirmButton = {}, dismissButton = { TextButton(onClick = controller::clear) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     state.failure?.let { message -> AlertDialog(onDismissRequest = controller::clear,
         title = { Text("Couldn't prepare file") }, text = { Text(message) },
-        confirmButton = { TextButton(onClick = controller::clear) { Text("OK") } }) }
+        confirmButton = { TextButton(onClick = controller::clear) { Text(stringResource(R.string.cmux_ui_chat_artifact_ok_fa3d181e)) } }) }
 }

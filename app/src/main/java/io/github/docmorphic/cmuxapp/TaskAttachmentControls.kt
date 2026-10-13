@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -133,7 +135,7 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
                 DropdownMenuItem(text = { Text("Photos") }, onClick = {
                     openPicker { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }
                 })
-                DropdownMenuItem(text = { Text("Files") }, onClick = {
+                DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_title_62a1ff61)) }, onClick = {
                     openPicker { picker.launch(arrayOf("*/*")) }
                 })
                 DropdownMenuItem(text = { Text("Paste attachment") }, onClick = {

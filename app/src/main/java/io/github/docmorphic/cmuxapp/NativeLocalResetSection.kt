@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.app.ActivityManager
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -42,7 +44,7 @@ internal fun NativeLocalResetSection(requestErase: (() -> Boolean)? = null) {
     }
     if (confirming) AlertDialog(
         onDismissRequest = { confirming = false },
-        title = { Text("Erase all cmux data on this device?") },
+        title = { Text(stringResource(R.string.cmux_ui_mobile_settings_resetlocaldata_confirm_title_91046c47)) },
         text = { Text("You will be signed out and all data stored by this app will be erased. " +
             "Android will close the app and reset its permissions. This can’t be undone. " +
             "Your cmux account and data on your computers will remain unchanged.") },
@@ -58,7 +60,7 @@ internal fun NativeLocalResetSection(requestErase: (() -> Boolean)? = null) {
                 } catch (_: Exception) { false }
                 if (!accepted) { erasing = false; failed = true }
             }
-        }) { Text("Erase", color = destructive) } },
-        dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel") } }
+        }) { Text(stringResource(R.string.cmux_ui_mobile_settings_resetlocaldata_confirm_action_8e769d92), color = destructive) } },
+        dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }
     )
 }

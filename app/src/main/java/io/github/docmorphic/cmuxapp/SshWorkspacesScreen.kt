@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -427,7 +429,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             NativeWorkspaceBackControl { TextButton(onClick = ::leave) { Text("Back") } }
             if (restoring || reconnecting) CircularProgressIndicator()
             (reconnectError ?: failure)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            if (!restoring && !reconnecting) TextButton(onClick = reconnect) { Text("Try again") }
+            if (!restoring && !reconnecting) TextButton(onClick = reconnect) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) }
         }
         return
     }
@@ -555,7 +557,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                     TextButton(onClick = { select(SshWorkspaceTarget.Shell(shell.id)) }, modifier = Modifier.weight(1f)) {
                         Text(shell.title + if (state.phase == SshShellPhase.ENDED) " · Ended" else "")
                     }
-                    TextButton(onClick = { session.shells.remove(shell.id) }) { Text("Close") }
+                    TextButton(onClick = { session.shells.remove(shell.id) }) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619)) }
                 }
             }
         }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.hardware.biometrics.BiometricPrompt
 import io.github.docmorphic.cmuxapp.legacybiometric.LegacyFingerprint
 import android.os.Build
@@ -70,7 +72,7 @@ internal fun SshPromptHost(session: NativeSshSession) {
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             } },
             confirmButton = { TextButton(onClick = { answer(true) }, modifier = Modifier.testTag("ssh.trust.accept")) { Text(if (changed) "Replace and Connect" else "Trust and Connect") } },
-            dismissButton = { TextButton(onClick = { answer(false) }) { Text("Cancel") } })
+            dismissButton = { TextButton(onClick = { answer(false) }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     } else biometrics.firstOrNull()?.let { request ->
         key(request.id) { SshBiometricPrompt(request) { signature -> session.answerBiometric(request.id, signature) } }
     }
@@ -112,5 +114,5 @@ private fun SshBiometricPrompt(request: SshBiometricRequest, answer: (java.secur
         }
     }
     if (Build.VERSION.SDK_INT < 28) AlertDialog(onDismissRequest = { answer(null) }, title = { Text("Use SSH Key") },
-        text = { Text(message) }, confirmButton = {}, dismissButton = { TextButton(onClick = { answer(null) }) { Text("Cancel") } })
+        text = { Text(message) }, confirmButton = {}, dismissButton = { TextButton(onClick = { answer(null) }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }

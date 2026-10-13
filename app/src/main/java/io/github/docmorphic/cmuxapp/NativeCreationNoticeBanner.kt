@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -15,7 +17,7 @@ internal fun NativeCreationNoticeBanner(notice: NativeCreationNotice?, onDismiss
     Surface(color = Color(0xFF191B1E), contentColor = MaterialTheme.colorScheme.onSurface) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(notice.message, Modifier.weight(1f).padding(vertical = 12.dp))
-            TextButton(onClick = onDismiss) { Text("Dismiss") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_terminal_outputrecovery_dismiss_c572c42a)) }
         }
     }
 }

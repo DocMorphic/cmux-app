@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.currentCoroutineContext
@@ -26,6 +28,6 @@ internal fun RoutedSidebarGroupMoveItems(controller: RoutedSidebarController, ke
     }
     if (page == null) {
         DropdownMenuItem(text = { Text(failure ?: "Loading groups…") }, enabled = false, onClick = {})
-        if (failure != null) DropdownMenuItem(text = { Text("Retry") }, onClick = { attempt++ })
+        if (failure != null) DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }, onClick = { attempt++ })
     }
 }

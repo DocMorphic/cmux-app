@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -69,7 +71,7 @@ internal fun SshTmuxRoute(session: NativeSshSession, hostId: UUID, onBack: () ->
         BackHandler(onBack = onBack)
         TextButton(onClick = onBack) { Text("Back") }
         if (connecting) CircularProgressIndicator()
-        else { Text(failure ?: "SSH computer disconnected"); TextButton(onClick = reconnect) { Text("Try again") } }
+        else { Text(failure ?: "SSH computer disconnected"); TextButton(onClick = reconnect) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) } }
     }
 }
 
@@ -124,7 +126,7 @@ internal fun SshTmuxScreen(host: SshTmuxHost, reconnecting: Boolean = false, rec
             TextButton(onClick = ::leavePane) { Text("Back") }
             if (restoring || reconnecting) CircularProgressIndicator()
             (reconnectError ?: failure)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            if (!restoring && !reconnecting) TextButton(onClick = { host.refresh(); retry++ }) { Text("Try again") }
+            if (!restoring && !reconnecting) TextButton(onClick = { host.refresh(); retry++ }) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) }
         }
         return
     }

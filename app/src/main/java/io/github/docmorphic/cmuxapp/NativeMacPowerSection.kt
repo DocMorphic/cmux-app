@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -83,7 +85,7 @@ internal fun NativeMacPowerSection(state: NativeMacPowerState, change: (Boolean)
                 modifier = Modifier.padding(end = 12.dp).size(22.dp), tint = Color(0xFF9B9FA8))
             Text("Keep Mac Awake", Modifier.weight(1f))
             if (state.connected && state.supported != false && state.enabled == null) {
-                if (!state.busy && state.error != null) TextButton(onClick = retry) { Text("Retry") }
+                if (!state.busy && state.error != null) TextButton(onClick = retry) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
                 else CircularProgressIndicator(Modifier.size(24.dp).semantics {
                     contentDescription = "Loading Mac Power"
                 }, strokeWidth = 2.dp)

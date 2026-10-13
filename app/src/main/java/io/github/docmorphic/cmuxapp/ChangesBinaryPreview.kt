@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -40,7 +42,7 @@ internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: Change
             verticalArrangement = Arrangement.Center) {
             if (state.total != null && state.total!! > 0) LinearProgressIndicator(progress = { (state.received.toFloat() / state.total!!).coerceIn(0f, 1f) })
             else LinearProgressIndicator()
-            Text("Loading preview", Modifier.padding(top = 12.dp))
+            Text(stringResource(R.string.cmux_ui_chat_artifact_loading_2c608fbe), Modifier.padding(top = 12.dp))
             state.total?.let { Text("${state.received} of $it bytes", color = changesMuted, fontSize = 12.sp) }
         } else key(state.artifact!!.file.absolutePath) { ChangesPreviewContent(state.artifact!!) }
     }
@@ -64,7 +66,7 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
         text = { Column {
             Text("${viewer.fontSize.toInt()} pt")
             Slider(viewer.fontSize, viewer::setFont, valueRange = 8f..28f, steps = 19, modifier = Modifier.semantics { contentDescription = "Text size" })
-        } }, confirmButton = { TextButton(onClick = { fontDialog = false }) { Text("Done") } },
+        } }, confirmButton = { TextButton(onClick = { fontDialog = false }) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) } },
         dismissButton = { TextButton(onClick = { viewer.setFont(15f) }) { Text("Reset") } })
     Column {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -77,7 +79,7 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
                 DropdownMenu(menu, { menu = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF232428)) {
                     listOf(FilePreviewAction.SHARE, FilePreviewAction.SAVE, FilePreviewAction.OPEN).forEach { action -> DropdownMenuItem(text = { Text(action.label) }, onClick = { perform(action) }) }
                     if (artifact?.route == ChangesPreviewRoute.IMAGE) DropdownMenuItem(text = { Text("Copy Image") }, onClick = { perform(FilePreviewAction.COPY_IMAGE) })
-                    remote?.let { source -> DropdownMenuItem(text = { Text("Copy path") }, onClick = {
+                    remote?.let { source -> DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_copy_path_56643fb4)) }, onClick = {
                         menu = false
                         context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("File path", source.path))
                     }) }
@@ -94,18 +96,18 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
                         })
                         if (viewer.raw) {
                             HorizontalDivider()
-                            DropdownMenuItem(text = { Text("Search") }, onClick = { menu = false; viewer.searchOpen = !viewer.searchOpen; if (!viewer.searchOpen) viewer.closeSearch() })
-                            DropdownMenuItem(text = { Text("Go to line") }, onClick = { menu = false; viewer.goToLineOpen = true }, enabled = viewer.document != null)
-                            DropdownMenuItem(text = { Text("Top") }, onClick = { menu = false; viewer.jumpTo(0) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_search_title_19161c34)) }, onClick = { menu = false; viewer.searchOpen = !viewer.searchOpen; if (!viewer.searchOpen) viewer.closeSearch() })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_line_goto_a188158f)) }, onClick = { menu = false; viewer.goToLineOpen = true }, enabled = viewer.document != null)
+                            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_jump_top_b7fcfbb1)) }, onClick = { menu = false; viewer.jumpTo(0) })
                             DropdownMenuItem(text = { Text(if (complete) "End" else "Latest") }, onClick = { menu = false; viewer.jumpTo(viewer.document?.text?.length ?: 0, follow = true) })
-                            DropdownMenuItem(text = { Text("Line numbers") }, trailingIcon = { if (viewer.lineNumbers) Text("✓") }, onClick = { menu = false; viewer.lineNumbers = !viewer.lineNumbers })
-                            DropdownMenuItem(text = { Text("Word wrap") }, trailingIcon = { if (viewer.wrap) Text("✓") }, onClick = { menu = false; viewer.updateWrap(!viewer.wrap) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_line_numbers_c3d9ce0f)) }, trailingIcon = { if (viewer.lineNumbers) Text("✓") }, onClick = { menu = false; viewer.lineNumbers = !viewer.lineNumbers })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_wrap_ae3bf150)) }, trailingIcon = { if (viewer.wrap) Text("✓") }, onClick = { menu = false; viewer.updateWrap(!viewer.wrap) })
                             DropdownMenuItem(text = { Text("Text size") }, onClick = { menu = false; fontDialog = true })
                         }
                         if (viewer.markdown) {
                             HorizontalDivider()
-                            DropdownMenuItem(text = { Text("Raw") }, trailingIcon = { if (!viewer.rendered) Text("✓") }, onClick = { menu = false; viewer.rendered = false })
-                            DropdownMenuItem(text = { Text("Rendered") }, enabled = viewer.renderedAvailable,
+                            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_markdown_raw_c7f2638a)) }, trailingIcon = { if (!viewer.rendered) Text("✓") }, onClick = { menu = false; viewer.rendered = false })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_markdown_rendered_269d67e5)) }, enabled = viewer.renderedAvailable,
                                 trailingIcon = { if (viewer.rendered) Text("✓") }, onClick = { menu = false; viewer.closeSearch(); viewer.rendered = true; viewer.failure = null })
                         }
                     }

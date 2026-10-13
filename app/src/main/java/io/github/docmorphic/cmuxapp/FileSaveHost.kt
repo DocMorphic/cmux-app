@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -302,10 +304,10 @@ internal fun FileSaveHost(content: @Composable () -> Unit) {
                     LinearProgressIndicator(progress = { (progress.first.toFloat() / progress.second).coerceIn(0f, 1f) })
                 else LinearProgressIndicator()
             }
-        }, confirmButton = {}, dismissButton = { TextButton(onClick = model::discard) { Text("Cancel") } })
+        }, confirmButton = {}, dismissButton = { TextButton(onClick = model::discard) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     model.failure?.let { message -> AlertDialog(onDismissRequest = model::discard,
         title = { Text("Couldn't save file") }, text = { Text(message) },
         confirmButton = { TextButton(onClick = if (model.canRetry) model::retry else model::discard) {
             Text(if (model.canRetry) "Try again" else "OK")
-        } }, dismissButton = { if (model.canRetry) TextButton(onClick = model::discard) { Text("Cancel") } }) }
+        } }, dismissButton = { if (model.canRetry) TextButton(onClick = model::discard) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }) }
 }

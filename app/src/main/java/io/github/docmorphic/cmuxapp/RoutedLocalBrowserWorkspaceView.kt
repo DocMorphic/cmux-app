@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -177,7 +179,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
         Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             if (failure == null) CircularProgressIndicator()
             Text(failure ?: "Opening browser…", Modifier.padding(16.dp))
-            if (failure != null) TextButton(onClick = { attempt++ }) { Text("Retry") }
+            if (failure != null) TextButton(onClick = { attempt++ }) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
             TextButton(onClick = { back() }) { Text("Back to workspaces") }
         }
     }

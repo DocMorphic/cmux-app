@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -41,5 +43,5 @@ internal fun NativeTicketPairingConfirmation(proposal: NativeTicketPairing.Propo
         } },
         confirmButton = { TextButton(onClick = { onConnect(proposal.choices[selected]) },
             modifier = Modifier.testTag("ticket.connect")) { Text("Connect") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -60,7 +62,7 @@ internal fun NativeWorkspaceEmptyBody(model: NativeEmptyVisual, measuring: Boole
                     else CircularProgressIndicator(Modifier.padding(end = 8.dp).size(16.dp), strokeWidth = 2.dp) }
                 Text(if (recovery.busy) "Retrying…" else "Retry")
             } }
-            OutlinedButton(onClick = { if (!measuring) docs() }, enabled = !measuring && docsEnabled, modifier = Modifier.emptyVisualTag(measuring, "workspaces.empty.docs")) { Text("See Docs") }
+            OutlinedButton(onClick = { if (!measuring) docs() }, enabled = !measuring && docsEnabled, modifier = Modifier.emptyVisualTag(measuring, "workspaces.empty.docs")) { Text(stringResource(R.string.cmux_ui_mobile_workspaces_empty_setupguide_5cc36d8e)) }
             if (docsError) Text("Could not open the setup guide. Try opening cmux.com/docs/ios in your browser.", color = MaterialTheme.colorScheme.error)
         }
     }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -73,7 +75,7 @@ internal fun NativeFeedbackComposer(state: NativeFeedbackState, stamp: NativeFee
     ModalBottomSheet(onDismissRequest = onCancel, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onCancel) { Text("Cancel") }
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
                 Text("Send Feedback", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 TextButton(enabled = !busy && NativeFeedbackClient.valid(email, message), modifier = Modifier.testTag("feedback-send"), onClick = onSend) { Text(if (busy) "Sending…" else "Send") }
             }

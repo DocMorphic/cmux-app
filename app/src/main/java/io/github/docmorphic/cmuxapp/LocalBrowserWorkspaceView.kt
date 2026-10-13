@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -16,7 +18,7 @@ internal fun LocalBrowserCreationProgress(creating: Boolean, onCancel: () -> Uni
     if (creating) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
         Text("Opening browser…", Modifier.weight(1f).padding(horizontal = 12.dp))
-        TextButton(onClick = onCancel) { Text("Cancel") }
+        TextButton(onClick = onCancel) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
     }
 }
 

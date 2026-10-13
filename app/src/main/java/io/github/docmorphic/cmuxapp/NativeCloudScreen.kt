@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -105,7 +107,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
                     state.failure?.let { failure -> item {
                         Column(Modifier.fillMaxWidth().background(cloudPanel, RoundedCornerShape(16.dp)).padding(16.dp)) {
                             CloudFailureText(failure)
-                            TextButton(onClick = controller::refresh) { Text("Retry") }
+                            TextButton(onClick = controller::refresh) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
                         }
                     } }
                     item {
@@ -125,7 +127,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
             text = { Text("This permanently deletes the machine and its disk, including its terminals and files.") },
             confirmButton = { TextButton(onClick = { controller.act(deleting.id, CloudMachineAction.DELETE); deleteId = null },
                 enabled = deleting.lifecycle.canDelete && deleting.id !in state.actions, modifier = Modifier.testTag("cloud.delete.confirm")) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = { deleteId = null }) { Text("Cancel") } })
+            dismissButton = { TextButton(onClick = { deleteId = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     }
 }
 
@@ -164,7 +166,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = dismiss, enabled = !state.creating, modifier = Modifier.width(80.dp)) { Text("Cancel") }
+                TextButton(onClick = dismiss, enabled = !state.creating, modifier = Modifier.width(80.dp)) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
                 Text("New Machine", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)

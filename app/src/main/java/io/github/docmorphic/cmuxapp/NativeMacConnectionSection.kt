@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -134,7 +136,7 @@ internal fun NativeMacConnectionSection(target: NativeComputerTarget, state: Nat
                 change({ if (original == null) it.copy(addresses = it.addresses + updated) else it.replaceAddress(original, updated) },
                     saved = { editor = false })
             }) { Text("Save address") } },
-        dismissButton = { TextButton(onClick = { editor = false }, enabled = !busy) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = { editor = false }, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }
 
 private fun NativeMacConnectionPreference.replaceAddress(original: NativeDirectAddress, updated: NativeDirectAddress?): NativeMacConnectionPreference {

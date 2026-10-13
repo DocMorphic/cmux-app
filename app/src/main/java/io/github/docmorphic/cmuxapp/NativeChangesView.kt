@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -73,7 +75,7 @@ internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Un
             if (LocalWorkspaceShellChrome.current.let { it.split && !it.sidebarVisible }) NativeWorkspaceSidebarToggle()
             if (selected == null) TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Close changes" }) { Text("×") }
             else TextButton(onClick = ::returnToList) { Text("‹ Changes") }
-            Text("Changes", Modifier.weight(1f).semantics { contentDescription = "Changes in $title" }, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.cmux_ui_workspace_changes_title_3c6233fa), Modifier.weight(1f).semantics { contentDescription = "Changes in $title" }, fontWeight = FontWeight.SemiBold)
             if (selected == null) IconButton(onClick = { store.refresh() }, enabled = !listing.loading,
                 modifier = Modifier.semantics { contentDescription = "Refresh changes" }) {
                 Icon(painterResource(R.drawable.ic_browser_reload), null, Modifier.size(20.dp))
@@ -171,7 +173,7 @@ private fun ChangesFileList(state: ChangesListState, store: ChangesStore, naviga
                                 Text(file.filename, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
                                 file.oldPath?.takeIf { it.isNotEmpty() }?.let { Text("from $it", color = changesMuted, fontSize = 11.sp) }
                             }
-                            if (file.binary) Text("Binary", fontSize = 12.sp, color = changesMuted)
+                            if (file.binary) Text(stringResource(R.string.cmux_ui_changes_binary_badge_7023994d), fontSize = 12.sp, color = changesMuted)
                             else Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Text("+${if (file.approximate) "≥" else ""}${file.additions}", color = changesAdded, fontSize = 12.sp)
                                 Text("−${file.deletions}", color = changesRemoved, fontSize = 12.sp)
@@ -192,6 +194,6 @@ internal fun ChangesNotice(title: String, detail: String, retry: (() -> Unit)? =
     Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(title, fontWeight = FontWeight.SemiBold)
         Text(detail, Modifier.padding(top = 8.dp), color = changesMuted, fontSize = 13.sp)
-        if (retry != null) TextButton(onClick = retry) { Text("Retry") }
+        if (retry != null) TextButton(onClick = retry) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
     }
 }

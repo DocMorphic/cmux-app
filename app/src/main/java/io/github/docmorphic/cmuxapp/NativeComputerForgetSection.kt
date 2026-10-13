@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -42,6 +44,6 @@ internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: N
             state.error != null -> "Retry"
             else -> "Forget Computer"
         }, color = Color(0xFFFF9999)) } },
-        dismissButton = { TextButton(onClick = { showing = false }, enabled = !state.busy) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = { showing = false }, enabled = !state.busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }
     )
 }

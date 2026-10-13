@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.testTag
@@ -109,8 +111,8 @@ internal fun NativeGroupHeaderRow(
         text = { OutlinedTextField(name, { name = it }, singleLine = true) },
         confirmButton = { TextButton(onClick = {
             renaming = false; dispatchAction("rename", name)
-        }, enabled = name.isNotBlank()) { Text("Save") } },
-        dismissButton = { TextButton(onClick = { renaming = false }) { Text("Cancel") } }
+        }, enabled = name.isNotBlank()) { Text(stringResource(R.string.cmux_ui_mobile_common_save_102a3c89)) } },
+        dismissButton = { TextButton(onClick = { renaming = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }
     )
     val action = destructive?.takeIf { canEdit && (it != "ungroup" || !group.isPinned) }
     if (action != null) AlertDialog(
@@ -121,6 +123,6 @@ internal fun NativeGroupHeaderRow(
         confirmButton = { TextButton(onClick = { destructive = null; dispatchAction(action, null) }) {
             Text(if (action == "ungroup") "Ungroup" else "Delete Group", color = destructiveTint)
         } },
-        dismissButton = { TextButton(onClick = { destructive = null }) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = { destructive = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }
     )
 }

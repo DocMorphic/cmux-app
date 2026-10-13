@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -61,7 +63,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
         confirmButton = { TextButton(onClick = {
             readAll = null; scope.launch { controller.notification(RoutedSidebarNotification.ReadAll(target.key)) }
         }, enabled = !ui.notificationBusy) { Text("Mark All Read") } },
-        dismissButton = { TextButton(onClick = { readAll = null }) { Text("Cancel") } }) }
+        dismissButton = { TextButton(onClick = { readAll = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }) }
     if (showOrder) key(ui.orderGeneration) {
         NativeComputerOrderSheet(ui.snapshot?.computers.orEmpty().map { NativeSortComputer(it.key, it.name, buildLabel = it.build) },
             onDismiss = { showOrder = false }, error = ui.actionError, saving = ui.saving,

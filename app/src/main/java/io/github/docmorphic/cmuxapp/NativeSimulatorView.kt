@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.view.Surface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -205,7 +207,7 @@ internal fun SimulatorPane(source: SimLaneSource?, actions: SimulatorActions, re
                 keyboardActions = KeyboardActions(onSend = { submitText() }),
                 modifier = Modifier.weight(1f).clip(CircleShape).background(Color(0xFF34363A)).padding(horizontal = 12.dp, vertical = 9.dp)
                     .semantics { contentDescription = "Simulator text" }.testTag("SimulatorText"),
-                decorationBox = { field -> Box { if (text.isEmpty()) Text("Text", color = Color(0xFFAAAAAE), fontSize = 13.sp); field() } })
+                decorationBox = { field -> Box { if (text.isEmpty()) Text(stringResource(R.string.cmux_ui_diagnostics_simulator_inputkind_text_a415cd03), color = Color(0xFFAAAAAE), fontSize = 13.sp); field() } })
             SimulatorChromeButton("Send Text", "send", canInput && text.isNotEmpty(), ::submitText)
             SimulatorChromeButton("Home", "home", canInput) { send(SimInput.Button(SimButton.HOME)) }
             SimulatorChromeButton("Lock", "lock", canInput) { send(SimInput.Button(SimButton.LOCK)) }

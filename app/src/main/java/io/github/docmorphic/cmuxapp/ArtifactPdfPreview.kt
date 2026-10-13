@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
@@ -209,10 +211,10 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
             OutlinedTextField(query, { query = it.take(1024); matchIndex = 0; searchNavigationPending = query.isNotBlank() }, singleLine = true,
                 label = { Text("Search PDF") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                TextButton(enabled = matches.isNotEmpty(), onClick = { matchIndex = pdfMatchStep(matchIndex, -1, matches.size); searchNavigationPending = true }) { Text("Previous match") }
+                TextButton(enabled = matches.isNotEmpty(), onClick = { matchIndex = pdfMatchStep(matchIndex, -1, matches.size); searchNavigationPending = true }) { Text(stringResource(R.string.cmux_ui_chat_artifact_search_previous_ef48ed1f)) }
                 Text(if (matches.isNotEmpty()) "${matchIndex.coerceAtMost(matches.lastIndex) + 1} / ${matches.size}" else if (query.isBlank()) "" else if (searching) "Searching…" else "No matches", fontSize = 12.sp,
                     modifier = Modifier.semantics { contentDescription = "PDF search results"; liveRegion = LiveRegionMode.Polite })
-                TextButton(enabled = matches.isNotEmpty(), onClick = { matchIndex = pdfMatchStep(matchIndex, 1, matches.size); searchNavigationPending = true }) { Text("Next match") }
+                TextButton(enabled = matches.isNotEmpty(), onClick = { matchIndex = pdfMatchStep(matchIndex, 1, matches.size); searchNavigationPending = true }) { Text(stringResource(R.string.cmux_ui_chat_artifact_search_next_9cad5f3a)) }
             }
             if (searching) LinearProgressIndicator(progress = { scanned.toFloat() / pdf.pageSizes.size.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
             searchFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -379,5 +381,5 @@ private fun PdfPageTextDialog(pdf: ChangesPdfDocument, index: Int, point: Offset
         } }, confirmButton = { TextButton(enabled = !text.isNullOrBlank(), onClick = {
             context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("PDF text", text))
             onDismiss()
-        }) { Text("Copy") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Done") } })
+        }) { Text("Copy") } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) } })
 }

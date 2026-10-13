@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -90,9 +92,9 @@ internal fun NativeAgentFeedRow(entry: AgentFeedUiEntry, model: NativeAgentFeedP
                             }
                         }
                         AgentFeedKind.PLAN -> FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Button(onClick = { dismiss(); onDecision(item.planApproval()) }, enabled = ready && !pending) { Text("Approve") }
+                            Button(onClick = { dismiss(); onDecision(item.planApproval()) }, enabled = ready && !pending) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_exitplan_approve_50301655)) }
                             TextButton(onClick = { dismiss(); onCompose("revise") }, enabled = ready && !pending) { Text("Revise") }
-                            TextButton(onClick = { dismiss(); onDecision(AgentFeedDecision("exit_plan", "deny")) }, enabled = ready && !pending) { Text("Deny") }
+                            TextButton(onClick = { dismiss(); onDecision(AgentFeedDecision("exit_plan", "deny")) }, enabled = ready && !pending) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_permission_deny_bd30db41)) }
                             var expanded by remember { mutableStateOf(false) }
                             Box {
                                 TextButton(onClick = { dismiss(); expanded = true }, enabled = ready && !pending,
@@ -128,8 +130,8 @@ internal fun NativeAgentFeedRow(entry: AgentFeedUiEntry, model: NativeAgentFeedP
                 if (!item.supportsTerminalReply) failure?.let { Text(it.message, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
                 if (pending) LinearProgressIndicator(Modifier.fillMaxWidth())
                 DropdownMenu(menu, { menu = false }) {
-                    if (ready && item.workspaceId != null) DropdownMenuItem(text = { Text("Open workspace") }, onClick = { menu = false; onOpen(false) })
-                    if (ready && item.surfaceId != null && item.workspaceId != null) DropdownMenuItem(text = { Text("Open tab") }, onClick = { menu = false; onOpen(true) })
+                    if (ready && item.workspaceId != null) DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_openworkspace_c54bf018)) }, onClick = { menu = false; onOpen(false) })
+                    if (ready && item.surfaceId != null && item.workspaceId != null) DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_opentab_765b750e)) }, onClick = { menu = false; onOpen(true) })
                     DropdownMenuItem(text = { Text(if (needsInput) "Done" else "Needs Input") }, onClick = { menu = false; onRead(!needsInput) })
                 }
             }
@@ -173,7 +175,7 @@ internal fun FeedReplyMarker(reply: String, reference: String?, bubble: Boolean)
         } }
         Row(Modifier.background(feedAccent.copy(alpha = .12f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("You", Modifier.alignByBaseline(), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+            Text(stringResource(R.string.cmux_ui_mobile_agentfeed_reply_youlabel_2c112319), Modifier.alignByBaseline(), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
             AgentFeedMarkdownText(reply, Modifier.weight(1f, fill = false).alignByBaseline(), fontSize = 12)
         }
     }
@@ -190,9 +192,9 @@ private fun FeedReplyFailure(failure: AgentFeedFailure, ready: Boolean, canOpen:
                 color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            TextButton(onClick = onRetry, enabled = ready && failure.draft != null) { Text("Try Again", fontSize = 12.sp) }
+            TextButton(onClick = onRetry, enabled = ready && failure.draft != null) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_retry_7efcec96), fontSize = 12.sp) }
             if (failure.delivery == AgentFeedDelivery.UNCONFIRMED && canOpen)
-                TextButton(onClick = onOpen, enabled = ready) { Text("Open Terminal", fontSize = 12.sp) }
+                TextButton(onClick = onOpen, enabled = ready) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_reply_failed_openterminal_7b5de8c4), fontSize = 12.sp) }
         }
     }
 }

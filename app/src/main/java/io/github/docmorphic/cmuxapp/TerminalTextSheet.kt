@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.graphics.Typeface
@@ -80,7 +82,7 @@ private fun TerminalTextSheetContent(snapshot: TerminalTextSnapshot?, failure: S
         Surface(Modifier.fillMaxSize(), color = Color(0xFF111316), contentColor = Color(0xFFE0E5EB)) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onDismiss) { Text("Done") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
                     Text("Terminal Text", Modifier.weight(1f))
                     TextButton(enabled = snapshot?.text?.isNotEmpty() == true, onClick = {
                         try {
@@ -100,7 +102,7 @@ private fun TerminalTextSheetContent(snapshot: TerminalTextSnapshot?, failure: S
                         if (failure == null) CircularProgressIndicator()
                         else Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(failure)
-                            if (canRetry) TextButton(retry) { Text("Retry") }
+                            if (canRetry) TextButton(retry) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
                         }
                     }
                 } else {

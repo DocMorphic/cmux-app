@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -28,7 +30,7 @@ internal fun ColumnScope.RoutedAgentFeedSidebar(controller: RoutedSidebarControl
     DisposableEffect(feed) { onDispose { feed.visible(false) } }
     LaunchedEffect(feed, ui.query) { feed.visible(true, ui.query) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("Feed", Modifier.weight(1f).padding(18.dp), fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.cmux_ui_mobile_agentfeed_title_36feab50), Modifier.weight(1f).padding(18.dp), fontWeight = FontWeight.SemiBold)
         NativeWorkspaceSidebarToggle()
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -59,7 +61,7 @@ internal fun ColumnScope.RoutedAgentFeedSidebar(controller: RoutedSidebarControl
                 Icon(painterResource(if (ui.query.feedNeedsInputOnly) R.drawable.ic_feed_filter_active else R.drawable.ic_feed_filter), "Feed filter")
             }
             DropdownMenu(filters, onDismissRequest = { filters = false }) {
-                DropdownMenuItem(text = { Text("All Activity") }, onClick = { filters = false; controller.query(ui.query.copy(feedNeedsInputOnly = false)) })
+                DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_filter_all_e2a92565)) }, onClick = { filters = false; controller.query(ui.query.copy(feedNeedsInputOnly = false)) })
                 DropdownMenuItem(text = { Text("Needs Input (${ui.snapshot?.feedNeedsInput ?: 0})") }, onClick = { filters = false; controller.query(ui.query.copy(feedNeedsInputOnly = true)) })
             }
         }
@@ -67,7 +69,7 @@ internal fun ColumnScope.RoutedAgentFeedSidebar(controller: RoutedSidebarControl
     if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
     (state.error ?: ui.error ?: ui.actionError)?.let { error -> Row(Modifier.padding(horizontal = 18.dp)) {
         Text(error, Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
-        TextButton(onClick = feed::refresh) { Text("Retry") }
+        TextButton(onClick = feed::refresh) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
     } }
     if (state.hasSnapshot) AgentFeedTimeline(state.snapshot, ui.query.feedQuery, ui.query.feedNeedsInputOnly, actions, feed::refresh,
         Modifier.weight(1f), display = NativeDisplayPreferences(feedShowsTab = ui.snapshot?.feedShowsTab ?: false,

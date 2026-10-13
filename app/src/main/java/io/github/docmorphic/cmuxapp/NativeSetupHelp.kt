@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -74,7 +76,7 @@ internal fun NativeSetupHelp(policy: NativeMacCompatibilityPolicy, highlight: Na
                     Row(Modifier.fillMaxWidth().heightIn(min = 62.dp).padding(horizontal = 14.dp)
                         .testTag("setup.help.header"), verticalAlignment = Alignment.CenterVertically) {
                         Text("Set Up Computer", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.titleLarge)
-                        TextButton(onClick = onDismiss, modifier = Modifier.testTag("setup.help.done")) { Text("Done") }
+                        TextButton(onClick = onDismiss, modifier = Modifier.testTag("setup.help.done")) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
                     }
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)) {

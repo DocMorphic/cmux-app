@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
@@ -51,7 +53,7 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
             browserState = NativeBrowserPickerState.from(ready, capabilities)) { close ->
             DropdownMenuItem(text = { Text("View as Text") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_workspace_file_text) }, onClick = { close(); onText() }, enabled = terminal.isReady)
             if (onSizing != null) DropdownMenuItem(text = { Text("Terminal size") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_computer_display) }, onClick = { close(); onSizing() })
-            if ("terminal.artifact.v1" in capabilities) DropdownMenuItem(text = { Text("Files") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_workspace_folder) },
+            if ("terminal.artifact.v1" in capabilities) DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_title_62a1ff61)) }, leadingIcon = { PaneMenuIcon(R.drawable.ic_workspace_folder) },
                 onClick = { close(); onFiles() }, enabled = ready)
         }
         }

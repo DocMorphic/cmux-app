@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,7 +46,7 @@ internal fun NativeFeedStatusBody(row: NativeFeedListRow, measuring: Boolean, on
             is NativeFeedListRow.Notice -> Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Text(row.text, Modifier.weight(1f), color = Color(0xFFFFB86C), fontSize = 12.sp)
-                TextButton(onClick = { if (!measuring) onAction() }, enabled = !measuring) { Text("Retry") }
+                TextButton(onClick = { if (!measuring) onAction() }, enabled = !measuring) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
             }
             NativeFeedListRow.More -> TextButton(onClick = { if (!measuring) onAction() }, enabled = !measuring,
                 modifier = Modifier.fillMaxWidth()) { Text("Load more notifications") }
@@ -53,7 +55,7 @@ internal fun NativeFeedStatusBody(row: NativeFeedListRow, measuring: Boolean, on
                     if (measuring) Spacer(Modifier.size(24.dp)) else CircularProgressIndicator(Modifier.size(24.dp))
                 }
                 Text(row.text, color = Color(0xFF9B9FA8))
-                if (row.retry) TextButton(onClick = { if (!measuring) onAction() }, enabled = !measuring) { Text("Retry") }
+                if (row.retry) TextButton(onClick = { if (!measuring) onAction() }, enabled = !measuring) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
             }
             else -> Unit
         }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
@@ -29,7 +31,7 @@ internal fun SshKeyInstallSection(key: SshKeyRecord, enabled: Boolean, installin
             .setPrimaryClip(ClipData.newPlainText("SSH public key", key.publicKey.openSsh)) }) { Text("Copy Public Key") }
         TextButton(onClick = { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"; putExtra(Intent.EXTRA_TEXT, key.publicKey.openSsh)
-        }, "Share Public Key")) }) { Text("Share") }
+        }, "Share Public Key")) }) { Text(stringResource(R.string.cmux_ui_chat_artifact_share_73005afd)) }
     }
     TextButton(onClick = onInstall, enabled = enabled, modifier = Modifier.testTag("ssh.key.install")) {
         Text(if (installing) "Installing…" else "Install with Password…")
@@ -61,5 +63,5 @@ internal fun SshInstallPasswordDialog(target: SshHostRecord, onDismiss: () -> Un
         } }, confirmButton = { TextButton(onClick = {
             val secret = password.toByteArray(); password = ""; onInstall(secret)
         }, enabled = password.isNotEmpty(), modifier = Modifier.testTag("ssh.key.install.submit")) { Text("Install") } },
-        dismissButton = { TextButton(onClick = { password = ""; onDismiss() }) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = { password = ""; onDismiss() }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }

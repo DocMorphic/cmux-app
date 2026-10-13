@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -75,7 +77,7 @@ internal fun NativeNoticeWebContent(renderer: NativeNoticeRenderer?, failed: Boo
         if (failed || retired || phase == WhatsNewWebPhase.FAILED) Column(Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
             Text("This page couldn't be loaded. Please try again.")
-            if (onRetry != null) TextButton(onClick = onRetry, modifier = Modifier.testTag("whatsnew.web.retry")) { Text("Try Again") }
+            if (onRetry != null) TextButton(onClick = onRetry, modifier = Modifier.testTag("whatsnew.web.retry")) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_retry_7efcec96)) }
         } else if (phase == WhatsNewWebPhase.LOADING) CircularProgressIndicator()
     }
 }

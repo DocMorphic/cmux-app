@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.graphics.Bitmap
@@ -209,7 +211,7 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
                         when {
                             state.capped -> Text("Showing up to 2,000 referenced files. Search to narrow the results.", color = filesMuted, fontSize = 12.sp)
                             state.error != null -> TextButton(onClick = { store.loadMore(query.isNotEmpty(), eager) }) { Text("Retry loading more files", color = filesAccent) }
-                            state.loadingMore -> Text("Loading files…", color = filesMuted, fontSize = 12.sp)
+                            state.loadingMore -> Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_loading_16b01c72), color = filesMuted, fontSize = 12.sp)
                         }
                     }
                 }
@@ -227,7 +229,7 @@ internal fun FilesHeader(title: String, onBack: (() -> Unit)?, onDone: () -> Uni
             TextButton(onClick = onBack ?: onDone) { Text(if (onBack == null) "Done" else "‹ Back", color = filesAccent) }
             Spacer(Modifier.weight(1f))
             extra()
-            if (onBack != null) TextButton(onClick = onDone) { Text("Done", color = filesAccent) }
+            if (onBack != null) TextButton(onClick = onDone) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883), color = filesAccent) }
         }
     }
 }
@@ -245,7 +247,7 @@ private fun FilesSearchField(value: String, onChange: (String) -> Unit) {
                     drawLine(filesMuted, androidx.compose.ui.geometry.Offset(size.width * .6f, size.height * .6f), androidx.compose.ui.geometry.Offset(size.width * .95f, size.height * .95f), strokeWidth = 1.8.dp.toPx())
                 }
                 Box(Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 9.dp)) {
-                    if (value.isEmpty()) Text("Search session files", color = filesMuted, fontSize = 16.sp)
+                    if (value.isEmpty()) Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_search_e891948e), color = filesMuted, fontSize = 16.sp)
                     field()
                 }
                 if (value.isNotEmpty()) TextButton(onClick = { onChange("") }) { Text("Clear", color = filesMuted) }
@@ -299,9 +301,9 @@ private fun ArtifactGalleryRowContent(rpc: ArtifactRpc, item: ArtifactItem, grid
         }
         if (sharing) CircularProgressIndicator(Modifier.align(Alignment.TopEnd).size(18.dp).semantics { contentDescription = "Preparing ${item.displayName} to share" }, strokeWidth = 2.dp)
         DropdownMenu(menu, { menu = false }) {
-            if (item.kind != ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text("Share") }, enabled = item.exists && !exportState.busy && !saves.busy, onClick = ::share)
-            if (item.kind == ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text("Browse folder") }, enabled = item.exists, onClick = { menu = false; onOpen() })
-            DropdownMenuItem(text = { Text("Copy path") }, onClick = {
+            if (item.kind != ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_share_73005afd)) }, enabled = item.exists && !exportState.busy && !saves.busy, onClick = ::share)
+            if (item.kind == ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_browse_folder_315e8927)) }, enabled = item.exists, onClick = { menu = false; onOpen() })
+            DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_copy_path_56643fb4)) }, onClick = {
                 context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("File path", item.path)); menu = false
             })
         }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -91,7 +93,7 @@ internal fun TaskDirectoryPickerView(client: MobileRpcClient?, origin: String, s
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (stack.isNotEmpty()) TextButton(onClick = ::back, modifier = Modifier.semantics { contentDescription = "Parent folder" }) { Text("‹ Back") }
                 Text(current?.let { TaskDirectoryPaths.name(page?.path ?: it) } ?: "Choose Folder", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
             }
             OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Search folders") },
                 trailingIcon = { if (query.isNotEmpty()) TextButton(onClick = { query = "" }, modifier = Modifier.semantics { contentDescription = "Clear folder search" }) { Text("×") } })
@@ -112,7 +114,7 @@ internal fun TaskDirectoryPickerView(client: MobileRpcClient?, origin: String, s
                     }
                     item {
                         Text("Locations", color = Color(0xFF9B9FA8), modifier = Modifier.padding(vertical = 12.dp))
-                        TextButton(onClick = { navigate("~") }, modifier = Modifier.fillMaxWidth()) { Text("Home") }
+                        TextButton(onClick = { navigate("~") }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cmux_ui_diagnostics_simulator_button_home_a816032a)) }
                         TextButton(onClick = { navigate("/") }, modifier = Modifier.fillMaxWidth()) { Text("Computer") }
                         if (selectedPath.isNotBlank() && selectedPath !in setOf("~", "/")) TextButton(onClick = { navigate(selectedPath) }) { Text(selectedPath) }
                     }

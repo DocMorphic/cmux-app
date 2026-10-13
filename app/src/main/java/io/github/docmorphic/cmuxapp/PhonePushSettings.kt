@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -110,7 +112,7 @@ internal fun PhonePushSettings(team: NativeTeamScope?, permits: (NativeTeamScope
                 withContext(Dispatchers.IO) { PhoneFcmTokens.authorize(context, owner.login) { currentPermits(owner) } }
                 consent = false
             }
-        }) { Text("Allow Push Alerts") } }, dismissButton = { TextButton(enabled = !busy, onClick = { consent = false }) { Text("Cancel") } })
+        }) { Text("Allow Push Alerts") } }, dismissButton = { TextButton(enabled = !busy, onClick = { consent = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     selected?.let { mac ->
         val inspected = review
         var time by remember(inspected) { mutableLongStateOf(System.currentTimeMillis()) }
@@ -165,7 +167,7 @@ internal fun PhonePushSettings(team: NativeTeamScope?, permits: (NativeTeamScope
                             closeOffer(); message = "Pairing started. You can leave this screen while it finishes."
                         }
                     }) { Text(if (busy) "Working…" else if (inspected == null) "Review Offer" else "Pair Helper") }
-            }, dismissButton = { TextButton(enabled = !busy, onClick = ::closeOffer) { Text("Cancel") } })
+            }, dismissButton = { TextButton(enabled = !busy, onClick = ::closeOffer) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     }
 }
 

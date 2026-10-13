@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -23,7 +25,7 @@ internal fun NativeAccountDeletionButton(login: String?, receipt: NativeAccountD
         title = { Text("Delete Account?") },
         text = { Text("This permanently deletes your cmux account and cmux data. You will be signed out on this device.") },
         confirmButton = { TextButton(onClick = { confirming = false; begin(login) }) { Text("Delete Account", color = destructive) } },
-        dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }
 
 /** Lives outside the Settings branch, so navigation cannot swallow a completed deletion. */

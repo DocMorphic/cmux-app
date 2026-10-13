@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -115,7 +117,7 @@ internal fun NativeWhatsNewLaunchSheet(presentation: WhatsNewPresentation, polic
                 Column {
                     Row(Modifier.fillMaxWidth().onSizeChanged { headerHeight = it.height }.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("What's New", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                        TextButton(onClick = onDismiss, modifier = Modifier.testTag("whatsnew.close")) { Text("Done") }
+                        TextButton(onClick = onDismiss, modifier = Modifier.testTag("whatsnew.close")) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
                     }
                     LaunchedEffect(pager) { snapshotFlow { pager.settledPage }.collect { onPage(it) } }
                     HorizontalPager(pager, Modifier.fillMaxWidth().weight(1f).testTag("whatsnew.pager"),

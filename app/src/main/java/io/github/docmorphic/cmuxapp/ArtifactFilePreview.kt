@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -30,9 +32,9 @@ internal fun ArtifactFilePreview(rpc: ArtifactRpc, selection: ArtifactDestinatio
                 active = retained == null || index == pager.settledPage, connection = connection)
         }
         if (selection.files.size > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { scope.launch { pager.animateScrollToPage(pager.currentPage - 1) } }, enabled = pager.currentPage > 0) { Text("Previous") }
+            TextButton(onClick = { scope.launch { pager.animateScrollToPage(pager.currentPage - 1) } }, enabled = pager.currentPage > 0) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_previous_89684cb9)) }
             Text("${pager.currentPage + 1} of ${selection.files.size}", Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 12.sp)
-            TextButton(onClick = { scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } }, enabled = pager.currentPage + 1 < selection.files.size) { Text("Next") }
+            TextButton(onClick = { scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } }, enabled = pager.currentPage + 1 < selection.files.size) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_next_6bce096b)) }
         }
     }
 }
@@ -68,7 +70,7 @@ internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthor
             else -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 if ((state.total ?: 0) > 0) LinearProgressIndicator(progress = { (state.received.toFloat() / state.total!!).coerceIn(0f, 1f) })
                 else LinearProgressIndicator()
-                Text("Loading preview", Modifier.padding(12.dp))
+                Text(stringResource(R.string.cmux_ui_chat_artifact_loading_2c608fbe), Modifier.padding(12.dp))
             }
         }
     }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -123,7 +125,7 @@ internal fun LegacySimulatorPane(descriptor: NativeSimulator, source: LegacySimu
                 keyboardActions = KeyboardActions(onSend = { submitText() }), modifier = Modifier.weight(1f).clip(CircleShape)
                     .background(Color(0xFF34363A)).padding(horizontal = 12.dp, vertical = 9.dp)
                     .semantics { contentDescription = "Simulator text" }.testTag("LegacySimulatorText"),
-                decorationBox = { field -> Box { if (text.isEmpty()) Text("Text", color = Color(0xFFAAAAAE), fontSize = 13.sp); field() } })
+                decorationBox = { field -> Box { if (text.isEmpty()) Text(stringResource(R.string.cmux_ui_diagnostics_simulator_inputkind_text_a415cd03), color = Color(0xFFAAAAAE), fontSize = 13.sp); field() } })
             SimulatorChromeButton("Send Text", "send", keyboardEnabled && text.isNotEmpty(), ::submitText)
             SimulatorChromeButton("Home", "home", buttonsEnabled) { send(LegacySimulatorInput.Button(LegacySimulatorButton.HOME)) }
             SimulatorChromeButton("Lock", "lock", buttonsEnabled) { send(LegacySimulatorInput.Button(LegacySimulatorButton.LOCK)) }

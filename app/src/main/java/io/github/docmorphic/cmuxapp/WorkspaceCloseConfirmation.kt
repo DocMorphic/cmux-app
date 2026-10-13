@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -31,5 +33,5 @@ internal fun WorkspaceCloseDialog(confirmation: WorkspaceCloseConfirmation, enab
         confirmButton = {
             TextButton(onClick = onConfirm, enabled = enabled, modifier = Modifier.testTag("workspace.close.confirm"),
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(confirmation.actionTitle) }
-        }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+        }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }

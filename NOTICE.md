@@ -1,5 +1,12 @@
 # Attribution
 
+Selected static UI translations are copied verbatim from the CMUXMobileCore,
+CmuxAgentChatUI, CmuxMobileChanges and CmuxMobileShellUI localization catalogs at
+cmux `f4b1509054949eaad5d695569ad443c4c18ed68d`. Copyright Manaflow, Inc.;
+GPL-3.0-or-later. `third_party/cmux-localization/strings.json` records each source
+catalog/key and catalog hash; its LICENSE preserves the upstream notice. Android
+uses its own static UI migration and resource-generation implementation.
+
 Video-preview rendering and lifetime comparison follows
 `Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMediaView.swift`
 at cmux `f4b1509054949eaad5d695569ad443c4c18ed68d`

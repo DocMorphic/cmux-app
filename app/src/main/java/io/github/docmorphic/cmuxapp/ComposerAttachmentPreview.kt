@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -82,7 +84,7 @@ internal fun ComposerAttachmentPreview(identity: ComposerAttachmentPreviewIdenti
                 Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(attachment.name, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleMedium)
-                    TextButton(onClick = onDismiss) { Text("Done") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
                 }
                 HorizontalDivider()
                 val visible = state.takeIf { it.identity == identity }
@@ -91,7 +93,7 @@ internal fun ComposerAttachmentPreview(identity: ComposerAttachmentPreviewIdenti
                         visible?.artifact != null -> FilePreviewContent(visible.artifact)
                         visible?.error != null -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(visible.error, color = MaterialTheme.colorScheme.error)
-                            TextButton(onClick = { controller.retry(identity) }) { Text("Retry") }
+                            TextButton(onClick = { controller.retry(identity) }) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
                         }
                         else -> CircularProgressIndicator()
                     }

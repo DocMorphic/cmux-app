@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -116,7 +118,7 @@ private fun NativeWhatsNewContent(page: WhatsNewPage, policy: NativeMacCompatibi
                 Surface(Modifier.padding(horizontal = 24.dp).fillMaxWidth().testTag("whatsnew.compatibility"),
                     shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primary.copy(alpha = .10f)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Mac version required", style = featureTitle, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.cmux_ui_mobile_whatsnew_pairing_compatibilitytitle_8b6e4de3), style = featureTitle, fontWeight = FontWeight.SemiBold)
                         val requirement = policy.requirement()
                         // Use Android's actual admission profile, never its marketing version as an iOS version.
                         WhatsNewCompatibilityRow("Stable Mac", requirement?.stable?.let { "cmux $it or later" }

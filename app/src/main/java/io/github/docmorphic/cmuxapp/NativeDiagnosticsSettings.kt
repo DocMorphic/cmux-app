@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -51,7 +53,7 @@ internal fun NativeDiagnosticsSettings(recorder: DiagnosticRecorder? = MobileDia
             }
         }) { Text(if (busy) "Working…" else "Export Logs") }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Verbose Connection Log", Modifier.weight(1f))
+            Text(stringResource(R.string.cmux_ui_mobile_iroh_diagnostics_verboselog_65e63819), Modifier.weight(1f))
             Switch(verbose == true, enabled = verbose != null && !busy, modifier = Modifier.testTag("diagnostics.verbose")
                 .semantics { contentDescription = "Verbose Connection Log" }, onCheckedChange = { enabled ->
                 act("Couldn’t change diagnostic logging. Check available storage and try again.") {
@@ -59,21 +61,21 @@ internal fun NativeDiagnosticsSettings(recorder: DiagnosticRecorder? = MobileDia
                 }
             })
         }
-        if (verbose == true) Text("Records detailed connection activity to a file on this device for troubleshooting. Terminal contents and credentials are never written.", style = MaterialTheme.typography.bodySmall)
+        if (verbose == true) Text(stringResource(R.string.cmux_ui_mobile_iroh_diagnostics_verboselog_footer_2b74565c), style = MaterialTheme.typography.bodySmall)
         TextButton(enabled = recorder != null && !busy, modifier = Modifier.testTag("diagnostics.clear"), onClick = { confirming = true }) {
-            Text("Clear Logs", color = MaterialTheme.colorScheme.error)
+            Text(stringResource(R.string.cmux_ui_mobile_iroh_diagnostics_clear_81e1aaec), color = MaterialTheme.colorScheme.error)
         }
         Text("Export includes app events and networking diagnostics. Terminal contents and credentials are never written.", style = MaterialTheme.typography.bodySmall)
         if (recorder == null || storageFailed) Text("Diagnostic storage is unavailable. Check available storage and try again.", color = MaterialTheme.colorScheme.error)
         message?.let { Text(it, Modifier.testTag("diagnostics.message").semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodySmall) }
     }
-    if (confirming) AlertDialog(onDismissRequest = { confirming = false }, title = { Text("Clear all diagnostic logs?") },
+    if (confirming) AlertDialog(onDismissRequest = { confirming = false }, title = { Text(stringResource(R.string.cmux_ui_mobile_iroh_diagnostics_clear_confirm_f1b8b9cb)) },
         text = { Text("This permanently removes the diagnostic logs and cached log exports stored on this device.") },
         confirmButton = { TextButton(modifier = Modifier.testTag("diagnostics.confirm-clear"), onClick = {
             confirming = false
             act("Couldn’t clear every log generation. Check available storage and try again.") {
                 checkNotNull(recorder).clear(); message = "Logs cleared"
             }
-        }) { Text("Clear Logs", color = MaterialTheme.colorScheme.error) } },
-        dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel") } })
+        }) { Text(stringResource(R.string.cmux_ui_mobile_iroh_diagnostics_clear_81e1aaec), color = MaterialTheme.colorScheme.error) } },
+        dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.net.Uri
@@ -156,7 +158,7 @@ internal fun SshFilesScreen(session: NativeSshSession, hostId: UUID, terminal: S
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             TextButton(onClick = ::back, enabled = !busy) { Text("Back") }
             Text(if (preview != null) previewPath?.substringAfterLast('/') ?: preview!!.file.name else directory?.substringAfterLast('/')?.ifEmpty { "/" } ?: "Files", Modifier.weight(1f).padding(vertical = 12.dp), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
-            TextButton(onClick = onDone) { Text("Done") }
+            TextButton(onClick = onDone) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
         }
         failure?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp).testTag("ssh.files.error")) }
         val local = preview
@@ -219,7 +221,7 @@ internal fun SshFilesScreen(session: NativeSshSession, hostId: UUID, terminal: S
                     }
                 }
             }
-        } else if (!busy) TextButton(onClick = ::start) { Text("Try Again") }
+        } else if (!busy) TextButton(onClick = ::start) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_retry_7efcec96)) }
         transfer?.let { progress ->
             Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth().testTag("ssh.files.transfer")) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -233,17 +235,17 @@ internal fun SshFilesScreen(session: NativeSshSession, hostId: UUID, terminal: S
     }
     if (newFolder || naming != null) AlertDialog(onDismissRequest = { newFolder = false; naming = null },
         title = { Text(if (newFolder) "New Folder" else "Rename") },
-        text = { OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("Name") }, modifier = Modifier.testTag("ssh.files.name")) },
+        text = { OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb)) }, modifier = Modifier.testTag("ssh.files.name")) },
         confirmButton = { TextButton(enabled = SshFilePaths.validName(name.trim()) && (newFolder || name.trim() != naming?.name), onClick = {
             val target = naming; val value = name.trim(); naming = null; newFolder = false
             act { sshFileMutationAndRefresh(action = { if (target == null) remote.mkdir(checkNotNull(directory), value) else remote.rename(checkNotNull(directory), target, value) },
                 refresh = { directory?.let { load(it) } }) }
         }) { Text(if (newFolder) "Create" else "Rename") } },
-        dismissButton = { TextButton(onClick = { newFolder = false; naming = null }) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = { newFolder = false; naming = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     deleting?.let { entry -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text("Delete “${entry.name}”?") },
         text = { Text("This deletes it from the computer. You can't undo this.") },
         confirmButton = { TextButton(onClick = { deleting = null; act { sshFileMutationAndRefresh(action = { remote.delete(checkNotNull(directory), entry) }, refresh = { directory?.let { load(it) } }) } }) { Text("Delete") } },
-        dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } }) }
+        dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }) }
 }
 internal fun sshFileError(error: Exception): String = if (error is com.jcraft.jsch.SftpException) when (error.id) {
     com.jcraft.jsch.ChannelSftp.SSH_FX_PERMISSION_DENIED -> "You don't have permission to do that on this computer."

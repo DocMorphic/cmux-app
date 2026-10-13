@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.SharedPreferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -138,15 +140,15 @@ internal fun TerminalToolbarSettings(store: TerminalToolbarStore, onDismiss: () 
             Column {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Terminal Shortcuts", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                    TextButton(onClick = onDismiss) { Text("Done") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
                 }
                 Text("Choose buttons to show. Hold and drag a row to reorder it.", Modifier.padding(16.dp))
                 store.error?.let { Text(it, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = store::reload) { Text("Retry") } }
+                    TextButton(onClick = store::reload) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) } }
                 ToolbarShortcutList(store.layout, store.error == null, Modifier.weight(1f), store::save) { editingId = it.id }
                 Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     TextButton(onClick = { adding = true }, enabled = store.error == null && store.layout.actions.size < 128) { Text("Add Custom Action") }
-                    TextButton(onClick = { store.save(store.layout.reset()) }) { Text("Reset to Defaults") }
+                    TextButton(onClick = { store.save(store.layout.reset()) }) { Text(stringResource(R.string.cmux_ui_mobile_iroh_reset_905429eb)) }
                 }
             }
         }
@@ -212,7 +214,7 @@ private fun ToolbarShortcutList(layout: TerminalToolbarLayout, enabled: Boolean,
                 Text(layout.label(id), Modifier.weight(1f).padding(vertical = 16.dp))
                 layout.action(id)?.let { action ->
                     TextButton(onClick = { onEdit(action) }, enabled = enabled,
-                        modifier = Modifier.semantics { contentDescription = "Edit ${action.title}" }) { Text("Edit") }
+                        modifier = Modifier.semantics { contentDescription = "Edit ${action.title}" }) { Text(stringResource(R.string.cmux_ui_mobile_common_edit_a2a4d958)) }
                     TextButton(onClick = { change(current.remove(id)) }, enabled = enabled,
                         modifier = Modifier.semantics { contentDescription = "Delete ${action.title}" }) { Text("×") }
                 }
@@ -250,6 +252,6 @@ private fun TerminalToolbarActionEditor(existing: TerminalToolbarAction?, canSav
             Text("Types this text into the terminal when tapped. Run after typing also presses Return.")
             if (title.length > 128 || action.text.toByteArray(Charsets.UTF_8).size > 16 * 1024)
                 Text("Use a label up to 128 characters and text up to 16 KB.", color = MaterialTheme.colorScheme.error)
-        } }, confirmButton = { TextButton(onClick = { onSave(action) }, enabled = valid) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+        } }, confirmButton = { TextButton(onClick = { onSave(action) }, enabled = valid) { Text(stringResource(R.string.cmux_ui_mobile_common_save_102a3c89)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }

@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -132,7 +134,7 @@ internal fun NativeFeedRow(value: NativeFeedRowValue, context: NativeFeedRowCont
                     })
             }
             DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text("Open") }, enabled = canOpen, onClick = { menu = false; open() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_open_993dd114)) }, enabled = canOpen, onClick = { menu = false; open() })
                 DropdownMenuItem(text = { Text(if (value.isRead) "Mark as Unread" else "Mark as Read") }, enabled = canRead,
                     onClick = { menu = false; read(!value.isRead) })
             }

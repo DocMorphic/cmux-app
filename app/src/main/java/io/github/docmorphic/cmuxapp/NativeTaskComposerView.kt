@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ScrollState
@@ -503,7 +505,7 @@ internal fun NativeTaskComposerView(
         confirmButton = { TextButton(enabled = canEdit && recoveryApplies && recoveryReady, onClick = {
             confirmStartAgain = false; launchTask(startAgain = true)
         }) { Text("Start Again", color = Color(0xFFFF9999)) } },
-        dismissButton = { TextButton(onClick = { confirmStartAgain = false }) { Text("Cancel") } })
+        dismissButton = { TextButton(onClick = { confirmStartAgain = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     if (confirmLeave) AlertDialog(onDismissRequest = { if (!busy) confirmLeave = false },
         title = { Text("Save this draft?") },
         text = { Text("Keep this task to continue later, or delete it.") },

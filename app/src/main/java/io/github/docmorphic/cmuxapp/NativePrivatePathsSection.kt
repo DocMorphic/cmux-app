@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -89,12 +91,12 @@ internal fun NativePrivatePathsSection(computers: List<IrohV2Computer>,
     }
     removing?.let { path -> AlertDialog(onDismissRequest = { if (!pending) removing = null },
         title = { Text("Remove Private Addresses?") }, text = { Column { Text("Remove saved addresses for ${path.name} from this device?"); error?.let { Text(it, color = Color(0xFFFFC170)) } } },
-        confirmButton = { TextButton(enabled = !pending, onClick = { apply { it.remove(path.deviceId, path.buildTag) } }) { Text("Remove") } },
-        dismissButton = { TextButton(enabled = !pending, onClick = { removing = null }) { Text("Cancel") } }) }
+        confirmButton = { TextButton(enabled = !pending, onClick = { apply { it.remove(path.deviceId, path.buildTag) } }) { Text(stringResource(R.string.cmux_ui_mobile_common_remove_8640ef68)) } },
+        dismissButton = { TextButton(enabled = !pending, onClick = { removing = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }) }
     if (resetting) AlertDialog(onDismissRequest = { if (!pending) resetting = false },
         title = { Text("Reset Private Addresses?") }, text = { Column { Text("Disable all private addresses in this team. Saved addresses are kept so you can enable them again."); error?.let { Text(it, color = Color(0xFFFFC170)) } } },
         confirmButton = { TextButton(enabled = !pending, onClick = { apply { it.reset() } }) { Text("Reset") } },
-        dismissButton = { TextButton(enabled = !pending, onClick = { resetting = false }) { Text("Cancel") } })
+        dismissButton = { TextButton(enabled = !pending, onClick = { resetting = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }
 
 @Composable
@@ -108,17 +110,17 @@ private fun NativePrivatePathEditor(path: NativePrivatePath, pending: Boolean, e
         text = { Column(Modifier.verticalScroll(rememberScrollState())) {
             Text(path.name + " (${path.buildTag})")
             OutlinedTextField(value = text, onValueChange = { if (it.length <= 1024) text = it },
-                enabled = !pending, label = { Text("IP Addresses and Ports") }, minLines = 3,
+                enabled = !pending, label = { Text(stringResource(R.string.cmux_ui_mobile_iroh_v2_private_addresses_a9ee4f75)) }, minLines = 3,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
                 isError = text.isNotBlank() && parsed == null)
             Text("Enter up to 8 addresses, one per line: 192.168.1.5:58470 or [fd00::5]:58470. Use the Mac’s Iroh UDP port.", fontSize = 12.sp)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Use These Addresses", Modifier.weight(1f))
+                Text(stringResource(R.string.cmux_ui_mobile_iroh_private_custom_enabled_dd00c1e2), Modifier.weight(1f))
                 Switch(modifier = Modifier.semantics { contentDescription = "Use These Addresses" }, checked = enabled, onCheckedChange = { enabled = it }, enabled = !pending)
             }
             error?.let { Text(it, color = Color(0xFFFFC170)) }
         } },
         confirmButton = { TextButton(enabled = parsed != null && !pending,
             onClick = { parsed?.let { onSave(path.copy(addresses = it, enabled = enabled)) } }) { Text(if (pending) "Saving…" else "Save") } },
-        dismissButton = { TextButton(enabled = !pending, onClick = onDismiss) { Text("Cancel") } })
+        dismissButton = { TextButton(enabled = !pending, onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }
