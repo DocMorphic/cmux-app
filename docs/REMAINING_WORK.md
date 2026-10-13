@@ -1,5 +1,41 @@
 # Remaining work for iOS parity
 
+## Settings team-switch retention integration — 2026-10-13
+
+Settings now builds connection rows from the record-qualified inventory, including
+the admitted original-owner Mac alongside the selected team's connected records.
+Detail actions resolve that original live access first and capture its own scope;
+a team round trip cannot relabel it with the newer selected scope generation.
+Names/transport/status remain record-qualified instead of borrowing a same-locator
+or same-device/build sibling's data.
+
+Settings selection and creation now call the shared ViewModel team-transition
+methods. They preserve only an exact admitted record/client with readiness,
+matching code/connected code, matching retry generation and a live original
+membership proof. Pending/unadmitted attempts are closed and their code cleared.
+The Iroh eligibility effect also permits this exact retained session. Ordinary
+selected-team eligibility and new connection admission remain unchanged; the
+connection effect already returns early for an authorized retained wire.
+
+**71 focused JVM tests pass; debug/test APKs build. Six classes pass Android 17 ART
+reflection on 16 KB pages. Four runtime cases pass in 9.838s**: the Settings team
+picker and original detail/check after a switch/round trip with zero new dials,
+retirement after membership removal, pending unadmitted retirement, previous
+Activity-recreation/removal lifetime, and confirmed team creation with one POST
+and preservation of the root. The fixture uses the production transition methods,
+actual Settings components, verified mock Stack membership and encrypted storage.
+Source audit covers the corresponding main-screen handlers and connection-effect
+retention branch; this is not full MainActivity or physical transport acceptance.
+
+Evidence/XML/source/APK hashes are ignored under
+`captures/runtime/settings-team-switch-20261013`. Only the sole existing AVD was
+used and stopped/reaped. No physical phone or production account was touched.
+**The earlier explicit Settings selection/create and Iroh teardown barriers are
+now replaced by admitted-session retention.** Next verify the entire main-screen
+Mac/Pixel flow, including terminal input, pending/secondary transport retirement,
+recovery, background notifications and account revocation. Signed preview 654
+predates this source; full parity remains unproven.
+
 ## Detail presentation and removal lifetime — 2026-10-12
 
 The ViewModel now owns Computer Details and the exact pending reconnect record.

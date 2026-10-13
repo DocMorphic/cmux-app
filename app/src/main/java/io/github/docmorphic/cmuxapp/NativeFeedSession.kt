@@ -96,6 +96,34 @@ internal class NativeFeedSession(
                 nativeForegroundMacSelected(mac, state.admittedMac, state.connectionReady, state.code, state.connectedCode, canRetainForeground(mac, client))
         }.also { foregroundDetailAccess = Triple(mac, client, it) }
     }
+    /** Team changes may retain only the exact, already admitted wire and record. */
+    fun hasAdmittedForeground(): Boolean {
+        if (viewModelCleared || foregroundAuthority == null) return false
+        val state = screenConnection ?: return false
+        val mac = state.admittedMac ?: return false
+        val client = state.client ?: return false
+        return state.admittedRetry == foregroundRetryState.intValue && !client.isClosed &&
+            nativeForegroundMacSelected(mac, state.admittedMac, state.connectionReady, state.code,
+                state.connectedCode, canRetainForeground(mac, client))
+    }
+    fun selectedTeamChanged(): Boolean {
+        if (hasAdmittedForeground()) return true
+        macSwitchRecovery.cancel()
+        screenConnection?.close()
+        return false
+    }
+    suspend fun selectTeam(accountTeams: NativeAccountTeams, id: String): Boolean {
+        accountTeams.select(id)
+        return selectedTeamChanged()
+    }
+    suspend fun createTeam(accountTeams: NativeAccountTeams, name: String): Boolean {
+        accountTeams.create(name)
+        return selectedTeamChanged()
+    }
+    fun foregroundDetailsPresentation(mac: NativeCredentialStore.PairedMac, colorIndex: Int?): NativeComputerDetailsPresentation? {
+        val access = foregroundComputerDetails(mac) ?: return null
+        return NativeComputerDetailsPresentation(access.team, access.target.copy(name = mac.name), colorIndex, access)
+    }
     private var screenConnection: NativeScreenConnectionState? = null
     private var foregroundSizing: Job? = null
     private var foregroundArtifactWatcher: Job? = null

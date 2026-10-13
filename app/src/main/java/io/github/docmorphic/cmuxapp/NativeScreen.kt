@@ -358,7 +358,8 @@ internal fun NativeScreen(
         var selectedChangesWorkspace by paneSelection.changesWorkspace
         LaunchedEffect(teamState.scope, signedIn) {
             val pairing = PairingCodeParser.parse(code).getOrNull()
-            if (pairing is PairingCode.Iroh && (!signedIn || (teamState.scope != null && !connection.allowsSaved(pairing)))) {
+            if (pairing is PairingCode.Iroh && (!signedIn || (teamState.scope != null &&
+                    !connection.allowsSaved(pairing) && !feedSession.hasAdmittedForeground()))) {
                 connection.pairingCompatibilityError(pairing)?.let { error = it }
                 client?.close(); client = null; code = ""
                 selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null
@@ -2723,7 +2724,7 @@ internal fun NativeScreen(
                 }
                 val settingsContent: @Composable ColumnScope.() -> Unit = {
                     val settingsOwner = NativeComputerMenuOwner(browserLogin, teamState.scope)
-                    val settingsRows = nativeSettingsConnectionRows(pairedMacs, recordConnections)
+                    val settingsRows = nativeSettingsConnectionRows(recordConnectionMacs, recordConnections)
                     var legacyOrigin by rememberSaveable(settingsOwner) { mutableStateOf<String?>(null) }
                     val legacy = legacyOrigin?.let { origin ->
                         pairedMacs.singleOrNull { it.origin == origin }?.let { mac ->
@@ -2733,7 +2734,8 @@ internal fun NativeScreen(
                     }
                     fun currentSettingsMac(mac: NativeCredentialStore.PairedMac) = account.isSignedIn() &&
                         store.taskSession() == settingsOwner.login && accountTeams.state.value.scope == settingsOwner.team &&
-                        NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac)
+                        NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+                        (feedSession.foregroundComputerDetails(mac)?.current() == true || connection.allowsSaved(mac))
                     if (legacy != null) NativeLegacyComputerDetails(legacy, { legacyOrigin = null }, onReconnect = {
                         if (currentSettingsMac(legacy.mac)) {
                             legacyOrigin = null; showSettings = false
@@ -2752,16 +2754,16 @@ internal fun NativeScreen(
                     }, onSelect = { id ->
                         scope.launch {
                             try {
-                                accountTeams.select(id)
-                                client?.close(); client = null; code = ""
-                                selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
+                                if (!feedSession.selectTeam(accountTeams, id)) {
+                                    selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
+                                }
                             } catch (failure: Exception) { if (failure is CancellationException) throw failure }
                         }
                     }, onCreate = { name ->
                         try {
-                            accountTeams.create(name)
-                            client?.close(); client = null; code = ""
-                            selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
+                            if (!feedSession.createTeam(accountTeams, name)) {
+                                selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
+                            }
                             true
                         } catch (failure: Exception) {
                             if (failure is CancellationException) throw failure
@@ -2778,8 +2780,10 @@ internal fun NativeScreen(
                     }, computers = {
                     NativeSettingsConnections(settingsOwner, settingsRows, appearances, onDetails = { mac ->
                         if (currentSettingsMac(mac)) {
+                            val foregroundDetails = feedSession.foregroundDetailsPresentation(mac, machineColorIndices[mac.colorIdentity])
                             val target = settingsOwner.team?.let { NativeComputerTarget.from(mac, it) }
-                            if (target != null && sharedConnections != null) {
+                            if (foregroundDetails != null) computerDetails = foregroundDetails
+                            else if (target != null && sharedConnections != null) {
                                 if (computerState.account == settingsOwner.team)
                                     computerDetails = NativeComputerDetailsPresentation(checkNotNull(settingsOwner.team), target, machineColorIndices[mac.colorIdentity],
                                         feedSession.foregroundComputerDetails(mac)?.takeIf { it.team == settingsOwner.team })
