@@ -1,3 +1,29 @@
+## Live HTTPS readiness and sign-in diagnosis — 2026-10-13
+
+A read-only HEAD request to the already running private helper completed with
+ordinary Node HTTPS certificate validation enabled and no custom CA/trust bypass.
+The TLS socket reports authorized; HTTP 404 is expected for its unsupported root
+path. This establishes actual Mac-side endpoint reachability and trusted TLS,
+superseding earlier checkpoints that only proved offline certificate validation.
+It does not establish Android certificate trust, account authorization, enrollment,
+OAuth/FCM delivery or persistent helper lifecycle.
+
+The private native descriptor is present and has mode 0600 with the five expected
+public-descriptor fields; the configured state directory also exists. These
+observations do not prove current native Keychain/account authority or a paired
+phone. No private descriptor values, listener address, account data or credentials
+were output. The ignored HTTPS receipt is under
+`captures/runtime/native-helper-live-readiness-20261013/`.
+
+Fresh Mac UI inspection, with all input values withheld, shows the older form's
+validation message **Enter the six-digit code from your latest email**. This
+confirms local validation rejected the submitted input, rather than establishing
+a focus problem or server rejection. The alphanumeric normalization fix is pushed
+at `06b0e294`; current hosted run 38433167598 passed its integration checks and
+remains in full compilation. Replace the custom bundle only after artifact/source/
+signature verification, then request a fresh code. The owner enters it themselves.
+ADB currently reports no device; preserve the existing Pixel apps and data.
+
 ## Isolated Mac email-code sign-in implementation — 2026-10-13
 
 ## Updated Mac companion verified and launched — 2026-10-13

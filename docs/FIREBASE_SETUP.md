@@ -61,32 +61,22 @@ activated successfully without another terms prompt.
 
 ## Next integration
 
-1. Helper sender/storage keys are now provisioned privately and the CryptoKit
-   sealer compiled. Complete trusted TLS/runtime configuration and apply/build the
-   native integration. Tailscale HTTPS Certificates are currently requested from
-   the owner.
-   A hosted ARM64 full Mac build is now active; local Xcode installation is
-   optional for producing its artifact (MAC_NOTIFICATION_BUILD.md). Trusted
-   Tailscale hostname certificates remain unavailable on the Mac. The explicit
-   runtime provisioning command is implemented and checked; see
-   PUSH_HELPER_RUNTIME.md. It has not written a real runtime configuration or
-   started the listener without that certificate.
-   Source injection/public-descriptor publication and standalone native owner
-   execution are now checked; whole-app/native account acceptance remains open.
-   The production entrypoint now composes the verified private provider; see
-   PUSH_HELPER_RUNTIME.md for its explicit configuration and owner pairing control.
-   The helper component lifecycle is assembled and locally checked; its provider
-   transport is still injected in tests (see NATIVE_PUSH_SOURCE.md).
-2. Build the configured Android/custom Mac integration milestone. Existing
-   `cmuxFirebaseConfig` and `CMUX_FIREBASE_CONFIG` inputs use this private file;
-   GitHub milestone run `38169223650` passed at source
-   `d34daed53231997ffa68de63233357e6fe98d489` and published signed build 650.
-   Independent downloaded APK checks match release project/sender/application
-   and API key resources (key never logged), signer, all native alignment/assets
-   and six retained Android 17 class-loading results. See PIXEL_INSTALL.md.
-   This run did not build or launch the full custom Mac app or establish real
-   token acquisition/FCM delivery. The configured Android packaging gate is done;
-   the custom Mac milestone and physical integration remain.
+1. Private sender/storage keys, production CryptoKit sealer, trusted Tailscale
+   certificate/key and runtime configuration are provisioned. A read-only live
+   HTTPS check on 2026-10-13 also verifies Mac-side endpoint reachability and
+   ordinary certificate trust; it performs no enrollment/OAuth/FCM action. The
+   private native public descriptor exists. Android TLS, native Keychain/current
+   account authority and whole helper lifecycle remain open. See
+   PUSH_HELPER_RUNTIME.md for exact scope.
+2. Signed Android build **659** is published and independently verified against
+   its private Firebase resources, stable signer, alignment/assets and six CI ART
+   class checks; see PIXEL_INSTALL.md. The custom Mac app was built and launched,
+   but sign-in hit its incorrect digits-only code validator. The fix is pushed at
+   `06b0e294`; run `38433167598` is compiling the replacement after passing its
+   integration checks. Verify/install that artifact, request a fresh code and
+   finish native account sign-in before phone enrollment. No Pixel is currently
+   attached. Signed in-place Android upgrade and real transport acceptance remain
+   pending; another Android build is not required for this Mac-only correction.
 3. Verify actual consent/token registration, enrollment and real Mac/Pixel
    foreground/background/process-dead/Doze delivery, token rotation, tap/reply,
    dismissals and account revocation. Client registration/resource generation do
