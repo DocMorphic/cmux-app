@@ -1,3 +1,32 @@
+## Backend update coverage — 2026-10-13
+
+The watcher now includes website API routes, auth handlers/callback policy,
+shared web helpers/services, RPC/OpenAPI/schema/types, backend dependency patches
+and root dependency/routing/security configuration. A backend-only change such as
+`web/app/lib/native-callback.ts` must enter the mobile review queue: native routing
+can remain unchanged while the production server stops accepting a companion
+callback. Changes in ordinary blog/marketing content remain outside this scope.
+The review report groups these paths under **Authentication and mobile backend**
+and includes a backend-contract checklist. Removed files and renames out of these
+paths retain their original review area.
+
+All **19 update-policy tests pass**. A read-only live watcher run at upstream
+`cdbe99596fe13784ec5ea24d2e1c720a8f67f5cb` used complete recursive trees, reported
+**5,276 changed paths** and included **339 backend paths**. It did not publish an
+issue, build an APK or advance either reference. Logs and reports are ignored
+under `captures/runtime/upstream-backend-watch-20261013`. Normal main-branch
+scheduled runs retain their existing bot-owned review issue and quiet-on-unchanged
+policy; preview builds remain opt-in. Path detection does not constitute content
+review or Android feature parity.
+
+A separate local tree comparison from the global implemented pin to the reviewed
+custom Mac pin `f4b1509054949eaad5d695569ad443c4c18ed68d` found **623 changed mobile
+paths** in `Packages/iOS`, `Packages/Shared/CMUXMobileCore` and `ios/cmuxPackage`.
+Many have scoped feature audits in this repository; the full requirement-to-source
+and physical acceptance reconciliation is still open. The inventory is retained
+under ignored `captures/runtime/upstream-mobile-delta-f4.tsv`. Neither pin is
+advanced merely from these counts.
+
 ## Isolated Mac email-code sign-in implementation — 2026-10-13
 
 The custom Android-push Mac app now exposes the existing production

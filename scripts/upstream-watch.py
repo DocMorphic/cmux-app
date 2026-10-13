@@ -11,9 +11,13 @@ from collections import Counter
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = "<!-- cmux-upstream-watch:v1 -->"
 PREFIXES = ("ios/", "Packages/iOS/", "Packages/Shared/", "Packages/macOS/CmuxPhonePush/",
-            "Sources/", "workers/", "docs/prd/ios", "vendor/stack-auth-swift")
+            "Sources/", "workers/", "docs/prd/ios", "vendor/stack-auth-swift",
+            "web/app/api/", "web/app/handler/", "web/app/lib/", "web/services/", "web/lib/",
+            "web/orpc/", "web/openapi/", "web/db/", "web/types/", "web/patches/")
 EXACT = {"ghostty", "ghostty.h", ".gitmodules", ".github/workflows/test-ios.yml",
-         ".github/workflows/build-ghosttykit.yml"}
+         ".github/workflows/build-ghosttykit.yml", "web/package.json", "web/bun.lock",
+         "web/bunfig.toml", "web/next.config.ts", "web/proxy.ts", "web/security-headers.ts",
+         "web/vercel.json", "web/.env.example"}
 
 
 def mobile_script(path):
@@ -61,6 +65,8 @@ def tree_diff(before, after):
 
 
 def review_area(path):
+    if path.startswith("web/"):
+        return "Authentication and mobile backend"
     if path.startswith(("Packages/macOS/CmuxPhonePush/", "workers/")):
         return "Push and workers"
     if path.startswith("vendor/stack-auth-swift"):
@@ -148,6 +154,7 @@ def render(report):
         lines += ["**The file inventory is incomplete or history diverged. A full source review is required; this report must not be used to skip work.**", ""]
     if report["requires_review"]:
         lines += ["### Porting checklist", "", "- [ ] Review mobile UI, SSH, terminal and shared-protocol changes.",
+                  "- [ ] Review website authentication callbacks and backend API/schema changes used by mobile clients.",
                   "- [ ] Port applicable changes and update compatibility tests.",
                   "- [ ] Verify affected behavior on Android and the Mac.",
                   "- [ ] Advance the audited/implemented references only with matching evidence.", ""]

@@ -77,6 +77,29 @@ class UpdatePolicyTest(unittest.TestCase):
         report = self.report([unrelated]*300)
         self.assertTrue(report["requires_review"]); self.assertTrue(report["file_inventory_incomplete"])
         self.assertIn("full source review", watch.render(report))
+
+    def test_mobile_backend_only_changes_require_review(self):
+        for path in ("web/app/lib/native-callback.ts", "web/app/handler/after-sign-in/handler.ts",
+                     "web/app/api/billing/plan/route.ts", "web/services/analytics/iosEventPolicy.ts",
+                     "web/lib/auth-session.ts", "web/orpc/router.ts", "web/openapi/schema.json",
+                     "web/db/schema.ts", "web/types/auth.ts", "web/patches/auth.patch",
+                     "web/package.json", "web/bun.lock", "web/proxy.ts", "web/security-headers.ts"):
+            with self.subTest(path=path):
+                report = self.report([{"filename": path, "status": "modified"}])
+                self.assertTrue(report["requires_review"])
+                self.assertEqual("Authentication and mobile backend", watch.review_area(path))
+                self.assertIn("backend API/schema", watch.render(report))
+
+    def test_removed_or_moved_callback_policy_stays_in_review(self):
+        for change in ({"filename": "web/app/lib/native-callback.ts", "status": "removed"},
+                       {"filename": "archive/callback.ts", "previous_filename": "web/app/lib/native-callback.ts", "status": "renamed"}):
+            report = self.report([change])
+            self.assertTrue(report["requires_review"])
+            self.assertEqual("Authentication and mobile backend", report["files"][0]["area"])
+
+    def test_unrelated_website_content_does_not_create_mobile_review(self):
+        for path in ("web/app/blog/page.tsx", "web/public/marketing.png", "web/README.md"):
+            self.assertFalse(self.report([{"filename": path, "status": "modified"}])["requires_review"])
     def test_diverged_history_and_commit_truncation_are_explicit(self):
         report = self.report([], status="diverged", total_commits=101)
         self.assertTrue(report["requires_review"]); self.assertTrue(report["commit_inventory_incomplete"])
