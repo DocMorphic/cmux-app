@@ -31,8 +31,8 @@ internal data class NativeLocalPairingRemoval(val login: String, val team: Nativ
         state.put("pairings", next)
         if (mac != null && team != null) TailscaleGrantStore.removeComputer(state, team, mac.deviceId, mac.instanceTag)
         NativeAttachTicketStore.prune(state)
-        if (state.optString("pairing_code") == code) state.put("pairing_code", "")
-        if (mac?.ownsOrigin(state.optString("computer_selection")) == true) state.put("computer_selection", "")
+        if (mac != null) NativePairingRecords.clearAffectedSelection(state, listOf(mac))
+        else if (state.optString("pairing_code") == code) state.put("pairing_code", "")
     }
 }
 

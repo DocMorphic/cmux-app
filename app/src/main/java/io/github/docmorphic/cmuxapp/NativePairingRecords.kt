@@ -102,8 +102,18 @@ internal object NativePairingRecords {
         TailscaleGrantStore.removeForCode(state, code, team)
         state.put("pairings", next)
         NativeAttachTicketStore.prune(state)
-        if (removed.any { it.code == state.optString("pairing_code") }) state.put("pairing_code", "")
-        if (removed.any { it.ownsOrigin(state.optString("computer_selection")) }) state.put("computer_selection", "")
+        clearAffectedSelection(state, removed)
+    }
+
+    /** A locator is not an identity: another team's selected row may use it too. */
+    fun clearAffectedSelection(state: JSONObject, affected: List<NativeCredentialStore.PairedMac>) {
+        val selection = state.optString("computer_selection")
+        val code = state.optString("pairing_code")
+        val selectedAffected = affected.any { it.ownsOrigin(selection) }
+        val selectedSurvives = selection.isNotBlank() && !selectedAffected &&
+            NativeComputerVisibility.saved(state).any { it.code == code && it.ownsOrigin(selection) }
+        if (!selectedSurvives && affected.any { it.code == code }) state.put("pairing_code", "")
+        if (selectedAffected) state.put("computer_selection", "")
     }
 
     fun scoped(row: NativeCredentialStore.PairedMac, team: NativeTeamScope, retainedOrigin: String? = null) = row.copy(

@@ -1,3 +1,25 @@
+## Selection cleanup and hidden foreground ownership — 2026-10-13
+
+Removing or hiding an original-team pairing could erase the global resume locator
+of a different team's selected row when both used the same public Tailscale URL.
+The encrypted-state cleanup now preserves that locator only when the distinct
+selected record still exists and owns it. Removed selection, legacy selection and
+stale selection still clear affected locators. Forget, scoped-code removal, local
+pairing removal and hiding share this rule; unrelated drafts/credentials survive.
+
+Main-screen hiding now resolves the actual admitted or pending record before
+retiring a connection. It cannot infer ownership from a shared locator or from the
+picker's selected team. Without a captured record, only a unique saved selection
+may resolve it. Computer Details dismissal also matches the original owner/build;
+hiding another team's copy cannot dismiss the original page.
+
+**39 focused JVM tests pass**, including nine new selection/reload, live/pending
+visibility, ambiguous locator and exact-owner details cases. Android source and
+unit tests compile; the final incremental run took 17 seconds. No APK/ART/device
+acceptance is claimed. Source hashes, XML and logs are ignored under
+`captures/runtime/selection-cleanup-20261013`. The earlier first run passed 31
+cases. No emulator or physical phone was started, and no account data was changed.
+
 # Team switching and the active Mac session
 
 ## Settings team-switch retention integration — 2026-10-13

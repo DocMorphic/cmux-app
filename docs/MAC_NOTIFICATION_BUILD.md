@@ -1,5 +1,30 @@
 # Custom Mac notification build
 
+## Production custom-build sign-in failure — 2026-10-13
+
+Real browser/desktop inspection reproduced the isolated app remaining signed out
+after choosing the owner's existing Gmail cmux account. The website returned to
+its homepage while the app waited for its callback. This is independent of the
+visible development-build banner.
+
+The pinned upstream `web/app/lib/native-callback.ts` only allows `cmux`,
+`cmux-nightly` and `cmux-rc` on production requests. Tagged `cmux-dev-*` callbacks
+are accepted only on localhost with explicit local configuration. The custom app
+requests `cmux-dev-android-push`; its production auth routing alone therefore does
+not make browser sign-in usable. Earlier build/launch records did not prove that
+runtime flow. Do not register an official app scheme or copy another app's tokens
+to work around it.
+
+Next: expose the existing `AuthCoordinator.sendCode(to:)` / `verifyCode(_:)`
+email-code flow in the isolated custom app, using its existing production client,
+auth storage, account/team observation and nonce/transition checks. Normal browser
+sign-in in other builds must retain its existing behavior. Build and exercise the
+custom UI/real account before claiming Mac push enrollment or delivery. The current
+verified Mac artifact predates this fix; it remains signed out. No Pixel is
+currently connected. Full Xcode is now installed and its first-launch check passes
+with explicit `DEVELOPER_DIR`; global `xcode-select` still points to CLT.
+
+
 ## Android companion admission — 2026-10-12
 
 Android source now explicitly supports this build's `android-push` tag and exact

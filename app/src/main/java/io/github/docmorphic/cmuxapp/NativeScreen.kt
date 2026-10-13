@@ -2502,8 +2502,9 @@ internal fun NativeScreen(
                 NativeAccountDeletionAlerts(deletionReceipt, ::signOutCurrentAccount, accountDeletion::acknowledge)
 
                 fun retireHiddenForeground() {
-                    if (eligibleMacs.none { it.code == code && NativeComputerVisibility.isHidden(
-                            NativeComputerVisibility.hiddenOrigins(store.load()), it) }) return
+                    if (!NativeComputerVisibility.hidesForeground(NativeComputerVisibility.hiddenOrigins(store.load()),
+                            savedPairedMacs, connectionState.admittedMac, expectedReconnect, code,
+                            connectionReady && client?.isClosed == false, selectedComputerOrigin)) return
                     macSwitchRecovery.cancel(); expectedReconnect = null; pendingPickerCode = null; pairingSelectionCode = null
                     screenResume.cancel(); workspaceRoute = null
                     selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null
@@ -2511,11 +2512,12 @@ internal fun NativeScreen(
                     client?.close(); client = null; connectedCode = null; connectionReady = false
                     code = ""; selectedComputerOrigin = ""; error = null; connectionError = null
                 }
-                LaunchedEffect(hiddenOrigins, eligibleMacs, code) {
+                LaunchedEffect(hiddenOrigins, savedPairedMacs, code, connectionState.admittedMac, expectedReconnect,
+                    connectionReady, selectedComputerOrigin) {
                     retireHiddenForeground()
                     computerDetails?.let { details ->
-                        if (hiddenMacs.any { canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(details.target.deviceId) &&
-                            it.instanceTag == details.target.buildTag }) computerDetails = null
+                        if (NativeComputerVisibility.hidesDetails(hiddenOrigins, savedPairedMacs, details.team,
+                                details.target)) computerDetails = null
                     }
                 }
                 fun setComputerVisibility(mac: NativeCredentialStore.PairedMac, visible: Boolean) {

@@ -14,6 +14,24 @@ internal object NativeComputerVisibility {
         (0 until rows.length()).mapNotNull { rows.optJSONObject(it)?.let(NativePairingRecords::decode) }
     }.orEmpty()
 
+    fun hidesForeground(origins: Set<String>, saved: List<NativeCredentialStore.PairedMac>,
+        admitted: NativeCredentialStore.PairedMac?, pending: NativeCredentialStore.PairedMac?,
+        code: String, ready: Boolean, selection: String): Boolean {
+        val live = admitted?.takeIf { it.code == code }
+        val expected = pending?.takeIf { it.code == code }
+        val record = (if (ready) live else expected ?: live) ?: saved.singleOrNull {
+            it.code == code && (selection.isBlank() || it.ownsOrigin(selection))
+        }
+        return record != null && isHidden(origins, record)
+    }
+
+    fun hidesDetails(origins: Set<String>, saved: List<NativeCredentialStore.PairedMac>,
+        team: NativeTeamScope, target: NativeComputerTarget): Boolean = saved.any { row ->
+        isHidden(origins, row) && NativeComputerTarget.from(row, team)?.let {
+            canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(target.deviceId) && it.buildTag == target.buildTag
+        } == true
+    }
+
     private fun sameComputer(a: NativeCredentialStore.PairedMac, b: NativeCredentialStore.PairedMac, state: JSONObject): Boolean {
         return a.deviceId.isNotBlank() && canonicalMacDeviceId(a.deviceId) == canonicalMacDeviceId(b.deviceId) &&
             a.instanceTag == b.instanceTag && sameOwner(a, b, state)
@@ -33,8 +51,7 @@ internal object NativeComputerVisibility {
         targets.flatMap { it.origins }.forEach { if (visible) values.remove(it) else values.put(it, true) }
         state.put(KEY, values)
         if (!visible) {
-            if (targets.any { it.code == state.optString("pairing_code") }) state.put("pairing_code", "")
-            if (targets.any { it.ownsOrigin(state.optString("computer_selection")) }) state.put("computer_selection", "")
+            NativePairingRecords.clearAffectedSelection(state, targets)
         }
         prune(state)
         return true
