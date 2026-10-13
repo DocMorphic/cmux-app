@@ -103,7 +103,14 @@ final class NativePushSourceCaptureController: NativePushSourceSink {
                         expiresAt: expiry.int64Value, body: messages[1])
                 }
             }
-            if next.epoch == nil || (nativeEpoch != nil && (nativeEpoch != next.epoch || activeScope != next.scope)) || !next.forwarding {
+            // The first denied observation clears recovered authority/captures;
+            // a transition to denied/paused state also fences the old helper.
+            // Renewing the same denied/paused state must not repeatedly kill
+            // that helper and erase a still-valid native pairing offer.
+            let firstOrNewDenial = next.epoch == nil && (observation == nil || observation?.epoch != nil)
+            let changedScope = nativeEpoch != nil && (nativeEpoch != next.epoch || activeScope != next.scope)
+            let newlyPaused = !next.forwarding && (observation == nil || observation?.forwarding == true)
+            if firstOrNewDenial || changedScope || newlyPaused {
                 retireScope()
             } else if observation?.hideContent == false && next.hideContent {
                 sink?.invalidate(); sentRevision = nil

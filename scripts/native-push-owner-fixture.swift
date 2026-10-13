@@ -48,11 +48,11 @@ final class NativeOwnerFixtureDescriptor: @unchecked Sendable {
             }.value
         }
         func json(_ object: [String: Any]) throws -> Data { try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) }
-        func host(hide: Bool = false) throws -> Data {
+        func host(hide: Bool = false, forwarding: Bool = true) throws -> Data {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             return try json(["type": "host", "snapshot": ["state": "ready", "epoch": "fixture-epoch", "observedAt": now, "validUntil": now + 30_000,
                 "authority": ["accountID": "fixture-account", "teamID": NSNull(), "macDeviceID": "fixture-mac", "macInstanceTag": "fixture-tag", "macBuildID": "fixture-build"],
-                "settings": ["forwardingEnabled": true, "mode": "always", "admission": "allowed", "hideContent": hide]]])
+                "settings": ["forwardingEnabled": forwarding, "mode": "always", "admission": forwarding ? "allowed" : "forwarding_disabled", "hideContent": hide]]])
         }
         let descriptor = try json(["version": 1, "algorithm": "rawX25519", "installationID": "fixture-native", "keyID": "fixture-native-key", "publicKey": Data(repeating: 9, count: 32).base64EncodedString()])
         let liveDescriptor = NativeOwnerFixtureDescriptor(descriptor)
@@ -105,7 +105,51 @@ final class NativeOwnerFixtureDescriptor: @unchecked Sendable {
         try await wait { (try? Data(contentsOf: URL(fileURLWithPath: nativePath))) == rotated }
         try require(starts == 3 && owner.isRunning)
         try await runProbe("rotated-offer")
-        await owner.stop(); try require(reaped == 3 && !owner.isRunning)
+        // Pausing forwarding fences old work once, but an identical paused
+        // heartbeat must not retire the helper or erase a pairing offer.
+        try require(owner.offer([host(hide: true, forwarding: false)], scope: scope))
+        try await wait { starts == 4 && owner.isRunning && reaped == 3 && owner.retainedCount == 0 }
+        var pausedPairing: Data?
+        try await wait {
+            pausedPairing = try? await owner.requestPairing(action: "offer", value: "android.fixture")
+            return pausedPairing != nil
+        }
+        let pausedOffer = try NativePushPairingOffer(body: pausedPairing!, phoneBuildID: "android.fixture",
+            now: Int64(Date().timeIntervalSince1970 * 1000))
+        for _ in 0..<3 {
+            try require(owner.offer([host(hide: true, forwarding: false)], scope: scope))
+            try require(owner.isRunning)
+            try await Task.sleep(for: .milliseconds(100))
+            try require(starts == 4 && reaped == 3 && owner.isRunning)
+        }
+        let pausedCancellation = try await owner.requestPairing(action: "cancel", value: pausedOffer.id)
+        try require((try JSONSerialization.jsonObject(with: pausedCancellation) as? [String: Bool])?["cancelled"] == true)
+        // Confirmed sign-out also retires once. Repeated signed-out observations
+        // can refresh the denied state without spinning a new helper each time.
+        func signedOut() throws -> Data {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            return try json(["type": "host", "snapshot": ["state": "signed-out", "observedAt": now, "validUntil": now + 30_000]])
+        }
+        try require(owner.offer([signedOut()]))
+        try await wait { starts == 5 && reaped == 4 && owner.isRunning && owner.retainedCount == 0 }
+        // Prove the private control endpoint is ready before testing denial;
+        // a refused connection during startup would be a false positive.
+        try await wait {
+            let ready = try? await owner.requestPairing(action: "cancel", value: UUID().uuidString.lowercased())
+            return ready != nil
+        }
+        do {
+            _ = try await owner.requestPairing(action: "offer", value: "android.fixture")
+            throw FixtureFailure.assertion(#line)
+        } catch NativePushPairingClient.Failure.unavailable {}
+        for _ in 0..<3 {
+            try require(owner.offer([signedOut()]))
+            try require(owner.isRunning)
+            try await Task.sleep(for: .milliseconds(100))
+            try require(starts == 5 && reaped == 4 && owner.isRunning)
+        }
+        print("Repeated paused/signed-out heartbeats retain the helper; paused pairing survives and signed-out pairing remains denied")
+        await owner.stop(); try require(reaped == 5 && !owner.isRunning)
         try await runProbe("verify")
 
         // Awaited stop also joins cancelled, already-running preparation. It

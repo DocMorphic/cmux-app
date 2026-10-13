@@ -1,5 +1,37 @@
 # Native capture storage — 2026-10-11
 
+## Stable paused and signed-out heartbeats — 2026-10-13
+
+Live inspection found the installed helper changing processes while the Mac was
+signed out. Source review and an executed reproducer identified unconditional
+capture-controller retirement for every signed-out or forwarding-disabled host
+observation. An authenticated paused Mac could issue a pairing offer, then lose
+it on the next heartbeat because its helper was killed and replaced.
+
+The controller now retires on the first denied/paused observation, a new denial,
+changed native epoch/scope, or a transition from forwarding to paused. Repeated
+observations of the same denied/paused state refresh its lease without replacing
+the helper. Explicit invalidation, privacy tightening and account/team retirement
+retain their existing fences. Initial authenticated/forwarding observations still
+permit recovery from encrypted storage under fresh matching native authority.
+
+The actual compiled Swift owner and production Node helper reproduce immediate
+retirement before the fix (`red-ready/behavior.log`, assertion 121). After the
+fix, the owner fixture passes on Node 26 and minimum Node 22: three repeated paused
+observations preserve the running helper and its pairing session; three signed-out
+observations preserve the denied helper, whose ready control endpoint refuses
+pairing. Existing privacy replacement, explicit invalidation, descriptor refresh,
+encrypted capture, awaited stop and late-preparation cases also pass. All **nine**
+Node 26 recovery cases pass, including lost-receipt/SIGKILL, scope ABA, sign-out,
+held restore, backpressure and acknowledged-source metadata.
+
+Evidence/source hashes are ignored under
+`captures/runtime/native-helper-heartbeat-20261013/`. These are real processes and
+encrypted storage with synthetic loopback configuration, not a user's native
+account, Pixel or FCM. The installed app and active build 38433167598 predate this
+controller fix; it needs the next verified custom Mac artifact. That existing
+build continues unchanged to deliver the separate sign-in correction.
+
 Current pairing UI extends the installer to **22 files / eight audited originals**.
 See [NATIVE_PUSH_PAIRING.md](NATIVE_PUSH_PAIRING.md); earlier counts below describe
 their respective checkpoints. The full tagged Mac/Pixel/provider gates remain open.
