@@ -1,3 +1,39 @@
+## Isolated Mac email-code sign-in implementation — 2026-10-13
+
+The custom Android-push Mac app now exposes the existing production
+`AuthCoordinator.sendCode(to:)` / `verifyCode(_:)` flow instead of requesting a
+browser callback rejected by cmux.com. The new form uses the composition's same
+coordinator and account projection; it does not read another app's credentials,
+register an official callback scheme or change server trust. Validation excludes
+the development `42` shortcut. It handles one request at a time, resend/change
+email, retry, auth busy/restoring state, cancellation and late UI completion;
+verification succeeds only once the coordinator reports authenticated state.
+
+Both new and reused sign-in workspaces suppress their automatic browser start
+for the exact isolated bundle. Host account sign-in and switch-account UI also
+route there. Other builds retain the original hosted view/body and account paths.
+The custom form's account, Mobile and workspace presentations use the same auth
+owner. Browser-only/socket sign-in URLs are not made valid by this change.
+
+The installer now checks **11 upstream pins / 27 patched files**, including the
+new state/model and view's Xcode source membership. The production form state
+machine compiles/executes locally in Swift 6; validation, duplicate actions, send
+and verify retry, busy auth, cancellation, late completion and non-authenticated
+verification cases pass. The original hosted view body remains byte-identical.
+Full native hooks parse/project checks and compiled auth/source/receipt/private
+pipe checks are run with the changed installer.
+
+Local full UI typechecking is currently blocked by the CLT SDK's missing
+`SwiftUIMacros` plugin. Selecting the installed Xcode tools instead reports an
+unaccepted Apple license; the owner was asked to finish Xcode setup. The explicit
+local `--model-only` check records `uiTypechecked: false`. CI uses the default
+mandatory SwiftUI interface-fixture typecheck before a full tagged app build;
+no UI typecheck, linked app or actual account acceptance is claimed yet. Logs and
+receipts are ignored under `captures/runtime/companion-email-sign-in-20261013`.
+The existing local Mac artifact predates this change and remains signed out.
+Real code sign-in, storage restart, native listener/helper enrollment and Pixel
+FCM acceptance still remain required. No Android build or emulator was started.
+
 ## Selection cleanup and hidden foreground ownership — 2026-10-13
 
 Removing or hiding an original-team pairing could erase the global resume locator

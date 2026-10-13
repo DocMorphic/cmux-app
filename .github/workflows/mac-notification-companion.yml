@@ -59,6 +59,7 @@ jobs:
       - name: Verify native pairing and producer integration
         working-directory: cmux-app
         run: |
+          python3 scripts/check-companion-email-sign-in.py --upstream "$GITHUB_WORKSPACE/upstream" --output build/mac-checks/email-sign-in
           python3 scripts/check-native-push-hooks.py --upstream "$GITHUB_WORKSPACE/upstream" --node "$(command -v node)" --output build/mac-checks/hooks
           python3 scripts/check-native-push-pairing.py --node "$(command -v node)" --patched-app-delegate build/mac-checks/hooks/patched/Sources/AppDelegate.swift --output build/mac-checks/pairing
           python3 scripts/check-native-push-owner.py --node "$(command -v node)" --output build/mac-checks/owner

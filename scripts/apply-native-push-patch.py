@@ -9,6 +9,9 @@ import tempfile
 
 REF = "f4b1509054949eaad5d695569ad443c4c18ed68d"
 PINS = {
+    "Sources/AppDelegate+AccountSignInWorkspace.swift": "1aab66dbc072c41eb020db9cce2d71f3a8dc6f1fb407723b5b2eb415dc04a9aa",
+    "Sources/Auth/HostAccountFlow.swift": "f1dc5b7a8be1dd480b9e10d1a34bc739076974833826153672557dffaee2e099",
+    "Sources/Auth/AccountSignInView.swift": "8358337dd66145bce0d72d4feaa6796455cad6232f2c9869cdfb96e0f58a8084",
     "Resources/Localizable.xcstrings": "d942497a9ff1a2970e2e3f6941b4e239a24d172dbe9d02971fe33776578dd35b",
     "Sources/Mobile/MobileHostService+PhonePushKeyExchange.swift": "09a9804a0176f1dc31f64fb7944fb99473ed1470542a519cd8ac3b14df5062cf",
     "Sources/Cloud/PhonePushClient.swift": "e895f51016156d18f11d4aa7d8b721252ff6759a80552b277ae3a7b45596c3df",
@@ -132,6 +135,53 @@ def patched_sources(original):
         if hashlib.sha256(original[path]).hexdigest() != expected:
             raise ValueError(f"Source mismatch: {path}; expected audited cmux {REF}")
     result = {}
+    path = "Sources/AppDelegate+AccountSignInWorkspace.swift"
+    source = original[path].decode()
+    if source.count("panel.model.presentSignIn()") != 2:
+        raise ValueError("Account workspace sign-in entrypoints changed")
+    source = source.replace("panel.model.presentSignIn()", '''if Bundle.main.bundleIdentifier != "com.cmuxterm.app.debug.android.push" {
+                panel.model.presentSignIn()
+            }''')
+    result[path] = source.encode()
+    path = "Sources/Auth/HostAccountFlow.swift"
+    source = original[path].decode()
+    for signature, returned in [("    func startSignIn() {\n", "return"),
+                                ("    func startSignInForPane() -> URL? {\n", "return nil")]:
+        source = once(source, signature, signature + '''        if Bundle.main.bundleIdentifier == "com.cmuxterm.app.debug.android.push" {
+            _ = AppDelegate.shared?.performAccountSignInWorkspaceAction()
+            ''' + returned + '''
+        }
+''')
+    signature = "    func switchAccount() async {\n"
+    source = once(source, signature, signature + '''        if Bundle.main.bundleIdentifier == "com.cmuxterm.app.debug.android.push" {
+            guard !isSwitchingAccount else { return }
+            isSwitchingAccount = true
+            defer { isSwitchingAccount = false }
+            await signOut()
+            _ = AppDelegate.shared?.performAccountSignInWorkspaceAction()
+            return
+        }
+''')
+    result[path] = source.encode()
+    path = "Sources/Auth/AccountSignInView.swift"
+    source = original[path].decode()
+    source = once(source, "    var body: some View {\n        VStack(spacing: 16) {\n            switch model.phase {\n", '''    @ViewBuilder var body: some View {
+        if Bundle.main.bundleIdentifier == "com.cmuxterm.app.debug.android.push" {
+            if let auth = AppDelegate.shared?.auth {
+                NativeCompanionEmailSignInView(auth: auth)
+            } else {
+                ProgressView()
+            }
+        } else {
+            hostedBrowserBody
+        }
+    }
+
+    private var hostedBrowserBody: some View {
+        VStack(spacing: 16) {
+            switch model.phase {
+''')
+    result[path] = source.encode()
     path = "Sources/Cloud/PhonePushClient.swift"
     source = original[path].decode()
     source = once(source, "    private var auth: AuthCoordinator?\n", "    private var auth: AuthCoordinator?\n"
@@ -273,6 +323,8 @@ def patched_sources(original):
     path = "cmux.xcodeproj/project.pbxproj"
     source = original[path].decode()
     native_sources = {
+        "NativeCompanionEmailSignInModel": "push/mac-native/NativeCompanionEmailSignInModel.swift",
+        "NativeCompanionEmailSignInView": "push/mac-native/NativeCompanionEmailSignInView.swift",
         "NativePushSourceMessages": "push/mac-native/NativePushSourceMessages.swift",
         "NativePushSourceSink": "push/mac-native/NativePushSourceSink.swift",
         "NativePushSourceDeliveryQueue": "push/mac-native/NativePushSourceDeliveryQueue.swift",
