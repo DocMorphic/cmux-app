@@ -1,5 +1,29 @@
 # Custom Mac notification build
 
+## Corrected code form delivered — 2026-10-13
+
+Run **38433167598** succeeded at `06b0e294`, with full compilation taking
+**75m30s**. Artifact **11836158994** was downloaded and independently verified:
+archive SHA-256 `771e9295b8e216b1c41244d0cf0a817fc8f981168363c21952034379805ab444`,
+all 27 patch hashes regenerated from the immutable build commit, 12 safe relative
+symlinks, ARM64, production routing, isolated bundle ID and strict deep ad-hoc
+signatures. Later source edits cannot contaminate artifact comparison.
+
+The previous custom build quit normally and the corrected bundle launched through
+the private-owner launcher. The official app was not stopped or replaced. Actual
+UI opened the native form and successfully requested a fresh code for the owner's
+Gmail account; it now shows **six-character** code entry and an enabled Sign In
+action with no error. The owner is asked to enter the code themselves. Successful
+code exchange, persistence, listener enablement and Pixel/FCM remain unverified.
+No code or credential was emitted in the post-request inspection.
+
+Current bundle: ignored `captures/runtime/mac-companion-38433167598-local-app/`.
+Archive/receipt/verifier are retained under the matching runtime names. This bundle
+predates the paused-heartbeat fix; follow-up run **38437521385** at `758d3688`
+has passed its integration/cache preparation steps and is now in full compilation.
+It will also establish whether the bounded compiler cache can be saved. No new
+Android signed preview is required for these Mac-only fixes; 659 remains current.
+
 ## Compiler reuse for subsequent builds — 2026-10-13
 
 Run 38417815664 spent **79m47s** in the full app build and only **25s** in

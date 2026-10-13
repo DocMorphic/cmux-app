@@ -1,3 +1,20 @@
+## Current native delivery checkpoint — 2026-10-13
+
+The corrected Mac sign-in build **38433167598 / 06b0e294** passed and is now
+verified, extracted and running. All 27 source hashes, archive/signatures, ARM64
+and production routing match. A real fresh-code request reaches the corrected
+six-character form; the owner is entering the code. Successful verification and
+native account/listener/Pixel/FCM acceptance remain open. The official app and
+phone data are preserved. See MAC_NOTIFICATION_BUILD.md for exact evidence.
+
+Follow-up **38437521385 / 758d3688** is compiling the helper heartbeat fix and
+first bounded compiler-cache recipe. It remains a specific live job, not a reason
+to redispatch. New Android source **24b3db79** adds the first static localization
+pass: 212 Text calls, 84 source strings/nine locale resources, successful main/test
+compilation and 756 exact compiled values. Full localization/RTL/ART/physical
+acceptance stays open; signed 659 is unchanged. See PARITY.md and the selected
+catalog provenance. None of these checkpoints establishes full parity.
+
 ## Mac email-code validation correction — 2026-10-13
 
 The owner clarified that input was accepted but Sign In showed an error; a focus
