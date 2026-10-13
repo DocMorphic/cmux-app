@@ -1,5 +1,29 @@
 # Custom Mac notification build
 
+## Mac email-code validation correction — 2026-10-13
+
+The owner clarified that input was accepted but Sign In showed an error; a focus
+failure is not established. Source review found a real validator bug: the custom
+form accepted only six ASCII digits, while upstream iOS
+`SignInCodeInputPolicy` accepts ASCII letters/digits, uppercases, strips formatting
+and clamps to six characters. The custom model now matches that policy and the
+form says six-character code. The coordinator still composes the normalized
+prefix with its own opaque nonce and performs the existing verified sign-in flow.
+
+The Swift fixture now compiles the actual pinned iOS policy/action files and
+compares ten representative numeric, mixed-case, formatted, oversized and Unicode
+inputs. Its successful verification path uses `ab12cd` and observes `AB12CD` at
+the injected coordinator seam. Validation/retry/cancellation/busy/late-result
+checks pass locally. This establishes normalization and form state, not a real
+code exchange. It was not a phone/Android code change; signed build 659 remains
+current. The already running Mac artifact predates this fix and needs rebuilding.
+
+The attempted full local UI check still reports an unaccepted Xcode license,
+despite `xcodebuild -version` identifying Xcode 27.0; version reporting is not
+license acceptance. The hosted build keeps its mandatory UI check. No raw code,
+nonce or credential was recorded. Logs are ignored under
+`captures/runtime/companion-email-code-fix-20261013`.
+
 ## Updated Mac companion verified and launched — 2026-10-13
 
 Hosted run 38417815664 succeeded at source `3247ee9a`, upstream `f4b15090`.

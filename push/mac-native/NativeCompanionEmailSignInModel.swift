@@ -31,7 +31,7 @@ final class NativeCompanionEmailSignInModel {
     func submit() {
         guard !busy, !authBusy(), !authenticated(), !completed else { return }
         let stage = stage
-        let value = (stage == .email ? email : code).trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = stage == .email ? email.trimmingCharacters(in: .whitespacesAndNewlines) : Self.normalizedCode(code)
         if stage == .email {
             let parts = value.split(separator: "@", omittingEmptySubsequences: false)
             guard value.count <= 320, parts.count == 2, parts.allSatisfy({ !$0.isEmpty }),
@@ -39,7 +39,7 @@ final class NativeCompanionEmailSignInModel {
                 failure = .invalidEmail; return
             }
         } else {
-            guard value.utf8.count == 6, value.utf8.allSatisfy({ (48...57).contains($0) }) else {
+            guard value.utf8.count == 6 else {
                 failure = .invalidCode; return
             }
         }
@@ -65,6 +65,20 @@ final class NativeCompanionEmailSignInModel {
             guard revision == request else { return }
             busy = false; operation = nil
         }
+    }
+
+    /// Match the upstream iOS input policy; Stack codes may contain letters.
+    static func normalizedCode(_ value: String) -> String {
+        var normalized = ""
+        for scalar in value.unicodeScalars {
+            guard normalized.count < 6 else { break }
+            switch scalar.value {
+            case 48...57, 65...90: normalized.unicodeScalars.append(scalar)
+            case 97...122: normalized.unicodeScalars.append(UnicodeScalar(scalar.value - 32)!)
+            default: continue
+            }
+        }
+        return normalized
     }
 
     func changeEmail() {

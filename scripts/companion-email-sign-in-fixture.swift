@@ -35,16 +35,19 @@ import Foundation
         rejectSend = false; model.submit(); model.submit()
         try await settle { !model.busy }
         try require(sent == ["owner@example.test"] && model.sentEmail == "owner@example.test" && model.stage == .code)
-        for invalid in ["", "12345", "1234567", "123 56", "１２３４５６", "abcdef"] {
+        for sample in ["", "12345", "1234567", "123 56", "１２３４５６", "abcdef", "aB-12 cd", "Åå😀AB12CD", "123456", "ab12cd"] {
+            try require(NativeCompanionEmailSignInModel.normalizedCode(sample) == SignInCodeInputPolicy.normalizedCode(sample))
+        }
+        for invalid in ["", "12345", "123 56", "１２３４５６"] {
             model.code = invalid; model.submit()
             try require(model.failure == .invalidCode && verified.isEmpty)
         }
-        model.code = " 123456 "; rejectVerify = true; model.submit()
+        model.code = " ab12cd "; rejectVerify = true; model.submit()
         try await settle { !model.busy }
         try require(model.failure == .verify && model.stage == .code && !model.completed)
         rejectVerify = false; model.submit(); model.submit()
         try await settle { !model.busy }
-        try require(verified == ["123456"] && model.completed && model.code.isEmpty)
+        try require(verified == ["AB12CD"] && model.completed && model.code.isEmpty)
         model.submit(); try require(verified.count == 1)
 
         authenticated = false; model.changeEmail(); model.email = "new@example.test"

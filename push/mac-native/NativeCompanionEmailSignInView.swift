@@ -32,7 +32,7 @@ import SwiftUI
                         .focused($inputFocused).disabled(model.busy).onSubmit { model.submit() }
                         .accessibilityIdentifier("androidCompanion.signIn.email")
                 } else {
-                    Text("Enter the newest six-digit code sent to \(model.sentEmail).").foregroundStyle(.secondary)
+                    Text("Enter the newest six-character code sent to \(model.sentEmail).").foregroundStyle(.secondary)
                     TextField("Sign-in code", text: $model.code).textContentType(.oneTimeCode)
                         .focused($inputFocused).disabled(model.busy).onSubmit { model.submit() }
                         .accessibilityIdentifier("androidCompanion.signIn.code")
@@ -65,7 +65,7 @@ import SwiftUI
     private func message(_ failure: NativeCompanionEmailSignInModel.Failure) -> String {
         switch failure {
         case .invalidEmail: "Enter a valid email address."
-        case .invalidCode: "Enter the six-digit code from your newest email."
+        case .invalidCode: "Enter the six-character code from your newest email. Letters and numbers are accepted."
         case .send: "Couldn't send a code. Check your connection and try again."
         case .verify: "Couldn't sign in. Check your connection and use the newest code, or request a new one."
         }

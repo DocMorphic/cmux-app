@@ -50,8 +50,13 @@ def main():
             capture_output=True, timeout=90)
         (output / 'ui-typecheck.log').write_bytes(typed.stdout + typed.stderr); typed.check_returncode()
     binary = output / 'fixture'
+    policy = output / 'SignInCodeInputPolicy.swift'
+    action = output / 'SignInCodeInputChangeAction.swift'
+    for destination in (policy, action):
+        path = 'Packages/iOS/CmuxMobileWorkspace/Sources/CmuxMobileWorkspace/' + destination.name
+        destination.write_bytes(subprocess.check_output(['git', '-C', str(args.upstream), 'show', f'{patch.REF}:{path}']))
     build = subprocess.run(['/usr/bin/swiftc', '-swift-version', '6', str(model),
-        str(root / 'scripts/companion-email-sign-in-fixture.swift'), '-o', str(binary)], capture_output=True, timeout=90)
+        str(policy), str(action), str(root / 'scripts/companion-email-sign-in-fixture.swift'), '-o', str(binary)], capture_output=True, timeout=90)
     (output / 'build.log').write_bytes(build.stdout + build.stderr); build.check_returncode()
     result = subprocess.run([str(binary)], capture_output=True, timeout=15)
     (output / 'behavior.log').write_bytes(result.stdout + result.stderr); result.check_returncode()
