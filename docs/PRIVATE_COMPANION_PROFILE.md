@@ -1,5 +1,33 @@
 # cmux-app Mac notification companion profile
 
+## Active registration/admission source review — 2026-10-13
+
+Android's account connection uses `NativeIrohBackend` / `IrohV2ControlSession`
+against the production v2 worker. The scoped website `/api/devices/iroh` broker
+has a different build-lane policy and does not determine this v2 connection's
+acceptance. No legacy policy workaround or server mutation was made.
+
+Read-only public `/v2/health` returned HTTP 200 over normally verified HTTPS,
+reported production revision `b9e28cf91e80c613a119580d9353d4c38e698ce9`, the
+`cmux.mac-peer-inbound.v1` rule and storage maximum/write versions 7/6. Exact
+Git comparisons find the v2 `contracts/common.ts`, `storage/team-store.ts`,
+`broker.ts` and `auth.ts` byte-identical at that reported revision and our custom
+Mac pin `f4b15090`. Source hashes and the public response are ignored under
+`captures/runtime/custom-companion-registration-audit-20261013/`.
+
+Those schemas accept the full namespace/tag as scoped identity fields and retain
+the `mac`/`ios` platform enum. The existing Android compatibility profile sends
+the mobile wire discriminator while retaining its own package namespace and
+Android display name. The active directory's phone inbound branch requires Mac
+pairing enabled, current authority and same-account or an explicit incoming
+permission; its app/build equality restriction applies to Mac peers. The pinned
+Mac `V2InboundAdmissionAuthority` preserves those phone opt-in, team/environment/
+project, endpoint, revocation and lease checks. Source review therefore finds no
+additional namespace allowlist barrier for this selected companion on the active
+v2 path. This is not proof of production registration, directory publication,
+QUIC admission or native key exchange. Verify all of those on the actual Pixel
+after custom Mac sign-in and explicit listener enablement.
+
 ## Implemented — 2026-10-12
 
 The selected private Firebase/custom Mac workflow uses tag `android-push`, bundle
