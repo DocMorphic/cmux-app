@@ -51,7 +51,7 @@ class PhonePushSettingsTest {
         } }
         compose.onNodeWithText("Cancel Pairing").performClick()
         assertEquals("pending-id", cancelled)
-        compose.onNodeWithText("Helper paired · delivery not yet verified").assertDoesNotExist()
+        compose.onNodeWithText(PhonePushSetupStage.PAIRED.text).assertDoesNotExist()
         compose.onNodeWithTag("push.message").assertTextEquals("Pairing started")
     }
     @Test fun macControlsReflectAuthorityAndDisableWhileUnconfirmed() {

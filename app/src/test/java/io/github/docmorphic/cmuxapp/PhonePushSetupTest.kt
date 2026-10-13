@@ -66,7 +66,6 @@ class PhonePushSetupTest {
             records.confirm(attempt, c.token, it, c.fixture.getJSONObject("ack"))
         }
         assertEquals(PhonePushSetupStage.PAIRED, model(c).stage)
-        assertTrue(model(c).stage.text.contains("not yet verified"))
         assertEquals(PhonePushSetupStage.RENEW, model(c, provider(c).copy(token = c.token.copy(revision = "new"))).stage)
         c.state.remove(PhoneHelperEnrollmentState.RECEIPTS)
         assertEquals(PhonePushSetupStage.PAIR, model(c).stage)

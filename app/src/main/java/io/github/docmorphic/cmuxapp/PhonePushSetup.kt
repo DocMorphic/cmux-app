@@ -11,7 +11,7 @@ internal enum class PhonePushSetupStage(val text: String) {
     PERMISSION("Allow notifications in Android settings"), BACKGROUND("Enable background notifications first"),
     DISABLED("Push alerts are off"), CLEANUP("Finishing previous push setup"), TOKEN("Registering this phone"),
     CONNECT("Connect a Mac to set up push alerts"), PAIR("Pair your Mac’s notification helper"),
-    ENROLLING("Pairing notification helper"), PAIRED("Helper paired · delivery not yet verified"),
+    ENROLLING("Pairing notification helper"), PAIRED("Notification helper paired"),
     UPDATING("Updating phone registration"), RENEW("Push setup needs repair · pair the helper again")
 }
 internal data class PhonePushSetupMac(val origin: String, val name: String, val stage: PhonePushSetupStage,

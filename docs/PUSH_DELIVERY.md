@@ -1,5 +1,20 @@
 # Android background push
 
+## Paired status wording — 2026-10-13
+
+A valid current helper receipt now displays **Notification helper paired**.
+The previous **delivery not yet verified** suffix exposed development acceptance
+status in the product and could never change after a successful notification.
+Pairing still requires the same current token/native-key/helper receipt; this
+wording does not assert successful FCM or background delivery. Those requirements
+remain in the verification records. The pending-attempt UI check now uses the
+current paired label so it cannot pass against obsolete copy. A redundant JVM
+assertion of the old suffix was removed; receipt/token/repair assertions remain.
+
+This is a text-only change reviewed in source. No APK/runtime test or signed
+release is produced for it; it belongs to the next Android milestone. Signed
+build 659 retains the old wording. Real Pixel/provider acceptance remains open.
+
 ## Native supervisor and configured Firebase clients — 2026-10-11
 
 The native sink now supervises one explicitly enabled private helper child with
@@ -444,8 +459,9 @@ before authorizing token registration. The settings reflect installed Firebase
 configuration, account, Android permission, background preference, consent,
 provider cleanup/token readiness, native exchange, pending pairing and the saved
 registration receipt. An unconfigured build cannot enable cloud push. A valid
-receipt displays **Helper paired · delivery not yet verified**, not full delivery
-readiness. Token changes request fresh pairing until automatic renewal is added.
+receipt displayed **Helper paired · delivery not yet verified** at this checkpoint;
+the current wording is recorded above and still does not claim provider delivery.
+Token changes requested fresh pairing until automatic renewal was subsequently added.
 
 A Mac helper's raw JSON offer can be scanned as a QR code with the existing Google
 scanner or pasted into a password input. Review validates the offer against the
