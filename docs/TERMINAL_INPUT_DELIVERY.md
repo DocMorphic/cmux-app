@@ -1,5 +1,29 @@
 # Identified terminal input — protocol, lanes and session sender
 
+## Reconciliation with custom Mac source — 2026-10-13
+
+An exact source comparison from the prior scoped audit `204a11df` to the custom
+Mac pin `f4b15090` finds no changes in these five files: `MobileTerminalInputDelivery`,
+`MobileTerminalInputFrame`, `MobileTerminalInputSender`,
+`CmxIrohTerminalOutputEnvelope` and `CmxIrohTerminalOutputEnvelopeCodec`.
+Their bytes and SHA-256 digests were compared directly through Git, rather than
+inferring compatibility from file names or a green app build. The existing Swift
+wire goldens remain applicable to these definitions. The global parity pin is
+unchanged; newer shell/editor/sizing and host integration require their own audits.
+
+The current Android sender, outbox and retained input session were also read.
+Lane/RPC ordering, same-identity retries, cumulative acknowledgements and exact
+original-owner routing remain implemented. Android's previously documented
+immutable payloads, stale/future acknowledgement fences, bounded path deadlines
+and explicit recovery continue to differ from some Swift sender behavior; these
+are implementation choices, not objectively unavoidable Android limitations.
+No production input change or duplicate feature was added by this comparison.
+No new runtime test was executed: the existing scoped evidence below remains
+limited to its original artifacts and scenarios. Full current Pixel/Mac input,
+interrupted production outbox and process recovery acceptance remain open.
+The source-equality receipt is ignored under
+`captures/runtime/terminal-input-f4-reconciliation/`.
+
 ## Composer submit acknowledgment — 2026-10-06
 
 Scoped source comparison: `MobileTerminalPasteResponse` in
