@@ -1,5 +1,35 @@
 # Custom Mac notification build
 
+## Compiler reuse for subsequent builds — 2026-10-13
+
+Run 38417815664 spent **79m47s** in the full app build and only **25s** in
+dependency setup. The workflow now optionally restores Xcode compiler results,
+Debug products and SourcePackages. Reuse is scoped to the exact upstream commit,
+Xcode/SDK, macOS/architecture, absolute source/build paths and workflow/cache
+recipe. Separate source keys record the actual reviewed patch hashes. Run-specific
+save keys permit later successful builds to replace an older cache through prefix
+lookup, following [GitHub's cache matching contract](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+
+The pinned upstream `reload-build.yml` normalizes tracked-source timestamps for
+incremental builds. Our adaptation hashes **working-tree contents**, including
+the added native sources: upstream's index blob IDs would miss changes made by
+our patch installer. Unchanged inputs retain their signatures; edited inputs
+receive different signatures. Deleted inputs remain deleted and symlink targets
+are not modified. Eight focused checks pass, including the unchanged-index /
+changed-patch regression, cache isolation and fresh-checkout reuse.
+
+Native integration checks, full compilation, reviewed source checks and signature /
+configuration verification still run. Only a successfully packaged/uploaded build
+can save compiler state, bounded to **4 GiB**; indexes/logs and non-Debug products
+are excluded. Restore errors fall back to a clean build. A failed build that
+actually restored a cache preserves its failure log and retries cold once, within
+the existing job timeout. No account/helper credentials enter this manual workflow.
+
+This applies to future dispatches. Existing run 38433167598 remains on its original
+recipe and is not restarted. Hosted cache restore/recompile/cold-retry behavior,
+cache size and actual time savings remain unverified until a subsequent build.
+No additional full Mac or Android build is dispatched just to populate a cache.
+
 ## Mac email-code validation correction — 2026-10-13
 
 The owner clarified that input was accepted but Sign In showed an error; a focus

@@ -23,6 +23,7 @@ jobs:
       CMUX_IROH_V2_ENVIRONMENT: production
       CMUX_IROH_V2_BASE_URL: https://cmux-iroh-v2.debussy.workers.dev
       CARGO_BUILD_JOBS: '2'
+      SEGMENT_DOWNLOAD_TIMEOUT_MINS: '2'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,15 +64,68 @@ jobs:
           python3 scripts/check-native-push-hooks.py --upstream "$GITHUB_WORKSPACE/upstream" --node "$(command -v node)" --output build/mac-checks/hooks
           python3 scripts/check-native-push-pairing.py --node "$(command -v node)" --patched-app-delegate build/mac-checks/hooks/patched/Sources/AppDelegate.swift --output build/mac-checks/pairing
           python3 scripts/check-native-push-owner.py --node "$(command -v node)" --output build/mac-checks/owner
+          python3 -m unittest discover -s scripts/tests -p test_mac_companion_build_cache.py
+      - name: Identify compatible Mac compiler cache
+        id: compiler_cache_keys
+        run: |
+          python3 cmux-app/scripts/mac-companion-build-cache.py keys \
+            --upstream "$GITHUB_WORKSPACE/upstream" \
+            --derived-data "$RUNNER_TEMP/cmux-android-push-derived" \
+            --output cmux-app/build/mac-checks/compiler-cache-inputs.json
+      - name: Restore compatible Mac compiler results
+        id: compiler_cache
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ runner.temp }}/cmux-android-push-derived/Build/Intermediates.noindex
+            ${{ runner.temp }}/cmux-android-push-derived/Build/Products/Debug
+            ${{ runner.temp }}/cmux-android-push-derived/ModuleCache.noindex
+            ${{ runner.temp }}/cmux-android-push-derived/SDKStatCaches.noindex
+            ${{ runner.temp }}/cmux-android-push-derived/SourcePackages
+          key: ${{ steps.compiler_cache_keys.outputs.key }}
+          restore-keys: |
+            ${{ steps.compiler_cache_keys.outputs.sourcePrefix }}
+            ${{ steps.compiler_cache_keys.outputs.prefix }}
+      - name: Prepare patched sources for incremental compilation
+        env:
+          CACHE_OUTCOME: ${{ steps.compiler_cache.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$CACHE_OUTCOME" != success ]; then
+            rm -rf "$RUNNER_TEMP/cmux-android-push-derived"
+          fi
+          python3 cmux-app/scripts/mac-companion-build-cache.py normalize \
+            --upstream "$GITHUB_WORKSPACE/upstream" \
+            --output cmux-app/build/mac-checks/compiler-source-timestamps.json
       - name: Build the full tagged app with production account routing
         id: native_build
         working-directory: upstream
         env:
           CMUX_GHOSTTYKIT_PREPROVISIONED: '1'
+          CACHE_MATCHED_KEY: ${{ steps.compiler_cache.outcome == 'success' && steps.compiler_cache.outputs.cache-matched-key || '' }}
         run: |
           set -euo pipefail
-          ./scripts/reload.sh --tag android-push --prod-auth --no-global-cli-links \
-            --derived-data "$RUNNER_TEMP/cmux-android-push-derived" 2>&1 | tee "$RUNNER_TEMP/cmux-android-push-build.log"
+          run_build() {
+            ./scripts/reload.sh --tag android-push --prod-auth --no-global-cli-links \
+              --derived-data "$RUNNER_TEMP/cmux-android-push-derived"
+          }
+          set +e
+          run_build 2>&1 | tee "$RUNNER_TEMP/cmux-android-push-build.log"
+          build_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$build_status" -ne 0 ] && [ -n "$CACHE_MATCHED_KEY" ]; then
+            echo "::warning::Cached build failed; preserving its log and retrying once without compiler cache"
+            if [ -f /tmp/cmux-reload-android-push.log ]; then
+              cp /tmp/cmux-reload-android-push.log "$RUNNER_TEMP/cmux-android-push-cache-attempt.log"
+            fi
+            rm -rf "$RUNNER_TEMP/cmux-android-push-derived"
+            set +e
+            run_build 2>&1 | tee "$RUNNER_TEMP/cmux-android-push-build.log"
+            build_status=${PIPESTATUS[0]}
+            set -e
+          fi
+          exit "$build_status"
       - name: Package and verify the isolated development app
         id: package
         run: |
@@ -85,6 +139,34 @@ jobs:
           path: cmux-app/build/mac-companion/
           if-no-files-found: error
           retention-days: 14
+      - name: Measure compiler cache size
+        id: compiler_cache_size
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'cmux-android-push-derived'
+          names = ['Build/Intermediates.noindex', 'Build/Products/Debug', 'ModuleCache.noindex',
+                   'SDKStatCaches.noindex', 'SourcePackages']
+          paths = [str(root / name) for name in names if (root / name).exists()]
+          kib = sum(int(row.split()[0]) for row in subprocess.check_output(['du', '-sk', *paths], text=True).splitlines()) if paths else 0
+          enabled = 0 < kib <= 4 * 1024 * 1024
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as stream:
+              stream.write('enabled=' + str(enabled).lower() + '\n')
+          print(f'Compiler cache: {kib} KiB; save enabled: {enabled} (4 GiB limit)')
+          PY
+      - name: Save verified Mac compiler results
+        if: steps.compiler_cache_size.outputs.enabled == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ runner.temp }}/cmux-android-push-derived/Build/Intermediates.noindex
+            ${{ runner.temp }}/cmux-android-push-derived/Build/Products/Debug
+            ${{ runner.temp }}/cmux-android-push-derived/ModuleCache.noindex
+            ${{ runner.temp }}/cmux-android-push-derived/SDKStatCaches.noindex
+            ${{ runner.temp }}/cmux-android-push-derived/SourcePackages
+          key: ${{ steps.compiler_cache_keys.outputs.key }}
       - name: Preserve compiled app after a packaging failure
         id: recovery
         if: ${{ failure() && steps.native_build.outcome == 'success' && steps.package.outcome == 'failure' }}
@@ -127,6 +209,7 @@ jobs:
           name: cmux-mac-notification-build-diagnostics
           path: |
             ${{ runner.temp }}/cmux-android-push-build.log
+            ${{ runner.temp }}/cmux-android-push-cache-attempt.log
             /tmp/cmux-reload-android-push.log
             cmux-app/build/mac-checks/
           if-no-files-found: ignore
