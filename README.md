@@ -6,13 +6,13 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 654 APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-654/app-release.apk)
-from `d34daed5` is the current verified development preview, including worksheet
-charts and the Gmail-owned Firebase client configuration. Signing, native 16 KiB
-alignment, assets and compiled Firebase resources are verified. Signed-in Pixel
-upgrade, the full custom Mac build, live push delivery and full parity remain open.
-See the [install guide](docs/PIXEL_INSTALL.md) for hashes and exact evidence,
-and [remaining work](docs/REMAINING_WORK.md) for source progress.
+**Signed download:** [build 659 APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-659/app-release.apk)
+from `1f2616f7` is the current verified development preview. It includes the
+accumulated foreground/team-switch and exact-owner connection fixes. Signature,
+16 KiB native alignment, viewer assets, Firebase resources and six CI Android
+runtime class checks pass. Signed-in Pixel upgrade, real Mac pairing/push delivery
+and full parity remain open. See the [install guide](docs/PIXEL_INSTALL.md) for
+hashes and evidence, and [remaining work](docs/REMAINING_WORK.md) for acceptance.
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
 Android now wires Iroh/V2 discovery and admitted RPC connections into the app and

@@ -1,5 +1,29 @@
 ## Isolated Mac email-code sign-in implementation — 2026-10-13
 
+## Updated Mac companion verified and launched — 2026-10-13
+
+Hosted run 38417815664 succeeded at source `3247ee9a`, upstream `f4b15090`.
+Full app compilation took **79m47s**. Artifact 11829858319 was downloaded;
+archive SHA-256 is `2ae5d42766a1693f4af57700500dff739b6c148c7bc9919a40c843d4ee5863e2`.
+All **27 reviewed patch-file hashes** match. Archive paths/12 relative symlinks,
+ARM64, deep ad-hoc signatures, isolated bundle ID and production routes verify.
+
+The old custom app quit normally and the new one launched through the explicit
+private-owner launcher. The official app was not replaced or stopped. Actual UI
+now displays the native email-code form, and a real code request successfully
+advanced to its code-entry stage without a browser callback. The owner then
+reported being unable to enter the code; input focus/error/window diagnosis is
+pending, with the exact symptom requested. This is not successful sign-in or
+native push acceptance. Subsequent UI inspection currently returns a ScreenCaptureKit
+invalid-parameter error after the user changed the app state.
+
+The current local bundle is under ignored
+`captures/runtime/mac-companion-38417815664-local-app/`. Verification/manifest,
+source/ZIP receipt and checker are under the corresponding ignored verified
+folder. Native account/key-store/helper listener, Pixel pairing and real FCM still
+remain open. No private code, token or provider credential was recorded in this
+checkpoint. Signed Android build 659 is separately verified and published.
+
 The custom Android-push Mac app now exposes the existing production
 `AuthCoordinator.sendCode(to:)` / `verifyCode(_:)` flow instead of requesting a
 browser callback rejected by cmux.com. The new form uses the composition's same

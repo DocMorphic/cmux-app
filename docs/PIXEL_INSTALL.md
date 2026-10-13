@@ -3,7 +3,38 @@
 Current source development is on `main`. These are development milestones;
 see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
-## Current verified signed development APK — build 654 (2026-10-12)
+## Current verified signed development APK — build 659 (2026-10-13)
+
+[Download build 659](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-659/app-release.apk)
+from the [published development preview](https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-659).
+[Workflow 659](https://github.com/DocMorphic/cmux-app/actions/runs/38422493021) passed
+at `1f2616f72492b86f14119b62ccffe0e31c719dec`.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **659**, version **0.2.0**.
+- SHA-256: `6725cffec437a9c5cde9cdc5b1dbf2925b9258b9caafb6c183c67755b1826314`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **277,268,252 bytes**.
+- Local file: `captures/runtime/release-milestone-38422493021/signed/app-release.apk`.
+
+This milestone includes the accumulated original-team foreground continuation,
+input/sizing, Files/Changes/browser/notification/agent actions, exact-owner Mac
+details/removal/route/private-address controls, Settings team-switch integration
+and same-locator cleanup fixes. These changes have scoped mock-server/component
+checks; they are not all physically accepted on a signed-in Pixel/Mac.
+
+Independent downloaded bytes match the GitHub digest, release manifest and CI
+receipt. The stable signature, all **22 native ELF/RELRO/ZIP alignment checks**,
+**21 pinned viewer assets**, **14 excluded debug components** and the private
+Firebase release resources pass. The CI runtime artifact records six successful
+Android 17 ART class-loading checks, including `NativeScreenKt` (1,476 methods).
+The Cloud checkpoint job passed; no fresh native compilation is claimed here.
+
+Update the existing release app in place; never uninstall or clear data to test
+this build. A signed-in physical upgrade, real custom-Mac pairing, FCM delivery
+and full parity remain unverified. The debug app is a separate package/sign-in.
+Evidence is ignored under `captures/runtime/release-milestone-38422493021`.
+
+## Previous verified signed development APK — build 654 (2026-10-12)
 
 [Download build 654](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-654/app-release.apk)
 from the [published development preview](https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-654).
