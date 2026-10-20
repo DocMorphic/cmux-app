@@ -33,8 +33,24 @@ pinning; programmatic motion does not unpin the reader.
 Loaded windows above 1,500 rows now keep the newest 1,000 acknowledged rows when
 resting at newest, outside scrolling, history loading and open action sheets.
 The cut preserves unread/catch-up context, reserved action cards, quoted parents
-and every unacknowledged send. Dropped history remains pageable; this does not
-add automatic history prefetch or its retry policy.
+and every unacknowledged send. Dropped history remains pageable.
+Current-position history prefetch now requests within four viewport heights and
+stops wanting failed reads beyond six, matching the pinned geometry policy. A
+bounded, unplaced measurement of the same row composition supplies real pixel
+offsets for variable-height text, quotes and cards; it exposes no extra controls
+to accessibility. Positions beyond the measured six-screen region only need a
+proven lower bound for the stop decision. Requests share one retained owner task
+and retry at 1/2/4/8-second intervals while wanted. Moving away allows an active
+read to finish and stops subsequent retries; pause/retirement cancels the task,
+with a generation fence against a late cancelled task resetting its replacement.
+The owner exposes read activity to the composition: a paused layout cannot
+restart history, and resume rechecks the existing viewport without another drag.
+Catch-up shares cancellation of the active history read and fences stale results
+from a resumed jump, without cancelling retained sends.
+History pages insert unknown rows before their requested boundary and preserve
+current known values. Predicting a fling's resting target before reaching this
+region remains open; this is current-position prefetch, not complete scrolling
+parity.
 The same owner retains query, drafts and navigation state across recomposition;
 backgrounding pauses reads. Account/Mac retirement cancels operations and clears
 content. Every request still uses the real client's admission checks, without a
@@ -165,9 +181,37 @@ Evidence is ignored under `captures/recovery-20261020/`:
   the committed vectors; its fixture is inert state, not UIKit or a real host.
   This batch postdates signed candidate 705.
 
+- Current-position history policy matches seventeen geometry and eight backoff
+  vectors executed through the actual pinned Swift geometry file and store
+  backoff body. The async pager itself is Android owner logic, not executed Swift
+  concurrency. Six session regressions cover coalescing/retry timing, moving
+  away, cancelled replacement reads, paused layout requests, cancelled catch-up
+  and overlapping/empty older pages. Two geometry/policy tests plus the existing
+  session/window/reading/timeline cases pass 58 focused checks. The full JVM suite
+  passes 3,015 with four skips and zero failures
+  (`chief-history-lifecycle-build-and-jvm.log`). The source checker compares the
+  committed vectors and validates both immutable source hashes. This also
+  postdates signed candidate 705 and does not establish fling-target prefetch,
+  UIKit comparison, performance or real-host acceptance.
+  Fifteen Android cases pass in 33.931 s with the final production build and
+  test harness (`chief-history-settled-android-final.log`); the crash buffer is
+  empty and the emulator was stopped. The variable-height/quote case requests
+  before reaching the oldest row, stops a failed retry beyond six screens,
+  prevents a paused layout restarting reads, resumes without another gesture
+  and preserves the actual visible message's pixel position after prepend.
+  Earlier attempts exposed harness assumptions: index movement alone did not
+  represent a reader drag, a send click could precede the enabled control, and
+  a deletion assertion could precede its coroutine-driven render. The final
+  harness starts with a real drag and uses bounded observable readiness/result
+  waits; late-echo and full-button bounds assertions remain. Failed attempts
+  are retained in `chief-history-android.log`,
+  `chief-history-lifecycle-android-final.log` and
+  `chief-history-ready-android-final.log`. These are scoped typed-owner emulator
+  checks, not physical-device, matched-iOS or accessibility acceptance.
+
 This is an initial mounted implementation, not Chief parity acceptance. Finish
 exact bubble/tail/drawer geometry and colors, thread/reply interactions,
-automatic history prefetch/retry, remaining localization
+fling-target history prefetch, remaining localization
 and TalkBack. Deeper uncertainty recovery, new-visit positioning and remaining scroll/keyboard behavior also
 remain open. Verify cold process and connection replacement restoration and
 wide-screen navigation. Compare matched iOS states and exercise a supporting

@@ -53,5 +53,8 @@
     "keys": {
       "conversation.catchUp.label": "chief_catch_up_label"
     }
+  },
+  "historyFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationHistoryPrefetch.swift": "73559239bc725912e7a0e7b1cdba67b2651f1f7d4e1509304ad3966f967b7e75"
   }
 }

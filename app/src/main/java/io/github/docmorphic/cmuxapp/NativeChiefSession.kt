@@ -79,6 +79,7 @@ internal data class NativeChiefOutgoing(val clientMessageId: String, val text: S
 internal data class NativeChiefTranscriptState(
     val messages: List<NativeChiefMessage> = emptyList(), val outgoing: List<NativeChiefOutgoing> = emptyList(),
     val loading: Boolean = true, val loadingOlder: Boolean = false, val hasMore: Boolean = false,
+    val historyRetryAttempt: Int = 0, val historyError: String? = null, val readsActive: Boolean = false,
     val working: Boolean = false, val connected: Boolean = false, val error: String? = null,
     val lastReadSeq: ULong = 0uL, val unread: Long = 0, val headSeq: ULong = 0uL,
     val catchUpMarker: ULong? = null, val catchUpCount: Long = 0, val loadingCatchUp: Boolean = false,
@@ -104,6 +105,11 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private var reading = NativeChiefReading()
     private var awaitingReadBaseline = false
     private var sendTail: Deferred<Unit>? = null
+    private var olderTask: Job? = null
+    private var olderWanted = false
+    private var olderGeneration = 0L
+    private var readsPaused = false
+    private var historyOperation: Deferred<NativeChiefRead>? = null
     private val deletedClientIds = mutableSetOf<String>()
     private val deletedMessageIds = mutableSetOf<String>()
     private fun checkOwner() { if (!job.isActive || !permits()) { close(); error("Chief computer or account changed") } }
@@ -120,6 +126,8 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     fun start() {
         checkOwner()
         if (monitor?.isActive == true) return
+        readsPaused = false
+        mutableState.value = state.value.copy(readsActive = true)
         awaitingReadBaseline = true
         monitor = scope.launch {
             var first = true
@@ -144,6 +152,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
                         maxOf(0, result.unreadCount ?: 0), state.value.headSeq))
                     initialPage = false; first = false; awaitingReadBaseline = false
                     refreshReading()
+                    if (olderWanted) requestOlder()
                 } catch (e: Exception) {
                     currentCoroutineContext().ensureActive(); checkOwner()
                     mutableState.value = state.value.copy(loading = false, connected = false, error = e.message ?: "Chief disconnected")
@@ -278,32 +287,70 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         mutableState.value = snapshot.copy(messages = snapshot.messages.filter { it.id in kept }, hasMore = true,
             localClientIds = snapshot.localClientIds.filterKeys { it in kept },
             actionErrors = snapshot.actionErrors.filterKeys { it in kept })
+        olderWanted = false
         refreshReading()
         return true
     }
 
-    suspend fun loadOlder() { loadOlderPage(50) }
-    private suspend fun loadOlderPage(limit: Int): Boolean {
+    /** Scroll ticks share one owner-held fetch; leaving the region stops retries, not an in-flight read. */
+    fun requestOlder() {
         checkOwner()
-        if (state.value.loadingOlder || !state.value.hasMore) return false
+        if (readsPaused) return
+        olderWanted = true
+        if (initialPage || state.value.loadingOlder || state.value.loadingCatchUp || !state.value.hasMore || olderTask?.isActive == true) return
+        val generation = ++olderGeneration
+        mutableState.value = state.value.copy(loadingOlder = true, historyRetryAttempt = 0)
+        olderTask = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                var attempt = 0
+                while (isActive) {
+                    if (loadOlderPage(50, reserved = true)) { olderWanted = false; return@launch }
+                    attempt = (attempt + 1).coerceAtMost(Int.MAX_VALUE - 1)
+                    mutableState.value = state.value.copy(historyRetryAttempt = attempt)
+                    delay(NativeChiefHistory.backoff(attempt))
+                    if (!olderWanted) return@launch
+                }
+            } finally {
+                if (generation == olderGeneration && job.isActive && permits())
+                    mutableState.value = state.value.copy(loadingOlder = false, historyRetryAttempt = 0)
+            }
+        }
+    }
+    fun olderNoLongerWanted() { checkOwner(); olderWanted = false }
+    suspend fun loadOlder() { requestOlder(); olderTask?.join() }
+    private suspend fun loadOlderPage(limit: Int, reserved: Boolean = false): Boolean {
+        checkOwner()
+        if (readsPaused || (!reserved && state.value.loadingOlder) || !state.value.hasMore) return false
         val before = state.value.messages.minOfOrNull { it.seq } ?: return false
+        val generation = olderGeneration
         mutableState.value = state.value.copy(loadingOlder = true)
+        val operation = scope.async { read(before, limit) }
+        historyOperation = operation
         try {
-            val result = read(before, limit)
-            check(result.messages.all { it.seq < before }) { "Chief history did not advance" }
-            merge(result.messages, allowOlder = true)
-            mutableState.value = state.value.copy(hasMore = result.hasMore && result.messages.isNotEmpty(), error = null)
+            val result = operation.await()
+            if (readsPaused || generation != olderGeneration) return false
+            val known = state.value.messages.map { it.id }.toSet()
+            merge(result.messages.filter { it.seq < before && it.id !in known }, allowOlder = true)
+            mutableState.value = state.value.copy(hasMore = result.hasMore, historyError = null)
             refreshReading()
             return true
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive(); checkOwner()
-            mutableState.value = state.value.copy(error = e.message ?: "Could not load earlier messages")
+            if (readsPaused || generation != olderGeneration) return false
+            mutableState.value = state.value.copy(historyError = e.message ?: "Could not load earlier messages")
             return false
-        } finally { if (job.isActive && permits()) mutableState.value = state.value.copy(loadingOlder = false) }
+        } finally {
+            if (historyOperation === operation) historyOperation = null
+            operation.cancel()
+            if (!reserved && generation == olderGeneration && job.isActive && permits())
+                mutableState.value = state.value.copy(loadingOlder = false)
+        }
     }
 
     suspend fun loadCatchUpTarget(): String? {
         checkOwner()
+        if (readsPaused) return null
+        val generation = olderGeneration
         val marker = reading.marker?.takeIf { it < ULong.MAX_VALUE } ?: return null
         if (state.value.loadingCatchUp) return null
         mutableState.value = state.value.copy(loadingCatchUp = true)
@@ -311,17 +358,20 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
             var failures = 0
             while (reading.marker == marker) {
                 state.first { !it.loadingOlder }; checkOwner()
+                if (readsPaused || generation != olderGeneration) return null
                 val oldest = state.value.messages.firstOrNull()?.seq ?: return null
                 if (oldest <= marker + 1uL || !state.value.hasMore) return catchUpTarget()?.id
                 val distance = oldest - (marker + 1uL)
                 val limit = if (distance >= 192uL) 200 else maxOf(50, distance.toInt() + 8)
-                if (loadOlderPage(limit)) failures = 0 else {
+                val loaded = loadOlderPage(limit)
+                if (readsPaused || generation != olderGeneration) return null
+                if (loaded) failures = 0 else {
                     if (++failures > 4) return null
-                    delay(minOf(8_000L, 500L * (1L shl minOf(failures, 4))))
+                    delay(NativeChiefHistory.backoff(failures))
                 }
             }
             return null
-        } finally { if (job.isActive && permits()) mutableState.value = state.value.copy(loadingCatchUp = false) }
+        } finally { if (generation == olderGeneration && job.isActive && permits()) mutableState.value = state.value.copy(loadingCatchUp = false) }
     }
 
     fun editDraft(text: String) { checkOwner(); mutableState.value = state.value.copy(draft = text) }
@@ -485,10 +535,14 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         } finally { if (job.isActive && permits()) mutableState.value = state.value.copy(deciding = state.value.deciding - "stop") }
     }
 
-    fun pause() { monitor?.cancel(); monitor = null }
+    fun pause() {
+        readsPaused = true; monitor?.cancel(); monitor = null; ++olderGeneration; olderWanted = false; olderTask?.cancel(); olderTask = null
+        historyOperation?.cancel(); historyOperation = null
+        mutableState.value = state.value.copy(readsActive = false, loadingOlder = false, loadingCatchUp = false, historyRetryAttempt = 0)
+    }
     fun refresh() { checkOwner(); pause(); start() }
     override fun close() {
-        job.cancel(); monitor = null; sendTail = null; deletedClientIds.clear(); deletedMessageIds.clear()
+        job.cancel(); monitor = null; sendTail = null; olderTask = null; olderWanted = false; historyOperation = null; deletedClientIds.clear(); deletedMessageIds.clear()
         reading = NativeChiefReading(); mutableState.value = NativeChiefTranscriptState(loading = false)
     }
 }

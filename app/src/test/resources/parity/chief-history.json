@@ -1,0 +1,123 @@
+{
+  "backoff": [
+    {
+      "attempt": 0,
+      "milliseconds": 500
+    },
+    {
+      "attempt": 1,
+      "milliseconds": 1000
+    },
+    {
+      "attempt": 2,
+      "milliseconds": 2000
+    },
+    {
+      "attempt": 3,
+      "milliseconds": 4000
+    },
+    {
+      "attempt": 4,
+      "milliseconds": 8000
+    },
+    {
+      "attempt": 5,
+      "milliseconds": 8000
+    },
+    {
+      "attempt": 10,
+      "milliseconds": 8000
+    },
+    {
+      "attempt": 9223372036854775807,
+      "milliseconds": 8000
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "LOAD",
+      "distance": -1,
+      "viewport": 900
+    },
+    {
+      "decision": "LOAD",
+      "distance": 0,
+      "viewport": 900
+    },
+    {
+      "decision": "LOAD",
+      "distance": 3599,
+      "viewport": 900
+    },
+    {
+      "decision": "NONE",
+      "distance": 3600,
+      "viewport": 900
+    },
+    {
+      "decision": "NONE",
+      "distance": 3601,
+      "viewport": 900
+    },
+    {
+      "decision": "NONE",
+      "distance": 5399,
+      "viewport": 900
+    },
+    {
+      "decision": "NONE",
+      "distance": 5400,
+      "viewport": 900
+    },
+    {
+      "decision": "STOP",
+      "distance": 5401,
+      "viewport": 900
+    },
+    {
+      "decision": "NONE",
+      "distance": 0,
+      "viewport": 0
+    },
+    {
+      "decision": "STOP",
+      "distance": 1,
+      "viewport": 0
+    },
+    {
+      "decision": "LOAD",
+      "distance": 0,
+      "viewport": 1
+    },
+    {
+      "decision": "LOAD",
+      "distance": 3.999,
+      "viewport": 1
+    },
+    {
+      "decision": "NONE",
+      "distance": 4,
+      "viewport": 1
+    },
+    {
+      "decision": "NONE",
+      "distance": 6,
+      "viewport": 1
+    },
+    {
+      "decision": "STOP",
+      "distance": 6.001,
+      "viewport": 1
+    },
+    {
+      "decision": "NONE",
+      "distance": 3000,
+      "viewport": 500
+    },
+    {
+      "decision": "STOP",
+      "distance": 3001,
+      "viewport": 500
+    }
+  ]
+}

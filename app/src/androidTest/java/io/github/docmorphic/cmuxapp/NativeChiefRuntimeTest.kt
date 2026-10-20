@@ -64,6 +64,9 @@ class NativeChiefRuntimeTest {
         val sends = CopyOnWriteArrayList<Pair<String, String?>>()
         val answers = CopyOnWriteArrayList<Pair<List<String>, String?>>()
         val marks = CopyOnWriteArrayList<ULong>()
+        val historyRequests = CopyOnWriteArrayList<ULong>()
+        var historyGate: CompletableDeferred<Unit>? = null
+        var historyFailures = 0
         var readMarker = 0uL
         var uncertainAnswerOnce = false
         var sendFailure: Exception? = null
@@ -75,6 +78,11 @@ class NativeChiefRuntimeTest {
         override suspend fun conversations(afterCursor: String?, waitForChange: Boolean) =
             if (waitForChange) homeChanges.receive() else NativeChiefSnapshot(home, "home-cursor")
         override suspend fun read(conversation: String?, beforeSeq: ULong?, limit: Int, afterSeq: ULong?, afterCursor: String?, waitForChange: Boolean): NativeChiefRead {
+            if (beforeSeq != null) {
+                historyRequests += beforeSeq
+                historyGate?.await()
+                if (historyFailures > 0) { --historyFailures; throw java.io.IOException("History temporarily unavailable") }
+            }
             val page = if (waitForChange) transcriptChanges.receive() else snapshot()
             val eligible = page.messages.filter { beforeSeq == null || it.seq < beforeSeq }
             return page.copy(messages = eligible.takeLast(limit), hasMore = eligible.size > limit)
@@ -121,7 +129,7 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Welcome from your Mac").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("ChiefComposer").performTextInput("A phone message")
-        compose.onNodeWithTag("ChiefSend").performClick()
+        tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
         compose.onNodeWithTag("ChiefMessage:echo").assertExists()
         compose.onAllNodesWithText("A phone message", substring = false).assertCountEquals(1)
@@ -176,7 +184,7 @@ class NativeChiefRuntimeTest {
         compose.runOnUiThread { api.sendFailure = MobileRpcOutcomeUnknown() }
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithTag("ChiefComposer").performTextInput("Unconfirmed phone message")
-        compose.onNodeWithTag("ChiefSend").performClick()
+        tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
         compose.onNodeWithText("Delivery unconfirmed").assertExists()
         val id = checkNotNull(api.sends.single().second)
@@ -236,7 +244,7 @@ class NativeChiefRuntimeTest {
         compose.runOnUiThread { api.sendFailure = MobileRpcOutcomeUnknown() }
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithTag("ChiefComposer").performTextInput("Retry this message")
-        compose.onNodeWithTag("ChiefSend").performClick()
+        tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
         val id = api.sends.single().second!!
         compose.onNodeWithTag("ChiefFailed:$id").performScrollTo().performClick()
@@ -256,7 +264,7 @@ class NativeChiefRuntimeTest {
         compose.runOnUiThread { api.sendFailure = MobileRpcOutcomeUnknown(); testFontScale = 2f }
         compose.onNodeWithTag("ChiefPinnedConversation").performScrollTo().performClick()
         compose.onNodeWithTag("ChiefComposer").performTextInput("Delete this failed message")
-        compose.onNodeWithTag("ChiefSend").performClick()
+        tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
         val id = api.sends.single().second!!
         compose.onNodeWithTag("ChiefFailed:$id").performScrollTo().performClick()
@@ -280,6 +288,9 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefFailed:$id").performScrollTo().performClick()
         compose.onNodeWithTag("ChiefDiscardSend").performClick()
         compose.onNodeWithTag("ChiefFailedSendDialog").assertDoesNotExist()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Delete this failed message").fetchSemanticsNodes().isEmpty()
+        }
         compose.onAllNodesWithText("Delete this failed message").assertCountEquals(0)
         compose.runOnUiThread {
             api.rows = api.rows + message("late-deleted", 2uL, "Delete this failed message", true, id)
@@ -296,14 +307,14 @@ class NativeChiefRuntimeTest {
         compose.runOnUiThread { api.sendGate = gate }
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithTag("ChiefComposer").performTextInput("First retained send")
-        compose.onNodeWithTag("ChiefSend").performClick()
+        tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
         compose.onNodeWithText("‹  Home").performClick()
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithText("First retained send").assertExists()
         compose.onNodeWithText("Delivery unconfirmed").assertDoesNotExist()
         compose.onNodeWithTag("ChiefComposer").performTextInput("Second retained send")
-        compose.onNodeWithTag("ChiefSend").performClick()
+        tapSendWhenReady()
         compose.waitUntil(10_000) { computer.transcript()?.state?.value?.outgoing?.size == 2 }
         assertEquals(1, api.sends.size)
         compose.runOnUiThread { gate.complete(Unit) }
@@ -369,7 +380,7 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefMessage:m101").assertIsNotDisplayed()
         val gate = CompletableDeferred<Unit>(); compose.runOnUiThread { api.sendGate = gate }
         compose.onNodeWithTag("ChiefComposer").performTextInput("Send from history")
-        compose.onNodeWithTag("ChiefSend").performClick()
+        tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
         compose.onNodeWithText("Send from history").assertIsDisplayed()
         compose.runOnUiThread { gate.complete(Unit) }
@@ -380,7 +391,7 @@ class NativeChiefRuntimeTest {
 
     @Test fun browsingKeepsTheLoadedHistoryUntilANewSendReturnsToNewestAndTrimsIt() {
         compose.runOnUiThread {
-            api.rows = (1..2000).map { message("m$it", it.toULong(), "Loaded Chief history $it") }
+            api.rows = (1..2000).map { message("m$it", it.toULong(), "Loaded Chief history $it\n".repeat(12)) }
             api.readMarker = 2000uL
         }
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
@@ -399,7 +410,7 @@ class NativeChiefRuntimeTest {
         val gate = CompletableDeferred<Unit>()
         compose.runOnUiThread { api.sendGate = gate }
         compose.onNodeWithTag("ChiefComposer").performTextInput("Return to newest and bound the window")
-        compose.onNodeWithTag("ChiefSend").performClick()
+        tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 && computer.transcript()?.state?.value?.messages?.size == 1000 }
         compose.onNodeWithText("Return to newest and bound the window").assertIsDisplayed()
         assertTrue(computer.transcript()!!.state.value.hasMore)
@@ -408,6 +419,58 @@ class NativeChiefRuntimeTest {
         compose.waitUntil(10_000) { computer.transcript()?.state?.value?.outgoing?.isEmpty() == true }
         compose.waitUntil(10_000) { compose.onNodeWithTag("ChiefMessage:echo").isDisplayed() }
         assertEquals(1001, computer.transcript()!!.state.value.messages.size)
+    }
+
+    @Test fun measuredHistoryPrefetchStopsFarRetriesAndResumesAfterAPausedLayoutWithoutMovingTheReader() {
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread {
+            api.rows = (1..150).map { message("m$it", it.toULong(), "Variable height history message $it\n".repeat(5 + it % 7))
+                .let { row -> if (it == 106) row.copy(threadRoot = "m101") else row } }
+            api.readMarker = 150uL
+            api.historyGate = gate
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.onNodeWithTag("ChiefMessage:m150").assertIsDisplayed()
+        assertTrue(api.historyRequests.isEmpty())
+        // A reader drag owns unpinning; the subsequent exact-index movement only
+        // stages a deterministic measured distance and must not pretend to be a drag.
+        compose.onNodeWithTag("ChiefMessages").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("ChiefMessages").performScrollToIndex(5)
+        compose.waitUntil(10_000) { api.historyRequests.size == 1 }
+        compose.onNodeWithTag("ChiefMessage:m101").assertIsNotDisplayed()
+        assertEquals(101uL, api.historyRequests.single())
+        compose.onNodeWithTag("ChiefMessages").performScrollToIndex(50)
+        compose.waitForIdle()
+        compose.runOnUiThread { api.historyFailures = 1; api.historyGate = null; gate.complete(Unit) }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.historyRetryAttempt == 1 }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.loadingOlder == false }
+        assertEquals("Moving beyond six measured screens must stop the failed retry", 1, api.historyRequests.size)
+        val resumed = CompletableDeferred<Unit>()
+        compose.runOnUiThread { computer.setActive(false); api.historyGate = resumed }
+        compose.onNodeWithTag("ChiefMessages").performScrollToIndex(5)
+        compose.waitForIdle()
+        assertEquals("A paused layout must not restart reads", 1, api.historyRequests.size)
+        assertFalse(computer.transcript()!!.state.value.readsActive)
+        compose.runOnUiThread { computer.setActive(true) }
+        compose.waitUntil(10_000) { api.historyRequests.size == 2 }
+        val anchorTop = compose.onNodeWithTag("ChiefMessage:m105").fetchSemanticsNode().boundsInRoot.top
+        compose.runOnUiThread { resumed.complete(Unit) }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.messages?.size == 100 }
+        assertEquals(listOf(101uL, 101uL), api.historyRequests.toList())
+        compose.onNodeWithTag("ChiefMessage:m105").assertIsDisplayed()
+        assertEquals(anchorTop, compose.onNodeWithTag("ChiefMessage:m105").fetchSemanticsNode().boundsInRoot.top, 1f)
+        assertNull(computer.transcript()!!.state.value.historyError)
+    }
+
+    private fun tapSendWhenReady() {
+        // Opening a transcript admits its first read asynchronously. A disabled
+        // semantic click is ignored, just as tapping the disabled control is.
+        compose.waitUntil(10_000) {
+            compose.onNodeWithTag("ChiefSend").fetchSemanticsNode().config
+                .getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Disabled) == null
+        }
+        compose.onNodeWithTag("ChiefSend").assertIsEnabled().performClick()
     }
 
     private fun saveScreenshot(name: String) {

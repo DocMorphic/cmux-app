@@ -16,6 +16,8 @@ Transcript ordering, read state, catch-up, loaded-window trimming, stable row id
 also follow ConversationStore.swift, ConversationModel.swift,
 ConversationRunPlan.swift, ConversationRows.swift, ConversationCells.swift and
 ConversationViewController+CatchUp.swift in CmuxConversation at that revision.
+History prefetch thresholds and read retries also follow
+ConversationHistoryPrefetch.swift and ConversationStore.swift at that revision.
 Selected English/Japanese timestamp and catch-up strings
 are copied from its UI catalog; scoped hashes are in the same manifest.
 

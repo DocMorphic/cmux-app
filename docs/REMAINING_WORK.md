@@ -4,7 +4,7 @@ HANDOFF.md contains the current physical Mac/Pixel and signed-candidate state;
 older dated entries below are historical evidence. Signed local 705 is verified
 and awaits a data-preserving Pixel upgrade. Chief's source/debug implementation
 now includes explicit failed-send retry/delete, foreground read/catch-up and
-guarded loaded-window trimming, with details and remaining gates
+guarded loaded-window trimming and current-position history prefetch/retry, with details and remaining gates
 in CHIEF.md. The running custom Mac's pairing menu is accepted, but that host
 still does not advertise Chief. Full parity and the completion gates remain open.
 

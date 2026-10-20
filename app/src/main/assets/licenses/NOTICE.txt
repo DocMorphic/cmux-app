@@ -10,6 +10,8 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Source hashes and scope: third_party/cmux-chief/manifest.json in the source repo.
 Transcript ordering, read state, catch-up, loaded-window trimming, stable row identity, run grouping, separators and quote
 presentation follow the scoped CmuxConversation core/UI sources at that revision.
+History prefetch thresholds and read retries also follow its
+ConversationHistoryPrefetch.swift and ConversationStore.swift.
 Selected English/Japanese timestamp and catch-up strings are copied from its UI catalog.
 
 Cloud machine, identity, invitation approval, terminal output and UI code adapt

@@ -692,6 +692,123 @@ class NativeChiefSessionTest {
         } finally { session.close() }
     }
 
+    @Test fun repeatedScrollTicksShareTheReadAndRetryWithSourceBackoffUntilSuccess() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(message(51), message(100), more = true))); session.start(); runCurrent()
+            repeat(20) { session.requestOlder() }; runCurrent()
+            assertEquals(listOf(51uL), api.readRequests.mapNotNull { it.before })
+            api.reads.send(Result.failure(java.io.IOException("history temporarily unavailable"))); runCurrent()
+            assertEquals(1, session.state.value.historyRetryAttempt); assertTrue(session.state.value.loadingOlder)
+            assertTrue(session.state.value.connected); assertNull(session.state.value.error)
+            repeat(20) { session.requestOlder() }
+            advanceTimeBy(999); runCurrent(); assertEquals(1, api.readRequests.count { it.before != null })
+            advanceTimeBy(1); runCurrent(); assertEquals(2, api.readRequests.count { it.before != null })
+            api.reads.send(Result.failure(java.io.IOException("still unavailable"))); runCurrent()
+            assertEquals(2, session.state.value.historyRetryAttempt)
+            advanceTimeBy(1999); runCurrent(); assertEquals(2, api.readRequests.count { it.before != null })
+            api.reads.send(Result.success(page(message(1), message(50), more = false)))
+            advanceTimeBy(1); runCurrent()
+            assertEquals(listOf(51uL, 51uL, 51uL), api.readRequests.mapNotNull { it.before })
+            assertEquals(listOf(1uL, 50uL, 51uL, 100uL), session.state.value.messages.map { it.seq })
+            assertFalse(session.state.value.loadingOlder); assertFalse(session.state.value.hasMore)
+            assertEquals(0, session.state.value.historyRetryAttempt); assertNull(session.state.value.historyError)
+        } finally { session.close() }
+    }
+
+    @Test fun leavingTheTopStopsFailedRetriesButStillAcceptsTheCurrentSuccessfulRead() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(message(51), more = true))); session.start(); runCurrent()
+            session.requestOlder(); runCurrent()
+            api.reads.send(Result.failure(java.io.IOException("offline"))); runCurrent()
+            session.olderNoLongerWanted()
+            advanceTimeBy(1000); runCurrent(); assertFalse(session.state.value.loadingOlder)
+            advanceTimeBy(30_000); runCurrent(); assertEquals(1, api.readRequests.count { it.before != null })
+            session.requestOlder(); runCurrent(); session.olderNoLongerWanted()
+            api.reads.send(Result.success(page(message(50), more = true))); runCurrent()
+            assertEquals(50uL, session.state.value.messages.first().seq)
+            assertFalse(session.state.value.loadingOlder); assertEquals(2, api.readRequests.count { it.before != null })
+        } finally { session.close() }
+    }
+
+    @Test fun aLateCancelledPagerCannotPublishOrClearItsResumedReplacement() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        val old = CompletableDeferred<NativeChiefRead>(); val replacement = CompletableDeferred<NativeChiefRead>()
+        var historyReads = 0
+        try {
+            api.readBlock = { request ->
+                if (request.before != null) {
+                    if (++historyReads == 1) withContext(NonCancellable) { old.await() } else replacement.await()
+                } else (if (request.wait) api.waits else api.reads).receive().getOrThrow()
+            }
+            api.reads.send(Result.success(page(message(51), more = true))); session.start(); runCurrent()
+            session.requestOlder(); runCurrent(); session.pause()
+            api.reads.send(Result.success(page(message(51), more = true))); session.start(); runCurrent()
+            session.requestOlder(); runCurrent(); assertEquals(2, historyReads)
+            old.complete(page(message(1), more = false)); runCurrent()
+            assertTrue(session.state.value.loadingOlder); assertEquals(listOf("m51"), session.state.value.messages.map { it.id })
+            replacement.complete(page(message(50), more = true)); runCurrent()
+            assertFalse(session.state.value.loadingOlder); assertEquals(listOf("m50", "m51"), session.state.value.messages.map { it.id })
+        } finally { old.complete(page()); replacement.complete(page()); session.close() }
+    }
+
+    @Test fun layoutRequestsCannotRestartThePagerWhileItsOwnerIsPaused() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(message(51), more = true))); session.start(); runCurrent()
+            session.pause(); runCurrent()
+            assertFalse(session.state.value.readsActive)
+            repeat(20) { session.requestOlder() }; runCurrent(); advanceTimeBy(30_000); runCurrent()
+            assertTrue(api.readRequests.none { it.before != null }); assertFalse(session.state.value.loadingOlder)
+            api.reads.send(Result.success(page(message(51), more = true))); session.start(); runCurrent()
+            assertTrue(session.state.value.readsActive)
+            api.reads.send(Result.success(page(message(50), more = true))); session.loadOlder()
+            assertEquals(listOf(51uL), api.readRequests.mapNotNull { it.before })
+            assertEquals(50uL, session.state.value.messages.first().seq)
+        } finally { session.close() }
+    }
+
+    @Test fun pausingCatchUpCancelsItsReadAndFencesItsLateResultFromTheResumedJump() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        val old = CompletableDeferred<NativeChiefRead>(); val replacement = CompletableDeferred<NativeChiefRead>()
+        var historyReads = 0
+        try {
+            api.readBlock = { request ->
+                if (request.before != null) {
+                    if (++historyReads == 1) withContext(NonCancellable) { old.await() } else replacement.await()
+                } else (if (request.wait) api.waits else api.reads).receive().getOrThrow()
+            }
+            val baseline = page(*(50..100).map { message(it) }.toTypedArray(), more = true).copy(lastReadSeq = 20uL, unreadCount = 80)
+            api.reads.send(Result.success(baseline)); session.setViewing(true); session.start(); runCurrent()
+            val first = async { session.loadCatchUpTarget() }; runCurrent()
+            assertTrue(session.state.value.loadingCatchUp)
+            session.setViewing(false); session.pause(); runCurrent()
+            assertTrue(first.isCompleted); assertNull(first.await()); assertFalse(session.state.value.loadingCatchUp)
+            api.reads.send(Result.success(baseline)); session.setViewing(true); session.start(); runCurrent()
+            val next = async { session.loadCatchUpTarget() }; runCurrent(); assertEquals(2, historyReads)
+            old.complete(page(message(1), more = false)); runCurrent()
+            assertTrue(session.state.value.loadingCatchUp); assertEquals(50uL, session.state.value.messages.first().seq)
+            replacement.complete(page(*(10..49).map { message(it) }.toTypedArray(), more = true)); runCurrent()
+            assertEquals("m21", next.await()); assertFalse(session.state.value.loadingCatchUp)
+            assertEquals(10uL, session.state.value.messages.first().seq)
+        } finally { old.complete(page()); replacement.complete(page()); session.close() }
+    }
+
+    @Test fun olderPagesInsertOnlyUnknownRowsBeforeTheirRequestedBoundaryAndHonorHasMore() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(message(51), message(80, text = "Keep this current value"), more = true)))
+            session.start(); runCurrent()
+            api.reads.send(Result.success(page(message(50), message(80, text = "Stale history"), message(100), more = true)))
+            session.loadOlder()
+            assertEquals(listOf("m50", "m51", "m80"), session.state.value.messages.map { it.id })
+            assertEquals("Keep this current value", session.state.value.messages.last().text)
+            api.reads.send(Result.success(page(more = true))); session.loadOlder()
+            assertTrue(session.state.value.hasMore)
+        } finally { session.close() }
+    }
+
     @Test fun restingWindowBoundsGrowthAndDroppedHistoryRemainsPageable() = runTest {
         val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
         try {

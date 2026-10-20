@@ -12,7 +12,7 @@ paging/gap recovery, stable send correlation, draft retention, approval/question
 reservation and receipts. Account/Mac retirement cancels requests and clears
 content; backgrounding pauses reads. The unmodified Chief avatar is attributed.
 Actual Swift wire execution still supplies 21 models, nine requests and eight
-validation cases. The latest full JVM run passed 3,007 with four skips and
+validation cases. The latest full JVM run passed 3,015 with four skips and
 zero failures.
 An earlier eight-case Android batch passed for the production UI, explicit uncertainty recovery,
 failed-row ordering, late echo identity, separators/quotes, font-scale-2 controls
@@ -54,7 +54,7 @@ JVM run passes 3,003 with four skips and zero failures. Thirteen Android cases
 pass in 29.239 s, including the two real framed-root capability/admission cases
 and the new read/catch-up/scroll scenarios. See CHIEF.md and `chief-reading-*`
 receipts. This also postdates signed 705 and does not close physical-device,
-matched-iOS, automatic history prefetch/window trimming or complete UI gates.
+matched-iOS, fling-target history prefetch or complete UI gates.
 The final individual settled captures were inspected, with fixed header-window
 bounds before/after the jump. That extra case passes in 7.289 s and has an empty
 crash buffer; the initial multi-image preview alone was not used as layout proof.
@@ -76,8 +76,33 @@ test pass (50 focused cases). The full JVM suite passes 3,007, skips four, with
 zero failures. Fourteen Android cases pass in 32.375 s, including retaining 1,550
 rows while browsing and trimming after an explicit new send without losing its
 pending row or echo. Final debug APKs compile; the crash buffer is empty. See
-`chief-window-*` receipts and CHIEF.md. Automatic prefetch/retry, matched-iOS,
+`chief-window-*` receipts and CHIEF.md. Fling-target prefetch, matched-iOS,
 real host/Pixel and full UI gates stay open. This also postdates signed 705.
+
+Current-position history prefetch now uses the source's strict four-screen load
+and six-screen stop thresholds, with actual bounded row measurement rather than
+average heights. One retained pager coalesces scroll requests and retries while
+wanted at 1/2/4/8 seconds. Moving away stops failed retries while allowing the
+active read to finish. Pause cancels history/catch-up reads and rejects new
+layout requests; resume rechecks the viewport, and generation guards prevent a
+cancelled result/finalizer affecting its replacement. Known rows are not
+overwritten by overlapping older pages. Seventeen geometry and eight backoff
+vectors execute the actual pinned Swift bodies. The latest full JVM suite passes
+3,015 with four skips and zero failures (`chief-history-lifecycle-build-and-jvm.log`).
+Fling-resting-target prediction remains open; see CHIEF.md for the exact scope.
+This source/debug work also postdates signed candidate 705.
+The final Android receipt is `chief-history-settled-android-final.log`:
+15 cases pass in 33.931 s (13 production Chief plus two framed-root/capability
+cases). Variable-height/quote history loads before the top, stops far-region
+retry, pauses through a layout change, resumes without another gesture and
+holds the visible row's pixel position. The crash buffer is empty and the
+emulator was stopped. Intermediate lifecycle/ready files with `final` in their
+names contain failed harness-timing attempts; use the settled receipt. The last
+test-only corrections wait for an enabled Send control and rendered deletion,
+preserving the late-echo assertions. The source checker verifies 17 geometry and
+eight backoff vectors; the focused session/history/window/reading/timeline set
+passes 58. Actual Mac/Pixel, fling-target, complete UI and lifecycle gates stay
+open; no signed candidate or installed phone app contains this batch yet.
 
 The Android transcript now owns serialized sends/retries through a FIFO tail,
 including the preceding acknowledgment read. View/back-navigation cancellation

@@ -26,7 +26,7 @@ and the exact admitted foreground Mac. It includes Home search/unread/working
 state, transcript history/events/send/stop, work parts, approval/question actions,
 full qualified question forms and retained drafts. Actual source execution gives
 21 wire-model vectors, nine request vectors and eight question-validation cases.
-The latest full JVM run passed 3,007, skipped four, zero failures. Earlier eight Android
+The latest full JVM run passed 3,015, skipped four, zero failures. Earlier eight Android
 cases passed against the production composition and framed root fixture,
 including failed-send/late-echo identity and enlarged-text controls. Final
 transcript screenshots were inspected. Nineteen vectors execute pinned Swift
@@ -60,7 +60,7 @@ history pages are now ported. Sixteen vectors execute the actual Swift store's
 read/catch-up bodies; 46 focused JVM cases pass. Thirteen Android cases pass,
 including read-all while browsing history, catch-up through older pages, initial
 newest positioning, stable arrival anchoring and explicit-send return to newest.
-Exact presentation, remaining scrolling/keyboard behavior, automatic prefetch,
+Exact presentation, remaining scrolling/keyboard behavior, fling-target prefetch,
 and physical Mac/Pixel evidence remain open in CHIEF.md.
 Live/action refreshes now respect the loaded window and do not overwrite
 unrelated updates. Authoritative Mark Unread can issue a fresh read after its
@@ -71,8 +71,22 @@ cases and fourteen Android cases passing. Above 1,500 rows, resting at newest
 keeps 1,000 acknowledged rows while protecting unread targets, held actions,
 quoted parents and pending/failed sends. Browsing retains its loaded history;
 trimmed history can be paged back in. The final crash buffer is empty. This
-source/debug checkpoint postdates signed 705; automatic prefetch/retry and the
+source/debug checkpoint postdates signed 705; fling-target prefetch and the
 remaining physical, lifecycle and presentation gates are still open.
+Current-position prefetch now uses the exact four/six viewport thresholds and
+actual measured row heights, with one coalesced owner task and source retry
+backoff. Paused layouts cannot restart reads; resume rechecks the current
+viewport, and late cancelled history/catch-up results are fenced. The actual
+Swift geometry/backoff supplies seventeen/eight vectors. The full JVM suite
+passes 3,015 with four skips and zero failures. This does not close fling-target,
+matched-iOS or physical-host acceptance.
+Fifteen Android cases pass in 33.931 s with an empty crash buffer; the final
+receipt is `chief-history-settled-android-final.log`. It includes variable-height
+and quoted content, loading before the oldest row is visible, stopping a far
+retry, preventing paused-layout requests, resuming without a new gesture and
+preserving a visible row's pixel position. Earlier harness-timing failures and
+the bounded readiness/result waits are documented in CHIEF.md. These remain
+typed-owner emulator checks, not a supporting real Mac or Pixel acceptance.
 
 The Oct 20 Pixel/Mac checkpoint and active notification/terminal/menu fixes are
 recorded at the top of HANDOFF.md. The owner has offered to reconnect the phone
