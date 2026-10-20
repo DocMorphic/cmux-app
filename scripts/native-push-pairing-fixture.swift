@@ -114,7 +114,14 @@ actor PairingFixtureGate {
         try require(count == 2 && firstSubmenu.items.count == count)
         let replacement = NSMenu(), second = NSMenu(), replacementTop = NSMenuItem()
         replacementTop.submenu = second; replacement.addItem(replacementTop); NSApp.mainMenu = replacement
-        presentation.installMenu(); try require(second.items.count == 2)
-        print("Native pairing menu installation is idempotent and recovers after host menu reconstruction")
+        NotificationCenter.default.post(name: NSMenu.didBeginTrackingNotification, object: second)
+        try require(second.items.count == 2)
+        NotificationCenter.default.post(name: NSMenu.didBeginTrackingNotification, object: second)
+        try require(second.items.count == 2)
+        // A rebuild may remove items without replacing the NSMenu itself.
+        second.removeAllItems()
+        NotificationCenter.default.post(name: NSMenu.didBeginTrackingNotification, object: second)
+        try require(second.items.count == 2)
+        print("Native pairing menu is idempotent and automatically repairs replaced or emptied host menus on tracking")
     }
 }

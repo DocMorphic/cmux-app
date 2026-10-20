@@ -1,3 +1,18 @@
+## Active full-parity goal — 2026-10-20
+
+The owner explicitly requested a persistent full feature/UI parity goal. It is
+active; the completion gates in REMAINING_WORK.md remain authoritative. Work
+continues from the physical checkpoint below, preserving the Pixel release data
+and existing Mac workspaces.
+
+The pairing presentation now observes AppKit menu tracking and repairs its item
+when SwiftUI replaces or empties the host menu. The prior composition-time and
+AppDelegate hooks remain. The compiled production Swift fixture verifies both
+reconstruction cases, repeated tracking without duplication, QR pixels, offer
+expiry/cancellation, private clipboard ownership and socket error paths. A fresh
+full Mac build and inspection of the actual app menu are still required before
+accepting this integration fix.
+
 ## New Mac restoration and physical-device checkpoint — 2026-10-20
 
 The clean backup checkout and GitHub `main` agreed at `a5ba3898`; PR #1 is

@@ -28,7 +28,14 @@ final class NativePushPairingPresentation: NSObject, NSWindowDelegate {
 
     init(request: @escaping NativePushPairingModel.Request) {
         self.request = request
+        super.init()
+        // SwiftUI can replace the app menu after the auth composition is made.
+        // Do not depend on that replacement retaining AppDelegate as its delegate.
+        NotificationCenter.default.addObserver(self, selector: #selector(menuWillTrack(_:)),
+            name: NSMenu.didBeginTrackingNotification, object: nil)
     }
+    deinit { NotificationCenter.default.removeObserver(self) }
+    @objc private func menuWillTrack(_ notification: Notification) { installMenu() }
     func installMenu() {
         guard let menu = NSApp.mainMenu?.items.first?.submenu, item?.menu !== menu else { return }
         let item = NSMenuItem(title: String(localized: "androidPush.pair.title", defaultValue: "Pair Android Notifications"),
