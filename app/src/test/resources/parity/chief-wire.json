@@ -1,0 +1,251 @@
+{
+  "models": [
+    {
+      "decoded": "{\"conversation_count\":0,\"default_conversation\":\"\",\"effort\":\"\",\"harness\":\"\",\"harness_name\":\"\",\"model\":\"\",\"started\":false,\"unread\":0,\"working\":[]}",
+      "input": "{}",
+      "kind": "status",
+      "name": "status-defaults"
+    },
+    {
+      "decoded": "{\"conversation_count\":3,\"default_conversation\":\"chief-main\",\"effort\":\"\",\"harness\":\"\",\"harness_name\":\"\",\"model\":\"\",\"started\":true,\"unread\":2147483648,\"working\":[\"chief-main\"]}",
+      "input": "{\"started\":true,\"unread\":2147483648,\"conversation_count\":3,\"working\":[\"chief-main\"],\"default_conversation\":\"chief-main\"}",
+      "kind": "status",
+      "name": "status-large-count"
+    },
+    {
+      "decoded": "{\"id\":\"chief-main\",\"pinned\":false,\"preview\":\"\",\"title\":\"chief-main\",\"unread\":0,\"updated_at\":\"0001-01-01T00:00:00Z\",\"working\":false}",
+      "input": "{\"id\":\"chief-main\"}",
+      "kind": "conversation",
+      "name": "conversation-defaults"
+    },
+    {
+      "decoded": "{\"at\":\"2026-10-16T12:30:45Z\",\"author\":\"Chief\",\"author_id\":\"agent_mux\",\"author_kind\":\"chief\",\"client_message_id\":\"client-id\",\"id\":\"m-1\",\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"host\":\"builder\",\"preview\":\"Building\",\"session\":\"acp-1\",\"status\":\"running\",\"title\":\"Ship it\"}},{\"kind\":\"future\"}],\"parts\":[\"text\",\"work\"],\"seq\":18446744073709551615,\"text\":\"I am on it.\",\"thread_root\":\"m-0\"}",
+      "input": "{\"id\":\"m-1\",\"seq\":18446744073709551615,\"author_id\":\"agent_mux\",\"author\":\"Chief\",\"author_kind\":\"chief\",\"text\":\"I am on it.\",\"at\":\"2026-10-16T12:30:45Z\",\"parts\":[\"text\",\"work\"],\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"session\":\"acp-1\",\"host\":\"builder\",\"title\":\"Ship it\",\"status\":\"running\",\"preview\":\"Building\"}},{\"kind\":\"future\"}],\"thread_root\":\"m-0\",\"client_message_id\":\"client-id\"}",
+      "kind": "message",
+      "name": "message-wide-cursor"
+    },
+    {
+      "decoded": "{\"at\":\"2026-10-16T12:30:45Z\",\"author\":\"Me\",\"author_id\":\"human\",\"author_kind\":\"human\",\"id\":\"legacy\",\"part_payloads\":[],\"parts\":[],\"seq\":1,\"text\":\"Hello\"}",
+      "input": "{\"id\":\"legacy\",\"seq\":1,\"author_id\":\"human\",\"author\":\"Me\",\"author_kind\":\"human\",\"text\":\"Hello\",\"at\":\"2026-10-16T12:30:45Z\"}",
+      "kind": "message",
+      "name": "message-legacy"
+    },
+    {
+      "decoded": "{\"conversation\":\"chief-main\",\"has_more\":false,\"messages\":[],\"working\":false}",
+      "input": "{\"conversation\":\"chief-main\"}",
+      "kind": "read",
+      "name": "read-defaults"
+    },
+    {
+      "decoded": "{\"id\":\"q-1\",\"items\":[{\"allowsOther\":true,\"id\":\"q0\",\"multiSelect\":false,\"options\":[{\"detail\":\"Local\",\"id\":\"us\",\"label\":\"US\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}],\"prompt\":\"Which region?\"}],\"source\":{\"agentName\":\"Chief\",\"harness\":\"chief\",\"session\":\"chief-main\"},\"state\":{\"kind\":\"pending\"}}",
+      "input": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"pending\"}}",
+      "kind": "question",
+      "name": "question-defaults"
+    },
+    {
+      "decoded": "{\"id\":\"q-1\",\"items\":[{\"allowsOther\":true,\"id\":\"q0\",\"multiSelect\":false,\"options\":[{\"detail\":\"Local\",\"id\":\"us\",\"label\":\"US\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}],\"prompt\":\"Which region?\"}],\"source\":{\"agentName\":\"Chief\",\"harness\":\"chief\",\"session\":\"chief-main\"},\"state\":{\"kind\":\"pending\"}}",
+      "input": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"future\"}}",
+      "kind": "question",
+      "name": "question-future-state"
+    },
+    {
+      "decoded": "{\"id\":\"q-1\",\"items\":[{\"allowsOther\":true,\"id\":\"q0\",\"multiSelect\":false,\"options\":[{\"detail\":\"Local\",\"id\":\"us\",\"label\":\"US\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}],\"prompt\":\"Which region?\"}],\"source\":{\"agentName\":\"Chief\",\"harness\":\"chief\",\"session\":\"chief-main\"},\"state\":{\"answer\":{\"answeredAtMs\":1792495435000,\"respondent\":{\"device\":\"Phone\",\"displayName\":\"Me\",\"isRemote\":true,\"participant\":\"user_local\"},\"selections\":{\"q0\":{\"optionIDs\":[\"us\"],\"other\":\"custom\"}}},\"kind\":\"answered\"}}",
+      "input": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"answered\",\"answer\":{\"selections\":{\"q0\":{\"optionIDs\":[\"us\"],\"other\":\"custom\"}},\"respondent\":{\"participant\":\"user_local\",\"displayName\":\"Me\",\"device\":\"Phone\",\"isRemote\":true},\"answeredAtMs\":1792495435000}}}",
+      "kind": "question",
+      "name": "question-answered"
+    },
+    {
+      "decoded": "{\"approval\":{\"decided\":\"allow\",\"options\":[\"allow\",\"deny\"],\"prompt\":\"Run deploy?\",\"request\":\"r-1\"},\"kind\":\"approval\"}",
+      "input": "{\"kind\":\"approval\",\"approval\":{\"request\":\"r-1\",\"prompt\":\"Run deploy?\",\"options\":[\"allow\",\"deny\"],\"decided\":\"allow\"}}",
+      "kind": "part",
+      "name": "approval"
+    },
+    {
+      "decoded": "{\"change_cursor\":\"opaque\",\"conversation\":\"chief-main\",\"has_more\":true,\"head_seq\":18446744073709551615,\"last_read_seq\":0,\"messages\":[],\"unread_count\":2147483648,\"working\":true}",
+      "input": "{\"conversation\":\"chief-main\",\"working\":true,\"messages\":[],\"has_more\":true,\"last_read_seq\":0,\"unread_count\":2147483648,\"head_seq\":18446744073709551615,\"change_cursor\":\"opaque\"}",
+      "kind": "read",
+      "name": "read-cursors"
+    },
+    {
+      "decoded": "{\"id\":\"chief-main\",\"pinned\":true,\"preview\":\"Working\",\"title\":\"Chief\",\"unread\":5,\"updated_at\":\"2026-10-16T12:30:45Z\",\"working\":true}",
+      "input": "{\"id\":\"chief-main\",\"title\":\"Chief\",\"preview\":\"Working\",\"unread\":5,\"pinned\":true,\"working\":true,\"updated_at\":\"2026-10-16T12:30:45Z\"}",
+      "kind": "conversation",
+      "name": "conversation-full"
+    },
+    {
+      "input": "{\"id\":\"q-1\",\"source\":{\"harness\":\"future\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"pending\"}}",
+      "kind": "question",
+      "name": "question-unknown-harness"
+    },
+    {
+      "input": "{\"id\":\"m-1\",\"seq\":-1,\"author_id\":\"agent_mux\",\"author\":\"Chief\",\"author_kind\":\"chief\",\"text\":\"I am on it.\",\"at\":\"2026-10-16T12:30:45Z\",\"parts\":[\"text\",\"work\"],\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"session\":\"acp-1\",\"host\":\"builder\",\"title\":\"Ship it\",\"status\":\"running\",\"preview\":\"Building\"}},{\"kind\":\"future\"}],\"thread_root\":\"m-0\",\"client_message_id\":\"client-id\"}",
+      "kind": "message",
+      "name": "message-negative-seq"
+    },
+    {
+      "input": "{\"id\":\"m-1\",\"seq\":\"7\",\"author_id\":\"agent_mux\",\"author\":\"Chief\",\"author_kind\":\"chief\",\"text\":\"I am on it.\",\"at\":\"2026-10-16T12:30:45Z\",\"parts\":[\"text\",\"work\"],\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"session\":\"acp-1\",\"host\":\"builder\",\"title\":\"Ship it\",\"status\":\"running\",\"preview\":\"Building\"}},{\"kind\":\"future\"}],\"thread_root\":\"m-0\",\"client_message_id\":\"client-id\"}",
+      "kind": "message",
+      "name": "message-string-seq"
+    },
+    {
+      "decoded": "{\"at\":\"2026-10-16T12:30:45Z\",\"author\":\"Chief\",\"author_id\":\"agent_mux\",\"author_kind\":\"chief\",\"client_message_id\":\"client-id\",\"id\":\"m-1\",\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"host\":\"builder\",\"preview\":\"Building\",\"session\":\"acp-1\",\"status\":\"running\",\"title\":\"Ship it\"}},{\"kind\":\"future\"}],\"parts\":[\"text\",\"work\"],\"seq\":7,\"text\":\"I am on it.\",\"thread_root\":\"m-0\"}",
+      "input": "{\"id\":\"m-1\",\"seq\":7.0,\"author_id\":\"agent_mux\",\"author\":\"Chief\",\"author_kind\":\"chief\",\"text\":\"I am on it.\",\"at\":\"2026-10-16T12:30:45Z\",\"parts\":[\"text\",\"work\"],\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"session\":\"acp-1\",\"host\":\"builder\",\"title\":\"Ship it\",\"status\":\"running\",\"preview\":\"Building\"}},{\"kind\":\"future\"}],\"thread_root\":\"m-0\",\"client_message_id\":\"client-id\"}",
+      "kind": "message",
+      "name": "message-integral-decimal"
+    },
+    {
+      "decoded": "{\"at\":\"2026-10-16T12:30:45Z\",\"author\":\"Chief\",\"author_id\":\"agent_mux\",\"author_kind\":\"chief\",\"client_message_id\":\"client-id\",\"id\":\"m-1\",\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"host\":\"builder\",\"preview\":\"Building\",\"session\":\"acp-1\",\"status\":\"running\",\"title\":\"Ship it\"}},{\"kind\":\"future\"}],\"parts\":[\"text\",\"work\"],\"seq\":7,\"text\":\"I am on it.\",\"thread_root\":\"m-0\"}",
+      "input": "{\"id\":\"m-1\",\"seq\":7e0,\"author_id\":\"agent_mux\",\"author\":\"Chief\",\"author_kind\":\"chief\",\"text\":\"I am on it.\",\"at\":\"2026-10-16T12:30:45Z\",\"parts\":[\"text\",\"work\"],\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"session\":\"acp-1\",\"host\":\"builder\",\"title\":\"Ship it\",\"status\":\"running\",\"preview\":\"Building\"}},{\"kind\":\"future\"}],\"thread_root\":\"m-0\",\"client_message_id\":\"client-id\"}",
+      "kind": "message",
+      "name": "message-integral-exponent"
+    },
+    {
+      "input": "{\"id\":\"m-1\",\"seq\":18446744073709551615.0,\"author_id\":\"agent_mux\",\"author\":\"Chief\",\"author_kind\":\"chief\",\"text\":\"I am on it.\",\"at\":\"2026-10-16T12:30:45Z\",\"parts\":[\"text\",\"work\"],\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"session\":\"acp-1\",\"host\":\"builder\",\"title\":\"Ship it\",\"status\":\"running\",\"preview\":\"Building\"}},{\"kind\":\"future\"}],\"thread_root\":\"m-0\",\"client_message_id\":\"client-id\"}",
+      "kind": "message",
+      "name": "message-wide-decimal"
+    },
+    {
+      "input": "{\"id\":\"m-1\",\"seq\":7.5,\"author_id\":\"agent_mux\",\"author\":\"Chief\",\"author_kind\":\"chief\",\"text\":\"I am on it.\",\"at\":\"2026-10-16T12:30:45Z\",\"parts\":[\"text\",\"work\"],\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"session\":\"acp-1\",\"host\":\"builder\",\"title\":\"Ship it\",\"status\":\"running\",\"preview\":\"Building\"}},{\"kind\":\"future\"}],\"thread_root\":\"m-0\",\"client_message_id\":\"client-id\"}",
+      "kind": "message",
+      "name": "message-fractional-seq"
+    },
+    {
+      "input": "{\"started\":\"true\"}",
+      "kind": "status",
+      "name": "status-string-bool"
+    },
+    {
+      "input": "{\"id\":\"m-1\",\"seq\":18446744073709551615,\"author_id\":\"agent_mux\",author_kind\":\"chief\",\"text\":\"I am on it.\",\"at\":\"2026-10-16T12:30:45Z\",\"parts\":[\"text\",\"work\"],\"part_payloads\":[{\"kind\":\"work\",\"work\":{\"session\":\"acp-1\",\"host\":\"builder\",\"title\":\"Ship it\",\"status\":\"running\",\"preview\":\"Building\"}},{\"kind\":\"future\"}],\"thread_root\":\"m-0\",\"client_message_id\":\"client-id\"}",
+      "kind": "message",
+      "name": "message-missing-author"
+    }
+  ],
+  "questions": [
+    {
+      "answer": "{\"selections\":{}}",
+      "name": "unanswered",
+      "problems": [
+        {
+          "item": "q0",
+          "kind": "UNANSWERED"
+        }
+      ],
+      "question": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"pending\"}}"
+    },
+    {
+      "answer": "{\"selections\":{\"q0\":{\"optionIDs\":[\"us\"]}}}",
+      "name": "valid-option",
+      "problems": [],
+      "question": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"pending\"}}"
+    },
+    {
+      "answer": "{\"selections\":{\"q0\":{\"optionIDs\":[],\"other\":\"Other\"}}}",
+      "name": "valid-other",
+      "problems": [],
+      "question": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"pending\"}}"
+    },
+    {
+      "answer": "{\"selections\":{\"q0\":{\"optionIDs\":[\"missing\"]}}}",
+      "name": "unknown-option",
+      "problems": [
+        {
+          "item": "q0",
+          "kind": "UNKNOWN_OPTION",
+          "option": "missing"
+        }
+      ],
+      "question": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"pending\"}}"
+    },
+    {
+      "answer": "{\"selections\":{\"z\":{\"optionIDs\":[\"x\"]},\"a\":{\"optionIDs\":[\"x\"]}}}",
+      "name": "unknown-items-ordered",
+      "problems": [
+        {
+          "item": "a",
+          "kind": "UNKNOWN_ITEM"
+        },
+        {
+          "item": "z",
+          "kind": "UNKNOWN_ITEM"
+        },
+        {
+          "item": "q0",
+          "kind": "UNANSWERED"
+        }
+      ],
+      "question": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"pending\"}}"
+    },
+    {
+      "answer": "{\"selections\":{\"q0\":{\"optionIDs\":[\"us\"],\"other\":\"Other\"}}}",
+      "name": "too-many",
+      "problems": [
+        {
+          "item": "q0",
+          "kind": "TOO_MANY_CHOICES"
+        }
+      ],
+      "question": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"pending\"}}"
+    },
+    {
+      "answer": "{\"selections\":{\"q0\":{\"optionIDs\":[],\"other\":\"Other\"}}}",
+      "name": "other-not-allowed",
+      "problems": [
+        {
+          "item": "q0",
+          "kind": "OTHER_NOT_ALLOWED"
+        }
+      ],
+      "question": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"allowsOther\":false,\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"pending\"}}"
+    },
+    {
+      "answer": "{\"selections\":{\"q0\":{\"optionIDs\":[\"us\"]}}}",
+      "name": "owner-already-answered",
+      "problems": [
+        {
+          "kind": "NOT_PENDING"
+        }
+      ],
+      "question": "{\"id\":\"q-1\",\"source\":{\"harness\":\"chief\",\"session\":\"chief-main\",\"agentName\":\"Chief\"},\"items\":[{\"id\":\"q0\",\"prompt\":\"Which region?\",\"options\":[{\"id\":\"us\",\"label\":\"US\",\"detail\":\"Local\",\"preview\":{\"format\":\"markdown\",\"text\":\"**US**\"}}]}],\"state\":{\"kind\":\"answered\",\"answer\":{\"selections\":{\"q0\":{\"optionIDs\":[\"us\"],\"other\":\"custom\"}},\"respondent\":{\"participant\":\"user_local\",\"displayName\":\"Me\",\"device\":\"Phone\",\"isRemote\":true},\"answeredAtMs\":1792495435000}}}"
+    }
+  ],
+  "requests": [
+    {
+      "json": "{\"method\":\"chief.status\",\"params\":{}}",
+      "response": "{}"
+    },
+    {
+      "json": "{\"method\":\"chief.conversations\",\"params\":{\"after_cursor\":\"owner-cursor\",\"wait_for_change\":true}}",
+      "response": "{}",
+      "timeoutNanoseconds": 600000000000
+    },
+    {
+      "json": "{\"method\":\"chief.read\",\"params\":{\"after_cursor\":\"transcript-cursor\",\"after_seq\":9,\"before_seq\":18446744073709551615,\"conversation\":\"chief-main\",\"limit\":200,\"wait_for_change\":true}}",
+      "response": "{\"conversation\":\"chief-main\"}",
+      "timeoutNanoseconds": 600000000000
+    },
+    {
+      "json": "{\"method\":\"chief.mark_read\",\"params\":{\"conversation\":\"chief-main\",\"up_to_seq\":18446744073709551615}}",
+      "response": "{\"conversation\":\"chief-main\",\"up_to_seq\":18446744073709551615,\"marked\":true}"
+    },
+    {
+      "json": "{\"method\":\"chief.send\",\"params\":{\"client_message_id\":\"client-id\",\"conversation\":\"chief-main\",\"from\":\"user_local\",\"start_turn\":false,\"text\":\"Hello\"}}",
+      "response": "{\"conversation\":\"chief-main\",\"message_id\":\"sent\",\"client_message_id\":\"client-id\",\"queued\":true}"
+    },
+    {
+      "json": "{\"method\":\"chief.stop\",\"params\":{\"conversation\":\"chief-main\"}}",
+      "response": "{\"conversation\":\"chief-main\",\"stopped\":true}"
+    },
+    {
+      "json": "{\"method\":\"chief.approve\",\"params\":{\"choice\":\"allow\",\"conversation\":\"chief-main\",\"request\":\"r-1\"}}",
+      "response": "{\"conversation\":\"chief-main\",\"request\":\"r-1\",\"choice\":\"allow\",\"decided\":true}"
+    },
+    {
+      "json": "{\"method\":\"chief.answer\",\"params\":{\"choices\":[\"US\"],\"conversation\":\"chief-main\",\"message\":\"q-1\",\"text\":\"Other\"}}",
+      "response": "{\"conversation\":\"chief-main\",\"message\":\"q-1\",\"answer\":[\"US\"]}"
+    },
+    {
+      "json": "{\"method\":\"chief.open\",\"params\":{\"window_id\":\"window\",\"workspace_id\":\"workspace\"}}",
+      "response": "{\"opened\":true}"
+    }
+  ]
+}

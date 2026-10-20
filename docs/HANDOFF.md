@@ -5,6 +5,21 @@ active; the completion gates in REMAINING_WORK.md remain authoritative. Work
 continues from the physical checkpoint below, preserving the Pixel release data
 and existing Mac workspaces.
 
+Chief now has a scoped wire foundation at the frozen Oct 20 audit candidate:
+nine typed RPC methods, complete capability admission, strict response models,
+wide sequence counters and structured questions/answers. Requests use the
+existing account-authorized transport without a terminal selection ticket;
+current-owner checks cover token lookup, write admission and response decoding.
+Actual pinned Swift models/client executed against a recording stub produce
+21 model vectors, nine request vectors and eight question-validation cases.
+Android comparisons and transport/retirement/cancellation regressions passed:
+101 focused JVM cases, zero failures or skips. Main and instrumentation Kotlin
+compiled. See `third_party/cmux-chief/README.md` for reproducible source checks.
+This is not a mounted Chief feature: retained state, UI, live reconciliation,
+actions and supporting-Mac/Pixel acceptance remain open. The global pin stays
+unchanged. Evidence: `captures/recovery-20261020/chief-swift-reference/` and
+`chief-and-rpc-regression.log`.
+
 Cold-tap investigation found that `NativeNotificationService` pruned durable tap
 destinations using temporary connection admission. During cold membership
 restoration that set is empty, even with intact saved pairings. Retention now
@@ -57,10 +72,12 @@ fix passed 2,945, skipped four, zero failures. This is emulator acceptance;
 physical initial admission and cold push tap are still open. One API 36 ARM64
 Pixel 6a AVD (`cmux_parity`) was created; the phone's old debug app is untouched.
 
-The owner needs the phone and explicitly deferred live testing. It disconnected
-before the temporary USB/AC keep-awake setting could be restored. First restore
+The owner initially deferred live testing, then offered to reconnect the phone.
+USB is not yet present. It disconnected before the temporary USB/AC keep-awake
+setting could be restored. First restore
 `adb -s 29231JEGR18218 shell svc power stayon false` (original setting 0) when it
-next becomes available. Do not resume phone UI tests until the owner offers it.
+next becomes available. Prepare a fresh signed update containing both fixes;
+candidate 703 predates the initial shared-sizing correction.
 
 ## New Mac restoration and physical-device checkpoint — 2026-10-20
 

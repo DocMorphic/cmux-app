@@ -221,6 +221,17 @@ class MobileRpcClient internal constructor(
         }
     }
 
+    /** Chief uses account authority, never a terminal selection ticket. Recheck the
+     * presentation's exact connection owner at every transport admission boundary.
+     */
+    internal suspend fun chiefRequest(method: String, params: JSONObject, timeoutMillis: Long,
+                                     isCurrent: () -> Boolean): JSONObject {
+        require(method in NativeChiefCapability.methods)
+        return requestAdmitted(method, params, timeoutMillis, MobileAttachTicketPolicy.OMIT) {
+            check(isCurrent()) { "Chief computer or account changed" }
+        }
+    }
+
     private suspend fun requestAdmitted(method: String, params: JSONObject, timeoutMillis: Long,
         ticketPolicy: MobileAttachTicketPolicy = MobileAttachTicketPolicy.WHEN_COVERED,
         ticketContext: MobileAttachTicketContext? = attachTicket,

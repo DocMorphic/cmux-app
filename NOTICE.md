@@ -1,5 +1,13 @@
 # Attribution
 
+The Chief wire models, RPC request contracts and shared question validation in
+`NativeChiefModels.kt`, `NativeChiefClient.kt` and `NativeChiefQuestion.kt` follow
+the iOS Chief client and shared AgentQuestion sources at cmux
+`a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`. Copyright Manaflow, Inc.;
+GPL-3.0-or-later. `third_party/cmux-chief/manifest.json` records the exact source
+hashes; its LICENSE preserves the upstream notice. Android uses its existing
+authenticated transport and independently enforces current connection ownership.
+
 Selected static UI translations are copied verbatim from the CMUXMobileCore,
 CmuxAgentChatUI, CmuxMobileChanges and CmuxMobileShellUI localization catalogs at
 cmux `f4b1509054949eaad5d695569ad443c4c18ed68d`. Copyright Manaflow, Inc.;
