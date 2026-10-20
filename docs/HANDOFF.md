@@ -25,6 +25,14 @@ scope, evidence and remaining presentation/lifecycle/real-host gates. This is no
 full Chief acceptance; the current custom Mac does not support Chief. Global
 implemented/reviewed pins remain unchanged.
 
+The custom Mac build recipe is now rebased to the Chief-capable `a5911a1f`
+candidate with exact 12-source guards and the existing 29-file patch. Local
+compiled integration, pairing/owner and installer/cache checks pass; see
+MAC_NOTIFICATION_BUILD.md. This has not replaced the running verified `f4b15090`
+host or established Chief runtime acceptance. A new full build/artifact remains
+required, and Chief is additionally gated by its host setting. Global mobile
+implemented/reviewed pins remain unchanged.
+
 Failed Chief sends now have source-mapped Try Again / Delete / Cancel actions.
 Retry keeps the idempotency ID, refreshes the time and removes the failure
 anchor; concurrent retry taps are reserved before suspension. Local deletion

@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 BUNDLE_ID = 'com.cmuxterm.app.debug.android.push'
-UPSTREAM = 'f4b1509054949eaad5d695569ad443c4c18ed68d'
+UPSTREAM = 'a5911a1f92f3eeb11c4d7f3e2ef89204718c5009'
 BUILD_PATH_KEYS = {'CMUXTERM_REPO_ROOT', 'CMUX_BUNDLED_CLI_PATH', 'CMUX_SHELL_INTEGRATION_DIR',
                    'CMUXD_UNIX_PATH'}
 

@@ -7,20 +7,20 @@ import os
 from pathlib import Path
 import tempfile
 
-REF = "f4b1509054949eaad5d695569ad443c4c18ed68d"
+REF = "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009"
 PINS = {
     "Sources/AppDelegate+AccountSignInWorkspace.swift": "1aab66dbc072c41eb020db9cce2d71f3a8dc6f1fb407723b5b2eb415dc04a9aa",
-    "Sources/Auth/HostAccountFlow.swift": "f1dc5b7a8be1dd480b9e10d1a34bc739076974833826153672557dffaee2e099",
-    "Sources/Auth/AccountSignInView.swift": "8358337dd66145bce0d72d4feaa6796455cad6232f2c9869cdfb96e0f58a8084",
-    "Resources/Localizable.xcstrings": "d942497a9ff1a2970e2e3f6941b4e239a24d172dbe9d02971fe33776578dd35b",
+    "Sources/Auth/HostAccountFlow.swift": "df5795bee1c9507a63620bdfbb4ae4f15a05a79d1eddc2db9b813fc4162db5e1",
+    "Sources/Auth/AccountSignInView.swift": "a174954d39c1ccac5961fb5b0e9a16ee836ae9477f1266c0cc52e71ec7f2d885",
+    "Resources/Localizable.xcstrings": "508affaf559409add83f36b870f221646bdf613d873897a0363a07f5e5cb726d",
     "Sources/Mobile/MobileHostService+PhonePushKeyExchange.swift": "09a9804a0176f1dc31f64fb7944fb99473ed1470542a519cd8ac3b14df5062cf",
     "Sources/Cloud/PhonePushClient.swift": "e895f51016156d18f11d4aa7d8b721252ff6759a80552b277ae3a7b45596c3df",
-    "Sources/Auth/MacAuthComposition.swift": "71184d168ad431dd0867a7efb64f6ea61b2fd66b8c3fcf6b9c3ee1ae6be10d57",
-    "cmux.xcodeproj/project.pbxproj": "78898acbeb053763c315c44b6dfe43fb6ff51da3cba0a073958b2192976f5a50",
+    "Sources/Auth/MacAuthComposition.swift": "4bb78b100be946c8970ab3001024ccbccea6de2140f09a545c2721c708a3e79a",
+    "cmux.xcodeproj/project.pbxproj": "4c8bd5b04194579af34fbdf5cf2090723c2546d59029f92d444aaf54a99779bf",
     "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TeamScopes.swift": "55c26389f160344ad666a0eeea48d1d1b37ac63c3e2e50f97602bed26f38a0fe",
-    "Sources/AppDelegate.swift": "e24fe250dfd1d95e0f64f09060281370b05e1ae6c172a25233a301d47ffca7b0",
-    "Sources/cmuxApp.swift": "3aabadf10ce21b1d879cd4a272827ce30722c55a46026fdb49745441bc377906",
-    "scripts/reload.sh": "b42199aa1416b20b51f48cc507e3bc0595347fcacf0fb470fb302912498d5216",
+    "Sources/AppDelegate.swift": "26597c0a8444b00d4d5f18b4660b7322294f210915646114f6786c87272ede75",
+    "Sources/cmuxApp.swift": "350a1789e1387ea37a60fed18aa65bf1aa0d84ea900aabfbc08ddff1734483e3",
+    "scripts/reload.sh": "a2690406a58bb5d0c7fb19fa2c9cd33f9a6ea4e7776f77b236483c2821b32a64",
 }
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -1,5 +1,36 @@
 # Custom Mac notification build
 
+## Chief-capable host candidate — 2026-10-20
+
+The build recipe now targets exact upstream
+`a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`, matching the scoped Android Chief
+reference. All 12 installer input hashes remain mandatory; the rebase still
+produces 29 exact patched/added files. The four unchanged boundaries include
+the push producer, key exchange, team-authority projection and account workspace
+entrypoints. The changed auth, AppDelegate, Commands, project, catalog and reload
+boundaries retain the existing isolated-owner hooks. This is a scoped Mac build
+integration rebase, not global source-review or mobile parity acceptance.
+
+Local checks pass for Swift/project/shell parsing, the actual nested SwiftUI
+Commands property, actual upstream payload/auth projection and native receipt /
+private-pipe behavior, pairing UI/socket/QR cleanup and owner/capture lifecycle.
+The email-code model executes against the newer source policy; the local CLT
+fallback records `uiTypechecked: false`. The hosted workflow still requires its
+full SwiftUI interface-fixture typecheck before the full tagged build. Five
+installer checks and eight cache checks pass; a new invariant keeps the workflow
+checkout and packager on the installer's guarded revision. The workflow selects
+the upstream-pinned Xcode SDK family (26) before preparing dependencies.
+
+The currently running, verified custom Mac remains the older `f4b15090` build
+from run 39429836746. No account, workspace, helper registration, key or live app
+was replaced by this source rebase. A new full candidate build, independent
+artifact verification, real launch/retention and Pixel/FCM checks remain open.
+Chief capability is also gated by the host's `chief.enabled` setting; compiling
+the candidate alone does not establish an active Chief host. The global
+implemented/reviewed mobile pins in `upstream.json` remain unchanged. Ignored
+comparison and compiled-check receipts are under
+`captures/recovery-20261020/mac-chief-rebase/` and `captures/source-audit-20261020/`.
+
 ## Corrected code form delivered — 2026-10-13
 
 Run **38433167598** succeeded at `06b0e294`, with full compilation taking
@@ -224,7 +255,7 @@ acceptance still are. The running official cmux app remains unchanged.
 The workflow is manual only, serializes its runs and has read-only repository
 permissions. No Firebase client secret, provider credential, cmux account token,
 private helper key or local configuration is passed to the runner. Upstream is
-pinned to `f4b1509054949eaad5d695569ad443c4c18ed68d`; Ghostty comes through the
+pinned to `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`; Ghostty comes through the
 upstream checksum-verifying setup. The build uses the documented tagged reload
 wrapper, production auth/API/Iroh routing and the `android-push` tag. It does not
 launch the app. Native composition/UI/control checks run before the full build.

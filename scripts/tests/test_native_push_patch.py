@@ -1,6 +1,7 @@
 """Installer refusal/rollback tests; real native syntax/behavior is checked separately."""
 import importlib.util
 from pathlib import Path
+import re
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -12,6 +13,15 @@ SPEC.loader.exec_module(INSTALLER)
 
 
 class NativePushPatchSafety(unittest.TestCase):
+    def test_workflow_checkout_and_packager_use_the_guarded_revision(self):
+        spec = importlib.util.spec_from_file_location("mac_companion_package", ROOT / "scripts/package-mac-notification-companion.py")
+        packager = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(packager)
+        self.assertEqual(packager.UPSTREAM, INSTALLER.REF)
+        workflow = (ROOT / ".github/workflows/mac-notification-companion.yml").read_text()
+        revisions = re.findall(r"repository: manaflow-ai/cmux\n\s+ref: ([0-9a-f]{40})\n", workflow)
+        self.assertEqual(revisions, [INSTALLER.REF])
+
     def fixture(self, target):
         originals = {}
         for path in INSTALLER.PINS:

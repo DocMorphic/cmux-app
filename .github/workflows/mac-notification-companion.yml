@@ -32,13 +32,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: manaflow-ai/cmux
-          ref: f4b1509054949eaad5d695569ad443c4c18ed68d
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
           path: upstream
           submodules: recursive
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Select the pinned Xcode SDK family
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
       - name: Prepare pinned native toolchain
         working-directory: upstream
         run: |
@@ -64,6 +70,7 @@ jobs:
           python3 scripts/check-native-push-hooks.py --upstream "$GITHUB_WORKSPACE/upstream" --node "$(command -v node)" --output build/mac-checks/hooks
           python3 scripts/check-native-push-pairing.py --node "$(command -v node)" --patched-app-delegate build/mac-checks/hooks/patched/Sources/AppDelegate.swift --output build/mac-checks/pairing
           python3 scripts/check-native-push-owner.py --node "$(command -v node)" --output build/mac-checks/owner
+          python3 -m unittest discover -s scripts/tests -p test_native_push_patch.py
           python3 -m unittest discover -s scripts/tests -p test_mac_companion_build_cache.py
       - name: Identify compatible Mac compiler cache
         id: compiler_cache_keys
