@@ -5,6 +5,21 @@ active; the completion gates in REMAINING_WORK.md remain authoritative. Work
 continues from the physical checkpoint below, preserving the Pixel release data
 and existing Mac workspaces.
 
+A disposable actual-UIKit reference host is prepared in
+`tests/ios-chief-reference/`. Its manual `ios-chief-reference.yml` workflow builds
+the unmodified 227-file conversation package at the Chief audit revision and
+captures nine offline scenes plus visible-label/font metadata. Source-tree,
+fixture and project-commit guards and PNG hash/dimension pairing fail closed;
+five integrity checks pass, and the generated project/scheme and Swift inputs
+parse locally. UIKit typechecking and rendering are still unverified. Current
+inspection finds only `/Library/Developer/CommandLineTools`; full Xcode and an
+iOS runtime are absent from this Mac. Older Xcode/license observations below
+are historical and do not describe this current prerequisite. Use the hosted
+reference workflow; do not infer a rendered pass from the local parser checks.
+The source tree pin is an executable reference dependency, not full semantic
+review. See CHIEF.md and the fixture README. Android production source and
+the prepared signed candidate are unchanged by this reference infrastructure.
+
 Chief now has an initial mounted Home/transcript/question workflow at the frozen
 Oct 20 audit candidate, behind complete host capability and exact foreground
 owner admission. Its retained sessions implement event-backed updates, history

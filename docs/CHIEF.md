@@ -102,6 +102,20 @@ Home includes relative update stamps and the bounded pinned-only invitation;
 the header uses a spoken Stop control and single-line titles at enlarged sizes.
 These are scoped presentation steps, not a complete generic conversation port.
 
+An isolated hosted UIKit reference is now prepared under
+`tests/ios-chief-reference/`, with a manual `ios-chief-reference.yml` workflow.
+It extracts the actual 227-file conversation package from its pinned Git tree,
+uses Chief's presentation options and original avatar, and drives nine authored
+offline scenes. Exported screenshots are paired with visible-label geometry and
+font metadata by exact PNG hashes; the verifier requires the complete scene set,
+fixture/source hashes, clean project commit and matching pixel dimensions.
+The generated Xcode project and scheme parse, both Swift inputs parse, and five
+integrity checks pass. These are not UIKit typechecking or rendering evidence.
+The current local developer directory contains only command-line tools; full
+Xcode and an iOS runtime were not found. Hosted compilation/capture, artifact
+inspection and matched Android scenes remain required. This does not update
+global implemented/reviewed pins or claim complete review of the reference tree.
+
 Evidence is ignored under `captures/recovery-20261020/`:
 
 - Actual pinned Swift execution: 21 wire-model cases, nine client requests and

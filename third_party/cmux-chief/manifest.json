@@ -56,5 +56,10 @@
   },
   "historyFiles": {
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationHistoryPrefetch.swift": "73559239bc725912e7a0e7b1cdba67b2651f1f7d4e1509304ad3966f967b7e75"
+  },
+  "referencePackage": {
+    "path": "Packages/iOS/CmuxConversation",
+    "tree": "c637abe46f3eeb6e223ae8c6c075641663e6d0cc",
+    "scope": "Immutable executable UIKit reference dependency; pinning the tree does not claim full semantic review"
   }
 }
