@@ -4,8 +4,8 @@
 
 The build recipe now targets exact upstream
 `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`, matching the scoped Android Chief
-reference. All 12 installer input hashes remain mandatory; the rebase still
-produces 29 exact patched/added files. The four unchanged boundaries include
+reference. The current recipe guards 13 exact installer inputs and produces
+30 exact patched/added files, including the CLI correction below. The four unchanged boundaries include
 the push producer, key exchange, team-authority projection and account workspace
 entrypoints. The changed auth, AppDelegate, Commands, project, catalog and reload
 boundaries retain the existing isolated-owner hooks. This is a scoped Mac build
@@ -21,12 +21,22 @@ installer checks and eight cache checks pass; a new invariant keeps the workflow
 checkout and packager on the installer's guarded revision. The workflow selects
 the upstream-pinned Xcode SDK family (26) before preparing dependencies.
 
-Full run [39493457582](https://github.com/DocMorphic/cmux-app/actions/runs/39493457582)
-is building project source `2c6ed4b93c60d425efc17a6d3c97c59ec5900f3d` against this
-candidate. Its dependency and required integration checks passed, including the
-hosted form UI typecheck; it is in full tagged compilation. The patched catalog
+First full run [39493457582](https://github.com/DocMorphic/cmux-app/actions/runs/39493457582)
+at project source `2c6ed4b93c60d425efc17a6d3c97c59ec5900f3d` failed in the CLI
+target: `CMUXCLI+CommandSuggestions.swift` left its `topLevelCommandNames` Set
+initializer as an uncalled closure. The compiler asks for `()`. The installer
+now pins this thirteenth source and invokes that closure. The new mandatory
+`check-mac-cli-suggestions.py` reproduces the original compile failure, compiles
+the actual corrected leaf and executes Chief inclusion, typo suggestions, error
+status and hidden-command exclusion with inert CLI/registry definitions. This
+is a focused correction; full linking and runtime acceptance remain open.
+
+That first run's dependency and required integration checks passed, including the
+hosted form UI typecheck. The patched catalog
 also passes the actual source checker across all nine locales, zero parity
-errors. Poll this specific run rather than redispatching while it remains active.
+errors. The terminal failure permits a new build after this checked correction;
+do not redispatch an active follow-up. Logs and red/green leaf receipts are in
+`captures/recovery-20261020/mac-chief-rebase/`.
 
 The currently running, verified custom Mac remains the older `f4b15090` build
 from run 39429836746. No account, workspace, helper registration, key or live app

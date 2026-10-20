@@ -26,13 +26,17 @@ full Chief acceptance; the current custom Mac does not support Chief. Global
 implemented/reviewed pins remain unchanged.
 
 The custom Mac build recipe is now rebased to the Chief-capable `a5911a1f`
-candidate with exact 12-source guards and the existing 29-file patch. Local
+candidate, now with exact 13-source guards and a 30-file patch. Local
 compiled integration, pairing/owner and installer/cache checks pass; see
 MAC_NOTIFICATION_BUILD.md. This has not replaced the running verified `f4b15090`
 host or established Chief runtime acceptance. Full run **39493457582**, source
 `2c6ed4b93c60d425efc17a6d3c97c59ec5900f3d`, passed dependency/integration
-preparation and is compiling the full tagged app. Revalidate this same run;
-do not redispatch while queued/active. Artifact and runtime verification remain
+preparation but failed during CLI compilation. The pinned upstream file left
+the command-name Set initializer as an uncalled closure. Its exact source is
+now guarded and the initializer invoked; the new mandatory leaf check reproduces
+the original compiler failure and passes corrected compile/behavior checks.
+The native hook checks and five installer/eight cache checks also pass. A checked
+follow-up build is required; do not redispatch one while queued/active. Artifact and runtime verification remain
 required, and Chief is additionally gated by its host setting. Global mobile
 implemented/reviewed pins remain unchanged.
 

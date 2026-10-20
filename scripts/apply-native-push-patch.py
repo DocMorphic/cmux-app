@@ -9,6 +9,7 @@ import tempfile
 
 REF = "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009"
 PINS = {
+    "CLI/CMUXCLI+CommandSuggestions.swift": "2472468564ea59ab24a14cab7c8c7a04f7985fa0f154b2ac516b28f1e7413754",
     "Sources/AppDelegate+AccountSignInWorkspace.swift": "1aab66dbc072c41eb020db9cce2d71f3a8dc6f1fb407723b5b2eb415dc04a9aa",
     "Sources/Auth/HostAccountFlow.swift": "df5795bee1c9507a63620bdfbb4ae4f15a05a79d1eddc2db9b813fc4162db5e1",
     "Sources/Auth/AccountSignInView.swift": "a174954d39c1ccac5961fb5b0e9a16ee836ae9477f1266c0cc52e71ec7f2d885",
@@ -136,6 +137,12 @@ def patched_sources(original):
         if hashlib.sha256(original[path]).hexdigest() != expected:
             raise ValueError(f"Source mismatch: {path}; expected audited cmux {REF}")
     result = {}
+    path = "CLI/CMUXCLI+CommandSuggestions.swift"
+    source = original[path].decode()
+    # This pinned upstream revision left its Set initializer as an uncalled
+    # closure, preventing the full app's bundled CLI target from compiling.
+    source = once(source, "        return names\n    }\n}", "        return names\n    }()\n}")
+    result[path] = source.encode()
     path = "Sources/AppDelegate+AccountSignInWorkspace.swift"
     source = original[path].decode()
     if source.count("panel.model.presentSignIn()") != 2:
