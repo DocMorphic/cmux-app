@@ -89,7 +89,15 @@ final class CmuxChiefReferenceTests: XCTestCase {
         }
     }
 
-    @MainActor func testCapturePinnedChiefConversationScenes() async throws {
+    @MainActor func testCaptureStandardChiefConversationScenes() async throws {
+        try await capture(sceneCategory: "large", systemCategory: .large)
+    }
+
+    @MainActor func testCaptureAccessibilityChiefConversationScene() async throws {
+        try await capture(sceneCategory: "accessibilityMedium", systemCategory: .accessibilityMedium)
+    }
+
+    @MainActor private func capture(sceneCategory: String, systemCategory: UIContentSizeCategory) async throws {
         let input = try resource("Scenes.json")
         let scenes = try JSONDecoder().decode(ReferenceScenes.self, from: input)
         XCTAssertEqual(scenes.schema, 1)
@@ -97,9 +105,12 @@ final class CmuxChiefReferenceTests: XCTestCase {
         guard let windowScene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else {
             throw ReferenceFailure.missingWindowScene
         }
+        try await wait("actual application content-size category") {
+            UIApplication.shared.preferredContentSizeCategory == systemCategory
+        }
         UIView.setAnimationsEnabled(false)
         defer { UIView.setAnimationsEnabled(true) }
-        for scene in scenes.scenes {
+        for scene in scenes.scenes where scene.category == sceneCategory {
             let date = Date()
             let backend = ReferenceBackend(scene, date: date)
             let store = ConversationStore(backend: backend, makeClientMessageID: { "reference-failed-send" })
@@ -109,7 +120,6 @@ final class CmuxChiefReferenceTests: XCTestCase {
                 placeholder: "Message Chief", serviceTitle: "Chief", serviceSubtitle: "Runs your agents on your Mac",
                 avatarImage: avatar, trailingSymbol: "stop.fill", trailingAccessibilityLabel: "Stop Chief",
                 supportsReactions: false, supportsEditing: false, supportsUnsend: false, supportsAttachments: false))
-            controller.traitOverrides.preferredContentSizeCategory = scene.category == "accessibilityMedium" ? .accessibilityMedium : .large
             let window = UIWindow(windowScene: windowScene)
             window.frame = windowScene.coordinateSpace.bounds
             window.overrideUserInterfaceStyle = scene.style == "light" ? .light : .dark
@@ -147,6 +157,8 @@ final class CmuxChiefReferenceTests: XCTestCase {
                 "fixtureSha256": SHA256.hash(data: input).map { String(format: "%02x", $0) }.joined(),
                 "imageSha256": SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined(),
                 "style": scene.style, "category": scene.category, "date": ISO8601DateFormatter().string(from: date),
+                "applicationContentSizeCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
+                "applicationCategoryMatchesScene": UIApplication.shared.preferredContentSizeCategory == systemCategory,
                 "os": ProcessInfo.processInfo.operatingSystemVersionString,
                 "viewport": [window.bounds.width, window.bounds.height], "scale": format.scale,
                 "safeArea": [window.safeAreaInsets.top, window.safeAreaInsets.bottom],

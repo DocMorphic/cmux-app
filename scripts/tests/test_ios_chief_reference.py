@@ -37,7 +37,8 @@ class ReferenceIntegrityTests(unittest.TestCase):
             image = png(index); name = scene['id']
             (self.exported / (name + '.png')).write_bytes(image)
             value = {'scene': name, 'fixtureSha256': scene_sha, 'imageSha256': hashlib.sha256(image).hexdigest(),
-                     'viewport': [2, 3], 'scale': 1, 'labels': [{'text': 'Synthetic verifier test'}], 'storeMessages': 1,
+                     'viewport': [2, 3], 'scale': 1, 'labels': [{'text': 'Synthetic verifier test', 'class': 'ConversationEffectLabel', 'fontSize': 28}], 'storeMessages': 1,
+                     'style': scene['style'], 'category': scene['category'], 'applicationCategoryMatchesScene': True,
                      'provenance': {'scenesSha256': scene_sha, 'upstreamRevision': self.manifest['revision'],
                                     'packageTree': self.manifest['referencePackage']['tree'],
                                     'projectSourceCommit': self.commit, 'projectSourceDirty': False}}
@@ -72,6 +73,11 @@ class ReferenceIntegrityTests(unittest.TestCase):
     def test_image_dimensions_must_match_the_actual_capture_viewport(self):
         self.mutate(lambda value: value.update(viewport=[200, 300]))
         with self.assertRaisesRegex(ValueError, 'Wrong rendered image dimensions'): self.verify()
+
+    def test_a_large_text_label_cannot_pass_without_actual_accessibility_fonts(self):
+        path = self.exported / 'large-dark.json'; value = json.loads(path.read_text())
+        value['labels'][0]['fontSize'] = 17; path.write_text(json.dumps(value))
+        with self.assertRaisesRegex(ValueError, 'Accessibility body type was not rendered'): self.verify()
 
 
 if __name__ == '__main__': unittest.main()

@@ -10,8 +10,9 @@ A disposable actual-UIKit reference host is prepared in
 the unmodified 227-file conversation package at the Chief audit revision and
 captures nine offline scenes plus visible-label/font metadata. Source-tree,
 fixture and project-commit guards and PNG hash/dimension pairing fail closed;
-five integrity checks pass, and the generated project/scheme and Swift inputs
-parse locally. UIKit typechecking and rendering are still unverified. Current
+six integrity checks pass, and the generated project/scheme and Swift inputs
+parse locally. Hosted UIKit compilation/rendering now execute, but reference
+batch acceptance remains open. Current
 inspection finds only `/Library/Developer/CommandLineTools`; full Xcode and an
 iOS runtime are absent from this Mac. Older Xcode/license observations below
 are historical and do not describe this current prerequisite. Use the hosted
@@ -22,9 +23,14 @@ the prepared signed candidate are unchanged by this reference infrastructure.
 First reference run `39510100505` failed because the generated test target also
 requested x86_64 while SwiftPM built ARM-only simulator modules. The corrected
 project uses the active destination architecture. Follow-up `39511521895` at
-`3b2cfc4a0d9174a0b2b96833416db6dc732eba9e` is in actual UIKit compilation/capture;
-revalidate this specific job and do not redispatch while active. No reference
-images have yet been accepted.
+`3b2cfc4a0d9174a0b2b96833416db6dc732eba9e` compiled/rendered nine scenes but failed
+the accessibility-font guard: captured body fonts were still 17 points. A
+controller-only trait override was insufficient. The corrected workflow now sets
+the disposable simulator's actual content size and runs standard/accessibility
+cases separately. Tests and export require native category agreement and actual
+≥28-point accessibility body type. Both runs and all nine scenes remain required;
+no reference batch is accepted yet. Check the explicit follow-up receipt under
+`captures/recovery-20261021/ios-chief-reference/` before dispatching again.
 
 Chief now has an initial mounted Home/transcript/question workflow at the frozen
 Oct 20 audit candidate, behind complete host capability and exact foreground

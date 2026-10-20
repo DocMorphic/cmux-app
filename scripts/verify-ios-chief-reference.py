@@ -12,7 +12,8 @@ def verify(exported, output, project_commit):
     root = Path(__file__).resolve().parents[1]
     manifest = json.loads((root / 'third_party/cmux-chief/manifest.json').read_text())
     scene_bytes = (root / 'tests/ios-chief-reference/Scenes.json').read_bytes()
-    expected = {scene['id'] for scene in json.loads(scene_bytes)['scenes']}
+    scenes = {scene['id']: scene for scene in json.loads(scene_bytes)['scenes']}
+    expected = set(scenes)
     scene_sha = hashlib.sha256(scene_bytes).hexdigest()
     images = {}; metadata = {}
     for path in exported.rglob('*'):
@@ -30,6 +31,14 @@ def verify(exported, output, project_commit):
     paired = []
     for name in sorted(expected):
         path, value = metadata[name]; provenance = value['provenance']
+        if value.get('style') != scenes[name]['style'] or value.get('category') != scenes[name]['category']:
+            raise ValueError('Wrong scene traits: ' + name)
+        if value.get('applicationCategoryMatchesScene') is not True:
+            raise ValueError('Application content-size category did not match scene: ' + name)
+        if scenes[name]['category'] == 'accessibilityMedium':
+            body = [label for label in value['labels'] if label.get('class') == 'ConversationEffectLabel']
+            if not body or any(label.get('fontSize', 0) < 28 for label in body):
+                raise ValueError('Accessibility body type was not rendered: ' + name)
         if value['fixtureSha256'] != scene_sha or provenance['scenesSha256'] != scene_sha: raise ValueError('Scene fixture changed')
         if provenance['upstreamRevision'] != manifest['revision'] or provenance['packageTree'] != manifest['referencePackage']['tree']:
             raise ValueError('Unreviewed UIKit source')

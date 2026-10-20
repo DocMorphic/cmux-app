@@ -38,3 +38,13 @@ SwiftPM's Debug modules. First run `39510100505` built the upstream package but
 failed when the generated test target also requested x86_64 and tried to import
 the ARM-only modules. The host setting corrects that mismatch; it does not patch
 the pinned upstream package or establish a rendered pass by itself.
+
+Follow-up `39511521895` compiled and captured all nine scenes, but its body-font
+guard found 17-point text in the accessibility scene. A per-controller trait
+override did not exercise the application's real Dynamic Type environment.
+The workflow now runs eight standard scenes and the accessibility scene in
+separate test invocations, setting the disposable simulator's actual content
+size before each. Tests require the application category to match and the
+accessibility body font to reach the source's 28-point threshold. The exporter
+also rejects mislabeled or ordinary-size accessibility captures. All nine scenes
+remain required; no reference batch is accepted until both invocations pass.

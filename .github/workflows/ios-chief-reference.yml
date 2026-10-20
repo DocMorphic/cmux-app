@@ -52,22 +52,37 @@ jobs:
           print({'name': selected['name'], 'udid': selected['udid'], 'state': selected['state']})
           Path(os.environ['RUNNER_TEMP'] + '/selected-simulator.json').write_text(json.dumps(selected, indent=2) + '\n')
           PY
-      - name: Render actual upstream UIKit scenes
+      - name: Render standard UIKit scenes
         run: |
           set -euo pipefail
           xcrun simctl boot "$REFERENCE_SIMULATOR" || xcrun simctl bootstatus "$REFERENCE_SIMULATOR" -b
           xcrun simctl bootstatus "$REFERENCE_SIMULATOR" -b
+          xcrun simctl ui "$REFERENCE_SIMULATOR" content_size large
           xcodebuild test -project "$RUNNER_TEMP/chief-reference/CmuxChiefReference.xcodeproj" \
             -scheme CmuxChiefReference -destination "platform=iOS Simulator,id=$REFERENCE_SIMULATOR" \
             -destination-timeout 90 -parallel-testing-enabled NO \
-            -resultBundlePath "$RUNNER_TEMP/chief-reference.xcresult" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-build.log"
+            -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureStandardChiefConversationScenes \
+            -resultBundlePath "$RUNNER_TEMP/chief-reference-standard.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-standard-build.log"
+      - name: Render accessibility UIKit scene with real system type
+        run: |
+          set -euo pipefail
+          xcrun simctl ui "$REFERENCE_SIMULATOR" content_size accessibility-medium
+          xcrun simctl ui "$REFERENCE_SIMULATOR" content_size
+          xcodebuild test -project "$RUNNER_TEMP/chief-reference/CmuxChiefReference.xcodeproj" \
+            -scheme CmuxChiefReference -destination "platform=iOS Simulator,id=$REFERENCE_SIMULATOR" \
+            -destination-timeout 90 -parallel-testing-enabled NO \
+            -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureAccessibilityChiefConversationScene \
+            -resultBundlePath "$RUNNER_TEMP/chief-reference-accessibility.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-accessibility-build.log"
       - name: Export and verify scene payloads
         if: always()
         run: |
           set -euo pipefail
-          if [ ! -d "$RUNNER_TEMP/chief-reference.xcresult" ]; then exit 1; fi
-          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/chief-reference.xcresult" --output-path "$RUNNER_TEMP/chief-reference-exported"
+          for mode in standard accessibility; do
+            if [ ! -d "$RUNNER_TEMP/chief-reference-$mode.xcresult" ]; then exit 1; fi
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/chief-reference-$mode.xcresult" --output-path "$RUNNER_TEMP/chief-reference-exported/$mode"
+          done
           python3 cmux-app/scripts/verify-ios-chief-reference.py --exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-scenes" --project-commit "$GITHUB_SHA"
       - name: Preserve reference evidence and diagnostics
         if: always()
@@ -78,7 +93,9 @@ jobs:
           path: |
             ${{ runner.temp }}/chief-reference-scenes
             ${{ runner.temp }}/chief-reference-exported
-            ${{ runner.temp }}/chief-reference.xcresult
-            ${{ runner.temp }}/chief-reference-build.log
+            ${{ runner.temp }}/chief-reference-standard.xcresult
+            ${{ runner.temp }}/chief-reference-accessibility.xcresult
+            ${{ runner.temp }}/chief-reference-standard-build.log
+            ${{ runner.temp }}/chief-reference-accessibility-build.log
             ${{ runner.temp }}/chief-reference/Provenance.json
             ${{ runner.temp }}/selected-simulator.json

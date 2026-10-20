@@ -111,7 +111,7 @@ uses Chief's presentation options and original avatar, and drives nine authored
 offline scenes. Exported screenshots are paired with visible-label geometry and
 font metadata by exact PNG hashes; the verifier requires the complete scene set,
 fixture/source hashes, clean project commit and matching pixel dimensions.
-The generated Xcode project and scheme parse, both Swift inputs parse, and five
+The generated Xcode project and scheme parse, both Swift inputs parse, and six
 integrity checks pass. These are not UIKit typechecking or rendering evidence.
 The current local developer directory contains only command-line tools; full
 Xcode and an iOS runtime were not found. Hosted compilation/capture, artifact
@@ -123,6 +123,14 @@ simulator modules. The project now sets `ONLY_ACTIVE_ARCH = YES`, matching the
 selected destination and leaving the pinned package unchanged. A fresh generated
 project parses; hosted typechecking/capture still must pass before any reference
 image is accepted.
+Follow-up `39511521895` at `3b2cfc4a` compiled and rendered all nine scenes, but
+failed the accessibility-font guard. The captured 402×874 @3x scene still had
+17-point body text. The host now uses separate standard/accessibility invocations
+with the simulator's actual system content size rather than a controller-only
+trait override. Native application category and ≥28-point accessibility body
+fonts are required in the test and exported metadata. The six integrity checks
+include rejecting a mislabeled 17-point accessibility capture. No batch is
+accepted until both hosted invocations and all nine scene checks pass.
 
 Evidence is ignored under `captures/recovery-20261020/`:
 
