@@ -35,7 +35,23 @@ pairing menu item was not visible during inspection. Its unchanged production
 client/model/view/presentation compiled into an ignored temporary local viewer
 connected to the same native owner socket, allowing the user to compare and scan
 the real enrollment offer. This does not establish working menu integration.
-Phone helper enrollment and actual FCM remain unverified.
+The user completed helper enrollment; Android shows the paired state and the
+Mac database contains one registration. A real background alert was accepted by
+Firebase and displayed on Android. A second isolated check used `am stop-app`
+(not `force-stop`), verified that the release app process was absent, then sent
+a unique alert. Firebase woke a new app process, `PhoneFcmWorker` ran and Android
+displayed its exact title/body while `NativeNotificationService` remained absent.
+The helper outbox recorded both jobs as `done/accepted`. This proves FCM-only
+display after process stop; force-stop, Doze, token rotation, reply and revocation
+acceptance remain open.
+
+Tapping that notification during cold connection restoration produced
+“This notification's saved Mac is no longer available.” Workspace reconnection
+itself still works. Notification tap navigation is **not accepted**; inspect its
+early route-consumption/owner-restoration boundary before changing authorization.
+The exact failure and minimized notification/provider/process evidence are
+retained locally. The three acceptance alerts were dismissed, the temporary
+pairing viewer was stopped and the original phone keep-awake setting restored.
 
 Fresh-checkout setup exposed an obsolete Ghostty JNI checkpoint in the README.
 Run **39410466355** succeeded at `a5ba3898`; downloaded receipt/file hashes and
@@ -47,8 +63,9 @@ its focused rerun and the subsequent full rerun passed. Final full count:
 intermittent failure, not a demonstrated production fix. Push tests passed 200
 with one optional reference-decryptor skip; 32 recovery-policy tests passed.
 
-Continue with live terminal I/O/reconnect diagnosis and native helper enrollment,
-then background/process-dead FCM acceptance. Full parity remains open. Full local
+Continue with the cold notification-tap and initial terminal-connection failures,
+the custom Mac pairing-menu integration, then broader input/push/lifecycle gates.
+Full parity remains open. Full local
 Xcode is absent; use the verified hosted Mac artifact for this checkpoint.
 
 ## Mac email-code validation correction — 2026-10-13
