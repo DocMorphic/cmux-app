@@ -49,6 +49,18 @@ It is preserved in `captures/runtime/parity-candidate-704/` with receipts under
 on 703. Candidate 704 predates the mounted Chief UI. Live sign-in/pairing retention,
 initial terminal admission and cold-tap revalidation remain pending.
 
+The current local signed candidate is **705**, clean source
+`6f1d7446a864d85b46ac50990d2821b52868afd7`. It includes both fixes and the
+mounted Chief workflow/timeline. APK SHA-256:
+`72f28fb7088114668eb9b7f24086631f2c77b5206b388032ea9b6ef04d91a47f`;
+277,471,004 bytes. The strict verifier passed the unchanged signer, all 22
+native libraries/alignment, 21 viewer assets, exclusion of 14 debug components
+and matching real Firebase resources. Artifact and source receipt are in
+`captures/runtime/parity-candidate-705/`; verification receipts are in
+`captures/recovery-20261020/apk-verification-705/`. This is not published or
+installed. Prefer 705 for the next in-place Pixel upgrade; preserve release
+data and the separate older debug app. USB remains absent at this checkpoint.
+
 Full Mac run **39429836746 / bb80ad67** succeeded. The downloaded archive's
 SHA-256 is `f64aca9107cc2f9a16bdbbb7714abceb1b08317ed19b75c6fbbfa0e610f37bc4`.
 Independent verification checked all 12 original pins / 29 immutable patch hashes,
@@ -111,7 +123,7 @@ The owner initially deferred live testing, then offered to reconnect the phone.
 USB is not yet present. It disconnected before the temporary USB/AC keep-awake
 setting could be restored. First restore
 `adb -s 29231JEGR18218 shell svc power stayon false` (original setting 0) when it
-next becomes available. Signed candidate 704 is prepared above; candidate 703
+next becomes available. Signed candidate 705 is prepared above; candidate 703
 predates the initial shared-sizing correction.
 
 ## New Mac restoration and physical-device checkpoint — 2026-10-20

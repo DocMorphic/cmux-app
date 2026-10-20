@@ -70,5 +70,9 @@ remain open. Verify cold process and connection replacement restoration and
 wide-screen navigation. Compare matched iOS states and exercise a supporting
 real Mac with the Pixel. The current custom Mac remains at `f4b15090` without
 Chief, so its successful menu update is not Chief supporting-host evidence.
-Local signed candidate 704 predates the mounted Chief UI and is not yet installed
-on the Pixel; the next configured signed milestone should include this port.
+Local signed candidate 705 includes this mounted port and timeline at clean
+source `6f1d7446`. Its stable signer, native libraries/alignment, viewer assets,
+debug-component exclusion and real Firebase resources passed strict verification.
+It is prepared for a data-preserving Pixel upgrade, not installed or published;
+see HANDOFF.md for the exact source/hash and receipts. Candidate 704 is retained
+as an older pre-UI artifact.
