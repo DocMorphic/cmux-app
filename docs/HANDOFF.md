@@ -18,13 +18,24 @@ Release sign-in completed; the phone discovered the custom Mac and displayed
 its actual workspaces, including a newly created acceptance workspace. After a
 process restart, sign-in/pairing were retained and the workspace list recovered.
 Opening a terminal initially produced the local disconnected/reattach guard;
-terminal rendering/input and successful terminal reconnect are **not accepted**.
+the initial failure is retained. After a process restart and saved-pairing
+reconnect, the real Pixel rendered a unique Mac terminal marker. A composer
+command sent from the Pixel executed on the Mac and produced its matching output,
+verified through the Mac terminal API. This accepts that basic bidirectional
+workflow; initial-connection reliability, direct IME and wider lifecycle checks
+remain open.
 
 The private helper was migrated to this Mac's authenticated Tailscale address
 and a newly issued, trust/hostname/key-verified TLS certificate. The old private
 configuration and certificate were preserved. The native-owned helper listens
 on its configured private interface, HTTPS responds, and Pixel-to-Mac Tailscale
-reachability passed. Phone helper enrollment and actual FCM remain unverified.
+reachability passed. The helper issued an authenticated release-phone offer,
+which was cancelled without printing or persisting its secret. The custom app's
+pairing menu item was not visible during inspection. Its unchanged production
+client/model/view/presentation compiled into an ignored temporary local viewer
+connected to the same native owner socket, allowing the user to compare and scan
+the real enrollment offer. This does not establish working menu integration.
+Phone helper enrollment and actual FCM remain unverified.
 
 Fresh-checkout setup exposed an obsolete Ghostty JNI checkpoint in the README.
 Run **39410466355** succeeded at `a5ba3898`; downloaded receipt/file hashes and
