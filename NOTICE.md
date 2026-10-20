@@ -7,6 +7,11 @@ the iOS Chief client and shared AgentQuestion sources at cmux
 GPL-3.0-or-later. `third_party/cmux-chief/manifest.json` records the exact source
 hashes; its LICENSE preserves the upstream notice. Android uses its existing
 authenticated transport and independently enforces current connection ownership.
+The scoped Home/transcript/question presentation follows `ChiefHomeView.swift`
+and `ChiefConversationBackend.swift` at that same revision. The unmodified
+ChiefAvatar.png is copied from CmuxMobileShellUI's ChiefAvatar imageset.
+The manifest records those behavior and artwork hashes separately from the
+wire-model sources executed by the reference checker.
 
 Selected static UI translations are copied verbatim from the CMUXMobileCore,
 CmuxAgentChatUI, CmuxMobileChanges and CmuxMobileShellUI localization catalogs at

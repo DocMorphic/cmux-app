@@ -21,15 +21,17 @@ does not advertise Chief methods in its capabilities. Port the account/host
 ownership, conversation list/search/history, send/events/recovery, transcript
 rendering and navigation contracts, and validate against a supporting host.
 
-The first scoped port implements the typed wire/client and structured question
-models against five exact source hashes at that candidate. Actual upstream Swift
-execution supplies 21 model vectors, nine request vectors and eight question
-validation cases. Android verifies these contracts and account/connection
-retirement at transport boundaries; 101 focused JVM cases pass. This does not
-mount Chief UI or accept Chief parity. Retained state, conversation reconciliation,
-list/transcript/actions and supporting-host/Pixel evidence remain required.
-See `third_party/cmux-chief/README.md`; global implemented/reviewed pins remain
-unchanged.
+The initial Chief destination is now mounted behind the complete capability set
+and the exact admitted foreground Mac. It includes Home search/unread/working
+state, transcript history/events/send/stop, work parts, approval/question actions,
+full qualified question forms and retained drafts. Actual source execution gives
+21 wire-model vectors, nine request vectors and eight question-validation cases.
+The full JVM run passed 2,978, skipped four, zero failures. Five Android cases
+passed against the production composition and a framed root fixture, with an
+inspected transcript screenshot. These are scoped fixture checks; Chief parity
+remains open. Complete the generic conversation UI comparison, localization,
+scroll/window/read markers, deeper lifecycle/restoration and supporting real
+Mac/Pixel evidence in CHIEF.md. Global implemented/reviewed pins are unchanged.
 
 The Oct 20 Pixel/Mac checkpoint and active notification/terminal/menu fixes are
 recorded at the top of HANDOFF.md. The owner has offered to reconnect the phone

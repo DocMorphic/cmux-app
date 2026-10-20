@@ -5,20 +5,19 @@ active; the completion gates in REMAINING_WORK.md remain authoritative. Work
 continues from the physical checkpoint below, preserving the Pixel release data
 and existing Mac workspaces.
 
-Chief now has a scoped wire foundation at the frozen Oct 20 audit candidate:
-nine typed RPC methods, complete capability admission, strict response models,
-wide sequence counters and structured questions/answers. Requests use the
-existing account-authorized transport without a terminal selection ticket;
-current-owner checks cover token lookup, write admission and response decoding.
-Actual pinned Swift models/client executed against a recording stub produce
-21 model vectors, nine request vectors and eight question-validation cases.
-Android comparisons and transport/retirement/cancellation regressions passed:
-101 focused JVM cases, zero failures or skips. Main and instrumentation Kotlin
-compiled. See `third_party/cmux-chief/README.md` for reproducible source checks.
-This is not a mounted Chief feature: retained state, UI, live reconciliation,
-actions and supporting-Mac/Pixel acceptance remain open. The global pin stays
-unchanged. Evidence: `captures/recovery-20261020/chief-swift-reference/` and
-`chief-and-rpc-regression.log`.
+Chief now has an initial mounted Home/transcript/question workflow at the frozen
+Oct 20 audit candidate, behind complete host capability and exact foreground
+owner admission. Its retained sessions implement event-backed updates, history
+paging/gap recovery, stable send correlation, draft retention, approval/question
+reservation and receipts. Account/Mac retirement cancels requests and clears
+content; backgrounding pauses reads. The unmodified Chief avatar is attributed.
+Actual Swift wire execution still supplies 21 models, nine requests and eight
+validation cases. The full JVM run passed 2,978 with four skips and zero failures.
+Five Android cases pass for the production UI and framed root integration; the
+transcript screenshot was inspected. See CHIEF.md for source mapping, exact
+scope, evidence and remaining presentation/lifecycle/real-host gates. This is not
+full Chief acceptance; the current custom Mac does not support Chief. Global
+implemented/reviewed pins remain unchanged.
 
 Cold-tap investigation found that `NativeNotificationService` pruned durable tap
 destinations using temporary connection admission. During cold membership
@@ -31,8 +30,18 @@ label `a4964b034f0f+`, built and passed signer, 22 native-library/alignment, 21
 asset, 14 debug-component exclusion and real Firebase resource checks. It upgraded
 the Pixel in place successfully. APK SHA-256:
 `d54d1dc71881ea193afa1a772be824772b1d78b1907af4a9ed5ed3063ee6752a`.
-It is a local validation build, not a published preview. Live sign-in/pairing
-retention and cold-tap revalidation remain pending phone availability.
+It is a local validation build, not a published preview.
+
+A newer local signed candidate **704**, clean source
+`5a4d0f465f4bd22b5214fd4af756ca1f823a4b0f`,
+includes both notification retention and initial shared-sizing fixes. Its SHA-256
+is `b6d652e23d1e892482ba0c9bb8d9ac47a5d5610d5ae5e9a98863174581dbea96`;
+277,352,120 bytes. The unchanged signer, 22 libraries/alignment, 21 assets, 14
+excluded debug components and real Firebase resources passed verification.
+It is preserved in `captures/runtime/parity-candidate-704/` with receipts under
+`apk-verification-704/`. USB is absent, so 704 is not installed; the Pixel remains
+on 703. Candidate 704 predates the mounted Chief UI. Live sign-in/pairing retention,
+initial terminal admission and cold-tap revalidation remain pending.
 
 Production pairing now uses `NativePushPairingCommands` in the pinned SwiftUI
 scene's command model and the existing AppDelegate-owned presentation/client.
@@ -62,6 +71,7 @@ payload/auth/queue checks and four installer safety checks pass. Evidence:
 still required; do not install the failed build or accept the older AppKit-only
 run. Verify the next successful run's own immutable source manifest (12 original
 pins / 29 changed or added files) before replacing the running custom app.
+Replacement full-host run **39429836746 / bb80ad67** is in progress.
 
 A new emulator regression held the first shared-sizing subscription while the
 real root screen recomposed. It reached the same disconnected guard as the
@@ -85,8 +95,8 @@ The owner initially deferred live testing, then offered to reconnect the phone.
 USB is not yet present. It disconnected before the temporary USB/AC keep-awake
 setting could be restored. First restore
 `adb -s 29231JEGR18218 shell svc power stayon false` (original setting 0) when it
-next becomes available. Prepare a fresh signed update containing both fixes;
-candidate 703 predates the initial shared-sizing correction.
+next becomes available. Signed candidate 704 is prepared above; candidate 703
+predates the initial shared-sizing correction.
 
 ## New Mac restoration and physical-device checkpoint — 2026-10-20
 

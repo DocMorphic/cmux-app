@@ -155,6 +155,40 @@ class NativeFlowTest {
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
     }
 
+    @Test fun chiefDestinationUsesTheAdmittedMacAndLeavesItsSharedWireUsable() {
+        peer.notificationFeed = searchNotifications()
+        peer.chiefMethods = NativeChiefCapability.required
+        peer.chiefResponse = { method, _ -> when (method) {
+            "chief.conversations" -> JSONObject("""{"conversations":[{"id":"chief-main","title":"Chief","pinned":true}],"change_cursor":"home-1"}""")
+            "chief.read" -> JSONObject("""{"conversation":"chief-main","messages":[{"id":"chief-hello","seq":1,"author_id":"chief","author":"Chief","author_kind":"chief","text":"Native Chief RPC marker","at":"2026-10-20T12:00:00Z"}],"change_cursor":"read-1","head_seq":1}""")
+            "chief.mark_read" -> JSONObject("""{"conversation":"chief-main","up_to_seq":1,"marked":true}""")
+            else -> JSONObject()
+        } }
+        val clients = CopyOnWriteArrayList<MobileRpcClient>()
+        showSearchFixture(onClient = { clients += it })
+        compose.onNodeWithTag("WorkspaceChiefButton").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPinnedConversation").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Native Chief RPC marker").fetchSemanticsNodes().isNotEmpty() }
+        screenshot("chief-native-root-transcript")
+        val chiefRequests = peer.requests.filter { it.optString("method").startsWith("chief.") }
+        assertTrue(chiefRequests.any { it.optString("method") == "chief.read" })
+        assertTrue(chiefRequests.none { it.optJSONObject("auth")?.has("attach_token") == true })
+        compose.onNodeWithText("‹  Home").performClick()
+        compose.onNodeWithText("Workspaces").performClick()
+        compose.onNodeWithText("Claude Code task").assertExists()
+        assertTrue(clients.none { it.isClosed })
+    }
+
+    @Test fun chiefIsHiddenWhenEvenOneRequiredCapabilityIsMissing() {
+        peer.notificationFeed = searchNotifications()
+        peer.chiefMethods = NativeChiefCapability.required - "chief.answer"
+        showSearchFixture()
+        compose.onNodeWithTag("WorkspaceChiefButton").assertDoesNotExist()
+        compose.onNodeWithText("Chief Home").assertDoesNotExist()
+        assertTrue(peer.requests.none { it.optString("method").startsWith("chief.") })
+    }
+
     @Test fun settingsConnectedMacDetailsReturnPreservesPairingAndTerminalInput() {
         val clients = CopyOnWriteArrayList<MobileRpcClient>()
         peer.notificationFeed = searchNotifications()
@@ -3215,6 +3249,8 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var releaseNextPaste: CountDownLatch? = null
     @Volatile var releaseNextFeed: CountDownLatch? = null
     @Volatile var sharedSizing = false
+    @Volatile var chiefMethods = emptySet<String>()
+    @Volatile var chiefResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var releaseSizingSubscription: CountDownLatch? = null
     val rejectNextForegroundFeed = java.util.concurrent.atomic.AtomicBoolean()
     private val sockets = CopyOnWriteArrayList<Socket>()
@@ -3312,6 +3348,9 @@ internal class NativeFixturePeer : AutoCloseable {
                     for (frame in decoder.feed(buffer.copyOf(count))) {
                         val request = JSONObject(String(frame, Charsets.UTF_8))
                         requests += request
+                        // Keep the event-backed read pending while continuing to serve the shared wire.
+                        if (request.optString("method").startsWith("chief.") &&
+                            request.optJSONObject("params")?.optBoolean("wait_for_change") == true) continue
                         if (request.optString("method") == "mobile.events.subscribe" &&
                             request.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("mobile.terminal.size_state") == true)
                             releaseSizingSubscription?.let { check(it.await(20, TimeUnit.SECONDS)) { "Sizing subscription was not released" } }
@@ -3390,6 +3429,8 @@ internal class NativeFixturePeer : AutoCloseable {
     }
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
+        "chief.status", "chief.conversations", "chief.read", "chief.mark_read", "chief.send", "chief.stop", "chief.approve", "chief.answer", "chief.open" ->
+            chiefResponse?.invoke(method, params) ?: JSONObject()
         "feed.list", "feed.text", "feed.permission.reply", "feed.question.reply", "feed.exit_plan.reply", "mobile.terminal.paste" ->
             agentFeedResponse?.invoke(method, params) ?: JSONObject()
         "terminal.paste" -> JSONObject().put("submitted", params.optString("submit_key") == "return")
@@ -3419,6 +3460,7 @@ internal class NativeFixturePeer : AutoCloseable {
             .put("mac_device_id", deviceId).put("mac_instance_tag", instanceTag).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
                 if (identifiedInput) it.put(TerminalInputDelivery.CAPABILITY)
                 if (sharedSizing) it.put(TerminalSizingTraffic.CAPABILITY)
+                chiefMethods.forEach(it::put)
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (groupActionsSupported) it.put("workspace.group_actions.v1")
                 if (accountMutationsSupported) it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)

@@ -22,6 +22,12 @@ def main():
     root = Path(__file__).resolve().parents[1]
     manifest = json.loads((root / "third_party/cmux-chief/manifest.json").read_text())
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
+    for path, expected in manifest.get("behaviorFiles", {}).items():
+        data = subprocess.check_output(["git", "-C", str(args.upstream.resolve()), "show", f'{manifest["revision"]}:{path}'])
+        if hashlib.sha256(data).hexdigest() != expected:
+            raise ValueError("Unreviewed Chief behavior/artwork: " + path)
+        if path.endswith("/ChiefAvatar.png") and hashlib.sha256((root / "app/src/main/res/drawable-nodpi/chief_avatar.png").read_bytes()).hexdigest() != expected:
+            raise ValueError("Packaged Chief avatar differs from the pinned source")
     sources = []
     for index, (path, expected) in enumerate(manifest["files"].items()):
         data = subprocess.check_output(["git", "-C", str(args.upstream.resolve()), "show", f'{manifest["revision"]}:{path}'])

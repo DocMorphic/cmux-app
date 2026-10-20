@@ -3,12 +3,18 @@
   "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
   "license": "GPL-3.0-or-later",
   "copyright": "Copyright (c) 2024-present Manaflow, Inc.; other contributors retain copyright in their material",
-  "scope": "Chief wire models, request shapes and shared question model; not global parity acceptance",
+  "scope": "Chief wire/request/question reference plus separate mounted Home/backend/shell/artwork mapping; not global parity acceptance",
   "files": {
     "Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileChiefClient.swift": "aaffb298314d74f4567e4ca7cd926259f9f1fc5166593c036a11a6a0994b6f8d",
     "Packages/Shared/CmuxAgentQuestion/Sources/CmuxAgentQuestion/AgentQuestion.swift": "549a17e3cb5dd0ba6075687fce6f98aa49c137216f3179e84c417a43a1bdaae1",
     "Packages/Shared/CmuxAgentQuestion/Sources/CmuxAgentQuestion/AgentQuestionAnswer.swift": "2c974796a03ecf19b2a9762d041798a483f5d21150f0df5fab95327277c93107",
     "Packages/Shared/CmuxAgentQuestion/Sources/CmuxAgentQuestion/AgentQuestionJSON.swift": "f7301bbd747e459afa914be2835fbe9ca809dc33597daae9e2db591f39135d44",
     "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/Wire/ChatWireCoding.swift": "ce30c085b74292a69f9c6418b7414179bb385062c6a048f4cf02367a9fd14ddb"
+  },
+  "behaviorFiles": {
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefHomeView.swift": "a52aa435572007905dec6ebcbe27d718bb0b363a6c8a823fead044732e1d449f",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift": "bc7e624230704182753a7ec42ac5d0db4b27c4e403f9d299c25b26acfadd8f61",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/WorkspaceShellView.swift": "71f801385edf5fac576f64645148d5d2e94a04af52e40a9cd91508033190acdf",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Images.xcassets/ChiefAvatar.imageset/ChiefAvatar.png": "2155cb8ed2cd48ad717abeda1515ec595789fba91ec52509a5a7571ac32c2585"
   }
 }

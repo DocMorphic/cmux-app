@@ -330,8 +330,9 @@ internal fun NativeScreen(
         var notificationTab by rememberSaveable(signedIn) { mutableStateOf(false) }
         var agentFeedTab by rememberSaveable(signedIn) { mutableStateOf(false) }
         var cloudTab by rememberSaveable(signedIn) { mutableStateOf(false) }
+        var chiefTab by rememberSaveable(signedIn) { mutableStateOf(false) }
         LaunchedEffect(incomingCode, incomingNotificationRoute) {
-            if (incomingCode != null || incomingNotificationRoute != null) { cloudTab = false; agentFeedTab = false }
+            if (incomingCode != null || incomingNotificationRoute != null) { cloudTab = false; agentFeedTab = false; chiefTab = false }
         }
         var searchState by rememberSaveable(signedIn, stateSaver = listSaver(
             save = { state: NativeSearchState -> state.commit().let { listOf(it.workspaceQuery, it.notificationQuery, it.feedQuery) } },
@@ -576,6 +577,10 @@ internal fun NativeScreen(
         // An unavailable selected host must never broaden the list to unrelated computers.
         val selectedCloudId = CloudAddress.parse(selectedComputerOrigin)?.takeIf { it.component == null }?.machineId
         val selectedCloudComputer = selectedCloudId?.let(cloudSnapshots::get)
+        val chiefComputer = if (selectedCloudId == null && selectedSshComputer == null &&
+            (selectedComputer == null || selectedComputer.code == connectedCode)) feedSession.chief() else null
+        LaunchedEffect(chiefComputer) { if (chiefComputer == null) chiefTab = false }
+        fun openChief() { finishSearch(); cloudTab = false; agentFeedTab = false; notificationTab = false; chiefTab = true }
         val visibleSshRows = if (selectedCloudId != null || selectedOrigin != null) emptyList() else sshTargets
             .filter { selectedSshComputer == null || it.host.id == selectedSshComputer.host.id }
             .flatMap { sshFeed[it.host.id]?.rows.orEmpty() }
@@ -3474,6 +3479,9 @@ internal fun NativeScreen(
                             canSelectCloud = ::canSelectCloud, onSelectCloud = ::selectCloudComputer,
                             connectionFor = recordConnections::get)
                         if (isSidebar) Spacer(Modifier.weight(1f)) else ListTitle(Modifier.weight(1f))
+                        if (chiefComputer != null) IconButton(onClick = ::openChief, modifier = Modifier.testTag("WorkspaceChiefButton")) {
+                            Icon(painterResource(R.drawable.ic_menu_chat), "Chief", tint = nativeAccent)
+                        }
                         if (agentFeedTab) {
                             Box {
                                 IconButton(onClick = { agentFilterMenu = true }) {
@@ -3789,15 +3797,16 @@ internal fun NativeScreen(
                         }
                     }
                     NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
-                        onTab = { if (!isSidebar) workspaceRoute = null; finishSearch(); agentFeedTab = false; notificationTab = it },
+                        onTab = { chiefTab = false; if (!isSidebar) workspaceRoute = null; finishSearch(); agentFeedTab = false; notificationTab = it },
                         onBeginSearch = { searchState = searchState.begin(searchScope) },
                         onEdit = { value, generation -> searchState = searchState.edit(value, searchScope, generation) },
                         onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) },
                         sidebar = isSidebar, onNewTask = { finishSearch(); newTaskDraft() },
                         agentFeedTab = agentFeedTab, agentFeedCount = agentNeedsInputCount,
                         showsNotifications = !displayState.feedReplacesNotifications,
-                        onAgentFeed = { if (!isSidebar) workspaceRoute = null; finishSearch(); notificationTab = false; agentFeedTab = true },
-                        onCloud = cloudModel?.let { model -> { finishSearch(); cloudTab = true; model.activate() } })
+                        onAgentFeed = { chiefTab = false; if (!isSidebar) workspaceRoute = null; finishSearch(); notificationTab = false; agentFeedTab = true },
+                        onChief = chiefComputer?.let { ::openChief },
+                        onCloud = cloudModel?.let { model -> { chiefTab = false; finishSearch(); cloudTab = true; model.activate() } })
                 }
                 val showWorkspaceReconnect = !agentFeedTab && selectedCloudId == null && allCloudSnapshots.isEmpty() && ((cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
                             (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()))))
@@ -4019,6 +4028,7 @@ internal fun NativeScreen(
                                 onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {},
                                 sidebar = LocalWorkspaceShellChrome.current.split, emptyComputers = noKnownComputers, agentFeedTab = agentFeedTab, agentFeedCount = agentNeedsInputCount,
                                 showsNotifications = !displayState.feedReplacesNotifications,
+                                onChief = chiefComputer?.let { ::openChief },
                                 onAgentFeed = { cloudTab = false; finishSearch(); notificationTab = false; agentFeedTab = true })
                         }
                     }
@@ -4031,6 +4041,16 @@ internal fun NativeScreen(
                         showSettings && computersOwner != null -> computersContent()
                         showSettings -> settingsContent()
                         showTaskComposer -> taskComposerContent()
+                        chiefTab && chiefComputer != null -> {
+                            NativeChiefView(chiefComputer, feedForeground, Modifier.weight(1f).fillMaxWidth())
+                            if (chiefComputer.selected == null) NativePrimaryNavigation(false, feedEntries.count { !it.notification.isRead }, searchState,
+                                onTab = { chiefTab = false; notificationTab = it; agentFeedTab = false },
+                                onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {},
+                                onCloud = cloudModel?.let { model -> { chiefTab = false; cloudTab = true; model.activate() } },
+                                onAgentFeed = { chiefTab = false; notificationTab = false; agentFeedTab = true },
+                                agentFeedCount = agentNeedsInputCount, showsNotifications = !displayState.feedReplacesNotifications,
+                                chiefTab = true, onChief = ::openChief)
+                        }
                         else -> NativeWorkspaceShell(owner = browserLogin to paneTeam,
                             hasDetail = cloudRoute != null || sshRoute != null || screenResume.pending != null || localBrowser != null ||
                                 selectedWorkspace != null || selectedTerminal != null || selectedBrowser != null ||
