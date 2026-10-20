@@ -1,5 +1,30 @@
 # Android parity tracker
 
+## Full-parity pursuit and current-source inventory — 2026-10-20
+
+The owner requested a persistent goal to finish full feature and UI parity. The
+goal is active. `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009` is the newly frozen
+audit candidate; it does **not** replace the implemented/reviewed pins in
+`upstream.json`. A direct Git source inventory found 920 changed mobile path
+records against the implemented baseline in iOS packages, the composition root,
+Mobile Core and Mac mobile handlers. Following local package dependencies from
+`ios/cmuxPackage` reaches 44 packages and 2,571 Swift files under `Sources`. The
+Stack Auth vendor submodule is not populated in this reference checkout. These
+counts are inventory, not completed review. Ignored immutable-source inventories
+are under `captures/source-audit-20261020/`.
+
+The current source also mounts Chief conversations in `WorkspaceShellView` when
+the Mac advertises support, through `ChiefHomeView`, `MobileChiefClient` and
+`ChiefConversationBackend`. This is an additional open Android feature family;
+the existing Agent Feed does not establish its parity. The installed custom Mac
+does not advertise Chief methods in its capabilities. Port the account/host
+ownership, conversation list/search/history, send/events/recovery, transcript
+rendering and navigation contracts, and validate against a supporting host.
+
+The Oct 20 Pixel/Mac checkpoint and active notification/terminal/menu fixes are
+recorded at the top of HANDOFF.md. Phone testing is paused at the owner's request
+while they use the device; code and the sole isolated emulator remain available.
+
 ## Static UI localization and RTL declaration — 2026-10-13
 
 Source review identified hardcoded English labels and a missing Android RTL
