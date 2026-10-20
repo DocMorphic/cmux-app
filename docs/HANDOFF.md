@@ -27,11 +27,28 @@ expiry/cancellation, private clipboard ownership and socket error paths. A fresh
 full Mac build and inspection of the actual app menu are still required before
 accepting this integration fix.
 
-A new emulator regression holds the first shared-sizing subscription while the
-real root screen recomposes, then requires successful terminal replay. It
-compiled; runtime validation is pending. This does not yet fix or close the
-physical initial-terminal failure. One API 36 ARM64 Pixel 6a AVD (`cmux_parity`)
-was created for isolated fixtures; the phone's old debug app remains untouched.
+A new emulator regression held the first shared-sizing subscription while the
+real root screen recomposed. It reached the same disconnected guard as the
+Pixel. Temporary tracing proved `bind(owner) → retainOwner(null) →
+retainOwner(owner)` with the connection lost at the null transition. Publish the
+verified saved Mac before metadata updates and the suspending sizing handshake;
+the unchanged regression then passed. Temporary traces were removed. Six Android
+cases passed in 29.043 s after the fix: initial shared sizing, input/resize,
+lost-ack reconnect, cross-Mac notification navigation and two retry/replacement
+routes. Three older notification fixtures initially failed because their staged
+IDs were absent from the feed; they now provide actual feed entries and require
+no duplicate mutation for reopening an already-read notification, consistent
+with the existing foreground-access contract. All failed runs are retained.
+The new terminal marker screenshot was inspected. Sixteen focused owner/sizing/
+connection JVM cases passed; the earlier full run with the notification retention
+fix passed 2,945, skipped four, zero failures. This is emulator acceptance;
+physical initial admission and cold push tap are still open. One API 36 ARM64
+Pixel 6a AVD (`cmux_parity`) was created; the phone's old debug app is untouched.
+
+The owner needs the phone and explicitly deferred live testing. It disconnected
+before the temporary USB/AC keep-awake setting could be restored. First restore
+`adb -s 29231JEGR18218 shell svc power stayon false` (original setting 0) when it
+next becomes available. Do not resume phone UI tests until the owner offers it.
 
 ## New Mac restoration and physical-device checkpoint — 2026-10-20
 

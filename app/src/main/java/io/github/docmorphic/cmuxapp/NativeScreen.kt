@@ -2052,6 +2052,10 @@ internal fun NativeScreen(
                                 connectionError = null; retryDelay = 2_000; busy = false
                                 return@LaunchedEffect
                             }
+                            // Publish the verified saved owner before binding sizing. The first
+                            // subscription suspends; a recomposition must already see this Mac
+                            // rather than retain a null owner and discard that new binding.
+                            savedPairedMacs = store.pairedMacs()
                             feedSession.recordMacSeen(remembered)
                             feedSession.admitForeground(pairingOwner, remembered, active)
                             hostName = displayName; hostCapabilities = capabilities
@@ -2096,7 +2100,6 @@ internal fun NativeScreen(
                                 pendingPickerCode = null
                             }
                             switchOwner()?.let { macSwitchRecovery.connected(it, remembered) }
-                            savedPairedMacs = store.pairedMacs()
                             connectionError = null
                             feedSession.foregroundRecovery.connected(attemptOwner, attemptGeneration)
                             if (pairingOwner != null) runCatching {

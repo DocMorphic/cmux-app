@@ -91,6 +91,43 @@ class NativeFlowTest {
         TerminalDraftRepository.get(context).drafts.clear()
     }
 
+    @Test fun initialSharedSizingAdmissionSurvivesRecompositionWhileSubscribeIsPending() {
+        peer.sharedSizing = true
+        peer.gridFirstLine = "Shared sizing admission marker"
+        val release = CountDownLatch(1)
+        peer.releaseSizingSubscription = release
+        val redraw = mutableIntStateOf(0)
+        try {
+            compose.setContent {
+                @Suppress("UNUSED_VARIABLE") val observed = redraw.intValue
+                CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                    NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                            .also { it.connect() }
+                    })
+                } }
+            }
+            compose.waitUntil(15_000) { peer.requests.any { request ->
+                request.optString("method") == "mobile.events.subscribe" &&
+                    request.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("mobile.terminal.size_state") == true
+            } }
+            compose.runOnIdle { redraw.intValue++ }
+            compose.waitForIdle()
+            release.countDown()
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Claude Code task").performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Shared sizing admission marker", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            assertTrue(peer.requests.any { it.optString("method") == "mobile.terminal.replay" })
+            compose.onAllNodesWithText("This terminal was disconnected. Reattach before continuing.").assertCountEquals(0)
+            screenshot("initial-shared-sizing-admission")
+        } catch (failure: Throwable) {
+            File(context.getExternalFilesDir(null), "shared-sizing-regression.txt").writeText(
+                "Sizing admission RPC methods: " + peer.requests.map { it.optString("method") } + "\n" +
+                    compose.onRoot(useUnmergedTree = true).printToString())
+            throw failure
+        } finally { release.countDown() }
+    }
+
     @Test fun settingsSetupReferenceLeavesPairingAndLiveTransportUnchanged() {
         val clients = CopyOnWriteArrayList<MobileRpcClient>()
         peer.notificationFeed = searchNotifications()
@@ -2789,7 +2826,11 @@ class NativeFlowTest {
     }
 
     @Test fun alertSwitchesSavedMacAndExactTerminalThenCanBeOpenedAgain() {
-        val other = NativeFixturePeer().apply { deviceId = "second-mac"; gridFirstLine = "Second Mac terminal" }
+        val other = NativeFixturePeer().apply {
+            deviceId = "second-mac"; gridFirstLine = "Second Mac terminal"
+            notificationFeed = JSONArray().put(JSONObject().put("id", "shared-id")
+                .put("workspace_id", "workspace-2").put("surface_id", "terminal-2").put("is_read", false))
+        }
         val releaseFirstFeed = CountDownLatch(1)
         peer.releaseNextFeed = releaseFirstFeed
         try {
@@ -2829,7 +2870,8 @@ class NativeFlowTest {
             assertEquals(1, other.requests.count { it.optString("method") == "notification.feed.mark_read" })
             compose.runOnIdle { incoming.value = route!!.routeId }
             compose.waitUntil(10_000) { handled.get() == 2 }
-            assertEquals(2, other.requests.count { it.optString("method") == "notification.feed.mark_read" })
+            // Reopening still navigates, but an already-read entry needs no second mutation.
+            assertEquals(1, other.requests.count { it.optString("method") == "notification.feed.mark_read" })
             assertEquals(secondCode, credentials.load()!!.getString("pairing_code"))
             screenshot("notification-mac-route")
         } finally { releaseFirstFeed.countDown(); other.close() }
@@ -2859,6 +2901,10 @@ class NativeFlowTest {
                     })
             } } }
             compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+            peer.notificationFeed = JSONArray().put(JSONObject().put("id", "retry-first")
+                .put("workspace_id", "workspace-1").put("surface_id", "terminal-1").put("is_read", false))
+                .put(JSONObject().put("id", "retry-new").put("workspace_id", "workspace-2")
+                    .put("surface_id", "terminal-2").put("is_read", false))
             val mac = NativeCredentialStore(context).pairedMacs().single { it.deviceId == "fixture-mac" }
             fun route(id: String, workspace: String, surface: String): String {
                 var created: NotificationDestination? = null
@@ -3168,6 +3214,8 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var releaseNextInput: CountDownLatch? = null
     @Volatile var releaseNextPaste: CountDownLatch? = null
     @Volatile var releaseNextFeed: CountDownLatch? = null
+    @Volatile var sharedSizing = false
+    @Volatile var releaseSizingSubscription: CountDownLatch? = null
     val rejectNextForegroundFeed = java.util.concurrent.atomic.AtomicBoolean()
     private val sockets = CopyOnWriteArrayList<Socket>()
     fun disconnectClients() { sockets.toList().forEach { runCatching { it.close() } } }
@@ -3264,6 +3312,9 @@ internal class NativeFixturePeer : AutoCloseable {
                     for (frame in decoder.feed(buffer.copyOf(count))) {
                         val request = JSONObject(String(frame, Charsets.UTF_8))
                         requests += request
+                        if (request.optString("method") == "mobile.events.subscribe" &&
+                            request.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("mobile.terminal.size_state") == true)
+                            releaseSizingSubscription?.let { check(it.await(20, TimeUnit.SECONDS)) { "Sizing subscription was not released" } }
                         if (request.optString("method") == "mobile.host.status" && ignoreNextHostStatus.getAndSet(false)) continue
                         if (request.optString("method") == "notification.reconcile")
                             releaseReconcile?.let { check(it.await(30, TimeUnit.SECONDS)) { "Reconcile response not released" } }
@@ -3367,6 +3418,7 @@ internal class NativeFixturePeer : AutoCloseable {
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("mac_instance_tag", instanceTag).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
                 if (identifiedInput) it.put(TerminalInputDelivery.CAPABILITY)
+                if (sharedSizing) it.put(TerminalSizingTraffic.CAPABILITY)
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (groupActionsSupported) it.put("workspace.group_actions.v1")
                 if (accountMutationsSupported) it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)
