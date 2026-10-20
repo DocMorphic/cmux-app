@@ -26,7 +26,7 @@ and the exact admitted foreground Mac. It includes Home search/unread/working
 state, transcript history/events/send/stop, work parts, approval/question actions,
 full qualified question forms and retained drafts. Actual source execution gives
 21 wire-model vectors, nine request vectors and eight question-validation cases.
-The latest full JVM run passed 2,986, skipped four, zero failures. Eight Android
+The latest full JVM run passed 2,990, skipped four, zero failures. Eight Android
 cases passed against the production composition and framed root fixture,
 including failed-send/late-echo identity and enlarged-text controls. Final
 transcript screenshots were inspected. Nineteen vectors execute pinned Swift
@@ -36,6 +36,14 @@ follow-up skew allowance without absorbing an older known row. These are scoped 
 remains open. Complete the remaining generic conversation UI comparison, localization,
 thread interactions, scroll/window/read markers, deeper lifecycle/restoration and supporting real
 Mac/Pixel evidence in CHIEF.md. Global implemented/reviewed pins are unchanged.
+
+Failed sends now expose source-mapped Try Again / Delete / Cancel. Explicit retry
+reuses the client idempotency key, moves to the current in-flight tail and rejects
+duplicate concurrent attempts. Local deletion suppresses known late echoes;
+another send with identical text is unaffected. Four new JVM regressions cover
+these transitions, rejection/uncertainty, late echoes and owner retirement.
+The controls are source/debug work newer than the prepared signed candidate 705;
+they do not establish real Chief-host, scroll/serialization or lifecycle parity.
 
 The Oct 20 Pixel/Mac checkpoint and active notification/terminal/menu fixes are
 recorded at the top of HANDOFF.md. The owner has offered to reconnect the phone

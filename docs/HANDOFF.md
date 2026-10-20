@@ -12,7 +12,7 @@ paging/gap recovery, stable send correlation, draft retention, approval/question
 reservation and receipts. Account/Mac retirement cancels requests and clears
 content; backgrounding pauses reads. The unmodified Chief avatar is attributed.
 Actual Swift wire execution still supplies 21 models, nine requests and eight
-validation cases. The latest full JVM run passed 2,986 with four skips and
+validation cases. The latest full JVM run passed 2,990 with four skips and
 zero failures.
 Eight Android cases pass for the production UI, explicit uncertainty recovery,
 failed-row ordering, late echo identity, separators/quotes, font-scale-2 controls
@@ -24,6 +24,21 @@ See CHIEF.md for source mapping, exact
 scope, evidence and remaining presentation/lifecycle/real-host gates. This is not
 full Chief acceptance; the current custom Mac does not support Chief. Global
 implemented/reviewed pins remain unchanged.
+
+Failed Chief sends now have source-mapped Try Again / Delete / Cancel actions.
+Retry keeps the idempotency ID, refreshes the time and removes the failure
+anchor; concurrent retry taps are reserved before suspension. Local deletion
+suppresses known late echoes without hiding a different send with identical
+text. Four new JVM cases pass for these races, failure reanchoring and owner
+retirement. The full suite passed 2,990, skipped four, zero failures
+(`chief-retry-final-build-and-jvm.log`). The UI checks found and fixed long inline
+error detail hiding the action with the keyboard at enlarged text. Error detail
+is now bounded inside the fully expanded sheet. All eight Chief UI cases pass
+in 16.694 s; an additional Android system-font-2 case passes in 4.494 s, including
+full Cancel-button bounds and actual Cancel/reopen/Delete interaction. The final
+system-font screenshot was inspected and the emulator font scale restored.
+See CHIEF.md for exact UI/inset evidence and
+remaining gates. These changes postdate the prepared signed candidate 705.
 
 Cold-tap investigation found that `NativeNotificationService` pruned durable tap
 destinations using temporary connection admission. During cold membership

@@ -70,6 +70,8 @@ internal class NativeChiefHomeSession(parent: CoroutineScope, private val client
 }
 
 internal enum class NativeChiefDelivery { SENDING, QUEUED, SENT, UNCONFIRMED, REJECTED }
+internal val NativeChiefDelivery.isFailed: Boolean
+    get() = this == NativeChiefDelivery.UNCONFIRMED || this == NativeChiefDelivery.REJECTED
 internal data class NativeChiefOutgoing(val clientMessageId: String, val text: String, val at: Instant,
     val delivery: NativeChiefDelivery = NativeChiefDelivery.SENDING, val serverMessageId: String? = null, val error: String? = null,
     val echoClientMessageId: String? = null, val failedAnchorSeq: ULong? = null, val sentAfterSeq: ULong = 0uL)
@@ -96,6 +98,8 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private var polledSeq = 0uL
     private var lastMarked = 0uL
     private var initialPage = true
+    private val deletedClientIds = mutableSetOf<String>()
+    private val deletedMessageIds = mutableSetOf<String>()
     private fun checkOwner() { if (!job.isActive || !permits()) { close(); error("Chief computer or account changed") } }
     private suspend fun <T> owned(action: suspend () -> T): T {
         currentCoroutineContext().ensureActive(); checkOwner()
@@ -148,8 +152,9 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         return pages.flatten().associateBy { it.id }.values.sortedBy { it.seq }
     }
 
-    private fun merge(messages: List<NativeChiefMessage>, acknowledgedSend: String? = null) {
+    private fun merge(incoming: List<NativeChiefMessage>, acknowledgedSend: String? = null) {
         checkOwner()
+        val messages = incoming.filterNot { it.id in deletedMessageIds || it.clientMessageId in deletedClientIds }
         var outgoing = state.value.outgoing
         val localClientIds = state.value.localClientIds.toMutableMap()
         val earliest = now().minusSeconds(300)
@@ -219,7 +224,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
 
     fun editDraft(text: String) { checkOwner(); mutableState.value = state.value.copy(draft = text) }
 
-    /** One explicit send, one stable id. An uncertain write is retained for reconciliation, never resent. */
+    /** One explicit send, one stable id. An uncertain write is never automatically resent. */
     suspend fun send(): String? {
         checkOwner()
         val draft = state.value.draft
@@ -228,8 +233,38 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         require(state.value.outgoing.none { it.clientMessageId == id })
         mutableState.value = state.value.copy(draft = "", outgoing = state.value.outgoing + NativeChiefOutgoing(id, draft, now(),
             sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { it.seq } ?: 0uL)))
+        transmit(id, draft)
+        return id
+    }
+
+    /** Source Try Again: reserve synchronously, reuse the client id, and move the row to the current tail. */
+    suspend fun retry(clientMessageId: String): Boolean {
+        checkOwner()
+        val failed = state.value.outgoing.singleOrNull { it.clientMessageId == clientMessageId && it.delivery.isFailed } ?: return false
+        mutableState.value = state.value.copy(outgoing = state.value.outgoing.map {
+            if (it.clientMessageId == clientMessageId) it.copy(at = now(), delivery = NativeChiefDelivery.SENDING,
+                error = null, failedAnchorSeq = null,
+                sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { message -> message.seq } ?: 0uL)) else it
+        })
+        transmit(clientMessageId, failed.text)
+        return true
+    }
+
+    /** Delete only the failed local row. Known late echoes stay hidden for this owner's retained session. */
+    fun discardFailed(clientMessageId: String): Boolean {
+        checkOwner()
+        val failed = state.value.outgoing.singleOrNull { it.clientMessageId == clientMessageId && it.delivery.isFailed } ?: return false
+        deletedClientIds += failed.clientMessageId
+        failed.echoClientMessageId?.let { deletedClientIds += it }
+        failed.serverMessageId?.let { deletedMessageIds += it }
+        state.value.localClientIds.filterValues { it == clientMessageId }.keys.forEach { deletedMessageIds += it }
+        mutableState.value = state.value.copy(outgoing = state.value.outgoing.filterNot { it.clientMessageId == clientMessageId })
+        return true
+    }
+
+    private suspend fun transmit(id: String, text: String) {
         try {
-            val sent = owned { client.send(draft, conversationId, clientMessageId = id) }
+            val sent = owned { client.send(text, conversationId, clientMessageId = id) }
             check(sent.conversation == conversationId) { "Chief returned another conversation" }
             mutableState.value = state.value.copy(outgoing = state.value.outgoing.map {
                 if (it.clientMessageId == id) it.copy(serverMessageId = sent.messageId,
@@ -250,7 +285,6 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
             })
             currentCoroutineContext().ensureActive(); checkOwner()
         }
-        return id
     }
 
     suspend fun markRead(upToSeq: ULong = state.value.headSeq) {
@@ -329,5 +363,8 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
 
     fun pause() { monitor?.cancel(); monitor = null }
     fun refresh() { checkOwner(); pause(); start() }
-    override fun close() { job.cancel(); monitor = null; mutableState.value = NativeChiefTranscriptState(loading = false) }
+    override fun close() {
+        job.cancel(); monitor = null; deletedClientIds.clear(); deletedMessageIds.clear()
+        mutableState.value = NativeChiefTranscriptState(loading = false)
+    }
 }

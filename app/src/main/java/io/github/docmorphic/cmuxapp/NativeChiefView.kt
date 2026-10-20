@@ -176,6 +176,7 @@ private fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier: 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, session: NativeChiefTranscriptSession,
     onBack: () -> Unit, modifier: Modifier) {
@@ -190,6 +191,8 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     } }
     val list = rememberLazyListState()
     var answerMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var failedMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    val displayedFailure = failedMessage?.let { id -> state.outgoing.singleOrNull { it.clientMessageId == id && it.delivery.isFailed } }
     val displayedQuestion = answerMessage?.let { id -> state.messages.singleOrNull { it.id == id } }
         ?.let(NativeChiefPresentation::pendingPart)?.question
     val timeline = remember(state.messages, state.outgoing, state.localClientIds, state.working) { NativeChiefTimeline.rows(state) }
@@ -290,7 +293,10 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                                 NativeChiefDelivery.UNCONFIRMED -> "Delivery unconfirmed"
                                 NativeChiefDelivery.REJECTED -> "Not sent"
                             }, color = chiefMuted, style = MaterialTheme.typography.labelSmall)
-                            outgoing.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            if (outgoing.delivery.isFailed) TextButton(onClick = { failedMessage = outgoing.clientMessageId },
+                                modifier = Modifier.testTag("ChiefFailed:${outgoing.clientMessageId}")) {
+                                Text(stringResource(R.string.chief_retry_try_again))
+                            }
                         }
                     }
                 }
@@ -302,6 +308,33 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 placeholder = { Text("Message Chief") }, maxLines = 5)
             Button(onClick = { act { session.send() } }, enabled = state.draft.isNotBlank() && state.connected,
                 modifier = Modifier.testTag("ChiefSend")) { Text("Send") }
+        }
+    }
+    if (displayedFailure != null) ModalBottomSheet(onDismissRequest = { failedMessage = null },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        modifier = Modifier.testTag("ChiefFailedSendDialog")) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()
+            .padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
+            Text(stringResource(R.string.chief_retry_title), Modifier.padding(vertical = 12.dp).semantics { heading() },
+                style = MaterialTheme.typography.titleMedium)
+            displayedFailure.error?.let { detail -> Text(detail,
+                Modifier.fillMaxWidth().heightIn(max = 160.dp).verticalScroll(rememberScrollState()),
+                color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+            TextButton(onClick = {
+                failedMessage = null
+                act { session.retry(displayedFailure.clientMessageId) }
+            }, modifier = Modifier.fillMaxWidth().testTag("ChiefRetrySend")) {
+                Text(stringResource(R.string.chief_retry_try_again))
+            }
+            TextButton(onClick = {
+                failedMessage = null
+                act { session.discardFailed(displayedFailure.clientMessageId) }
+            }, modifier = Modifier.fillMaxWidth().testTag("ChiefDiscardSend")) {
+                Text(stringResource(R.string.chief_retry_delete), color = MaterialTheme.colorScheme.error)
+            }
+            TextButton(onClick = { failedMessage = null }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.chief_retry_cancel))
+            }
         }
     }
     if (answerMessage != null && displayedQuestion != null) NativeChiefQuestionSheet(displayedQuestion,

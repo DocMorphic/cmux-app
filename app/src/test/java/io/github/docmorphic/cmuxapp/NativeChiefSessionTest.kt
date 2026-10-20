@@ -422,4 +422,82 @@ class NativeChiefSessionTest {
             assertEquals(listOf("s:m1", "s:m2", "c:local-client", "s:m3"), NativeChiefTimeline.items(session.state.value).map { it.key })
         } finally { session.close() }
     }
+
+    @Test fun explicitRetryKeepsTheClientIdMovesToTheTailAndReservesBeforeSuspending() = runTest {
+        val api = Api(); var clock = instant
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { clock }, { "retry-client" })
+        try {
+            api.reads.send(Result.success(page(message(1)))); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> throw MobileRpcOutcomeUnknown() }
+            session.editDraft("Same request"); session.send()
+            api.waits.send(Result.success(page(message(2)))); runCurrent()
+            assertEquals(listOf("s:m1", "c:retry-client", "s:m2"), NativeChiefTimeline.items(session.state.value).map { it.key })
+            clock = instant.plusSeconds(90); session.editDraft("Keep this new draft")
+            val ack = CompletableDeferred<NativeChiefSent>(); api.sendBlock = { _, _ -> ack.await() }
+            val retry = async { session.retry("retry-client") }; runCurrent()
+            assertFalse(session.retry("retry-client")); assertFalse(session.discardFailed("retry-client"))
+            val pending = session.state.value.outgoing.single()
+            assertEquals(clock, pending.at); assertNull(pending.failedAnchorSeq); assertNull(pending.error)
+            assertEquals(2uL, pending.sentAfterSeq)
+            assertEquals(listOf("s:m1", "s:m2", "c:retry-client"), NativeChiefTimeline.items(session.state.value).map { it.key })
+            // The retry's exact echo may arrive before its acknowledgment.
+            val echo = message(3, "echo", "Same request", true, "retry-client")
+            api.waits.send(Result.success(page(echo))); runCurrent()
+            api.reads.send(Result.success(page(echo)))
+            ack.complete(NativeChiefSent("chief-main", "echo", "retry-client", false)); runCurrent()
+            assertTrue(retry.await()); assertTrue(session.state.value.outgoing.isEmpty())
+            assertEquals("retry-client", session.state.value.localClientIds["echo"])
+            assertEquals(listOf("Same request" to "retry-client", "Same request" to "retry-client"), api.sends)
+            assertEquals("Keep this new draft", session.state.value.draft)
+            assertFalse(session.retry("retry-client")); assertFalse(session.discardFailed("retry-client"))
+        } finally { session.close() }
+    }
+
+    @Test fun rejectedRetryReanchorsAtItsOwnFailureAndPollingDoesNotResendIt() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "retry-client" })
+        try {
+            api.reads.send(Result.success(page(message(1)))); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> throw MobileRpcException("unavailable", "Not running", fromHostResponse = true) }
+            session.editDraft("Try later"); session.send()
+            assertEquals(NativeChiefDelivery.REJECTED, session.state.value.outgoing.single().delivery)
+            val failed = CompletableDeferred<NativeChiefSent>(); api.sendBlock = { _, _ -> failed.await() }
+            val retry = async { session.retry("retry-client") }; runCurrent()
+            api.waits.send(Result.success(page(message(2)))); runCurrent()
+            failed.completeExceptionally(MobileRpcOutcomeUnknown()); runCurrent(); assertTrue(retry.await())
+            assertEquals(2uL, session.state.value.outgoing.single().failedAnchorSeq)
+            assertEquals(NativeChiefDelivery.UNCONFIRMED, session.state.value.outgoing.single().delivery)
+            api.waits.send(Result.success(page(message(3)))); runCurrent()
+            session.pause(); session.start(); api.reads.send(Result.success(page(message(3)))); runCurrent()
+            assertEquals(2, api.sends.size)
+        } finally { session.close() }
+    }
+
+    @Test fun discardIsLocalAndKnownLateEchoStaysDeletedWithoutHidingAnotherSendWithTheSameText() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "deleted-client" })
+        try {
+            api.reads.send(Result.success(page(message(1)))); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> throw MobileRpcOutcomeUnknown() }
+            session.editDraft("Repeated text"); session.send(); session.editDraft("Unrelated draft")
+            assertTrue(session.discardFailed("deleted-client")); assertFalse(session.discardFailed("deleted-client"))
+            assertFalse(session.retry("deleted-client")); assertTrue(session.state.value.outgoing.isEmpty())
+            val late = message(2, "late", "Repeated text", true, "deleted-client")
+            val other = message(3, "another", "Repeated text", true, "other-client")
+            api.waits.send(Result.success(page(late, other))); runCurrent()
+            assertEquals(listOf("m1", "another"), session.state.value.messages.map { it.id })
+            session.refresh(); api.reads.send(Result.success(page(late, other))); runCurrent()
+            assertEquals(listOf("m1", "another"), session.state.value.messages.map { it.id })
+            assertEquals(1, api.sends.size); assertEquals("Unrelated draft", session.state.value.draft)
+        } finally { session.close() }
+    }
+
+    @Test fun retirementClearsFailedTextAndRejectsRetryOrDeletionBeforeAnyHostCall() = runTest {
+        val api = Api(); var current = true
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { current }, { instant }, { "old-client" })
+        api.sendBlock = { _, _ -> throw MobileRpcOutcomeUnknown() }
+        session.editDraft("Private failed send"); session.send(); current = false
+        assertTrue(runCatching { session.retry("old-client") }.isFailure)
+        assertTrue(runCatching { session.discardFailed("old-client") }.isFailure)
+        assertTrue(session.state.value.outgoing.isEmpty()); assertEquals(1, api.sends.size)
+        session.close()
+    }
 }

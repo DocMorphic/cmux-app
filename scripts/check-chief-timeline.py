@@ -23,17 +23,18 @@ def main():
         if hashlib.sha256(source).hexdigest() != expected:
             raise ValueError("Unreviewed conversation source: " + path)
         sources[Path(path).name] = source.decode()
-    strings = manifest["timestampStrings"]
-    catalog_bytes = subprocess.check_output(["git", "-C", str(args.upstream.resolve()), "show", f'{manifest["revision"]}:{strings["path"]}'])
-    if hashlib.sha256(catalog_bytes).hexdigest() != strings["sha256"]:
-        raise ValueError("Unreviewed conversation timestamp catalog")
-    catalog = json.loads(catalog_bytes)["strings"]
-    for locale, folder in {"en": "values", "ja": "values-ja"}.items():
-        resources = {node.attrib["name"]: node.text for node in ET.parse(root / "app/src/main/res" / folder / "chief_timestamps.xml").getroot()}
-        expected = {name: catalog[key]["localizations"][locale]["stringUnit"]["value"].replace("$@", "$s")
-                    for key, name in strings["keys"].items()}
-        if resources != expected:
-            raise ValueError("Timestamp resources differ from source: " + locale)
+    for group, filename in {"timestampStrings": "chief_timestamps.xml", "retryStrings": "chief_retry.xml"}.items():
+        strings = manifest[group]
+        catalog_bytes = subprocess.check_output(["git", "-C", str(args.upstream.resolve()), "show", f'{manifest["revision"]}:{strings["path"]}'])
+        if hashlib.sha256(catalog_bytes).hexdigest() != strings["sha256"]:
+            raise ValueError("Unreviewed conversation catalog: " + group)
+        catalog = json.loads(catalog_bytes)["strings"]
+        for locale, folder in {"en": "values", "ja": "values-ja"}.items():
+            resources = {node.attrib["name"]: node.text for node in ET.parse(root / "app/src/main/res" / folder / filename).getroot()}
+            expected = {name: catalog[key]["localizations"][locale]["stringUnit"]["value"].replace("$@", "$s")
+                        for key, name in strings["keys"].items()}
+            if resources != expected:
+                raise ValueError("Resources differ from source: " + group + " / " + locale)
     # Keep the actual algorithm bodies unchanged. The inert model supplies only
     # fields read by these bodies; it is not the iOS renderer or full store.
     model = sources["ConversationModel.swift"]
@@ -55,7 +56,8 @@ def main():
     if args.vectors:
         args.vectors.parent.mkdir(parents=True, exist_ok=True); args.vectors.write_bytes(encoded)
     receipt = {"revision": manifest["revision"], "sources": manifest["timelineFiles"],
-               "cases": len(vectors), "timestampCatalog": strings, "timestampResources": 6, "vectorsSha256": hashlib.sha256(encoded).hexdigest(),
+               "cases": len(vectors), "timestampCatalog": manifest["timestampStrings"], "timestampResources": 6,
+               "retryCatalog": manifest["retryStrings"], "retryResources": 8, "vectorsSha256": hashlib.sha256(encoded).hexdigest(),
                "scope": "actual pinned run plan, store sort method and rowID property; Chief-only inert model; no UIKit/live host"}
     (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(f"Pinned conversation timeline: {len(vectors)} cases passed through actual Swift code")

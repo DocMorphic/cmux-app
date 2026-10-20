@@ -217,4 +217,63 @@ class NativeChiefRuntimeTest {
         File(directory, "chief-enlarged-text.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
+
+    @Test fun failedSendSheetRetriesWithTheOriginalClientIdAndClosesOnItsEcho() {
+        compose.runOnUiThread { api.sendFailure = MobileRpcOutcomeUnknown() }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Retry this message")
+        compose.onNodeWithTag("ChiefSend").performClick()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        val id = api.sends.single().second!!
+        compose.onNodeWithTag("ChiefFailed:$id").performScrollTo().performClick()
+        compose.onNodeWithTag("ChiefFailedSendDialog").assertExists()
+        compose.onNodeWithTag("ChiefRetrySend").assertIsEnabled()
+        compose.runOnUiThread { api.sendFailure = null }
+        compose.onNodeWithTag("ChiefRetrySend").performClick()
+        compose.waitUntil(10_000) { api.sends.size == 2 }
+        assertEquals(api.sends[0], api.sends[1])
+        compose.onNodeWithTag("ChiefMessage:echo").assertExists()
+        compose.onNodeWithTag("ChiefFailedSendDialog").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefFailed:$id").assertDoesNotExist()
+        compose.onAllNodesWithText("Retry this message").assertCountEquals(1)
+    }
+
+    @Test fun enlargedFailedSendSheetDeletesLocallyAndDoesNotResurrectAKnownLateEcho() {
+        compose.runOnUiThread { api.sendFailure = MobileRpcOutcomeUnknown(); testFontScale = 2f }
+        compose.onNodeWithTag("ChiefPinnedConversation").performScrollTo().performClick()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Delete this failed message")
+        compose.onNodeWithTag("ChiefSend").performClick()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        val id = api.sends.single().second!!
+        compose.onNodeWithTag("ChiefFailed:$id").performScrollTo().performClick()
+        compose.onNodeWithTag("ChiefRetrySend").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefDiscardSend").assertIsDisplayed()
+        compose.onNodeWithText("Cancel").assertIsDisplayed()
+        val cancelBounds = compose.onNodeWithText("Cancel").fetchSemanticsNode().boundsInWindow
+        compose.runOnUiThread {
+            val decor = compose.activity.window.decorView
+            val bottomInset = decor.rootWindowInsets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom
+            assertTrue("The full Cancel button must fit above the navigation bar",
+                cancelBounds.bottom <= decor.height - bottomInset)
+        }
+        compose.waitForIdle()
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        val directory = File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        File(directory, "chief-failed-send-enlarged.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithTag("ChiefFailedSendDialog").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefFailed:$id").performScrollTo().performClick()
+        compose.onNodeWithTag("ChiefDiscardSend").performClick()
+        compose.onNodeWithTag("ChiefFailedSendDialog").assertDoesNotExist()
+        compose.onAllNodesWithText("Delete this failed message").assertCountEquals(0)
+        compose.runOnUiThread {
+            api.rows = api.rows + message("late-deleted", 2uL, "Delete this failed message", true, id)
+            check(api.transcriptChanges.trySend(api.snapshot()).isSuccess)
+        }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.headSeq == 2uL }
+        compose.waitForIdle()
+        compose.onNodeWithTag("ChiefMessage:late-deleted").assertDoesNotExist()
+        assertEquals(1, api.sends.size)
+    }
 }

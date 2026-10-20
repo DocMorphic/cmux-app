@@ -1,3 +1,12 @@
+## Current checkpoint — 2026-10-20
+
+HANDOFF.md contains the current physical Mac/Pixel and signed-candidate state;
+older dated entries below are historical evidence. Signed local 705 is verified
+and awaits a data-preserving Pixel upgrade. Chief's source/debug implementation
+now includes explicit failed-send retry/delete, with details and remaining gates
+in CHIEF.md. The running custom Mac's pairing menu is accepted, but that host
+still does not advertise Chief. Full parity and the completion gates remain open.
+
 ## Current native delivery checkpoint — 2026-10-13
 
 The corrected Mac sign-in build **38433167598 / 06b0e294** passed and is now
