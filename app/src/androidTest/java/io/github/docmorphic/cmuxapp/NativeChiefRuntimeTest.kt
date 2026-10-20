@@ -64,6 +64,7 @@ class NativeChiefRuntimeTest {
         val answers = CopyOnWriteArrayList<Pair<List<String>, String?>>()
         var uncertainAnswerOnce = false
         var sendFailure: Exception? = null
+        var sendGate: CompletableDeferred<Unit>? = null
         var rows = listOf(message("hello", 1uL, "Welcome from your Mac"))
         val home get() = listOf(NativeChiefConversation("chief-main", "Chief", "Ready on your Mac", 1, true, false, instant),
             NativeChiefConversation("build", "Release build", "Review the Android app", 0, false, false, instant))
@@ -75,10 +76,13 @@ class NativeChiefRuntimeTest {
         fun snapshot() = NativeChiefRead("chief-main", false, rows, false, 0uL, 1, rows.maxOfOrNull { it.seq }, "transcript-cursor")
         override suspend fun send(text: String, conversation: String?, from: String?, startTurn: Boolean, clientMessageId: String?): NativeChiefSent {
             sends += text to clientMessageId
+            sendGate?.await()
             sendFailure?.let { throw it }
-            rows = rows + message("echo", 2uL, text, human = true, clientId = clientMessageId)
+            val seq = (rows.maxOfOrNull { it.seq } ?: 0uL) + 1uL
+            val id = if (rows.none { it.id == "echo" }) "echo" else "echo-$seq"
+            rows = rows + message(id, seq, text, human = true, clientId = clientMessageId)
             transcriptChanges.send(snapshot())
-            return NativeChiefSent("chief-main", "echo", clientMessageId, false)
+            return NativeChiefSent("chief-main", id, clientMessageId, false)
         }
         override suspend fun markRead(conversation: String?, upToSeq: ULong) = NativeChiefMarked("chief-main", upToSeq, true)
         override suspend fun stop(conversation: String?) = NativeChiefStopped("chief-main", true)
@@ -275,5 +279,30 @@ class NativeChiefRuntimeTest {
         compose.waitForIdle()
         compose.onNodeWithTag("ChiefMessage:late-deleted").assertDoesNotExist()
         assertEquals(1, api.sends.size)
+    }
+
+    @Test fun navigatingBackWhileSendingKeepsTheOwnerQueueAndTheNextMessageOrder() {
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread { api.sendGate = gate }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("First retained send")
+        compose.onNodeWithTag("ChiefSend").performClick()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        compose.onNodeWithText("‹  Home").performClick()
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.onNodeWithText("First retained send").assertExists()
+        compose.onNodeWithText("Delivery unconfirmed").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Second retained send")
+        compose.onNodeWithTag("ChiefSend").performClick()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.outgoing?.size == 2 }
+        assertEquals(1, api.sends.size)
+        compose.runOnUiThread { gate.complete(Unit) }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.outgoing?.isEmpty() == true }
+        assertEquals(listOf("First retained send", "Second retained send"), api.sends.map { it.first })
+        assertNotEquals(api.sends[0].second, api.sends[1].second)
+        compose.onNodeWithTag("ChiefMessage:echo").assertExists()
+        compose.onNodeWithTag("ChiefMessage:echo-3").assertExists()
+        compose.onAllNodesWithText("First retained send").assertCountEquals(1)
+        compose.onAllNodesWithText("Second retained send").assertCountEquals(1)
     }
 }

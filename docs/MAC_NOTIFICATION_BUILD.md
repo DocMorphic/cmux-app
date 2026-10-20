@@ -21,9 +21,16 @@ installer checks and eight cache checks pass; a new invariant keeps the workflow
 checkout and packager on the installer's guarded revision. The workflow selects
 the upstream-pinned Xcode SDK family (26) before preparing dependencies.
 
+Full run [39493457582](https://github.com/DocMorphic/cmux-app/actions/runs/39493457582)
+is building project source `2c6ed4b93c60d425efc17a6d3c97c59ec5900f3d` against this
+candidate. Its dependency and required integration checks passed, including the
+hosted form UI typecheck; it is in full tagged compilation. The patched catalog
+also passes the actual source checker across all nine locales, zero parity
+errors. Poll this specific run rather than redispatching while it remains active.
+
 The currently running, verified custom Mac remains the older `f4b15090` build
 from run 39429836746. No account, workspace, helper registration, key or live app
-was replaced by this source rebase. A new full candidate build, independent
+was replaced by this source rebase. A completed full candidate build, independent
 artifact verification, real launch/retention and Pixel/FCM checks remain open.
 Chief capability is also gated by the host's `chief.enabled` setting; compiling
 the candidate alone does not establish an active Chief host. The global

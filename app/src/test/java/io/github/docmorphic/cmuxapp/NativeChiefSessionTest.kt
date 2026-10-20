@@ -500,4 +500,84 @@ class NativeChiefSessionTest {
         assertTrue(session.state.value.outgoing.isEmpty()); assertEquals(1, api.sends.size)
         session.close()
     }
+
+    @Test fun sendsWaitForThePreviousAcknowledgmentAndItsReadBeforeTheNextHostWrite() = runTest {
+        val api = Api(); var nextId = 0
+        val firstAck = CompletableDeferred<NativeChiefSent>(); val secondAck = CompletableDeferred<NativeChiefSent>()
+        api.sendBlock = { _, id -> if (id == "client-1") firstAck.await() else secondAck.await() }
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "client-${++nextId}" })
+        try {
+            session.editDraft("First"); val first = async { session.send() }; runCurrent()
+            session.editDraft("Second"); val second = async { session.send() }; runCurrent()
+            assertEquals(listOf("First" to "client-1"), api.sends)
+            assertEquals(listOf("client-1", "client-2"), session.state.value.outgoing.map { it.clientMessageId })
+            firstAck.complete(NativeChiefSent("chief-main", "first", "client-1", false)); runCurrent()
+            assertEquals(1, api.sends.size); assertFalse(first.isCompleted)
+            api.reads.send(Result.success(page())); runCurrent()
+            assertEquals(listOf("First" to "client-1", "Second" to "client-2"), api.sends)
+            secondAck.complete(NativeChiefSent("chief-main", "second", "client-2", false))
+            api.reads.send(Result.success(page())); runCurrent()
+            assertEquals("client-1", first.await()); assertEquals("client-2", second.await())
+            assertTrue(session.state.value.outgoing.all { it.delivery == NativeChiefDelivery.SENT })
+        } finally { session.close() }
+    }
+
+    @Test fun aFailedSendReleasesTheQueueWithoutRetryingOrDroppingTheFollowingMessage() = runTest {
+        val api = Api(); var nextId = 0; val firstAck = CompletableDeferred<NativeChiefSent>()
+        api.sendBlock = { _, id -> if (id == "client-1") firstAck.await() else NativeChiefSent("chief-main", "second", id, false) }
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "client-${++nextId}" })
+        try {
+            session.editDraft("First"); val first = async { session.send() }; runCurrent()
+            session.editDraft("Second"); val second = async { session.send() }; runCurrent()
+            assertEquals(1, api.sends.size)
+            api.reads.send(Result.success(page())); firstAck.completeExceptionally(MobileRpcOutcomeUnknown()); runCurrent()
+            first.await(); second.await()
+            assertEquals(listOf("First" to "client-1", "Second" to "client-2"), api.sends)
+            assertEquals(listOf(NativeChiefDelivery.UNCONFIRMED, NativeChiefDelivery.SENT), session.state.value.outgoing.map { it.delivery })
+        } finally { session.close() }
+    }
+
+    @Test fun leavingTheViewCancelsItsWaitersButRetainedSendsContinueUntilTheOwnerRetires() = runTest {
+        val api = Api(); var nextId = 0
+        val firstAck = CompletableDeferred<NativeChiefSent>(); val secondEntered = CompletableDeferred<Unit>()
+        val secondCancelled = CompletableDeferred<Unit>()
+        api.sendBlock = { _, id -> if (id == "client-1") firstAck.await() else {
+            secondEntered.complete(Unit)
+            try { awaitCancellation() } finally { secondCancelled.complete(Unit) }
+        } }
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "client-${++nextId}" })
+        val view = CoroutineScope(coroutineContext + Job(coroutineContext[Job]))
+        try {
+            session.editDraft("First"); view.launch { session.send() }; runCurrent()
+            session.editDraft("Second"); view.launch { session.send() }; runCurrent()
+            view.cancel(); session.pause(); runCurrent()
+            assertEquals(1, api.sends.size)
+            assertTrue(session.state.value.outgoing.all { it.delivery == NativeChiefDelivery.SENDING })
+            api.reads.send(Result.success(page())); firstAck.complete(NativeChiefSent("chief-main", "first", "client-1", false)); runCurrent()
+            secondEntered.await(); assertEquals(2, api.sends.size)
+            session.close(); runCurrent(); secondCancelled.await()
+            assertTrue(session.state.value.outgoing.isEmpty())
+        } finally { view.cancel(); session.close() }
+    }
+
+    @Test fun aQueuedRetryReceivingItsExactOriginalEchoSkipsTheRedundantHostWrite() = runTest {
+        val api = Api(); var nextId = 0
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "client-${++nextId}" })
+        try {
+            api.reads.send(Result.success(page())); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> throw MobileRpcOutcomeUnknown() }
+            session.editDraft("First"); session.send()
+            val secondAck = CompletableDeferred<NativeChiefSent>(); api.sendBlock = { _, _ -> secondAck.await() }
+            session.editDraft("Second"); val second = async { session.send() }; runCurrent()
+            val retry = async { session.retry("client-1") }; runCurrent()
+            assertEquals(listOf("First" to "client-1", "Second" to "client-2"), api.sends)
+            val echo = message(1, "first-echo", "First", true, "client-1")
+            api.waits.send(Result.success(page(echo))); runCurrent()
+            assertEquals("client-1", session.state.value.localClientIds["first-echo"])
+            api.reads.send(Result.success(page(echo)))
+            secondAck.complete(NativeChiefSent("chief-main", "second", "client-2", false)); runCurrent()
+            second.await(); assertTrue(retry.await()); assertEquals(2, api.sends.size)
+            assertEquals(listOf("client-2"), session.state.value.outgoing.map { it.clientMessageId })
+        } finally { session.close() }
+    }
 }

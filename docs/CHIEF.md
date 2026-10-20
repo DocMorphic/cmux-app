@@ -30,6 +30,15 @@ watermarks prevent an old identical message from absorbing a newer send. No
 ambiguous write is automatically resent. In-flight sends trail acknowledged
 history; failed sends retain their source sequence anchor before later replies.
 
+The retained transcript now owns a FIFO send tail, matching the pinned store's
+ordering contract. Each message/retry waits for the prior send and immediate
+acknowledgment read, so concurrent phone actions cannot reorder host writes.
+Failure releases the next item without resending the failed one. Leaving a view
+cancels its waiter and pauses event reads, while already-admitted writes remain
+owned by the retained transcript; retiring that account/Mac cancels the owner
+job and clears content. A queued retry whose original exact echo has arrived
+skips a redundant write. This does not establish cold-process persistence.
+
 Failed sends expose the source's Try Again / Delete / Cancel actions. Explicit
 retry reuses the original client ID, refreshes the send time, clears the failed
 anchor and moves the row to the in-flight tail. It reserves the row before
@@ -88,11 +97,19 @@ Evidence is ignored under `captures/recovery-20261020/`:
   Android system font scale 2.0 in 4.494 s. The final system-font screenshot was
   inspected; the emulator font setting was restored. This remains emulator,
   not physical-device or TalkBack acceptance.
+- Four send-tail regressions pass: acknowledgment/read ordering, failure
+  release, view-waiter cancellation versus owner retirement, and an exact echo
+  resolving a queued retry. The full JVM suite passes 2,994, with four skips and
+  zero failures (`chief-send-queue-build-and-jvm.log`); the focused session and
+  timeline suite passes 37. Nine production Chief Android cases pass in 19.375 s
+  (`chief-send-queue-android.log`), including Back/reopen during a held send,
+  a second queued message and ordered unique echoes. These remain typed local
+  owner/host fixtures, not a real Chief host or physical Pixel acceptance.
 
 This is an initial mounted implementation, not Chief parity acceptance. Finish
 exact bubble/tail/drawer geometry and colors, thread/reply interactions,
 unread/catch-up behavior, history page/window trimming, remaining localization
-and TalkBack. Deeper uncertainty recovery, serialized sends and send/retry scroll behavior also
+and TalkBack. Deeper uncertainty recovery and send/retry scroll behavior also
 remain open. Verify cold process and connection replacement restoration and
 wide-screen navigation. Compare matched iOS states and exercise a supporting
 real Mac with the Pixel. The current custom Mac remains at `f4b15090` without
@@ -105,3 +122,7 @@ see HANDOFF.md for the exact source/hash and receipts. Candidate 704 is retained
 as an older pre-UI artifact.
 The new failed-send actions postdate candidate 705 and are currently source/debug
 validation work, not part of the prepared signed Pixel candidate.
+The send-tail changes also postdate 705. The Chief-capable Mac candidate is
+building in run 39493457582 at project source `2c6ed4b9`, upstream `a5911a1f`.
+The running verified host remains `f4b15090`; no capability or live Chief
+acceptance is inferred from an active build.

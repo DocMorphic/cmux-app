@@ -12,7 +12,7 @@ paging/gap recovery, stable send correlation, draft retention, approval/question
 reservation and receipts. Account/Mac retirement cancels requests and clears
 content; backgrounding pauses reads. The unmodified Chief avatar is attributed.
 Actual Swift wire execution still supplies 21 models, nine requests and eight
-validation cases. The latest full JVM run passed 2,990 with four skips and
+validation cases. The latest full JVM run passed 2,994 with four skips and
 zero failures.
 Eight Android cases pass for the production UI, explicit uncertainty recovery,
 failed-row ordering, late echo identity, separators/quotes, font-scale-2 controls
@@ -29,9 +29,23 @@ The custom Mac build recipe is now rebased to the Chief-capable `a5911a1f`
 candidate with exact 12-source guards and the existing 29-file patch. Local
 compiled integration, pairing/owner and installer/cache checks pass; see
 MAC_NOTIFICATION_BUILD.md. This has not replaced the running verified `f4b15090`
-host or established Chief runtime acceptance. A new full build/artifact remains
+host or established Chief runtime acceptance. Full run **39493457582**, source
+`2c6ed4b93c60d425efc17a6d3c97c59ec5900f3d`, passed dependency/integration
+preparation and is compiling the full tagged app. Revalidate this same run;
+do not redispatch while queued/active. Artifact and runtime verification remain
 required, and Chief is additionally gated by its host setting. Global mobile
 implemented/reviewed pins remain unchanged.
+
+The Android transcript now owns serialized sends/retries through a FIFO tail,
+including the preceding acknowledgment read. View/back-navigation cancellation
+only cancels the waiter; admitted work continues while its retained account/Mac
+owner is current. Owner retirement cancels work and clears content. Four new
+session regressions pass (37 focused session/timeline cases); the full suite
+passes 2,994 with four skips and zero failures. Nine Chief UI cases pass in
+19.375 s, including Back/reopen during a held send and a second ordered send.
+Receipts are the `chief-send-queue-*` logs under the recovery directory. This
+also postdates signed candidate 705; real host/Pixel and cold-process gates stay
+open. The last Mac run status is saved in `mac-chief-rebase/run.json`.
 
 Failed Chief sends now have source-mapped Try Again / Delete / Cancel actions.
 Retry keeps the idempotency ID, refreshes the time and removes the failure

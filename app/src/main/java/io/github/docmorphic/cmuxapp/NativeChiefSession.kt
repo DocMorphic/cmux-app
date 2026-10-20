@@ -98,6 +98,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private var polledSeq = 0uL
     private var lastMarked = 0uL
     private var initialPage = true
+    private var sendTail: Deferred<Unit>? = null
     private val deletedClientIds = mutableSetOf<String>()
     private val deletedMessageIds = mutableSetOf<String>()
     private fun checkOwner() { if (!job.isActive || !permits()) { close(); error("Chief computer or account changed") } }
@@ -226,6 +227,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
 
     /** One explicit send, one stable id. An uncertain write is never automatically resent. */
     suspend fun send(): String? {
+        currentCoroutineContext().ensureActive()
         checkOwner()
         val draft = state.value.draft
         if (draft.isBlank()) return null
@@ -233,12 +235,13 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         require(state.value.outgoing.none { it.clientMessageId == id })
         mutableState.value = state.value.copy(draft = "", outgoing = state.value.outgoing + NativeChiefOutgoing(id, draft, now(),
             sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { it.seq } ?: 0uL)))
-        transmit(id, draft)
+        enqueueTransmit(id, draft)
         return id
     }
 
     /** Source Try Again: reserve synchronously, reuse the client id, and move the row to the current tail. */
     suspend fun retry(clientMessageId: String): Boolean {
+        currentCoroutineContext().ensureActive()
         checkOwner()
         val failed = state.value.outgoing.singleOrNull { it.clientMessageId == clientMessageId && it.delivery.isFailed } ?: return false
         mutableState.value = state.value.copy(outgoing = state.value.outgoing.map {
@@ -246,7 +249,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
                 error = null, failedAnchorSeq = null,
                 sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { message -> message.seq } ?: 0uL)) else it
         })
-        transmit(clientMessageId, failed.text)
+        enqueueTransmit(clientMessageId, failed.text)
         return true
     }
 
@@ -260,6 +263,22 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         state.value.localClientIds.filterValues { it == clientMessageId }.keys.forEach { deletedMessageIds += it }
         mutableState.value = state.value.copy(outgoing = state.value.outgoing.filterNot { it.clientMessageId == clientMessageId })
         return true
+    }
+
+    /** Like the source store's sendTail, the retained session owns FIFO work, including its acknowledgment read.
+     * Leaving a view may cancel its waiter, but only retiring this owner cancels admitted sends. */
+    private suspend fun enqueueTransmit(id: String, text: String) {
+        val previous = sendTail
+        val next = scope.async(start = CoroutineStart.LAZY) {
+            previous?.join()
+            checkOwner()
+            // A queued retry can receive the original send's exact echo before its turn.
+            if (state.value.outgoing.none { it.clientMessageId == id }) return@async
+            transmit(id, text)
+        }
+        sendTail = next
+        next.start()
+        next.await()
     }
 
     private suspend fun transmit(id: String, text: String) {
@@ -364,7 +383,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     fun pause() { monitor?.cancel(); monitor = null }
     fun refresh() { checkOwner(); pause(); start() }
     override fun close() {
-        job.cancel(); monitor = null; deletedClientIds.clear(); deletedMessageIds.clear()
+        job.cancel(); monitor = null; sendTail = null; deletedClientIds.clear(); deletedMessageIds.clear()
         mutableState.value = NativeChiefTranscriptState(loading = false)
     }
 }

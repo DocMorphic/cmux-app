@@ -26,7 +26,7 @@ and the exact admitted foreground Mac. It includes Home search/unread/working
 state, transcript history/events/send/stop, work parts, approval/question actions,
 full qualified question forms and retained drafts. Actual source execution gives
 21 wire-model vectors, nine request vectors and eight question-validation cases.
-The latest full JVM run passed 2,990, skipped four, zero failures. Eight Android
+The latest full JVM run passed 2,994, skipped four, zero failures. Earlier eight Android
 cases passed against the production composition and framed root fixture,
 including failed-send/late-echo identity and enlarged-text controls. Final
 transcript screenshots were inspected. Nineteen vectors execute pinned Swift
@@ -43,7 +43,15 @@ duplicate concurrent attempts. Local deletion suppresses known late echoes;
 another send with identical text is unaffected. Four new JVM regressions cover
 these transitions, rejection/uncertainty, late echoes and owner retirement.
 The controls are source/debug work newer than the prepared signed candidate 705;
-they do not establish real Chief-host, scroll/serialization or lifecycle parity.
+they do not establish real Chief-host, scroll or lifecycle parity.
+
+The retained transcript now serializes send/retry work through the preceding
+acknowledgment/read, without tying admitted work to a view's waiter. Four new
+session regressions and nine production Chief Android cases pass, including
+Back/reopen during a held send and a second ordered message. Exact scope and
+receipts are in CHIEF.md. A Chief-capable Mac build is active at run 39493457582;
+the running verified host still lacks Chief. No live-host gate is closed by CI
+preparation or a fixture.
 
 The Oct 20 Pixel/Mac checkpoint and active notification/terminal/menu fixes are
 recorded at the top of HANDOFF.md. The owner has offered to reconnect the phone
