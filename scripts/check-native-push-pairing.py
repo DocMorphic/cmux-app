@@ -19,6 +19,7 @@ def main():
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
     sources = ['push/mac-native/NativePushPairingClient.swift', 'push/mac-native/NativePushPairingModel.swift',
                'push/mac-native/NativePushPairingView.swift', 'push/mac-native/NativePushPairingPresentation.swift',
+               'push/mac-native/NativePushPairingCommands.swift',
                'scripts/native-push-pairing-fixture.swift']
     if args.patched_app_delegate:
         app = args.patched_app_delegate.read_text()

@@ -120,8 +120,9 @@ actor PairingFixtureGate {
         try require(second.items.count == 2)
         // A rebuild may remove items without replacing the NSMenu itself.
         second.removeAllItems()
-        NotificationCenter.default.post(name: NSMenu.didBeginTrackingNotification, object: second)
-        try require(second.items.count == 2)
-        print("Native pairing menu is idempotent and automatically repairs replaced or emptied host menus on tracking")
+        // Item notifications schedule one repair after SwiftUI finishes its rebuild.
+        try await wait { second.items.count == 2 }
+        try require(second.items.filter { $0.action != nil }.count == 1)
+        print("Native pairing menu is idempotent and repairs replaced or emptied menus through tracking and deferred lifecycle updates")
     }
 }

@@ -19,13 +19,21 @@ the Pixel in place successfully. APK SHA-256:
 It is a local validation build, not a published preview. Live sign-in/pairing
 retention and cold-tap revalidation remain pending phone availability.
 
-The pairing presentation now observes AppKit menu tracking and repairs its item
-when SwiftUI replaces or empties the host menu. The prior composition-time and
-AppDelegate hooks remain. The compiled production Swift fixture verifies both
-reconstruction cases, repeated tracking without duplication, QR pixels, offer
-expiry/cancellation, private clipboard ownership and socket error paths. A fresh
-full Mac build and inspection of the actual app menu are still required before
-accepting this integration fix.
+Production pairing now uses `NativePushPairingCommands` in the pinned SwiftUI
+scene's command model and the existing AppDelegate-owned presentation/client.
+An AppKit insertion existed in the native menu data but was absent from the
+accessibility menu; it was not accepted. The new actual Commands type, hosted in
+an isolated SwiftUI app, visibly exposes “Pair Android Notifications”; clicking
+it opened the unchanged production pairing window. Full-host integration remains
+pending. The expanded immutable patch boundary is 12 upstream files / 29 changed
+or new files, including reviewed `Sources/cmuxApp.swift`. Its SHA, exact wiring,
+Swift/project parse and production payload/auth/queue checks pass. The pairing
+composition typechecks against actual owner/UI types. QR pixels, offer expiry/
+cancellation, clipboard ownership and socket errors pass. AppKit standalone
+viewers retain a coalesced menu-reconstruction fallback; the production host
+disables it to avoid duplicate actions. A fresh full Mac build and actual-host
+inspection are still required. The earlier full Mac run at `725dbf73` predates
+the SwiftUI command change and must not be treated as its validation.
 
 A new emulator regression held the first shared-sizing subscription while the
 real root screen recomposed. It reached the same disconnected guard as the

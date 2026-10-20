@@ -19,6 +19,7 @@ PINS = {
     "cmux.xcodeproj/project.pbxproj": "78898acbeb053763c315c44b6dfe43fb6ff51da3cba0a073958b2192976f5a50",
     "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TeamScopes.swift": "55c26389f160344ad666a0eeea48d1d1b37ac63c3e2e50f97602bed26f38a0fe",
     "Sources/AppDelegate.swift": "e24fe250dfd1d95e0f64f09060281370b05e1ae6c172a25233a301d47ffca7b0",
+    "Sources/cmuxApp.swift": "3aabadf10ce21b1d879cd4a272827ce30722c55a46026fdb49745441bc377906",
     "scripts/reload.sh": "b42199aa1416b20b51f48cc507e3bc0595347fcacf0fb470fb302912498d5216",
 }
 ROOT = Path(__file__).resolve().parents[1]
@@ -268,7 +269,20 @@ def patched_sources(original):
     path = "Sources/AppDelegate.swift"
     source = original[path].decode()
     source = once(source, "import CmuxCloud\n", "import CmuxCloud\nimport CmuxPhonePush\n")
-    source = once(source, "    private(set) var auth: MacAuthComposition?\n", "    private(set) var auth: MacAuthComposition?\n    private var nativeAndroidPushOwner: NativePushSourceOwner?\n    private var nativeAndroidPushPairing: NativePushPairingPresentation?\n")
+    source = once(source, "    private(set) var auth: MacAuthComposition?\n", '''    private(set) var auth: MacAuthComposition?
+    private var nativeAndroidPushOwner: NativePushSourceOwner?
+    private var nativeAndroidPushPairing: NativePushPairingPresentation?
+    func showAndroidNotificationPairing() {
+        guard let pairing = nativeAndroidPushPairing else {
+            let alert = NSAlert()
+            alert.messageText = String(localized: "androidPush.pair.title", defaultValue: "Pair Android Notifications")
+            alert.informativeText = String(localized: "androidPush.pair.error", defaultValue: "Pairing is unavailable. Sign in on this Mac, enable phone notifications, and check the private helper setup. Then try again.")
+            alert.runModal()
+            return
+        }
+        pairing.show()
+    }
+''')
     source = once(source, "        PhonePushClient.shared.configure(auth: auth.coordinator)\n", '''        if nativeAndroidPushOwner == nil {
             if let bundleID = Bundle.main.bundleIdentifier {
                 nativeAndroidPushOwner = try? NativePushSourceOwner(
@@ -288,7 +302,7 @@ def patched_sources(original):
         PhonePushClient.shared.configure(auth: auth.coordinator, nativePushSource: nativeAndroidPushOwner)
         try? nativeAndroidPushOwner?.start()
         if let owner = nativeAndroidPushOwner, nativeAndroidPushPairing == nil {
-            nativeAndroidPushPairing = NativePushPairingPresentation(request: { [weak owner] action, value in
+            nativeAndroidPushPairing = NativePushPairingPresentation(managesAppMenu: false, request: { [weak owner] action, value in
                 guard let owner else { throw NativePushPairingClient.Failure.unavailable }
                 return try await owner.requestPairing(action: action, value: value)
             })
@@ -298,6 +312,14 @@ def patched_sources(original):
 ''')
     source = once(source, "    func menuNeedsUpdate(_ menu: NSMenu) {\n", "    func menuNeedsUpdate(_ menu: NSMenu) {\n        nativeAndroidPushPairing?.installMenu()\n")
     source = once(source, "    func installReloadConfigurationMenuItemAction() {\n", "    func installReloadConfigurationMenuItemAction() {\n        nativeAndroidPushPairing?.installMenu()\n")
+    result[path] = source.encode()
+    path = "Sources/cmuxApp.swift"
+    source = original[path].decode()
+    source = once(source, "        .commands {\n", '''        .commands {
+            NativePushPairingCommands(configured: ProcessInfo.processInfo.environment["CMUX_ANDROID_PUSH_CONFIG"] != nil) {
+                appDelegate.showAndroidNotificationPairing()
+            }
+''')
     result[path] = source.encode()
     path = "scripts/reload.sh"
     source = original[path].decode()
@@ -339,6 +361,7 @@ def patched_sources(original):
         "NativePushPairingModel": "push/mac-native/NativePushPairingModel.swift",
         "NativePushPairingView": "push/mac-native/NativePushPairingView.swift",
         "NativePushPairingPresentation": "push/mac-native/NativePushPairingPresentation.swift",
+        "NativePushPairingCommands": "push/mac-native/NativePushPairingCommands.swift",
     }
     for index, (name, source_path) in enumerate(native_sources.items(), 1):
         build = f"C0DEAD0000000000000000{index:02X}"

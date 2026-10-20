@@ -21,23 +21,41 @@ final class NativePushPairingClipboard {
 @MainActor
 final class NativePushPairingPresentation: NSObject, NSWindowDelegate {
     private let request: NativePushPairingModel.Request
+    private let managesAppMenu: Bool
     private lazy var model = NativePushPairingModel(request: request, onClear: { [weak self] in self?.clipboard.clear() })
     private var window: NSWindow?
     private var item: NSMenuItem?
+    private var menuRepairScheduled = false
     private let clipboard = NativePushPairingClipboard()
 
-    init(request: @escaping NativePushPairingModel.Request) {
+    init(managesAppMenu: Bool = true, request: @escaping NativePushPairingModel.Request) {
         self.request = request
+        self.managesAppMenu = managesAppMenu
         super.init()
+        guard managesAppMenu else { return }
         // SwiftUI can replace the app menu after the auth composition is made.
         // Do not depend on that replacement retaining AppDelegate as its delegate.
         NotificationCenter.default.addObserver(self, selector: #selector(menuWillTrack(_:)),
             name: NSMenu.didBeginTrackingNotification, object: nil)
+        for name in [NSMenu.didAddItemNotification, NSMenu.didRemoveItemNotification,
+                     NSApplication.didFinishLaunchingNotification, NSApplication.didBecomeActiveNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(scheduleMenuRepair(_:)),
+                name: name, object: nil)
+        }
     }
     deinit { NotificationCenter.default.removeObserver(self) }
     @objc private func menuWillTrack(_ notification: Notification) { installMenu() }
+    @objc private func scheduleMenuRepair(_ notification: Notification) {
+        guard !menuRepairScheduled else { return }
+        menuRepairScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.menuRepairScheduled = false
+            self.installMenu()
+        }
+    }
     func installMenu() {
-        guard let menu = NSApp.mainMenu?.items.first?.submenu, item?.menu !== menu else { return }
+        guard managesAppMenu, let menu = NSApp.mainMenu?.items.first?.submenu, item?.menu !== menu else { return }
         let item = NSMenuItem(title: String(localized: "androidPush.pair.title", defaultValue: "Pair Android Notifications"),
             action: #selector(show), keyEquivalent: "")
         item.target = self
