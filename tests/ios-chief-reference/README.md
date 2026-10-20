@@ -32,3 +32,9 @@ Local preparation, `plutil` project parsing and Swift parsing can run with comma
 line tools. UIKit typechecking and rendering require full Xcode and an iOS runtime;
 the current Mac has only the command line tools, so hosted compilation remains
 mandatory. Never interpret a parser pass as a successful UIKit build.
+
+The host builds only the selected simulator's active architecture, matching
+SwiftPM's Debug modules. First run `39510100505` built the upstream package but
+failed when the generated test target also requested x86_64 and tried to import
+the ARM-only modules. The host setting corrects that mismatch; it does not patch
+the pinned upstream package or establish a rendered pass by itself.

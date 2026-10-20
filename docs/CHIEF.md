@@ -115,6 +115,12 @@ The current local developer directory contains only command-line tools; full
 Xcode and an iOS runtime were not found. Hosted compilation/capture, artifact
 inspection and matched Android scenes remain required. This does not update
 global implemented/reviewed pins or claim complete review of the reference tree.
+First reference run `39510100505` at project source `b4606b9e` failed in the
+generated test target: it also compiled x86_64 while SwiftPM supplied active ARM
+simulator modules. The project now sets `ONLY_ACTIVE_ARCH = YES`, matching the
+selected destination and leaving the pinned package unchanged. A fresh generated
+project parses; hosted typechecking/capture still must pass before any reference
+image is accepted.
 
 Evidence is ignored under `captures/recovery-20261020/`:
 

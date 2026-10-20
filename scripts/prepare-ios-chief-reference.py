@@ -77,7 +77,9 @@ def prepare(upstream, output):
     test_sources = obj('test-sources', 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = ({source_builds["ReferenceTests.swift"]},); runOnlyForDeploymentPostprocessing = 0;')
     test_frameworks = obj('test-frameworks', 'PBXFrameworksBuildPhase', f'buildActionMask = 2147483647; files = ({", ".join(frameworks)},); runOnlyForDeploymentPostprocessing = 0;')
     resources = obj('test-resources', 'PBXResourcesBuildPhase', f'buildActionMask = 2147483647; files = ({", ".join(resource_builds)},); runOnlyForDeploymentPostprocessing = 0;')
-    common = 'SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO;'
+    # Match SwiftPM's Debug products to the selected simulator architecture.
+    # Building a second host-test slice cannot import an active-architecture-only package module.
+    common = 'SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; ONLY_ACTIVE_ARCH = YES;'
     def configurations(name, settings):
         values = []
         for configuration in ('Debug', 'Release'):
