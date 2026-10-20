@@ -26,7 +26,7 @@ and the exact admitted foreground Mac. It includes Home search/unread/working
 state, transcript history/events/send/stop, work parts, approval/question actions,
 full qualified question forms and retained drafts. Actual source execution gives
 21 wire-model vectors, nine request vectors and eight question-validation cases.
-The latest full JVM run passed 2,994, skipped four, zero failures. Earlier eight Android
+The latest full JVM run passed 3,003, skipped four, zero failures. Earlier eight Android
 cases passed against the production composition and framed root fixture,
 including failed-send/late-echo identity and enlarged-text controls. Final
 transcript screenshots were inspected. Nineteen vectors execute pinned Swift
@@ -50,8 +50,22 @@ acknowledgment/read, without tying admitted work to a view's waiter. Four new
 session regressions and nine production Chief Android cases pass, including
 Back/reopen during a held send and a second ordered message. Exact scope and
 receipts are in CHIEF.md. A Chief-capable Mac build is active at run 39493457582;
-the running verified host still lacks Chief. No live-host gate is closed by CI
+the running verified host still lacks Chief. That first build failed in the pinned
+CLI initializer; the guarded correction has red/green leaf proof and follow-up
+39498469545 is in full tagged compilation. No live-host gate is closed by CI
 preparation or a fixture.
+
+Foreground read-all, independent unread-backlog catch-up and 50-message ordinary
+history pages are now ported. Sixteen vectors execute the actual Swift store's
+read/catch-up bodies; 46 focused JVM cases pass. Thirteen Android cases pass,
+including read-all while browsing history, catch-up through older pages, initial
+newest positioning, stable arrival anchoring and explicit-send return to newest.
+Exact presentation, remaining scrolling/keyboard behavior, automatic prefetch,
+window trimming and physical Mac/Pixel evidence remain open in CHIEF.md.
+Live/action refreshes now respect the loaded window and do not overwrite
+unrelated updates. Authoritative Mark Unread can issue a fresh read after its
+previous acknowledgment. Genuine reader gestures control pinning; the repeated
+own-echo and final viewport checks pass after an intermediate UI failure.
 
 The Oct 20 Pixel/Mac checkpoint and active notification/terminal/menu fixes are
 recorded at the top of HANDOFF.md. The owner has offered to reconnect the phone

@@ -15,7 +15,21 @@ Home sorts pinned/recent rows, searches title/preview, shows unread/working
 state, reports real startup failures and waits on the Mac's opaque change cursor
 with bounded retry. A started-but-empty host can supply its default conversation.
 Transcript sessions use event-backed reads, fill missed-page gaps, retain older
-action cards, page history, track working/read state and mark visible rows read.
+action cards, page history and track working/read state. The visible foreground
+conversation marks all loaded incoming messages read, matching the source's
+viewing contract; this is independent of scroll position. The original unread
+backlog is retained as a catch-up marker/count. Its up-arrow loads history through
+the first unread incoming message, adds context and jumps there. Seeing that
+target (or an outgoing message beyond the marker) clears the arrow. Backgrounding
+pauses reads and resets capture for a fresh resume baseline; leaving the
+conversation ends its visit. Pending local reads reject stale server markers.
+Initial/ordinary history pages contain 50 messages; event and gap reads retain
+the source's 200-message limit. The transcript starts at newest, follows arrivals
+while pinned, preserves history browsing and returns to newest for a new send.
+Live snapshots cannot pull unknown older rows across the loaded window; explicit
+history loading widens it. Action refreshes publish only their own send/card,
+preserving unrelated newer updates. Genuine reader drag/fling state controls
+pinning; programmatic motion does not unpin the reader.
 The same owner retains query, drafts and navigation state across recomposition;
 backgrounding pauses reads. Account/Mac retirement cancels operations and clears
 content. Every request still uses the real client's admission checks, without a
@@ -105,11 +119,37 @@ Evidence is ignored under `captures/recovery-20261020/`:
   (`chief-send-queue-android.log`), including Back/reopen during a held send,
   a second queued message and ordered unique echoes. These remain typed local
   owner/host fixtures, not a real Chief host or physical Pixel acceptance.
+- Read/catch-up policy matches 16 vectors executed through the actual pinned
+  Swift store's read-event and eight read/catch-up bodies, using inert direct
+  message/read models and a no-op receipt backend. Two source labels match en/ja.
+  Two policy tests and seven session regressions pass for viewing, stale receipts,
+  pagination, fresh resume capture, retirement, authoritative Mark Unread and
+  scoped live/action refreshes. The focused session/timeline/reading suite passes
+  46; the full suite passes 3,003, with four skips and zero failures
+  (`chief-reading-scoped-refresh-build-and-jvm.log`). Thirteen
+  Android cases pass in 29.239 s (`chief-reading-window-android-final.log`): eleven production
+  Chief cases and two admitted-root/capability cases. New flows check initial
+  newest positioning, read-all with an older unread backlog, loading/jumping to
+  the original first unread, stable viewport on arrival while reading history,
+  and returning to newest on an explicit send. Rendering/performance and real
+  account/device acceptance are separate gates.
+  A separate settled capture run passes in 7.289 s with fixed header-window
+  bounds before/after the jump (`chief-reading-settled-capture.log`). Its initial
+  newest/backlog-arrow and first-unread target screenshots were inspected
+  individually; the capture run's crash buffer is empty. This is scoped Compose
+  and Android rendering evidence, not a matched iOS or physical-device result.
+  An intermediate UI rerun failed the immediate own-echo visibility assertion.
+  Pin tracking now distinguishes reader drags/flings from programmatic movement;
+  the check waits for the rendered echo. It passes three consecutive targeted
+  runs and the final full batch. The viewport check holds a visible message's
+  actual top position, rather than comparing a virtual scroll index. A separate
+  red/green regression reproduces receipt deduplication suppressing a fresh read
+  after an acknowledged server-side Mark Unread; stale snapshots remain fenced.
 
 This is an initial mounted implementation, not Chief parity acceptance. Finish
 exact bubble/tail/drawer geometry and colors, thread/reply interactions,
-unread/catch-up behavior, history page/window trimming, remaining localization
-and TalkBack. Deeper uncertainty recovery and send/retry scroll behavior also
+automatic history prefetch/retry and loaded-window trimming, remaining localization
+and TalkBack. Deeper uncertainty recovery, new-visit positioning and remaining scroll/keyboard behavior also
 remain open. Verify cold process and connection replacement restoration and
 wide-screen navigation. Compare matched iOS states and exercise a supporting
 real Mac with the Pixel. The current custom Mac remains at `f4b15090` without
@@ -122,7 +162,9 @@ see HANDOFF.md for the exact source/hash and receipts. Candidate 704 is retained
 as an older pre-UI artifact.
 The new failed-send actions postdate candidate 705 and are currently source/debug
 validation work, not part of the prepared signed Pixel candidate.
-The send-tail changes also postdate 705. The Chief-capable Mac candidate is
-building in run 39493457582 at project source `2c6ed4b9`, upstream `a5911a1f`.
+The send-tail and read/catch-up changes also postdate 705. The first Chief-capable
+Mac run 39493457582 failed in the pinned CLI initializer. The exact guarded leaf
+fix reproduces that failure and passes locally; follow-up 39498469545 at project
+source `d8f268b7`, upstream `a5911a1f`, is in full tagged compilation.
 The running verified host remains `f4b15090`; no capability or live Chief
 acceptance is inferred from an active build.

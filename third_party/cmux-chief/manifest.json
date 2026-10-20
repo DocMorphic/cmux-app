@@ -19,7 +19,9 @@
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationRows.swift": "267c73afadabad297998eda77cf32750032bd34939d5b55c7f01b1b70aaae43b",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationCells.swift": "b7db01bd0f01c53b35638957d945c9c37814f2720c1740ca2533e0a61db78b86",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+Gestures.swift": "1252bef81cec6c4b48d0c398713a80299cafe34c8c4be2f620de50e9fc6dfa8c",
-    "Sources/Chief/ChiefService+Control.swift": "27cfb4a51bb6caf74f73039dc30adf17603e41063871fd17573873bb4b344a88"
+    "Sources/Chief/ChiefService+Control.swift": "27cfb4a51bb6caf74f73039dc30adf17603e41063871fd17573873bb4b344a88",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController.swift": "9b64e1ed33b1fcbe9c1873f7a23fa0e8d34063e946b63604da2a48fe41b86092",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+CatchUp.swift": "8996b1279a5d661757f2d852a8d4c140e69ad1626fdc9c4228eda642dfffa3e4"
   },
   "timelineFiles": {
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationRunPlan.swift": "3f3a4c0cd6a2636788dbccbe1fd1793f40a8db32b1cb40e4d8e2eac3b295a56a",
@@ -43,6 +45,13 @@
       "conversation.retry.tryAgain": "chief_retry_try_again",
       "conversation.select.delete": "chief_retry_delete",
       "conversation.retry.cancel": "chief_retry_cancel"
+    }
+  },
+  "catchUpStrings": {
+    "path": "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/Resources/Localizable.xcstrings",
+    "sha256": "7d43f79f76c3ddbd63c5cab6ac66ea966cdf33a495dbf635cdf10bc4de088b93",
+    "keys": {
+      "conversation.catchUp.label": "chief_catch_up_label"
     }
   }
 }

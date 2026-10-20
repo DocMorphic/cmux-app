@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import java.time.Instant
 import java.util.UUID
 
@@ -80,6 +81,8 @@ internal data class NativeChiefTranscriptState(
     val loading: Boolean = true, val loadingOlder: Boolean = false, val hasMore: Boolean = false,
     val working: Boolean = false, val connected: Boolean = false, val error: String? = null,
     val lastReadSeq: ULong = 0uL, val unread: Long = 0, val headSeq: ULong = 0uL,
+    val catchUpMarker: ULong? = null, val catchUpCount: Long = 0, val loadingCatchUp: Boolean = false,
+    val localSendRevision: Long = 0,
     val draft: String = "", val deciding: Set<String> = emptySet(), val committed: Set<String> = emptySet(),
     val uncertain: Set<String> = emptySet(), val actionErrors: Map<String, String> = emptyMap(),
     val localClientIds: Map<String, String> = emptyMap()
@@ -98,6 +101,8 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private var polledSeq = 0uL
     private var lastMarked = 0uL
     private var initialPage = true
+    private var reading = NativeChiefReading()
+    private var awaitingReadBaseline = false
     private var sendTail: Deferred<Unit>? = null
     private val deletedClientIds = mutableSetOf<String>()
     private val deletedMessageIds = mutableSetOf<String>()
@@ -115,20 +120,30 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     fun start() {
         checkOwner()
         if (monitor?.isActive == true) return
+        awaitingReadBaseline = true
         monitor = scope.launch {
             var first = true
             while (isActive) {
                 try {
-                    val result = read(after = if (first) null else polledSeq, afterCursor = if (first) null else cursor, wait = !first)
+                    val result = read(limit = if (first) 50 else 200, after = if (first) null else polledSeq,
+                        afterCursor = if (first) null else cursor, wait = !first)
                     val messages = coveringGap(result)
-                    merge(messages)
+                    merge(messages, updateReading = false)
                     cursor = result.changeCursor ?: cursor
                     polledSeq = maxOf(polledSeq, messages.maxOfOrNull { it.seq } ?: 0uL)
+                    val reconnecting = !state.value.connected
                     mutableState.value = state.value.copy(loading = false, connected = true, error = null,
                         hasMore = if (initialPage) result.hasMore else state.value.hasMore, working = result.working,
-                        lastReadSeq = result.lastReadSeq ?: 0uL, unread = maxOf(0, result.unreadCount ?: 0),
                         headSeq = result.headSeq ?: maxOf(polledSeq, result.messages.maxOfOrNull { it.seq } ?: 0uL))
-                    initialPage = false; first = false
+                    if (first || reconnecting) reading = reading.copy(pending = 0uL)
+                    val serverRead = result.lastReadSeq ?: 0uL
+                    // Once pending reads are acknowledged, a server-side Mark
+                    // Unread is authoritative and may require the same receipt again.
+                    if (serverRead >= reading.pending) lastMarked = minOf(lastMarked, serverRead)
+                    reading = reading.accept(NativeChiefReading.Server(serverRead,
+                        maxOf(0, result.unreadCount ?: 0), state.value.headSeq))
+                    initialPage = false; first = false; awaitingReadBaseline = false
+                    refreshReading()
                 } catch (e: Exception) {
                     currentCoroutineContext().ensureActive(); checkOwner()
                     mutableState.value = state.value.copy(loading = false, connected = false, error = e.message ?: "Chief disconnected")
@@ -153,10 +168,23 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         return pages.flatten().associateBy { it.id }.values.sortedBy { it.seq }
     }
 
-    private fun merge(incoming: List<NativeChiefMessage>, acknowledgedSend: String? = null) {
+    private fun merge(incoming: List<NativeChiefMessage>, acknowledgedSend: String? = null, updateReading: Boolean = true,
+        allowOlder: Boolean = false) {
         checkOwner()
-        val messages = incoming.filterNot { it.id in deletedMessageIds || it.clientMessageId in deletedClientIds }
+        val known = state.value.messages.map { it.id }.toSet()
+        val oldest = state.value.messages.firstOrNull()?.seq
+        val pendingServerIds = state.value.outgoing.mapNotNull { it.serverMessageId }.toSet()
+        val pendingClientIds = state.value.outgoing.flatMap { listOfNotNull(it.clientMessageId, it.echoClientMessageId) }.toSet()
+        // A newest-page event/action read can contain history above the visible
+        // window. Like ingestLive, update known rows without pulling unknown old
+        // rows across a gap; only explicit history loading widens the window.
+        val messages = incoming.filter { message ->
+            message.id !in deletedMessageIds && message.clientMessageId !in deletedClientIds &&
+                (allowOlder || oldest == null || message.seq >= oldest || message.id in known ||
+                    message.authorKind == "human" && (message.id in pendingServerIds || message.clientMessageId in pendingClientIds))
+        }
         var outgoing = state.value.outgoing
+        fun pending() = outgoing.filter { acknowledgedSend == null || it.clientMessageId == acknowledgedSend }
         val localClientIds = state.value.localClientIds.toMutableMap()
         val earliest = now().minusSeconds(300)
         val humans = messages.filter { it.authorKind == "human" }
@@ -167,9 +195,9 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         // Resolve exact ids across the whole page before trying text. Otherwise
         // an older identical row can steal a send whose exact echo is later in it.
         humans.forEach { message ->
-            val candidate = localClientIds[message.id]?.let { id -> outgoing.firstOrNull { it.clientMessageId == id } }
-                ?: message.clientMessageId?.let { id -> outgoing.firstOrNull { it.clientMessageId == id || it.echoClientMessageId == id } }
-                ?: outgoing.firstOrNull { it.serverMessageId == message.id }
+            val candidate = localClientIds[message.id]?.let { id -> pending().firstOrNull { it.clientMessageId == id } }
+                ?: message.clientMessageId?.let { id -> pending().firstOrNull { it.clientMessageId == id || it.echoClientMessageId == id } }
+                ?: pending().firstOrNull { it.serverMessageId == message.id }
             if (candidate != null) correlate(message, candidate)
         }
         // The accepted send's immediate read has the source's bounded clock-skew
@@ -180,13 +208,13 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
                 ?.let { correlate(it, pending) }
         }
         humans.filter { it.id !in localClientIds && it.clientMessageId == null }.forEach { message ->
-            outgoing.filter { it.serverMessageId == null && it.delivery !in setOf(NativeChiefDelivery.REJECTED, NativeChiefDelivery.UNCONFIRMED) &&
+            pending().filter { it.serverMessageId == null && it.delivery !in setOf(NativeChiefDelivery.REJECTED, NativeChiefDelivery.UNCONFIRMED) &&
                 it.at >= earliest && message.seq > it.sentAfterSeq && it.text == message.text && message.at >= it.at }.minByOrNull { it.at }
                 ?.let { correlate(message, it) }
         }
         // A late older read cannot resurrect a pending card once the Mac returned its receipt.
         val byId = state.value.messages.associateBy { it.id }.toMutableMap()
-        messages.forEach { next ->
+        messages.filter { acknowledgedSend == null || localClientIds[it.id] == acknowledgedSend }.forEach { next ->
             val previous = byId[next.id]
             byId[next.id] = if (previous == null) next else next.copy(partPayloads = next.partPayloads.map { part ->
                 previous.partPayloads.firstOrNull { old ->
@@ -205,22 +233,77 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         val settled = sorted.filter { NativeChiefPresentation.pendingPart(it) == null }.map { it.id }.toSet()
         mutableState.value = state.value.copy(messages = sorted, outgoing = outgoing,
             localClientIds = localClientIds, committed = state.value.committed - settled, uncertain = state.value.uncertain - settled)
+        if (updateReading) refreshReading()
     }
 
-    suspend fun loadOlder() {
+    private fun publishReading() {
+        mutableState.value = state.value.copy(lastReadSeq = reading.lastReadSeq, unread = reading.unread,
+            catchUpMarker = reading.marker, catchUpCount = reading.catchUpCount)
+    }
+    private fun refreshReading() {
+        val update = reading.refresh(state.value.messages, !initialPage && !awaitingReadBaseline, !state.value.hasMore)
+        reading = update.state; publishReading()
+        update.receipt?.let { seq -> scope.launch {
+            try { markRead(seq) } catch (error: Exception) { currentCoroutineContext().ensureActive() }
+        } }
+    }
+    fun setViewing(value: Boolean) {
+        checkOwner(); reading = reading.viewing(value)
+        if (!value || monitor?.isActive == true) refreshReading() else publishReading()
+    }
+    fun endVisit() { checkOwner(); reading = reading.endVisit(); publishReading() }
+    fun dismissCatchUp() { checkOwner(); reading = reading.dismiss(); publishReading() }
+    fun catchUpTarget() = reading.target(state.value.messages, !state.value.hasMore)
+    fun observeVisible(messageIds: Set<String>, localSendVisible: Boolean) {
         checkOwner()
-        if (state.value.loadingOlder || !state.value.hasMore) return
-        val before = state.value.messages.minOfOrNull { it.seq } ?: return
+        val marker = reading.marker ?: return
+        val messages = state.value.messages
+        val first = messages.indexOfFirst { it.id in messageIds }
+        val target = catchUpTarget()?.let { item -> messages.indexOfFirst { it.id == item.id } }
+        if ((first >= 0 && target != null && target >= first) || localSendVisible ||
+            messages.any { it.id in messageIds && it.authorKind == "human" && it.seq > marker }) dismissCatchUp()
+    }
+
+    suspend fun loadOlder() { loadOlderPage(50) }
+    private suspend fun loadOlderPage(limit: Int): Boolean {
+        checkOwner()
+        if (state.value.loadingOlder || !state.value.hasMore) return false
+        val before = state.value.messages.minOfOrNull { it.seq } ?: return false
         mutableState.value = state.value.copy(loadingOlder = true)
         try {
-            val result = read(before)
+            val result = read(before, limit)
             check(result.messages.all { it.seq < before }) { "Chief history did not advance" }
-            merge(result.messages)
+            merge(result.messages, allowOlder = true)
             mutableState.value = state.value.copy(hasMore = result.hasMore && result.messages.isNotEmpty(), error = null)
+            refreshReading()
+            return true
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive(); checkOwner()
             mutableState.value = state.value.copy(error = e.message ?: "Could not load earlier messages")
+            return false
         } finally { if (job.isActive && permits()) mutableState.value = state.value.copy(loadingOlder = false) }
+    }
+
+    suspend fun loadCatchUpTarget(): String? {
+        checkOwner()
+        val marker = reading.marker?.takeIf { it < ULong.MAX_VALUE } ?: return null
+        if (state.value.loadingCatchUp) return null
+        mutableState.value = state.value.copy(loadingCatchUp = true)
+        try {
+            var failures = 0
+            while (reading.marker == marker) {
+                state.first { !it.loadingOlder }; checkOwner()
+                val oldest = state.value.messages.firstOrNull()?.seq ?: return null
+                if (oldest <= marker + 1uL || !state.value.hasMore) return catchUpTarget()?.id
+                val distance = oldest - (marker + 1uL)
+                val limit = if (distance >= 192uL) 200 else maxOf(50, distance.toInt() + 8)
+                if (loadOlderPage(limit)) failures = 0 else {
+                    if (++failures > 4) return null
+                    delay(minOf(8_000L, 500L * (1L shl minOf(failures, 4))))
+                }
+            }
+            return null
+        } finally { if (job.isActive && permits()) mutableState.value = state.value.copy(loadingCatchUp = false) }
     }
 
     fun editDraft(text: String) { checkOwner(); mutableState.value = state.value.copy(draft = text) }
@@ -233,7 +316,8 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         if (draft.isBlank()) return null
         val id = newId()
         require(state.value.outgoing.none { it.clientMessageId == id })
-        mutableState.value = state.value.copy(draft = "", outgoing = state.value.outgoing + NativeChiefOutgoing(id, draft, now(),
+        mutableState.value = state.value.copy(draft = "", localSendRevision = state.value.localSendRevision + 1,
+            outgoing = state.value.outgoing + NativeChiefOutgoing(id, draft, now(),
             sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { it.seq } ?: 0uL)))
         enqueueTransmit(id, draft)
         return id
@@ -309,6 +393,8 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     suspend fun markRead(upToSeq: ULong = state.value.headSeq) {
         checkOwner()
         if (upToSeq == 0uL || upToSeq <= lastMarked) return
+        reading = reading.copy(lastReadSeq = maxOf(reading.lastReadSeq, upToSeq), pending = maxOf(reading.pending, upToSeq))
+        refreshReading()
         try {
             val marked = owned { client.markRead(conversationId, upToSeq) }
             check(marked.conversation == conversationId) { "Chief returned another conversation" }
@@ -353,8 +439,9 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
             // The action is committed. A failed follow-up read must not invite a duplicate answer.
             try {
                 val result = read()
-                merge(result.messages)
-                if (result.messages.none { it.id == id } && message.seq < ULong.MAX_VALUE) merge(read(message.seq + 1uL, 1).messages)
+                merge(result.messages.filter { it.id == id })
+                if (result.messages.none { it.id == id } && message.seq < ULong.MAX_VALUE)
+                    merge(read(message.seq + 1uL, 1).messages.filter { it.id == id })
             } catch (e: Exception) { currentCoroutineContext().ensureActive(); checkOwner() }
             return true
         } catch (e: Exception) {
@@ -384,6 +471,6 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     fun refresh() { checkOwner(); pause(); start() }
     override fun close() {
         job.cancel(); monitor = null; sendTail = null; deletedClientIds.clear(); deletedMessageIds.clear()
-        mutableState.value = NativeChiefTranscriptState(loading = false)
+        reading = NativeChiefReading(); mutableState.value = NativeChiefTranscriptState(loading = false)
     }
 }

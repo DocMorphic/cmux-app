@@ -8,9 +8,9 @@ a5911a1f92f3eeb11c4d7f3e2ef89204718c5009.
 ChiefAvatar.png is copied unmodified from CmuxMobileShellUI's ChiefAvatar imageset.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Source hashes and scope: third_party/cmux-chief/manifest.json in the source repo.
-Transcript ordering, stable row identity, run grouping, separators and quote
+Transcript ordering, read state, catch-up, stable row identity, run grouping, separators and quote
 presentation follow the scoped CmuxConversation core/UI sources at that revision.
-Selected English/Japanese timestamp strings are copied from its UI catalog.
+Selected English/Japanese timestamp and catch-up strings are copied from its UI catalog.
 
 Cloud machine, identity, invitation approval, terminal output and UI code adapt
 Packages/iOS/CmuxMobileCloud, CmuxMobileCloudUI, CmuxMobileCloudBridge and

@@ -2,6 +2,7 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -197,16 +200,47 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         ?.let(NativeChiefPresentation::pendingPart)?.question
     val timeline = remember(state.messages, state.outgoing, state.localClientIds, state.working) { NativeChiefTimeline.rows(state) }
     val currentTimeline by rememberUpdatedState(timeline)
-    val atBottom = !list.canScrollForward
-    LaunchedEffect(state.messages.lastOrNull()?.id, state.outgoing.lastOrNull()?.clientMessageId) {
-        if (atBottom && list.layoutInfo.totalItemsCount > 0) list.scrollToItem(list.layoutInfo.totalItemsCount - 1)
+    var positioned by rememberSaveable { mutableStateOf(false) }
+    var pinned by rememberSaveable { mutableStateOf(true) }
+    var seenSend by rememberSaveable { mutableLongStateOf(state.localSendRevision) }
+    var programmatic by remember { mutableStateOf(false) }
+    var readerScrolling by remember { mutableStateOf(false) }
+    val dragged by list.interactionSource.collectIsDraggedAsState()
+    val bottomTolerance = with(LocalDensity.current) { 44.dp.toPx() }
+    val viewport = list.layoutInfo.viewportSize.height
+    suspend fun scrollToNewest() {
+        val end = timeline.size + (if (state.hasMore) 1 else 0) + (if (state.working) 1 else 0) - 1
+        if (end < 0) return
+        readerScrolling = false; programmatic = true
+        try { list.scrollToItem(end) } finally { programmatic = false }
     }
-    LaunchedEffect(session, list, state.connected) {
-        if (state.connected) snapshotFlow { list.layoutInfo.visibleItemsInfo.map { it.key } }.collect { keys ->
+    LaunchedEffect(timeline, state.working, state.loading, state.hasMore, state.localSendRevision, viewport) {
+        val sent = state.localSendRevision != seenSend
+        seenSend = state.localSendRevision
+        if (sent) { pinned = true; readerScrolling = false }
+        if (!state.loading && (!positioned || (pinned && (!dragged && !readerScrolling || sent)))) {
+            scrollToNewest(); positioned = true
+        }
+    }
+    LaunchedEffect(list, bottomTolerance) {
+        snapshotFlow {
+            val info = list.layoutInfo; val last = info.visibleItemsInfo.lastOrNull()
+            Triple(dragged, list.isScrollInProgress, !list.canScrollForward ||
+                (last != null && last.index == info.totalItemsCount - 1 && last.offset + last.size <= info.viewportEndOffset + bottomTolerance))
+        }.collect { (dragging, scrolling, nearBottom) ->
+            if (dragging) readerScrolling = true
+            if (readerScrolling && !programmatic) pinned = nearBottom
+            if (!dragging && !scrolling) readerScrolling = false
+        }
+    }
+    LaunchedEffect(session, list, positioned, state.catchUpMarker) {
+        if (positioned && state.catchUpMarker != null) snapshotFlow {
+            list.layoutInfo.visibleItemsInfo.map { it.key } to currentTimeline
+        }.collect { (keys, rows) ->
             val visible = keys.filterIsInstance<String>().toSet()
-            currentTimeline.filter { it.item.key in visible }.mapNotNull { it.item.seq }.maxOrNull()?.let {
-                try { session.markRead(it) } catch (error: Exception) { currentCoroutineContext().ensureActive() }
-            }
+            val items = rows.filter { it.item.key in visible }.map { it.item }
+            try { session.observeVisible(items.mapNotNull { it.message?.id }.toSet(), items.any { it.outgoing != null }) }
+            catch (error: Exception) { currentCoroutineContext().ensureActive() }
         }
     }
     BackHandler(onBack = onBack)
@@ -230,7 +264,8 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         } }
         actionError?.let { Text(it, Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.error) }
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("ChiefMessages"), state = list,
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+        LazyColumn(Modifier.fillMaxSize().testTag("ChiefMessages"), state = list,
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
             if (state.hasMore) item(key = "older") {
                 TextButton(onClick = { act { session.loadOlder() } }, enabled = !state.loadingOlder) {
@@ -302,6 +337,21 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 }
             }
             if (state.working) item(key = "working") { Text("Chief is working…", color = chiefAccent) }
+        }
+        if (positioned && state.catchUpMarker != null) FilledTonalIconButton(onClick = { act {
+            val target = session.loadCatchUpTarget() ?: return@act
+            val rows = snapshotFlow { currentTimeline }.first { rows -> rows.any { it.item.message?.id == target } }
+            val index = rows.indexOfFirst { it.item.message?.id == target }
+            if (index >= 0) {
+                pinned = false; readerScrolling = false; programmatic = true
+                try { list.scrollToItem(index + if (session.state.value.hasMore) 1 else 0) }
+                finally { programmatic = false }
+                session.dismissCatchUp()
+            }
+        } }, enabled = !state.loadingCatchUp, modifier = Modifier.align(Alignment.TopEnd).padding(14.dp)
+            .size(48.dp).testTag("ChiefCatchUp")) {
+            Icon(painterResource(R.drawable.ic_chief_catch_up), stringResource(R.string.chief_catch_up_label))
+        }
         }
         Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(state.draft, session::editDraft, Modifier.weight(1f).heightIn(max = 160.dp).testTag("ChiefComposer"),

@@ -12,9 +12,9 @@ paging/gap recovery, stable send correlation, draft retention, approval/question
 reservation and receipts. Account/Mac retirement cancels requests and clears
 content; backgrounding pauses reads. The unmodified Chief avatar is attributed.
 Actual Swift wire execution still supplies 21 models, nine requests and eight
-validation cases. The latest full JVM run passed 2,994 with four skips and
+validation cases. The latest full JVM run passed 3,003 with four skips and
 zero failures.
-Eight Android cases pass for the production UI, explicit uncertainty recovery,
+An earlier eight-case Android batch passed for the production UI, explicit uncertainty recovery,
 failed-row ordering, late echo identity, separators/quotes, font-scale-2 controls
 and framed root integration; the final screenshots were inspected. Nineteen
 vectors execute the actual pinned Swift ordering/run-plan/row-ID bodies against
@@ -36,9 +36,36 @@ the command-name Set initializer as an uncalled closure. Its exact source is
 now guarded and the initializer invoked; the new mandatory leaf check reproduces
 the original compiler failure and passes corrected compile/behavior checks.
 The native hook checks and five installer/eight cache checks also pass. A checked
-follow-up build is required; do not redispatch one while queued/active. Artifact and runtime verification remain
+follow-up **39498469545**, source `d8f268b7cdd41f9fb0223892a90d5392a82b8326`,
+passed its mandatory preparation/integration checks and is in full tagged
+compilation. Revalidate this specific run; do not redispatch while queued/active.
+Artifact and runtime verification remain
 required, and Chief is additionally gated by its host setting. Global mobile
 implemented/reviewed pins remain unchanged.
+
+Chief now has foreground read-all and catch-up behavior, checked against 16
+executed Swift read-policy vectors. It captures the original unread backlog,
+rejects stale read snapshots, pauses in the background and takes a fresh baseline
+on resume. Ordinary history pages are 50; events/gap recovery remain 200. The
+up-arrow loads through the first unread and jumps to it; viewport state follows
+newest while pinned, preserves browsing and returns to newest for a new send.
+Seven new session cases plus two policy cases pass (46 focused cases); the full
+JVM run passes 3,003 with four skips and zero failures. Thirteen Android cases
+pass in 29.239 s, including the two real framed-root capability/admission cases
+and the new read/catch-up/scroll scenarios. See CHIEF.md and `chief-reading-*`
+receipts. This also postdates signed 705 and does not close physical-device,
+matched-iOS, automatic history prefetch/window trimming or complete UI gates.
+The final individual settled captures were inspected, with fixed header-window
+bounds before/after the jump. That extra case passes in 7.289 s and has an empty
+crash buffer; the initial multi-image preview alone was not used as layout proof.
+The final batch is `chief-reading-window-android-final.log`; the broad JVM log
+is `chief-reading-scoped-refresh-build-and-jvm.log`. Unknown older live rows no
+longer widen the window, and action reads publish only their own send/card.
+An intermediate own-echo visibility failure led to actual reader drag/fling
+tracking and an eventual-render assertion; three targeted replays and the full
+batch pass. Viewport anchoring checks a visible row's actual position. The
+authoritative Mark Unread read-again regression has red/green proof; confirmed
+receipt deduplication now resets only with authoritative, non-stale read state.
 
 The Android transcript now owns serialized sends/retries through a FIFO tail,
 including the preceding acknowledgment read. View/back-navigation cancellation

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -62,6 +63,8 @@ class NativeChiefRuntimeTest {
         val transcriptChanges = Channel<NativeChiefRead>(Channel.UNLIMITED)
         val sends = CopyOnWriteArrayList<Pair<String, String?>>()
         val answers = CopyOnWriteArrayList<Pair<List<String>, String?>>()
+        val marks = CopyOnWriteArrayList<ULong>()
+        var readMarker = 0uL
         var uncertainAnswerOnce = false
         var sendFailure: Exception? = null
         var sendGate: CompletableDeferred<Unit>? = null
@@ -71,9 +74,13 @@ class NativeChiefRuntimeTest {
         override suspend fun status() = NativeChiefStatus(true, null, null, "chief", "Chief", "", "", 1, 2, emptyList(), "chief-main")
         override suspend fun conversations(afterCursor: String?, waitForChange: Boolean) =
             if (waitForChange) homeChanges.receive() else NativeChiefSnapshot(home, "home-cursor")
-        override suspend fun read(conversation: String?, beforeSeq: ULong?, limit: Int, afterSeq: ULong?, afterCursor: String?, waitForChange: Boolean): NativeChiefRead =
-            if (waitForChange) transcriptChanges.receive() else snapshot()
-        fun snapshot() = NativeChiefRead("chief-main", false, rows, false, 0uL, 1, rows.maxOfOrNull { it.seq }, "transcript-cursor")
+        override suspend fun read(conversation: String?, beforeSeq: ULong?, limit: Int, afterSeq: ULong?, afterCursor: String?, waitForChange: Boolean): NativeChiefRead {
+            val page = if (waitForChange) transcriptChanges.receive() else snapshot()
+            val eligible = page.messages.filter { beforeSeq == null || it.seq < beforeSeq }
+            return page.copy(messages = eligible.takeLast(limit), hasMore = eligible.size > limit)
+        }
+        fun snapshot() = NativeChiefRead("chief-main", false, rows, false, readMarker,
+            rows.count { it.seq > readMarker && it.authorKind != "human" }.toLong(), rows.maxOfOrNull { it.seq }, "transcript-cursor")
         override suspend fun send(text: String, conversation: String?, from: String?, startTurn: Boolean, clientMessageId: String?): NativeChiefSent {
             sends += text to clientMessageId
             sendGate?.await()
@@ -84,7 +91,10 @@ class NativeChiefRuntimeTest {
             transcriptChanges.send(snapshot())
             return NativeChiefSent("chief-main", id, clientMessageId, false)
         }
-        override suspend fun markRead(conversation: String?, upToSeq: ULong) = NativeChiefMarked("chief-main", upToSeq, true)
+        override suspend fun markRead(conversation: String?, upToSeq: ULong): NativeChiefMarked {
+            marks += upToSeq; readMarker = maxOf(readMarker, upToSeq)
+            return NativeChiefMarked("chief-main", upToSeq, true)
+        }
         override suspend fun stop(conversation: String?) = NativeChiefStopped("chief-main", true)
         override suspend fun approve(conversation: String?, request: String?, choice: String) = NativeChiefApproved("chief-main", request.orEmpty(), choice, true)
         override suspend fun answer(conversation: String?, message: String?, choices: List<String>, text: String?): NativeChiefAnswered {
@@ -304,5 +314,79 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefMessage:echo-3").assertExists()
         compose.onAllNodesWithText("First retained send").assertCountEquals(1)
         compose.onAllNodesWithText("Second retained send").assertCountEquals(1)
+    }
+
+    @Test fun openingUnreadHistoryReadsTheVisitAndCatchUpLoadsTheOriginalFirstUnread() {
+        compose.runOnUiThread {
+            api.rows = (1..100).map { message("m$it", it.toULong(), "Chief history message $it") }
+            api.readMarker = 20uL
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { api.marks.contains(100uL) }
+        compose.onNodeWithTag("ChiefMessage:m100").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefMessage:m21").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefCatchUp").assertIsDisplayed()
+        val headerBefore = compose.onNodeWithContentDescription("Stop Chief").fetchSemanticsNode().boundsInWindow
+        saveScreenshot("chief-unread-newest")
+        compose.onNodeWithTag("ChiefCatchUp").performClick()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.catchUpMarker == null }
+        compose.onNodeWithTag("ChiefMessage:m21").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefCatchUp").assertDoesNotExist()
+        val headerAfter = compose.onNodeWithContentDescription("Stop Chief").fetchSemanticsNode().boundsInWindow
+        assertEquals(headerBefore.top, headerAfter.top, 0.5f)
+        assertEquals(headerBefore.left, headerAfter.left, 0.5f)
+        assertEquals(listOf(100uL), api.marks.toList())
+        saveScreenshot("chief-unread-target")
+    }
+
+    @Test fun arrivalsReadWhileBrowsingHistoryPreserveTheViewportAndANewSendReturnsToNewest() {
+        compose.runOnUiThread {
+            api.rows = (1..100).map { message("m$it", it.toULong(), "Chief history message $it") }
+            api.readMarker = 100uL
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.onNodeWithTag("ChiefMessage:m100").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefMessages").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+        val historyRows = SemanticsMatcher("Chief history message") {
+            it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("ChiefMessage:m") == true
+        }
+        val anchor = compose.onAllNodes(historyRows).fetchSemanticsNodes()
+            .filter { it.boundsInRoot.height > 0 && it.boundsInRoot.top >= viewport.top && it.boundsInRoot.bottom <= viewport.bottom }
+            .minBy { it.boundsInRoot.top }
+        val anchorTag = anchor.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag]
+        val anchorTop = anchor.boundsInRoot.top
+        compose.runOnUiThread {
+            api.rows = api.rows + message("m101", 101uL, "New arrival while reading history")
+            check(api.transcriptChanges.trySend(api.snapshot()).isSuccess)
+        }
+        compose.waitUntil(10_000) { api.marks.contains(101uL) }
+        compose.mainClock.advanceTimeByFrame()
+        compose.waitForIdle()
+        compose.onNodeWithTag(anchorTag).assertIsDisplayed()
+        assertEquals(anchorTop, compose.onNodeWithTag(anchorTag).fetchSemanticsNode().boundsInRoot.top, 1f)
+        compose.onNodeWithTag("ChiefMessage:m101").assertIsNotDisplayed()
+        val gate = CompletableDeferred<Unit>(); compose.runOnUiThread { api.sendGate = gate }
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Send from history")
+        compose.onNodeWithTag("ChiefSend").performClick()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        compose.onNodeWithText("Send from history").assertIsDisplayed()
+        compose.runOnUiThread { gate.complete(Unit) }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.outgoing?.isEmpty() == true }
+        compose.waitUntil(10_000) { compose.onNodeWithTag("ChiefMessage:echo").isDisplayed() }
+        compose.onNodeWithTag("ChiefMessage:echo").assertIsDisplayed()
+    }
+
+    private fun saveScreenshot(name: String) {
+        compose.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        // Compose's test clock may finish before SurfaceFlinger presents its
+        // final window frame; this short real-frame wait affects capture only.
+        android.os.SystemClock.sleep(150)
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        val directory = File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        File(directory, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
     }
 }

@@ -25,17 +25,17 @@ internal class NativeChiefComputerSession(parent: CoroutineScope, client: Native
         if (!current()) { close(); return }
         // Select only a row supplied by this Mac's current Home snapshot.
         val row = home.state.value.conversations.singleOrNull { it.id == conversation.id } ?: return
-        transcript()?.pause()
+        transcript()?.let { it.endVisit(); it.pause() }
         selected = row
         transcripts.getOrPut(row.id) { NativeChiefTranscriptSession(scope, api, row.id, ::current) }
-        if (active) transcript()?.start()
+        if (active) transcript()?.let { it.setViewing(true); it.start() }
     }
-    fun back() { transcript()?.pause(); selected = null }
+    fun back() { transcript()?.let { it.endVisit(); it.pause() }; selected = null }
     fun setActive(value: Boolean) {
         if (!current()) { close(); return }
         active = value
-        if (value) { home.start(); transcript()?.start() }
-        else { home.pause(); transcripts.values.forEach { it.pause() } }
+        if (value) { home.start(); transcript()?.let { it.setViewing(true); it.start() } }
+        else { home.pause(); transcripts.values.forEach { it.setViewing(false); it.pause() } }
     }
     override fun close() {
         if (closed) return

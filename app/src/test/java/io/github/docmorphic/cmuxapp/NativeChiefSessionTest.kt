@@ -580,4 +580,115 @@ class NativeChiefSessionTest {
             assertEquals(listOf("client-2"), session.state.value.outgoing.map { it.clientMessageId })
         } finally { session.close() }
     }
+
+    @Test fun foregroundViewingReadsTheWholeLoadedConversationAndKeepsTheOriginalBacklogTarget() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(*(51..100).map { message(it) }.toTypedArray(), more = true)
+                .copy(lastReadSeq = 20uL, unreadCount = 80)))
+            session.setViewing(true); session.start(); runCurrent()
+            assertEquals(50, api.readRequests.first().limit)
+            assertEquals(20uL, session.state.value.catchUpMarker); assertEquals(80L, session.state.value.catchUpCount)
+            assertEquals(100uL, session.state.value.lastReadSeq); assertEquals(0L, session.state.value.unread)
+            assertEquals(listOf(100uL), api.marks); assertNull(session.catchUpTarget())
+            api.waits.send(Result.success(page(message(101)).copy(lastReadSeq = 20uL, unreadCount = 81))); runCurrent()
+            assertEquals(listOf(100uL, 101uL), api.marks)
+            assertEquals(101uL, session.state.value.lastReadSeq); assertEquals(20uL, session.state.value.catchUpMarker)
+            assertEquals(200, api.readRequests.last().limit)
+            session.endVisit(); assertNull(session.state.value.catchUpMarker)
+        } finally { session.close() }
+    }
+
+    @Test fun catchingUpLoadsThroughTheMarkerWithContextAndSkipsOwnMessages() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(*(51..100).map { message(it) }.toTypedArray(), more = true)
+                .copy(lastReadSeq = 10uL, unreadCount = 90)))
+            session.setViewing(true); session.start(); runCurrent()
+            val older = (1..50).map { message(it, human = it == 11) }
+            api.reads.send(Result.success(page(*older.toTypedArray(), more = false)))
+            assertEquals("m12", session.loadCatchUpTarget())
+            assertEquals(Read(51uL, null, null, false, 50), api.readRequests.last())
+            assertEquals(listOf(100uL), api.marks)
+            session.observeVisible(setOf("m50"), false); assertEquals(10uL, session.state.value.catchUpMarker)
+            session.observeVisible(setOf("m12"), false); assertNull(session.state.value.catchUpMarker)
+        } finally { session.close() }
+    }
+
+    @Test fun resumingAfterBackgroundCapturesTheFreshBacklogRatherThanTheStaleBaseline() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(message(1), message(2), message(3)).copy(lastReadSeq = 3uL, unreadCount = 0)))
+            session.setViewing(true); session.start(); runCurrent(); assertTrue(api.marks.isEmpty())
+            session.setViewing(false); session.pause()
+            session.setViewing(true); session.start()
+            api.reads.send(Result.success(page(*(1..5).map { message(it) }.toTypedArray()).copy(lastReadSeq = 3uL, unreadCount = 2))); runCurrent()
+            assertEquals(3uL, session.state.value.catchUpMarker); assertEquals(2L, session.state.value.catchUpCount)
+            assertEquals(listOf(5uL), api.marks)
+            session.observeVisible(setOf("m5"), false); assertEquals(3uL, session.state.value.catchUpMarker)
+            session.observeVisible(emptySet(), true); assertNull(session.state.value.catchUpMarker)
+        } finally { session.close() }
+    }
+
+    @Test fun ordinaryHistoryUsesFiftyWhileGapRecoveryRetainsTwoHundred() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(message(100), more = true))); session.start(); runCurrent()
+            api.reads.send(Result.success(page(message(50), more = true))); session.loadOlder()
+            assertEquals(50, api.readRequests.first().limit)
+            assertEquals(Read(100uL, null, null, false, 50), api.readRequests.last())
+            api.waits.send(Result.success(page(message(103), more = true)))
+            api.reads.send(Result.success(page(message(101), message(102), more = false))); runCurrent()
+            assertTrue(api.readRequests.any { it.before == 103uL && it.limit == 200 })
+        } finally { session.close() }
+    }
+
+    @Test fun retiringTheOwnerDuringCatchUpCannotPublishItsLateHistoryOrTarget() = runTest {
+        val api = Api(); var current = true
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { current })
+        try {
+            api.reads.send(Result.success(page(message(100), more = true).copy(lastReadSeq = 10uL, unreadCount = 90)))
+            session.setViewing(true); session.start(); runCurrent()
+            val history = CompletableDeferred<NativeChiefRead>(); api.readBlock = { history.await() }
+            val jump = async { runCatching { session.loadCatchUpTarget() } }; runCurrent()
+            assertTrue(session.state.value.loadingCatchUp)
+            current = false; history.complete(page(message(11), more = false)); runCurrent()
+            assertTrue(jump.await().isFailure)
+            assertTrue(session.state.value.messages.isEmpty()); assertNull(session.state.value.catchUpMarker)
+            assertFalse(session.state.value.loadingCatchUp)
+        } finally { session.close() }
+    }
+
+    @Test fun anAuthoritativeMarkUnreadAfterReadAcknowledgmentCanBeReadAgainDuringTheVisit() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            val rows = page(message(1), message(2), message(3))
+            api.reads.send(Result.success(rows.copy(lastReadSeq = 0uL, unreadCount = 3)))
+            session.setViewing(true); session.start(); runCurrent()
+            assertEquals(listOf(3uL), api.marks)
+            api.waits.send(Result.success(rows.copy(lastReadSeq = 3uL, unreadCount = 0))); runCurrent()
+            // Another client marks this conversation unread after the server
+            // acknowledged our first read. Viewing it must issue a new receipt.
+            api.waits.send(Result.success(rows.copy(lastReadSeq = 0uL, unreadCount = 3))); runCurrent()
+            assertEquals(listOf(3uL, 3uL), api.marks)
+        } finally { session.close() }
+    }
+
+    @Test fun liveAndActionSnapshotsUpdateLoadedRowsWithoutPullingUnknownOlderHistoryAcrossAGap() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "local" })
+        try {
+            api.reads.send(Result.success(page(message(100), more = true))); session.start(); runCurrent()
+            api.waits.send(Result.success(page(message(50), message(100).copy(text = "Updated"), message(101)))); runCurrent()
+            assertEquals(listOf("m100", "m101"), session.state.value.messages.map { it.id })
+            assertEquals("Updated", session.state.value.messages.first().text)
+            session.editDraft("New send")
+            api.reads.send(Result.success(page(message(49), message(100), message(102, "echo", "New send", true, "local"))))
+            session.send()
+            assertEquals(listOf("m100", "m101", "echo"), session.state.value.messages.map { it.id })
+            assertEquals("Updated", session.state.value.messages.first().text)
+            assertTrue(session.state.value.outgoing.isEmpty())
+            api.reads.send(Result.success(page(message(99), more = true))); session.loadOlder()
+            assertEquals("m99", session.state.value.messages.first().id)
+        } finally { session.close() }
+    }
 }

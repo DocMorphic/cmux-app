@@ -38,6 +38,12 @@ errors. The terminal failure permits a new build after this checked correction;
 do not redispatch an active follow-up. Logs and red/green leaf receipts are in
 `captures/recovery-20261020/mac-chief-rebase/`.
 
+Follow-up [39498469545](https://github.com/DocMorphic/cmux-app/actions/runs/39498469545)
+at `d8f268b7cdd41f9fb0223892a90d5392a82b8326` passed mandatory preparation and
+integration, including the new CLI red/green check, and is in full tagged
+compilation. Inspect this run's terminal result and artifact rather than
+redispatching while it remains active. It has not been downloaded or launched.
+
 The currently running, verified custom Mac remains the older `f4b15090` build
 from run 39429836746. No account, workspace, helper registration, key or live app
 was replaced by this source rebase. A completed full candidate build, independent
