@@ -1,0 +1,508 @@
+{
+  "cases": [
+    {
+      "changed": true,
+      "cut": 7,
+      "first": "s:m8",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "ordinary",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 3
+    },
+    {
+      "changed": false,
+      "cut": 0,
+      "first": "s:m1",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": false,
+        "local": null,
+        "marker": null,
+        "name": "not-loaded",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 10
+    },
+    {
+      "changed": false,
+      "cut": 0,
+      "first": "s:m1",
+      "input": {
+        "clients": {},
+        "keep": 0,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "zero-keep",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 10
+    },
+    {
+      "changed": false,
+      "cut": 0,
+      "first": "s:m1",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "too-short",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 2,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 2
+    },
+    {
+      "changed": false,
+      "cut": 0,
+      "first": "s:m1",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "loading",
+        "options": [],
+        "paging": "loading",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 10
+    },
+    {
+      "changed": false,
+      "cut": 0,
+      "first": "s:m1",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "retrying",
+        "options": [],
+        "paging": "retrying",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 10
+    },
+    {
+      "changed": true,
+      "cut": 3,
+      "first": "s:m4",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": 4,
+        "name": "catch-up-context",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 7
+    },
+    {
+      "changed": true,
+      "cut": 1,
+      "first": "s:m2",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 2,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "unread-context",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 8,
+        "votes": []
+      },
+      "remaining": 9
+    },
+    {
+      "changed": true,
+      "cut": 1,
+      "first": "s:m2",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 2,
+        "loaded": true,
+        "local": null,
+        "marker": 6,
+        "name": "two-floors",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 8,
+        "votes": []
+      },
+      "remaining": 9
+    },
+    {
+      "changed": true,
+      "cut": 1,
+      "first": "s:m2",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "pinned-id",
+        "options": [],
+        "paging": "idle",
+        "pinned": [
+          "m2"
+        ],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 9
+    },
+    {
+      "changed": true,
+      "cut": 1,
+      "first": "c:owner",
+      "input": {
+        "clients": {
+          "m2": "owner"
+        },
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "pinned-row-key",
+        "options": [],
+        "paging": "idle",
+        "pinned": [
+          "c:owner"
+        ],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 9
+    },
+    {
+      "changed": true,
+      "cut": 2,
+      "first": "s:m3",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "pending-vote",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": [
+          "m3"
+        ]
+      },
+      "remaining": 8
+    },
+    {
+      "changed": true,
+      "cut": 3,
+      "first": "s:m4",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "pending-option",
+        "options": [
+          "m4"
+        ],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 7
+    },
+    {
+      "changed": true,
+      "cut": 1,
+      "first": "s:m2",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "quoted-parent",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {
+          "m10": "m2"
+        },
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 9
+    },
+    {
+      "changed": false,
+      "cut": 0,
+      "first": "s:m1",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "quoted-chain",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {
+          "m10": "m2",
+          "m2": "m1"
+        },
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 10
+    },
+    {
+      "changed": true,
+      "cut": 7,
+      "first": "s:m8",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "missing-parent",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {
+          "m10": "missing"
+        },
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 3
+    },
+    {
+      "changed": true,
+      "cut": 2,
+      "first": "c:pending",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": 2,
+        "marker": null,
+        "name": "local-before-cut",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 9
+    },
+    {
+      "changed": true,
+      "cut": 7,
+      "first": "s:m8",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": false,
+        "last": 0,
+        "loaded": true,
+        "local": 10,
+        "marker": null,
+        "name": "local-at-tail",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 10,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 4
+    },
+    {
+      "changed": false,
+      "cut": 0,
+      "first": "s:m1",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": true,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "at-threshold",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 1500,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 1500
+    },
+    {
+      "changed": true,
+      "cut": 501,
+      "first": "s:m502",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": true,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": null,
+        "name": "over-threshold",
+        "options": [],
+        "paging": "idle",
+        "pinned": [],
+        "replies": {},
+        "total": 1501,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 1000
+    },
+    {
+      "changed": true,
+      "cut": 199,
+      "first": "s:m200",
+      "input": {
+        "clients": {},
+        "keep": 3,
+        "large": true,
+        "last": 0,
+        "loaded": true,
+        "local": null,
+        "marker": 400,
+        "name": "large-keeps-targets",
+        "options": [],
+        "paging": "idle",
+        "pinned": [
+          "m200"
+        ],
+        "replies": {},
+        "total": 1501,
+        "unread": 0,
+        "votes": []
+      },
+      "remaining": 1302
+    }
+  ],
+  "keep": 1000,
+  "threshold": 1500
+}

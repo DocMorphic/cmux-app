@@ -691,4 +691,60 @@ class NativeChiefSessionTest {
             assertEquals("m99", session.state.value.messages.first().id)
         } finally { session.close() }
     }
+
+    @Test fun restingWindowBoundsGrowthAndDroppedHistoryRemainsPageable() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(*(1..50).map { message(it) }.toTypedArray(), more = false).copy(lastReadSeq = 50uL, unreadCount = 0)))
+            session.setViewing(true); session.start(); runCurrent()
+            for (first in 51..1501 step 200) {
+                api.waits.send(Result.success(page(*(first..minOf(first + 199, 1501)).map { message(it) }.toTypedArray()))); runCurrent()
+            }
+            assertEquals(1501, session.state.value.messages.size)
+            assertTrue(session.trimHistoryIfResting()); assertEquals(1000, session.state.value.messages.size)
+            assertEquals(502uL, session.state.value.messages.first().seq); assertTrue(session.state.value.hasMore)
+            api.reads.send(Result.success(page(*(452..501).map { message(it) }.toTypedArray(), more = true)))
+            session.loadOlder(); assertEquals(1050, session.state.value.messages.size)
+            assertEquals(452uL, session.state.value.messages.first().seq)
+            assertFalse(session.trimHistoryIfResting())
+        } finally { session.close() }
+    }
+
+    @Test fun aDecidingThenUncertainCardRemainsUntilItsReceiptAllowsTheWindowToShrink() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(*(1..50).map { if (it == 10) message(it, parts = listOf(approval())) else message(it) }.toTypedArray())
+                .copy(lastReadSeq = 50uL, unreadCount = 0)))
+            session.setViewing(true); session.start(); runCurrent()
+            for (first in 51..1501 step 200) {
+                api.waits.send(Result.success(page(*(first..minOf(first + 199, 1501)).map { message(it) }.toTypedArray()))); runCurrent()
+            }
+            val answer = CompletableDeferred<NativeChiefApproved>(); api.approvalBlock = { answer.await() }
+            val deciding = async { session.approve("m10", "allow") }; runCurrent()
+            assertTrue(session.trimHistoryIfResting()); assertEquals("m10", session.state.value.messages.first().id)
+            answer.completeExceptionally(MobileRpcOutcomeUnknown()); runCurrent(); assertFalse(deciding.await())
+            api.waits.send(Result.success(page(*(1502..1512).map { message(it) }.toTypedArray()))); runCurrent()
+            assertFalse(session.trimHistoryIfResting()); assertTrue("m10" in session.state.value.uncertain)
+            api.waits.send(Result.success(page(message(10, parts = listOf(approval(decided = "allow")))))); runCurrent()
+            assertTrue(session.trimHistoryIfResting()); assertEquals(1000, session.state.value.messages.size)
+        } finally { session.close() }
+    }
+
+    @Test fun aFailedLocalSendKeepsItsPositionUntilExplicitDeletionReleasesTheWindow() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "failed" })
+        try {
+            api.reads.send(Result.success(page(*(1..50).map { message(it) }.toTypedArray()).copy(lastReadSeq = 50uL, unreadCount = 0)))
+            session.setViewing(true); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> throw MobileRpcOutcomeUnknown() }; session.editDraft("Keep this failed text"); session.send()
+            for (first in 51..1501 step 200) {
+                api.waits.send(Result.success(page(*(first..minOf(first + 199, 1501)).map { message(it) }.toTypedArray()))); runCurrent()
+            }
+            assertTrue(session.trimHistoryIfResting()); assertEquals(51uL, session.state.value.messages.first().seq)
+            assertEquals("Keep this failed text", session.state.value.outgoing.single().text)
+            api.waits.send(Result.success(page(*(1502..1601).map { message(it) }.toTypedArray()))); runCurrent()
+            assertFalse(session.trimHistoryIfResting())
+            assertTrue(session.discardFailed("failed")); assertTrue(session.trimHistoryIfResting())
+            assertEquals(1000, session.state.value.messages.size); assertEquals(602uL, session.state.value.messages.first().seq)
+        } finally { session.close() }
+    }
 }

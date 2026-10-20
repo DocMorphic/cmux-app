@@ -264,6 +264,24 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
             messages.any { it.id in messageIds && it.authorKind == "human" && it.seq > marker }) dismissCatchUp()
     }
 
+    /** The UI calls this only when resting at newest, outside a scroll or an open action sheet. */
+    fun trimHistoryIfResting(preserving: Set<String> = emptySet()): Boolean {
+        checkOwner()
+        val snapshot = state.value
+        val items = NativeChiefTimeline.items(snapshot)
+        if (items.size <= NativeChiefWindow.trimThreshold) return false
+        val held = preserving + snapshot.deciding + snapshot.committed + snapshot.uncertain
+        val cut = NativeChiefWindow.cut(items, NativeChiefWindow.keepCount, !initialPage,
+            snapshot.loadingOlder || snapshot.loadingCatchUp, reading.marker, reading.unread, reading.lastReadSeq, held)
+        if (cut <= 0) return false
+        val kept = items.drop(cut).mapNotNull { it.message?.id }.toSet()
+        mutableState.value = snapshot.copy(messages = snapshot.messages.filter { it.id in kept }, hasMore = true,
+            localClientIds = snapshot.localClientIds.filterKeys { it in kept },
+            actionErrors = snapshot.actionErrors.filterKeys { it in kept })
+        refreshReading()
+        return true
+    }
+
     suspend fun loadOlder() { loadOlderPage(50) }
     private suspend fun loadOlderPage(limit: Int): Boolean {
         checkOwner()

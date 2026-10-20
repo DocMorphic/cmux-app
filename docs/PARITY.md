@@ -26,7 +26,7 @@ and the exact admitted foreground Mac. It includes Home search/unread/working
 state, transcript history/events/send/stop, work parts, approval/question actions,
 full qualified question forms and retained drafts. Actual source execution gives
 21 wire-model vectors, nine request vectors and eight question-validation cases.
-The latest full JVM run passed 3,003, skipped four, zero failures. Earlier eight Android
+The latest full JVM run passed 3,007, skipped four, zero failures. Earlier eight Android
 cases passed against the production composition and framed root fixture,
 including failed-send/late-echo identity and enlarged-text controls. Final
 transcript screenshots were inspected. Nineteen vectors execute pinned Swift
@@ -61,11 +61,18 @@ read/catch-up bodies; 46 focused JVM cases pass. Thirteen Android cases pass,
 including read-all while browsing history, catch-up through older pages, initial
 newest positioning, stable arrival anchoring and explicit-send return to newest.
 Exact presentation, remaining scrolling/keyboard behavior, automatic prefetch,
-window trimming and physical Mac/Pixel evidence remain open in CHIEF.md.
+and physical Mac/Pixel evidence remain open in CHIEF.md.
 Live/action refreshes now respect the loaded window and do not overwrite
 unrelated updates. Authoritative Mark Unread can issue a fresh read after its
 previous acknowledgment. Genuine reader gestures control pinning; the repeated
 own-echo and final viewport checks pass after an intermediate UI failure.
+Loaded-window trimming now matches 21 actual Swift vectors, with 50 focused JVM
+cases and fourteen Android cases passing. Above 1,500 rows, resting at newest
+keeps 1,000 acknowledged rows while protecting unread targets, held actions,
+quoted parents and pending/failed sends. Browsing retains its loaded history;
+trimmed history can be paged back in. The final crash buffer is empty. This
+source/debug checkpoint postdates signed 705; automatic prefetch/retry and the
+remaining physical, lifecycle and presentation gates are still open.
 
 The Oct 20 Pixel/Mac checkpoint and active notification/terminal/menu fixes are
 recorded at the top of HANDOFF.md. The owner has offered to reconnect the phone

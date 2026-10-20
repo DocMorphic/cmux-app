@@ -12,7 +12,7 @@ paging/gap recovery, stable send correlation, draft retention, approval/question
 reservation and receipts. Account/Mac retirement cancels requests and clears
 content; backgrounding pauses reads. The unmodified Chief avatar is attributed.
 Actual Swift wire execution still supplies 21 models, nine requests and eight
-validation cases. The latest full JVM run passed 3,003 with four skips and
+validation cases. The latest full JVM run passed 3,007 with four skips and
 zero failures.
 An earlier eight-case Android batch passed for the production UI, explicit uncertainty recovery,
 failed-row ordering, late echo identity, separators/quotes, font-scale-2 controls
@@ -66,6 +66,18 @@ tracking and an eventual-render assertion; three targeted replays and the full
 batch pass. Viewport anchoring checks a visible row's actual position. The
 authoritative Mark Unread read-again regression has red/green proof; confirmed
 receipt deduplication now resets only with authoritative, non-stale read state.
+
+Loaded-window trimming now follows 21 actual pinned Swift vectors. Windows above
+1,500 rows keep 1,000 acknowledged messages only while resting at newest, outside
+scrolling, paging and open action sheets. Unread/catch-up context, reserved
+actions, transitive quoted parents and unacknowledged sends protect the cut;
+dropped history remains pageable. Three session regressions and the source-vector
+test pass (50 focused cases). The full JVM suite passes 3,007, skips four, with
+zero failures. Fourteen Android cases pass in 32.375 s, including retaining 1,550
+rows while browsing and trimming after an explicit new send without losing its
+pending row or echo. Final debug APKs compile; the crash buffer is empty. See
+`chief-window-*` receipts and CHIEF.md. Automatic prefetch/retry, matched-iOS,
+real host/Pixel and full UI gates stay open. This also postdates signed 705.
 
 The Android transcript now owns serialized sends/retries through a FIFO tail,
 including the preceding acknowledgment read. View/back-navigation cancellation

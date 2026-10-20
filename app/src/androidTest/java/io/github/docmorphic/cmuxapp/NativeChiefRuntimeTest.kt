@@ -378,6 +378,38 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefMessage:echo").assertIsDisplayed()
     }
 
+    @Test fun browsingKeepsTheLoadedHistoryUntilANewSendReturnsToNewestAndTrimsIt() {
+        compose.runOnUiThread {
+            api.rows = (1..2000).map { message("m$it", it.toULong(), "Loaded Chief history $it") }
+            api.readMarker = 2000uL
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.onNodeWithTag("ChiefMessage:m2000").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefMessages").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        val loaded = CompletableDeferred<Unit>()
+        compose.runOnUiThread { owner.launch {
+            repeat(30) { checkNotNull(computer.transcript()).loadOlder() }
+            loaded.complete(Unit)
+        } }
+        compose.waitUntil(20_000) { loaded.isCompleted }
+        compose.waitForIdle()
+        assertEquals("Browsing must retain the loaded history", 1550, computer.transcript()!!.state.value.messages.size)
+        compose.onNodeWithTag("ChiefMessage:m2000").assertIsNotDisplayed()
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread { api.sendGate = gate }
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Return to newest and bound the window")
+        compose.onNodeWithTag("ChiefSend").performClick()
+        compose.waitUntil(10_000) { api.sends.size == 1 && computer.transcript()?.state?.value?.messages?.size == 1000 }
+        compose.onNodeWithText("Return to newest and bound the window").assertIsDisplayed()
+        assertTrue(computer.transcript()!!.state.value.hasMore)
+        assertEquals(1001uL, computer.transcript()!!.state.value.messages.first().seq)
+        compose.runOnUiThread { gate.complete(Unit) }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.outgoing?.isEmpty() == true }
+        compose.waitUntil(10_000) { compose.onNodeWithTag("ChiefMessage:echo").isDisplayed() }
+        assertEquals(1001, computer.transcript()!!.state.value.messages.size)
+    }
+
     private fun saveScreenshot(name: String) {
         compose.waitForIdle()
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()

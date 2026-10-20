@@ -30,6 +30,11 @@ Live snapshots cannot pull unknown older rows across the loaded window; explicit
 history loading widens it. Action refreshes publish only their own send/card,
 preserving unrelated newer updates. Genuine reader drag/fling state controls
 pinning; programmatic motion does not unpin the reader.
+Loaded windows above 1,500 rows now keep the newest 1,000 acknowledged rows when
+resting at newest, outside scrolling, history loading and open action sheets.
+The cut preserves unread/catch-up context, reserved action cards, quoted parents
+and every unacknowledged send. Dropped history remains pageable; this does not
+add automatic history prefetch or its retry policy.
 The same owner retains query, drafts and navigation state across recomposition;
 backgrounding pauses reads. Account/Mac retirement cancels operations and clears
 content. Every request still uses the real client's admission checks, without a
@@ -146,9 +151,23 @@ Evidence is ignored under `captures/recovery-20261020/`:
   red/green regression reproduces receipt deduplication suppressing a fresh read
   after an acknowledged server-side Mark Unread; stale snapshots remain fenced.
 
+- Loaded-window cuts match 21 vectors executed through the actual pinned Swift
+  trim methods and row-ID property, including unread context, held cards,
+  transitive quoted parents and local messages. The focused window/session/
+  reading/timeline suite passes 50 cases. The full JVM suite passes 3,007 with
+  four skips and zero failures (`chief-window-build-and-jvm.log`). Fourteen
+  Android cases pass in 32.375 s (`chief-window-android.log`): twelve production
+  Chief cases and two admitted-root/capability cases. The new flow retains 1,550
+  loaded messages while browsing, then returns to newest and trims to 1,000
+  acknowledged messages on an explicit send, preserving the pending row and its
+  rendered echo. The final debug APKs compile and the crash buffer is empty.
+  `check-chief-window.py` verifies exact source hashes and regenerates/compares
+  the committed vectors; its fixture is inert state, not UIKit or a real host.
+  This batch postdates signed candidate 705.
+
 This is an initial mounted implementation, not Chief parity acceptance. Finish
 exact bubble/tail/drawer geometry and colors, thread/reply interactions,
-automatic history prefetch/retry and loaded-window trimming, remaining localization
+automatic history prefetch/retry, remaining localization
 and TalkBack. Deeper uncertainty recovery, new-visit positioning and remaining scroll/keyboard behavior also
 remain open. Verify cold process and connection replacement restoration and
 wide-screen navigation. Compare matched iOS states and exercise a supporting

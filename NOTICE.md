@@ -12,7 +12,7 @@ and `ChiefConversationBackend.swift` at that same revision. The unmodified
 ChiefAvatar.png is copied from CmuxMobileShellUI's ChiefAvatar imageset.
 The manifest records those behavior and artwork hashes separately from the
 wire-model sources executed by the reference checker.
-Transcript ordering, read state, catch-up, stable row identity, grouping and separator/quote presentation
+Transcript ordering, read state, catch-up, loaded-window trimming, stable row identity, grouping and separator/quote presentation
 also follow ConversationStore.swift, ConversationModel.swift,
 ConversationRunPlan.swift, ConversationRows.swift, ConversationCells.swift and
 ConversationViewController+CatchUp.swift in CmuxConversation at that revision.

@@ -243,6 +243,15 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             catch (error: Exception) { currentCoroutineContext().ensureActive() }
         }
     }
+    LaunchedEffect(session, positioned, pinned, timeline, state.loadingOlder, state.loadingCatchUp,
+        state.deciding, state.committed, state.uncertain, state.catchUpMarker, state.unread, state.lastReadSeq,
+        list.isScrollInProgress, programmatic, readerScrolling, displayedQuestion?.id, displayedFailure?.clientMessageId) {
+        if (positioned && pinned && !list.isScrollInProgress && !programmatic && !readerScrolling &&
+            displayedQuestion == null && displayedFailure == null) {
+            try { session.trimHistoryIfResting() }
+            catch (error: Exception) { currentCoroutineContext().ensureActive() }
+        }
+    }
     BackHandler(onBack = onBack)
     Column(modifier.fillMaxSize().imePadding().testTag("ChiefTranscript")) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
