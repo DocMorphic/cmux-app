@@ -49,10 +49,19 @@ viewers retain a coalesced menu-reconstruction fallback; the production host
 disables it to avoid duplicate actions. A fresh full Mac build and actual-host
 inspection are still required. The earlier full Mac run at `725dbf73` predates
 the SwiftUI command change and must not be treated as its validation.
-Full-host run **39422509528** is queued at **35f374a8** behind the earlier
-**39415616949 / 725dbf73** build. Verify the new run's own immutable source
-manifest (12 original pins / 29 changed or added files) before replacing the
-running custom app; no fresh full-host success is claimed yet.
+Full-host run **39422509528 / 35f374a8** failed at `cmuxApp.swift` with
+“extra argument in call”: the pinned scene already fills all ten SwiftUI
+CommandsBuilder slots. The patch now nests the pairing action with the existing
+final `windowAndViewCommands` behind one slot, preserving the original ten-slot
+scene. A local fixture reproduces the eleven-command compiler failure and the
+nested version typechecks. `check-native-push-hooks.py` now typechecks the actual
+injected property in a full ten-slot scene before the hosted build. The complete
+payload/auth/queue checks and four installer safety checks pass. Evidence:
+`commands-builder-limit/`, `mac-menu-nested-hooks/` and the full failure log under
+`captures/recovery-20261020/`. A fresh full-host run and actual app/menu check are
+still required; do not install the failed build or accept the older AppKit-only
+run. Verify the next successful run's own immutable source manifest (12 original
+pins / 29 changed or added files) before replacing the running custom app.
 
 A new emulator regression held the first shared-sizing subscription while the
 real root screen recomposed. It reached the same disconnected guard as the

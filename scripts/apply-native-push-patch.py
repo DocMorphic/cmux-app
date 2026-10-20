@@ -315,10 +315,18 @@ def patched_sources(original):
     result[path] = source.encode()
     path = "Sources/cmuxApp.swift"
     source = original[path].decode()
-    source = once(source, "        .commands {\n", '''        .commands {
-            NativePushPairingCommands(configured: ProcessInfo.processInfo.environment["CMUX_ANDROID_PUSH_CONFIG"] != nil) {
-                appDelegate.showAndroidNotificationPairing()
-            }
+    # The pinned scene already uses all ten CommandsBuilder buildBlock slots.
+    # Nest two commands behind its existing final slot instead of adding an eleventh.
+    source = once(source, "            windowAndViewCommands\n        }\n", "            androidPushAndWindowCommands\n        }\n")
+    source = once(source, "    /// Presents window navigation and stateful View commands for the focused content.\n", '''    @CommandsBuilder
+    private var androidPushAndWindowCommands: some Commands {
+        NativePushPairingCommands(configured: ProcessInfo.processInfo.environment["CMUX_ANDROID_PUSH_CONFIG"] != nil) {
+            appDelegate.showAndroidNotificationPairing()
+        }
+        windowAndViewCommands
+    }
+
+    /// Presents window navigation and stateful View commands for the focused content.
 ''')
     result[path] = source.encode()
     path = "scripts/reload.sh"

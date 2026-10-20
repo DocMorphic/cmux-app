@@ -35,6 +35,34 @@ def main():
         (output / "project-parse.log").write_bytes(wiring.stdout + wiring.stderr); wiring.check_returncode()
         launch = subprocess.run(["/bin/bash", "-n", str(target / "scripts/reload.sh")], capture_output=True, timeout=10)
         (output / "launch-parse.log").write_bytes(launch.stdout + launch.stderr); launch.check_returncode()
+    # The full host's legacy command block fills all ten builder slots. Execute
+    # the actual injected nested property in a ten-slot scene: parse alone did
+    # not catch the eleventh-command error from the first hosted build.
+    app_source = patched["Sources/cmuxApp.swift"].decode()
+    start = app_source.index("    @CommandsBuilder\n    private var androidPushAndWindowCommands:")
+    end = app_source.index("    /// Presents window navigation", start)
+    nested = app_source[start:end]
+    scene = '''import SwiftUI
+@MainActor struct FixtureDelegate { func showAndroidNotificationPairing() {} }
+@MainActor struct CommandsSceneFixture: Scene {
+    let appDelegate = FixtureDelegate()
+    var body: some Scene {
+        WindowGroup { Text("Commands builder limit regression") }
+        .commands {
+LEGACY
+            androidPushAndWindowCommands
+        }
+    }
+NESTED
+    @CommandsBuilder private var windowAndViewCommands: some Commands {
+        CommandGroup(after: .windowArrangement) { EmptyView() }
+    }
+}
+'''.replace("LEGACY", "\n".join("            CommandGroup(after: .appSettings) { EmptyView() }" for _ in range(9))).replace("NESTED", nested)
+    commands = output / "commands-scene.swift"; commands.write_text(scene)
+    command_build = subprocess.run(["/usr/bin/swiftc", "-swift-version", "6", "-typecheck",
+        str(root / "push/mac-native/NativePushPairingCommands.swift"), str(commands)], capture_output=True, timeout=60)
+    (output / "commands-typecheck.log").write_bytes(command_build.stdout + command_build.stderr); command_build.check_returncode()
     inputs = []
     payload_hashes = {}
     for name in ["PhonePushPayload.swift", "PhonePushPayloadKind.swift"]:
@@ -82,7 +110,7 @@ def main():
     receipt = {"ref": patch.REF, "pinnedSources": patch.PINS, "payloadSources": payload_hashes,
         "patchedSources": {path: hashlib.sha256(data).hexdigest() for path, data in patched.items()},
         "kind": "native-mapping-and-patch-check-passed",
-        "scope": "Edited Swift/project/tagged-launch syntax; actual upstream payload mapper/auth projection and native receipt queue compiled/executed; actual Swift queue/private-pipe journal interop. Not a whole app build, process supervisor or live account/provider."}
+        "scope": "Edited Swift/project/tagged-launch syntax; actual nested SwiftUI Commands property typechecked in a full ten-slot scene; actual upstream payload mapper/auth projection and native receipt queue compiled/executed; actual Swift queue/private-pipe journal interop. Not a whole app build, process supervisor or live account/provider."}
     (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(auth_result.decode().strip())
     print(check.stdout.decode().strip())
