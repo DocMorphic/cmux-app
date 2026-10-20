@@ -1,3 +1,45 @@
+## New Mac restoration and physical-device checkpoint — 2026-10-20
+
+The clean backup checkout and GitHub `main` agreed at `a5ba3898`; PR #1 is
+merged. The repository is currently public, superseding older private-repository
+descriptions below. Recovery context, original transcript extracts and local
+verification receipts are ignored under `captures/recovery-20261020/`.
+
+Follow-up Mac run **38437521385 / 758d3688** succeeded. Its downloaded archive
+passed independent checks against 11 upstream pins and all 27 immutable patch
+hashes, isolated bundle identity, production routes, ARM64 and deep signatures.
+The native email-code flow now completed successfully on the new Mac, confirmed
+by both its actual UI and native account API. Mobile pairing was enabled with
+owner approval; the Mac panel reports **Iroh Ready**.
+
+Pixel USB debugging is authorized. Verified signed preview **659** was installed
+as the separate release package, preserving the existing older debug app/data.
+Release sign-in completed; the phone discovered the custom Mac and displayed
+its actual workspaces, including a newly created acceptance workspace. After a
+process restart, sign-in/pairing were retained and the workspace list recovered.
+Opening a terminal initially produced the local disconnected/reattach guard;
+terminal rendering/input and successful terminal reconnect are **not accepted**.
+
+The private helper was migrated to this Mac's authenticated Tailscale address
+and a newly issued, trust/hostname/key-verified TLS certificate. The old private
+configuration and certificate were preserved. The native-owned helper listens
+on its configured private interface, HTTPS responds, and Pixel-to-Mac Tailscale
+reachability passed. Phone helper enrollment and actual FCM remain unverified.
+
+Fresh-checkout setup exposed an obsolete Ghostty JNI checkpoint in the README.
+Run **39410466355** succeeded at `a5ba3898`; downloaded receipt/file hashes and
+the current binding source match. README/Ghostty setup commands now select it.
+The configured debug APK assembled. The first full JVM run had one cancellation
+failure in `malformedWorkspaceSnapshotPreservesLastInventoryUntilConfirmedEmpty`;
+its focused rerun and the subsequent full rerun passed. Final full count:
+**2,941 passed, four skipped**. Original failure evidence is retained; this is an
+intermittent failure, not a demonstrated production fix. Push tests passed 200
+with one optional reference-decryptor skip; 32 recovery-policy tests passed.
+
+Continue with live terminal I/O/reconnect diagnosis and native helper enrollment,
+then background/process-dead FCM acceptance. Full parity remains open. Full local
+Xcode is absent; use the verified hosted Mac artifact for this checkpoint.
+
 ## Mac email-code validation correction — 2026-10-13
 
 The owner clarified that input was accepted but Sign In showed an error; a focus

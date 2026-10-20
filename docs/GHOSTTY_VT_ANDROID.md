@@ -184,12 +184,14 @@ above, or the native artifact produced by the existing Android workflow's new
 `ghostty_only` option. That option does not publish a signed app or require release
 signing secrets. From a checkout with GitHub CLI access:
 
-The current GVI2/placeholder checkpoint is verified Linux run `36642877666`.
+The current source-matched JNI checkpoint is verified Linux run `39410466355`
+(2026-10-20). Run `36642877666` predates the current JNI binding and fails the
+Gradle binding hash guard on a fresh checkout.
 Earlier checkpoints (including `36641031462`) lack GVI2 and do not match the
 current source. Download the verified artifact into a fresh directory:
 
 ```sh
-gh run download 36642877666 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
+gh run download 39410466355 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
 ```
 
 If it expires, build from the commands above or generate a new native CI artifact:

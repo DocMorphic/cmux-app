@@ -43,7 +43,7 @@ reproduce them from pinned source as described in [IROH_V2.md](docs/IROH_V2.md#a
 ```bash
 gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
 gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
-gh run download 36642877666 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
+gh run download 39410466355 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
 gh run download 36653485468 --repo DocMorphic/cmux-app --name cmux-simulator-video-android-arm64 --dir build/simulator-codecs-android
 gh run download 37454996751 --repo DocMorphic/cmux-app --name cmux-cloud-terminal-android-arm64 --dir build/cloud-terminal-android
 ./gradlew :app:assembleDebug
