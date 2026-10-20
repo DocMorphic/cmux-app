@@ -34,6 +34,10 @@ viewers retain a coalesced menu-reconstruction fallback; the production host
 disables it to avoid duplicate actions. A fresh full Mac build and actual-host
 inspection are still required. The earlier full Mac run at `725dbf73` predates
 the SwiftUI command change and must not be treated as its validation.
+Full-host run **39422509528** is queued at **35f374a8** behind the earlier
+**39415616949 / 725dbf73** build. Verify the new run's own immutable source
+manifest (12 original pins / 29 changed or added files) before replacing the
+running custom app; no fresh full-host success is claimed yet.
 
 A new emulator regression held the first shared-sizing subscription while the
 real root screen recomposed. It reached the same disconnected guard as the
