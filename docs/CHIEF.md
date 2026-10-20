@@ -21,37 +21,54 @@ backgrounding pauses reads. Account/Mac retirement cancels operations and clears
 content. Every request still uses the real client's admission checks, without a
 terminal selection ticket.
 
-Sends use stable client IDs. Poll/read echoes replace the optimistic row, and
-lost or delayed acknowledgments never trigger automatic resending. Approval and
-question actions reserve a card before suspension; a committed action with a
-failed refresh remains reserved until its receipt. An unconfirmed answer can be
-explicitly retried; refresh and polling do not resend it. Old history cards receive
-a targeted reread. Work parts show title/status/preview. Settled cards show receipts,
-and an earlier settled/unsupported part cannot hide a later pending card. Full
-questions support single/multiple choices, one Other value, qualified item/option
-IDs, defaults and previews; the Mac owns the final answer and respondent.
+Sends use stable client IDs. Poll/read echoes replace the optimistic row while
+keeping its lazy-row identity, including canonical IDs first learned from a late
+acknowledgment. Immediate accepted-send reads permit the source's five-second
+clock skew; ordinary poll/history text fallback remains strict. Exact IDs win
+across a whole page before text matching. Already-correlated rows and sequence
+watermarks prevent an old identical message from absorbing a newer send. No
+ambiguous write is automatically resent. In-flight sends trail acknowledged
+history; failed sends retain their source sequence anchor before later replies.
+
+Approval/question actions reserve a card before suspension. A confirmed commit
+with a failed refresh stays reserved until its receipt; an unconfirmed answer
+can be explicitly retried without polling resending it. Old history cards get a
+targeted reread. Work parts show title/status/preview; settled cards show receipts.
+Full questions support single/multiple choices, one Other value, qualified IDs,
+defaults and previews. The Mac owns the final answer and respondent.
+
+The transcript now applies first-in-run spacing, hour-gap separators and loaded
+parent quote previews. Direct conversations omit redundant sender headings.
+Timestamp date/time follows the device's locale, zone and clock preference; the
+English/Japanese labels and date/time format are exact selected source values.
+Home includes relative update stamps and the bounded pinned-only invitation;
+the header uses a spoken Stop control and single-line titles at enlarged sizes.
+These are scoped presentation steps, not a complete generic conversation port.
 
 Evidence is ignored under `captures/recovery-20261020/`:
 
 - Actual pinned Swift execution: 21 wire-model cases, nine client requests and
   eight shared question-validation cases; source/artwork hashes verified.
-- 35 focused JVM cases pass, including 21 new session/form/race cases. A full
-  JVM run passed 2,978, skipped four and failed zero.
-- Five API 36 ARM64 Android cases pass in 15.644 s: Home search, send echo/draft
-  retention, full question/receipt, owner retirement, actual root/framed RPC
-  integration and incomplete-capability exclusion (some cases cover multiple
-  behaviors), including an explicit retry after an uncertain answer. A targeted
-  capture rerun passed in 3.976 s; transcript and question-sheet screenshots were
-  inspected. No crash-buffer
-  entries appeared in this isolated run.
+- 43 focused JVM cases pass, including six new send-correlation regressions and
+  comparisons of 19 vectors from the actual Swift run-plan, store sort method
+  and rowID property with an inert Chief-only model. Six timestamp resources
+  match the pinned source catalog. The full JVM run passed 2,986, skipped four,
+  zero failures (`chief-timeline-final-build-and-jvm.log`).
+- Eight API 36 ARM64 Android cases pass in 20.426 s, including failed ordering,
+  late-echo identity, separators/quotes, explicit answer retry, full question
+  forms, owner retirement, root capability gating and a font-scale-2 probe.
+  A two-case inset-capture rerun passed in 5.110 s. The isolated harness now
+  mirrors the production parent's system-bar inset consumption; the actual
+  root and final timeline/enlarged-text screenshots were inspected. The crash
+  buffer is empty. This does not establish physical keyboard/IME or TalkBack.
 
 This is an initial mounted implementation, not Chief parity acceptance. Finish
-the complete generic conversation presentation comparison: dates, grouping,
-reply references, unread/catch-up markers, relative times, scroll/window trimming,
-locale strings and enlarged-text/TalkBack behavior. Verify cold process and
-connection replacement restoration, wide-screen navigation, older-host send
-correlation without echoed IDs (including clock skew), optimistic-row ordering
-during concurrent incoming messages, and broader uncertainty recovery.
-Compare matched iOS states and exercise a supporting real Mac with the Pixel.
-The existing private host is not supporting-host evidence. Local signed candidate
-704 predates this UI milestone and has not yet been installed on the Pixel.
+exact bubble/tail/drawer geometry and colors, thread/reply interactions,
+unread/catch-up behavior, history page/window trimming, remaining localization
+and TalkBack. Failed-send retry/discard and deeper uncertainty recovery also
+remain open. Verify cold process and connection replacement restoration and
+wide-screen navigation. Compare matched iOS states and exercise a supporting
+real Mac with the Pixel. The current custom Mac remains at `f4b15090` without
+Chief, so its successful menu update is not Chief supporting-host evidence.
+Local signed candidate 704 predates the mounted Chief UI and is not yet installed
+on the Pixel; the next configured signed milestone should include this port.

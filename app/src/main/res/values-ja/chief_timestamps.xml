@@ -1,0 +1,5 @@
+<resources>
+    <string name="chief_timestamp_today">今日</string>
+    <string name="chief_timestamp_yesterday">昨日</string>
+    <string name="chief_timestamp_date_at_time">%1$s %2$s</string>
+</resources>

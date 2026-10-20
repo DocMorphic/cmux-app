@@ -15,6 +15,22 @@
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefHomeView.swift": "a52aa435572007905dec6ebcbe27d718bb0b363a6c8a823fead044732e1d449f",
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift": "bc7e624230704182753a7ec42ac5d0db4b27c4e403f9d299c25b26acfadd8f61",
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/WorkspaceShellView.swift": "71f801385edf5fac576f64645148d5d2e94a04af52e40a9cd91508033190acdf",
-    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Images.xcassets/ChiefAvatar.imageset/ChiefAvatar.png": "2155cb8ed2cd48ad717abeda1515ec595789fba91ec52509a5a7571ac32c2585"
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Images.xcassets/ChiefAvatar.imageset/ChiefAvatar.png": "2155cb8ed2cd48ad717abeda1515ec595789fba91ec52509a5a7571ac32c2585",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationRows.swift": "267c73afadabad297998eda77cf32750032bd34939d5b55c7f01b1b70aaae43b",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationCells.swift": "b7db01bd0f01c53b35638957d945c9c37814f2720c1740ca2533e0a61db78b86"
+  },
+  "timelineFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationRunPlan.swift": "3f3a4c0cd6a2636788dbccbe1fd1793f40a8db32b1cb40e4d8e2eac3b295a56a",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationModel.swift": "825f264946e57e16a5ff3affc32badaa59d85208807f3eebb313dc517da53df6",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationStore.swift": "172895cb7b0c811b7765ea46c6261c6703d13ccd7a2f5cd87a8c61c83651a293"
+  },
+  "timestampStrings": {
+    "path": "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/Resources/Localizable.xcstrings",
+    "sha256": "7d43f79f76c3ddbd63c5cab6ac66ea966cdf33a495dbf635cdf10bc4de088b93",
+    "keys": {
+      "conversation.timestamp.today": "chief_timestamp_today",
+      "conversation.timestamp.yesterday": "chief_timestamp_yesterday",
+      "conversation.timestamp.dateAtTime": "chief_timestamp_date_at_time"
+    }
   }
 }

@@ -3,7 +3,7 @@
 Source: `manaflow-ai/cmux` at
 `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`.
 Copyright Manaflow, Inc.; GPL-3.0-or-later. See LICENSE and the root NOTICE.md.
-`manifest.json` records five wire-source hashes and four separate behavior/artwork hashes. This scoped reference does not
+`manifest.json` records five wire-source hashes, separate behavior/artwork hashes and three conversation timeline hashes. This scoped reference does not
 advance the global implemented or reviewed upstream pins.
 
 The Kotlin port covers the Chief capability set, nine RPC request shapes, typed
@@ -40,3 +40,18 @@ and five Android production-composition/root cases pass. The generic conversatio
 UI comparison, complete lifecycle/restoration, localization/accessibility and real
 host acceptance remain open. The installed custom Mac does not advertise Chief;
 a supporting real host and Pixel checks are required.
+
+The timeline checker executes the actual pinned ConversationRunPlan, store sort
+method and rowID property with an inert Chief-only model. It compares 19 cases,
+including failed sequence anchors, time boundaries, typing and replies. It also
+checks the six English/Japanese timestamp resource values against the source
+catalog. Run:
+
+```sh
+python3 scripts/check-chief-timeline.py --upstream /absolute/path/to/cmux \
+  --output /absolute/path/to/ignored-timeline-evidence
+```
+
+The latest full JVM run passed 2,986 and skipped four, with zero failures. Eight
+Android cases pass, including source timeline presentation and a font-scale-2
+probe. This is not full UIKit, matched-iOS or supporting-host acceptance.

@@ -340,4 +340,86 @@ class NativeChiefSessionTest {
         assertEquals("Answered in chat", NativeChiefPresentation.receipt(message(3, parts = listOf(
             NativeChiefPart("question", null, null, q.copy(state = NativeChiefQuestion.State.CANCELLED))))))
     }
+
+    @Test fun acceptedLegacyEchoAllowsFiveSecondsOfClockSkewAndRetainsItsLocalIdentity() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "local-client" })
+        try {
+            api.reads.send(Result.success(page())); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> NativeChiefSent("chief-main", null, null, false) }
+            session.editDraft("Legacy reply")
+            api.reads.send(Result.success(page(message(1, "legacy", "Legacy reply", true).copy(at = instant.minusSeconds(5)))))
+            session.send()
+            assertTrue(session.state.value.outgoing.isEmpty())
+            assertEquals("local-client", session.state.value.localClientIds["legacy"])
+            assertEquals("c:local-client", NativeChiefTimeline.items(session.state.value).single().key)
+        } finally { session.close() }
+    }
+
+    @Test fun legacyTextMatchingCannotStealAnOlderKnownRowOrAnEchoOutsideTheSkewAllowance() = runTest {
+        val api = Api(); val old = message(1, "old", "Same text", true)
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "local-client" })
+        try {
+            api.reads.send(Result.success(page(old))); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> NativeChiefSent("chief-main", null, null, false) }
+            session.editDraft("Same text")
+            api.reads.send(Result.success(page(old, message(2, "too-old", "Same text", true).copy(at = instant.minusSeconds(6)))))
+            session.send()
+            assertEquals(1, session.state.value.outgoing.size); assertTrue(session.state.value.localClientIds.isEmpty())
+        } finally { session.close() }
+    }
+
+    @Test fun aCanonicalClientIdInTheAckCanCorrelateAnEchoThatArrivedBeforeTheAck() = runTest {
+        val api = Api(); val ack = CompletableDeferred<NativeChiefSent>(); api.sendBlock = { _, _ -> ack.await() }
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "local-client" })
+        try {
+            api.reads.send(Result.success(page())); session.start(); runCurrent(); session.editDraft("Canonical reply")
+            val sending = async { session.send() }; runCurrent()
+            api.waits.send(Result.success(page(message(1, "canonical-server", "Canonical reply", true, "canonical-client")))); runCurrent()
+            assertEquals(1, session.state.value.outgoing.size)
+            ack.complete(NativeChiefSent("chief-main", null, "canonical-client", true))
+            api.reads.send(Result.failure(java.io.IOException("follow-up read unavailable"))); runCurrent(); sending.await()
+            assertTrue(session.state.value.outgoing.isEmpty()); assertEquals("local-client", session.state.value.localClientIds["canonical-server"])
+        } finally { session.close() }
+    }
+
+    @Test fun exactEchoWinsOverAnIdenticalLegacyRowElsewhereInTheSamePage() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "local-client" })
+        try {
+            api.reads.send(Result.success(page())); session.start(); runCurrent()
+            api.sendBlock = { _, id -> NativeChiefSent("chief-main", null, id, true) }
+            session.editDraft("Same text")
+            api.reads.send(Result.success(page(message(1, "unrelated", "Same text", true), message(2, "exact", "Same text", true, "local-client"))))
+            session.send()
+            assertEquals(mapOf("exact" to "local-client"), session.state.value.localClientIds)
+            assertTrue(session.state.value.outgoing.isEmpty())
+        } finally { session.close() }
+    }
+
+    @Test fun aCorrelatedLegacyRowCannotAbsorbASecondIdenticalSendOnALaterRefresh() = runTest {
+        val api = Api(); var nextId = 0
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "local-${++nextId}" })
+        try {
+            api.reads.send(Result.success(page())); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> NativeChiefSent("chief-main", null, null, false) }
+            val first = message(1, "first", "Same text", true)
+            session.editDraft("Same text"); api.reads.send(Result.success(page(first))); session.send()
+            session.editDraft("Same text"); api.reads.send(Result.success(page(first))); session.send()
+            assertEquals(listOf("local-2"), session.state.value.outgoing.map { it.clientMessageId })
+            assertEquals(mapOf("first" to "local-1"), session.state.value.localClientIds)
+        } finally { session.close() }
+    }
+
+    @Test fun failureIsAnchoredAfterTheNewestMessageObservedAtTheMomentItFailed() = runTest {
+        val api = Api(); val failed = CompletableDeferred<NativeChiefSent>(); api.sendBlock = { _, _ -> failed.await() }
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "local-client" })
+        try {
+            api.reads.send(Result.success(page(message(1)))); session.start(); runCurrent(); session.editDraft("Will fail")
+            val sending = async { session.send() }; runCurrent()
+            api.waits.send(Result.success(page(message(2)))); runCurrent()
+            failed.completeExceptionally(MobileRpcOutcomeUnknown()); runCurrent(); sending.await()
+            api.waits.send(Result.success(page(message(3)))); runCurrent()
+            assertEquals(2uL, session.state.value.outgoing.single().failedAnchorSeq)
+            assertEquals(listOf("s:m1", "s:m2", "c:local-client", "s:m3"), NativeChiefTimeline.items(session.state.value).map { it.key })
+        } finally { session.close() }
+    }
 }

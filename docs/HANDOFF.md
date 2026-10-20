@@ -12,9 +12,15 @@ paging/gap recovery, stable send correlation, draft retention, approval/question
 reservation and receipts. Account/Mac retirement cancels requests and clears
 content; backgrounding pauses reads. The unmodified Chief avatar is attributed.
 Actual Swift wire execution still supplies 21 models, nine requests and eight
-validation cases. The full JVM run passed 2,978 with four skips and zero failures.
-Five Android cases pass for the production UI and framed root integration; the
-transcript screenshot was inspected. See CHIEF.md for source mapping, exact
+validation cases. The latest full JVM run passed 2,986 with four skips and
+zero failures.
+Eight Android cases pass for the production UI, explicit uncertainty recovery,
+failed-row ordering, late echo identity, separators/quotes, font-scale-2 controls
+and framed root integration; the final screenshots were inspected. Nineteen
+vectors execute the actual pinned Swift ordering/run-plan/row-ID bodies against
+an inert Chief-only model. Six session regressions cover legacy skew/canonical-id
+races; both exact ids and known sequence watermarks fence text fallback.
+See CHIEF.md for source mapping, exact
 scope, evidence and remaining presentation/lifecycle/real-host gates. This is not
 full Chief acceptance; the current custom Mac does not support Chief. Global
 implemented/reviewed pins remain unchanged.
@@ -43,35 +49,45 @@ It is preserved in `captures/runtime/parity-candidate-704/` with receipts under
 on 703. Candidate 704 predates the mounted Chief UI. Live sign-in/pairing retention,
 initial terminal admission and cold-tap revalidation remain pending.
 
-Production pairing now uses `NativePushPairingCommands` in the pinned SwiftUI
-scene's command model and the existing AppDelegate-owned presentation/client.
-An AppKit insertion existed in the native menu data but was absent from the
-accessibility menu; it was not accepted. The new actual Commands type, hosted in
-an isolated SwiftUI app, visibly exposes “Pair Android Notifications”; clicking
-it opened the unchanged production pairing window. Full-host integration remains
-pending. The expanded immutable patch boundary is 12 upstream files / 29 changed
-or new files, including reviewed `Sources/cmuxApp.swift`. Its SHA, exact wiring,
-Swift/project parse and production payload/auth/queue checks pass. The pairing
-composition typechecks against actual owner/UI types. QR pixels, offer expiry/
-cancellation, clipboard ownership and socket errors pass. AppKit standalone
-viewers retain a coalesced menu-reconstruction fallback; the production host
-disables it to avoid duplicate actions. A fresh full Mac build and actual-host
-inspection are still required. The earlier full Mac run at `725dbf73` predates
-the SwiftUI command change and must not be treated as its validation.
-Full-host run **39422509528 / 35f374a8** failed at `cmuxApp.swift` with
-“extra argument in call”: the pinned scene already fills all ten SwiftUI
-CommandsBuilder slots. The patch now nests the pairing action with the existing
-final `windowAndViewCommands` behind one slot, preserving the original ten-slot
-scene. A local fixture reproduces the eleven-command compiler failure and the
-nested version typechecks. `check-native-push-hooks.py` now typechecks the actual
-injected property in a full ten-slot scene before the hosted build. The complete
-payload/auth/queue checks and four installer safety checks pass. Evidence:
-`commands-builder-limit/`, `mac-menu-nested-hooks/` and the full failure log under
-`captures/recovery-20261020/`. A fresh full-host run and actual app/menu check are
-still required; do not install the failed build or accept the older AppKit-only
-run. Verify the next successful run's own immutable source manifest (12 original
-pins / 29 changed or added files) before replacing the running custom app.
-Replacement full-host run **39429836746 / bb80ad67** is in progress.
+Full Mac run **39429836746 / bb80ad67** succeeded. The downloaded archive's
+SHA-256 is `f64aca9107cc2f9a16bdbbb7714abceb1b08317ed19b75c6fbbfa0e610f37bc4`.
+Independent verification checked all 12 original pins / 29 immutable patch hashes,
+archive paths/symlinks, production account routes, isolated bundle ID, ARM64 and
+deep signatures. The running custom app is now:
+`captures/runtime/mac-companion-39429836746-app/cmux DEV android-push.app`.
+The older bundle is preserved; the official app was not changed or launched.
+
+The actual full host visibly exposes exactly one “Pair Android Notifications”
+command. It opened the production-owned pairing window twice, including after
+closing/reopening the app menu. No offer was created. A fresh full AX lookup and
+click in one call avoided stale menu element IDs; an earlier keyboard fallback
+ran only an unrecognized `p` in the disposable acceptance terminal. Native
+account UI/API confirm the same personal sign-in and verified team. Both saved
+workspace UUIDs in the pre-update inventory restored, and a fresh command/output
+marker passed in the acceptance terminal. Current ephemeral handles are
+`workspace:1000020000` / `surface:1000020000`; stable UUIDs are workspace
+`9C09FF5F-22B1-40FC-B088-CB8FA4BD8E92` / surface
+`A1791892-22CF-4724-A8B7-B1FCEC904EFF`. Refresh handles after any restart.
+
+Native host status reports Iroh running. The new ad hoc binary initially waited
+on existing Keychain access; macOS logs record owner approvals. The old sender
+public descriptor is unchanged (its mtime predates this launch), one helper phone
+registration remains, the private owner socket is back with private permissions,
+and certificate-validated HTTPS returns the expected 405 for a GET enrollment
+probe. No key rotation or phone reenrollment was performed. Native official
+phone-push admission/queue-persistence diagnostics still say `unknown`; a fresh
+provider delivery check after this update remains required when the Pixel is
+available. Evidence: `mac-full-host-menu-runtime.json` and
+`mac-menu-full-host-verification.log` under `captures/recovery-20261020/`.
+
+The prior full-host run **39422509528 / 35f374a8** failed because the pinned scene
+already filled all ten SwiftUI CommandsBuilder slots. The corrected patch nests
+the pairing action with `windowAndViewCommands` behind one slot. The local fixture
+reproduced the eleven-command failure and the nested typecheck passed; the actual
+injected property is now typechecked in a full ten-slot scene by the hook check.
+Full payload/auth/queue and four installer-safety checks also pass. The older
+AppKit-only menu insertion and standalone viewer are historical workarounds,
+not the now-accepted full-host menu integration.
 
 A new emulator regression held the first shared-sizing subscription while the
 real root screen recomposed. It reached the same disconnected guard as the

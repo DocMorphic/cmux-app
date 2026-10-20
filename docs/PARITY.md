@@ -26,11 +26,15 @@ and the exact admitted foreground Mac. It includes Home search/unread/working
 state, transcript history/events/send/stop, work parts, approval/question actions,
 full qualified question forms and retained drafts. Actual source execution gives
 21 wire-model vectors, nine request vectors and eight question-validation cases.
-The full JVM run passed 2,978, skipped four, zero failures. Five Android cases
-passed against the production composition and a framed root fixture, with an
-inspected transcript screenshot. These are scoped fixture checks; Chief parity
-remains open. Complete the generic conversation UI comparison, localization,
-scroll/window/read markers, deeper lifecycle/restoration and supporting real
+The latest full JVM run passed 2,986, skipped four, zero failures. Eight Android
+cases passed against the production composition and framed root fixture,
+including failed-send/late-echo identity and enlarged-text controls. Final
+transcript screenshots were inspected. Nineteen vectors execute pinned Swift
+ordering/run-plan/row-ID code; six timestamp resources match the actual source.
+Legacy send correlation now handles canonical ack IDs and the five-second
+follow-up skew allowance without absorbing an older known row. These are scoped fixture checks; Chief parity
+remains open. Complete the remaining generic conversation UI comparison, localization,
+thread interactions, scroll/window/read markers, deeper lifecycle/restoration and supporting real
 Mac/Pixel evidence in CHIEF.md. Global implemented/reviewed pins are unchanged.
 
 The Oct 20 Pixel/Mac checkpoint and active notification/terminal/menu fixes are

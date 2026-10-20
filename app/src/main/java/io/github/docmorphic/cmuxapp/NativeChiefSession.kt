@@ -71,14 +71,16 @@ internal class NativeChiefHomeSession(parent: CoroutineScope, private val client
 
 internal enum class NativeChiefDelivery { SENDING, QUEUED, SENT, UNCONFIRMED, REJECTED }
 internal data class NativeChiefOutgoing(val clientMessageId: String, val text: String, val at: Instant,
-    val delivery: NativeChiefDelivery = NativeChiefDelivery.SENDING, val serverMessageId: String? = null, val error: String? = null)
+    val delivery: NativeChiefDelivery = NativeChiefDelivery.SENDING, val serverMessageId: String? = null, val error: String? = null,
+    val echoClientMessageId: String? = null, val failedAnchorSeq: ULong? = null, val sentAfterSeq: ULong = 0uL)
 internal data class NativeChiefTranscriptState(
     val messages: List<NativeChiefMessage> = emptyList(), val outgoing: List<NativeChiefOutgoing> = emptyList(),
     val loading: Boolean = true, val loadingOlder: Boolean = false, val hasMore: Boolean = false,
     val working: Boolean = false, val connected: Boolean = false, val error: String? = null,
     val lastReadSeq: ULong = 0uL, val unread: Long = 0, val headSeq: ULong = 0uL,
     val draft: String = "", val deciding: Set<String> = emptySet(), val committed: Set<String> = emptySet(),
-    val uncertain: Set<String> = emptySet(), val actionErrors: Map<String, String> = emptyMap()
+    val uncertain: Set<String> = emptySet(), val actionErrors: Map<String, String> = emptyMap(),
+    val localClientIds: Map<String, String> = emptyMap()
 )
 
 /** Event-backed transcript. Pausing cancels reads, preserving drafts/history; retiring clears all content. */
@@ -146,16 +148,35 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         return pages.flatten().associateBy { it.id }.values.sortedBy { it.seq }
     }
 
-    private fun merge(messages: List<NativeChiefMessage>) {
+    private fun merge(messages: List<NativeChiefMessage>, acknowledgedSend: String? = null) {
         checkOwner()
         var outgoing = state.value.outgoing
+        val localClientIds = state.value.localClientIds.toMutableMap()
         val earliest = now().minusSeconds(300)
-        messages.filter { it.authorKind == "human" }.forEach { message ->
-            val candidate = message.clientMessageId?.let { id -> outgoing.firstOrNull { it.clientMessageId == id } }
+        val humans = messages.filter { it.authorKind == "human" }
+        fun correlate(message: NativeChiefMessage, candidate: NativeChiefOutgoing) {
+            localClientIds[message.id] = candidate.clientMessageId
+            outgoing = outgoing.filterNot { it.clientMessageId == candidate.clientMessageId }
+        }
+        // Resolve exact ids across the whole page before trying text. Otherwise
+        // an older identical row can steal a send whose exact echo is later in it.
+        humans.forEach { message ->
+            val candidate = localClientIds[message.id]?.let { id -> outgoing.firstOrNull { it.clientMessageId == id } }
+                ?: message.clientMessageId?.let { id -> outgoing.firstOrNull { it.clientMessageId == id || it.echoClientMessageId == id } }
                 ?: outgoing.firstOrNull { it.serverMessageId == message.id }
-                ?: outgoing.filter { it.serverMessageId == null && it.delivery != NativeChiefDelivery.REJECTED && it.at >= earliest &&
-                    it.text == message.text && message.at >= it.at && message.clientMessageId == null }.minByOrNull { it.at }
-            if (candidate != null) outgoing = outgoing.filterNot { it.clientMessageId == candidate.clientMessageId }
+            if (candidate != null) correlate(message, candidate)
+        }
+        // The accepted send's immediate read has the source's bounded clock-skew
+        // fallback. Poll/history correlation remains stricter (at >= startedAt).
+        outgoing.singleOrNull { it.clientMessageId == acknowledgedSend }?.let { pending ->
+            humans.filter { it.id !in localClientIds && it.clientMessageId == null &&
+                it.seq > pending.sentAfterSeq && it.text == pending.text && it.at >= pending.at.minusSeconds(5) }.maxByOrNull { it.at }
+                ?.let { correlate(it, pending) }
+        }
+        humans.filter { it.id !in localClientIds && it.clientMessageId == null }.forEach { message ->
+            outgoing.filter { it.serverMessageId == null && it.delivery !in setOf(NativeChiefDelivery.REJECTED, NativeChiefDelivery.UNCONFIRMED) &&
+                it.at >= earliest && message.seq > it.sentAfterSeq && it.text == message.text && message.at >= it.at }.minByOrNull { it.at }
+                ?.let { correlate(message, it) }
         }
         // A late older read cannot resurrect a pending card once the Mac returned its receipt.
         val byId = state.value.messages.associateBy { it.id }.toMutableMap()
@@ -177,7 +198,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         val sorted = byId.values.sortedWith(compareBy<NativeChiefMessage> { it.seq }.thenBy { it.id })
         val settled = sorted.filter { NativeChiefPresentation.pendingPart(it) == null }.map { it.id }.toSet()
         mutableState.value = state.value.copy(messages = sorted, outgoing = outgoing,
-            committed = state.value.committed - settled, uncertain = state.value.uncertain - settled)
+            localClientIds = localClientIds, committed = state.value.committed - settled, uncertain = state.value.uncertain - settled)
     }
 
     suspend fun loadOlder() {
@@ -205,20 +226,26 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         if (draft.isBlank()) return null
         val id = newId()
         require(state.value.outgoing.none { it.clientMessageId == id })
-        mutableState.value = state.value.copy(draft = "", outgoing = state.value.outgoing + NativeChiefOutgoing(id, draft, now()))
+        mutableState.value = state.value.copy(draft = "", outgoing = state.value.outgoing + NativeChiefOutgoing(id, draft, now(),
+            sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { it.seq } ?: 0uL)))
         try {
             val sent = owned { client.send(draft, conversationId, clientMessageId = id) }
             check(sent.conversation == conversationId) { "Chief returned another conversation" }
             mutableState.value = state.value.copy(outgoing = state.value.outgoing.map {
                 if (it.clientMessageId == id) it.copy(serverMessageId = sent.messageId,
+                    echoClientMessageId = sent.clientMessageId,
                     delivery = if (sent.queued) NativeChiefDelivery.QUEUED else NativeChiefDelivery.SENT) else it
             })
-            try { merge(read().messages) }
+            // An event read can precede the acknowledgment that supplies its
+            // canonical id. Correlate that already-retained echo immediately.
+            merge(state.value.messages)
+            try { merge(read().messages, acknowledgedSend = id) }
             catch (e: Exception) { currentCoroutineContext().ensureActive(); checkOwner() }
         } catch (e: Exception) {
             if (job.isActive && permits()) mutableState.value = state.value.copy(outgoing = state.value.outgoing.map {
                 if (it.clientMessageId == id) it.copy(delivery = if (e is MobileRpcException && e.fromHostResponse)
                     NativeChiefDelivery.REJECTED else NativeChiefDelivery.UNCONFIRMED,
+                    failedAnchorSeq = state.value.messages.maxOfOrNull { message -> message.seq } ?: 0uL,
                     error = e.message ?: "Delivery could not be confirmed. Check the conversation before sending again.") else it
             })
             currentCoroutineContext().ensureActive(); checkOwner()

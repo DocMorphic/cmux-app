@@ -2,10 +2,17 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.activity.ComponentActivity
 import android.graphics.Bitmap
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -30,6 +37,7 @@ class NativeChiefRuntimeTest {
     private val instant = Instant.parse("2026-10-20T12:00:00Z")
     private val api = Api()
     private var current = true
+    private var testFontScale by mutableFloatStateOf(1f)
 
     @Before fun start() {
         check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk")) { "Use the disposable emulator" }
@@ -37,7 +45,14 @@ class NativeChiefRuntimeTest {
             owner = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
             computer = NativeChiefComputerSession(owner, api) { current }
         }
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { NativeChiefView(computer, true, Modifier.fillMaxSize()) } } }
+        // Match NativeScreenLayout's outer inset consumption. The Chief subtree
+        // owns its transcript, while its production parent owns system bars.
+        compose.setContent { CmuxTheme {
+            val hostDensity = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(hostDensity.density, testFontScale)) {
+            Surface(Modifier.fillMaxSize().background(Color(0xFF0B0D10)).statusBarsPadding().navigationBarsPadding().imePadding()) {
+            NativeChiefView(computer, true, Modifier.fillMaxSize())
+        } } } }
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPinnedConversation").fetchSemanticsNodes().isNotEmpty() }
     }
     @After fun stop() { if (::owner.isInitialized) compose.runOnUiThread { computer.close(); owner.cancel() } }
@@ -48,6 +63,7 @@ class NativeChiefRuntimeTest {
         val sends = CopyOnWriteArrayList<Pair<String, String?>>()
         val answers = CopyOnWriteArrayList<Pair<List<String>, String?>>()
         var uncertainAnswerOnce = false
+        var sendFailure: Exception? = null
         var rows = listOf(message("hello", 1uL, "Welcome from your Mac"))
         val home get() = listOf(NativeChiefConversation("chief-main", "Chief", "Ready on your Mac", 1, true, false, instant),
             NativeChiefConversation("build", "Release build", "Review the Android app", 0, false, false, instant))
@@ -59,6 +75,7 @@ class NativeChiefRuntimeTest {
         fun snapshot() = NativeChiefRead("chief-main", false, rows, false, 0uL, 1, rows.maxOfOrNull { it.seq }, "transcript-cursor")
         override suspend fun send(text: String, conversation: String?, from: String?, startTurn: Boolean, clientMessageId: String?): NativeChiefSent {
             sends += text to clientMessageId
+            sendFailure?.let { throw it }
             rows = rows + message("echo", 2uL, text, human = true, clientId = clientMessageId)
             transcriptChanges.send(snapshot())
             return NativeChiefSent("chief-main", "echo", clientMessageId, false)
@@ -100,6 +117,7 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefSearch").assertTextContains("Chief")
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithTag("ChiefComposer").assertTextContains("Keep my draft")
+        compose.onNodeWithContentDescription("Stop Chief").assertHasClickAction()
     }
 
     @Test fun fullQuestionFormQualifiesDuplicateOptionIdsAndShowsTheMacReceipt() {
@@ -138,5 +156,65 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefComposer").assertDoesNotExist()
         compose.onNodeWithText("Private draft").assertDoesNotExist()
         compose.onNodeWithText("Welcome from your Mac").assertDoesNotExist()
+    }
+
+    @Test fun failedSendStaysBeforeLaterRepliesAndItsLateEchoKeepsTheSameRowIdentity() {
+        compose.runOnUiThread { api.sendFailure = MobileRpcOutcomeUnknown() }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Unconfirmed phone message")
+        compose.onNodeWithTag("ChiefSend").performClick()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        compose.onNodeWithText("Delivery unconfirmed").assertExists()
+        val id = checkNotNull(api.sends.single().second)
+        compose.runOnUiThread {
+            api.rows = api.rows + message("later", 2uL, "A later Chief reply")
+            check(api.transcriptChanges.trySend(api.snapshot()).isSuccess)
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:later").fetchSemanticsNodes().isNotEmpty() }
+        val failedTop = compose.onNodeWithTag("ChiefRow:c:$id").fetchSemanticsNode().boundsInRoot.top
+        val replyTop = compose.onNodeWithTag("ChiefRow:s:later").fetchSemanticsNode().boundsInRoot.top
+        assertTrue("A failed row must remain before later arrivals", failedTop < replyTop)
+        compose.runOnUiThread {
+            api.rows = api.rows + message("late-echo", 3uL, "Unconfirmed phone message", true, id)
+            check(api.transcriptChanges.trySend(api.snapshot()).isSuccess)
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:late-echo").fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodesWithTag("ChiefRow:c:$id").assertCountEquals(1)
+        compose.onNodeWithText("Delivery unconfirmed").assertDoesNotExist()
+        compose.onAllNodesWithText("Unconfirmed phone message").assertCountEquals(1)
+    }
+
+    @Test fun transcriptSeparatorsAndReplyQuotesUseTheSourceRunBoundaries() {
+        compose.runOnUiThread {
+            api.rows = listOf(message("first", 1uL, "Original Chief message"),
+                message("second", 2uL, "Same run").copy(at = instant.plusSeconds(60)),
+                message("quote", 3uL, "One hour later").copy(at = instant.plusSeconds(3660), threadRoot = "first"))
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.onNodeWithTag("ChiefTimestamp:s:first").assertExists()
+        compose.onNodeWithTag("ChiefTimestamp:s:second").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefTimestamp:s:quote").assertExists()
+        compose.onNodeWithTag("ChiefQuote:quote").assertExists()
+        compose.onAllNodesWithText("Original Chief message").assertCountEquals(2)
+        compose.waitForIdle()
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        val directory = File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        File(directory, "chief-timeline.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+    }
+
+    @Test fun enlargedTextKeepsChiefHeaderAndComposerUsable() {
+        compose.runOnUiThread { testFontScale = 2f }
+        compose.onNodeWithTag("ChiefPinnedConversation").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Stop Chief").assertIsDisplayed()
+        compose.onNodeWithText("‹  Home").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Large text draft")
+        compose.onNodeWithTag("ChiefComposer").assertTextContains("Large text draft")
+        compose.onNodeWithTag("ChiefSend").assertIsDisplayed().assertIsEnabled()
+        compose.waitForIdle()
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        val directory = File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        File(directory, "chief-enlarged-text.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
     }
 }

@@ -1,0 +1,826 @@
+[
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "one",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 1
+      }
+    ],
+    "name": "one",
+    "rows": [
+      {
+        "first": true,
+        "id": "one",
+        "key": "s:one",
+        "last": true,
+        "timestamp": true
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 60,
+        "sender": "chief",
+        "seq": 2
+      }
+    ],
+    "name": "same-sender",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": false,
+        "timestamp": true
+      },
+      {
+        "first": false,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 60,
+        "sender": "me",
+        "seq": 2
+      }
+    ],
+    "name": "sender-change",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 300,
+        "sender": "chief",
+        "seq": 2
+      }
+    ],
+    "name": "run-gap-edge",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 299.99899995326996,
+        "sender": "chief",
+        "seq": 2
+      }
+    ],
+    "name": "within-run",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": false,
+        "timestamp": true
+      },
+      {
+        "first": false,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 3600,
+        "sender": "chief",
+        "seq": 2
+      }
+    ],
+    "name": "hour-edge",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": true
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 3599.99899995327,
+        "sender": "chief",
+        "seq": 2
+      }
+    ],
+    "name": "before-hour",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": "a",
+        "seconds": 60,
+        "sender": "chief",
+        "seq": 2
+      }
+    ],
+    "name": "reply-break",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 1
+      }
+    ],
+    "name": "working-chief",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": false,
+        "timestamp": true
+      }
+    ],
+    "typing": [
+      "chief"
+    ]
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 0,
+        "sender": "me",
+        "seq": 1
+      }
+    ],
+    "name": "working-other",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      }
+    ],
+    "typing": [
+      "chief"
+    ]
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 60,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 2
+      }
+    ],
+    "name": "server-clock-back",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": false,
+        "timestamp": true
+      },
+      {
+        "first": false,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": "c",
+        "failed": false,
+        "id": "local:c",
+        "reply": null,
+        "seconds": 2,
+        "sender": "me",
+        "seq": null
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 3,
+        "sender": "chief",
+        "seq": 2
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 1,
+        "sender": "chief",
+        "seq": 1
+      }
+    ],
+    "name": "in-flight-trails",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": false,
+        "timestamp": true
+      },
+      {
+        "first": false,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      },
+      {
+        "first": true,
+        "id": "local:c",
+        "key": "c:c",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {
+      "local:c": 1
+    },
+    "input": [
+      {
+        "client": "c",
+        "failed": true,
+        "id": "local:c",
+        "reply": null,
+        "seconds": 100,
+        "sender": "me",
+        "seq": null
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 0,
+        "sender": "chief",
+        "seq": 2
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 500,
+        "sender": "chief",
+        "seq": 1
+      }
+    ],
+    "name": "failed-anchor-beats-clock",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "local:c",
+        "key": "c:c",
+        "last": true,
+        "timestamp": false
+      },
+      {
+        "first": true,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {
+      "local:c": 0
+    },
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 1,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": "c",
+        "failed": true,
+        "id": "local:c",
+        "reply": null,
+        "seconds": 100,
+        "sender": "me",
+        "seq": null
+      }
+    ],
+    "name": "failed-zero-anchor",
+    "rows": [
+      {
+        "first": true,
+        "id": "local:c",
+        "key": "c:c",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 1,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 3,
+        "sender": "chief",
+        "seq": 2
+      },
+      {
+        "client": "c",
+        "failed": true,
+        "id": "local:c",
+        "reply": null,
+        "seconds": 2,
+        "sender": "me",
+        "seq": null
+      }
+    ],
+    "name": "failed-time-fallback",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "local:c",
+        "key": "c:c",
+        "last": true,
+        "timestamp": false
+      },
+      {
+        "first": true,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {
+      "local:f": 1
+    },
+    "input": [
+      {
+        "client": "f",
+        "failed": true,
+        "id": "local:f",
+        "reply": null,
+        "seconds": 20,
+        "sender": "me",
+        "seq": null
+      },
+      {
+        "client": "c",
+        "failed": false,
+        "id": "local:c",
+        "reply": null,
+        "seconds": 2,
+        "sender": "me",
+        "seq": null
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 3,
+        "sender": "chief",
+        "seq": 2
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 1,
+        "sender": "chief",
+        "seq": 1
+      }
+    ],
+    "name": "failed-and-flight",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "local:f",
+        "key": "c:f",
+        "last": true,
+        "timestamp": false
+      },
+      {
+        "first": true,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      },
+      {
+        "first": true,
+        "id": "local:c",
+        "key": "c:c",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {
+      "local:f1": 1,
+      "local:f2": 1
+    },
+    "input": [
+      {
+        "client": null,
+        "failed": false,
+        "id": "a",
+        "reply": null,
+        "seconds": 1,
+        "sender": "chief",
+        "seq": 1
+      },
+      {
+        "client": null,
+        "failed": false,
+        "id": "b",
+        "reply": null,
+        "seconds": 4,
+        "sender": "chief",
+        "seq": 2
+      },
+      {
+        "client": "f1",
+        "failed": true,
+        "id": "local:f1",
+        "reply": null,
+        "seconds": 2,
+        "sender": "me",
+        "seq": null
+      },
+      {
+        "client": "f2",
+        "failed": true,
+        "id": "local:f2",
+        "reply": null,
+        "seconds": 3,
+        "sender": "me",
+        "seq": null
+      }
+    ],
+    "name": "same-anchor-failures",
+    "rows": [
+      {
+        "first": true,
+        "id": "a",
+        "key": "s:a",
+        "last": true,
+        "timestamp": true
+      },
+      {
+        "first": true,
+        "id": "local:f2",
+        "key": "c:f2",
+        "last": true,
+        "timestamp": false
+      },
+      {
+        "first": false,
+        "id": "local:f1",
+        "key": "c:f1",
+        "last": true,
+        "timestamp": false
+      },
+      {
+        "first": true,
+        "id": "b",
+        "key": "s:b",
+        "last": true,
+        "timestamp": false
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": "same-client",
+        "failed": false,
+        "id": "server",
+        "reply": null,
+        "seconds": 1,
+        "sender": "me",
+        "seq": 1
+      }
+    ],
+    "name": "local-acked-row-id",
+    "rows": [
+      {
+        "first": true,
+        "id": "server",
+        "key": "c:same-client",
+        "last": true,
+        "timestamp": true
+      }
+    ],
+    "typing": []
+  },
+  {
+    "anchors": {},
+    "input": [
+      {
+        "client": "same-client",
+        "failed": false,
+        "id": "local:same-client",
+        "reply": null,
+        "seconds": 1,
+        "sender": "me",
+        "seq": null
+      }
+    ],
+    "name": "local-pending-row-id",
+    "rows": [
+      {
+        "first": true,
+        "id": "local:same-client",
+        "key": "c:same-client",
+        "last": true,
+        "timestamp": true
+      }
+    ],
+    "typing": []
+  }
+]

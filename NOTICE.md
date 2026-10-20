@@ -12,6 +12,11 @@ and `ChiefConversationBackend.swift` at that same revision. The unmodified
 ChiefAvatar.png is copied from CmuxMobileShellUI's ChiefAvatar imageset.
 The manifest records those behavior and artwork hashes separately from the
 wire-model sources executed by the reference checker.
+Transcript ordering, stable row identity, grouping and separator/quote presentation
+also follow ConversationStore.swift, ConversationModel.swift,
+ConversationRunPlan.swift, ConversationRows.swift and ConversationCells.swift in
+CmuxConversation at that revision. Selected English/Japanese timestamp strings
+are copied from its UI catalog; scoped hashes are in the same manifest.
 
 Selected static UI translations are copied verbatim from the CMUXMobileCore,
 CmuxAgentChatUI, CmuxMobileChanges and CmuxMobileShellUI localization catalogs at

@@ -23,7 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +37,11 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.Instant
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.text.SimpleDateFormat
+import java.util.Date
 
 private val chiefAccent = Color(0xFF76B9FF)
 private val chiefMuted = Color(0xFF9B9FA8)
@@ -55,6 +65,40 @@ internal fun NativeChiefView(computer: NativeChiefComputerSession, active: Boole
 @Composable
 private fun ChiefAvatar(modifier: Modifier = Modifier) {
     Image(painterResource(R.drawable.chief_avatar), null, modifier.clip(CircleShape).background(Color(0xFF25282E)).padding(4.dp))
+}
+
+@Composable
+private fun ChiefTimestamp(at: Instant, tag: String) {
+    val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
+    val zone = ZoneId.systemDefault()
+    val day = at.atZone(zone).toLocalDate()
+    val today = Instant.now().atZone(zone).toLocalDate()
+    val age = ChronoUnit.DAYS.between(day, today)
+    val date = Date.from(at)
+    val label = when (age) {
+        0L -> stringResource(R.string.chief_timestamp_today)
+        1L -> stringResource(R.string.chief_timestamp_yesterday)
+        else -> {
+            val skeleton = if (age < 7) "EEEE" else "EEEMMMd"
+            val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton)
+            remember(date, locale, pattern, zone) { SimpleDateFormat(pattern, locale).format(date) }
+        }
+    }
+    val time = android.text.format.DateFormat.getTimeFormat(context).format(date)
+    val format = if (age >= 7) stringResource(R.string.chief_timestamp_date_at_time) else "%1\$s %2\$s"
+    val marker = "\u0001"
+    val template = String.format(locale, format, marker, time)
+    val position = template.indexOf(marker)
+    val timestamp = buildAnnotatedString {
+        if (position < 0) append(template) else {
+            append(template.substring(0, position))
+            val start = length; append(label); addStyle(SpanStyle(fontWeight = FontWeight.SemiBold), start, length)
+            append(template.substring(position + 1))
+        }
+    }
+    Text(timestamp, Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp).testTag(tag),
+        color = chiefMuted, style = MaterialTheme.typography.labelSmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
 }
 
 @Composable
@@ -99,7 +143,7 @@ private fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier: 
                 }
                 val recent = rows.filter { it.id != pinned?.id }
                 if (pinned != null && pinned in rows && recent.isEmpty()) item {
-                    Column(Modifier.fillMaxWidth().heightIn(min = 300.dp).padding(24.dp).testTag("ChiefPinnedOnlyInvitation"),
+                    Column(Modifier.fillMaxWidth().height(480.dp).padding(24.dp).testTag("ChiefPinnedOnlyInvitation"),
                         verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Chief is ready when you are", style = MaterialTheme.typography.titleMedium)
                         Text("Start a conversation from Chief on your Mac. New messages will appear here.", color = chiefMuted)
@@ -112,7 +156,14 @@ private fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier: 
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ChiefAvatar(Modifier.size(45.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(conversation.title, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(conversation.title, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                if (conversation.updatedAt.epochSecond != -62135769600L) Text(
+                                    android.text.format.DateUtils.getRelativeTimeSpanString(conversation.updatedAt.toEpochMilli(),
+                                        System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS,
+                                        android.text.format.DateUtils.FORMAT_ABBREV_RELATIVE).toString(), color = chiefMuted,
+                                    style = MaterialTheme.typography.labelSmall)
+                            }
                             Text(conversation.preview.ifEmpty { "No messages yet" }, color = chiefMuted, maxLines = 2)
                             if (conversation.working) Text("Working", color = chiefAccent)
                         }
@@ -141,15 +192,16 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     var answerMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val displayedQuestion = answerMessage?.let { id -> state.messages.singleOrNull { it.id == id } }
         ?.let(NativeChiefPresentation::pendingPart)?.question
-    val currentState by rememberUpdatedState(state)
+    val timeline = remember(state.messages, state.outgoing, state.localClientIds, state.working) { NativeChiefTimeline.rows(state) }
+    val currentTimeline by rememberUpdatedState(timeline)
     val atBottom = !list.canScrollForward
     LaunchedEffect(state.messages.lastOrNull()?.id, state.outgoing.lastOrNull()?.clientMessageId) {
         if (atBottom && list.layoutInfo.totalItemsCount > 0) list.scrollToItem(list.layoutInfo.totalItemsCount - 1)
     }
     LaunchedEffect(session, list, state.connected) {
         if (state.connected) snapshotFlow { list.layoutInfo.visibleItemsInfo.map { it.key } }.collect { keys ->
-            val visible = keys.filterIsInstance<String>().filter { it.startsWith("message:") }.map { it.removePrefix("message:") }.toSet()
-            currentState.messages.filter { it.id in visible }.maxOfOrNull { it.seq }?.let {
+            val visible = keys.filterIsInstance<String>().toSet()
+            currentTimeline.filter { it.item.key in visible }.mapNotNull { it.item.seq }.maxOrNull()?.let {
                 try { session.markRead(it) } catch (error: Exception) { currentCoroutineContext().ensureActive() }
             }
         }
@@ -160,10 +212,14 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             TextButton(onClick = onBack) { Text("‹  Home") }
             ChiefAvatar(Modifier.size(36.dp))
             Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                Text(conversation.title, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
-                Text("Runs your agents on your Mac", color = chiefMuted, style = MaterialTheme.typography.labelSmall)
+                Text(conversation.title, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() },
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text("Runs your agents on your Mac", color = chiefMuted, style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
-            TextButton(onClick = { act { session.stop() } }, enabled = "stop" !in state.deciding) { Text("Stop Chief") }
+            IconButton(onClick = { act { session.stop() } }, enabled = "stop" !in state.deciding) {
+                Icon(painterResource(R.drawable.ic_chief_stop), "Stop Chief", tint = chiefAccent)
+            }
         }
         state.error?.let { error -> Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(error, Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
@@ -172,57 +228,71 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         actionError?.let { Text(it, Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.error) }
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("ChiefMessages"), state = list,
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
             if (state.hasMore) item(key = "older") {
                 TextButton(onClick = { act { session.loadOlder() } }, enabled = !state.loadingOlder) {
                     Text(if (state.loadingOlder) "Loading earlier messages…" else "Earlier messages")
                 }
             }
-            items(state.messages, key = { "message:${it.id}" }) { message ->
-                val part = NativeChiefPresentation.pendingPart(message)
-                val actionable = message.id !in state.deciding && message.id !in state.committed
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = if (message.authorKind == "human") Alignment.End else Alignment.Start) {
-                    Text(message.author.ifEmpty { message.authorId }, color = chiefMuted, style = MaterialTheme.typography.labelSmall)
-                    Surface(shape = RoundedCornerShape(18.dp), color = if (message.authorKind == "human") Color(0xFF164D83) else Color(0xFF272B32),
-                        modifier = Modifier.widthIn(max = 560.dp).testTag("ChiefMessage:${message.id}")) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SelectionContainer { AgentFeedMarkdownText(NativeChiefPresentation.receipt(message)
-                                ?: NativeChiefPresentation.displayText(message), fontSize = 16) }
-                            part?.approval?.let { approval ->
-                                Text(approval.prompt, fontWeight = FontWeight.SemiBold)
-                                approval.options.filterNot { it.startsWith("always:") }.forEach { choice ->
-                                    OutlinedButton(onClick = { act { session.approve(message.id, choice) } }, enabled = actionable,
-                                        modifier = Modifier.testTag("ChiefApprove:${message.id}:$choice")) { Text(choice) }
+            items(timeline, key = { it.item.key }) { row ->
+                Column(Modifier.fillMaxWidth().testTag("ChiefRow:${row.item.key}")
+                    .padding(top = if (row.timestamp) 0.dp else if (row.firstInRun) 10.dp else 4.dp)) {
+                    if (row.timestamp) ChiefTimestamp(row.item.at, "ChiefTimestamp:${row.item.key}")
+                    val message = row.item.message
+                    if (message != null) {
+                        val part = NativeChiefPresentation.pendingPart(message)
+                        val actionable = message.id !in state.deciding && message.id !in state.committed
+                        Column(Modifier.fillMaxWidth(), horizontalAlignment = if (message.authorKind == "human") Alignment.End else Alignment.Start) {
+                            Surface(shape = RoundedCornerShape(20.dp), color = if (message.authorKind == "human") Color(0xFF0284FE) else Color(0xFF272B32),
+                                modifier = Modifier.widthIn(max = 560.dp).testTag("ChiefMessage:${message.id}")) {
+                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    row.quote?.let { quoted ->
+                                        Row(Modifier.fillMaxWidth().testTag("ChiefQuote:${message.id}").height(IntrinsicSize.Min)) {
+                                            Box(Modifier.width(3.dp).fillMaxHeight().background(chiefAccent))
+                                            SelectionContainer { AgentFeedMarkdownText(NativeChiefPresentation.receipt(quoted)
+                                                ?: NativeChiefPresentation.displayText(quoted), Modifier.padding(start = 8.dp),
+                                                color = chiefMuted, lineLimit = 3) }
+                                        }
+                                    }
+                                    SelectionContainer { AgentFeedMarkdownText(NativeChiefPresentation.receipt(message)
+                                        ?: NativeChiefPresentation.displayText(message), fontSize = 16) }
+                                    part?.approval?.let { approval ->
+                                        Text(approval.prompt, fontWeight = FontWeight.SemiBold)
+                                        approval.options.filterNot { it.startsWith("always:") }.forEach { choice ->
+                                            OutlinedButton(onClick = { act { session.approve(message.id, choice) } }, enabled = actionable,
+                                                modifier = Modifier.testTag("ChiefApprove:${message.id}:$choice")) { Text(choice) }
+                                        }
+                                    }
+                                    part?.question?.let { question ->
+                                        val compact = NativeChiefPresentation.compactQuestion(question)
+                                        if (compact == null) OutlinedButton(onClick = { answerMessage = message.id }, enabled = actionable,
+                                            modifier = Modifier.testTag("ChiefAnswer:${message.id}")) { Text("Answer questions") }
+                                        else compact.options.forEach { option ->
+                                            OutlinedButton(onClick = { act { session.answer(message.id,
+                                                NativeChiefQuestionForm(question).toggle(compact.id, option.id)) } }, enabled = actionable) { Text(option.label) }
+                                        }
+                                    }
+                                    if (message.id in state.committed) Text("Answer sent. Waiting for your Mac…", color = chiefMuted)
+                                    state.actionErrors[message.id]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                                 }
                             }
-                            part?.question?.let { question ->
-                                val compact = NativeChiefPresentation.compactQuestion(question)
-                                if (compact == null) OutlinedButton(onClick = { answerMessage = message.id }, enabled = actionable,
-                                    modifier = Modifier.testTag("ChiefAnswer:${message.id}")) { Text("Answer questions") }
-                                else compact.options.forEach { option ->
-                                    OutlinedButton(onClick = { act { session.answer(message.id,
-                                        NativeChiefQuestionForm(question).toggle(compact.id, option.id)) } }, enabled = actionable) { Text(option.label) }
-                                }
-                            }
-                            if (message.id in state.committed) Text("Answer sent. Waiting for your Mac…", color = chiefMuted)
-                            state.actionErrors[message.id]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        }
+                    } else {
+                        val outgoing = checkNotNull(row.item.outgoing)
+                        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+                            Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF0284FE)) { SelectionContainer {
+                                Text(outgoing.text, Modifier.padding(12.dp))
+                            } }
+                            Text(when (outgoing.delivery) {
+                                NativeChiefDelivery.SENDING -> "Sending…"
+                                NativeChiefDelivery.QUEUED -> "Queued"
+                                NativeChiefDelivery.SENT -> "Sent"
+                                NativeChiefDelivery.UNCONFIRMED -> "Delivery unconfirmed"
+                                NativeChiefDelivery.REJECTED -> "Not sent"
+                            }, color = chiefMuted, style = MaterialTheme.typography.labelSmall)
+                            outgoing.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         }
                     }
-                }
-            }
-            items(state.outgoing, key = { "outgoing:${it.clientMessageId}" }) { outgoing ->
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
-                    Surface(shape = RoundedCornerShape(18.dp), color = Color(0xFF164D83)) { SelectionContainer {
-                        Text(outgoing.text, Modifier.padding(12.dp))
-                    } }
-                    Text(when (outgoing.delivery) {
-                        NativeChiefDelivery.SENDING -> "Sending…"
-                        NativeChiefDelivery.QUEUED -> "Queued"
-                        NativeChiefDelivery.SENT -> "Sent"
-                        NativeChiefDelivery.UNCONFIRMED -> "Delivery unconfirmed"
-                        NativeChiefDelivery.REJECTED -> "Not sent"
-                    }, color = chiefMuted, style = MaterialTheme.typography.labelSmall)
-                    outgoing.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             }
             if (state.working) item(key = "working") { Text("Chief is working…", color = chiefAccent) }
