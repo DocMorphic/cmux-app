@@ -225,6 +225,41 @@ class NativeChiefRuntimeTest {
         bitmap.recycle()
     }
 
+    @Test fun chiefBodiesQuotesAndPendingEchoesPreserveLiteralTextAndDetectedLinks() {
+        val literal = "**Literal stars** `code` [Label](https://example.com)"
+        val draft = "__Keep this__ <tag> https://example.org/a"
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread {
+            api.rows = listOf(message("literal", 1uL, literal),
+                message("reply", 2uL, "A literal reply").copy(threadRoot = "literal"))
+            api.sendGate = gate
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(literal).fetchSemanticsNodes().size == 2 }
+        compose.onAllNodesWithText(literal).assertCountEquals(2)
+        compose.onNodeWithTag("ChiefComposer").performTextInput(draft)
+        tapSendWhenReady()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        compose.onNodeWithText(draft).assertExists()
+        compose.runOnUiThread { gate.complete(Unit) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:echo").fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodesWithText(draft).assertCountEquals(1)
+        assertEquals(draft, api.sends.single().first)
+
+        // Exercise Android's real detector and the exact UTF-16 ranges carried by production Text.
+        val source = "🙂 **bold** [Label](https://example.com/path) mail a@example.org or +1 650-253-0000"
+        val opened = mutableListOf<String>()
+        val annotated = nativeChiefDetectedText(source, opened::add)
+        assertEquals(source, annotated.text)
+        val links = annotated.getLinkAnnotations(0, annotated.length)
+        val web = links.single { (it.item as? androidx.compose.ui.text.LinkAnnotation.Url)?.url == "https://example.com/path" }
+        assertEquals("https://example.com/path", source.substring(web.start, web.end))
+        assertTrue(links.any { (it.item as? androidx.compose.ui.text.LinkAnnotation.Url)?.url == "mailto:a@example.org" })
+        assertTrue(links.any { (it.item as? androidx.compose.ui.text.LinkAnnotation.Url)?.url?.startsWith("tel:") == true })
+        web.item.linkInteractionListener?.onClick(web.item)
+        assertEquals(listOf("https://example.com/path"), opened)
+    }
+
     @Test fun enlargedTextKeepsChiefHeaderAndComposerUsable() {
         compose.runOnUiThread { testFontScale = 2f }
         compose.onNodeWithTag("ChiefPinnedConversation").performScrollTo().performClick()

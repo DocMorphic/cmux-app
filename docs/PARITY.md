@@ -1,5 +1,24 @@
 # Android parity tracker
 
+## Chief reference and literal text checkpoint — 2026-10-21
+
+Actual UIKit reference run `39513912473` at project `e431401c` passed both standard
+and actual-system accessibility captures. All nine PNG/metadata pairs were
+independently verified and visually inspected; the accessibility body labels
+are 28 points. This is an accepted offline reference batch, not a matched Android
+or real-host pass. See CHIEF.md for source/artifact provenance and remaining
+visible differences.
+
+Android Chief bodies, loaded-parent quotes and pending sends now retain literal
+markup and use Android-native web/email/telephone link detection. A held-send
+case verifies pending-to-echo content and native UTF-16 link ranges/actions.
+All 14 Chief production composition cases pass in 30.684 s; debug/test assembly
+and the guarded Swift wire reference pass, and the crash buffer is empty.
+The owned emulator was stopped. Source date/address actions, detector equivalence
+and exact underline rendering remain open. This work postdates signed candidate
+705 and has not been installed on the Pixel. Global implemented/reviewed pins
+remain unchanged; full parity remains open.
+
 ## Full-parity pursuit and current-source inventory — 2026-10-20
 
 The owner requested a persistent goal to finish full feature and UI parity. The

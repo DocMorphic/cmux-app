@@ -114,23 +114,32 @@ fixture/source hashes, clean project commit and matching pixel dimensions.
 The generated Xcode project and scheme parse, both Swift inputs parse, and six
 integrity checks pass. These are not UIKit typechecking or rendering evidence.
 The current local developer directory contains only command-line tools; full
-Xcode and an iOS runtime were not found. Hosted compilation/capture, artifact
-inspection and matched Android scenes remain required. This does not update
+Xcode and an iOS runtime were not found. Hosted compilation/capture and artifact
+inspection have now passed; matched Android scenes remain required. This does not update
 global implemented/reviewed pins or claim complete review of the reference tree.
 First reference run `39510100505` at project source `b4606b9e` failed in the
 generated test target: it also compiled x86_64 while SwiftPM supplied active ARM
 simulator modules. The project now sets `ONLY_ACTIVE_ARCH = YES`, matching the
 selected destination and leaving the pinned package unchanged. A fresh generated
-project parses; hosted typechecking/capture still must pass before any reference
-image is accepted.
+project parses; the later successful run below supplies the rendering evidence.
 Follow-up `39511521895` at `3b2cfc4a` compiled and rendered all nine scenes, but
 failed the accessibility-font guard. The captured 402×874 @3x scene still had
 17-point body text. The host now uses separate standard/accessibility invocations
 with the simulator's actual system content size rather than a controller-only
 trait override. Native application category and ≥28-point accessibility body
 fonts are required in the test and exported metadata. The six integrity checks
-include rejecting a mislabeled 17-point accessibility capture. No batch is
-accepted until both hosted invocations and all nine scene checks pass.
+include rejecting a mislabeled 17-point accessibility capture.
+Run `39513912473` at `e431401c2279e7b7423d4439bffea187b9e46f4d` passed
+both invocations and export. Artifact `12307880734` was downloaded, hash-verified
+and independently revalidated; all nine images were inspected. The accessibility
+scene is 402×874 @3x with actual application category AccessibilityM and two
+28-point body labels. The source/fixture/PNG receipt is under
+`captures/recovery-20261021/ios-chief-reference/verified-e431401c/`.
+This accepts the offline UIKit reference batch, not matched Android or physical
+acceptance. Observed differences include the portrait header, empty composer,
+run-tail shape, original-sender quote outline/connector, failed-send badge and
+poll styling. The single-emoji scene is large and unbubbled; its two emoji
+separated by a space remain in a normal bubble. Preserve that actual distinction.
 
 Evidence is ignored under `captures/recovery-20261020/`:
 
@@ -241,8 +250,7 @@ Evidence is ignored under `captures/recovery-20261020/`:
 
 This is an initial mounted implementation, not Chief parity acceptance. Finish
 exact bubble/tail/drawer geometry and colors, thread/reply interactions,
-literal message rendering (Chief's backend passes text without Markdown runs;
-the current Android bubble/quote still uses the Agent Feed Markdown renderer),
+remaining detected-item behavior (including source address/date actions),
 fling-target history prefetch, remaining localization
 and TalkBack. Deeper uncertainty recovery, new-visit positioning and remaining scroll/keyboard behavior also
 remain open. Verify cold process and connection replacement restoration and
@@ -263,6 +271,31 @@ Mac run 39493457582 failed in the pinned CLI initializer. The exact guarded leaf
 fix reproduces that failure and passes locally; follow-up 39498469545 at project
 source `d8f268b7`, upstream `a5911a1f`, succeeded. Its archive was independently
 verified and launched; current runtime checks are pending manual Mac unlock.
-The actual UIKit reference follow-up is `39511521895` at `3b2cfc4a`, after the
-first reference run failed the generated host's extra-architecture import.
-It has not yet supplied accepted images; do not redispatch while it is active.
+The actual UIKit reference batch is now accepted at run `39513912473`, as scoped
+above. Earlier failed runs remain retained as diagnostics.
+
+Chief message bodies, loaded-parent quote text and local pending messages now
+preserve literal Markdown/HTML characters. The source backend supplies no rich
+text runs, and `MessageCellLayout.buildAttributedBody` begins with verbatim text;
+the literal UIKit scene independently demonstrates this behavior. The Android
+Chief renderer no longer uses the Agent Feed Markdown parser for those rows.
+It underlines detected web/email/telephone links without replacing the message
+text or recoloring outgoing links. Web/email taps use the system handler and
+telephone taps open the dialer. Android's native detector supplies ranges, so
+equivalence to all Apple date/address/phone/locale detection is still open;
+source date/address actions and translucent underline fidelity remain pending.
+Question option previews retain their existing format-specific renderer.
+Both relevant source files are pinned as behavior references; this does not
+claim a complete semantic review of either file.
+
+Main and instrumentation APK assembly passed. All **14 Chief production
+composition cases pass in 30.684 s** on the disposable API 36 ARM64 emulator,
+including literal body/quote content, a held pending send and its echo, exact
+Unicode link ranges, email/telephone detection and an injected URL callback. The
+crash buffer is empty and the owned emulator was stopped. The source checker
+also verifies the two additional pins and executes 21 models, nine requests and
+eight question cases. Evidence is under `captures/recovery-20261021/` with the
+`chief-literal-` prefix. This source/debug batch postdates signed candidate 705;
+it is not installed on the Pixel and does not establish matched visual or
+physical acceptance. The preceding 3,015-pass/four-skip JVM result is historical
+and was not rerun for this Android-native text-only change.

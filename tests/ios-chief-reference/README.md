@@ -48,3 +48,13 @@ size before each. Tests require the application category to match and the
 accessibility body font to reach the source's 28-point threshold. The exporter
 also rejects mislabeled or ordinary-size accessibility captures. All nine scenes
 remain required; no reference batch is accepted until both invocations pass.
+
+Run `39513912473` at project `e431401c2279e7b7423d4439bffea187b9e46f4d`
+passed both hosted invocations and export. Its nine PNG/metadata pairs were
+independently verified after download and all nine images inspected locally.
+The accessibility scene reports the real `UICTContentSizeCategoryAccessibilityM`
+application category and two 28-point body labels at 402×874 @3x. The artifact
+is `12307880734`, outer SHA-256
+`c8cf04f878ddc63372028f99c5d200b8a43edbc5894d1a739658d53571fa1a54`.
+This accepts the offline UIKit reference batch; matched Android comparison,
+interactions, transport and physical-device acceptance remain separate gates.

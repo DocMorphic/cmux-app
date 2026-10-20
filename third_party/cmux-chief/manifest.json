@@ -12,6 +12,8 @@
     "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/Wire/ChatWireCoding.swift": "ce30c085b74292a69f9c6418b7414179bb385062c6a048f4cf02367a9fd14ddb"
   },
   "behaviorFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/MessageCellLayout.swift": "95ae1cc47cb17e25c0b8ae739e105029d5f65b109faa5b516c93897abdeb36bc",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationLinkPreview.swift": "c121d69083d25c880fa93b7e37e0078e4b329f61739ffa0cf88b8e59f08b809c",
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefHomeView.swift": "a52aa435572007905dec6ebcbe27d718bb0b363a6c8a823fead044732e1d449f",
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift": "bc7e624230704182753a7ec42ac5d0db4b27c4e403f9d299c25b26acfadd8f61",
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/WorkspaceShellView.swift": "71f801385edf5fac576f64645148d5d2e94a04af52e40a9cd91508033190acdf",

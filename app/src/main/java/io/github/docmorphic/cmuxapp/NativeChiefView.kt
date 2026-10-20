@@ -396,12 +396,12 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, state: NativeChiefTr
                                     row.quote?.let { quoted ->
                                         Row(Modifier.fillMaxWidth().testTag("ChiefQuote:${message.id}").height(IntrinsicSize.Min)) {
                                             Box(Modifier.width(3.dp).fillMaxHeight().background(chiefAccent))
-                                            SelectionContainer { AgentFeedMarkdownText(NativeChiefPresentation.receipt(quoted)
+                                            SelectionContainer { NativeChiefText(NativeChiefPresentation.receipt(quoted)
                                                 ?: NativeChiefPresentation.displayText(quoted), Modifier.padding(start = 8.dp),
                                                 color = chiefMuted, lineLimit = 3) }
                                         }
                                     }
-                                    SelectionContainer { AgentFeedMarkdownText(NativeChiefPresentation.receipt(message)
+                                    SelectionContainer { NativeChiefText(NativeChiefPresentation.receipt(message)
                                         ?: NativeChiefPresentation.displayText(message), fontSize = 16) }
                                     part?.approval?.let { approval ->
                                         Text(approval.prompt, fontWeight = FontWeight.SemiBold)
@@ -427,7 +427,7 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, state: NativeChiefTr
                         val outgoing = checkNotNull(row.item.outgoing)
                         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
                             Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF0284FE)) { SelectionContainer {
-                                Text(outgoing.text, Modifier.padding(12.dp))
+                                NativeChiefText(outgoing.text, Modifier.padding(12.dp), fontSize = 16)
                             } }
                             Text(when (outgoing.delivery) {
                                 NativeChiefDelivery.SENDING -> "Sending…"

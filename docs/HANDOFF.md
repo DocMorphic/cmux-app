@@ -11,15 +11,15 @@ the unmodified 227-file conversation package at the Chief audit revision and
 captures nine offline scenes plus visible-label/font metadata. Source-tree,
 fixture and project-commit guards and PNG hash/dimension pairing fail closed;
 six integrity checks pass, and the generated project/scheme and Swift inputs
-parse locally. Hosted UIKit compilation/rendering now execute, but reference
-batch acceptance remains open. Current
+parse locally. Hosted UIKit compilation/rendering and offline reference-batch
+acceptance have now passed. Current
 inspection finds only `/Library/Developer/CommandLineTools`; full Xcode and an
 iOS runtime are absent from this Mac. Older Xcode/license observations below
 are historical and do not describe this current prerequisite. Use the hosted
 reference workflow; do not infer a rendered pass from the local parser checks.
 The source tree pin is an executable reference dependency, not full semantic
-review. See CHIEF.md and the fixture README. Android production source and
-the prepared signed candidate are unchanged by this reference infrastructure.
+review. See CHIEF.md and the fixture README. The prepared signed candidate is
+unchanged by this reference infrastructure.
 First reference run `39510100505` failed because the generated test target also
 requested x86_64 while SwiftPM built ARM-only simulator modules. The corrected
 project uses the active destination architecture. Follow-up `39511521895` at
@@ -28,9 +28,26 @@ the accessibility-font guard: captured body fonts were still 17 points. A
 controller-only trait override was insufficient. The corrected workflow now sets
 the disposable simulator's actual content size and runs standard/accessibility
 cases separately. Tests and export require native category agreement and actual
-≥28-point accessibility body type. Both runs and all nine scenes remain required;
-no reference batch is accepted yet. Check the explicit follow-up receipt under
-`captures/recovery-20261021/ios-chief-reference/` before dispatching again.
+≥28-point accessibility body type. Run `39513912473`, project
+`e431401c2279e7b7423d4439bffea187b9e46f4d`, passed both invocations and all nine
+scene checks. Artifact `12307880734` SHA-256
+`c8cf04f878ddc63372028f99c5d200b8a43edbc5894d1a739658d53571fa1a54`
+was independently verified, re-export validated and all nine images inspected.
+The AccessibilityM scene has two actual 28-point body labels. Canonical verified
+images and receipt are under
+`captures/recovery-20261021/ios-chief-reference/verified-e431401c/`.
+This accepts the offline reference batch; matched Android, interaction, transport
+and physical-device gates remain open. No duplicate reference dispatch is needed.
+
+Android Chief bodies, parent quotes and local pending rows now retain literal
+markup using a dedicated plain-text renderer with Android web/email/phone
+detection. Agent Feed and format-specific question previews retain their own
+renderer. All 14 production Chief runtime cases pass in 30.684 s, with an empty
+crash buffer; debug/test APK assembly and the source wire checker pass. The
+owned emulator was stopped. Source date/address actions, underline opacity and
+cross-platform detector equivalence remain open. This change is newer than
+prepared signed candidate 705 and has not been installed on the Pixel. See
+CHIEF.md for the exact evidence and limits.
 
 Chief now has an initial mounted Home/transcript/question workflow at the frozen
 Oct 20 audit candidate, behind complete host capability and exact foreground

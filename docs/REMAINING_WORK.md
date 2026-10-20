@@ -10,6 +10,16 @@ Chief-capable replacement is now launched with saved workspace IDs and stored
 phone enrollment retained; account/capability, menu and live helper checks are
 pending manual Mac unlock. Full parity and the completion gates remain open.
 
+The actual UIKit offline reference batch now passes at `39513912473` /
+`e431401c`; all nine downloaded PNG/metadata pairs were independently verified
+and inspected, including actual 28-point accessibility body text. This supplies
+source visuals for comparison, not Android or physical acceptance. Android
+Chief bodies/quotes/pending rows now preserve literal markup and detected
+web/email/phone links; 14 Chief runtime cases pass (30.684 s), with an empty
+crash buffer. Source date/address actions and detector/underline fidelity remain
+open. Both changes are newer than signed candidate 705. Full run-tail, quote,
+header, composer, failed badge and poll presentation comparisons remain open.
+
 ## Current native delivery checkpoint — 2026-10-13
 
 The corrected Mac sign-in build **38433167598 / 06b0e294** passed and is now
