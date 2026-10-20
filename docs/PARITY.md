@@ -16,8 +16,9 @@ are under `captures/source-audit-20261020/`.
 The current source also mounts Chief conversations in `WorkspaceShellView` when
 the Mac advertises support, through `ChiefHomeView`, `MobileChiefClient` and
 `ChiefConversationBackend`. This is an additional open Android feature family;
-the existing Agent Feed does not establish its parity. The installed custom Mac
-does not advertise Chief methods in its capabilities. Port the account/host
+the existing Agent Feed does not establish its parity. The verified newer custom
+Mac now registers Chief methods on its local socket; authenticated mobile
+capability and request checks are pending Mac unlock. Port the account/host
 ownership, conversation list/search/history, send/events/recovery, transcript
 rendering and navigation contracts, and validate against a supporting host.
 
@@ -49,11 +50,16 @@ The retained transcript now serializes send/retry work through the preceding
 acknowledgment/read, without tying admitted work to a view's waiter. Four new
 session regressions and nine production Chief Android cases pass, including
 Back/reopen during a held send and a second ordered message. Exact scope and
-receipts are in CHIEF.md. A Chief-capable Mac build is active at run 39493457582;
-the running verified host still lacks Chief. That first build failed in the pinned
-CLI initializer; the guarded correction has red/green leaf proof and follow-up
-39498469545 is in full tagged compilation. No live-host gate is closed by CI
-preparation or a fixture.
+receipts are in CHIEF.md. First Mac build 39493457582 failed in the pinned CLI
+initializer. The guarded red/green correction's follow-up 39498469545 succeeded,
+was independently source/archive/signature verified and is now launched. Both
+saved workspace IDs remain; a new Home workspace makes three. Configuration and
+sender descriptor hashes are unchanged, and a checked offline registry snapshot
+retains one active phone registration, zero retired. The Mac is locked; UI/account
+checks await manual unlock, the first host-status RPC timed out and the private
+helper socket is absent. Local method registration is not authenticated mobile
+Chief or live helper acceptance. See MAC_NOTIFICATION_BUILD.md for exact hashes
+and pending runtime scope.
 
 Foreground read-all, independent unread-backlog catch-up and 50-message ordinary
 history pages are now ported. Sixteen vectors execute the actual Swift store's

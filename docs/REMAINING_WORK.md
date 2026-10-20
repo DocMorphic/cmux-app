@@ -5,8 +5,10 @@ older dated entries below are historical evidence. Signed local 705 is verified
 and awaits a data-preserving Pixel upgrade. Chief's source/debug implementation
 now includes explicit failed-send retry/delete, foreground read/catch-up and
 guarded loaded-window trimming and current-position history prefetch/retry, with details and remaining gates
-in CHIEF.md. The running custom Mac's pairing menu is accepted, but that host
-still does not advertise Chief. Full parity and the completion gates remain open.
+in CHIEF.md. The previous custom Mac's pairing menu is accepted. Its verified
+Chief-capable replacement is now launched with saved workspace IDs and stored
+phone enrollment retained; account/capability, menu and live helper checks are
+pending manual Mac unlock. Full parity and the completion gates remain open.
 
 ## Current native delivery checkpoint — 2026-10-13
 

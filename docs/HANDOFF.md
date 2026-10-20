@@ -19,6 +19,12 @@ reference workflow; do not infer a rendered pass from the local parser checks.
 The source tree pin is an executable reference dependency, not full semantic
 review. See CHIEF.md and the fixture README. Android production source and
 the prepared signed candidate are unchanged by this reference infrastructure.
+First reference run `39510100505` failed because the generated test target also
+requested x86_64 while SwiftPM built ARM-only simulator modules. The corrected
+project uses the active destination architecture. Follow-up `39511521895` at
+`3b2cfc4a0d9174a0b2b96833416db6dc732eba9e` is in actual UIKit compilation/capture;
+revalidate this specific job and do not redispatch while active. No reference
+images have yet been accepted.
 
 Chief now has an initial mounted Home/transcript/question workflow at the frozen
 Oct 20 audit candidate, behind complete host capability and exact foreground
@@ -37,14 +43,13 @@ an inert Chief-only model. Six session regressions cover legacy skew/canonical-i
 races; both exact ids and known sequence watermarks fence text fallback.
 See CHIEF.md for source mapping, exact
 scope, evidence and remaining presentation/lifecycle/real-host gates. This is not
-full Chief acceptance; the current custom Mac does not support Chief. Global
+full Chief acceptance; current real-host capability/runtime checks remain open. Global
 implemented/reviewed pins remain unchanged.
 
 The custom Mac build recipe is now rebased to the Chief-capable `a5911a1f`
 candidate, now with exact 13-source guards and a 30-file patch. Local
 compiled integration, pairing/owner and installer/cache checks pass; see
-MAC_NOTIFICATION_BUILD.md. This has not replaced the running verified `f4b15090`
-host or established Chief runtime acceptance. Full run **39493457582**, source
+MAC_NOTIFICATION_BUILD.md. Full run **39493457582**, source
 `2c6ed4b93c60d425efc17a6d3c97c59ec5900f3d`, passed dependency/integration
 preparation but failed during CLI compilation. The pinned upstream file left
 the command-name Set initializer as an uncalled closure. Its exact source is
@@ -52,10 +57,23 @@ now guarded and the initializer invoked; the new mandatory leaf check reproduces
 the original compiler failure and passes corrected compile/behavior checks.
 The native hook checks and five installer/eight cache checks also pass. A checked
 follow-up **39498469545**, source `d8f268b7cdd41f9fb0223892a90d5392a82b8326`,
-passed its mandatory preparation/integration checks and is in full tagged
-compilation. Revalidate this specific run; do not redispatch while queued/active.
-Artifact and runtime verification remain
-required, and Chief is additionally gated by its host setting. Global mobile
+**succeeded**, with 86m15s of full compilation. Artifact `12304818847` and its
+inner archive were independently verified against the immutable project commit:
+13 pins, 30 patch files, 30 safe relative symlinks, ARM64, production routes and
+strict deep ad-hoc signatures. Inner ZIP SHA-256:
+`ae81998c386684a2d4d800d3e0d69cafe025cd9a8d303e6215a92fca73917f4c`.
+The old custom app quit normally and remains preserved. Tagged preferences and
+session/scrollback files were privately backed up; the verified replacement is
+running from `captures/runtime/mac-companion-39498469545-app/` (observed PID 15059).
+Both original workspace IDs remain, with a new Home workspace bringing the
+count to three. Helper configuration and sender descriptor hashes are unchanged;
+an integrity-checked offline registry snapshot has one active, zero retired
+registrations. Its private owner socket is absent; live helper acceptance stays
+open. The Mac is locked according to computer-use; manual unlock was requested.
+The first `mobile.host.status` RPC timed out after ten seconds. Account/UI,
+pairing menu, Chief capability, terminal and phone/FCM checks await actual runtime
+verification. See the `pending-runtime.json`/`verification.log` receipts under
+`captures/recovery-20261021/mac-chief-39498469545/`. Chief is additionally gated by its host setting. Global mobile
 implemented/reviewed pins remain unchanged.
 
 Chief now has foreground read-all and catch-up behavior, checked against 16

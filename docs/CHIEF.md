@@ -4,7 +4,9 @@ The first Android Chief destination is mounted only when the exact admitted
 foreground Mac advertises all seven required methods. It adds Home and the
 workspace toolbar action, resets to Workspaces when support is lost and keeps
 the existing native account, pairing and foreground-owner admission. The current
-custom Mac at upstream `f4b15090` does not advertise Chief.
+custom Mac has now been replaced by the independently verified Chief-capable
+`a5911a1f` build. Account, capability and UI checks await manual Mac unlock; a
+compiled/started host alone does not establish runtime Chief support.
 
 This scoped port follows cmux `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`.
 `third_party/cmux-chief/manifest.json` pins the client/question source hashes and
@@ -231,12 +233,15 @@ Evidence is ignored under `captures/recovery-20261020/`:
 
 This is an initial mounted implementation, not Chief parity acceptance. Finish
 exact bubble/tail/drawer geometry and colors, thread/reply interactions,
+literal message rendering (Chief's backend passes text without Markdown runs;
+the current Android bubble/quote still uses the Agent Feed Markdown renderer),
 fling-target history prefetch, remaining localization
 and TalkBack. Deeper uncertainty recovery, new-visit positioning and remaining scroll/keyboard behavior also
 remain open. Verify cold process and connection replacement restoration and
 wide-screen navigation. Compare matched iOS states and exercise a supporting
-real Mac with the Pixel. The current custom Mac remains at `f4b15090` without
-Chief, so its successful menu update is not Chief supporting-host evidence.
+real Mac with the Pixel. The verified newer custom host is running with both
+saved workspaces retained, but the Mac is locked. Current account/capability and
+helper/menu checks are pending; no supporting-host acceptance is inferred.
 Local signed candidate 705 includes this mounted port and timeline at clean
 source `6f1d7446`. Its stable signer, native libraries/alignment, viewer assets,
 debug-component exclusion and real Firebase resources passed strict verification.
@@ -248,6 +253,8 @@ validation work, not part of the prepared signed Pixel candidate.
 The send-tail and read/catch-up changes also postdate 705. The first Chief-capable
 Mac run 39493457582 failed in the pinned CLI initializer. The exact guarded leaf
 fix reproduces that failure and passes locally; follow-up 39498469545 at project
-source `d8f268b7`, upstream `a5911a1f`, is in full tagged compilation.
-The running verified host remains `f4b15090`; no capability or live Chief
-acceptance is inferred from an active build.
+source `d8f268b7`, upstream `a5911a1f`, succeeded. Its archive was independently
+verified and launched; current runtime checks are pending manual Mac unlock.
+The actual UIKit reference follow-up is `39511521895` at `3b2cfc4a`, after the
+first reference run failed the generated host's extra-architecture import.
+It has not yet supplied accepted images; do not redispatch while it is active.

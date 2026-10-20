@@ -39,15 +39,34 @@ do not redispatch an active follow-up. Logs and red/green leaf receipts are in
 `captures/recovery-20261020/mac-chief-rebase/`.
 
 Follow-up [39498469545](https://github.com/DocMorphic/cmux-app/actions/runs/39498469545)
-at `d8f268b7cdd41f9fb0223892a90d5392a82b8326` passed mandatory preparation and
-integration, including the new CLI red/green check, and is in full tagged
-compilation. Inspect this run's terminal result and artifact rather than
-redispatching while it remains active. It has not been downloaded or launched.
+at `d8f268b7cdd41f9fb0223892a90d5392a82b8326` **succeeded**, including required
+integration and the full tagged app build (86m15s). Artifact `12304818847` has
+outer SHA-256 `e025f9970acfc19de9b8a9b0d72ac3b29698021ede95434dc850cab1b4d27d0f`;
+the inner app archive is
+`ae81998c386684a2d4d800d3e0d69cafe025cd9a8d303e6215a92fca73917f4c`.
+Independent local verification regenerated all 13 original pins and 30 patched
+files from the immutable project commit. All 30 relative archive symlinks,
+ARM64, isolated bundle ID, production routes and strict deep ad-hoc signatures
+verify. The artifact reports Xcode 26.6, build 17F113. Do not redispatch this
+completed build.
 
-The currently running, verified custom Mac remains the older `f4b15090` build
-from run 39429836746. No account, workspace, helper registration, key or live app
-was replaced by this source rebase. A completed full candidate build, independent
-artifact verification, real launch/retention and Pixel/FCM checks remain open.
+The older custom app quit gracefully; its bundle is preserved. A private backup
+of the tagged preferences and three session/scrollback entries was made before
+the new app launched through the filtered private-owner launcher. Current bundle:
+`captures/runtime/mac-companion-39498469545-app/cmux DEV android-push.app`.
+Both original workspace IDs remain; the newer source added Home, so the count
+is now three. The private helper configuration and sender descriptor are
+unchanged. An integrity-checked offline snapshot of the checkpointed registry
+contains one active registration, zero retired; this is storage retention, not
+live helper acceptance.
+
+The computer-use tool reports the Mac is locked and manual unlock was requested.
+The first `mobile.host.status` query timed out after ten seconds, and the private
+helper owner socket is absent. Account restoration, current Chief capabilities,
+pairing-menu behavior, live helper startup, terminal and Pixel/FCM acceptance
+remain unverified. Do not infer their state from successful launch or retained
+files. The official app was not stopped or replaced. Verification, backups and
+pending runtime receipts are under `captures/recovery-20261021/mac-chief-39498469545/`.
 Chief capability is also gated by the host's `chief.enabled` setting; compiling
 the candidate alone does not establish an active Chief host. The global
 implemented/reviewed mobile pins in `upstream.json` remain unchanged. Ignored
