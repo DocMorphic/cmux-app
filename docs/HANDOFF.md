@@ -5,6 +5,20 @@ active; the completion gates in REMAINING_WORK.md remain authoritative. Work
 continues from the physical checkpoint below, preserving the Pixel release data
 and existing Mac workspaces.
 
+Cold-tap investigation found that `NativeNotificationService` pruned durable tap
+destinations using temporary connection admission. During cold membership
+restoration that set is empty, even with intact saved pairings. Retention now
+uses signed-in, visible saved origins; online admission still gates workers and
+the existing account/owner checks still gate navigation. Four new regression
+cases plus 13 ledger/recovery cases pass, including logout, hidden/forgotten
+owners and temporary admission loss. Local signed candidate **703**, source
+label `a4964b034f0f+`, built and passed signer, 22 native-library/alignment, 21
+asset, 14 debug-component exclusion and real Firebase resource checks. It upgraded
+the Pixel in place successfully. APK SHA-256:
+`d54d1dc71881ea193afa1a772be824772b1d78b1907af4a9ed5ed3063ee6752a`.
+It is a local validation build, not a published preview. Live sign-in/pairing
+retention and cold-tap revalidation remain pending phone availability.
+
 The pairing presentation now observes AppKit menu tracking and repairs its item
 when SwiftUI replaces or empties the host menu. The prior composition-time and
 AppDelegate hooks remain. The compiled production Swift fixture verifies both
@@ -12,6 +26,12 @@ reconstruction cases, repeated tracking without duplication, QR pixels, offer
 expiry/cancellation, private clipboard ownership and socket error paths. A fresh
 full Mac build and inspection of the actual app menu are still required before
 accepting this integration fix.
+
+A new emulator regression holds the first shared-sizing subscription while the
+real root screen recomposes, then requires successful terminal replay. It
+compiled; runtime validation is pending. This does not yet fix or close the
+physical initial-terminal failure. One API 36 ARM64 Pixel 6a AVD (`cmux_parity`)
+was created for isolated fixtures; the phone's old debug app remains untouched.
 
 ## New Mac restoration and physical-device checkpoint — 2026-10-20
 

@@ -64,14 +64,13 @@ class NativeNotificationService : Service() {
                 fun routeKey(mac: NativeCredentialStore.PairedMac) =
                     localKeys[NativeMacIdentity(canonicalMacDeviceId(mac.deviceId), mac.instanceTag)] ?:
                         (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
-                val paired = if (account.isSignedIn()) store.visiblePairedMacs().filter {
-                    it.deviceId.isNotBlank() && connector.allowsSaved(it)
-                }.toSet() else emptySet()
+                val plan = NativeNotificationMonitorState(account.isSignedIn(), store.visiblePairedMacs(), connector::allowsSaved)
+                val paired = plan.workers
                 workers.keys.toList().filter { it !in paired || workers[it]?.isActive != true || workerRoutes[it] != routeKey(it) }.forEach {
                     workers.remove(it)?.cancel()
                     workerRoutes.remove(it)
                 }
-                val origins = paired.map { it.origin }.toSet()
+                val origins = plan.retainedOrigins
                 if (origins != previousOrigins) {
                     delivery.prune(origins)
                     previousOrigins = origins
