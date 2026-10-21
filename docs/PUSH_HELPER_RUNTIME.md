@@ -1,3 +1,51 @@
+## Keychain UI-thread freeze checkpoint — 2026-10-21
+
+A read-only three-second sample of the running custom Mac app (PID 15059,
+verified a591-based runtime 39498469545) found its main actor inside
+`MobileHostService.handlePhonePushKeyExchange` → `PhonePushKeyMaterial.current`
+→ `SecItemCopyMatching` → SecurityServer. The producer capture-key loader was
+also waiting in Security, on a background thread. Cached CLI workspace/panel
+lists still answered; those reads do not establish main-thread responsiveness.
+The sample is `captures/recovery-20261021/mac-custom-app-sample.txt`. No app was
+stopped, Keychain prompt answered, credential printed or key changed.
+
+The patched exchange now awaits one coalesced read on a dedicated utility
+DispatchQueue. Canceled waiters leave immediately; a two-second host deadline
+finishes before Android's optional three-second exchange attempt. The underlying
+Security call may still await a manual OS decision, but cannot occupy the app's
+main actor or Swift's cooperative worker for that read. Completed results are
+not cached. The existing `PhonePushKeyMaterial.current` implementation, service,
+record format, access controls and key-creation/error policy are unchanged.
+No Keychain store migration, ACL relaxation, interaction bypass or key rotation
+is added. Locked/unavailable keys return `key_unavailable`, not a fabricated key.
+
+The host captures its own native auth coordinator across bootstrap, verifies it
+still owns that coordinator when bootstrap returns, and binds the Keychain await
+to the exact authenticated-session generation/account. A sign-out/reentry into the same
+account or coordinator replacement cannot pin a stale phone key or refresh trust.
+The final trust refresh is synchronous on the main actor, leaving no extra await
+between the verified scope, peer pin and response construction. Cancellation and
+unavailable-key failures have explicit RPC classifications.
+
+`check-native-push-keychain.py` compiles the actual Swift 6 lane and actual patched
+host handler with the actual pinned wire/RPC/session-identity declarations and
+host-owned bootstrap/session helpers. External Keychain, auth and peer storage are inert fixtures.
+The lane proves UI-actor responsiveness during a held read, 17 coalesced readers,
+independent cancellation, deadline exit, fresh subsequent reads and pre-canceled
+refusal. Eleven handler processes cover success, signed out, malformed descriptor,
+account change, same-account reentry, host-coordinator replacement during the read
+or bootstrap, cancellation during bootstrap or the read, deadline and Keychain
+failure. All pass; native hooks, actor/auth projections,
+queue/private-pipe checks and 32 focused Python checks also pass. The installer
+keeps all 13 prior pins, adds an exact host-source pin and writes 33 patched/added files with stable
+membership for the existing Xcode sources. The Mac CI workflow runs this check.
+
+These are source/fixture checks, not a replacement for the full Mac build or live
+Keychain/phone acceptance. The currently running old app remains untouched and
+may still be waiting for the user's security decision. Downloaded/replacement
+artifacts must be verified before any normal custom-app restart; preserve its
+workspace/account/pairing state and leave the official app alone.
+
 ## Live HTTPS readiness and sign-in diagnosis — 2026-10-13
 
 A read-only HEAD request to the already running private helper completed with

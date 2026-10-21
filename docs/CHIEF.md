@@ -1,5 +1,28 @@
 # Chief conversations
 
+Oct 21 expanded UIKit reference checkpoint: run `39538527277` at source
+`7b54fafa51475be2e920cc464672d625aa3d479c` passed both native system-size
+invocations and all thirteen export guards. Artifact `12319300862` has verified
+outer SHA-256 `db23803667da5036bf640f42535e6e67b39e95e469d441f1704f2236d648f714`;
+source/fixture/PNG/dimension checks pass independently. The four new details/
+compact images were inspected. Both details categories retain actual editor text,
+clear focus during/after the modal, keep store viewing true throughout, roll
+unsupported switches back and close through the unique real primary Back control.
+The source VC does not synchronize typed text into `store.draft`; this reference
+observes the editor itself. This verifies the existing Android choice to retain
+view/read admission during details, not every lifecycle path.
+
+Landscape references have real compact traits and 874×402 bounds, safe area
+`[0,20,62,62]`, 44-point avatars and intrinsic title-chevron images 8⅓×14⅔ points.
+The source's portrait chevron is fitted smaller; Android currently reuses that
+smaller glyph in compact mode, so matched compact sizing/insets still need work.
+Details controls report 63×28-point switch frames while their rendered tracks
+extend below those bounds; compare ink/control frames before changing the Android
+custom switch. Image-view observations can include descendants of hidden views;
+use visible screenshot/control regions when selecting metrics. Exact materials,
+header overlay/scroll edge, fonts, interactions, animations and physical acceptance
+remain open. The expanded offline reference is accepted; whole-app parity is not.
+
 Oct 21 emoji checkpoint: source-shaped bare emoji rows and composer scaling are
 mounted. The actual predicate allows one to three adjacent graphemes, preserves
 source-accepted non-RGI combinations, and rejects a spaced pair as ordinary text.

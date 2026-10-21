@@ -107,3 +107,17 @@ the pinned Back item, and that it has no right items. It requires exactly one
 registered primary control in that bar before dispatching that public event.
 The exporter requires those facts as well as the resulting close/focus/draft/
 viewing behavior; fourteen integrity tests reject ambiguous or manual shortcuts.
+
+Expanded run `39538527277`, source `7b54fafa51475be2e920cc464672d625aa3d479c`,
+passed both actual system-size invocations and all thirteen export checks.
+Artifact `12319300862`, outer SHA-256
+`db23803667da5036bf640f42535e6e67b39e95e469d441f1704f2236d648f714`,
+was independently downloaded, hashed, extracted and canonicalized with the exact
+source commit and both fixture hashes. All four new images were inspected;
+the original nine scene inputs/package pin remain unchanged. Normal/AX details
+retain the actual editor text, resign focus during/after details, keep viewing
+true during/after the modal and roll both unsupported switches back. The native
+Back-only bar has exactly one registered primary control and actually closes.
+Both landscape windows are 874×402 with real compact traits and safe area
+`[0,20,62,62]`. This accepts the expanded offline reference batch, not Android
+matching, touch targeting, animations, transport or physical-device acceptance.

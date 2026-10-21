@@ -1,5 +1,30 @@
 ## Active full-parity goal — 2026-10-20
 
+Newest Mac diagnosis: the same custom app (PID 15059, runtime 39498469545) is
+sampled blocking its main actor in a phone push-key exchange's Keychain read.
+Its producer capture-key loader is blocked separately off-main. Cached CLI lists
+still answer, so they are not UI-health proof. The source fix uses a dedicated,
+coalesced, cancelable two-second read lane and exact auth coordinator/session
+fences across bootstrap and the key read before peer pinning. Original Keychain storage/query/access controls and
+keys are retained; no Security UI is bypassed. Actual Swift lane plus eleven actual
+patched-handler cases pass with inert external dependencies; hooks/native queue/
+auth checks and 32 focused Python checks pass. Full Mac build/runtime acceptance
+is next. The current running app was not restarted or modified. See
+PUSH_HELPER_RUNTIME.md and `mac-custom-app-sample.txt`/`mac-keychain-host-owner/`.
+
+Expanded UIKit run **39538527277**, source
+`7b54fafa51475be2e920cc464672d625aa3d479c`, PASSED both system-size invocations
+and all thirteen export guards. Artifact **12319300862**, outer SHA-256
+`db23803667da5036bf640f42535e6e67b39e95e469d441f1704f2236d648f714`,
+is independently verified and canonicalized at
+`captures/recovery-20261021/ios-chief-interactions-verified-7b54fafa/`; four new
+details/compact images were inspected. Actual details keep viewing true, retain
+editor text (the VC does not copy it into store.draft), leave editor focus off
+on return, roll unsupported settings back and close via the real unique primary
+Back control. Compact windows are truly 874×402 with compact traits; the name
+chevron image is 8⅓×14⅔ points. Android comparison, exact font/ink/inset/material/
+animation and physical acceptance stay open. Earlier failed-run history follows.
+
 Newest emoji checkpoint: source one-to-three grapheme rules, fixed 72/48-point
 bare transcript/pending/failed rows and stricter composer scaling are mounted.
 The editor now explicitly remeasures its height after font changes; marked IME

@@ -14,6 +14,7 @@ PINS = {
     "Sources/Auth/HostAccountFlow.swift": "df5795bee1c9507a63620bdfbb4ae4f15a05a79d1eddc2db9b813fc4162db5e1",
     "Sources/Auth/AccountSignInView.swift": "a174954d39c1ccac5961fb5b0e9a16ee836ae9477f1266c0cc52e71ec7f2d885",
     "Resources/Localizable.xcstrings": "508affaf559409add83f36b870f221646bdf613d873897a0363a07f5e5cb726d",
+    "Sources/Mobile/MobileHostService.swift": "981e2a4c8d963337904793066b6cca4539627873b0d76ce2bcc51655cd7ded14",
     "Sources/Mobile/MobileHostService+PhonePushKeyExchange.swift": "09a9804a0176f1dc31f64fb7944fb99473ed1470542a519cd8ac3b14df5062cf",
     "Sources/Cloud/PhonePushClient.swift": "e895f51016156d18f11d4aa7d8b721252ff6759a80552b277ae3a7b45596c3df",
     "Sources/Auth/MacAuthComposition.swift": "4bb78b100be946c8970ab3001024ccbccea6de2140f09a545c2721c708a3e79a",
@@ -261,10 +262,57 @@ def patched_sources(original):
 
 ''' + marker)
     result[path] = source.encode()
+    path = "Sources/Mobile/MobileHostService.swift"
+    source = original[path].decode()
+    marker = "    /// The signed-in local user's id, awaiting launch session restore first so\n"
+    source = once(source, marker, '''    /// Bind optional push-key work to this host's actual auth owner across both
+    /// bootstrap and Keychain suspension, including same-account replacement.
+    func phonePushKeyExchangeSession() async
+        -> (owner: AuthCoordinator, identity: AuthenticatedSessionIdentity)? {
+        guard let auth else { return nil }
+        await auth.awaitBootstrapped()
+        guard self.auth === auth,
+              let identity = auth.authenticatedSessionIdentity,
+              auth.isAuthenticatedSessionIdentityCurrent(identity) else { return nil }
+        return (auth, identity)
+    }
+
+    func isPhonePushKeyExchangeSessionCurrent(
+        _ session: (owner: AuthCoordinator, identity: AuthenticatedSessionIdentity)
+    ) -> Bool {
+        self.auth === session.owner &&
+            session.owner.isAuthenticatedSessionIdentityCurrent(session.identity)
+    }
+
+''' + marker)
+    result[path] = source.encode()
     path = "Sources/Mobile/MobileHostService+PhonePushKeyExchange.swift"
     source = original[path].decode()
+    source = once(source,
+        "            guard let accountID = await currentAuthenticatedLocalUserID(), !accountID.isEmpty else {\n",
+        "            guard let session = await phonePushKeyExchangeSession(), !session.identity.accountID.isEmpty else {\n")
+    source = once(source, "            let macDeviceID = MobileHostIdentity.deviceID()\n",
+        "            try Task.checkCancellation()\n            let accountID = session.identity.accountID\n\n            let macDeviceID = MobileHostIdentity.deviceID()\n")
+    source = once(source, "            let macKey = try PhonePushKeyMaterial.current(bundleID: macBuildID)\n", '''            // Keep the existing Keychain identity/access controls, but never block
+            // this main actor on a SecurityAgent decision. Recheck the host's
+            // actual auth owner and session before pinning or refreshing trust.
+            let macKey = try await NativePushKeyMaterialAccess.current()
+            try Task.checkCancellation()
+            guard isPhonePushKeyExchangeSessionCurrent(session) else {
+                return .failure(MobileHostRPCError(code: "unauthorized",
+                    message: "The Mac session changed during mobile push key exchange."))
+            }
+''')
     marker = "            let result = MobilePhonePushKeyExchangeResponse(\n"
-    source = once(source, marker, "            await MainActor.run { PhonePushClient.shared.refreshAndroidPushTrust() }\n\n" + marker)
+    source = once(source, marker, "            PhonePushClient.shared.refreshAndroidPushTrust()\n\n" + marker)
+    source = once(source, "        } catch let error as MobilePhonePushKeyExchangeError {\n", '''        } catch is CancellationError {
+            return .failure(MobileHostRPCError(code: "cancelled",
+                message: "Mobile push key exchange was cancelled."))
+        } catch is NativePushKeyMaterialAccess.Failure {
+            return .failure(MobileHostRPCError(code: "key_unavailable",
+                message: "The Mac push key is unavailable. Unlock this Mac and review any Keychain prompt, then retry."))
+        } catch let error as MobilePhonePushKeyExchangeError {
+''')
     result[path] = source.encode()
     path = "Sources/Auth/MacAuthComposition.swift"
     source = original[path].decode()
@@ -377,6 +425,8 @@ def patched_sources(original):
         "NativePushPairingView": "push/mac-native/NativePushPairingView.swift",
         "NativePushPairingPresentation": "push/mac-native/NativePushPairingPresentation.swift",
         "NativePushPairingCommands": "push/mac-native/NativePushPairingCommands.swift",
+        "NativePushKeychainReadLane": "push/mac-native/NativePushKeychainReadLane.swift",
+        "NativePushKeyMaterialAccess": "push/mac-native/NativePushKeyMaterialAccess.swift",
     }
     for index, (name, source_path) in enumerate(native_sources.items(), 1):
         build = f"C0DEAD0000000000000000{index:02X}"
