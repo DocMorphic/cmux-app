@@ -1,3 +1,48 @@
+## Action-menu foundation and remaining contracts — 2026-10-22
+
+Menu geometry/press timing now matches source-executed Swift vectors; retained
+local deletion passes late-ack/history, queue and owner checks. Full JVM suite:
+3064 passes/four skips, zero failures/errors. These foundations are committed
+at 13d7af5f; the actual Android menu/selection UI remains unmounted. Native action
+run 39692913894 failed after Copy; harness lifetime and frame repairs are at
+88973fe0/52bda7fc and their hosted runs remain pending. See HANDOFF.md and
+captures/recovery-20261022/chief-menu-foundation-checkpoint.json for exact scope.
+
+Further pinned source review resolves the conditional Poll Details contract:
+ConversationPolls.swift presents a read-only table with Done, the question,
+option/voter sections, vote counts and No Votes participants. It reloads on live
+store changes and has no vote/write action. ChiefConversationBackend projects
+pending approvals and questions into polls with initially empty votes; complex
+questions have one Answer questions option. Answered/cancelled cards become
+receipts and no longer qualify. This remains a required Android menu destination.
+
+Select applies to a visible nonempty text label with an actual text frame. Its
+transparent noneditable selection overlay selects all at the label's frame,
+resigns the composer keyboard, uses system handles/edit actions, and copies the
+text currently displayed. Collapse or resign ends it; handle/text/loupe touches
+inside the frame expanded by 24 points do not start transcript gestures. This
+is distinct from menu Copy, which copies captured message.text.
+
+Translation remains an implementation gate. The source's installed translator
+plus nonblank message text controls eligibility. Its choice sheet supports this
+message or automatic conversation translation; uncertain/same-language detection
+opens a source-language chooser. Translated rows toggle original/translation,
+with translating, download and unsupported states plus a conversation indicator.
+No Android platform/backend exception has been established. Source hashes and
+contracts are in captures/recovery-20261022/chief-select-poll-translation-audit.json;
+this is review evidence, not executed Android or native UI acceptance.
+
+Android implementation candidate (documentation review only): API 31's
+[TranslationManager](https://developer.android.com/reference/android/view/translation/TranslationManager)
+exposes on-device language-pair capabilities and asynchronous translator creation.
+Capability queries must run on a worker thread; creation can return null. Its
+[Translator](https://developer.android.com/reference/android/view/translation/Translator)
+accepts cancellation plus an executor/callback and has an explicit destroy
+lifetime. This is a viable API surface to investigate before adding an SDK;
+actual OEM service availability, language detection/download settings and Pixel
+behavior remain unverified. No unsupported-platform exception follows from API
+availability alone.
+
 ## Signed checkpoint — 2026-10-22
 
 Verified local candidate 712 contains the font-following/RTL fixes below, source
