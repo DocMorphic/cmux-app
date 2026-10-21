@@ -577,7 +577,10 @@ extension CmuxChiefReferenceTests {
         defer { UIView.setAnimationsEnabled(priorAnimations) }
         XCTAssertFalse(UIAccessibility.isReduceMotionEnabled, "Dynamic probe requires the real non-reduced source path")
         var cases: [[String: Any]] = []
-        for (name, enterDuration, reopen) in [("settled", 0.85, false), ("early-close", 0.10, false),
+        // Exclude a real warm-up sequence: the first reply can compile render
+        // resources and block the main actor, leaving gaps in an animation probe.
+        // Every measured sequence still receives a fresh unmodified controller.
+        for (name, enterDuration, reopen) in [("warm-up", 0.85, false), ("settled", 0.85, false), ("early-close", 0.10, false),
                                              ("glyph-swap-close", 0.34, false), ("reopen-return", 0.85, true),
                                              ("reopen-glyph-swap", 0.34, true)] {
             let store = ConversationStore(backend: ReferenceBackend(base, date: Date()))
@@ -688,7 +691,9 @@ extension CmuxChiefReferenceTests {
             try await wait("header probe returns its source overlay") { overlay() == nil }
             XCTAssertEqual(editor.text, "Retain animated header draft"); XCTAssertTrue(editor.isFirstResponder)
             XCTAssertFalse(collection.accessibilityElementsHidden)
-            cases.append(["name": name, "initial": initial, "phases": phases, "final": state(0)])
+            if name != "warm-up" {
+                cases.append(["name": name, "initial": initial, "phases": phases, "final": state(0)])
+            }
             // Do not assert that UIKit cancels an interrupted delayed alpha fade:
             // observing its actual behavior is the purpose of these cases.
             try await Task.sleep(for: .milliseconds(150))

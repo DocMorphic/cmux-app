@@ -173,7 +173,8 @@ Back-only bar has exactly one registered primary control and actually closes.
 Both landscape windows are 874×402 with real compact traits and safe area
 `[0,20,62,62]`. This accepts the expanded offline reference batch, not Android
 matching, touch targeting, animations, transport or physical-device acceptance.
-# Animated header observations
+
+## Animated header observations
 
 The separate `ios-chief-header.yml` workflow runs
 `testCaptureChiefReplyHeaderTimeline` with UIKit animations enabled against the

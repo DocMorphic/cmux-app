@@ -58,6 +58,7 @@ def validate(value, project_commit, manifest, fixture_sha, test_sha, app_sha):
         name = case['name']; duration, reopens = CASES[name]
         state(case.get('initial')); state(case.get('final'))
         require(not case['initial']['overlayPresent'] and not case['final']['overlayPresent'], 'Overlay lifetime did not complete')
+        require(all(case['initial'][control]['presentationOpacity'] >= .99 for control in ('back', 'trailing')), 'Header did not begin from a fresh visible baseline')
         require(not case['final']['backingAXHidden'] and case['final']['trailing']['label'] == 'Stop Chief', 'Source backing/normal label not restored')
         phases = case.get('phases', [])
         expected = [('enter', duration), ('exit-before-reopen', .01 if name == 'reopen-glyph-swap' else .10), ('reopen', .85), ('final-exit', .85)] if reopens else [('enter', duration), ('exit', .85)]
@@ -66,7 +67,10 @@ def validate(value, project_commit, manifest, fixture_sha, test_sha, app_sha):
         for phase, (phase_name, wanted) in zip(phases, expected):
             require(phase.get('name') == phase_name and number(phase.get('requestedDuration')) and abs(phase['requestedDuration'] - wanted) < 1e-8, 'Wrong phase order/duration')
             samples = phase.get('samples')
-            require(isinstance(samples, list) and len(samples) >= (15 if wanted >= .7 else 2), 'Insufficient animated samples')
+            # The synchronous source exit can itself take more than the 10 ms
+            # reopen interval. Its immediate observation is still meaningful;
+            # longer animation phases must retain dense continuous sampling.
+            require(isinstance(samples, list) and len(samples) >= (15 if wanted >= .7 else 1 if wanted <= .01 else 2), 'Insufficient animated samples')
             for s in samples:
                 state(s)
             clocks = [s['elapsed'] for s in samples]

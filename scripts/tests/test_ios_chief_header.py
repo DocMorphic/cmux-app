@@ -64,6 +64,15 @@ class HeaderIntegrityTests(unittest.TestCase):
         self.value['cases'][-1] = copy.deepcopy(self.value['cases'][0])
         with self.assertRaises(ValueError): self.verify()
 
+    def test_contaminated_starting_opacity_is_rejected(self):
+        self.value['cases'][1]['initial']['trailing']['presentationOpacity'] = 0
+        with self.assertRaisesRegex(ValueError, 'fresh visible baseline'): self.verify()
+
+    def test_short_reopen_interval_can_have_one_immediate_source_observation(self):
+        phase = self.value['cases'][-1]['phases'][1]
+        phase['samples'] = [phase['samples'][-1]]
+        self.verify()
+
     def test_reordered_or_incomplete_phases_are_rejected(self):
         self.value['cases'][0]['phases'].reverse()
         with self.assertRaises(ValueError): self.verify()
