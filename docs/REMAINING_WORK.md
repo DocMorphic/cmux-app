@@ -1,3 +1,40 @@
+## Mounted reply entry motion — 2026-10-21
+
+The source ReplyTrip engine now drives actual Compose entry. Visible bubble and
+heading coordinates are frozen before changing reply state/requesting the keyboard;
+copies align bubble over bubble, unseen rows follow the anchor, whole rows travel
+vertically and only the selected balloon unwinds its swipe. Outgoing gradients
+follow actual placed coordinates. Layout changes invoke containerMoved; deliberate
+thread scrolling does not. The veil/blur and anchor-only sender chrome use the
+source background curve. Android's disabled system animations select reduced
+motion: final poses, zero swipe offset and a content fade.
+
+101 Chief JVM cases pass. Enabled-animation timed capture passes (6.627 s);
+portrait Chief plus two real route checks: 48 pass/three expected skips in138.599 s
+(two landscape checks, reduced-motion check). Reduced mode separately passes in
+4.261 s; six landscape cases with animations enabled pass in16.145 s. Three crash
+buffers are empty. Six 1206x2622 PNGs and both pose receipts verify; start/middle/
+landed normal and middle reduced images inspected. Normal reply y=957→1170→1278px,
+x=631→617→486px, versus original x486/y957; reduced poses stay x486/y1278.
+Receipt: `captures/recovery-20261021/chief-reply-entry-checkpoint.json`.
+
+The first timed diagnostic ran with emulator animation scale zero; one attempted
+settling helper required an absent empty-draft Send. With animations enabled, a
+composition-read alpha clipped the first travelling row; moving the fade read to
+the layer fixed it and the rendered checks now pass. Diagnostic runs are retained
+separately. Emulator size/density restored1080x2400/420, animator scale restored0,
+owned emulator/Gradle daemon stopped. No changes to the Pixel or a signed APK.
+
+Full parity remains open. Next: retain closing copies through return motion and
+background fade, distinguish send fade, restore backing/accessibility immediately,
+handle close/reopen/retirement ownership, then source Back/X header timing. Stress
+in-flight IME/font/orientation changes and compare physical rendering. Candidate
+710 contains captions but predates this motion work; Pixel installed703 remains
+preserved/USB absent. First on return restore `svc power stayon false`. Real Mac/
+Pixel terminal, encrypted FCM, cold taps and all remaining app gates stay open.
+The Mac helper remains online and owned by the verified app; its temporary pairing
+window is closed and no Mac action is requested. Full-parity goal remains active.
+
 ## Reply motion equations and recovered Mac helper — 2026-10-21
 
 The private helper recovered after reconnecting the existing personal Tailscale

@@ -535,6 +535,86 @@ class NativeChiefRuntimeTest {
         }
     }
 
+    @Test fun replyEntryCopiesTravelFromVisibleTwinsAndUnwindOnlyTheSwipedBalloon() {
+        org.junit.Assume.assumeTrue("Enable emulator animator_duration_scale for timed motion", android.animation.ValueAnimator.areAnimatorsEnabled())
+        checkReplyEntryMotion(reduced = false)
+    }
+
+    @Test fun reducedMotionOpensAtRestWithoutReleasingTheSwipeIntoTheCopy() {
+        org.junit.Assume.assumeFalse("Disable emulator animator_duration_scale for reduced motion", android.animation.ValueAnimator.areAnimatorsEnabled())
+        checkReplyEntryMotion(reduced = true)
+    }
+
+    private fun checkReplyEntryMotion(reduced: Boolean) {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performClick()
+        compose.waitUntil(10_000) {
+            var visible = false
+            compose.runOnUiThread { visible = compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime()) }
+            visible
+        }
+        compose.onNodeWithTag("ChiefReplySwipe:reply").performScrollTo()
+        var previous = androidx.compose.ui.geometry.Rect.Zero
+        var stableSince = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(10_000) {
+            val current = compose.onNodeWithTag("ChiefMessage:reply").fetchSemanticsNode().boundsInRoot
+            val now = android.os.SystemClock.uptimeMillis()
+            if (current != previous) stableSince = now
+            previous = current
+            now - stableSince >= 350
+        }
+        val density = compose.activity.resources.displayMetrics.density
+        val original = compose.onNodeWithTag("ChiefMessage:reply").fetchSemanticsNode().boundsInRoot
+        val other = compose.onNodeWithTag("ChiefMessage:parent").fetchSemanticsNode().boundsInRoot
+        val area = compose.onNodeWithTag("ChiefReplySwipe:reply").fetchSemanticsNode().boundsInRoot
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("ChiefReplySwipe:reply").performTouchInput {
+                val x = original.center.x - area.left
+                val y = original.center.y - area.top
+                down(androidx.compose.ui.geometry.Offset(x, y))
+                moveTo(androidx.compose.ui.geometry.Offset(x + 80 * density, y), delayMillis = 100)
+                up()
+            }
+            compose.mainClock.advanceTimeByFrame()
+            compose.waitForIdle()
+            fun copy(id: String) = compose.onNodeWithTag("ChiefThreadMessage:$id").fetchSemanticsNode().boundsInRoot
+            val start = copy("reply")
+            val parentStart = copy("parent")
+            saveScreenshot(if (reduced) "chief-reply-reduced-entry" else "chief-reply-entry-start")
+            if (!reduced) {
+                assertEquals("copy starts over its visible twin", original.top, start.top, 2f)
+                assertTrue("swiped balloon keeps release offset", start.left - original.left > 20 * density)
+            } else assertEquals("reduced motion discards swipe offset", original.left, start.left, 2f)
+            assertEquals("other balloon is not dragged", other.left, parentStart.left, 2f)
+            compose.mainClock.advanceTimeBy(128)
+            compose.waitForIdle()
+            val middle = copy("reply")
+            saveScreenshot(if (reduced) "chief-reply-reduced-middle" else "chief-reply-entry-middle")
+            compose.mainClock.advanceTimeBy(1600)
+            compose.waitForIdle()
+            val landed = copy("reply")
+            if (!reduced) {
+                assertTrue("thread actually travels", kotlin.math.abs(landed.top - start.top) > 4 * density)
+                assertTrue("sample is between origin and destination", middle.top in minOf(start.top, landed.top)..maxOf(start.top, landed.top))
+                assertTrue("travel continues after the intermediate frame", kotlin.math.abs(middle.top - landed.top) > 1f)
+            } else {
+                assertEquals(start.top, middle.top, 1f)
+                assertEquals(start.top, landed.top, 1f)
+            }
+            assertEquals("swipe fully unwinds", original.left, landed.left, 2f)
+            assertEquals("other balloon stays in its horizontal lane", other.left, copy("parent").left, 2f)
+            val name = if (reduced) "chief-reply-reduced" else "chief-reply-entry"
+            saveScreenshot("$name-landed")
+            fun frame(rect: androidx.compose.ui.geometry.Rect) = org.json.JSONArray(listOf(rect.left, rect.top, rect.width, rect.height))
+            File(File(compose.activity.getExternalFilesDir(null), "screenshots"), "$name-motion.json").writeText(JSONObject()
+                .put("reducedMotion", reduced).put("density", density).put("original", frame(original))
+                .put("start", frame(start)).put("after128ms", frame(middle)).put("after1728ms", frame(landed))
+                .put("scope", "Production Compose adapter, real swipe and manual frame clock on disposable emulator; physical animation appearance and closing choreography remain open.")
+                .toString(2))
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
     @Test fun rightSwipeOnAcknowledgedReplyTargetsThatMessageWithinItsLoadedRoot() {
         openReferenceScene("quote-dark")
         val body = compose.onNodeWithTag("ChiefMessage:reply").fetchSemanticsNode().boundsInRoot

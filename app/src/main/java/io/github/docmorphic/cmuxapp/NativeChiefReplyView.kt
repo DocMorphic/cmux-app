@@ -31,46 +31,63 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Constraints
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
-/** Loaded one-open thread copy. Source row travel, full poll/failed rendering and gesture entry
- * remain separate fidelity work; this layer preserves the source's local ownership/send behavior. */
+/** Loaded one-open thread copy with source entry travel. Return/close choreography and
+ * full poll/failed rendering remain separate fidelity work. */
 @Composable
-internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, headerHeight: Dp, composerHeight: Dp,
+internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChiefReplyEntryMotion, headerHeight: Dp, composerHeight: Dp,
     metrics: NativeChiefBubbleMetrics, dark: Boolean, onClose: () -> Unit, onReply: (String) -> Boolean) {
     val transcriptLabel = stringResource(R.string.chief_reply_transcript)
     val replyLabel = stringResource(R.string.chief_reply_action)
     val density = LocalDensity.current
+    val view = LocalView.current
+    LaunchedEffect(motion) {
+        val initialDuration = 1.0 / (view.display?.refreshRate?.takeIf { it > 0 } ?: 60f)
+        while (!motion.resting) withFrameNanos { motion.frame(it, initialDuration) }
+    }
     val captionFont = nativeChiefCaptionFont()
     val senderGeometry = NativeChiefCaptionGeometry.sender(captionFont.lineHeight, captionFont.spacing, density.density.toDouble())
     val senderStyle = nativeChiefTextStyle(11).copy(fontSize = with(density) {
         captionFont.pointSize.toFloat().dp.toSp()
     })
     Box(Modifier.fillMaxSize().testTag("ChiefReplyThread").semantics { contentDescription = transcriptLabel; paneTitle = transcriptLabel }
-        .background((if (dark) Color.Black else Color.White).copy(alpha = if (dark) .41f else .58f))
+        .drawBehind { drawRect((if (dark) Color.Black else Color.White).copy(alpha = (if (dark) .41f else .58f) * motion.veil)) }
         .pointerInput(reply.generation) { detectTapGestures(onTap = { onClose() }) }) {
         BoxWithConstraints(Modifier.fillMaxSize().padding(top = headerHeight, bottom = composerHeight + 6.dp)) {
-            NativeChiefReplyScroll(Modifier.fillMaxSize().testTag("ChiefReplyTranscript")) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                reply.rows.firstOrNull()?.let { ChiefTimestamp(it.at, "ChiefThreadTimestamp") }
+            NativeChiefReplyScroll(Modifier.fillMaxSize().testTag("ChiefReplyTranscript"), motion) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).graphicsLayer { alpha = motion.contentAlpha }) {
+                reply.rows.firstOrNull()?.let { first ->
+                    Box(Modifier.fillMaxWidth().onGloballyPositioned { motion.row(NativeChiefReplyEntryMotion.stampKey, it) }) {
+                        ChiefTimestamp(first.at, "ChiefThreadTimestamp", Modifier.offset { IntOffset(0, motion.verticalPixels(NativeChiefReplyEntryMotion.stampKey)) })
+                    }
+                }
                 reply.rows.forEachIndexed { index, item ->
                     if (index > 0) Spacer(Modifier.height(if (reply.rows[index - 1].senderId == item.senderId) 4.dp else 10.dp))
                     val message = item.quoteMessage()
-                    Column(Modifier.fillMaxWidth().testTag("ChiefThreadRow:${item.messageID}")) {
+                    Box(Modifier.fillMaxWidth().onGloballyPositioned { motion.row(item.key, it) }) {
+                    Column(Modifier.fillMaxWidth().offset { IntOffset(0, motion.verticalPixels(item.key)) }
+                        .onGloballyPositioned { motion.row(item.key, it, moving = true) }.testTag("ChiefThreadRow:${item.messageID}")) {
                         if (!item.fromMe) {
                             NativeChiefCaptionLabel(AnnotatedString(message.author.ifEmpty { message.authorId }),
                                 captionFont, senderGeometry.height,
                                 (senderGeometry.height - captionFont.lineHeight) / 2 + captionFont.ascender,
                                 Color(0xFF8E8E93), "ChiefThreadSender:${item.messageID}",
-                                Modifier.fillMaxWidth().padding(start = 14.dp))
+                                Modifier.fillMaxWidth().padding(start = 14.dp).graphicsLayer { alpha = if (item.messageID == reply.targetID) motion.veil else 1f })
                             Spacer(Modifier.height((senderGeometry.bubbleOffset - senderGeometry.height).toFloat().dp))
                         }
                         val text = NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)
                         val part = NativeChiefPresentation.pendingPart(message)
                         val emoji = NativeChiefEmojiPolicy.fontSize(text).takeIf { part == null }
                         val bubbleModifier = Modifier.align(if (item.fromMe) AbsoluteAlignment.Right else AbsoluteAlignment.Left)
+                            .offset { IntOffset(motion.horizontalPixels(item.key), 0) }.onGloballyPositioned { motion.bubble(item.key, it) }
                             .testTag("ChiefThreadMessage:${item.messageID}").semantics {
                                 customActions = listOf(CustomAccessibilityAction(replyLabel) { onReply(item.messageID) })
                             }
@@ -95,6 +112,7 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, headerHeight: Dp, 
                         if (item.outgoing?.delivery?.isFailed == true) Text(stringResource(R.string.chief_retry_title),
                             color = Color(0xFFFF453A), style = senderStyle, modifier = Modifier.align(AbsoluteAlignment.Right))
                     }
+                    }
                 }
             }
             }
@@ -106,7 +124,7 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, headerHeight: Dp, 
  * Keep the same layout behavior without putting a clipping verticalScroll around the copies. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NativeChiefReplyScroll(modifier: Modifier, content: @Composable () -> Unit) {
+private fun NativeChiefReplyScroll(modifier: Modifier, motion: NativeChiefReplyEntryMotion, content: @Composable () -> Unit) {
     val scope = rememberCoroutineScope()
     val scrollLabel = stringResource(R.string.chief_reply_transcript)
     val currentIme = WindowInsets.ime
@@ -120,7 +138,7 @@ private fun NativeChiefReplyScroll(modifier: Modifier, content: @Composable () -
         offset = (offset - delta).coerceIn(0f, maximum)
         before - offset
     }
-    Layout(content = content, modifier = modifier.semantics {
+    Layout(content = { Box(Modifier.onGloballyPositioned { motion.content(it, geometry) }) { content() } }, modifier = modifier.semantics {
         verticalScrollAxisRange = ScrollAxisRange({ offset }, { maximum })
         // Own these actions before scrollable's built-ins: this state's delta is
         // finger movement, while accessibility offsets describe content movement.

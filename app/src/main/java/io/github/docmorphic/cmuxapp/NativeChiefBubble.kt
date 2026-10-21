@@ -156,6 +156,7 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
     messageId: String, expanded: Boolean, text: String?, metrics: NativeChiefBubbleMetrics,
     emojiSize: Int? = null, modifier: Modifier = Modifier, pending: Boolean = false,
     onQuote: (() -> Unit)? = null, onSwipeReply: ((Float) -> Unit)? = null,
+    onBubblePositioned: ((androidx.compose.ui.layout.LayoutCoordinates) -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit) {
     val density = LocalDensity.current
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
@@ -194,6 +195,7 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
             if (tail && emojiSize == null) metrics.drop else 0.dp, { onSwipeReply?.invoke(it) }) { swipeModifier ->
         val bodyModifier = swipeModifier
             .testTag(if (pending) "ChiefPending:$messageId" else "ChiefMessage:$messageId").onSizeChanged { bodySize = it }
+            .onGloballyPositioned { onBubblePositioned?.invoke(it) }
         if (emojiSize != null && text != null) NativeChiefEmojiBalloon(text, emojiSize, messageId, bodyModifier, metrics)
         else NativeChiefBubble(outgoing, tail, bodyModifier, if (pending) "ChiefPendingBody:$messageId" else "ChiefBubbleBody:$messageId", expanded,
                 text = text, metrics = metrics, content = content)
