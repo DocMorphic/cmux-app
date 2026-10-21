@@ -1,3 +1,32 @@
+## Signed candidate 711 and real local relay — 2026-10-22
+
+Candidate 711 is built from clean source
+`c7967628e76f1f07683eccff2afa02070f26a229` and contains the accumulated caption,
+reply motion, closing touch routing, synchronous header and copied-content fixes.
+APK: `captures/runtime/parity-candidate-711/app-release.apk`, 277683069 bytes;
+SHA256 `4045606fe5fe034f67aa7297f8a15124fd9bd3355e0fd3b3ccf5a299f4a910ea`.
+Stable signer verified; 22 native libraries/alignment, 21 viewer assets, 14 excluded
+debug components, package/SDK/version and selected private Firebase resources pass.
+It is not installed or published; Pixel remains 703. Full JVM suite: 3062 cases,
+3058 passed/four opt-in process checks skipped, zero failures/errors. All 414 XML
+reports are archived and hashed in `parity-candidate-711-checkpoint.json`.
+
+The skipped real cmux relay case was then run separately with the actual bundled
+Mac binary: one pass in 2.882 s. Production provider/control exercised discovery,
+capabilities/leases, Unicode input/output, resize, detach/reattach, owner guards,
+workspace close and attach-only browser protocol. Its private HOME/session and
+terminal hosts were cleaned up. This is local process evidence, not SSH network,
+Pixel/native Iroh, browser pixels or personal-workspace acceptance. Details:
+`captures/recovery-20261021/parity-711-real-relay-checkpoint.json`.
+
+Custom Mac 40840/helper 43849 are alive; account, pairing and workspaces are
+preserved. No Mac action is requested. Pixel availability has been requested for
+a data-preserving 711 upgrade and about 15 minutes of live terminal/notification
+tap checks; no answer or USB device yet. First on return restore
+`svc power stayon false`. While unavailable, continue the source/rendered audit,
+including font, IME and geometry changes during entry/return and RTL, then the
+remaining full-app completion gates. Full-parity goal remains active.
+
 ## Copied reply ownership across synchronous actions — 2026-10-22
 
 Close/Open/Close and Send/Open/Close admitted within one UI event now replace
