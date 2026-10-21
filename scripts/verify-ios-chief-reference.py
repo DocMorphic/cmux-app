@@ -24,6 +24,58 @@ def verify_visible_geometry(name, value):
             raise ValueError('Invalid effective ancestor visibility geometry: ' + name)
 
 
+def verify_caption_metrics(name, value, specification):
+    metrics = value.get('captionMetrics', {})
+    names = ['extraSmall', 'small', 'medium', 'large', 'extraLarge', 'extraExtraLarge', 'extraExtraExtraLarge',
+             'accessibilityMedium', 'accessibilityLarge', 'accessibilityExtraLarge',
+             'accessibilityExtraExtraLarge', 'accessibilityExtraExtraExtraLarge']
+    bodies = [14, 15, 16, 17, 19, 21, 23, 28, 33, 40, 47, 53]
+    captions = [11, 11, 11, 11, 13, 15, 17, 20, 24, 29, 34, 40]
+    records = metrics.get('records', [])
+    if (metrics.get('schema') != 1 or metrics.get('boldText') is not False or
+        [row.get('name') for row in records] != names):
+        raise ValueError('Missing complete default-weight UIKit caption metrics: ' + name)
+    for row, body, caption in zip(records, bodies, captions):
+        fields = ['bodyPointSize', 'captionPointSize', 'captionLineHeight', 'captionLeading',
+                  'neutralLineHeight', 'regularAscender', 'regularDescender']
+        if (any(type(row.get(key)) not in (int, float) or not math.isfinite(row[key]) for key in fields) or
+            row['bodyPointSize'] != body or row['captionPointSize'] != caption or
+            min(row['captionLineHeight'], row['neutralLineHeight']) + row['captionLeading'] <= 0 or
+            row['regularAscender'] <= 0 or row['regularDescender'] >= 0 or not row.get('category')):
+            raise ValueError('Invalid measured UIKit caption font input: ' + name)
+    current = records[names.index(specification['category'])]
+    if (metrics.get('currentName') != specification['category'] or
+        metrics.get('actualCategory') != value.get('applicationContentSizeCategory') or
+        metrics.get('actualCategory') != current['category']):
+        raise ValueError('Caption trait probe does not match actual application category: ' + name)
+    for actual, field in [('actualCaptionPointSize', 'captionPointSize'), ('actualCaptionLineHeight', 'captionLineHeight'),
+                          ('actualCaptionLeading', 'captionLeading')]:
+        if metrics.get(actual) != current[field]:
+            raise ValueError('Compatible caption metrics differ from actual application font: ' + name)
+    if specification['mode'] == 'thread':
+        thread = value['thread']
+        timestamps = [row for row in thread['rowFrames'] if row.get('class') == 'TimestampCell']
+        if len(timestamps) != 1:
+            raise ValueError('Missing unique actual thread timestamp row: ' + name)
+        stamp = timestamps[0]['frame']
+        labels = [label for label in thread['labels'] if label.get('class') == 'UILabel' and
+                  abs(label['frame'][0] - 16) < 1e-6 and abs(label['frame'][1] - stamp[1] - 10) < 1e-6]
+        if len(labels) != 1 or labels[0].get('fontSize') != current['captionPointSize']:
+            raise ValueError('Actual thread timestamp does not use captured caption font: ' + name)
+        line = current['neutralLineHeight']; scale = value['scale']
+        if abs(labels[0].get('fontLineHeight', 0) - line) > 1e-6:
+            raise ValueError('Actual timestamp font line height differs from probe: ' + name)
+        # Exact pinned TimestampCell.height expressions for the two real app
+        # categories in this batch. Other categories supply measured inputs only.
+        spacing = min(current['captionLineHeight'], line) + current['captionLeading']
+        bottom = 3 if current['captionPointSize'] == 11 else 5
+        below = math.floor(10 * max(1, spacing / 13) * scale + .5) / scale - bottom
+        line_top = 10 + (max(18, math.ceil(line)) - math.ceil(line * 3) / 3) / 2
+        expected = line_top + math.ceil(line * scale - .001) / scale + below - 4
+        if abs(stamp[3] - expected) > 1e-6 or abs(labels[0]['frame'][3] - max(18, math.ceil(line))) > 1e-6:
+            raise ValueError('Actual source timestamp geometry differs from measured font expressions: ' + name)
+
+
 def verify_interaction(name, value, specification, source_scene):
     """Require observed source behavior; never assume overFullScreen suspends viewing."""
     if any(value.get(key) != specification[key] for key in ('mode', 'sourceScene', 'orientation')):
@@ -115,7 +167,9 @@ def verify_interaction(name, value, specification, source_scene):
         raise ValueError('Unreviewed interaction mode: ' + name)
 
 
-def verify(exported, output, project_commit, with_interactions=False):
+def verify(exported, output, project_commit, with_interactions=False, with_caption_metrics=False):
+    if with_caption_metrics and not with_interactions:
+        raise ValueError('Caption metrics require the complete interaction batch')
     root = Path(__file__).resolve().parents[1]
     manifest = json.loads((root / 'third_party/cmux-chief/manifest.json').read_text())
     scene_bytes = (root / 'tests/ios-chief-reference/Scenes.json').read_bytes()
@@ -159,6 +213,8 @@ def verify(exported, output, project_commit, with_interactions=False):
             if value.get('interactionFixtureSha256') != interaction_sha or provenance.get('interactionsSha256') != interaction_sha:
                 raise ValueError('Interaction fixture changed')
             verify_interaction(name, value, interactions[name], scenes[interactions[name]['sourceScene']])
+            if with_caption_metrics:
+                verify_caption_metrics(name, value, interactions[name])
         image = images.get(value['imageSha256'])
         if image is None: raise ValueError('Missing or changed screenshot payload: ' + name)
         dimensions = struct.unpack('>II', image.read_bytes()[16:24])
@@ -166,6 +222,12 @@ def verify(exported, output, project_commit, with_interactions=False):
         if dimensions != expected_dimensions or min(dimensions) <= 0: raise ValueError('Wrong rendered image dimensions: ' + name)
         if not value['labels'] or value['storeMessages'] <= 0: raise ValueError('No rendered transcript evidence: ' + name)
         paired.append((name, path, image, value))
+    caption_table = None
+    if with_caption_metrics:
+        tables = [value['captionMetrics']['records'] for _, _, _, value in paired if value['scene'] in interactions]
+        if any(table != tables[0] for table in tables[1:]):
+            raise ValueError('UIKit caption tables differ across actual categories/scenes')
+        caption_table = tables[0]
     output.mkdir(parents=True, exist_ok=False)
     for name, path, image, value in paired:
         shutil.copyfile(image, output / (name + '.png')); shutil.copyfile(path, output / (name + '.json'))
@@ -173,6 +235,7 @@ def verify(exported, output, project_commit, with_interactions=False):
                'scenes': sorted(expected), 'projectSourceCommits': sorted({v['provenance']['projectSourceCommit'] for _, _, _, v in paired}),
                'scope': 'Verified source/fixture/PNG payload association; images still require visual inspection, matched Android comparison and real-device acceptance'}
     if with_interactions: receipt['interactionsSha256'] = interaction_sha
+    if caption_table is not None: receipt['captionMetrics'] = caption_table
     (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt, indent=2))
 
@@ -183,4 +246,5 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--project-commit', required=True)
     parser.add_argument('--with-interactions', action='store_true', help='Require all actual details/compact/thread interaction captures as well as the original nine scenes')
-    args = parser.parse_args(); verify(args.exported.resolve(), args.output.resolve(), args.project_commit, args.with_interactions)
+    parser.add_argument('--with-caption-metrics', action='store_true', help='Require full UIKit font probe and actual thread timestamp geometry cross-checks')
+    args = parser.parse_args(); verify(args.exported.resolve(), args.output.resolve(), args.project_commit, args.with_interactions, args.with_caption_metrics)

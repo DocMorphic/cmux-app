@@ -87,7 +87,7 @@ jobs:
             if [ ! -d "$RUNNER_TEMP/chief-reference-$mode.xcresult" ]; then exit 1; fi
             xcrun xcresulttool export attachments --path "$RUNNER_TEMP/chief-reference-$mode.xcresult" --output-path "$RUNNER_TEMP/chief-reference-exported/$mode"
           done
-          python3 cmux-app/scripts/verify-ios-chief-reference.py --exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-scenes" --project-commit "$GITHUB_SHA" --with-interactions
+          python3 cmux-app/scripts/verify-ios-chief-reference.py --exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-scenes" --project-commit "$GITHUB_SHA" --with-interactions --with-caption-metrics
       - name: Preserve reference evidence and diagnostics
         if: always()
         uses: actions/upload-artifact@v4

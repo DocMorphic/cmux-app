@@ -1,5 +1,16 @@
 # Pinned UIKit Chief references
 
+The next batch adds a public UIKit Caption 2 metrics probe across all twelve
+Dynamic Type categories. Explicit compatible-category values are cross-checked
+against the actual application category in each normal/accessibility invocation.
+The exporter optionally requires this complete table, matching actual font inputs
+across scenes and source timestamp row/label geometry in both thread captures.
+Twenty-four synthetic integrity tests pass; local project/Swift parsing passes.
+Hosted compilation/rendering of the probe remains pending. `--with-caption-metrics`
+is separate from the existing fifteen-scene contract so older accepted artifacts
+remain verifiable under their exact source/fixture hashes. These are numerical
+font/layout inputs; no Apple font or symbol artwork is extracted or packaged.
+
 Current extension adds normal and actual accessibility-size thread interactions
 to `Interactions.json`, requiring fifteen captures while leaving the original
 nine `Scenes.json` inputs and complete upstream package unchanged. The harness

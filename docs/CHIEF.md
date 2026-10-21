@@ -1,5 +1,17 @@
 # Chief conversations
 
+Oct 21 caption metrics probe in progress: the reference host now samples the
+public UIKit Caption 2 point size, line height, leading and neutral system-font
+metrics across all twelve source categories. Both actual system-size invocations
+cross-check explicit compatible-category metrics against the application's real
+preferred caption font. Optional export guards require a complete, finite,
+cross-scene-identical table and recompute the actual thread TimestampCell row /
+label frames from those inputs. Twenty-four integrity tests and local Swift /
+project parsing pass. Hosted compilation/rendering remains required; existing
+accepted fifteen-scene artifacts retain their original verifier contract. These
+inputs will replace the current generic Android timestamp label sizing; no
+new Android caption geometry is accepted yet.
+
 Oct 21 swipe-to-reply checkpoint: acknowledged balloons now accept physical
 rightward pans within the source 18-degree rule and incoming 28-point inset /
 156-point minimum area. They track the finger to 40 points, then logarithmically.

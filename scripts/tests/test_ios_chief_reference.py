@@ -44,8 +44,8 @@ class ReferenceIntegrityTests(unittest.TestCase):
                                     'projectSourceCommit': self.commit, 'projectSourceDirty': False}}
             (self.exported / (name + '.json')).write_text(json.dumps(value))
 
-    def verify(self, with_interactions=False):
-        with redirect_stdout(io.StringIO()): VERIFIER.verify(self.exported, self.output, self.commit, with_interactions)
+    def verify(self, with_interactions=False, with_caption_metrics=False):
+        with redirect_stdout(io.StringIO()): VERIFIER.verify(self.exported, self.output, self.commit, with_interactions, with_caption_metrics)
     def mutate(self, change):
         path = self.exported / (self.scenes[0]['id'] + '.json'); value = json.loads(path.read_text())
         change(value); path.write_text(json.dumps(value))
@@ -234,6 +234,82 @@ class ReferenceIntegrityTests(unittest.TestCase):
         self.add_interactions()
         self.mutate_interaction('thread-large-dark', lambda v: v['thread']['labels'][0].update(fontSize=17))
         with self.assertRaisesRegex(ValueError, 'Actual thread accessibility type missing'): self.verify(with_interactions=True)
+
+    def add_caption_metrics(self):
+        self.add_interactions()
+        names = ['extraSmall', 'small', 'medium', 'large', 'extraLarge', 'extraExtraLarge', 'extraExtraExtraLarge',
+                 'accessibilityMedium', 'accessibilityLarge', 'accessibilityExtraLarge',
+                 'accessibilityExtraExtraLarge', 'accessibilityExtraExtraExtraLarge']
+        bodies = [14, 15, 16, 17, 19, 21, 23, 28, 33, 40, 47, 53]
+        captions = [11, 11, 11, 11, 13, 15, 17, 20, 24, 29, 34, 40]
+        records = []
+        for name, body, point in zip(names, bodies, captions):
+            # Synthetic metric inputs, not captured UIKit font evidence. The two
+            # timestamp row/line anchors below come from the accepted reference.
+            line = 13.126953125 if point == 11 else 23.8671875 if point == 20 else point * 1.2
+            spacing = 13 if point == 11 else 25 if point == 20 else line
+            records.append(dict(name=name, category='fixture.' + name, bodyPointSize=body, captionPointSize=point,
+                captionLineHeight=line, captionLeading=spacing - line, neutralLineHeight=line,
+                regularAscender=line * .8, regularDescender=-line * .2))
+        for spec in json.loads((ROOT / 'tests/ios-chief-reference/Interactions.json').read_text())['scenes']:
+            path = self.exported / (spec['id'] + '.json'); value = json.loads(path.read_text())
+            current = records[names.index(spec['category'])]
+            value['applicationContentSizeCategory'] = current['category']
+            value['captionMetrics'] = dict(schema=1, records=records, currentName=spec['category'], boldText=False,
+                actualCategory=current['category'], actualCaptionPointSize=current['captionPointSize'],
+                actualCaptionLineHeight=current['captionLineHeight'], actualCaptionLeading=current['captionLeading'])
+            if spec['mode'] == 'thread':
+                height = 28.666666666666686 if current['captionPointSize'] == 11 else 44.333333333333314
+                label_height = 18 if current['captionPointSize'] == 11 else 24
+                value['scale'] = 3
+                image = png(220, width=6, height=9)
+                value['imageSha256'] = hashlib.sha256(image).hexdigest()
+                (self.exported / (spec['id'] + '.png')).write_bytes(image)
+                value['thread']['rowFrames'].append(dict(identityTransform=True, **{'class': 'TimestampCell', 'frame': [0, 0, 2, height]}))
+                value['thread']['labels'].append(dict(text='Today', fontSize=current['captionPointSize'],
+                    fontLineHeight=current['neutralLineHeight'], **{'class': 'UILabel', 'frame': [16, 10, 2, label_height]}))
+            path.write_text(json.dumps(value))
+
+    def test_complete_caption_probe_is_associated_with_real_category_and_timestamp_geometry(self):
+        self.add_caption_metrics(); self.verify(with_interactions=True, with_caption_metrics=True)
+        self.assertEqual(12, len(json.loads((self.output / 'receipt.json').read_text())['captionMetrics']))
+
+    def test_caption_probe_rejects_missing_categories_wrong_points_or_nonfinite_metrics(self):
+        self.add_caption_metrics()
+        path = self.exported / 'compact-dark.json'; original = path.read_text()
+        for change, error in [
+            (lambda v: v['captionMetrics']['records'].pop(), 'Missing complete default-weight UIKit caption'),
+            (lambda v: v['captionMetrics']['records'][0].update(captionPointSize=12), 'Invalid measured UIKit caption'),
+            (lambda v: v['captionMetrics']['records'][0].update(captionLeading=float('nan')), 'Invalid measured UIKit caption'),
+        ]:
+            path.write_text(original); self.mutate_interaction('compact-dark', change)
+            with self.assertRaisesRegex(ValueError, error): self.verify(with_interactions=True, with_caption_metrics=True)
+            self.assertFalse(self.output.exists())
+
+    def test_compatible_probe_must_match_the_actual_application_font_and_category(self):
+        self.add_caption_metrics()
+        path = self.exported / 'compact-dark.json'; original = path.read_text()
+        for key, bad, error in [('actualCategory', 'fixture.small', 'does not match actual application category'),
+                                ('actualCaptionLineHeight', 19, 'differ from actual application font')]:
+            path.write_text(original); self.mutate_interaction('compact-dark', lambda v: v['captionMetrics'].update({key: bad}))
+            with self.assertRaisesRegex(ValueError, error): self.verify(with_interactions=True, with_caption_metrics=True)
+
+    def test_caption_tables_must_agree_across_normal_and_accessibility_invocations(self):
+        self.add_caption_metrics()
+        self.mutate_interaction('compact-large-dark', lambda v: v['captionMetrics']['records'][0].update(neutralLineHeight=14))
+        with self.assertRaisesRegex(ValueError, 'caption tables differ across'): self.verify(with_interactions=True, with_caption_metrics=True)
+        self.assertFalse(self.output.exists())
+
+    def test_timestamp_capture_rejects_wrong_font_or_generic_label_padding_geometry(self):
+        self.add_caption_metrics()
+        path = self.exported / 'thread-dark.json'; original = path.read_text()
+        for change, error in [
+            (lambda v: v['thread']['labels'][-1].update(fontSize=12), 'does not use captured caption font'),
+            (lambda v: v['thread']['labels'][-1].update(fontLineHeight=14), 'font line height differs from probe'),
+            (lambda v: v['thread']['rowFrames'][-1].update(frame=[0, 0, 2, 34]), 'geometry differs from measured font expressions'),
+        ]:
+            path.write_text(original); self.mutate_interaction('thread-dark', change)
+            with self.assertRaisesRegex(ValueError, error): self.verify(with_interactions=True, with_caption_metrics=True)
 
 
 if __name__ == '__main__': unittest.main()

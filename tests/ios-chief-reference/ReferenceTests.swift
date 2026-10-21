@@ -105,6 +105,34 @@ extension CmuxChiefReferenceTests {
         }
     }
 
+    @MainActor private func captionMetrics(scene: UIWindowScene, currentName: String) -> [String: Any] {
+        let categories: [(String, UIContentSizeCategory)] = [
+            ("extraSmall", .extraSmall), ("small", .small), ("medium", .medium), ("large", .large),
+            ("extraLarge", .extraLarge), ("extraExtraLarge", .extraExtraLarge), ("extraExtraExtraLarge", .extraExtraExtraLarge),
+            ("accessibilityMedium", .accessibilityMedium), ("accessibilityLarge", .accessibilityLarge),
+            ("accessibilityExtraLarge", .accessibilityExtraLarge), ("accessibilityExtraExtraLarge", .accessibilityExtraExtraLarge),
+            ("accessibilityExtraExtraExtraLarge", .accessibilityExtraExtraExtraLarge)
+        ]
+        let records = categories.map { name, category -> [String: Any] in
+            let traits = UITraitCollection(traitsFrom: [scene.traitCollection, UITraitCollection(preferredContentSizeCategory: category)])
+            let caption = UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traits)
+            let regular = UIFont.systemFont(ofSize: caption.pointSize, weight: .regular)
+            return ["name": name, "category": category.rawValue,
+                "bodyPointSize": UIFontMetrics(forTextStyle: .body).scaledValue(for: 17, compatibleWith: traits),
+                "captionPointSize": caption.pointSize, "captionLineHeight": caption.lineHeight,
+                "captionLeading": caption.leading, "neutralLineHeight": regular.lineHeight,
+                "regularAscender": regular.ascender, "regularDescender": regular.descender]
+        }
+        // Compare explicit-compatible metrics with the actual application category.
+        // The source reads this public preferred font without a trait override.
+        let actual = UIFont.preferredFont(forTextStyle: .caption2)
+        return ["schema": 1, "records": records, "currentName": currentName,
+            "actualCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
+            "actualCaptionPointSize": actual.pointSize, "actualCaptionLineHeight": actual.lineHeight,
+            "actualCaptionLeading": actual.leading, "boldText": UIAccessibility.isBoldTextEnabled,
+            "scope": "Public UIKit compatible-category font metrics for the source caption2 expressions, cross-checked against the actual current application category. Not source-package modification or Android font artwork."]
+    }
+
     @MainActor private func captureInteractions(sceneCategory: String, systemCategory: UIContentSizeCategory) async throws {
         let input = try resource("Scenes.json"), interactionInput = try resource("Interactions.json")
         let scenes = try JSONDecoder().decode(ReferenceScenes.self, from: input)
@@ -115,6 +143,7 @@ extension CmuxChiefReferenceTests {
         try await wait("actual application content-size category") {
             UIApplication.shared.preferredContentSizeCategory == systemCategory && scene.activationState == .foregroundActive
         }
+        let capturedCaptionMetrics = captionMetrics(scene: scene, currentName: sceneCategory)
         UIView.setAnimationsEnabled(false)
         defer { UIView.setAnimationsEnabled(true) }
         for specification in interactions.scenes where specification.category == sceneCategory {
@@ -352,6 +381,7 @@ extension CmuxChiefReferenceTests {
                 "safeArea": capturedSafeArea, "verticalSizeClass": capturedVerticalSizeClass,
                 "labels": visibleLabels, "controls": visibleControls, "imageViews": visibleImages,
                 "storeMessages": store.messages.count, "behavior": behavior, "thread": threadObservations,
+                "captionMetrics": capturedCaptionMetrics,
                 "scope": "Actual unmodified pinned UIKit controls, details rollback/focus/viewing, compact header and source quote activation/thread close observations; offline read-only backend. No real account/transport, physical device or animation acceptance."]
             for (suffix, data, type) in [("json", try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]), "public.json")] {
                 let attachment = XCTAttachment(data: data, uniformTypeIdentifier: type)
