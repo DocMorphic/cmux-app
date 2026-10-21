@@ -1,5 +1,6 @@
 import XCTest
 import UIKit
+import QuartzCore
 import CryptoKit
 import CmuxConversationCore
 import CmuxConversationUI
@@ -557,5 +558,149 @@ final class CmuxChiefReferenceTests: XCTestCase {
             let attachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]), uniformTypeIdentifier: "public.json")
             attachment.name = scene.id + ".json"; attachment.lifetime = .keepAlways; add(attachment)
         }
+    }
+}
+
+
+extension CmuxChiefReferenceTests {
+    /// Separate from the static exports: keep UIKit animations enabled and sample
+    /// real presentation layers/hit testing, not the model alpha's final target.
+    @MainActor func testCaptureChiefReplyHeaderTimeline() async throws {
+        let input = try resource("Scenes.json")
+        let fixture = try JSONDecoder().decode(ReferenceScenes.self, from: input)
+        let base = try XCTUnwrap(fixture.scenes.first { $0.id == "quote-dark" })
+        let root = try XCTUnwrap(base.rows.first { $0.id == "parent" })
+        let provenance = try JSONSerialization.jsonObject(with: resource("Provenance.json"))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let priorAnimations = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(true)
+        defer { UIView.setAnimationsEnabled(priorAnimations) }
+        XCTAssertFalse(UIAccessibility.isReduceMotionEnabled, "Dynamic probe requires the real non-reduced source path")
+        var cases: [[String: Any]] = []
+        for (name, enterDuration, reopen) in [("settled", 0.85, false), ("early-close", 0.10, false),
+                                             ("glyph-swap-close", 0.34, false), ("reopen-return", 0.85, true),
+                                             ("reopen-glyph-swap", 0.34, true)] {
+            let store = ConversationStore(backend: ReferenceBackend(base, date: Date()))
+            let controller = ConversationViewController(store: store, options: ConversationPresentationOptions(
+                placeholder: "Message Chief", serviceTitle: "Chief", serviceSubtitle: "Runs your agents on your Mac",
+                avatarImage: UIImage(data: try resource("ChiefAvatar.png")), trailingSymbol: "stop.fill",
+                trailingAccessibilityLabel: "Stop Chief", supportsReactions: false, supportsEditing: false,
+                supportsUnsend: false, supportsAttachments: false))
+            let window = UIWindow(windowScene: scene)
+            window.frame = scene.coordinateSpace.bounds; window.overrideUserInterfaceStyle = .dark
+            window.rootViewController = controller; window.makeKeyAndVisible()
+            defer { store.stop(); window.isHidden = true; window.rootViewController = nil }
+            try await orient(scene, controller: controller, landscape: false)
+            try await wait("animated header source ready") {
+                window.layoutIfNeeded()
+                return store.hasLoadedNewest && store.messages.count == base.rows.count && store.isViewing
+            }
+            let editor = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.composer.text" } as? UITextView)
+            editor.text = "Retain animated header draft"; editor.delegate?.textViewDidChange?(editor)
+            XCTAssertTrue(editor.becomeFirstResponder())
+            try await Task.sleep(for: .milliseconds(700))
+            window.layoutIfNeeded()
+            let back = try XCTUnwrap(views(in: controller.view).compactMap { $0 as? UIButton }.first { $0.accessibilityLabel == "Back" })
+            let trailing = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.header.trailing" } as? UIButton)
+            let collection = try XCTUnwrap(views(in: controller.view).compactMap { $0 as? UICollectionView }.first)
+            let containers = views(in: collection).filter { view in
+                (view.accessibilityElements ?? []).contains {
+                    ($0 as? UIAccessibilityElement)?.accessibilityIdentifier == "conversation.bubble.reply"
+                }
+            }
+            let container = try XCTUnwrap(containers.count == 1 ? containers.first : nil)
+            let quotes = (container.accessibilityElements ?? []).compactMap { $0 as? UIAccessibilityElement }.filter {
+                $0.accessibilityTraits.contains(.button) && $0.accessibilityLabel == root.text
+            }
+            let quote = try XCTUnwrap(quotes.count == 1 ? quotes.first : nil)
+            func overlay() -> UIView? { views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.replyThread" } }
+            func control(_ button: UIButton) -> [String: Any] {
+                var model: Float = 1; var presentation: Float = 1
+                var hidden = false; var axHidden = false; var presentedLayers = 0
+                var cursor: UIView? = button
+                while let view = cursor {
+                    model *= Float(view.alpha)
+                    if let layer = view.layer.presentation() { presentation *= layer.opacity; presentedLayers += 1 }
+                    else { presentation *= Float(view.alpha) }
+                    hidden = hidden || view.isHidden
+                    axHidden = axHidden || view.accessibilityElementsHidden
+                    cursor = view.superview
+                }
+                let rect = button.convert(button.bounds, to: window)
+                let hit = window.hitTest(CGPoint(x: rect.midX, y: rect.midY), with: nil)
+                let image = button.image(for: .normal)
+                return ["label": button.accessibilityLabel ?? "", "modelOpacity": model,
+                    "presentationOpacity": presentation, "presentationLayers": presentedLayers,
+                    "hiddenAncestor": hidden, "axHiddenAncestor": axHidden,
+                    "isAccessibilityElement": button.isAccessibilityElement, "enabled": button.isEnabled,
+                    "interactionEnabled": button.isUserInteractionEnabled,
+                    "hitControl": hit === button || hit?.isDescendant(of: button) == true,
+                    "hitClass": hit.map { String(describing: type(of: $0)) } ?? "nil",
+                    "frame": [rect.minX, rect.minY, rect.width, rect.height],
+                    "imageSize": image.map { [$0.size.width, $0.size.height] } ?? [],
+                    "symbol": image?.isSymbolImage ?? false]
+            }
+            func state(_ elapsed: Double) -> [String: Any] {
+                ["elapsed": elapsed, "back": control(back), "trailing": control(trailing),
+                 "overlayPresent": overlay() != nil, "backingAXHidden": collection.accessibilityElementsHidden,
+                 "editorFocused": editor.isFirstResponder, "draftPreserved": editor.text == "Retain animated header draft",
+                 "animationsEnabled": UIView.areAnimationsEnabled]
+            }
+            func sample(_ duration: Double, since start: CFTimeInterval) async throws -> [[String: Any]] {
+                var result = [state(CACurrentMediaTime() - start)]
+                while CACurrentMediaTime() - start < duration {
+                    try await Task.sleep(for: .milliseconds(10))
+                    result.append(state(CACurrentMediaTime() - start))
+                }
+                return result
+            }
+            XCTAssertNil(overlay())
+            let initial = state(0)
+            XCTAssertEqual(trailing.accessibilityLabel, "Stop Chief")
+            let began = CACurrentMediaTime()
+            XCTAssertTrue(quote.accessibilityActivate())
+            let activationSeconds = CACurrentMediaTime() - began
+            let entering = try await sample(enterDuration, since: began)
+            let thread = try XCTUnwrap(overlay())
+            let closingAt = CACurrentMediaTime()
+            if name == "settled" {
+                XCTAssertEqual(trailing.accessibilityLabel, "Close")
+                trailing.sendActions(for: .touchUpInside)
+            } else { XCTAssertTrue(thread.accessibilityPerformEscape()) }
+            var phases: [[String: Any]] = [["name": "enter", "requestedDuration": enterDuration,
+                "samples": entering, "activationSeconds": activationSeconds]]
+            if reopen {
+                let exitDuration = name == "reopen-glyph-swap" ? 0.01 : 0.10
+                phases.append(["name": "exit-before-reopen", "requestedDuration": exitDuration,
+                    "samples": try await sample(exitDuration, since: closingAt)])
+                let reopened = CACurrentMediaTime()
+                XCTAssertTrue(quote.accessibilityActivate())
+                phases.append(["name": "reopen", "requestedDuration": 0.85,
+                    "samples": try await sample(0.85, since: reopened)])
+                let latest = try XCTUnwrap(overlay())
+                let finalClose = CACurrentMediaTime(); XCTAssertTrue(latest.accessibilityPerformEscape())
+                phases.append(["name": "final-exit", "requestedDuration": 0.85,
+                    "samples": try await sample(0.85, since: finalClose)])
+            } else {
+                phases.append(["name": "exit", "requestedDuration": 0.85,
+                    "samples": try await sample(0.85, since: closingAt)])
+            }
+            try await wait("header probe returns its source overlay") { overlay() == nil }
+            XCTAssertEqual(editor.text, "Retain animated header draft"); XCTAssertTrue(editor.isFirstResponder)
+            XCTAssertFalse(collection.accessibilityElementsHidden)
+            cases.append(["name": name, "initial": initial, "phases": phases, "final": state(0)])
+            // Do not assert that UIKit cancels an interrupted delayed alpha fade:
+            // observing its actual behavior is the purpose of these cases.
+            try await Task.sleep(for: .milliseconds(150))
+        }
+        let payload: [String: Any] = ["schema": 1, "kind": "chiefReplyHeaderTimeline", "provenance": provenance,
+            "fixtureSha256": SHA256.hash(data: input).map { String(format: "%02x", $0) }.joined(),
+            "osVersion": UIDevice.current.systemVersion, "os": ProcessInfo.processInfo.operatingSystemVersionString,
+            "viewport": [scene.coordinateSpace.bounds.width, scene.coordinateSpace.bounds.height], "scale": scene.screen.scale,
+            "category": UIApplication.shared.preferredContentSizeCategory.rawValue,
+            "reduceMotion": UIAccessibility.isReduceMotionEnabled, "cases": cases,
+            "scope": "Animation-enabled unmodified pinned UIKit header. Presentation/model opacity, actual quote activation, close escape/trailing actions and window hit tests. Not physical VoiceOver, Android rendering or real account/backend evidence."]
+        let attachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]), uniformTypeIdentifier: "public.json")
+        attachment.name = "chief-reply-header-timeline.json"; attachment.lifetime = .keepAlways; add(attachment)
     }
 }

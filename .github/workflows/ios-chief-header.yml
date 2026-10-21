@@ -1,0 +1,87 @@
+name: Pinned iOS Chief animated header
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-chief-reference
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cmux-app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          path: upstream
+          sparse-checkout: |
+            Packages/iOS/CmuxConversation
+            scripts
+          persist-credentials: false
+      - name: Select the upstream Xcode SDK family
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
+          xcodebuild -version
+      - name: Check reference export guards
+        run: python3 -m unittest discover -s cmux-app/scripts/tests -p 'test_ios_chief_*.py'
+      - name: Prepare immutable offline reference host
+        run: |
+          python3 cmux-app/scripts/prepare-ios-chief-reference.py --upstream upstream --output "$RUNNER_TEMP/chief-header"
+      - name: Select a disposable runner simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/simulators.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          candidates = [d for devices in json.load(open(os.environ['RUNNER_TEMP'] + '/simulators.json'))['devices'].values() for d in devices if d.get('isAvailable') and d['name'].startswith('iPhone')]
+          if not candidates: raise RuntimeError('No installed iPhone simulator runtime')
+          selected = sorted(candidates, key=lambda d: (d['name'] != 'iPhone 17 Pro', d['name'] != 'iPhone 16 Pro', d['name']))[0]
+          with open(os.environ['GITHUB_ENV'], 'a') as f: f.write('REFERENCE_SIMULATOR=' + selected['udid'] + '\n')
+          print({'name': selected['name'], 'udid': selected['udid'], 'state': selected['state']})
+          Path(os.environ['RUNNER_TEMP'] + '/selected-simulator.json').write_text(json.dumps(selected, indent=2) + '\n')
+          PY
+      - name: Observe animation-enabled source header
+        run: |
+          set -euo pipefail
+          xcrun simctl boot "$REFERENCE_SIMULATOR" || xcrun simctl bootstatus "$REFERENCE_SIMULATOR" -b
+          xcrun simctl bootstatus "$REFERENCE_SIMULATOR" -b
+          xcrun simctl ui "$REFERENCE_SIMULATOR" content_size large
+          xcodebuild test -project "$RUNNER_TEMP/chief-header/CmuxChiefReference.xcodeproj" \
+            -scheme CmuxChiefReference -destination "platform=iOS Simulator,id=$REFERENCE_SIMULATOR" \
+            -destination-timeout 90 -parallel-testing-enabled NO \
+            -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureChiefReplyHeaderTimeline \
+            -resultBundlePath "$RUNNER_TEMP/chief-header.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-header-build.log"
+      - name: Export and verify animated observations
+        if: always()
+        run: |
+          set -euo pipefail
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/chief-header.xcresult" --output-path "$RUNNER_TEMP/chief-header-exported"
+          python3 cmux-app/scripts/verify-ios-chief-header.py --exported "$RUNNER_TEMP/chief-header-exported" --output "$RUNNER_TEMP/chief-header-verified" --project-commit "$GITHUB_SHA"
+      - name: Preserve header evidence and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-chief-header
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/chief-header-verified
+            ${{ runner.temp }}/chief-header-exported
+            ${{ runner.temp }}/chief-header.xcresult
+            ${{ runner.temp }}/chief-header-build.log
+            ${{ runner.temp }}/chief-header/Provenance.json
+            ${{ runner.temp }}/selected-simulator.json

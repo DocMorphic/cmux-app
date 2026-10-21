@@ -173,3 +173,17 @@ Back-only bar has exactly one registered primary control and actually closes.
 Both landscape windows are 874×402 with real compact traits and safe area
 `[0,20,62,62]`. This accepts the expanded offline reference batch, not Android
 matching, touch targeting, animations, transport or physical-device acceptance.
+# Animated header observations
+
+The separate `ios-chief-header.yml` workflow runs
+`testCaptureChiefReplyHeaderTimeline` with UIKit animations enabled against the
+same immutable package. Five independent conversation hosts cover settled entry,
+early close, close during the glyph swap, and two interrupted reopen sequences.
+The attachment records cumulative model and presentation opacity, ancestor
+accessibility state, actual window hit testing, symbol dimensions, draft/focus,
+and the actual simulator OS/build. `verify-ios-chief-header.py` rejects changed
+sources, incomplete cases and incomplete sampling; it preserves observed outcomes
+rather than forcing intended alpha or hit-test results. Its synthetic integrity
+tests do not prove native animation behavior. This probe does not establish
+physical VoiceOver, Android rendering, transport, or full app parity.
+

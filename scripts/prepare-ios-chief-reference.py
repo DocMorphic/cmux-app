@@ -44,6 +44,8 @@ def prepare(upstream, output):
     provenance = {'upstreamRevision': revision, 'packageTree': actual_tree, 'packageFiles': count,
                   'projectSourceCommit': git(root, 'rev-parse', 'HEAD').decode().strip(),
                   'projectSourceDirty': bool(git(root, 'status', '--porcelain', '--untracked-files=normal')),
+                  'referenceTestsSha256': hashlib.sha256((templates / 'ReferenceTests.swift').read_bytes()).hexdigest(),
+                  'referenceAppSha256': hashlib.sha256((templates / 'ReferenceApp.swift').read_bytes()).hexdigest(),
                   'scenesSha256': hashlib.sha256((templates / 'Scenes.json').read_bytes()).hexdigest(),
                   'interactionsSha256': hashlib.sha256((templates / 'Interactions.json').read_bytes()).hexdigest(),
                   'scope': 'Offline UIKit reference host; no account, pairing, network transport or production backend'}
