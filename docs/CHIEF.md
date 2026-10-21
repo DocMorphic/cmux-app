@@ -1,3 +1,47 @@
+## Animated native header observations — 2026-10-21
+
+The animation-enabled pinned UIKit probe passes on run 39668896472, source
+`db9e4cd03ca29462a8a9fb735fe5f9340fbc04e5`. Actual iOS 26.4.1 build 23E254a,
+iPhone 17 Pro simulator, 402×874 @3; five independent fresh conversation hosts,
+14 phases/666 samples, largest sampling gap 24.779 ms. One XCTest passes in 19.719 s;
+35 export-integrity tests pass. Actual quote activation and trailing/escape close
+preserve draft/focus. Model/presentation opacity, labels, symbols, ancestor AX and
+window hit tests are recorded; this is not physical touch/VoiceOver evidence.
+
+Artifact 12380095577 is 193002 bytes, SHA256
+`afc81ccdc15aee60de43ebb1b661d2d2e6681092b561e9333cd6c5bda2afe371`.
+Download size/hash, template hashes against exact Git source, raw export and
+independent verification all match hosted receipt. Local checkpoint:
+`captures/recovery-20261021/chief-header-timeline-checkpoint.json`.
+The first run 39667374397 passed its XCTest but export rejected a 237.7 ms initial
+sampling gap. It remains diagnostic only. An unmeasured real warm-up removes
+first-use render-resource cost; every measured sequence still uses a fresh host.
+Continuous sampling guards were retained. A 10 ms exit-before-reopen may have one
+immediate observation because the synchronous source exit can itself exceed 10 ms.
+
+Settled first Close label occurs at 409.949 ms; Back is AX-hidden/non-hittable on
+entry and restored logically at exit. Both early-close variants leave native Stop
+opacity 0 at completion. Reopen during return leaves Back presentation opacity 1
+while AX-hidden; reopening during a pending glyph swap changes to Close after
+47.391 ms instead of a fresh full delay. These are observed upstream interruption
+defects, not desired forced expectations. Normal source delays/fades remain in
+ConversationHeaderView/ConversationViewController+Reply; iOS 27 is not measured.
+
+Android header still switches immediately: no app implementation, signed release
+or phone installation changed here. Next port normal timing/labels/fades, retain
+Back visually during its fade, and cancel superseded transitions safely. Record
+intentional correction of stale callbacks explicitly rather than claiming exact
+interrupted UIKit matching. Recheck rendered interruption, touch/AX, draft/focus,
+reduced motion, orientation and owner retirement. The existing generic Android X
+also needs sizing review: accepted settled 3× PNGs have 49×49 px bright ink versus
+40×40 px in the historical Android 44 pt control (RGB > 200); symbol image dimensions
+alone do not establish drawn ink size. No Apple symbol artwork is packaged.
+
+Custom Mac 40840/helper 43849 remain alive; USB absent. Last physical 703 and stale
+candidate 710 retain their recorded scopes. First on Pixel return restore
+`svc power stayon false`. Full app/source/UI and physical terminal, encrypted FCM,
+cold/background taps, lifecycle and accessibility gates remain open; goal active.
+
 # Chief conversations
 
 ## Partial-cell reply origins — 2026-10-21
@@ -25,21 +69,8 @@ at their recorded scopes. First on Pixel return restore `svc power stayon false`
 Verified Mac40840/helper43849 still run. Full-parity/physical terminal, encrypted
 FCM, cold/background taps, remaining source and visual gates stay open.
 
-Next is actual animated UIKit header evidence, then its Android port. The existing
-`captureInteractions` in `tests/ios-chief-reference/ReferenceTests.swift` calls
-`UIView.setAnimationsEnabled(false)`, so its settled fifteen-scene artifact cannot
-prove header fades/delays. Use a standalone animation-enabled reference test around
-the unmodified pinned package/offline ReferenceBackend. Enter via the actual quote
-accessibility activation; close via the actual overlay accessibility escape or
-trailing action. Sample timestamped presentation-layer opacity, labels, ancestor
-AX-hidden flags and real window hit testing for Back/trailing controls. Include
-steady enter/exit, early close, close around the delayed glyph swap, and reopen
-while returning. Record the actual runtime branch (accepted static refs26.4.1);
-SDK selection alone must not be treated as a simulator-runtime pin. No such dynamic
-probe is dispatched yet. Keep the original fixture/export contract intact. Header
-constants reviewed in source: Back enter.06; glyph delay.32 +out.05/in.2 on iOS26,
-.27 +out.05/in.05 on iOS27; exit glyph.06 and Back delay.3/in.2. Native interaction
-and cancellation during those intervals require observed evidence.
+The next-step animation probe described at this checkpoint is now accepted in
+the newer animated-header entry above; the Android port remains outstanding.
 
 ## Retained reply closing and accessibility reading intent — 2026-10-21
 

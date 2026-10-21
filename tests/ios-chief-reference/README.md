@@ -188,3 +188,16 @@ rather than forcing intended alpha or hit-test results. Its synthetic integrity
 tests do not prove native animation behavior. This probe does not establish
 physical VoiceOver, Android rendering, transport, or full app parity.
 
+
+Accepted animated run: `39668896472`, project `db9e4cd03ca29462a8a9fb735fe5f9340fbc04e5`,
+iOS 26.4.1 build 23E254a, iPhone 17 Pro 402×874 @3. Five cases/14 phases/666 samples;
+largest gap 24.779 ms. One XCTest passes in 19.719 s; 35 integrity tests pass.
+Artifact 12380095577 (193002 bytes) SHA256
+`afc81ccdc15aee60de43ebb1b661d2d2e6681092b561e9333cd6c5bda2afe371`.
+The independently downloaded export matches the hosted receipt and exact Git
+harness hashes. First run 39667374397 remains rejected for a 237.7 ms sampling gap;
+an unmeasured real warm-up precedes fresh measured hosts in the accepted run.
+Early close leaves the native trailing opacity at zero; interrupted reopen can
+restore Back visually or let an old completion swap the glyph too soon. These
+outcomes are preserved as observations, not forced expected results. Android
+matching and physical accessibility remain open.
