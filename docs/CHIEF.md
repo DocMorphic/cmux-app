@@ -1,3 +1,13 @@
+## Signed checkpoint — 2026-10-22
+
+Verified local candidate 712 contains the font-following/RTL fixes below, source
+`355c88bd2c45ae36ee9c386adc54529590c451a9`. Full JVM suite: 3058 passes/four skips;
+rendered source/APK proof is recorded below. HANDOFF.md has its exact APK hash,
+signing/package/asset checks and archived test reports. It is not installed or
+published; physical 703 remains and full parity stays open. Next: source-qualified
+long-press/More selection, local-only delete, conditional Poll Details and the
+0.12 s lifted-bubble Reply handoff; Chief Forward remains hidden (no callback).
+
 ## Font reflow, active reply geometry and RTL editor — 2026-10-22
 
 Following newest now explicitly repositions on font-scale changes. The old

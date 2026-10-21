@@ -1,3 +1,30 @@
+## Signed candidate 712 ready — 2026-10-22
+
+Candidate 712 supersedes local 711 and includes the font-following and RTL editor
+fixes below. Built from clean source `355c88bd2c45ae36ee9c386adc54529590c451a9`.
+APK: `captures/runtime/parity-candidate-712/app-release.apk` (277683065 bytes);
+SHA256 `06eecb1e90bebfc3185a4b4b6342b51a8d582e2ae9be0718a53674f35d8503e6`.
+Stable signer, all 22 native libraries/alignment, 21 viewer assets, 14 excluded
+debug components, package/SDK/version and selected private Firebase resources
+verify. Full unit suite: 3062 cases, 3058 passes/four opt-in skips, zero failures/
+errors. All 414 XML reports are archived and hashed in
+`captures/recovery-20261021/parity-candidate-712-checkpoint.json`.
+The rendered matrix's exact source is committed at this same source revision.
+
+The APK is not installed or published; Pixel remains 703 and USB is absent at
+this checkpoint. The existing availability question is pending; use 712 for the
+next data-preserving upgrade and actual terminal, encrypted FCM, cold/background
+tap, lifecycle and TalkBack checks. First restore `svc power stayon false`.
+Custom Mac 40840/helper 43849 and saved account/pairing/workspaces are preserved.
+No further Mac action is requested; the full-parity goal remains active.
+
+Next port the applicable source long-press/selection workflow. Further source
+review confirms More's delete is local-only; Forward is hidden because Chief does
+not supply an onForward callback. Pending approvals/questions are generic poll
+models, so audit their Poll Details contract. Reply hands off from the lifted
+snapshot after 0.12 s; preserve its measured origin and generation/owner checks.
+This is a remaining feature gap, not covered by the six rendered checks below.
+
 ## Font reflow, active reply geometry and RTL editor — 2026-10-22
 
 Following newest now explicitly repositions on font-scale changes. The old
