@@ -2,6 +2,9 @@
 
 ## Caption source equations and corrected UIKit probe — 2026-10-21
 
+Follow-up UIKit run 39555560226 is in progress at exact source
+`be5c80c05bbcaf983b7b28dee2c4122188c3345f`. Do not redispatch it; inspect that run.
+
 NativeChiefCaptionGeometry now matches 104 executed source font/scale/tall-script
 cases for caption insets/gaps, sender geometry and TimestampCell row/label /
 baseline formulas. All 96 focused Chief JVM cases pass with no skips/failures.
