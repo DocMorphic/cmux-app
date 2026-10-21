@@ -1,5 +1,26 @@
 # Chief conversations
 
+## Signed candidate 710 — 2026-10-21
+
+Candidate710 includes mounted captions at clean source
+`89e25a56efa0a0cb52e6b2ba8da259fcd03c8667`. APK SHA-256
+`780cfabe467528e3a73373ba96eefb7a2d7a219c2b85af7d9f72c6e1c3b5eff1`,
+277,650,297 bytes. Independent stable-signer,22 native libraries/alignment,
+21 viewer assets,14 debug-fixture exclusions and selected Firebase-resource checks
+pass. APK/source receipt: `captures/runtime/parity-candidate-710/`; strict receipt:
+`captures/recovery-20261021/apk-verification-710/apk-verification.json`.
+It is not installed/published; physical acceptance and full parity remain open.
+Gradle daemon and owned emulator stopped; emulator display restored1080x2400/420.
+
+Mac preservation additionally verifies byte-identical registration database,
+helper configuration and producer ciphertext, and the same previously verified
+native public descriptor. Account/team/three workspaces remain restored. The
+helper child/control socket remains absent after manual Keychain approval; current
+CUA menu is stale/invalid and the requested manual pairing-window check is pending.
+Pixel USB absent, installed703 preserved. First on return restore
+`svc power stayon false`; then upgrade with existing signer and preserved data.
+
+
 ## Mounted captions and restored Mac session — 2026-10-21
 
 UIKit run 39555560226 SUCCEEDED at exact source be5c80c0. Artifact 12325422816
