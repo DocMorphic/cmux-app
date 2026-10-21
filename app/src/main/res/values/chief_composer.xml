@@ -1,0 +1,4 @@
+<resources>
+    <string name="chief_composer_placeholder">Message Chief</string>
+    <string name="chief_composer_send">Send</string>
+</resources>

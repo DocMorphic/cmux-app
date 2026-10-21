@@ -2,6 +2,7 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -218,7 +219,15 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         val end = timeline.size + (if (state.hasMore) 1 else 0) + (if (state.working) 1 else 0) - 1
         if (end < 0) return
         readerScrolling = false; programmatic = true
-        try { list.scrollToItem(end) } finally { programmatic = false }
+        try {
+            list.scrollToItem(end)
+            // A timestamp, large bubble and delivery controls can exceed a viewport.
+            // Index positioning alone aligns its top and leaves the send/retry footer hidden.
+            list.layoutInfo.visibleItemsInfo.lastOrNull { it.index == end }?.let { last ->
+                val remaining = last.offset + last.size - list.layoutInfo.viewportEndOffset
+                if (remaining > 0) list.scrollBy(remaining.toFloat())
+            }
+        } finally { programmatic = false }
     }
     LaunchedEffect(timeline, state.working, state.loading, state.hasMore, state.localSendRevision, viewport) {
         val sent = state.localSendRevision != seenSend
@@ -237,6 +246,18 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             if (dragging) readerScrolling = true
             if (readerScrolling && !programmatic) pinned = nearBottom
             if (!dragging && !scrolling) readerScrolling = false
+        }
+    }
+    LaunchedEffect(list, positioned, pinned, dragged, readerScrolling, programmatic) {
+        if (positioned && pinned && !dragged && !readerScrolling && !programmatic) snapshotFlow {
+            val info = list.layoutInfo
+            val last = info.visibleItemsInfo.lastOrNull()
+            if (last?.index == info.totalItemsCount - 1)
+                (last.offset + last.size - info.viewportEndOffset).coerceAtLeast(0) else 0
+        }.collect { overflow ->
+            // Delivery controls and font/keyboard reflow can finish measuring after the
+            // timeline effect. Keep a pinned tail visible using the actual new layout.
+            if (overflow > 0) list.scrollBy(overflow.toFloat())
         }
     }
     LaunchedEffect(session, list, positioned, state.catchUpMarker) {
@@ -333,12 +354,14 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             Icon(painterResource(R.drawable.ic_chief_catch_up), stringResource(R.string.chief_catch_up_label))
         }
         }
-        Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(state.draft, session::editDraft, Modifier.weight(1f).heightIn(max = 160.dp).testTag("ChiefComposer"),
-                placeholder = { Text("Message Chief") }, maxLines = 5)
-            Button(onClick = { act { session.send() } }, enabled = state.draft.isNotBlank() && state.connected,
-                modifier = Modifier.testTag("ChiefSend")) { Text("Send") }
-        }
+        NativeChiefComposer(state.draft, state.draftRevision, state.retired, onDraft = { text ->
+            try { session.editDraft(text) }
+            catch (error: IllegalStateException) { actionError = error.message; null }
+        }, onSend = { text, revision ->
+            actionError = null
+            try { session.submitFromComposer(text, revision) != null }
+            catch (error: IllegalStateException) { actionError = error.message; false }
+        })
     }
     if (displayedFailure != null) ModalBottomSheet(onDismissRequest = { failedMessage = null },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -357,8 +380,11 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 Text(stringResource(R.string.chief_retry_try_again))
             }
             TextButton(onClick = {
+                // This local store action is synchronous in the source. Leaving the view
+                // immediately after a confirmed tap must not cancel the admitted deletion.
+                try { session.discardFailed(displayedFailure.clientMessageId) }
+                catch (error: IllegalStateException) { actionError = error.message ?: "Chief action unavailable" }
                 failedMessage = null
-                act { session.discardFailed(displayedFailure.clientMessageId) }
             }, modifier = Modifier.fillMaxWidth().testTag("ChiefDiscardSend")) {
                 Text(stringResource(R.string.chief_retry_delete), color = MaterialTheme.colorScheme.error)
             }

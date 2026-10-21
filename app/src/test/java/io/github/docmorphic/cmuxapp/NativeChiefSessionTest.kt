@@ -9,6 +9,49 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefSessionTest {
+    @Test fun composerAdmissionIsSynchronousAndCannotClearANewerIdenticalDraft() = runTest {
+        val api = Api(); val gate = CompletableDeferred<NativeChiefSent>(); var ids = 0
+        api.sendBlock = { _, _ -> gate.await() }
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "ui-${++ids}" })
+        try {
+            val captured = session.editDraft("Again")
+            session.editDraft(""); val newer = session.editDraft("Again")
+            assertTrue(newer > captured)
+            assertEquals("ui-1", session.submitFromComposer("Again", captured))
+            assertEquals("Again", session.state.value.draft)
+            assertEquals(newer, session.state.value.draftRevision)
+            assertEquals("Again", session.state.value.outgoing.single().text)
+            runCurrent(); assertEquals(listOf("Again" to "ui-1"), api.sends)
+            // No UI waiter owns this operation. It still finishes after the draft changes.
+            gate.complete(NativeChiefSent("chief-main", "accepted", "ui-1", false))
+            api.reads.send(Result.failure(java.io.IOException("Acknowledgment read unavailable"))); runCurrent()
+            assertEquals(NativeChiefDelivery.SENT, session.state.value.outgoing.single().delivery)
+            assertEquals("Again", session.state.value.draft)
+            session.close()
+            assertTrue(session.state.value.draftRevision > newer)
+            assertEquals("", session.state.value.draft)
+            assertThrows(IllegalStateException::class.java) { session.submitFromComposer("late", newer) }
+            assertEquals(1, api.sends.size)
+        } finally { session.close() }
+    }
+    @Test fun sendsTrimmedTextAndRejectsFoundationWhitespaceWithoutConsumingAnId() = runTest {
+        val api = Api(); var ids = 0
+        api.sendBlock = { _, _ -> throw MobileRpcOutcomeUnknown() }
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "trim-${++ids}" })
+        try {
+            val blank = "\u0085\u200b \r\n\u3000"
+            session.editDraft(blank); assertNull(session.send()); runCurrent()
+            assertEquals(blank, session.state.value.draft); assertEquals(0, ids); assertTrue(api.sends.isEmpty())
+            session.editDraft("\u0085 \n**literal**\nsecond line\u200b\u3000")
+            assertEquals("trim-1", session.send()); runCurrent()
+            assertEquals(listOf("**literal**\nsecond line" to "trim-1"), api.sends)
+            assertEquals("**literal**\nsecond line", session.state.value.outgoing.single().text)
+            assertEquals("", session.state.value.draft)
+            session.editDraft("\u001ckeep\u001c")
+            assertEquals("trim-2", session.send()); runCurrent()
+            assertEquals("\u001ckeep\u001c", session.state.value.outgoing.last().text)
+        } finally { session.close() }
+    }
     private val instant = Instant.parse("2026-10-20T12:00:00Z")
     private fun message(seq: Int, id: String = "m$seq", text: String = "Message $seq", human: Boolean = false,
         clientId: String? = null, parts: List<NativeChiefPart> = emptyList()) = NativeChiefMessage(id, seq.toULong(),

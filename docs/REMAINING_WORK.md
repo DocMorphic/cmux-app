@@ -1,5 +1,20 @@
 ## Current checkpoint — 2026-10-20
 
+Newest Oct 21 text-composer checkpoint: source internal Send/blank visibility,
+Foundation trimming, growing/scrolled field, revision-fenced memory-only editor
+and synchronous retained-owner send/local delete admission are implemented.
+Measured tail correction keeps reflowed controls visible for a pinned reader.
+Actual Swift: 60 row/62 trim/five height cases, 11 source strings/nine locales.
+JVM: 3,020 pass/four skip/zero failures. Android: 25 pass in 46.624 s, empty crash
+buffer; four fresh reference-input pairs plus expanded-draft/failed-sheet images
+verified/inspected. CHIEF.md records limits and diagnostics. Continue exact glass/
+keyboard/wide-screen/rich editor, header/details/service intro/drawer, emoji,
+quote/thread/poll/failed-badge, font/locale/contrast/accessibility/lifecycle and
+broader source gates. Actual Mac/Pixel/terminal/FCM/cold taps remain required.
+The phone is not yet attached; preserve its 703 app/data. Prepared signed 705 is
+stale relative to this work: prepare a fresh signed candidate before upgrade.
+The emulator was restored/stopped. Full-parity goal stays active.
+
 Oct 21 bubble checkpoint: source run-tail curves, width/padding rules, native
 text-fitting bodies, window-anchored blue fills and separate original-sender
 quote outlines/connectors are implemented. Actual Swift path/metric vectors,

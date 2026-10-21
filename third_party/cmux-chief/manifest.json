@@ -69,5 +69,27 @@
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationTranscriptMetrics.swift": "b41f97a2656bd42b909be29e97369c22df790262e09bc0f0cde41709045bbfce",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/BubbleShape.swift": "ef43225cc25727424517a0b74c32d7fc3ff27b82c6e98f8692d2448ae335757c",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationTheme.swift": "533fe1579789bfe6bab5b57acf327ff38689224b4c2624d5cdba500d50e1d53d"
-  }
+  },
+  "composerFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ComposerBarGeometry.swift": "4a7653dd730b87fad2ddf73c5f3bdebebc77640555e958ecfb234d42992495f1",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ComposerFieldMeasurement.swift": "2a56863dfdaddd48b6f3325a37815110f4db970014d0344843c712092dd9e0db",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationRichText.swift": "f5210ee3a6b6be4e02e9004436627f5b533b68eff66d8cfecb5e3a0e42482f2b",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationComposerView.swift": "0c330915c1f033f577b6b44da624da41a0b862c463b88b44ec9b9f4e37e7d0a2"
+  },
+  "composerStrings": [
+    {
+      "path": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "sha256": "e942c581def4193ffa841537b70774fa9b91f98688fef40e4c5001ef864183a7",
+      "keys": {
+        "mobile.chief.conversation.placeholder": "chief_composer_placeholder"
+      }
+    },
+    {
+      "path": "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/Resources/Localizable.xcstrings",
+      "sha256": "7d43f79f76c3ddbd63c5cab6ac66ea966cdf33a495dbf635cdf10bc4de088b93",
+      "keys": {
+        "conversation.composer.send": "chief_composer_send"
+      }
+    }
+  ]
 }

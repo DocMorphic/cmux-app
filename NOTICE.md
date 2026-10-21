@@ -20,6 +20,11 @@ History prefetch thresholds and read retries also follow
 ConversationHistoryPrefetch.swift and ConversationStore.swift at that revision.
 Selected English/Japanese timestamp and catch-up strings
 are copied from its UI catalog; scoped hashes are in the same manifest.
+The text-only Chief composer geometry, field-height rules and plain send trimming
+follow ComposerBarGeometry.swift, ComposerFieldMeasurement.swift,
+ConversationRichText.swift and ConversationComposerView.swift at that revision.
+Selected composer placeholder/send translations are copied from the conversation
+and mobile-shell UI catalogs. Their exact source hashes/keys are in the manifest.
 
 Selected static UI translations are copied verbatim from the CMUXMobileCore,
 CmuxAgentChatUI, CmuxMobileChanges and CmuxMobileShellUI localization catalogs at

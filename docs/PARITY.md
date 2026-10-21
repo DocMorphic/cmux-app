@@ -1,5 +1,21 @@
 # Android parity tracker
 
+## Chief text-composer checkpoint — 2026-10-21
+
+Chief now has source-mapped internal Send/blank visibility, text-only layout,
+growth/scrolling below the header, Foundation-compatible trimming, memory-only
+editor revision fencing and synchronous retained-owner send/local delete
+admission. Measured tail following keeps reflowed delivery controls visible only
+when pinned. Actual Swift executes 60 row/62 trim/five height vectors; 11 source
+strings are verified across nine locales. Full JVM: 3,020 pass, four skip and
+zero failures; final Android: 25 pass in 46.624 s, empty crash buffer. Four fresh
+scene pairs and expanded draft/failed-sheet captures were verified and inspected.
+CHIEF.md records exact scope, diagnostics and evidence. Glass/keyboard/wide-screen,
+rich editing, header/details, emoji/quote/thread/poll/failed-badge UI, full font/
+locale/accessibility/lifecycle/source and physical gates remain open. The emulator
+was restored/stopped; no phone/Mac account/pairing change. Source postdates signed
+705 and needs a fresh signed candidate for a physical upgrade. Goal stays active.
+
 ## Chief bubble and quote checkpoint — 2026-10-21
 
 The dark transcript now ports source run tails, circular tailless bodies, width

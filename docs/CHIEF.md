@@ -1,5 +1,12 @@
 # Chief conversations
 
+Latest text-composer checkpoint (Oct 21): the source/debug port now uses a
+growing text-only field with an internal send capsule, Foundation-compatible
+send trimming, synchronous send admission and synchronous local failed-row
+deletion. The final full JVM run passes 3,020 with four skips and zero failures;
+25 production Android cases pass in 46.624 s with an empty crash buffer.
+The detailed scope, provenance and remaining gates are recorded at the end.
+
 The first Android Chief destination is mounted only when the exact admitted
 foreground Mac advertises all seven required methods. It adds Home and the
 workspace toolbar action, resets to Workspaces when support is lost and keeps
@@ -362,3 +369,95 @@ Failed and diagnostic runs are retained. Final evidence:
 emulator's original 1080×2400 /420 dpi, then the emulator was stopped. This is
 source/debug work newer than signed candidate 705; Pixel installation and fresh
 Mac/Pixel/FCM acceptance remain pending. The full-parity goal stays active.
+
+The later text-only composer port replaces the Material outlined field and
+external Send button with the Chief branch of ConversationComposerView. Empty
+and Foundation-whitespace-only drafts hide Send; an ordinary read error does
+not disable a meaningful draft's explicit send attempt. Chief has no attachment
+plus or microphone affordance. The internal capsule is 38×28 with a 13×16 arrow,
+the source blue fills, trailing reserve 48, left inset 16 and fixed vertical
+padding 10. Phone side insets interpolate from 28 to 16 during IME motion; the
+source's pixel-ceiled send position is derived from the field's one-line height.
+The field grows beyond five lines until the available header/keyboard bound,
+then its real vertical scroll state keeps the end selection visible.
+
+The editor uses memory-only TextFieldState with its own IME selection and
+composition, plus revision-fenced publication to the retained session. It adds
+no saveable plaintext draft. Committed snapshots are published outside input
+transformations, following Android's text-field guidance:
+https://developer.android.com/develop/ui/compose/text/user-input . A stale queued
+snapshot is checked against the current editor before publication. Immediate
+navigation flushes unpublished input; owner retirement clears the editor and
+undo history and disables further input. Clicking Send reads and admits the
+current text synchronously before clearing it. The owner, rather than a view
+coroutine, retains FIFO transport/acknowledgment work. A captured draft revision
+cannot clear a newer identical draft. Foundation trimming, including U+0085 and
+U+200B, happens before id allocation and optimistic insertion; U+001C is retained.
+Local failed-row deletion is also synchronous, matching the source store action.
+
+New layout following uses the measured last row after delivery controls or
+keyboard/font reflow finish measuring. It corrects overflow only for an already
+pinned reader with the tail visible. A new explicit send still returns from
+history to newest, then safely trims the acknowledged window; ordinary browsing
+retains its viewport and loaded rows. Large-text retry controls must fit fully
+inside the list before a test taps them. Sheet action tests wait for the actual
+window target bounds to remain stable before a real touch, because OS IME/window
+motion is outside Compose's test clock; no accessibility-action bypass is used.
+
+`scripts/check-chief-composer.py` guards four composer/core/geometry sources and
+two source string catalogs at `a5911a1f`. It compiles the actual unmodified
+portable Swift row, field-height and plain-text trimming functions and executes
+60 text-only row, 62 trim and five height cases. The actual local Foundation
+whitespace enumeration contains 26 BMP scalars. It also verifies 11 exact source
+placeholder/send strings across nine locale resource folders; missing source
+send translations inherit English. The committed vector SHA-256 is
+`57e6ea7d61959eee2e6105a7edd93d1552d1d8e5d123c4197707a861efdcae8c`.
+UIKit-only composer code is hash-checked, not compiled by this portable checker.
+Global implemented/reviewed upstream pins remain unchanged.
+
+Final full JVM evidence is 3,024 cases in 405 XML classes: 3,020 pass, four skip,
+zero failures/errors. The 25-case Android run comprises 23 Chief production
+composition cases and two framed-root admission cases. It includes blank-send
+visibility, Foundation trimming, sending through a read failure, a 30-line draft
+with its actual end selection and scroll range, same-event edit/navigation,
+retirement clearing, history preservation/window trimming and enlarged failed
+retry/delete/late-echo suppression. It passed in 46.624 s with zero crash-buffer
+bytes. Final build evidence is `chief-composer-accepted-build.log` plus the
+subsequent UI-only `chief-composer-sync-delete-build.log`; Android evidence is
+`chief-composer-accepted-android.log` / `chief-composer-accepted-crash.log` under
+`captures/recovery-20261021/`. Debug/test APKs are recorded by hash in
+`chief-composer-checkpoint.json`.
+
+Four fresh dark scene PNG/metadata pairs use the accepted UIKit fixture hash and
+1206×2622 viewport at density 3. Their hashes, dimensions and metadata were
+verified and all four images inspected, along with the expanded keyboard draft
+and enlarged failed-send sheet. The enlarged body remains actually 28.056341
+logical points. Accepted files are in `chief-composer-accepted-scenes/`.
+The end caret, internal arrow and full sheet controls are visible. This accepts
+the scoped text-composer structure and tested behaviors, not full visual parity.
+
+Earlier diagnostic runs remain retained. The classic string-driven field passed
+23 cases but its long-draft capture did not keep the end caret visible. The first
+state-based batch found a missing public scroll range, a placeholder-sensitive
+empty-text assertion and history/footer reflow failures; two incomplete runs
+were intentionally stopped. Their instrumentation termination is not a native
+crash acceptance result. A later 25-case run and focused run failed after rapidly
+reopening the action sheet. Stronger checks established that the sent owner and
+editor drafts were empty; the remaining failure waited for deletion admission,
+not draft disappearance. Instrumented isolated touch runs admitted deletion
+successfully. The final tests synchronize actual target stability, and local
+deletion no longer depends on a view coroutine. Temporary traces were removed
+before the accepted build/run. An early gated session test also hung because its
+fake reply was never completed; that harness error was corrected. None of these
+diagnostic runs substitutes for the final passing batch.
+
+Still open: exact glass/material and keyboard resting/interactive pin behavior,
+wide-window insets, rich editing/formatting/paste/effects/link previews, full IME,
+selection/rotation/process restoration, all locales/TalkBack/contrast/light mode,
+header/details/service-intro/drawer, emoji, quote/thread taps, poll/failed-badge
+presentation, detector/font/timestamp differences and the broader source audit.
+The owned emulator was restored to 1080×2400 /420 dpi and stopped. No Pixel app,
+Mac account/pairing or helper enrollment was changed. Pixel 703 and prepared
+signed 705 are unchanged; this source requires a fresh signed candidate before
+physical upgrade, rather than installing stale 705. The full-parity goal remains
+active and real Mac/Pixel/native terminal/FCM/cold notification taps remain gates.

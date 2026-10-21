@@ -73,6 +73,7 @@ class NativeChiefRuntimeTest {
         var readMarker = 0uL
         var uncertainAnswerOnce = false
         var sendFailure: Exception? = null
+        var readFailure: Exception? = null
         var sendGate: CompletableDeferred<Unit>? = null
         var rows = listOf(message("hello", 1uL, "Welcome from your Mac"))
         val home get() = listOf(NativeChiefConversation("chief-main", "Chief", "Ready on your Mac", 1, true, false, instant),
@@ -87,6 +88,7 @@ class NativeChiefRuntimeTest {
                 if (historyFailures > 0) { --historyFailures; throw java.io.IOException("History temporarily unavailable") }
             }
             val page = if (waitForChange) transcriptChanges.receive() else snapshot()
+            readFailure?.let { readFailure = null; throw it }
             val eligible = page.messages.filter { beforeSeq == null || it.seq < beforeSeq }
             return page.copy(messages = eligible.takeLast(limit), hasMore = eligible.size > limit)
         }
@@ -139,6 +141,22 @@ class NativeChiefRuntimeTest {
         val last = rows.getJSONObject(rows.length() - 1).getString("id")
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefBubbleBody:$last").fetchSemanticsNodes().isNotEmpty() }
         compose.waitForIdle()
+    }
+
+    private fun tapStableSheetAction(tag: String) {
+        // IME/window motion is external to Compose's test clock. Use a real touch only
+        // after the actual target stops moving, including when reopening a dismissed sheet.
+        var previous: androidx.compose.ui.geometry.Rect? = null
+        var stableSince = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(10_000) {
+            val node = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().singleOrNull()
+            val bounds = node?.boundsInWindow
+            val now = android.os.SystemClock.uptimeMillis()
+            if (bounds != previous) { previous = bounds; stableSince = now }
+            node != null && bounds != null && bounds.height > 0 && bounds.width > 0 &&
+                node.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Disabled) == null && now - stableSince >= 200
+        }
+        compose.onNodeWithTag(tag).assertIsDisplayed().performClick()
     }
 
     private fun captureChiefReference(name: String) {
@@ -245,6 +263,89 @@ class NativeChiefRuntimeTest {
         val text = compose.onNodeWithText("I").fetchSemanticsNode().boundsInRoot
         assertEquals(48 * compose.activity.resources.displayMetrics.density, body.width, 1f)
         assertEquals(body.center.x, text.center.x, 1f)
+    }
+
+    @Test fun composerHidesBlankSendAndKeepsSendingAvailableWhenAReadFails() {
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Welcome from your Mac").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefSend").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("\u200b \n\u0085")
+        compose.onNodeWithTag("ChiefSend").assertDoesNotExist()
+        compose.runOnUiThread { api.readFailure = java.io.IOException("Read temporarily unavailable"); owner.launch { api.transcriptChanges.send(api.snapshot()) } }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.connected == false }
+        compose.onNodeWithTag("ChiefComposer").performTextClearance()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("\u0085 **literal** \u200b")
+        compose.onNodeWithTag("ChiefSend").assertIsDisplayed().assertIsEnabled()
+        val field = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot
+        val send = compose.onNodeWithTag("ChiefSend").fetchSemanticsNode().boundsInRoot
+        assertTrue(field.contains(send.topLeft) && field.contains(send.bottomRight))
+        tapSendWhenReady()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        assertEquals("**literal**", api.sends.single().first)
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:echo").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("**literal**").assertExists()
+        compose.onNodeWithTag("ChiefSend").assertDoesNotExist()
+    }
+
+    @Test fun composerGrowsBeyondFiveLinesThenScrollsBelowTheHeaderWithSendInside() {
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Welcome from your Mac").fetchSemanticsNodes().isNotEmpty() }
+        val initial = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("ChiefComposer").performTextInput((1..30).joinToString("\n") { "Draft line $it" })
+        compose.waitForIdle()
+        val field = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot
+        val send = compose.onNodeWithTag("ChiefSend").fetchSemanticsNode().boundsInRoot
+        val header = compose.onNodeWithContentDescription("Stop Chief").fetchSemanticsNode().boundsInRoot
+        assertTrue(field.height > 160 * compose.activity.resources.displayMetrics.density)
+        assertTrue(field.height > initial.height * 5)
+        assertTrue(field.top > header.bottom)
+        assertTrue(field.contains(send.topLeft) && field.contains(send.bottomRight))
+        compose.onNodeWithTag("ChiefComposer").assertTextContains("Draft line 30", substring = true)
+        val editor = compose.onNodeWithTag("ChiefComposer").fetchSemanticsNode()
+        val selection = editor.config[androidx.compose.ui.semantics.SemanticsProperties.TextSelectionRange]
+        val actualText = editor.config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text
+        assertEquals(actualText.length, selection.end)
+        compose.waitUntil(10_000) {
+            val axis = compose.onNodeWithTag("ChiefComposer").fetchSemanticsNode().config
+                .getOrNull(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange)
+            axis != null && axis.maxValue() > 0 && axis.maxValue() - axis.value() <= 1
+        }
+        saveScreenshot("chief-composer-expanded")
+        compose.onNodeWithTag("ChiefComposer").performTextClearance()
+        compose.onNodeWithTag("ChiefSend").assertDoesNotExist()
+        compose.waitUntil(10_000) { compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot.height <= initial.height + 1 }
+    }
+
+    @Test fun typingAndLeavingInTheSameEventRetainsTheDraftWithoutSending() {
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Welcome from your Mac").fetchSemanticsNodes().isNotEmpty() }
+        val insert = compose.onNodeWithTag("ChiefComposer").fetchSemanticsNode().config[
+            androidx.compose.ui.semantics.SemanticsActions.InsertTextAtCursor].action!!
+        compose.runOnUiThread {
+            assertTrue(insert(androidx.compose.ui.text.AnnotatedString("Keep the final edit")))
+            computer.back()
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) {
+            compose.onNodeWithTag("ChiefComposer").fetchSemanticsNode().config
+                .getOrNull(androidx.compose.ui.semantics.SemanticsProperties.EditableText)?.text == "Keep the final edit"
+        }
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun retiringTheTranscriptClearsTheEditorAndRejectsFurtherEdits() {
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Welcome from your Mac").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Private unsent draft")
+        compose.runOnUiThread { computer.transcript()!!.close() }
+        compose.waitUntil(10_000) {
+            compose.onNodeWithTag("ChiefComposer").fetchSemanticsNode().config
+                .getOrNull(androidx.compose.ui.semantics.SemanticsProperties.EditableText)?.text == ""
+        }
+        compose.onNodeWithTag("ChiefSend").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").assertIsNotEnabled()
+        compose.onAllNodesWithText("Private unsent draft").assertCountEquals(0)
+        assertTrue(api.sends.isEmpty())
     }
 
     @Test fun homeSearchSendEchoAndConversationDraftRestorationUseTheProductionComposition() {
@@ -409,11 +510,16 @@ class NativeChiefRuntimeTest {
         tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
         val id = api.sends.single().second!!
-        compose.onNodeWithTag("ChiefFailed:$id").performScrollTo().performClick()
+        compose.waitUntil(10_000) {
+            val retry = compose.onAllNodesWithTag("ChiefFailed:$id").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
+            val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+            retry != null && retry.height > 0 && retry.top >= viewport.top && retry.bottom <= viewport.bottom
+        }
+        compose.onNodeWithTag("ChiefFailed:$id").assertIsDisplayed().performClick()
         compose.onNodeWithTag("ChiefFailedSendDialog").assertExists()
         compose.onNodeWithTag("ChiefRetrySend").assertIsEnabled()
         compose.runOnUiThread { api.sendFailure = null }
-        compose.onNodeWithTag("ChiefRetrySend").performClick()
+        tapStableSheetAction("ChiefRetrySend")
         compose.waitUntil(10_000) { api.sends.size == 2 }
         assertEquals(api.sends[0], api.sends[1])
         compose.onNodeWithTag("ChiefMessage:echo").assertExists()
@@ -429,7 +535,15 @@ class NativeChiefRuntimeTest {
         tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
         val id = api.sends.single().second!!
-        compose.onNodeWithTag("ChiefFailed:$id").performScrollTo().performClick()
+        compose.waitUntil(10_000) {
+            val retry = compose.onAllNodesWithTag("ChiefFailed:$id").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
+            val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+            retry != null && retry.height > 0 && retry.top >= viewport.top && retry.bottom <= viewport.bottom
+        }
+        assertEquals("", computer.transcript()!!.state.value.draft)
+        assertEquals("", compose.onNodeWithTag("ChiefComposer").fetchSemanticsNode().config[
+            androidx.compose.ui.semantics.SemanticsProperties.EditableText].text)
+        compose.onNodeWithTag("ChiefFailed:$id").assertIsDisplayed().performClick()
         compose.onNodeWithTag("ChiefRetrySend").assertIsDisplayed()
         compose.onNodeWithTag("ChiefDiscardSend").assertIsDisplayed()
         compose.onNodeWithText("Cancel").assertIsDisplayed()
@@ -447,9 +561,11 @@ class NativeChiefRuntimeTest {
         bitmap.recycle()
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithTag("ChiefFailedSendDialog").assertDoesNotExist()
-        compose.onNodeWithTag("ChiefFailed:$id").performScrollTo().performClick()
-        compose.onNodeWithTag("ChiefDiscardSend").performClick()
+        compose.waitUntil(10_000) { compose.onNodeWithTag("ChiefFailed:$id").isDisplayed() }
+        compose.onNodeWithTag("ChiefFailed:$id").assertIsDisplayed().performClick()
+        tapStableSheetAction("ChiefDiscardSend")
         compose.onNodeWithTag("ChiefFailedSendDialog").assertDoesNotExist()
+        compose.waitUntil(10_000) { computer.transcript()!!.state.value.outgoing.none { it.clientMessageId == id } }
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Delete this failed message").fetchSemanticsNodes().isEmpty()
         }
@@ -626,11 +742,10 @@ class NativeChiefRuntimeTest {
     }
 
     private fun tapSendWhenReady() {
-        // Opening a transcript admits its first read asynchronously. A disabled
-        // semantic click is ignored, just as tapping the disabled control is.
+        // The source hides Send until a meaningful draft has rendered.
         compose.waitUntil(10_000) {
-            compose.onNodeWithTag("ChiefSend").fetchSemanticsNode().config
-                .getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Disabled) == null
+            val node = compose.onAllNodesWithTag("ChiefSend").fetchSemanticsNodes().singleOrNull()
+            node != null && node.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Disabled) == null
         }
         compose.onNodeWithTag("ChiefSend").assertIsEnabled().performClick()
     }

@@ -1,0 +1,4 @@
+<resources>
+    <string name="chief_composer_placeholder">Chiefにメッセージ</string>
+    <string name="chief_composer_send">送信</string>
+</resources>

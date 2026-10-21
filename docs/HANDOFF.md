@@ -1,5 +1,25 @@
 ## Active full-parity goal — 2026-10-20
 
+Newest Oct 21 checkpoint: Chief's text-only composer now has the source internal
+send capsule/blank visibility, growing and scrolling field, Foundation trimming,
+memory-only editor reconciliation and synchronous retained-owner send/local
+delete admission. Actual pinned Swift execution verifies 60 row/62 trim/five
+height cases and 11 source strings across nine locales. Full JVM: 3,020 pass,
+four skip, zero failures. Final Android: 25 pass in 46.624 s, empty crash buffer.
+Four fresh reference-input scenes plus long-draft/failed-sheet captures were
+verified/inspected; source and diagnostic limits are in CHIEF.md. All temporary
+traces are removed. The owned emulator was restored/stopped. No physical phone,
+Mac pairing/account or helper changes were made. Source is newer than signed
+705; prepare a fresh stable-signer candidate before any Pixel upgrade.
+
+The user asked whether to connect the phone and was told yes: USB, unlocked,
+cmux open and Tailscale on. USB remains absent at this checkpoint. When Pixel
+`29231JEGR18218` first returns authorized, restore its original stay-awake setting
+with `adb -s 29231JEGR18218 shell svc power stayon false` before further tests.
+The Mac manual-unlock question remains pending; never bypass its lock/security
+prompts. Header/details/service intro, rich composer, remaining visual/lifecycle/
+accessibility/source audit and actual terminal/FCM/cold tap acceptance stay open.
+
 Latest source/debug checkpoint (Oct 21): Chief now has source-mapped run tails,
 text-fitting body widths/padding, screen-anchored blue fills and original-sender
 quote outlines/connectors. Four dark Android scenes share the UIKit fixture

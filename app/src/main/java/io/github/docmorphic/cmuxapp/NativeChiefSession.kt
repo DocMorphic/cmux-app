@@ -80,11 +80,11 @@ internal data class NativeChiefTranscriptState(
     val messages: List<NativeChiefMessage> = emptyList(), val outgoing: List<NativeChiefOutgoing> = emptyList(),
     val loading: Boolean = true, val loadingOlder: Boolean = false, val hasMore: Boolean = false,
     val historyRetryAttempt: Int = 0, val historyError: String? = null, val readsActive: Boolean = false,
-    val working: Boolean = false, val connected: Boolean = false, val error: String? = null,
+    val working: Boolean = false, val connected: Boolean = false, val error: String? = null, val retired: Boolean = false,
     val lastReadSeq: ULong = 0uL, val unread: Long = 0, val headSeq: ULong = 0uL,
     val catchUpMarker: ULong? = null, val catchUpCount: Long = 0, val loadingCatchUp: Boolean = false,
     val localSendRevision: Long = 0,
-    val draft: String = "", val deciding: Set<String> = emptySet(), val committed: Set<String> = emptySet(),
+    val draft: String = "", val draftRevision: Long = 0, val deciding: Set<String> = emptySet(), val committed: Set<String> = emptySet(),
     val uncertain: Set<String> = emptySet(), val actionErrors: Map<String, String> = emptyMap(),
     val localClientIds: Map<String, String> = emptyMap()
 )
@@ -374,21 +374,37 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         } finally { if (generation == olderGeneration && job.isActive && permits()) mutableState.value = state.value.copy(loadingCatchUp = false) }
     }
 
-    fun editDraft(text: String) { checkOwner(); mutableState.value = state.value.copy(draft = text) }
+    fun editDraft(text: String): Long {
+        checkOwner()
+        if (text != state.value.draft) mutableState.value = state.value.copy(draft = text, draftRevision = state.value.draftRevision + 1)
+        return state.value.draftRevision
+    }
 
     /** One explicit send, one stable id. An uncertain write is never automatically resent. */
-    suspend fun send(): String? {
+    suspend fun send(capturedDraft: String? = null, capturedRevision: Long? = null): String? {
         currentCoroutineContext().ensureActive()
+        val submission = submit(capturedDraft, capturedRevision) ?: return null
+        submission.second.await()
+        return submission.first
+    }
+
+    /** Synchronous UI admission, matching Store.send: retiring the view cannot lose a clicked send. */
+    fun submitFromComposer(text: String, revision: Long): String? = submit(text, revision)?.first
+
+    private fun submit(capturedDraft: String?, capturedRevision: Long?): Pair<String, Deferred<Unit>>? {
         checkOwner()
-        val draft = state.value.draft
-        if (draft.isBlank()) return null
+        require((capturedDraft == null) == (capturedRevision == null))
+        val draft = NativeChiefComposerPolicy.trim(capturedDraft ?: state.value.draft)
+        if (draft.isEmpty()) return null
         val id = newId()
         require(state.value.outgoing.none { it.clientMessageId == id })
-        mutableState.value = state.value.copy(draft = "", localSendRevision = state.value.localSendRevision + 1,
+        val clear = capturedRevision == null || capturedRevision == state.value.draftRevision
+        mutableState.value = state.value.copy(draft = if (clear) "" else state.value.draft,
+            draftRevision = if (clear) state.value.draftRevision + 1 else state.value.draftRevision,
+            localSendRevision = state.value.localSendRevision + 1,
             outgoing = state.value.outgoing + NativeChiefOutgoing(id, draft, now(),
             sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { it.seq } ?: 0uL)))
-        enqueueTransmit(id, draft)
-        return id
+        return id to enqueueTransmit(id, draft)
     }
 
     /** Source Try Again: reserve synchronously, reuse the client id, and move the row to the current tail. */
@@ -401,7 +417,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
                 error = null, failedAnchorSeq = null,
                 sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { message -> message.seq } ?: 0uL)) else it
         })
-        enqueueTransmit(clientMessageId, failed.text)
+        enqueueTransmit(clientMessageId, failed.text).await()
         return true
     }
 
@@ -419,7 +435,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
 
     /** Like the source store's sendTail, the retained session owns FIFO work, including its acknowledgment read.
      * Leaving a view may cancel its waiter, but only retiring this owner cancels admitted sends. */
-    private suspend fun enqueueTransmit(id: String, text: String) {
+    private fun enqueueTransmit(id: String, text: String): Deferred<Unit> {
         val previous = sendTail
         val next = scope.async(start = CoroutineStart.LAZY) {
             previous?.join()
@@ -430,7 +446,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         }
         sendTail = next
         next.start()
-        next.await()
+        return next
     }
 
     private suspend fun transmit(id: String, text: String) {
@@ -542,7 +558,8 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     }
     fun refresh() { checkOwner(); pause(); start() }
     override fun close() {
+        val clearedDraftRevision = state.value.draftRevision + 1
         job.cancel(); monitor = null; sendTail = null; olderTask = null; olderWanted = false; historyOperation = null; deletedClientIds.clear(); deletedMessageIds.clear()
-        reading = NativeChiefReading(); mutableState.value = NativeChiefTranscriptState(loading = false)
+        reading = NativeChiefReading(); mutableState.value = NativeChiefTranscriptState(loading = false, draftRevision = clearedDraftRevision, retired = true)
     }
 }

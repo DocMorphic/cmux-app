@@ -1,0 +1,7 @@
+<!-- Project-authored equivalent of the source's 13 x 16 pt arrow.up ink. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="13dp" android:height="16dp" android:viewportWidth="13" android:viewportHeight="16">
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.33" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M6.5,15L6.5,1.2M1.2,6.5L6.5,1.2L11.8,6.5" />
+</vector>

@@ -5,6 +5,23 @@ Source: `manaflow-ai/cmux` at
 Copyright Manaflow, Inc.; GPL-3.0-or-later. See LICENSE and the root NOTICE.md.
 `manifest.json` records five wire-source hashes, separate behavior/artwork hashes and three conversation timeline hashes. This scoped reference does not
 advance the global implemented or reviewed upstream pins.
+The dated counts and host observations below are historical; `docs/CHIEF.md` and
+`docs/HANDOFF.md` hold the current implementation, reference and real-host state.
+
+The text-only composer reference also guards four geometry/core/UI sources and
+two localization catalogs at this revision. It executes the unmodified portable
+Swift geometry, field measurement and trimming bodies: 60 row, 62 trim and five
+height cases, with the actual local Foundation whitespace set. It verifies 11
+copied placeholder/send values across nine locale resource folders. Run:
+
+```sh
+python3 scripts/check-chief-composer.py --upstream /absolute/path/to/cmux \
+  --output /absolute/path/to/ignored-composer-evidence
+```
+
+The UIKit-only source is hash-checked, not compiled by this portable checker.
+This is a scoped text-only comparison; keyboard/IME, rich editor, material and
+physical acceptance require their own evidence.
 
 The Kotlin port covers the Chief capability set, nine RPC request shapes, typed
 response defaults, UInt64 sequence counters and shared structured questions,
