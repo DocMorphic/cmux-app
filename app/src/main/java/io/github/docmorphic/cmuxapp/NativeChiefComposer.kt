@@ -18,6 +18,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
@@ -45,12 +47,14 @@ import kotlin.math.ceil
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Boolean,
-    onDraft: (String) -> Long?, onSend: (String, Long) -> Boolean) {
+    onDraft: (String) -> Long?, onSend: (String, Long) -> Boolean, replyGeneration: Long? = null) {
     // Deliberately memory-only: the retained owner holds the draft; no new saved-state text copy.
     val editor = remember { TextFieldState(draft, TextRange(draft.length)) }
     val bridge = remember { NativeChiefDraftBridge(draft, draftRevision) }
     val publish by rememberUpdatedState(onDraft)
     val scroll = rememberScrollState()
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(replyGeneration) { if (replyGeneration != null) focus.requestFocus() }
     DisposableEffect(editor) {
         onDispose {
             // Navigation can dispose the collector in the same event as the last edit.
@@ -116,7 +120,7 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
             .background(if (dark) Color(0xFF1A1A1A) else Color(0xFFF3F3F3))
             .border(.5.dp, if (dark) Color.White.copy(alpha = .16f) else Color.Black.copy(alpha = .10f), shape), content = {
             BasicTextField(editor, enabled = !retired, scrollState = scroll, lineLimits = TextFieldLineLimits.MultiLine(),
-                modifier = Modifier.fillMaxWidth().height(fieldHeight).testTag("ChiefComposer").semantics {
+                modifier = Modifier.fillMaxWidth().height(fieldHeight).focusRequester(focus).testTag("ChiefComposer").semantics {
                     verticalScrollAxisRange = ScrollAxisRange({ scroll.value.toFloat() }, { scroll.maxValue.toFloat() })
                 }
                     .padding(start = 16.dp, end = 48.dp, top = 10.dp, bottom = 10.dp),
@@ -124,7 +128,7 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Default),
                 decorator = { input ->
                     Box {
-                        if (editor.text.isEmpty()) Text(stringResource(R.string.chief_composer_placeholder),
+                        if (editor.text.isEmpty()) Text(stringResource(if (replyGeneration != null) R.string.chief_reply_placeholder else R.string.chief_composer_placeholder),
                             color = if (dark) Color(0xFF5D5D61) else Color(0xFFB2B2B8), style = style)
                         input()
                     }

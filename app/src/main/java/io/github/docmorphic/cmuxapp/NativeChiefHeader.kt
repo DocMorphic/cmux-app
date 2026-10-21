@@ -37,7 +37,7 @@ internal fun NativeChiefPhoto(modifier: Modifier = Modifier) {
 
 @Composable
 internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: Boolean, onBack: () -> Unit,
-    onInfo: () -> Unit, onStop: () -> Unit) {
+    onInfo: () -> Unit, onStop: () -> Unit, replyMode: Boolean = false, onCloseReply: () -> Unit = {}) {
     val density = LocalDensity.current
     val compact = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE && LocalConfiguration.current.screenHeightDp < 480
     val safeTop = WindowInsets.statusBars.getTop(density) / density.density.toDouble()
@@ -60,7 +60,7 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
     val unreadMeasure = remember(measurer, unreadStyle, unread) { unread?.let { measurer.measure(it, unreadStyle).size.width.toDouble() / density.density } }
     val backLabel = stringResource(R.string.chief_header_back)
     val photoLabel = stringResource(R.string.chief_header_photo)
-    val stopLabel = stringResource(R.string.chief_header_stop)
+    val stopLabel = stringResource(if (replyMode) R.string.chief_reply_close else R.string.chief_header_stop)
     val unreadLabel = unread?.let { stringResource(R.string.chief_header_unread, conversation.unread) }
     val height = if (compact) (maxOf(safeTop, 24.0) + 54 - safeTop).toFloat().dp else 92.dp
     BoxWithConstraints(Modifier.fillMaxWidth().height(height).testTag("ChiefHeader")) {
@@ -69,7 +69,7 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
         fun Modifier.glass() = clip(CircleShape).background(if (dark) Color(0xFF202020) else Color(0xFFEAEAEA))
             .border(.5.dp, ink.copy(alpha = .10f), CircleShape)
         Layout(modifier = Modifier.fillMaxSize(), content = {
-            Box(Modifier.testTag("ChiefBack").glass().clickable(role = Role.Button, onClick = onBack).semantics {
+            if (replyMode) Spacer(Modifier.clearAndSetSemantics {}) else Box(Modifier.testTag("ChiefBack").glass().clickable(role = Role.Button, onClick = onBack).semantics {
                 contentDescription = backLabel; unreadLabel?.let { stateDescription = it }
             }) {
                 Icon(painterResource(R.drawable.ic_chief_back), null, Modifier.align(Alignment.CenterStart)
@@ -82,10 +82,12 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
                     }
                 }
             }
-            Box(Modifier.testTag("ChiefHeaderStop").glass().clickable(enabled = !stopping, role = Role.Button, onClick = onStop)
+            Box(Modifier.testTag(if (replyMode) "ChiefReplyClose" else "ChiefHeaderStop").glass()
+                .clickable(enabled = replyMode || !stopping, role = Role.Button, onClick = if (replyMode) onCloseReply else onStop)
                 .semantics { contentDescription = stopLabel }, Alignment.Center) {
                 // The vector's 14/24 ink reserve must draw the verified UIKit 17 pt stop.
-                Icon(painterResource(R.drawable.ic_chief_stop), null, Modifier.size((204f / 7).dp), tint = ink)
+                Icon(painterResource(if (replyMode) R.drawable.ic_primary_close else R.drawable.ic_chief_stop), null,
+                    Modifier.size(if (replyMode) 24.dp else (204f / 7).dp), tint = ink)
             }
             Row(Modifier.testTag("ChiefHeaderName").then(if (compact) Modifier else Modifier.glass())
                 .clickable(role = Role.Button, onClick = onInfo).semantics(mergeDescendants = true) {}

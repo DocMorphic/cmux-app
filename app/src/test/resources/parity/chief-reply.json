@@ -1,0 +1,242 @@
+{
+  "cases": [
+    {
+      "input": [
+        {
+          "footer": "other",
+          "id": "root",
+          "outgoing": false,
+          "replyTo": null
+        },
+        {
+          "footer": "other",
+          "id": "mine",
+          "outgoing": true,
+          "replyTo": "root"
+        },
+        {
+          "footer": "other",
+          "id": "other",
+          "outgoing": false,
+          "replyTo": null
+        },
+        {
+          "footer": "other",
+          "id": "child",
+          "outgoing": false,
+          "replyTo": "root"
+        },
+        {
+          "footer": "notDelivered",
+          "id": "failed",
+          "outgoing": true,
+          "replyTo": "root"
+        },
+        {
+          "footer": "other",
+          "id": "newest",
+          "outgoing": true,
+          "replyTo": "root"
+        }
+      ],
+      "opened": true,
+      "root": "root",
+      "rows": [
+        {
+          "avatar": false,
+          "footer": "none",
+          "id": "root",
+          "replyCount": 0,
+          "replyQuoteRemoved": true,
+          "senderName": true,
+          "tail": true
+        },
+        {
+          "avatar": false,
+          "footer": "none",
+          "id": "mine",
+          "replyCount": 0,
+          "replyQuoteRemoved": true,
+          "senderName": false,
+          "tail": true
+        },
+        {
+          "avatar": false,
+          "footer": "none",
+          "id": "child",
+          "replyCount": 0,
+          "replyQuoteRemoved": true,
+          "senderName": true,
+          "tail": true
+        },
+        {
+          "avatar": false,
+          "footer": "notDelivered",
+          "id": "failed",
+          "replyCount": 0,
+          "replyQuoteRemoved": true,
+          "senderName": false,
+          "tail": true
+        },
+        {
+          "avatar": false,
+          "footer": "other",
+          "id": "newest",
+          "replyCount": 0,
+          "replyQuoteRemoved": true,
+          "senderName": false,
+          "tail": true
+        }
+      ]
+    },
+    {
+      "input": [
+        {
+          "footer": "other",
+          "id": "root",
+          "outgoing": false,
+          "replyTo": null
+        },
+        {
+          "footer": "other",
+          "id": "mine",
+          "outgoing": true,
+          "replyTo": "root"
+        },
+        {
+          "footer": "other",
+          "id": "other",
+          "outgoing": false,
+          "replyTo": null
+        },
+        {
+          "footer": "other",
+          "id": "child",
+          "outgoing": false,
+          "replyTo": "root"
+        },
+        {
+          "footer": "notDelivered",
+          "id": "failed",
+          "outgoing": true,
+          "replyTo": "root"
+        },
+        {
+          "footer": "other",
+          "id": "newest",
+          "outgoing": true,
+          "replyTo": "root"
+        }
+      ],
+      "opened": true,
+      "root": "other",
+      "rows": [
+        {
+          "avatar": false,
+          "footer": "none",
+          "id": "other",
+          "replyCount": 0,
+          "replyQuoteRemoved": true,
+          "senderName": true,
+          "tail": true
+        }
+      ]
+    },
+    {
+      "input": [
+        {
+          "footer": "other",
+          "id": "root",
+          "outgoing": false,
+          "replyTo": null
+        },
+        {
+          "footer": "other",
+          "id": "mine",
+          "outgoing": true,
+          "replyTo": "root"
+        },
+        {
+          "footer": "other",
+          "id": "other",
+          "outgoing": false,
+          "replyTo": null
+        },
+        {
+          "footer": "other",
+          "id": "child",
+          "outgoing": false,
+          "replyTo": "root"
+        },
+        {
+          "footer": "notDelivered",
+          "id": "failed",
+          "outgoing": true,
+          "replyTo": "root"
+        },
+        {
+          "footer": "other",
+          "id": "newest",
+          "outgoing": true,
+          "replyTo": "root"
+        }
+      ],
+      "opened": true,
+      "root": "mine",
+      "rows": [
+        {
+          "avatar": false,
+          "footer": "other",
+          "id": "mine",
+          "replyCount": 0,
+          "replyQuoteRemoved": true,
+          "senderName": false,
+          "tail": true
+        }
+      ]
+    },
+    {
+      "input": [
+        {
+          "footer": "other",
+          "id": "root",
+          "outgoing": false,
+          "replyTo": null
+        },
+        {
+          "footer": "other",
+          "id": "mine",
+          "outgoing": true,
+          "replyTo": "root"
+        },
+        {
+          "footer": "other",
+          "id": "other",
+          "outgoing": false,
+          "replyTo": null
+        },
+        {
+          "footer": "other",
+          "id": "child",
+          "outgoing": false,
+          "replyTo": "root"
+        },
+        {
+          "footer": "notDelivered",
+          "id": "failed",
+          "outgoing": true,
+          "replyTo": "root"
+        },
+        {
+          "footer": "other",
+          "id": "newest",
+          "outgoing": true,
+          "replyTo": "root"
+        }
+      ],
+      "opened": false,
+      "root": "missing",
+      "rows": []
+    }
+  ]
+}

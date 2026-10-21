@@ -1,5 +1,33 @@
 ## Active full-parity goal — 2026-10-20
 
+## Reply workflow and verified Mac build — 2026-10-21
+
+Chief now opens a loaded root/direct-reply snapshot through quotes and the source
+Reply accessibility action, retains draft/editor state through close/Escape,
+blocks trim while open and purges copies on owner retirement. Send captures the
+local target, exits reply mode and retains the existing text/client-ID boundary;
+the actual Chief backend ignores generic reply metadata, so ordinary successful
+acknowledgment clears the optimistic quote. No wire parameter was invented.
+The source guard/projection checker passes four cases and 17 catalog label values.
+Ninety Chief JVM cases pass; debug/instrumentation builds pass. Final portrait:
+40 passes and two landscape-only skips in 77.942 s. All four separate landscape
+baseline cases pass in 6.559 s (not new reply workflow landscape acceptance).
+Both crash buffers are empty. Seven shared-scene PNG/metadata pairs are verified;
+three new workflow, normal portrait and normal compact images were inspected.
+Emulator restored/stopped. See CHIEF.md and `chief-reply-checkpoint.json` for
+scope, preserved failed diagnostics and remaining gesture/motion/card/native
+thread-reference/keyboard/locale/accessibility/lifecycle/physical gates.
+
+Mac run 39541508905 SUCCEEDED at a477efa1. Its downloaded bundle now passes
+independent immutable source/14-pin/33-file, archive/symlink, ARM64/environment
+and deep strict signature verification; see PUSH_HELPER_RUNTIME.md and
+`captures/runtime/mac-companion-39541508905-app/verification.json`. The old
+custom app remains untouched. Mac locked and Pixel USB absent; runtime transition,
+real Keychain/terminal/FCM/cold-tap acceptance remain open. First on Pixel return,
+restore `svc power stayon false`. Signed 707 predates the latest Android changes
+and remains uninstalled. Prepare a fresh stable-signer candidate before upgrade.
+Full parity goal stays active; offline checks do not complete it.
+
 ## Transcript overlay checkpoint — 2026-10-21
 
 Chief now uses a full transcript viewport with header/composer overlays, measured

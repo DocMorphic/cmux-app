@@ -1,5 +1,61 @@
 # Chief conversations
 
+Oct 21 reply workflow checkpoint: quotes now request the loaded
+parent thread, and the source Reply accessibility action targets the selected
+message within its loaded root. Missing roots cause no fallback read. The retained
+owner holds a one-open snapshot of root/direct replies; later arrivals/read changes
+update the backing conversation while the copies stay frozen until reopened,
+matching the actual source populate call. Open threads hold window trimming.
+Closing retains the draft; owner retirement clears both the draft and copies.
+
+Reply mode hides Back, changes Stop to Close, focuses the same editor, and uses
+Reply as its placeholder. Close/backdrop/Escape restore normal chrome while
+retaining editor state. Send captures the local reply target on the optimistic
+row, exits the mode, and uses the existing text/client-ID send. The actual Chief
+backend ignores the generic draft's reply identifier; successful acknowledgment
+therefore removes the optimistic quote. An uncertain/failed send keeps its quote
+and stable client ID. No new wire parameter or provider/account setup is added.
+
+Thread copies have no nested quotes, use incoming sender names/no direct-chat
+avatars, force tails, and space whole rows four points for the same sender or ten
+for another. Their unclipped scroll surface sits six points above the composer
+container and bottom-aligns shorter content. Layout reads the IME animation target
+so the thread aims at the model's final keyboard geometry. The backing transcript
+blurs, its copied bodies hide, other outgoing bodies dim to 0.7, and its
+accessibility subtree is hidden. The thread exposes a pane title, Reply actions,
+and both accessibility scroll-action forms. The thread owns its actions before
+the scrolling modifier's built-ins; the installed Compose 1.9.1 bytecode audit
+identified the conflicting built-in action. Structured copies currently use
+read-only content summaries, including the source one-entry form for noncompact
+questions. Ordinary pending cards also avoid duplicating the projected prompt.
+
+The source checker compiles the actual loaded-root guard and projection block
+against inert row-builder/model inputs (four cases), audits the Chief transport
+boundary, and verifies 17 label values from the pinned UI/Core/Shell catalogs.
+Ninety focused Chief JVM cases pass with no skips/failures; debug/instrumentation
+builds pass. Final portrait invocation: 40 actual passes in 77.942 s and two
+landscape-only assumptions skipped (42 runner cases). All four separate landscape
+baseline cases pass in 6.559 s; these cover compact headers/details and transcript
+geometry, not the new reply workflows in landscape. Both crash buffers are empty.
+The six new reply tests cover loaded-root/frozen-copy/draft ownership, local send
+and ordinary acknowledgment, backdrop/retirement cleanup, accessibility retargeting
+and Escape, read-only structured copies, and both accessibility scroll-action forms
+on a long thread. Five portrait and two landscape PNG/metadata pairs pass hash,
+shared-fixture, viewport and density checks. Loaded snapshot, scrolled long thread,
+optimistic quote, normal portrait and normal compact images were inspected. The
+owned emulator was restored to 1080×2400/420 and stopped. Prior failures and logs
+are retained as `chief-reply-*` under recovery-20261021; the final receipt is
+`chief-reply-checkpoint.json`. These are authored local-owner workflow captures,
+not matched UIKit thread reference captures.
+
+This is a workflow port in progress, not full thread or app parity. Source right-
+swipe entry/indicator/haptics, ReplyTrip row travel and close/blur/chrome fades,
+exact poll/failed-card presentation, native UIKit thread reference captures,
+complex editor/keyboard motion, rotation/locale/contrast/full TalkBack and physical
+Mac/Pixel acceptance remain required. The current UIKit reference can be extended
+through the real public quote accessibility element's activation; source-package
+patching/private selector shortcuts are unnecessary. Signed 707 predates this work.
+
 Oct 21 transcript-frame checkpoint:
 the transcript now fills the available Android surface under both the header and
 composer. Stable subcomposition slots measure the bars before computing source

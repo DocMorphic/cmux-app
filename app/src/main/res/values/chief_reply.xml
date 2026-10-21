@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chief_reply_placeholder">Reply</string>
+    <string name="chief_reply_action">Reply</string>
+    <string name="chief_reply_close">Close</string>
+    <string name="chief_reply_transcript">Reply transcript</string>
+    <string name="chief_reply_answer_questions">Answer questions</string>
+</resources>

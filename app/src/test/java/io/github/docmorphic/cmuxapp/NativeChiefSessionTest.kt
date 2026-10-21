@@ -107,6 +107,81 @@ class NativeChiefSessionTest {
             assertEquals("\u001ckeep\u001c", session.state.value.outgoing.last().text)
         } finally { session.close() }
     }
+    @Test fun replyThreadIsLoadedOnlyFrozenPerOpenAndKeepsTheDraftAndReadVisit() = runTest {
+        val api = Api(); var permits = true
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { permits })
+        try {
+            val root = message(1); val reply = message(2, human = true).copy(threadRoot = root.id)
+            api.reads.send(Result.success(page(root, reply, message(3)))); session.setViewing(true); session.start(); runCurrent()
+            session.editDraft("Keep this draft")
+            val reads = api.readRequests.size
+            assertFalse(session.openReplyThread("missing-root")); assertEquals(reads, api.readRequests.size)
+            assertTrue(session.openReplyThread(root.id))
+            val opened = session.state.value.reply!!
+            assertEquals(root.id, opened.targetID); assertEquals(listOf("m1", "m2"), opened.rows.map { it.messageID })
+            api.waits.send(Result.success(page(root.copy(text = "Changed after open"), reply, message(4).copy(threadRoot = root.id)))); runCurrent()
+            assertEquals("Message 1", opened.rows.first().message!!.text)
+            assertEquals(listOf("m1", "m2"), session.state.value.reply!!.rows.map { it.messageID })
+            assertTrue(session.state.value.readsActive)
+            session.closeReplyThread(); assertEquals("Keep this draft", session.state.value.draft)
+            assertTrue(session.replyTo(reply.id)); assertEquals(reply.id, session.state.value.reply!!.targetID)
+            assertTrue(session.state.value.reply!!.generation > opened.generation)
+            assertEquals(listOf("m1", "m2", "m4"), session.state.value.reply!!.rows.map { it.messageID })
+            permits = false
+            assertThrows(IllegalStateException::class.java) { session.closeReplyThread() }
+            assertTrue(session.state.value.retired); assertNull(session.state.value.reply); assertEquals("", session.state.value.draft)
+        } finally { session.close() }
+    }
+
+    @Test fun replySubmissionRetainsOnlyOptimisticQuoteMetadataAndUsesTheOrdinaryChiefSend() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "reply-client" })
+        val sent = CompletableDeferred<NativeChiefSent>()
+        try {
+            api.reads.send(Result.success(page(message(1), message(2).copy(threadRoot = "m1")))); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> sent.await() }
+            assertTrue(session.replyTo("m2")); val revision = session.editDraft("Reply text")
+            assertEquals("reply-client", session.submitFromComposer("Reply text", revision))
+            assertNull(session.state.value.reply); assertEquals("", session.state.value.draft)
+            assertEquals("m2", session.state.value.outgoing.single().replyToID)
+            assertEquals("m2", NativeChiefTimeline.rows(session.state.value).last().quote!!.id)
+            runCurrent(); assertEquals(listOf("Reply text" to "reply-client"), api.sends)
+            api.reads.send(Result.success(page(message(1), message(2).copy(threadRoot = "m1"))))
+            sent.complete(NativeChiefSent("chief-main", "server-id", "reply-client", false)); runCurrent()
+            assertNull(session.state.value.outgoing.single().replyToID)
+            assertNull(NativeChiefTimeline.rows(session.state.value).last().quote)
+        } finally { sent.cancel(); session.close() }
+    }
+
+    @Test fun failedReplyKeepsItsQuoteAndCanBeAThreadTargetWithoutAnotherSend() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "failed-reply" })
+        try {
+            api.reads.send(Result.success(page(message(1)))); session.start(); runCurrent()
+            api.sendBlock = { _, _ -> throw MobileRpcOutcomeUnknown() }
+            assertTrue(session.replyTo("m1")); session.editDraft("An uncertain reply"); session.send()
+            assertEquals("m1", session.state.value.outgoing.single().replyToID)
+            assertEquals("m1", NativeChiefTimeline.rows(session.state.value).last().quote!!.id)
+            assertTrue(session.replyTo("local:failed-reply"))
+            assertEquals("local:failed-reply", session.state.value.reply!!.targetID)
+            assertEquals(listOf("m1", "local:failed-reply"), session.state.value.reply!!.rows.map { it.messageID })
+            assertEquals(1, api.sends.size)
+        } finally { session.close() }
+    }
+
+    @Test fun replySnapshotHoldsWindowTrimmingUntilItCloses() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(*(1..50).map { message(it) }.toTypedArray(), more = false).copy(lastReadSeq = 50uL, unreadCount = 0)))
+            session.setViewing(true); session.start(); runCurrent(); assertTrue(session.replyTo("m1"))
+            for (first in 51..1501 step 200) {
+                api.waits.send(Result.success(page(*(first..minOf(first + 199, 1501)).map { message(it) }.toTypedArray()))); runCurrent()
+            }
+            assertEquals(1501, session.state.value.messages.size)
+            assertFalse(session.trimHistoryIfResting())
+            session.closeReplyThread(); assertTrue(session.trimHistoryIfResting())
+            assertEquals(1000, session.state.value.messages.size)
+        } finally { session.close() }
+    }
+
     private val instant = Instant.parse("2026-10-20T12:00:00Z")
     private fun message(seq: Int, id: String = "m$seq", text: String = "Message $seq", human: Boolean = false,
         clientId: String? = null, parts: List<NativeChiefPart> = emptyList()) = NativeChiefMessage(id, seq.toULong(),

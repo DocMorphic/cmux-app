@@ -78,7 +78,7 @@ internal val NativeChiefDelivery.isFailed: Boolean
     get() = this == NativeChiefDelivery.UNCONFIRMED || this == NativeChiefDelivery.REJECTED
 internal data class NativeChiefOutgoing(val clientMessageId: String, val text: String, val at: Instant,
     val delivery: NativeChiefDelivery = NativeChiefDelivery.SENDING, val serverMessageId: String? = null, val error: String? = null,
-    val echoClientMessageId: String? = null, val failedAnchorSeq: ULong? = null, val sentAfterSeq: ULong = 0uL)
+    val echoClientMessageId: String? = null, val failedAnchorSeq: ULong? = null, val sentAfterSeq: ULong = 0uL, val replyToID: String? = null)
 internal data class NativeChiefListState(val muted: Boolean = false, val readReceipts: Boolean = true)
 
 internal data class NativeChiefTranscriptState(
@@ -89,7 +89,7 @@ internal data class NativeChiefTranscriptState(
     val hasLoadedInfo: Boolean = false, val listState: NativeChiefListState = NativeChiefListState(),
     val lastReadSeq: ULong = 0uL, val unread: Long = 0, val headSeq: ULong = 0uL,
     val catchUpMarker: ULong? = null, val catchUpCount: Long = 0, val loadingCatchUp: Boolean = false,
-    val localSendRevision: Long = 0,
+    val localSendRevision: Long = 0, val reply: NativeChiefReply? = null,
     val draft: String = "", val draftRevision: Long = 0, val deciding: Set<String> = emptySet(), val committed: Set<String> = emptySet(),
     val uncertain: Set<String> = emptySet(), val actionErrors: Map<String, String> = emptyMap(),
     val localClientIds: Map<String, String> = emptyMap()
@@ -102,6 +102,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
     private val mutableState = MutableStateFlow(NativeChiefTranscriptState())
+    private var replyGeneration = 0L
     private var listStateGeneration = 0L
     val state = mutableState.asStateFlow()
     private var monitor: Job? = null
@@ -284,6 +285,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     fun trimHistoryIfResting(preserving: Set<String> = emptySet()): Boolean {
         checkOwner()
         val snapshot = state.value
+        if (snapshot.reply != null) return false
         val items = NativeChiefTimeline.items(snapshot)
         if (items.size <= NativeChiefWindow.trimThreshold) return false
         val held = preserving + snapshot.deciding + snapshot.committed + snapshot.uncertain
@@ -400,6 +402,22 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         }
     }
 
+    fun openReplyThread(rootID: String, targetID: String = rootID): Boolean {
+        checkOwner()
+        val snapshot = NativeChiefReplyPolicy.open(state.value, rootID, targetID, replyGeneration + 1) ?: return false
+        replyGeneration = snapshot.generation
+        mutableState.value = state.value.copy(reply = snapshot)
+        return true
+    }
+
+    fun replyTo(messageID: String): Boolean {
+        checkOwner()
+        val item = NativeChiefTimeline.items(state.value).firstOrNull { it.messageID == messageID } ?: return false
+        return openReplyThread(item.replyToID ?: item.messageID, item.messageID)
+    }
+
+    fun closeReplyThread() { checkOwner(); mutableState.value = state.value.copy(reply = null) }
+
     fun editDraft(text: String): Long {
         checkOwner()
         if (text != state.value.draft) mutableState.value = state.value.copy(draft = text, draftRevision = state.value.draftRevision + 1)
@@ -425,11 +443,12 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         val id = newId()
         require(state.value.outgoing.none { it.clientMessageId == id })
         val clear = capturedRevision == null || capturedRevision == state.value.draftRevision
-        mutableState.value = state.value.copy(draft = if (clear) "" else state.value.draft,
+        val replyToID = state.value.reply?.targetID
+        mutableState.value = state.value.copy(reply = null, draft = if (clear) "" else state.value.draft,
             draftRevision = if (clear) state.value.draftRevision + 1 else state.value.draftRevision,
             localSendRevision = state.value.localSendRevision + 1,
             outgoing = state.value.outgoing + NativeChiefOutgoing(id, draft, now(),
-            sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { it.seq } ?: 0uL)))
+            sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { it.seq } ?: 0uL), replyToID = replyToID))
         return id to enqueueTransmit(id, draft)
     }
 
@@ -480,7 +499,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
             val sent = owned { client.send(text, conversationId, clientMessageId = id) }
             check(sent.conversation == conversationId) { "Chief returned another conversation" }
             mutableState.value = state.value.copy(outgoing = state.value.outgoing.map {
-                if (it.clientMessageId == id) it.copy(serverMessageId = sent.messageId,
+                if (it.clientMessageId == id) it.copy(serverMessageId = sent.messageId, replyToID = null,
                     echoClientMessageId = sent.clientMessageId,
                     delivery = if (sent.queued) NativeChiefDelivery.QUEUED else NativeChiefDelivery.SENT) else it
             })

@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -154,13 +155,14 @@ internal fun NativeChiefBubble(outgoing: Boolean, tail: Boolean, modifier: Modif
 @Composable
 internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolean, tail: Boolean,
     messageId: String, expanded: Boolean, text: String?, metrics: NativeChiefBubbleMetrics,
-    emojiSize: Int? = null, content: @Composable ColumnScope.() -> Unit) {
+    emojiSize: Int? = null, modifier: Modifier = Modifier, pending: Boolean = false,
+    onQuote: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val density = LocalDensity.current
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
     var quoteSize by remember { mutableStateOf(IntSize.Zero) }
     var bodySize by remember { mutableStateOf(IntSize.Zero) }
     val gap = metrics.space(6f)
-    Column(Modifier.fillMaxWidth().drawBehind {
+    Column(modifier.fillMaxWidth().drawBehind {
         if (quoted != null && quoteSize.height > 0 && bodySize.height > 0) {
             val x = 16.dp.toPx()
             val y = quoteSize.height / 2f
@@ -181,7 +183,7 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
             val fromMe = quoted.authorKind == "human"
             val quoteText = NativeChiefPresentation.receipt(quoted) ?: NativeChiefPresentation.displayText(quoted)
             NativeChiefBubble(fromMe, true, Modifier.align(if (fromMe) AbsoluteAlignment.Right else AbsoluteAlignment.Left)
-                .testTag("ChiefQuote:$messageId").onSizeChanged { quoteSize = it }, quote = true, text = quoteText, metrics = metrics) {
+                .testTag("ChiefQuote:$messageId").then(if (onQuote != null) Modifier.clickable(onClick = onQuote) else Modifier).onSizeChanged { quoteSize = it }, quote = true, text = quoteText, metrics = metrics) {
                 Text(quoteText,
                     style = nativeChiefTextStyle(15), maxLines = 2, overflow = TextOverflow.Ellipsis,
                     color = if (fromMe) Color(0xFF409CFF) else if (dark) Color(0xFF8E8E93) else Color(0xFF8A8A8E))
@@ -189,9 +191,9 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
             Spacer(Modifier.height(gap))
         }
         val bodyModifier = Modifier.align(if (outgoing) AbsoluteAlignment.Right else AbsoluteAlignment.Left)
-            .testTag("ChiefMessage:$messageId").onSizeChanged { bodySize = it }
+            .testTag(if (pending) "ChiefPending:$messageId" else "ChiefMessage:$messageId").onSizeChanged { bodySize = it }
         if (emojiSize != null && text != null) NativeChiefEmojiBalloon(text, emojiSize, messageId, bodyModifier, metrics)
-        else NativeChiefBubble(outgoing, tail, bodyModifier, "ChiefBubbleBody:$messageId", expanded,
+        else NativeChiefBubble(outgoing, tail, bodyModifier, if (pending) "ChiefPendingBody:$messageId" else "ChiefBubbleBody:$messageId", expanded,
                 text = text, metrics = metrics, content = content)
     }
 }

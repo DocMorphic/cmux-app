@@ -1,3 +1,24 @@
+## Full Mac fix build verified — 2026-10-21
+
+Run `39541508905` succeeded at exact project source
+`a477efa1b3ecfdba3c1a6864c4f7748b409e512e`. Artifact `12322508220` has outer
+SHA-256 `99ca56ec70452067599d480123dc2f102093a1bd77f043b33e6f6e4dfe120add`.
+Independent verification against recovered immutable project inputs and a591
+upstream objects passes all 14 original pins and 33 patched/added file hashes,
+inner archive/checksum receipts, safe paths and 30 relative symlinks, isolated
+bundle/environment, ARM64 and deep strict ad-hoc signature checks. Inner archive
+SHA-256 is `9d146edf7ff0d264f281bbdd75a5aa770037b69ab0839954d1bf544a3b845c24`.
+Verified bundle and receipt are under
+`captures/runtime/mac-companion-39541508905-app/`.
+
+This completes full-build/static verification of the Keychain read-lane fix.
+The old custom app remains running at its original location (PID 15059); it was
+not quit or replaced. The Mac is locked and the Pixel USB is absent at this
+checkpoint. Normal custom-app transition with workspace/account/pairing
+preservation, real Keychain/UI responsiveness, native phone exchange, terminal,
+private helper and notification acceptance remain open. No Security prompt was
+answered and no key, account, pairing or official app state was changed.
+
 ## Keychain UI-thread freeze checkpoint — 2026-10-21
 
 A read-only three-second sample of the running custom Mac app (PID 15059,

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chief_reply_placeholder">返信</string>
+    <string name="chief_reply_action">返信</string>
+    <string name="chief_reply_close">閉じる</string>
+    <string name="chief_reply_transcript">返信スレッド</string>
+    <string name="chief_reply_answer_questions">質問に回答</string>
+</resources>

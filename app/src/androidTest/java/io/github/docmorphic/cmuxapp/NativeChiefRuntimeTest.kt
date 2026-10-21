@@ -414,6 +414,168 @@ class NativeChiefRuntimeTest {
         captureChiefReference("runs-dark")
     }
 
+    private fun waitForReplyThread() {
+        try { compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyThread").fetchSemanticsNodes().isNotEmpty() } }
+        catch (error: Exception) {
+            saveScreenshot("chief-reply-opening-diagnostic")
+            throw AssertionError("Thread did not render: root=${computer.transcript()?.state?.value?.reply?.rootID}, retired=${computer.transcript()?.state?.value?.retired}, details=${compose.onAllNodesWithTag("ChiefDetails").fetchSemanticsNodes().size}; " + compose.onRoot().printToString(), error)
+        }
+    }
+
+    @Test fun quoteOpensOnlyTheLoadedThreadAndKeepsTheDraftAndEditorFocusOnClose() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep this draft through the thread")
+        compose.onNodeWithTag("ChiefQuote:reply").performScrollTo().performClick()
+        waitForReplyThread()
+        compose.onNodeWithTag("ChiefReplyThread").assertExists()
+        compose.onNodeWithTag("ChiefThreadMessage:parent").assertExists()
+        compose.onNodeWithTag("ChiefThreadMessage:reply").assertExists()
+        compose.onNodeWithTag("ChiefThreadMessage:next").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefBack").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefHeaderStop").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefReplyClose").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Keep this draft through the thread")
+        val density = compose.activity.resources.displayMetrics.density
+        compose.waitUntil(10_000) {
+            val root = compose.onNodeWithTag("ChiefThreadRow:parent").fetchSemanticsNode().boundsInRoot
+            val child = compose.onNodeWithTag("ChiefThreadRow:reply").fetchSemanticsNode().boundsInRoot
+            val bubble = compose.onNodeWithTag("ChiefThreadMessage:reply").fetchSemanticsNode().boundsInRoot
+            val field = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot
+            kotlin.math.abs(child.top - root.bottom - 10 * density) < 2 && kotlin.math.abs(field.top - bubble.bottom - 10 * density) < 2
+        }
+        compose.runOnUiThread {
+            api.rows = api.rows + message("new-reply", 4uL, "Arrived after the thread opened").copy(threadRoot = "parent")
+            check(api.transcriptChanges.trySend(api.snapshot()).isSuccess)
+        }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.messages?.any { it.id == "new-reply" } == true }
+        compose.onNodeWithTag("ChiefThreadMessage:new-reply").assertDoesNotExist()
+        saveScreenshot("chief-reply-loaded-snapshot")
+        compose.onNodeWithTag("ChiefReplyClose").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyThread").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Keep this draft through the thread")
+        compose.onNodeWithTag("ChiefHeaderStop").assertExists()
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun replySendClosesTheThreadAndKeepsTheOptimisticQuoteUntilOrdinaryChiefAcknowledges() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefQuote:reply").performClick()
+        waitForReplyThread()
+        compose.onNodeWithText("Reply").assertExists()
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread { api.sendGate = gate }
+        compose.onNodeWithTag("ChiefComposer").performTextInput("A reply through the existing send boundary")
+        tapSendWhenReady()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        val id = checkNotNull(api.sends.single().second)
+        assertEquals("A reply through the existing send boundary", api.sends.single().first)
+        assertNull(computer.transcript()!!.state.value.reply)
+        assertEquals("parent", computer.transcript()!!.state.value.outgoing.single().replyToID)
+        compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefQuote:$id").assertExists()
+        saveScreenshot("chief-reply-optimistic-quote")
+        compose.runOnUiThread { gate.complete(Unit) }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.outgoing?.isEmpty() == true }
+        compose.onNodeWithTag("ChiefQuote:echo").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused().assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+    }
+
+    @Test fun replyBackdropAndOwnerRetirementCloseTheCopiesWithoutSendingOrKeepingTheirText() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefQuote:reply").performClick()
+        waitForReplyThread()
+        compose.onNodeWithTag("ChiefReplyThread").performTouchInput { click(androidx.compose.ui.geometry.Offset(1f, height / 2f)) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyThread").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefQuote:reply").performScrollTo().performClick()
+        waitForReplyThread()
+        compose.onNodeWithTag("ChiefReplyThread").assertExists()
+        compose.runOnUiThread { computer.transcript()!!.close() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyThread").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithTag("ChiefComposer").assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun replyAccessibilityActionRetargetsTheCopyAndEscapeKeepsTheDraft() {
+        openReferenceScene("quote-dark")
+        val action = compose.onNodeWithTag("ChiefReplyActions:reply").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Reply" }
+        compose.runOnUiThread { assertTrue(action.action()) }
+        waitForReplyThread()
+        assertEquals("reply", computer.transcript()!!.state.value.reply!!.targetID)
+        compose.onNodeWithTag("ChiefMessage:next").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep through Escape")
+        val copyAction = compose.onNodeWithTag("ChiefThreadMessage:parent").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Reply" }
+        compose.runOnUiThread { assertTrue(copyAction.action()) }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.reply?.targetID == "parent" }
+        compose.onNodeWithTag("ChiefComposer").performKeyInput { pressKey(androidx.compose.ui.input.key.Key.Escape) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyThread").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Keep through Escape")
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun structuredThreadCopiesKeepTheirPromptAsReadOnlyContent() {
+        compose.runOnUiThread {
+            api.rows = listOf(message("approval", 1uL, "", parts = listOf(NativeChiefPart("approval", null,
+                NativeChiefApproval("request", "Review before running", listOf("allow", "deny", "always:allow"), null), null))))
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:approval").fetchSemanticsNodes().isNotEmpty() }
+        val action = compose.onNodeWithTag("ChiefReplyActions:approval").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Reply" }
+        compose.runOnUiThread { assertTrue(action.action()) }
+        waitForReplyThread()
+        compose.onNodeWithText("Review before running").assertExists()
+        compose.onNodeWithText("allow").assertExists()
+        compose.onNodeWithText("deny").assertExists()
+        compose.onNodeWithTag("ChiefApprove:approval:allow").assertDoesNotExist()
+        assertTrue(computer.transcript()!!.state.value.deciding.isEmpty())
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun longReplyThreadStartsAtItsTailAndSupportsAccessibilityScrolling() {
+        compose.runOnUiThread {
+            api.rows = (1..24).map { i -> message("m$i", i.toULong(), "Loaded thread message $i").copy(threadRoot = if (i > 1) "m1" else null) }
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefQuote:m24").fetchSemanticsNodes().isNotEmpty() }
+        tapStableAction("ChiefQuote:m24")
+        waitForReplyThread()
+        compose.waitUntil(10_000) {
+            var visible = false
+            compose.runOnUiThread { visible = compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime()) }
+            visible
+        }
+        fun axis() = compose.onNodeWithTag("ChiefReplyTranscript").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
+        compose.waitUntil(10_000) { axis().maxValue() > 0 && kotlin.math.abs(axis().value() - axis().maxValue()) < 1 }
+        val before = axis().value()
+        assertEquals("Reply transcript", compose.onNodeWithTag("ChiefReplyTranscript").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.ScrollBy].label)
+        compose.onNodeWithTag("ChiefReplyTranscript").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
+            assertTrue(it(0f, -100 * compose.activity.resources.displayMetrics.density))
+        }
+        try { compose.waitUntil(10_000) { axis().value() < before - 1 } }
+        catch (error: AssertionError) { throw AssertionError("Thread scroll reset: before=$before, value=${axis().value()}, maximum=${axis().maxValue()}", error) }
+        val nextAction = compose.onNodeWithTag("ChiefReplyTranscript").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.ScrollByOffset]
+        val consumed = CompletableDeferred<androidx.compose.ui.geometry.Offset>()
+        val prior = axis().value()
+        compose.runOnUiThread { owner.launch {
+            consumed.complete(nextAction(androidx.compose.ui.geometry.Offset(0f, -50 * compose.activity.resources.displayMetrics.density)))
+        } }
+        compose.waitUntil(10_000) { consumed.isCompleted }
+        assertTrue(runBlocking { consumed.await() }.y < 0)
+        compose.waitUntil(10_000) { axis().value() < prior - 1 }
+        assertEquals(24, computer.transcript()!!.state.value.reply!!.rows.size)
+        assertTrue(api.sends.isEmpty())
+        saveScreenshot("chief-reply-long-thread")
+    }
+
     @Test fun sourceQuoteSceneUsesTheOriginalSenderSideAndSeparateOutline() {
         openReferenceScene("quote-dark")
         fun body(id: String) = compose.onNodeWithTag("ChiefBubbleBody:$id").fetchSemanticsNode().boundsInRoot

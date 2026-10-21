@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
@@ -76,7 +78,7 @@ private fun ChiefAvatar(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ChiefTimestamp(at: Instant, tag: String) {
+internal fun ChiefTimestamp(at: Instant, tag: String) {
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val zone = ZoneId.systemDefault()
@@ -283,9 +285,9 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     }
     LaunchedEffect(session, positioned, pinned, timeline, state.loadingOlder, state.loadingCatchUp,
         state.deciding, state.committed, state.uncertain, state.catchUpMarker, state.unread, state.lastReadSeq,
-        list.isScrollInProgress, programmatic, readerScrolling, displayedQuestion?.id, displayedFailure?.clientMessageId) {
+        list.isScrollInProgress, programmatic, readerScrolling, displayedQuestion?.id, displayedFailure?.clientMessageId, state.reply) {
         if (positioned && pinned && !list.isScrollInProgress && !programmatic && !readerScrolling &&
-            displayedQuestion == null && displayedFailure == null) {
+            displayedQuestion == null && displayedFailure == null && state.reply == null) {
             try { session.trimHistoryIfResting() }
             catch (error: Exception) { currentCoroutineContext().ensureActive() }
         }
@@ -307,7 +309,11 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             } catch (error: Exception) { currentCoroutineContext().ensureActive() }
         }
     }
-    BackHandler(onBack = onBack)
+    val reply = state.reply
+    fun closeReply() { try { session.closeReplyThread() } catch (_: IllegalStateException) {} }
+    fun replyTo(id: String): Boolean = try { session.replyTo(id) } catch (_: IllegalStateException) { false }
+    fun openThread(id: String) { try { session.openReplyThread(id) } catch (_: IllegalStateException) {} }
+    BackHandler { if (reply != null) closeReply() else onBack() }
     val bubbleMetrics = nativeChiefBubbleMetrics()
     val darkTranscript = MaterialTheme.colorScheme.background.luminance() < .5f
     val compactHeader = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE && LocalConfiguration.current.screenHeightDp < 480
@@ -317,13 +323,14 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         NativeChiefEmojiPolicy.isEmojiOnly(NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it)) } == true
     val trailingOverhang = if (!state.working && last?.lastInRun == true && lastMessage != null && !trailingEmoji) bubbleMetrics.drop else 0.dp
     NativeChiefTranscriptFrame(modifier.fillMaxSize().then(if (detailsOpen && !state.retired) Modifier.blur(16.dp) else Modifier)
-        .background(if (darkTranscript) Color.Black else Color.White).imePadding().testTag("ChiefTranscript"),
+        .background(if (darkTranscript) Color.Black else Color.White).imePadding().testTag("ChiefTranscript")
+        .onPreviewKeyEvent { if (reply != null && it.key == Key.Escape && it.type == KeyEventType.KeyDown) { closeReply(); true } else false },
         compactHeader, darkTranscript, trailingOverhang, header = {
         NativeChiefHeader(conversation, "stop" in state.deciding, onBack,
             { if (state.hasLoadedInfo && !state.retired) {
                 // Source openInfo ends editing before presenting the details controller.
                 composerFocus.clearFocus(force = true); detailsOpen = true
-            } }, { act { session.stop() } })
+            } }, { act { session.stop() } }, replyMode = reply != null, onCloseReply = ::closeReply)
     }, composer = {
         NativeChiefComposer(state.draft, state.draftRevision, state.retired, onDraft = { text ->
             try { session.editDraft(text) }
@@ -332,7 +339,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             actionError = null
             try { session.submitFromComposer(text, revision) != null }
             catch (error: IllegalStateException) { actionError = error.message; false }
-        })
+        }, replyGeneration = reply?.generation)
     }, overlay = { headerHeight ->
         Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(top = headerHeight)) {
@@ -358,9 +365,9 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             Icon(painterResource(R.drawable.ic_chief_catch_up), stringResource(R.string.chief_catch_up_label))
         }
         }
-    }) { padding, _, _ ->
+    }) { padding, headerHeight, composerHeight ->
         Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("ChiefMessages"), state = list,
+        LazyColumn(Modifier.fillMaxSize().testTag("ChiefMessages").then(if (reply != null) Modifier.blur(10.dp).clearAndSetSemantics {} else Modifier), state = list,
             contentPadding = padding, verticalArrangement = Arrangement.spacedBy(0.dp)) {
             if (state.hasMore) item(key = "older") {
                 ChiefOlderRow(state) { act { session.loadOlder() } }
@@ -371,7 +378,8 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 ChiefTranscriptRow(row, timeline.getOrNull(index - 1), state, bubbleMetrics,
                     onApprove = { id, choice -> act { session.approve(id, choice) } },
                     onAnswer = { id, form -> act { session.answer(id, form) } },
-                    onQuestion = { answerMessage = it }, onFailure = { failedMessage = it })
+                    onQuestion = { answerMessage = it }, onFailure = { failedMessage = it }, onQuote = ::openThread, onReply = ::replyTo,
+                    bodyAlpha = if (reply == null) 1f else if (row.item.key in reply.hiddenKeys) 0f else if (row.item.fromMe) .7f else 1f)
             }
             if (state.working) item(key = "working") { Text("Chief is working…", color = chiefAccent) }
         }
@@ -380,7 +388,9 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             if (index == 0) ChiefOlderRow(state) {}
             else ChiefTranscriptRow(timeline[index - 1], timeline.getOrNull(index - 2), state, bubbleMetrics, { _, _ -> }, { _, _ -> }, {}, {})
         }
-
+        if (reply != null && !state.retired) key(reply.generation) {
+            NativeChiefReplyOverlay(reply, headerHeight, composerHeight, bubbleMetrics, darkTranscript, ::closeReply, ::replyTo)
+        }
         }
 
     }
@@ -439,7 +449,8 @@ private fun ChiefOlderRow(state: NativeChiefTranscriptState, onLoad: () -> Unit)
 private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChiefTimelineRow?,
     state: NativeChiefTranscriptState, metrics: NativeChiefBubbleMetrics,
     onApprove: (String, String) -> Unit, onAnswer: (String, NativeChiefQuestionForm) -> Unit,
-    onQuestion: (String) -> Unit, onFailure: (String) -> Unit) {
+    onQuestion: (String) -> Unit, onFailure: (String) -> Unit, onQuote: (String) -> Unit = {},
+    onReply: ((String) -> Boolean)? = null, bodyAlpha: Float = 1f) {
     val baseGap = metrics.space(if (row.firstInRun) 10f else 4f)
     // Local outgoing rows already end in a status caption; acknowledged text ends in its tail.
     val previousMessage = previous?.item?.message
@@ -449,6 +460,10 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     }
     val previousOverhang = if (previous?.lastInRun == true && previousMessage != null && !previousEmoji) metrics.drop else 0.dp
     val gap = if (row.timestamp) 0.dp else (baseGap - previousOverhang).coerceAtLeast(0.dp)
+    val replyLabel = stringResource(R.string.chief_reply_action)
+    val replyAction = if (onReply != null) Modifier.testTag("ChiefReplyActions:${row.item.messageID}").semantics {
+        customActions = listOf(CustomAccessibilityAction(replyLabel) { onReply(row.item.messageID) })
+    } else Modifier
     Column(Modifier.fillMaxWidth().testTag("ChiefRow:${row.item.key}").padding(top = gap)) {
         if (row.timestamp) ChiefTimestamp(row.item.at, "ChiefTimestamp:${row.item.key}")
         val message = row.item.message
@@ -458,8 +473,9 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
             val body = NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)
             val emojiSize = remember(body, part) { if (part == null) NativeChiefEmojiPolicy.fontSize(body) else null }
             NativeChiefBalloonRow(row.quote, message.authorKind == "human", row.lastInRun,
-                message.id, expanded = part != null, text = body.takeIf { part == null }, metrics = metrics, emojiSize = emojiSize) {
-                if (body.isNotEmpty() || part == null) SelectionContainer { NativeChiefText(body) }
+                message.id, expanded = part != null, text = body.takeIf { part == null }, metrics = metrics, emojiSize = emojiSize,
+                modifier = Modifier.alpha(bodyAlpha).then(replyAction), onQuote = row.quote?.let { { onQuote(it.id) } }) {
+                if (part == null) SelectionContainer { NativeChiefText(body) }
                 part?.approval?.let { approval ->
                     Text(approval.prompt, fontWeight = FontWeight.SemiBold)
                     approval.options.filterNot { it.startsWith("always:") }.forEach { choice ->
@@ -469,8 +485,9 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
                 }
                 part?.question?.let { question ->
                     val compact = NativeChiefPresentation.compactQuestion(question)
+                    Text(compact?.prompt ?: NativeChiefPresentation.summary(question))
                     if (compact == null) OutlinedButton(onClick = { onQuestion(message.id) }, enabled = actionable,
-                        modifier = Modifier.testTag("ChiefAnswer:${message.id}")) { Text("Answer questions") }
+                        modifier = Modifier.testTag("ChiefAnswer:${message.id}")) { Text(stringResource(R.string.chief_reply_answer_questions)) }
                     else compact.options.forEach { option ->
                         OutlinedButton(onClick = { onAnswer(message.id, NativeChiefQuestionForm(question).toggle(compact.id, option.id)) },
                             enabled = actionable) { Text(option.label) }
@@ -483,10 +500,9 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
             val outgoing = checkNotNull(row.item.outgoing)
             val emojiSize = remember(outgoing.text) { NativeChiefEmojiPolicy.fontSize(outgoing.text) }
             Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.AbsoluteAlignment.Right) {
-                if (emojiSize != null) NativeChiefEmojiBalloon(outgoing.text, emojiSize, outgoing.clientMessageId,
-                    Modifier.testTag("ChiefPending:${outgoing.clientMessageId}"), metrics)
-                else NativeChiefBubble(true, row.lastInRun, Modifier.testTag("ChiefPending:${outgoing.clientMessageId}"),
-                    bodyTag = "ChiefPendingBody:${outgoing.clientMessageId}", text = outgoing.text, metrics = metrics) {
+                NativeChiefBalloonRow(row.quote, true, row.lastInRun, outgoing.clientMessageId, false, outgoing.text, metrics,
+                    emojiSize = emojiSize, modifier = Modifier.alpha(bodyAlpha).then(replyAction), pending = true,
+                    onQuote = row.quote?.let { { onQuote(it.id) } }) {
                     SelectionContainer { NativeChiefText(outgoing.text) }
                 }
                 Text(when (outgoing.delivery) {
