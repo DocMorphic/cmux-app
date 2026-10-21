@@ -1,3 +1,54 @@
+## Synchronous reply admission and Back interaction — 2026-10-21
+
+Open/close/send now admit header transitions synchronously into a session-owned
+`NativeChiefHeaderMotionState`, before Compose can conflate a closed state between
+two replies. Its frame clock rebases after idle; scale changes retain phase. Live
+session state reconciles retirement, and cached Back/Stop actions check the
+admitted mode. Same-frame Close/reopen and Send/reopen now keep the new icon delay,
+preserve the expected draft/focus, and admit only one send.
+
+Close/send fetch the live shown presentation and freeze its motion before header
+invalidation. The strict interrupted-entry check exposed a real extra movement:
+with zero admission-time clock advance, the copy moved 1170→1183 px. The corrected
+path moves 1170→1130 toward its unchanged 957 px twin and clears the swipe offset.
+The earlier pointer version also advanced the clock 16 ms before touch-up, so the
+exact admission check now invokes the actual UI action synchronously and asserts
+identical capture/click clocks. Position/direction assertions remain intact;
+real pointer close/reopen tests remain separate. Both final focused and broad
+frame traces verify the zero-time condition and correct return direction.
+
+Back now has separate drawing, pointer and AX behavior. Draw-only opacity keeps
+its restored AX node available at alpha 0. Pointer taps work during the 300 ms
+invisible delay, are blocked during the 200 ms return fade, then work at rest;
+its public AX action remains enabled throughout return. Actual pointer and AX
+activation checks pass, matching the pinned native normal-hit observations.
+This does not claim physical TalkBack or exact interrupted UIKit behavior.
+
+113 Chief JVM tests pass. Final focused nine pass in 41.033 s; full portrait 64
+pass/four expected skips in 195.626 s; landscape 18 pass in 55.897 s; disabled
+animations eight pass in 19.790 s. Same source/APKs across the final matrix;
+all crash buffers empty. Five full PNGs/geometry were verified and inspected.
+The generic close ink remains 49×49 px at 3×; Back return brightness is 0.502 of
+settled. Source/APK hashes, logs, host clocks and raw frame traces are guarded in
+`captures/recovery-20261021/chief-header-admission-checkpoint.json`.
+Verifier: `captures/recovery-20261021/verify-chief-header-admission.py`.
+Earlier failed header, gesture-clock and live-copy checks remain diagnostic.
+
+Owned emulator 60192 was restored to 1080×2400/420 and animator scale 0, then stopped;
+Gradle stopped, USB absent. Mac 40840/helper 43849 remain alive. No account, pairing,
+signing data, signed release or phone install changed. Physical 703 and older
+candidate 710 retain their scopes; first on Pixel return restore
+`svc power stayon false`. Full-parity goal remains active.
+
+Next extend the admitted-action matrix to copied-content ownership across
+close/open/close and send/open/close, including owner retirement and layout effects;
+header admission is covered, but all coalesced copy lifetimes are not established.
+Continue the optical/material/font, in-flight IME/geometry/RTL and remaining
+screen/source audit; generic X bounds remain one pixel down/right of native at 3×.
+Then prepare a current signed candidate for the outstanding physical Pixel/Mac
+terminal, encrypted FCM, cold/background notification taps, lifecycle and TalkBack
+checks. The older completion gates still apply in full.
+
 ## Android reply header and closing touch routing — 2026-10-21
 
 The production header now uses the pinned iOS 26 timing profile: Back fades over
@@ -36,18 +87,11 @@ The guarded local verifier refuses changed source/APKs. Emulator size/density
 stopped, USB absent. Mac 40840/helper 43849 remain alive. No signed release or
 phone installation changed; physical 703 / older candidate 710 retain prior scope.
 
-Next verify and, if needed, drive header transitions synchronously from admitted
-close/send/open events: the current adapter observes generations in LaunchedEffect,
-so a close+reopen coalesced within one composition frame still needs an explicit
-runtime check (existing cases await frames). Also match native Back pointer-hit
-suppression during the return fade while keeping its AX actions: accepted UIKit
-samples switch hit false at 337.569 ms and true at 539.090 ms, AX-hidden false;
-Android currently permits Back taps throughout logical return. Generic X bright
-bounds are one pixel down/right of native at 3×; optical/material/font matching
-and the broad remaining source/UI audit stay open. Full app parity remains active,
-including physical Pixel/Mac terminal, encrypted FCM, cold/background taps,
-lifecycle, TalkBack and in-flight geometry. First on Pixel return restore
-`svc power stayon false`.
+The synchronous-header admission and normal Back pointer/AX gaps described at
+this earlier checkpoint are resolved in the newer entry above. Complete optical /
+material / font matching, all coalesced copy lifetimes and physical acceptance
+remain open. The broad app completion gates remain unchanged. First on Pixel
+return restore `svc power stayon false`.
 
 ## Animated native header observations — 2026-10-21
 

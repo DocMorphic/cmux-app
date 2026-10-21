@@ -5,7 +5,7 @@ package io.github.docmorphic.cmuxapp
  * This deliberately repairs the stale UIKit completions observed in run39668896472. */
 internal class NativeChiefHeaderMotion(initialReply: Long? = null) {
     data class Pose(val backAlpha: Float, val trailingAlpha: Float, val closeFraction: Float,
-        val closeLabel: Boolean, val running: Boolean)
+        val closeLabel: Boolean, val running: Boolean, val backAcceptsPointer: Boolean = true)
     private var reply = initialReply
     private var began = 0.0
     private var scale = 0.0
@@ -42,10 +42,11 @@ internal class NativeChiefHeaderMotion(initialReply: Long? = null) {
             Pose(fade(from.backAlpha, 0f, 0.0, 60.0),
                 if (swapped) fade(0f, 1f, 370.0, 200.0) else fade(from.trailingAlpha, 0f, 320.0, 50.0),
                 if (swapped) 1f else from.closeFraction,
-                swapped || from.closeLabel, t < 570)
+                swapped || from.closeLabel, t < 570, false)
         } else Pose(fade(from.backAlpha, 1f, 300.0, 200.0),
-            fade(from.trailingAlpha, 1f, 0.0, 60.0), fade(from.closeFraction, 0f, 0.0, 60.0), false, t < 500)
+            fade(from.trailingAlpha, 1f, 0.0, 60.0), fade(from.closeFraction, 0f, 0.0, 60.0), false, t < 500,
+            t < 300 || t >= 500)
     }
 
-    private fun rest(open: Boolean) = Pose(if (open) 0f else 1f, 1f, if (open) 1f else 0f, open, false)
+    private fun rest(open: Boolean) = Pose(if (open) 0f else 1f, 1f, if (open) 1f else 0f, open, false, !open)
 }

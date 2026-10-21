@@ -342,6 +342,10 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         }
     }
     val reply = state.reply
+    val headerMotion = remember(session) { NativeChiefHeaderMotionState(session.state.value.reply?.generation) }
+    // Retirement and non-UI state changes still reconcile from the live owner;
+    // a collected snapshot may be older than an already admitted UI action.
+    SideEffect { headerMotion.admit(session.state.value.reply?.generation) }
     val replyOrigins = remember(session, list) { NativeChiefReplyOrigins {
         list.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? String }.toSet()
     } }
@@ -349,7 +353,10 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     fun captureReply(action: () -> Boolean): Boolean {
         val captured = replyOrigins.snapshot()
         val admitted = action()
-        if (admitted) entryOrigins = captured
+        if (admitted) {
+            entryOrigins = captured
+            headerMotion.admit(session.state.value.reply?.generation)
+        }
         return admitted
     }
     val density = LocalDensity.current.density
@@ -373,14 +380,16 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         // Stop entry on the input event, before an already-awaiting display frame
         // can advance it while StateFlow's new logical state reaches Compose.
         try {
+            val closingPresentation = shownReply
             session.closeReplyThread() // Reject stale ownership before changing any presentation.
-            presentation?.motion?.close(replyOrigins.snapshot(), settling = true)
+            closingPresentation?.motion?.close(replyOrigins.snapshot(), settling = true)
+            headerMotion.admit(null)
         } catch (_: IllegalStateException) {}
     }
     fun replyTo(id: String): Boolean = try { captureReply { session.replyTo(id) } } catch (_: IllegalStateException) { false }
     fun swipeReply(id: String, offset: Float): Boolean = try { captureReply { session.replyTo(id, offset) } } catch (_: IllegalStateException) { false }
     fun openThread(id: String) { try { captureReply { session.openReplyThread(id) } } catch (_: IllegalStateException) {} }
-    BackHandler { if (reply != null) closeReply() else onBack() }
+    BackHandler { if (session.state.value.reply != null) closeReply() else onBack() }
     val bubbleMetrics = nativeChiefBubbleMetrics()
     val darkTranscript = MaterialTheme.colorScheme.background.luminance() < .5f
     val compactHeader = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE && LocalConfiguration.current.screenHeightDp < 480
@@ -391,14 +400,13 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     val trailingOverhang = if (!state.working && last?.lastInRun == true && lastMessage != null && !trailingEmoji) bubbleMetrics.drop else 0.dp
     NativeChiefTranscriptFrame(modifier.fillMaxSize().then(if (detailsOpen && !state.retired) Modifier.blur(16.dp) else Modifier)
         .background(if (darkTranscript) Color.Black else Color.White).imePadding().testTag("ChiefTranscript")
-        .onPreviewKeyEvent { if (reply != null && it.key == Key.Escape && it.type == KeyEventType.KeyDown) { closeReply(); true } else false },
+        .onPreviewKeyEvent { if (session.state.value.reply != null && it.key == Key.Escape && it.type == KeyEventType.KeyDown) { closeReply(); true } else false },
         compactHeader, darkTranscript, trailingOverhang, header = {
         NativeChiefHeader(conversation, "stop" in state.deciding, onBack,
             { if (state.hasLoadedInfo && !state.retired) {
                 // Source openInfo ends editing before presenting the details controller.
                 composerFocus.clearFocus(force = true); detailsOpen = true
-            } }, { act { session.stop() } }, replyMode = reply != null, onCloseReply = ::closeReply,
-            replyGeneration = reply?.generation)
+            } }, { act { session.stop() } }, motion = headerMotion, onCloseReply = ::closeReply)
     }, composer = {
         NativeChiefComposer(state.draft, state.draftRevision, state.retired, onDraft = { text ->
             try { session.editDraft(text) }
@@ -406,8 +414,12 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         }, onSend = { text, revision ->
             actionError = null
             try {
+                val closingPresentation = shownReply
                 val admitted = session.submitFromComposer(text, revision) != null
-                if (admitted) presentation?.motion?.close(replyOrigins.snapshot(), settling = false)
+                if (admitted) {
+                    closingPresentation?.motion?.close(replyOrigins.snapshot(), settling = false)
+                    headerMotion.admit(null)
+                }
                 admitted
             } catch (error: IllegalStateException) { actionError = error.message; false }
         }, replyGeneration = reply?.generation)

@@ -87,4 +87,18 @@ class NativeChiefHeaderMotionTest {
         m.transition(1, 410.0, 1f)
         assertEquals(rest, m.frame(1000.0))
     }
+
+    @Test fun backPointerHitsAreSuppressedOnlyDuringTheActualReturnFade() {
+        for (scale in listOf(1f, 2f)) {
+            val m = NativeChiefHeaderMotion(1)
+            m.transition(null, 0.0, scale)
+            assertTrue(m.frame(0.0).backAcceptsPointer)
+            assertTrue(m.frame(299.0 * scale).backAcceptsPointer)
+            assertFalse(m.frame(300.0 * scale).backAcceptsPointer)
+            assertFalse(m.frame(499.0 * scale).backAcceptsPointer)
+            assertTrue(m.frame(500.0 * scale).backAcceptsPointer)
+            m.transition(2, 1000.0, scale)
+            assertFalse(m.frame(2000.0).backAcceptsPointer)
+        }
+    }
 }

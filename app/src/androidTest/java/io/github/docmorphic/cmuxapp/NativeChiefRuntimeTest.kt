@@ -595,12 +595,27 @@ class NativeChiefRuntimeTest {
             compose.mainClock.advanceTimeBy(128)
             compose.waitForIdle()
             val middle = copy("reply")
+            val measuredAt = compose.mainClock.currentTime
             saveScreenshot(if (reduced) "chief-reply-reduced-middle" else "chief-reply-entry-middle")
             if (closeDuringEntry) {
-                compose.onNodeWithTag("ChiefReplyClose").performClick()
+                // A pointer click advances the test clock before touch-up. This
+                // check isolates admission itself; real pointer close/reopen is
+                // covered by the interrupted header checks.
+                val close = checkNotNull(compose.onNodeWithTag("ChiefReplyClose").fetchSemanticsNode()
+                    .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+                val atAdmission = copy("reply")
+                val targetProbe = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().config[ChiefReplyOriginsProbe]
+                var targetAtAdmission: Float? = null
+                compose.runOnUiThread { targetAtAdmission = targetProbe().bubbles["reply"] }
+                val capturedAt = compose.mainClock.currentTime
+                compose.runOnUiThread { assertTrue(close()) }
+                val clickedAt = compose.mainClock.currentTime
+                assertEquals("Synchronous admission must not advance the display clock", capturedAt, clickedAt)
                 compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
                 val closing = closingCopy("reply")
-                assertTrue("closing must not advance another entry frame", closing.top <= middle.top)
+                val diagnostic = "closing must not advance another entry frame: original=$original middle=$middle atAdmission=$atAdmission targetAtAdmission=$targetAtAdmission closing=$closing measuredAt=$measuredAt capturedAt=$capturedAt clickedAt=$clickedAt closingAt=${compose.mainClock.currentTime}"
+                android.util.Log.i("ChiefHeaderFrame", diagnostic)
+                assertTrue(diagnostic, closing.top <= middle.top)
                 assertTrue("first return frame stays between current pose and its twin", closing.top >= original.top)
                 assertEquals("source return clears the carried swipe", original.left, closing.left, 1f)
                 compose.mainClock.advanceTimeBy(1200); compose.waitForIdle()
@@ -742,11 +757,169 @@ class NativeChiefRuntimeTest {
     @Test fun disabledHeaderAnimationsSettleWithoutLeavingPendingGlyphChanges() {
         org.junit.Assume.assumeFalse(android.animation.ValueAnimator.areAnimatorsEnabled())
         openSettledReplyWithDraft("Reduced header draft")
-        assertEquals(NativeChiefHeaderMotion.Pose(0f, 1f, 1f, true, false), headerPose())
+        assertEquals(NativeChiefHeaderMotion.Pose(0f, 1f, 1f, true, false, false), headerPose())
         compose.onNodeWithTag("ChiefReplyClose").performClick()
         compose.waitForIdle()
         assertEquals(NativeChiefHeaderMotion.Pose(1f, 1f, 0f, false, false), headerPose())
         compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Reduced header draft")
+    }
+
+    @Test fun headerKeepsTheClosedPhaseWhenCloseAndReopenAreAdmittedInOneFrame() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("One frame header draft")
+        settledComposerGeometry()
+        compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefQuote:reply"))
+        val quote = checkNotNull(compose.onNodeWithTag("ChiefQuote:reply").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        compose.runOnUiThread { assertTrue(quote()) }
+        waitForReplyThread(); compose.waitForIdle()
+        compose.onNodeWithTag("ChiefReplyClose").assertContentDescriptionEquals("Close")
+        val close = checkNotNull(compose.onNodeWithTag("ChiefReplyClose").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        val generation = computer.transcript()!!.state.value.reply!!.generation
+        compose.mainClock.autoAdvance = false
+        try {
+            // Invoke the real UI actions in one main-thread callback, without a
+            // composition/frame between them. StateFlow may conflate the null.
+            compose.runOnUiThread {
+                assertTrue(close()); assertNull(computer.transcript()!!.state.value.reply)
+                assertTrue(quote()); assertTrue(computer.transcript()!!.state.value.reply!!.generation > generation)
+            }
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            compose.mainClock.advanceTimeBy(80); compose.waitForIdle()
+            assertFalse("The admitted close must reset the symbol before the new delay", headerPose().closeLabel)
+            compose.onNodeWithTag("ChiefReplyClose").assertContentDescriptionEquals("Stop Chief")
+            compose.mainClock.advanceTimeBy(800); compose.waitForIdle()
+            assertEquals(0f, headerPose().backAlpha, 0f)
+            assertEquals(1f, headerPose().trailingAlpha, 0f)
+            compose.onNodeWithTag("ChiefReplyClose").assertContentDescriptionEquals("Close")
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("One frame header draft")
+            assertTrue(api.sends.isEmpty())
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun headerKeepsTheClosedPhaseWhenSendAndReopenAreAdmittedInOneFrame() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Send then reopen in one frame")
+        settledComposerGeometry()
+        compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefQuote:reply"))
+        val quote = checkNotNull(compose.onNodeWithTag("ChiefQuote:reply").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        compose.runOnUiThread { assertTrue(quote()) }
+        waitForReplyThread(); compose.waitForIdle()
+        val send = checkNotNull(compose.onNodeWithTag("ChiefSend").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread { api.sendGate = gate }
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.runOnUiThread {
+                assertTrue(send()); assertNull(computer.transcript()!!.state.value.reply)
+                assertEquals("", computer.transcript()!!.state.value.draft)
+                assertEquals(1, computer.transcript()!!.state.value.outgoing.size)
+                assertTrue(quote()); assertNotNull(computer.transcript()!!.state.value.reply)
+            }
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            compose.mainClock.advanceTimeBy(80); compose.waitForIdle()
+            assertFalse(headerPose().closeLabel)
+            compose.onNodeWithTag("ChiefReplyClose").assertContentDescriptionEquals("Stop Chief")
+            compose.mainClock.advanceTimeBy(800); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClose").assertContentDescriptionEquals("Close")
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assert(SemanticsMatcher.expectValue(
+                androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+            assertEquals(listOf("Send then reopen in one frame"), api.sends.map { it.first })
+        } finally {
+            compose.mainClock.autoAdvance = true
+            compose.runOnUiThread { gate.complete(Unit) }
+        }
+    }
+
+    @Test fun staleHeaderActionsUseTheAdmittedModeBeforeTheNextComposition() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep synchronous mode draft")
+        settledComposerGeometry()
+        compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefQuote:reply"))
+        fun action(tag: String) = checkNotNull(compose.onNodeWithTag(tag).fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        val quote = action("ChiefQuote:reply"); val oldBack = action("ChiefBack"); val oldStop = action("ChiefHeaderStop")
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.runOnUiThread {
+                assertTrue(quote())
+                assertFalse("Back must reject activation after reply admission", oldBack())
+                assertNotNull(computer.selected)
+                assertTrue(oldStop())
+                assertNull("The old Stop control must close the admitted reply", computer.transcript()!!.state.value.reply)
+                assertTrue(quote())
+            }
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            compose.mainClock.advanceTimeBy(80); compose.waitForIdle()
+            assertFalse(headerPose().closeLabel)
+            compose.mainClock.advanceTimeBy(800); compose.waitForIdle()
+            assertEquals(0f, headerPose().backAlpha, 0f)
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Keep synchronous mode draft")
+            assertTrue(api.sends.isEmpty())
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun returningBackAcceptsPointerDuringItsInvisibleDelay() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openSettledReplyWithDraft("Invisible Back delay")
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            compose.mainClock.advanceTimeBy(100); compose.waitForIdle()
+            assertEquals(0f, headerPose().backAlpha, 0f)
+            assertTrue(headerPose().backAcceptsPointer)
+            compose.onNodeWithTag("ChiefBack").assertIsEnabled().assertHasClickAction().performTouchInput { click(center) }
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            assertNull(computer.selected)
+            compose.onNodeWithTag("ChiefPinnedConversation").assertExists()
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun returningBackSuppressesPointerDuringFadeAndRestoresItAtRest() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openSettledReplyWithDraft("Pointer fade guard")
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            compose.mainClock.advanceTimeBy(400); compose.waitForIdle()
+            assertTrue(headerPose().backAlpha > .1f && headerPose().backAlpha < .9f)
+            assertFalse(headerPose().backAcceptsPointer)
+            compose.onNodeWithTag("ChiefBack").assertIsEnabled().assertHasClickAction().performTouchInput { click(center) }
+            assertNotNull("A pointer tap during the actual fade must not navigate", computer.selected)
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Pointer fade guard")
+            saveScreenshot("chief-header-admission-back-fade")
+            compose.mainClock.advanceTimeBy(800); compose.waitForIdle()
+            assertTrue(headerPose().backAcceptsPointer)
+            compose.onNodeWithTag("ChiefBack").performTouchInput { click(center) }
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            assertNull(computer.selected)
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun returningBackRetainsItsAccessibilityActionWhilePointerIsSuppressed() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openSettledReplyWithDraft("AX fade action")
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            compose.mainClock.advanceTimeBy(400); compose.waitForIdle()
+            assertFalse(headerPose().backAcceptsPointer)
+            val node = compose.onNodeWithTag("ChiefBack").assertIsEnabled().assertHasClickAction().fetchSemanticsNode()
+            val action = checkNotNull(node.config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+            compose.runOnUiThread { assertTrue(action()) }
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            assertNull(computer.selected)
+            compose.onNodeWithTag("ChiefPinnedConversation").assertExists()
+        } finally { compose.mainClock.autoAdvance = true }
     }
 
     private fun openSettledReplyWithDraft(draft: String) {
