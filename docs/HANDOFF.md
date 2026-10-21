@@ -1,5 +1,28 @@
 ## Active full-parity goal — 2026-10-20
 
+## Signed candidate 708 and native thread reference run — 2026-10-21
+
+Candidate 708 is built from clean source
+`9324a2b003f634303fb38b1f67be0b5422b73c7c`, including the reply workflow,
+transcript overlays and corrected header symbol canvas. APK SHA-256
+`e18487ba729fdaa22eaa5dfbdfae8932bd2d94e2167326c0d02058f78320528c`,
+277,616,941 bytes. Independent verification passes the existing signer, 22 native
+libraries/alignment, 21 viewer assets, 14 debug-fixture exclusions and the selected
+Firebase client resources. APK/source receipt are in
+`captures/runtime/parity-candidate-708/`; strict receipt is
+`captures/recovery-20261021/apk-verification-708/apk-verification.json`.
+It is not installed or published. The release Gradle daemon is stopped.
+
+Native thread reference run 39550609607 at that exact source is in progress;
+export guard tests/preparation passed and standard UIKit compilation/rendering
+has started. Do not redispatch. New fixture requires fifteen captures; the
+original nine scenes/package remain unchanged. Nineteen synthetic exporter tests,
+Swift syntax and project parsing pass, but do not substitute for the hosted run,
+image inspection or matched Android/physical acceptance. Mac remains locked,
+old custom app untouched, Pixel USB absent. First on authorized Pixel return,
+restore `svc power stayon false`, then preserve existing release data for any
+upgrade. Full-parity goal remains active.
+
 ## Reply workflow and verified Mac build — 2026-10-21
 
 Chief now opens a loaded root/direct-reply snapshot through quotes and the source
