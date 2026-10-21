@@ -1,3 +1,19 @@
+The action-reference extension now adds five separate `Actions.json` scenes:
+incoming/outgoing menus, actual accessibility text, compact menu layout and More
+selection. Public bubble AX activation opens the unmodified source overlay, and
+registered MenuRow controls exercise Copy, Reply and More. The selection probe
+observes two selected rows, the destructive confirmation and Cancel restoration;
+public Core local deletion is exercised separately and never described as an
+activated destructive alert. A write counter requires zero backend mutations.
+Actual menu/preview/row geometry, fixed menu fonts, modal/keyboard state and draft
+retention are exported. The independent action exporter rejects missing scenes,
+wrong source/fixture/templates/traits, lost ownership and unproven callback scope.
+Its nine synthetic guard tests and the existing 24 export checks pass locally;
+project and Swift syntax parsing pass. Hosted UIKit compilation/rendering is still
+required. These settled AX/control observations will not establish physical press,
+animation timing, Android implementation or full parity. Existing fifteen-scene
+export inputs and their guards remain intact; action metadata uses a separate key.
+
 # Pinned UIKit Chief references
 
 The next batch adds a public UIKit Caption 2 metrics probe across all twelve

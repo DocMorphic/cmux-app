@@ -36,7 +36,9 @@ jobs:
           CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
           xcodebuild -version
       - name: Check reference export guards
-        run: python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_reference.py
+        run: |
+          python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_reference.py
+          python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_actions.py
       - name: Prepare immutable offline reference host
         run: |
           python3 cmux-app/scripts/prepare-ios-chief-reference.py --upstream upstream --output "$RUNNER_TEMP/chief-reference"
@@ -65,6 +67,7 @@ jobs:
             -destination-timeout 90 -parallel-testing-enabled NO \
             -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureStandardChiefConversationScenes \
             -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureStandardChiefInteractionReferences \
+            -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureStandardChiefActions \
             -resultBundlePath "$RUNNER_TEMP/chief-reference-standard.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-standard-build.log"
       - name: Render accessibility UIKit scene with real system type
@@ -77,6 +80,7 @@ jobs:
             -destination-timeout 90 -parallel-testing-enabled NO \
             -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureAccessibilityChiefConversationScene \
             -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureAccessibilityChiefInteractionReferences \
+            -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureAccessibilityChiefActions \
             -resultBundlePath "$RUNNER_TEMP/chief-reference-accessibility.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-accessibility-build.log"
       - name: Export and verify scene payloads
@@ -88,6 +92,7 @@ jobs:
             xcrun xcresulttool export attachments --path "$RUNNER_TEMP/chief-reference-$mode.xcresult" --output-path "$RUNNER_TEMP/chief-reference-exported/$mode"
           done
           python3 cmux-app/scripts/verify-ios-chief-reference.py --exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-scenes" --project-commit "$GITHUB_SHA" --with-interactions --with-caption-metrics
+          python3 cmux-app/scripts/verify-ios-chief-actions.py --exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-actions" --project-commit "$GITHUB_SHA"
       - name: Preserve reference evidence and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -95,6 +100,7 @@ jobs:
           name: ios-chief-reference
           if-no-files-found: error
           path: |
+            ${{ runner.temp }}/chief-reference-actions
             ${{ runner.temp }}/chief-reference-scenes
             ${{ runner.temp }}/chief-reference-exported
             ${{ runner.temp }}/chief-reference-standard.xcresult

@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "scenes": [
+    {"id":"menu-incoming-dark","sourceScene":"quote-dark","style":"dark","category":"large","orientation":"portrait","messageID":"parent","action":"copy"},
+    {"id":"menu-outgoing-dark","sourceScene":"quote-dark","style":"dark","category":"large","orientation":"portrait","messageID":"reply","action":"reply"},
+    {"id":"menu-large-dark","sourceScene":"quote-dark","style":"dark","category":"accessibilityMedium","orientation":"portrait","messageID":"parent","action":"copy"},
+    {"id":"menu-landscape-dark","sourceScene":"quote-dark","style":"dark","category":"large","orientation":"landscape","messageID":"reply","action":"copy"},
+    {"id":"selection-dark","sourceScene":"quote-dark","style":"dark","category":"large","orientation":"portrait","messageID":"parent","action":"more"}
+  ]
+}

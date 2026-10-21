@@ -1,3 +1,18 @@
+## Chief action reference harness — 2026-10-22 (hosted validation pending)
+
+Five new native-only action scenes and a separate guarded exporter are prepared.
+They open actual pinned UIKit menus through public bubble AX activation and invoke
+registered Copy/Reply/More controls. More verifies selection, its confirmation and
+Cancel; public Core local deletion remains explicitly separate from destructive
+alert activation. Actual placed preview/menu/rows, keyboard/modal state, fonts,
+draft retention and a zero-write backend guard are recorded. Nine new synthetic
+export guard tests and the existing 24 pass; project/Swift parsing passes. Hosted
+UIKit compile/render remains required and Android action UI is still unimplemented.
+No account, pairing, phone or candidate APK changed; signed 712 retains its scope.
+Next run the hosted reference and port press/layout rules against exact Swift;
+then implement the lifted menu, ownership-safe actions and More workflow in Android.
+Full parity remains active, with the existing physical and broad completion gates.
+
 ## Signed candidate 712 ready — 2026-10-22
 
 Candidate 712 supersedes local 711 and includes the font-following and RTL editor

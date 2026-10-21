@@ -405,7 +405,14 @@ private struct ReferenceRow: Decodable {
 }
 private enum ReferenceFailure: Error { case readOnly, renderTimeout(String), missingResource(String), missingWindowScene }
 
-private final class ReferenceBackend: ConversationBackend {
+private final class ReferenceBackend: ConversationBackend, @unchecked Sendable {
+    private let writeLock = NSLock()
+    private var attemptedWrites = 0
+    var writeAttempts: Int { writeLock.withLock { attemptedWrites } }
+    private func readOnlyFailure() -> ReferenceFailure {
+        writeLock.withLock { attemptedWrites += 1 }
+        return .readOnly
+    }
     let messages: [ConversationMessage]
     let info = ConversationInfo(id: "chief-main", title: "Chief", kind: .direct, participants: [
         ConversationParticipant(id: "chief", name: "Chief", initials: "C", colorHex: "#0284FE", isMe: false),
@@ -431,13 +438,13 @@ private final class ReferenceBackend: ConversationBackend {
         let eligible = messages.filter { beforeSeq == nil || ($0.seq ?? 0) < beforeSeq! }
         return ConversationHistoryPage(messages: Array(eligible.suffix(limit)), hasMore: eligible.count > limit)
     }
-    func send(_ draft: ConversationOutgoingDraft) async throws -> ConversationMessage { throw ReferenceFailure.readOnly }
-    func react(messageID: String, reaction: ConversationReaction?) async throws -> ConversationMessage { throw ReferenceFailure.readOnly }
-    func edit(messageID: String, text: String) async throws -> ConversationMessage { throw ReferenceFailure.readOnly }
-    func unsend(messageID: String) async throws -> ConversationMessage { throw ReferenceFailure.readOnly }
+    func send(_ draft: ConversationOutgoingDraft) async throws -> ConversationMessage { throw readOnlyFailure() }
+    func react(messageID: String, reaction: ConversationReaction?) async throws -> ConversationMessage { throw readOnlyFailure() }
+    func edit(messageID: String, text: String) async throws -> ConversationMessage { throw readOnlyFailure() }
+    func unsend(messageID: String) async throws -> ConversationMessage { throw readOnlyFailure() }
     func setTyping(_ isTyping: Bool) async {}
     func markRead(upToSeq: Int) async {}
-    func uploadImage(_ data: Data, mimeType: String) async throws -> ConversationAttachment { throw ReferenceFailure.readOnly }
+    func uploadImage(_ data: Data, mimeType: String) async throws -> ConversationAttachment { throw readOnlyFailure() }
     func close() {}
 }
 
@@ -707,5 +714,176 @@ extension CmuxChiefReferenceTests {
             "scope": "Animation-enabled unmodified pinned UIKit header. Presentation/model opacity, actual quote activation, close escape/trailing actions and window hit tests. Not physical VoiceOver, Android rendering or real account/backend evidence."]
         let attachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]), uniformTypeIdentifier: "public.json")
         attachment.name = "chief-reply-header-timeline.json"; attachment.lifetime = .keepAlways; add(attachment)
+    }
+}
+
+private struct ReferenceActionScenes: Decodable { var schema: Int; var scenes: [ReferenceActionScene] }
+private struct ReferenceActionScene: Decodable {
+    var id: String; var sourceScene: String; var style: String; var category: String
+    var orientation: String; var messageID: String; var action: String
+}
+
+extension CmuxChiefReferenceTests {
+    @MainActor func testCaptureStandardChiefActions() async throws {
+        try await captureActions(category: "large", systemCategory: .large)
+    }
+    @MainActor func testCaptureAccessibilityChiefActions() async throws {
+        try await captureActions(category: "accessibilityMedium", systemCategory: .accessibilityMedium)
+    }
+
+    @MainActor private func captureActions(category: String, systemCategory: UIContentSizeCategory) async throws {
+        let fixture = try resource("Actions.json"), baseFixture = try resource("Scenes.json")
+        let actions = try JSONDecoder().decode(ReferenceActionScenes.self, from: fixture)
+        let bases = try JSONDecoder().decode(ReferenceScenes.self, from: baseFixture)
+        XCTAssertEqual(actions.schema, 1)
+        let provenance = try JSONSerialization.jsonObject(with: resource("Provenance.json"))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try await wait("actual action reference category") { UIApplication.shared.preferredContentSizeCategory == systemCategory && scene.activationState == .foregroundActive }
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(true) }
+        for specification in actions.scenes where specification.category == category {
+            let base = try XCTUnwrap(bases.scenes.first { $0.id == specification.sourceScene })
+            let target = try XCTUnwrap(base.rows.first { $0.id == specification.messageID })
+            let backend = ReferenceBackend(base, date: Date())
+            let store = ConversationStore(backend: backend)
+            let controller = ConversationViewController(store: store, options: ConversationPresentationOptions(
+                placeholder: "Message Chief", serviceTitle: "Chief", serviceSubtitle: "Runs your agents on your Mac",
+                avatarImage: UIImage(data: try resource("ChiefAvatar.png")), trailingSymbol: "stop.fill",
+                trailingAccessibilityLabel: "Stop Chief", supportsReactions: false, supportsEditing: false,
+                supportsUnsend: false, supportsAttachments: false))
+            let window = UIWindow(windowScene: scene); window.frame = scene.coordinateSpace.bounds
+            window.overrideUserInterfaceStyle = specification.style == "light" ? .light : .dark; window.rootViewController = controller; window.makeKeyAndVisible()
+            defer { store.stop(); window.isHidden = true; window.rootViewController = nil }
+            try await orient(scene, controller: controller, landscape: specification.orientation == "landscape")
+            try await wait("action reference history") { window.layoutIfNeeded(); return store.hasLoadedNewest && store.messages.count == base.rows.count && store.isViewing }
+            try verifyAncestorVisibility(window: window)
+            let editor = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.composer.text" } as? UITextView)
+            let draft = "Retain the draft through message actions"
+            editor.text = draft; editor.delegate?.textViewDidChange?(editor); XCTAssertTrue(editor.becomeFirstResponder())
+            @MainActor func bubble(_ id: String) -> UIAccessibilityElement? {
+                accessibleElements(in: controller.view, window: window).first { $0.accessibilityIdentifier == "conversation.bubble." + id }
+            }
+            // Scroll the real collection to compose a live cell if compact geometry
+            // has virtualized it. No fabricated cell or private source callback.
+            if bubble(specification.messageID) == nil {
+                let collection = try XCTUnwrap(views(in: controller.view).compactMap { $0 as? UICollectionView }.first)
+                for index in 0..<collection.numberOfItems(inSection: 0) {
+                    collection.scrollToItem(at: IndexPath(item: index, section: 0), at: .centeredVertically, animated: false)
+                    window.layoutIfNeeded(); try await Task.sleep(for: .milliseconds(40))
+                    if bubble(specification.messageID) != nil { break }
+                }
+            }
+            let targetBubble = try XCTUnwrap(bubble(specification.messageID))
+            let activationFrame = targetBubble.accessibilityFrame
+            XCTAssertTrue(targetBubble.accessibilityActivate())
+            try await wait("actual source action overlay") { views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.actions" } }
+            let overlay = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.actions" })
+            try await wait("source action menu keyboard dismissal") { !editor.isFirstResponder }
+            try await Task.sleep(for: .milliseconds(350)); window.layoutIfNeeded()
+            XCTAssertTrue(overlay.accessibilityViewIsModal)
+            let rows = controls(in: overlay, window: window).filter { ($0["identifier"] as? String)?.hasPrefix("conversation.menu.") == true }
+                .sorted { ($0["frame"] as! [CGFloat])[1] < ($1["frame"] as! [CGFloat])[1] }
+            let required = ["arrowshape.turn.up.left", "doc.on.doc", "selection.pin.in.out", "ellipsis.circle"].map { "conversation.menu." + $0 }
+            let identifiers = rows.compactMap { $0["identifier"] as? String }
+            XCTAssertTrue(required.allSatisfy(identifiers.contains)); XCTAssertFalse(identifiers.contains("conversation.menu.pencil"))
+            XCTAssertFalse(identifiers.contains("conversation.menu.arrow.uturn.backward.circle"))
+            let platter = try XCTUnwrap(views(in: overlay).compactMap { $0 as? UIVisualEffectView }.first { candidate in
+                views(in: candidate).contains { ($0.accessibilityIdentifier ?? "").hasPrefix("conversation.menu.") }
+            })
+            let clips = overlay.subviews.filter { type(of: $0) == UIView.self && $0.clipsToBounds && $0.bounds.width > 0 }
+            let preview = try XCTUnwrap(clips.count == 1 ? clips.first : nil, "Require unique actual clipped snapshot container")
+            var observation: [String: Any] = ["activation": "sourceBubbleAccessibilityActivate", "ancestorVisibilityGuardPassed": true,
+                "keyboardDismissed": !editor.isFirstResponder, "modal": overlay.accessibilityViewIsModal,
+                "rows": rows, "platterFrame": frame(platter, in: window), "previewFrame": frame(preview, in: window),
+                "overlayFrame": frame(overlay, in: window), "screenInset": controller.systemMinimumLayoutMargins.leading,
+                "safeArea": [overlay.safeAreaInsets.top, overlay.safeAreaInsets.left, overlay.safeAreaInsets.bottom, overlay.safeAreaInsets.right],
+                "previewBounds": [preview.bounds.width, preview.bounds.height], "previewScale": preview.transform.a,
+                "previewClips": preview.clipsToBounds, "previewCornerRadius": preview.layer.cornerRadius,
+                "sourceBubbleFrame": [activationFrame.minX, activationFrame.minY, activationFrame.width, activationFrame.height],
+                "menuLabels": labels(in: platter, window: window)]
+            @MainActor func menuControl(_ symbol: String) throws -> UIControl {
+                let matches = views(in: overlay).compactMap { $0 as? UIControl }.filter { $0.accessibilityIdentifier == "conversation.menu." + symbol }
+                return try XCTUnwrap(matches.count == 1 ? matches.first : nil)
+            }
+            var behavior: [String: Any] = [:]
+            if specification.action == "more" {
+                try menuControl("ellipsis.circle").sendActions(for: .touchUpInside)
+                try await wait("More enters source selection") { views(in: controller.view).contains { $0.accessibilityLabel == "Delete" && effectiveVisibleFrame($0, window: window) != nil } }
+                let selected = accessibleElements(in: controller.view, window: window).filter { $0.accessibilityTraits.contains(.selected) }
+                behavior["selectedInitially"] = selected.compactMap(\.accessibilityIdentifier)
+                XCTAssertEqual(selected.filter { $0.accessibilityIdentifier == "conversation.bubble." + specification.messageID }.count, 1)
+                let forward = controls(in: controller.view, window: window).filter { $0["label"] as? String == "Forward" }
+                XCTAssertTrue(forward.isEmpty); XCTAssertNil(effectiveVisibleFrame(editor, window: window)); XCTAssertFalse(editor.isFirstResponder)
+                behavior["forwardVisible"] = false; behavior["composerHidden"] = true
+            }
+            try await Task.sleep(for: .milliseconds(160)); window.layoutIfNeeded()
+            let format = UIGraphicsImageRendererFormat(); format.scale = scene.screen.scale
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
+            }
+            let png = try XCTUnwrap(image.pngData())
+            let capturedLabels = labels(in: controller.view, window: window)
+            let capturedControls = controls(in: controller.view, window: window)
+            if specification.action == "copy" {
+                let previousClipboard = UIPasteboard.general.string
+                defer { UIPasteboard.general.string = previousClipboard }
+                UIPasteboard.general.string = "uncopied-chief-fixture-" + UUID().uuidString
+                try menuControl("doc.on.doc").sendActions(for: .touchUpInside)
+                try await wait("source Copy callback") { UIPasteboard.general.string == target.text && overlay.superview == nil }
+                behavior["copyMatchesSourceText"] = true; behavior["copySentinelReplaced"] = true
+            } else if specification.action == "reply" {
+                try menuControl("arrowshape.turn.up.left").sendActions(for: .touchUpInside)
+                try await wait("source menu Reply handoff") { overlay.superview == nil && views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.replyThread" } }
+                behavior["replyHandoff"] = "sourceMenuTouchUpInside"
+                behavior["editorFocusedAfterReply"] = editor.isFirstResponder
+                XCTAssertTrue(editor.isFirstResponder)
+                try await wait("source Close header after menu handoff") { views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.header.trailing" && $0.accessibilityLabel == "Close" } }
+                let close = try XCTUnwrap(views(in: controller.view).compactMap { $0 as? UIControl }.first { $0.accessibilityIdentifier == "conversation.header.trailing" && $0.accessibilityLabel == "Close" })
+                close.sendActions(for: .touchUpInside)
+                try await wait("source thread returns after menu Reply") { !views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.replyThread" } }
+            } else {
+                let second = try XCTUnwrap(bubble("reply")); XCTAssertTrue(second.accessibilityActivate())
+                let selected = accessibleElements(in: controller.view, window: window).filter { $0.accessibilityTraits.contains(.selected) }
+                XCTAssertEqual(selected.count, 2); behavior["selectedAfterToggle"] = selected.compactMap(\.accessibilityIdentifier).sorted()
+                let delete = try XCTUnwrap(views(in: controller.view).compactMap { $0 as? UIControl }.first { $0.accessibilityLabel == "Delete" && $0.isEnabled && effectiveVisibleFrame($0, window: window) != nil })
+                delete.sendActions(for: .touchUpInside)
+                try await wait("source delete confirmation") { controller.presentedViewController is UIAlertController }
+                let alert = try XCTUnwrap(controller.presentedViewController as? UIAlertController)
+                XCTAssertTrue(alert.actions.contains { $0.title == "Delete 2 Messages" && $0.style == .destructive })
+                behavior["deleteConfirmation"] = alert.actions.compactMap(\.title)
+                alert.dismiss(animated: false)
+                try await wait("confirmation dismissed for selection cancel") { controller.presentedViewController == nil }
+                let cancel = try XCTUnwrap(views(in: controller.view).compactMap { $0 as? UIControl }.first { $0.accessibilityIdentifier == "conversation.header.trailing" && $0.accessibilityLabel == "Cancel" })
+                cancel.sendActions(for: .touchUpInside)
+                try await wait("source selection cancel restores composer") { effectiveVisibleFrame(editor, window: window) != nil }
+                behavior["selectionCancelRestoresComposer"] = true
+                // Separate public Core action proof; this does not claim that the
+                // destructive UIAlert action itself was activated.
+                let ids = Set(store.messages.filter { ["parent", "reply"].contains($0.id) }.map(\.rowID))
+                store.deleteLocally(rowIDs: ids)
+                XCTAssertEqual(store.messages.map(\.id), ["next"])
+                behavior["directCoreLocalDeleteIDs"] = store.messages.map(\.id)
+                behavior["destructiveAlertActivated"] = false
+            }
+            XCTAssertEqual(editor.text, draft); XCTAssertEqual(backend.writeAttempts, 0)
+            behavior["draftPreserved"] = editor.text == draft; behavior["backendWriteAttempts"] = backend.writeAttempts
+            behavior["viewingAfterAction"] = store.isViewing
+            observation["behavior"] = behavior
+            let metadata: [String: Any] = ["actionScene": specification.id, "sourceScene": specification.sourceScene,
+                "style": specification.style, "actualStyle": window.traitCollection.userInterfaceStyle == .dark ? "dark" : "light",
+                "category": specification.category, "orientation": specification.orientation, "actualLandscape": scene.interfaceOrientation.isLandscape, "animationsEnabled": UIView.areAnimationsEnabled,
+                "action": specification.action, "messageID": specification.messageID, "outgoing": target.outgoing,
+                "capturePhase": specification.action == "more" ? "selection" : "menu",
+                "fixtureSha256": SHA256.hash(data: fixture).map { String(format: "%02x", $0) }.joined(),
+                "imageSha256": SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined(),
+                "provenance": provenance, "applicationCategoryMatchesScene": UIApplication.shared.preferredContentSizeCategory == systemCategory,
+                "viewport": [image.size.width, image.size.height], "scale": format.scale,
+                "labels": capturedLabels, "controls": capturedControls, "observation": observation,
+                "scope": "Actual pinned UIKit bubble AX activation and registered MenuRow controls; settled menu/selection and public Core local-delete observations. No physical press/touch, Android parity, destructive alert activation or animation timing acceptance."]
+            for (suffix, data, type) in [("png", png, "public.png"), ("json", try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]), "public.json")] {
+                let attachment = XCTAttachment(data: data, uniformTypeIdentifier: type); attachment.name = specification.id + "." + suffix; attachment.lifetime = .keepAlways; add(attachment)
+            }
+            try await orient(scene, controller: controller, landscape: false)
+        }
     }
 }
