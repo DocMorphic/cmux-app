@@ -1,7 +1,10 @@
 ## Active full-parity goal — 2026-10-20
 
 Current reference work: hosted run `39533735026`, source
-`962ec10c4cc74e30a7fdf0a776bd37b570d3b4c2`, is in progress. Do not duplicate it.
+`962ec10c4cc74e30a7fdf0a776bd37b570d3b4c2`, failed Swift 6 compilation in a nested
+test helper that captured XCTest self across actor isolation. Direct main-actor
+view lookup replaces that helper; the package and behavior guards are unchanged.
+The next hosted run is pending; do not claim expanded rendering passed.
 The unchanged original nine UIKit scenes are joined by
 four separately hashed details/compact interaction cases. The source host now
 observes real settings rollback, draft/focus on return and modal viewing, plus
@@ -19,6 +22,17 @@ The full JVM run passes 3,025 with four skips and zero failures; log is
 `captures/recovery-20261021/chief-shared-trim-build.log`. This narrows trimming
 only; localized search/canonical-equivalence and broader UI/physical gates stay
 open. No account/pairing/signing/phone changes were made.
+
+Fresh local signed candidate **706**, clean source
+`bd3d9b084d33f47a92cb751edbf8c427f038de18`, includes all recent app work.
+SHA-256 `a157393feb5429f32e2c2c7c3094e69ff714ce63389a030e9a8593b54ece774c`,
+277,581,833 bytes. Strict verification passes the existing signer, all 22 native
+libraries/alignment, 21 viewer assets, 14 debug-component exclusions and real
+Firebase resources. Artifact/source receipt: `captures/runtime/parity-candidate-706/`;
+verification: `captures/recovery-20261021/apk-verification-706/`. Use 706 instead
+of stale 705 for the next authorized in-place Pixel upgrade. It is not installed
+or published. Pixel USB remains absent; preserve data and first restore its
+original stay-awake setting as instructed below.
 
 Latest Oct 21 header/details checkpoint: source portrait photo/name/back-count/
 Stop layout, both real details entrances and history-exhaustion service intro

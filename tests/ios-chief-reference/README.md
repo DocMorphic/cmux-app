@@ -76,3 +76,7 @@ actions, settings rollback and draft/focus checks. Default exporter mode retains
 the original nine-scene acceptance contract for older artifacts. Twelve synthetic
 integrity tests verify rejection of incomplete, altered or mislabeled evidence;
 they do not render UIKit. Expanded hosted compilation and rendering are pending.
+First expanded run `39533735026` failed Swift 6 compilation because a nested
+test helper captured XCTest's non-Sendable `self` across actor isolation. The
+helper is replaced by direct main-actor view lookup; the pinned package and
+behavior assertions are unchanged. Hosted rendering remains pending a new run.

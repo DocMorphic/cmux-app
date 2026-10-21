@@ -117,10 +117,9 @@ extension CmuxChiefReferenceTests {
                 behavior["viewingWhileDetails"] = store.isViewing
                 behavior["editorFocusedWhileDetails"] = text.isFirstResponder
                 XCTAssertFalse(text.isFirstResponder)
-                func toggle(_ id: String) throws -> UISwitch {
-                    try XCTUnwrap(views(in: content).first { $0.accessibilityIdentifier == id } as? UISwitch)
-                }
-                let alerts = try toggle("conversation.details.hideAlerts"), receipts = try toggle("conversation.details.readReceipts")
+                let detailViews = views(in: content)
+                let alerts = try XCTUnwrap(detailViews.first { $0.accessibilityIdentifier == "conversation.details.hideAlerts" } as? UISwitch)
+                let receipts = try XCTUnwrap(detailViews.first { $0.accessibilityIdentifier == "conversation.details.readReceipts" } as? UISwitch)
                 XCTAssertFalse(alerts.isOn); XCTAssertTrue(receipts.isOn)
                 alerts.setOn(true, animated: false); alerts.sendActions(for: .valueChanged)
                 behavior["alertsOptimistic"] = store.info?.listState.muted == true
