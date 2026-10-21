@@ -166,5 +166,11 @@
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationTheme.swift": "533fe1579789bfe6bab5b57acf327ff38689224b4c2624d5cdba500d50e1d53d",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/MessageCellLayout.swift": "95ae1cc47cb17e25c0b8ae739e105029d5f65b109faa5b516c93897abdeb36bc",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationTranscriptMetrics.swift": "b41f97a2656bd42b909be29e97369c22df790262e09bc0f0cde41709045bbfce"
+  },
+  "replyMotionFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationReplyMotion.swift": "ac49fce8ebfa9c4ba40bb4fd7bda90b37be9bd97781ed970f538d28f1b213770",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ReplyTrip.swift": "5f5239b94f55f2f4e4379dbc5de15d7d7956930ed6e76d05f8fddf09d73c731e",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+Reply.swift": "d6d28236b8c71fd8833367b574f0b0c203cc5ba17f6e290c51aff42e6128937e",
+    "Packages/iOS/CmuxConversation/Tests/CmuxConversationGeometryTests/ReplyTripTests.swift": "5bedae432e0a6006b496e49a71b266160aaf9a7145a55b61e20422f0ca4103c8"
   }
 }

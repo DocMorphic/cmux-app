@@ -1,5 +1,40 @@
 # Chief conversations
 
+## Reply motion equations and recovered Mac helper — 2026-10-21
+
+The private helper recovered after reconnecting the existing personal Tailscale
+profile, which had been stopped. Its configured listener address was absent from
+the Mac; keys and enrollment were intact. The verified custom Mac process now owns
+the helper and mode-0600 control socket. The actual production Swift pairing client
+and offer parser pass against the real helper with the same account, instance,
+endpoint and descriptors; the test offer was cancelled. HTTPS verifies with the
+existing certificate (GET returns expected 405). One active/zero retired phone
+registrations and their ciphertexts, helper configuration and native descriptor
+are unchanged. Current-build Pair Android Notifications opened and New Pairing
+Code produced a QR with Copy enabled, then the temporary window was closed.
+Subsequent reopening hit stale UI controls; no further Mac action is requested.
+Evidence: `captures/recovery-20261021/mac-helper-recovered-checkpoint.json`.
+This supersedes the earlier absent-helper/pending-menu observations below; it
+proves neither phone enrollment nor encrypted FCM delivery/cold taps.
+
+NativeChiefReplyMotion/ReplyTrip now port the source per-frame travel, horizontal
+swipe unwind, geometry-based easing, pixel snap and moving-container behavior.
+The checker compiles the whole pinned Swift dynamics and verbatim threadRows
+projection with inert view identities/frames: 227 geometry cases, 16 trajectories,
+641 frame/container actions and five projection cases match; 101 Chief JVM tests
+pass with zero failures/errors/skips. Upstream observation arrays are source test
+inputs, not our device evidence. Source revision remains a5911a1f; GPL attribution
+and four file pins are recorded in the Chief manifest. Independent regeneration
+matches vectors SHA `4cd25506b6f69006ac190429b0afe4ad019d9f850613c0bd00ab3e9a52613a49`.
+Receipt: `captures/recovery-20261021/chief-reply-motion-checkpoint.json`.
+
+The engine is not mounted in the UI yet and is not in candidate 710. Next: actual
+row coordinate capture, frame driving, close/send/reopen lifetime, reduced motion
+and IME/accessibility/orientation validation. Candidate 710 remains uninstalled;
+Pixel USB absent and installed 703 preserved. First on authorized return restore
+`svc power stayon false`, then preserve data/signing for any upgrade. Full parity
+and the physical Mac/Pixel terminal, FCM, cold-tap and remaining app gates stay open.
+
 ## Signed candidate 710 — 2026-10-21
 
 Candidate710 includes mounted captions at clean source
