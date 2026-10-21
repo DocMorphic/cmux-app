@@ -42,6 +42,7 @@ class NativeChiefRuntimeTest {
     private val api = Api()
     private var current = true
     private var testFontScale by mutableFloatStateOf(1f)
+    private var testLayoutDirection by mutableStateOf(androidx.compose.ui.unit.LayoutDirection.Ltr)
 
     @Before fun start() {
         check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk")) { "Use the disposable emulator" }
@@ -53,7 +54,8 @@ class NativeChiefRuntimeTest {
         // owns its transcript, while its production parent owns system bars.
         compose.setContent { CmuxTheme {
             val hostDensity = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides Density(hostDensity.density, testFontScale)) {
+            CompositionLocalProvider(LocalDensity provides Density(hostDensity.density, testFontScale),
+                androidx.compose.ui.platform.LocalLayoutDirection provides testLayoutDirection) {
             Surface(Modifier.fillMaxSize().background(Color(0xFF0B0D10)).statusBarsPadding().navigationBarsPadding().imePadding()) {
             NativeChiefView(computer, true, Modifier.fillMaxSize())
         } } } }
@@ -1596,6 +1598,172 @@ class NativeChiefRuntimeTest {
         } finally { compose.mainClock.autoAdvance = true }
     }
 
+    private fun placedChiefFrame(tag: String, useUnmergedTree: Boolean = false): androidx.compose.ui.geometry.Rect {
+        val node = compose.onNodeWithTag(tag, useUnmergedTree = useUnmergedTree).fetchSemanticsNode()
+        val point = node.layoutInfo.coordinates.localToWindow(androidx.compose.ui.geometry.Offset.Zero)
+        return androidx.compose.ui.geometry.Rect(point.x, point.y, point.x + node.size.width, point.y + node.size.height)
+    }
+
+    private fun replyCopy(id: String): androidx.compose.ui.geometry.Rect {
+        val probe = compose.onNodeWithTag("ChiefReplyThread").fetchSemanticsNode().config[ChiefReplyCopyBounds]
+        var bounds: androidx.compose.ui.geometry.Rect? = null
+        compose.runOnUiThread { bounds = probe()[id] }
+        return checkNotNull(bounds)
+    }
+
+    private fun chiefRect(rect: androidx.compose.ui.geometry.Rect) = org.json.JSONArray(listOf(rect.left, rect.top, rect.width, rect.height))
+    private fun saveChiefGeometry(name: String, value: JSONObject) {
+        File(compose.activity.getExternalFilesDir(null), "screenshots/$name.json").writeText(value.toString(2))
+    }
+
+    @Test fun composerGrowthDuringReplyEntryKeepsTheSourceGapAndDraft() = checkReplyComposerGrowth(false)
+    @Test fun composerGrowthDuringReplyReturnDoesNotKeepOldCopiesAlive() = checkReplyComposerGrowth(true)
+
+    private fun checkReplyComposerGrowth(duringReturn: Boolean) {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        org.junit.Assume.assumeTrue(compose.activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT)
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Geometry draft")
+        settledComposerGeometry()
+        compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefQuote:reply"))
+        val reopen = checkNotNull(compose.onNodeWithTag("ChiefQuote:reply").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        compose.runOnUiThread { assertTrue(reopen()) }
+        waitForReplyThread()
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.mainClock.advanceTimeBy(1600); compose.waitForIdle()
+            val originalComposer = placedChiefFrame("ChiefComposerBar")
+            val sourceGap = originalComposer.top - replyCopy("reply").bottom
+            val close = checkNotNull(compose.onNodeWithTag("ChiefReplyClose").fetchSemanticsNode()
+                .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+            compose.runOnUiThread { assertTrue(close()); assertTrue(reopen()) }
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            compose.mainClock.advanceTimeBy(64); compose.waitForIdle()
+            val generation = computer.transcript()!!.state.value.reply!!.generation
+            val travellingCopy = replyCopy("reply")
+            assertTrue("Composer change must interrupt travelling copies", kotlin.math.abs(travellingCopy.bottom - (originalComposer.top - sourceGap)) > 1f)
+            val requestClock = compose.mainClock.currentTime
+            if (duringReturn) compose.runOnUiThread { assertTrue(close()) }
+            val draft = "Geometry draft\nSecond line\nThird line\nFourth line"
+            compose.onNodeWithTag("ChiefComposer").performTextReplacement(draft)
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            val grownComposer = placedChiefFrame("ChiefComposerBar")
+            assertTrue("The test must cause actual editor growth", grownComposer.height > originalComposer.height + 20 * compose.activity.resources.displayMetrics.density)
+            val changedCopy = if (duringReturn) closingCopy("reply") else replyCopy("reply")
+            if (!duringReturn) assertEquals(generation, computer.transcript()!!.state.value.reply!!.generation)
+            val changedClock = compose.mainClock.currentTime
+            compose.mainClock.advanceTimeBy(1600); compose.waitForIdle()
+            if (duringReturn) {
+                compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+                compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+                assertNull(computer.transcript()!!.state.value.reply)
+            } else {
+                assertEquals("The bottom bubble must move with the growing composer", sourceGap,
+                    placedChiefFrame("ChiefComposerBar").top - replyCopy("reply").bottom, 2f)
+            }
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains(draft)
+            assertTrue(api.sends.isEmpty())
+            val name = if (duringReturn) "chief-geometry-composer-return" else "chief-geometry-composer-entry"
+            saveScreenshot(name)
+            saveChiefGeometry(name, JSONObject().put("duringReturn", duringReturn).put("generation", generation)
+                .put("sourceGap", sourceGap).put("oldComposer", chiefRect(originalComposer)).put("newComposer", chiefRect(grownComposer))
+                .put("travellingCopy", chiefRect(travellingCopy)).put("changedCopy", chiefRect(changedCopy))
+                .put("requestClock", requestClock).put("changedClock", changedClock)
+                .put("finalGap", if (duringReturn) JSONObject.NULL else placedChiefFrame("ChiefComposerBar").top - replyCopy("reply").bottom))
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun keyboardHeightChangesRequestedDuringEntryKeepTheReplyAboveTheEditor() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keyboard geometry draft")
+        settledComposerGeometry()
+        compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefQuote:reply"))
+        val reopen = checkNotNull(compose.onNodeWithTag("ChiefQuote:reply").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        compose.runOnUiThread { assertTrue(reopen()) }
+        waitForReplyThread()
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.mainClock.advanceTimeBy(1600); compose.waitForIdle()
+            val sourceGap = placedChiefFrame("ChiefComposerBar").top - replyCopy("reply").bottom
+            val close = checkNotNull(compose.onNodeWithTag("ChiefReplyClose").fetchSemanticsNode()
+                .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+            for (show in listOf(false, true)) {
+                compose.runOnUiThread { assertTrue(close()); assertTrue(reopen()) }
+                repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+                compose.mainClock.advanceTimeBy(64); compose.waitForIdle()
+                val generation = computer.transcript()!!.state.value.reply!!.generation
+                val before = placedChiefFrame("ChiefComposerBar")
+                val travellingCopy = replyCopy("reply")
+                assertTrue("IME request must interrupt travelling copies", kotlin.math.abs(travellingCopy.bottom - (before.top - sourceGap)) > 1f)
+                val requestClock = compose.mainClock.currentTime
+                compose.runOnUiThread {
+                    val controller = compose.activity.window.insetsController!!
+                    if (show) controller.show(android.view.WindowInsets.Type.ime()) else controller.hide(android.view.WindowInsets.Type.ime())
+                }
+                compose.waitUntil(10_000) {
+                    var visible = false
+                    compose.runOnUiThread { visible = compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime()) }
+                    visible == show
+                }
+                // OS IME animation uses wall time, independently of the held Compose clock.
+                android.os.SystemClock.sleep(350)
+                repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+                assertEquals(generation, computer.transcript()!!.state.value.reply!!.generation)
+                compose.mainClock.advanceTimeBy(1600); compose.waitForIdle()
+                val after = placedChiefFrame("ChiefComposerBar")
+                assertTrue("Real IME height must change the editor's location", kotlin.math.abs(before.top - after.top) > 50 * compose.activity.resources.displayMetrics.density)
+                assertEquals(sourceGap, after.top - replyCopy("reply").bottom, 2f)
+                compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Keyboard geometry draft")
+                val name = if (show) "chief-geometry-ime-shown" else "chief-geometry-ime-hidden"
+                saveScreenshot(name)
+                saveChiefGeometry(name, JSONObject().put("imeVisible", show).put("generation", generation)
+                    .put("sourceGap", sourceGap).put("oldComposer", chiefRect(before)).put("newComposer", chiefRect(after))
+                    .put("travellingCopy", chiefRect(travellingCopy)).put("finalCopy", chiefRect(replyCopy("reply")))
+                    .put("requestClock", requestClock).put("finalGap", after.top - replyCopy("reply").bottom))
+            }
+            assertTrue(api.sends.isEmpty())
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun rtlReplyKeepsTheSourceAbsoluteSenderLanesAndTheHebrewDraft() {
+        compose.runOnUiThread { testLayoutDirection = androidx.compose.ui.unit.LayoutDirection.Rtl }
+        openReferenceScene("quote-dark")
+        val draft = "טיוטה בעברית"
+        compose.onNodeWithTag("ChiefComposer").performTextInput(draft)
+        settledComposerGeometry()
+        compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefQuote:reply"))
+        compose.onNodeWithTag("ChiefQuote:reply").performClick()
+        waitForReplyThread(); compose.waitForIdle()
+        val density = compose.activity.resources.displayMetrics.density
+        val viewport = placedChiefFrame("ChiefReplyThread")
+        assertEquals(viewport.left + 16 * density, replyCopy("parent").left, 2f)
+        assertEquals(viewport.right - 16 * density, replyCopy("reply").right, 2f)
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains(draft)
+        val editorViewport = placedChiefFrame("ChiefComposerTextViewport", useUnmergedTree = true)
+        val send = placedChiefFrame("ChiefSend")
+        val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.onNodeWithTag("ChiefComposer").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { assertTrue(it(layouts)) }
+        val layout = layouts.single()
+        val glyphRight = draft.indices.maxOf { layout.getBoundingBox(it).right }
+        val cursorRight = layout.getCursorRect(draft.length).right
+        saveScreenshot("chief-geometry-rtl-reply")
+        saveChiefGeometry("chief-geometry-rtl-reply", JSONObject().put("rtl", true).put("density", density)
+            .put("viewport", chiefRect(viewport)).put("incoming", chiefRect(replyCopy("parent"))).put("outgoing", chiefRect(replyCopy("reply")))
+            .put("editorViewport", chiefRect(editorViewport)).put("send", chiefRect(send))
+            .put("textLayoutWidth", layout.size.width).put("localGlyphRight", glyphRight).put("localCursorRight", cursorRight))
+        assertTrue("RTL editor must reserve the physical Send lane: editor=$editorViewport send=$send", editorViewport.right <= send.left)
+        assertTrue("The real text layout must fit its reserved viewport", layout.size.width <= editorViewport.width + 1)
+        assertTrue("All Hebrew glyphs must fit the text viewport", glyphRight <= editorViewport.width + 1)
+        assertTrue("The end cursor must fit the text viewport", cursorRight <= editorViewport.width + 1)
+        compose.onNodeWithTag("ChiefReplyClose").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains(draft)
+        assertTrue(api.sends.isEmpty())
+    }
+
     @Test fun sourceQuoteSceneUsesTheOriginalSenderSideAndSeparateOutline() {
         openReferenceScene("quote-dark")
         fun body(id: String) = compose.onNodeWithTag("ChiefBubbleBody:$id").fetchSemanticsNode().boundsInRoot
@@ -1951,6 +2119,56 @@ class NativeChiefRuntimeTest {
         assertTrue("Retained closing text must have no link hit targets", closing.getLinkAnnotations(0, closing.length).isEmpty())
         assertEquals(links.size, closing.spanStyles.count { it.item.textDecoration == androidx.compose.ui.text.style.TextDecoration.Underline })
         assertEquals(listOf("https://example.com/path"), opened)
+    }
+
+    @Test fun growingFontsWhileFollowingKeepsTheNewestMessageAboveTheComposer() {
+        compose.runOnUiThread {
+            api.rows = (1..40).map { i -> message("m$i", i.toULong(),
+                "Loaded message $i. This sentence wraps when text grows.") }
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        fun tail() = compose.onAllNodesWithTag("ChiefMessage:m40").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
+        compose.waitUntil(10_000) { tail()?.let { it.bottom <= usableMessagesBounds().bottom + 2 && it.height > 0 } == true }
+        val before = checkNotNull(tail())
+        compose.runOnUiThread { testFontScale = 2f }
+        try {
+            compose.waitUntil(6_000) {
+                tail()?.let { it.height > before.height + 10 && it.bottom <= usableMessagesBounds().bottom + 2 } == true
+            }
+        } catch (error: ComposeTimeoutException) {
+            saveScreenshot("chief-geometry-font-follow-diagnostic")
+            saveChiefGeometry("chief-geometry-font-follow-diagnostic", JSONObject().put("fontScale", testFontScale)
+                .put("oldTail", chiefRect(before)).put("newTail", tail()?.let(::chiefRect) ?: JSONObject.NULL)
+                .put("usableViewport", chiefRect(usableMessagesBounds())))
+            throw AssertionError("Following newest lost its tail after font growth: before=$before after=${tail()} viewport=${usableMessagesBounds()}", error)
+        }
+        assertTrue(api.sends.isEmpty())
+        saveScreenshot("chief-geometry-font-follow")
+        saveChiefGeometry("chief-geometry-font-follow", JSONObject().put("fontScale", testFontScale)
+            .put("oldTail", chiefRect(before)).put("newTail", chiefRect(checkNotNull(tail())))
+            .put("usableViewport", chiefRect(usableMessagesBounds())))
+    }
+
+    @Test fun fontGrowthWhileReadingHistoryDoesNotResumeFollowingNewest() {
+        compose.runOnUiThread {
+            api.rows = (1..40).map { i -> message("m$i", i.toULong(),
+                "Loaded message $i. This sentence wraps when text grows.") }
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:m40").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMessages").performScrollToIndex(12)
+        val before = placedChiefFrame("ChiefComposerBar")
+        compose.runOnUiThread { testFontScale = 2f }
+        compose.waitUntil(10_000) { placedChiefFrame("ChiefComposerBar").height > before.height + 10 }
+        val viewport = usableMessagesBounds()
+        val tail = compose.onAllNodesWithTag("ChiefMessage:m40").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
+        assertTrue("A font change must not resume following after an admitted history scroll",
+            tail == null || tail.bottom <= viewport.top || tail.top >= viewport.bottom)
+        assertTrue(api.sends.isEmpty())
+        saveScreenshot("chief-geometry-font-history")
+        saveChiefGeometry("chief-geometry-font-history", JSONObject().put("fontScale", testFontScale)
+            .put("oldComposer", chiefRect(before)).put("newComposer", chiefRect(placedChiefFrame("ChiefComposerBar")))
+            .put("newestVisible", false))
     }
 
     @Test fun enlargedTextKeepsChiefHeaderAndComposerUsable() {

@@ -1,3 +1,55 @@
+## Font reflow, active reply geometry and RTL editor — 2026-10-22
+
+Following newest now explicitly repositions on font-scale changes. The old
+collector only observed the last row while it remained visible: growing text
+from scale 1 to 2 dropped message 40 entirely and displayed messages 30–35.
+The pinned source's trait-change handler explicitly retains following-newest.
+The corrected view keeps message 40 above the composer; a separate history
+scroll remains unpinned across font growth. This is an in-place rendered
+component check, not a physical system-font-setting/Activity recreation test.
+
+Screenshot review found a second real bug despite the initial sender-lane RTL
+check passing: start/end editor padding mirrored away from the physical-right
+Send button. Its text viewport overlapped Send by 85 px at 3×. Physical left/right
+padding now matches the source text-view frame and leaves 11 px clearance; the
+complete Hebrew draft is visible. The strengthened test independently measures
+placed editor/Send bounds and verifies local text-layout/glyph/cursor bounds fit
+the editor viewport. Prototype global glyph coordinates used an incorrect origin
+and are excluded from the before proof; its actual viewport overlap is valid.
+
+Six new checks cover font following/history intent, composer growth during entry
+and return, actual OS IME hide/show requested during entry, and RTL sender/editor
+geometry. Moving copies are asserted before the geometry requests. The outer
+bubble/editor gap stays 18 px at 3× while the composer grows 177 px and the IME
+moves it 972 px; return copies retire and draft/focus are retained without sends.
+These observations do not establish native animation timing, in-flight copy font/
+rotation, full RTL, physical Gboard/TalkBack or complete optical/material parity.
+
+113 Chief JVM tests pass. Final focused three pass (11.773 s); portrait 74 pass/
+four expected skips (243.529 s); landscape 26 pass/two skips (82.284 s); disabled
+animations 15 pass/three skips (36.203 s). Four crash buffers are empty. All twelve
+full PNGs and metadata were checked and inspected; accepted runs share guarded
+source/APKs. Receipt `captures/recovery-20261021/chief-text-rtl-final-checkpoint.json`;
+verifier `verify-chief-text-rtl-final.py`. Earlier font failures, unhelpful raw
+Compose timeouts and the green-but-incomplete RTL sender-lane matrix are diagnostic.
+
+Emulator 66338 was restored to 1080×2400/420 and animator scale 0, then stopped;
+Gradle stopped. Custom Mac 40840/helper 43849 are alive; account/pairing/workspaces
+are preserved. No Mac action is requested. USB is absent and Pixel remains 703.
+Build a clean signed 712 with these fixes, superseding 711 for pending physical
+upgrade/terminal/FCM/cold-tap/lifecycle/TalkBack checks. First on Pixel return
+restore `svc power stayon false`. Its availability question remains pending.
+
+Next feature gap is source-qualified: Chief disables reactions/editing/unsend/
+attachments, but shared MessageActionOverlay still offers Reply, Copy, conditional
+Translate, text Select, failed-message/poll items and More multi-message selection.
+Android currently has SelectionContainer, swipe and AX Reply without this lifted
+long-press/More workflow. Audit exact eligibility/action/backend/selection contracts,
+pin geometry and native observations, then implement the applicable source flows.
+Source audit receipt: `captures/recovery-20261021/chief-next-action-menu-audit.json`.
+All broader completion gates and the full-parity goal remain active; the global
+upstream pin is unchanged.
+
 ## Copied reply ownership across synchronous actions — 2026-10-22
 
 Close/Open/Close and Send/Open/Close admitted within one UI event now replace

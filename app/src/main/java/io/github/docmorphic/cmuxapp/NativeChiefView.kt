@@ -236,6 +236,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     var readerScrolling by remember { mutableStateOf(false) }
     val dragged by list.interactionSource.collectIsDraggedAsState()
     val bottomTolerance = with(LocalDensity.current) { 44.dp.toPx() }
+    val fontScale = LocalDensity.current.fontScale
     fun nearNewest(): Boolean {
         val info = list.layoutInfo
         val last = info.visibleItemsInfo.lastOrNull()
@@ -267,7 +268,10 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             }
         } finally { programmatic = false }
     }
-    LaunchedEffect(timeline, state.working, state.loading, state.hasMore, state.localSendRevision, viewport) {
+    // A font reflow can push the last row entirely outside the lazy viewport,
+    // where the overflow collector below can no longer observe it. Reposition
+    // a following transcript explicitly, while preserving history-reading intent.
+    LaunchedEffect(timeline, state.working, state.loading, state.hasMore, state.localSendRevision, viewport, fontScale) {
         val sent = state.localSendRevision != seenSend
         seenSend = state.localSendRevision
         if (sent) { pinned = true; readerScrolling = false }

@@ -123,11 +123,13 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
                 modifier = Modifier.fillMaxWidth().height(fieldHeight).focusRequester(focus).testTag("ChiefComposer").semantics {
                     verticalScrollAxisRange = ScrollAxisRange({ scroll.value.toFloat() }, { scroll.maxValue.toFloat() })
                 }
-                    .padding(start = 16.dp, end = 48.dp, top = 10.dp, bottom = 10.dp),
+                    // Send uses a physical right-side frame, matching the source
+                    // text view. Its reserved space must stay there in RTL too.
+                    .absolutePadding(left = 16.dp, right = 48.dp, top = 10.dp, bottom = 10.dp),
                 textStyle = style.copy(color = ink), cursorBrush = SolidColor(if (dark) Color(0xFF0091FF) else Color(0xFF0088FF)),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Default),
                 decorator = { input ->
-                    Box {
+                    Box(Modifier.testTag("ChiefComposerTextViewport")) {
                         if (editor.text.isEmpty()) Text(stringResource(if (replyGeneration != null) R.string.chief_reply_placeholder else R.string.chief_composer_placeholder),
                             color = if (dark) Color(0xFF5D5D61) else Color(0xFFB2B2B8), style = style)
                         input()
