@@ -40,7 +40,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -103,12 +106,24 @@ internal fun ChiefTimestamp(at: Instant, tag: String) {
     val timestamp = buildAnnotatedString {
         if (position < 0) append(template) else {
             append(template.substring(0, position))
-            val start = length; append(label); addStyle(SpanStyle(fontWeight = FontWeight.SemiBold), start, length)
+            val start = length; append(label); addStyle(SpanStyle(fontWeight = FontWeight.Medium), start, length)
             append(template.substring(position + 1))
         }
     }
-    Text(timestamp, Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp).testTag(tag),
-        color = chiefMuted, style = MaterialTheme.typography.labelSmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    val density = LocalDensity.current
+    val font = nativeChiefCaptionFont()
+    val geometry = NativeChiefCaptionGeometry.timestamp(font.lineHeight, font.ascender, font.spacing,
+        font.pointSize, density.density.toDouble())
+    // Both transcript containers already supply the source's 16-point margins.
+    Layout(modifier = Modifier.fillMaxWidth().testTag(tag).semantics(mergeDescendants = true) {}, content = {
+        NativeChiefCaptionLabel(timestamp, font, geometry.labelHeight, geometry.baselineOffset - 10,
+            chiefMuted, tag, centered = true)
+    }) { children, constraints ->
+        val label = children.single().measure(Constraints(maxWidth = constraints.maxWidth))
+        layout(constraints.maxWidth, (geometry.rowHeight * density.density).roundToInt()) {
+            label.place(0, with(density) { 10.dp.roundToPx() })
+        }
+    }
 }
 
 @Composable
@@ -467,7 +482,12 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
         customActions = listOf(CustomAccessibilityAction(replyLabel) { onReply(row.item.messageID) })
     } else Modifier
     Column(Modifier.fillMaxWidth().testTag("ChiefRow:${row.item.key}").padding(top = gap)) {
-        if (row.timestamp) ChiefTimestamp(row.item.at, "ChiefTimestamp:${row.item.key}")
+        if (row.timestamp) {
+            ChiefTimestamp(row.item.at, "ChiefTimestamp:${row.item.key}")
+            // Source collection-view spacing after TimestampCell; the copied
+            // reply transcript intentionally places its sender row directly.
+            Spacer(Modifier.height(4.dp))
+        }
         val message = row.item.message
         if (message != null) {
             val part = NativeChiefPresentation.pendingPart(message)

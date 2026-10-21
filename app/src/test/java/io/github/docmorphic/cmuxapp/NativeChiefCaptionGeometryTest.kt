@@ -8,6 +8,20 @@ class NativeChiefCaptionGeometryTest {
     private fun cases() = JSONObject(checkNotNull(javaClass.getResourceAsStream("/parity/chief-captions.json"))
         .bufferedReader().use { it.readText() }).getJSONArray("cases")
 
+    @Test fun captionInputsMatchAllTwelveMeasuredUIKitCategories() {
+        val reference = JSONObject(checkNotNull(javaClass.getResourceAsStream("/parity/chief-caption-fonts.json"))
+            .bufferedReader().use { it.readText() }).getJSONArray("metrics")
+        assertEquals(12, reference.length())
+        repeat(reference.length()) { index ->
+            val row = reference.getJSONObject(index)
+            val actual = NativeChiefCaptionFonts.forBody(row.getDouble("bodyPointSize"))
+            assertEquals(row.getDouble("captionPointSize"), actual.pointSize, 1e-8)
+            assertEquals(row.getDouble("captionLineHeight"), actual.lineHeight, 1e-8)
+            assertEquals(row.getDouble("captionLeading"), actual.leading, 1e-8)
+            assertEquals(row.getDouble("regularAscender"), actual.ascender, 1e-8)
+        }
+    }
+
     @Test fun timestampRowLabelAndBaselineMatchActualSwiftMembersForMeasuredFontInputs() {
         val vectors = cases()
         repeat(vectors.length()) { index ->

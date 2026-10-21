@@ -1,3 +1,38 @@
+## Mounted captions and restored Mac session — 2026-10-21
+
+UIKit run 39555560226 SUCCEEDED at exact source be5c80c0. Artifact 12325422816
+(31,997,172 bytes, SHA `4a361a073e37a22992eae278e2f48ff8b28194b94728ddcb13e33c7aed519781`)
+passes independent verification for all fifteen scenes and twelve measured Caption
+2 categories. Native normal/AX thread images inspected. Android now mounts those
+font/spacing inputs and the source timestamp row/label/baseline and sender geometry;
+day text uses medium, base regular, and normal transcripts retain the separate
+four-point post-timestamp gap. Android glyph artwork remains platform-specific.
+
+97 Chief JVM cases pass. Portrait Chief: 45 pass/two landscape-only skips;
+correct route class: two pass; six landscape cases pass. The first combined
+command also named a nonexistent route test class and failed initialization;
+the corrected route invocation passed. Stable normal/AX capture checks pass,
+including actual body17/28.05634, caption11/20.04507 and row heights86/133px at3x.
+IME-visible/stable frames are rechecked after screenshots; nine PNG/metadata pairs
+verify, all crash buffers empty, emulator restored/stopped. Initial asynchronous
+capture metadata and an attempted exact nonlinear font-scale inverse are diagnostic,
+not accepted evidence. See CHIEF.md and `chief-caption-mounted-checkpoint.json`.
+
+The verified custom Mac39541508905 replaced39498469545 through normal quit/launch
+after private backups/live session export. All three workspace UUIDs/order/selection,
+terminal scrollback, signed-in account/resolved team and one active/no retired helper
+registration survived. The owner approved the matching producer Keychain prompt;
+subsequent sample has no Keychain wait, but the helper child/control socket is still
+absent. The prior pairing window opened; new-build menu verification is pending a
+manual action because CUA retains a stale Cloud menu/rejects controls. Official cmux
+untouched. Pixel USB absent; installed703 preserved; first on return restore
+`svc power stayon false`. Signed709 predates mounted captions and is now stale.
+
+Full parity remains unproven. Material gray/blur, font/line-break fidelity (the AX
+outgoing reply wraps here but is one line natively), ReplyTrip travel/unwind,
+locale/keyboard/accessibility stress, helper recovery and real Mac/Pixel terminal,
+encrypted FCM/cold-tap/lifecycle and other completion gates remain open.
+
 ## Caption source equations and corrected UIKit probe — 2026-10-21
 
 Follow-up UIKit run 39555560226 is in progress at exact source

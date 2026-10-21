@@ -212,6 +212,119 @@ class NativeChiefRuntimeTest {
         assertEquals(expected, with(density) { layouts.single().layoutInput.style.fontSize.toDp().value }, .2f)
     }
 
+    @Test fun captureSharedNormalThreadState() = captureSharedThreadState("thread-dark", 17f)
+    @Test fun captureSharedAccessibilityThreadState() = captureSharedThreadState("thread-large-dark", 28f)
+
+    private fun captureSharedThreadState(name: String, targetBodyPoints: Float) {
+        org.junit.Assume.assumeTrue(compose.activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT)
+        // Android uses nonlinear font scaling. Match the native fixture's measured
+        // body size, rather than assuming a nominal 1.65 setting renders 28 points.
+        // The framework converter caches scale buckets; exact inversion is not
+        // available. Use the existing bounded source-body fixture and record the
+        // actual result, rather than claim exact native category equivalence.
+        if (targetBodyPoints == 28f) useReferenceAccessibilityBodySize()
+        else compose.runOnUiThread { testFontScale = 1f }
+        openReferenceScene("quote-dark")
+        val physicalDensity = compose.activity.resources.displayMetrics.density
+        val mainTimestamp = compose.onNodeWithTag("ChiefTimestamp:s:parent").fetchSemanticsNode().boundsInRoot
+        val mainBody = compose.onNodeWithTag("ChiefBubbleBody:parent").fetchSemanticsNode().boundsInRoot
+        assertEquals(4f * physicalDensity, mainBody.top - mainTimestamp.bottom, 1f)
+        val draft = "Retain the draft through replies"
+        compose.onNodeWithTag("ChiefComposer").performTextInput(draft)
+        // The native reference opens through the source quote's public AX
+        // activation. Exercise the real Android quote semantic callback too.
+        compose.onNodeWithTag("ChiefQuote:reply").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        waitForReplyThread()
+        compose.onNodeWithTag("ChiefThreadMessage:parent").assertExists()
+        compose.onNodeWithTag("ChiefThreadMessage:reply").assertExists()
+        compose.onNodeWithTag("ChiefThreadMessage:next").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains(draft)
+        val density = Density(compose.activity.resources.displayMetrics.density, testFontScale)
+        compose.waitUntil(10_000) {
+            val bubble = compose.onNodeWithTag("ChiefThreadMessage:reply").fetchSemanticsNode().boundsInRoot
+            val field = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot
+            kotlin.math.abs(field.top - bubble.bottom - 10 * density.density) < 2
+        }
+        var lastFrames: List<androidx.compose.ui.geometry.Rect>? = null
+        var lastMove = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(10_000) {
+            val now = android.os.SystemClock.uptimeMillis()
+            val currentFrames = listOf("ChiefThreadTimestamp", "ChiefThreadRow:parent", "ChiefComposerField").map {
+                compose.onNodeWithTag(it).fetchSemanticsNode().boundsInRoot
+            }
+            if (currentFrames != lastFrames) { lastFrames = currentFrames; lastMove = now }
+            val insets = androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+            insets?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true && now - lastMove >= 350
+        }
+        fun font(node: SemanticsNodeInteraction): JSONObject {
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            node.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            val result = layouts.single()
+            return JSONObject().put("text", result.layoutInput.text.text)
+                .put("fontPoints", with(density) { result.layoutInput.style.fontSize.toDp().value })
+                .put("fontWeight", result.layoutInput.style.fontWeight?.weight)
+                .put("firstBaselinePixels", result.firstBaseline)
+                .put("lineHeightPixels", result.getLineBottom(0) - result.getLineTop(0))
+                .put("spanWeights", org.json.JSONArray(result.layoutInput.text.spanStyles.mapNotNull { it.item.fontWeight?.weight }))
+        }
+        val timestamp = font(compose.onNodeWithTag("ChiefThreadTimestamp:Text", useUnmergedTree = true))
+        val sender = font(compose.onNode(hasText("Chief") and hasAnyAncestor(hasTestTag("ChiefThreadRow:parent")), useUnmergedTree = true))
+        // Independent measurements from the actual UIKit thread captures. Allow
+        // at most the Android converter's recorded category approximation and
+        // physical-pixel rounding; old Material caption/padding does not fit.
+        val large = targetBodyPoints == 28f
+        val sourceFont = if (large) 20.0 else 11.0
+        assertEquals(sourceFont, timestamp.getDouble("fontPoints"), .15)
+        assertEquals(sourceFont, sender.getDouble("fontPoints"), .15)
+        assertEquals(400, timestamp.getInt("fontWeight"))
+        assertEquals(listOf(500), (0 until timestamp.getJSONArray("spanWeights").length()).map {
+            timestamp.getJSONArray("spanWeights").getInt(it)
+        })
+        val timestampRow = compose.onNodeWithTag("ChiefThreadTimestamp").fetchSemanticsNode().boundsInRoot
+        val timestampLabel = compose.onNodeWithTag("ChiefThreadTimestamp:Label", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val timestampText = compose.onNodeWithTag("ChiefThreadTimestamp:Text", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertEquals((if (large) 44.333333f else 28.666667f) * density.density, timestampRow.height, 4f)
+        assertEquals((if (large) 24f else 18f) * density.density, timestampLabel.height, 3f)
+        assertEquals(10f * density.density, timestampLabel.top - timestampRow.top, 1f)
+        assertEquals((if (large) 29.109375f else 22.910156f) * density.density,
+            timestampText.top + timestamp.getDouble("firstBaselinePixels").toFloat() - timestampRow.top, 2f)
+        val parent = compose.onNodeWithTag("ChiefThreadRow:parent").fetchSemanticsNode().boundsInRoot
+        assertEquals(timestampRow.bottom, parent.top, 1f)
+        val senderFrame = compose.onNodeWithTag("ChiefThreadSender:parent:Label", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertEquals((if (large) 24f else 40f / 3) * density.density, senderFrame.height, 2f)
+        val body = compose.onNodeWithTag("ChiefThreadBody:parent").fetchSemanticsNode().boundsInRoot
+        assertEquals((if (large) 23f / 3 else 4f) * density.density, body.top - senderFrame.bottom, 1f)
+        val captureFrames = listOf("ChiefThreadTimestamp", "ChiefThreadTimestamp:Label", "ChiefThreadTimestamp:Text",
+            "ChiefThreadSender:parent:Label", "ChiefThreadSender:parent:Text", "ChiefThreadRow:parent", "ChiefThreadRow:reply", "ChiefThreadMessage:parent",
+            "ChiefThreadMessage:reply", "ChiefThreadBody:parent", "ChiefThreadBody:reply", "ChiefComposerField", "ChiefReplyTranscript").associateWith { tag ->
+            compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        }
+        val frames = captureFrames.mapValues { (_, rect) -> org.json.JSONArray(listOf(rect.left, rect.top, rect.width, rect.height)) }
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        captureFrames.forEach { (tag, rect) ->
+            assertEquals("Layout moved during capture: $tag", rect,
+                compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot)
+        }
+        val directory = File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        val file = File(directory, "chief-reference-$name.png")
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        File(directory, "chief-reference-$name.json").writeText(JSONObject().put("scene", name)
+            .put("fixtureSha256", "e2d477d1db72e0ca574f8a1c04db8ad9245fbcd3df6d6015a317e3846df9c2fb")
+            .put("interactionFixtureSha256", "77f80ccb3b17a79edbc6792ab24d92bf18274f720f88a0e1f26af8a265203717")
+            .put("imageSha256", MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) })
+            .put("viewportPixels", org.json.JSONArray(listOf(bitmap.width, bitmap.height)))
+            .put("density", density.density).put("fontScale", testFontScale)
+            .put("targetBodyPoints", targetBodyPoints)
+            .put("effectiveBodyPoints", with(density) { 17.sp.toDp().value }).put("draft", draft)
+            .put("timestamp", timestamp).put("sender", sender).put("framesInRoot", JSONObject(frames))
+            .put("scope", "Production local-owner thread using shared source rows/draft; system bars/keyboard included and timestamps differ. Capture of measured Android fonts/frames, not full visual/physical parity.")
+            .toString(2))
+        bitmap.recycle()
+        compose.onNodeWithTag("ChiefReplyClose").performClick()
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains(draft)
+        assertTrue(api.sends.isEmpty())
+    }
+
     private fun usableMessagesBounds(): androidx.compose.ui.geometry.Rect {
         val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
         val header = compose.onNodeWithTag("ChiefHeader").fetchSemanticsNode().boundsInRoot

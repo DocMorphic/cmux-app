@@ -42,17 +42,16 @@ internal data class NativeChiefBubbleMetrics(val radius: Float, val drop: Dp, va
 internal fun nativeChiefBubbleMetrics(): NativeChiefBubbleMetrics {
     val density = LocalDensity.current
     val style = nativeChiefTextStyle()
-    val captionStyle = nativeChiefTextStyle(11)
+    val captionFont = nativeChiefCaptionFont()
     val measurer = rememberTextMeasurer()
-    return remember(measurer, density, style, captionStyle) {
+    return remember(measurer, density, style, captionFont) {
         val line = measurer.measure("Hg", style).let { it.getLineBottom(0) - it.getLineTop(0) }
-        val caption = measurer.measure("Hg", captionStyle).let { it.getLineBottom(0) - it.getLineTop(0) }
         val accessibility = with(density) { 17.sp.toDp().value >= 28 }
         val vertical = if (accessibility) 12.dp else 10.dp
         val radius = (line + with(density) { 2 * vertical.toPx() }) / 2
         NativeChiefBubbleMetrics(radius, with(density) { NativeChiefBubbleGeometry.tailDrop(radius.toDouble()).toFloat().toDp() },
             if (accessibility) (50f / 3).dp else 14.dp, vertical, accessibility,
-            (caption / density.density).toDouble(), density.density.toDouble())
+            captionFont.spacing, density.density.toDouble())
     }
 }
 

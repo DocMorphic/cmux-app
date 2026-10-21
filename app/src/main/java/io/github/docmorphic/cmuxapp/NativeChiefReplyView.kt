@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.Layout
@@ -42,9 +43,10 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, headerHeight: Dp, 
     val transcriptLabel = stringResource(R.string.chief_reply_transcript)
     val replyLabel = stringResource(R.string.chief_reply_action)
     val density = LocalDensity.current
-    val bodyPoints = with(density) { nativeChiefTextStyle().fontSize.toDp().value }
+    val captionFont = nativeChiefCaptionFont()
+    val senderGeometry = NativeChiefCaptionGeometry.sender(captionFont.lineHeight, captionFont.spacing, density.density.toDouble())
     val senderStyle = nativeChiefTextStyle(11).copy(fontSize = with(density) {
-        NativeChiefHeaderPolicy.captionSize(bodyPoints.toDouble()).toFloat().dp.toSp()
+        captionFont.pointSize.toFloat().dp.toSp()
     })
     Box(Modifier.fillMaxSize().testTag("ChiefReplyThread").semantics { contentDescription = transcriptLabel; paneTitle = transcriptLabel }
         .background((if (dark) Color.Black else Color.White).copy(alpha = if (dark) .41f else .58f))
@@ -58,9 +60,12 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, headerHeight: Dp, 
                     val message = item.quoteMessage()
                     Column(Modifier.fillMaxWidth().testTag("ChiefThreadRow:${item.messageID}")) {
                         if (!item.fromMe) {
-                            Text(message.author.ifEmpty { message.authorId }, style = senderStyle, color = Color(0xFF8E8E93),
-                                modifier = Modifier.padding(start = 14.dp))
-                            Spacer(Modifier.height(metrics.space(4f)))
+                            NativeChiefCaptionLabel(AnnotatedString(message.author.ifEmpty { message.authorId }),
+                                captionFont, senderGeometry.height,
+                                (senderGeometry.height - captionFont.lineHeight) / 2 + captionFont.ascender,
+                                Color(0xFF8E8E93), "ChiefThreadSender:${item.messageID}",
+                                Modifier.fillMaxWidth().padding(start = 14.dp))
+                            Spacer(Modifier.height((senderGeometry.bubbleOffset - senderGeometry.height).toFloat().dp))
                         }
                         val text = NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)
                         val part = NativeChiefPresentation.pendingPart(message)
