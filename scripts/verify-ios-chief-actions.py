@@ -71,7 +71,7 @@ def verify(exported, output, commit):
         require(abs(o['platterFrame'][3] - expected_height) < .01 and len(o['menuLabels']) == len(ids) and all(abs(x['fontSize'] - 17) < .01 for x in o['menuLabels']), 'Wrong fixed menu metrics')
         require(b.get('draftPreserved') is True and b.get('backendWriteAttempts') == 0 and b.get('viewingAfterAction') is True, 'Draft/viewing/backend ownership lost')
         if fixture['action'] == 'copy': require(b.get('copyMatchesSourceText') is True and b.get('copySentinelReplaced') is True, 'Copy callback not proven')
-        if fixture['action'] == 'reply': require(b.get('replyHandoff') == 'sourceMenuTouchUpInside' and b.get('editorFocusedAfterReply') is True, 'Reply handoff not proven')
+        if fixture['action'] == 'reply': require(b.get('replyHandoff') == 'sourceMenuTouchUpInside' and b.get('editorFocusedAfterReply') is True and b.get('replyAnimationsEnabled') is True, 'Reply handoff with source animation lifetime not proven')
         if fixture['action'] == 'more':
             require(b.get('selectedInitially') == ['conversation.bubble.' + fixture['messageID']] and b.get('selectedAfterToggle') == ['conversation.bubble.parent','conversation.bubble.reply'], 'Wrong selected source rows')
             require(b.get('forwardVisible') is False and b.get('composerHidden') is True and b.get('selectionCancelRestoresComposer') is True, 'Wrong Chief selection toolbar')

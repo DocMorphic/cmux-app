@@ -1,3 +1,23 @@
+## Chief action reference runtime repair — 2026-10-22 (rerun pending)
+
+Hosted run 39692913894 at ad9ddbe3 compiled and completed Copy, then failed
+in the outgoing Reply scene after a wait. The failure bundle reports UIKit
+Gestures InvalidTransition during teardown; only the incoming action payload
+was exported. Source review identifies a harness lifetime conflict: disabled
+animations immediately remove the menu in dismiss(), before the separate
+0.12 s animator in dismissHandingOff can transfer it. The repair enables the
+actual source animations only around Reply/Close callbacks; settled menu PNGs
+retain the disabled-animation scope. A new exporter guard requires this live
+handoff scope, and per-scene stage traces aid future runtime diagnosis.
+45 local export guard tests pass; UIKit rerun is still required. No failed
+artifact is acceptance and no Android action menu is mounted yet.
+
+No further Mac menu action is requested: the saved recovery checkpoint verified
+the actual pairing window and closed it, preserving its one registration.
+Custom app 40840 and owned helper 43849 remain alive. Pixel USB/live tests remain
+pending; signed 712 is preserved and not installed/published. Full parity stays
+active with all broader gates below.
+
 ## Chief action reference harness — 2026-10-22 (hosted validation pending)
 
 Five new native-only action scenes and a separate guarded exporter are prepared.

@@ -742,6 +742,8 @@ extension CmuxChiefReferenceTests {
         UIView.setAnimationsEnabled(false)
         defer { UIView.setAnimationsEnabled(true) }
         for specification in actions.scenes where specification.category == category {
+            func trace(_ stage: String) { print("Chief action reference: \(specification.id): \(stage)") }
+            trace("mount")
             let base = try XCTUnwrap(bases.scenes.first { $0.id == specification.sourceScene })
             let target = try XCTUnwrap(base.rows.first { $0.id == specification.messageID })
             let backend = ReferenceBackend(base, date: Date())
@@ -775,6 +777,7 @@ extension CmuxChiefReferenceTests {
             }
             let targetBubble = try XCTUnwrap(bubble(specification.messageID))
             let activationFrame = targetBubble.accessibilityFrame
+            trace("activate menu")
             XCTAssertTrue(targetBubble.accessibilityActivate())
             try await wait("actual source action overlay") { views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.actions" } }
             let overlay = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.actions" })
@@ -825,6 +828,7 @@ extension CmuxChiefReferenceTests {
             let capturedLabels = labels(in: controller.view, window: window)
             let capturedControls = controls(in: controller.view, window: window)
             if specification.action == "copy" {
+                trace("Copy callback")
                 let previousClipboard = UIPasteboard.general.string
                 defer { UIPasteboard.general.string = previousClipboard }
                 UIPasteboard.general.string = "uncopied-chief-fixture-" + UUID().uuidString
@@ -832,8 +836,17 @@ extension CmuxChiefReferenceTests {
                 try await wait("source Copy callback") { UIPasteboard.general.string == target.text && overlay.superview == nil }
                 behavior["copyMatchesSourceText"] = true; behavior["copySentinelReplaced"] = true
             } else if specification.action == "reply" {
+                // The source's 0.12 s property animator hands off before its
+                // 0.33 s dismissal removes the overlay. Disabling animations
+                // collapses that lifetime and removes the view before handoff.
+                // Keep settled capture above separate from this live callback.
+                UIView.setAnimationsEnabled(true)
+                defer { UIView.setAnimationsEnabled(false) }
+                behavior["replyAnimationsEnabled"] = UIView.areAnimationsEnabled
+                trace("Reply callback with source animation lifetime")
                 try menuControl("arrowshape.turn.up.left").sendActions(for: .touchUpInside)
                 try await wait("source menu Reply handoff") { overlay.superview == nil && views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.replyThread" } }
+                trace("Reply handed off")
                 behavior["replyHandoff"] = "sourceMenuTouchUpInside"
                 behavior["editorFocusedAfterReply"] = editor.isFirstResponder
                 XCTAssertTrue(editor.isFirstResponder)
@@ -842,6 +855,7 @@ extension CmuxChiefReferenceTests {
                 close.sendActions(for: .touchUpInside)
                 try await wait("source thread returns after menu Reply") { !views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.replyThread" } }
             } else {
+                trace("selection toggle and confirmation")
                 let second = try XCTUnwrap(bubble("reply")); XCTAssertTrue(second.accessibilityActivate())
                 let selected = accessibleElements(in: controller.view, window: window).filter { $0.accessibilityTraits.contains(.selected) }
                 XCTAssertEqual(selected.count, 2); behavior["selectedAfterToggle"] = selected.compactMap(\.accessibilityIdentifier).sorted()
@@ -883,6 +897,7 @@ extension CmuxChiefReferenceTests {
             for (suffix, data, type) in [("png", png, "public.png"), ("json", try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]), "public.json")] {
                 let attachment = XCTAttachment(data: data, uniformTypeIdentifier: type); attachment.name = specification.id + "." + suffix; attachment.lifetime = .keepAlways; add(attachment)
             }
+            trace("complete")
             try await orient(scene, controller: controller, landscape: false)
         }
     }

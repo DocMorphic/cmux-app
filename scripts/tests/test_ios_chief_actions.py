@@ -16,7 +16,7 @@ class ActionGuards(unittest.TestCase):
    rows=[dict(identifier='conversation.menu.'+s,frame=[x,128+j*42,250,42],visibleFrame=[x,128+j*42,250,42],enabled=True) for j,s in enumerate(symbols)]
    b=dict(draftPreserved=True,backendWriteAttempts=0,viewingAfterAction=True)
    if f['action']=='copy':b.update(copyMatchesSourceText=True,copySentinelReplaced=True)
-   elif f['action']=='reply':b.update(replyHandoff='sourceMenuTouchUpInside',editorFocusedAfterReply=True)
+   elif f['action']=='reply':b.update(replyHandoff='sourceMenuTouchUpInside',editorFocusedAfterReply=True,replyAnimationsEnabled=True)
    else:b.update(selectedInitially=['conversation.bubble.parent'],selectedAfterToggle=['conversation.bubble.parent','conversation.bubble.reply'],forwardVisible=False,composerHidden=True,selectionCancelRestoresComposer=True,deleteConfirmation=['Delete 2 Messages','Cancel'],directCoreLocalDeleteIDs=['next'],destructiveAlertActivated=False)
    p=dict(upstreamRevision=m['revision'],packageTree=m['referencePackage']['tree'],projectSourceDirty=False,projectSourceCommit=self.commit,actionsSha256=V.digest(template/'Actions.json'),scenesSha256=V.digest(template/'Scenes.json'),referenceTestsSha256=V.digest(template/'ReferenceTests.swift'),referenceAppSha256=V.digest(template/'ReferenceApp.swift'))
    o=dict(activation='sourceBubbleAccessibilityActivate',ancestorVisibilityGuardPassed=True,keyboardDismissed=True,modal=True,previewClips=True,previewScale=1.1,rows=rows,platterFrame=platter,previewFrame=preview,screenInset=16,safeArea=[0,0,0,0],menuLabels=[dict(fontSize=17)]*4,behavior=b)
@@ -53,4 +53,7 @@ class ActionGuards(unittest.TestCase):
  def test_reply_without_source_control_callback_is_rejected(self):
   self.mutate(lambda v:v['observation']['behavior'].update(replyHandoff='directPrivateCall'),name='menu-outgoing-dark')
   with self.assertRaisesRegex(ValueError,'handoff'):self.verify()
+ def test_reply_without_source_animation_lifetime_is_rejected(self):
+  self.mutate(lambda v:v['observation']['behavior'].update(replyAnimationsEnabled=False),name='menu-outgoing-dark')
+  with self.assertRaisesRegex(ValueError,'animation lifetime'):self.verify()
 if __name__=='__main__':unittest.main()
