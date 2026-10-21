@@ -16,11 +16,21 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
+
+@Composable
+internal fun nativeChiefTextStyle(size: Int = 17): TextStyle = TextStyle(
+    fontFamily = LocalTextStyle.current.fontFamily, fontWeight = FontWeight.Normal,
+    fontSize = size.sp, lineHeight = TextUnit.Unspecified, letterSpacing = 0.sp,
+    textDirection = TextDirection.Content, platformStyle = PlatformTextStyle(includeFontPadding = false))
 
 /** Chief supplies plain text without rich-text runs; Markdown characters are message content. */
 internal fun nativeChiefDetectedText(source: String, open: (String) -> Unit): AnnotatedString {
@@ -39,7 +49,7 @@ internal fun nativeChiefDetectedText(source: String, open: (String) -> Unit): An
 
 @Composable
 internal fun NativeChiefText(source: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified,
-    fontSize: Int = 14, lineLimit: Int = Int.MAX_VALUE) {
+    fontSize: Int = 17, lineLimit: Int = Int.MAX_VALUE) {
     val context = LocalContext.current
     val text = remember(source, context) { nativeChiefDetectedText(source) { url ->
         // A telephone tap opens the dialer for user confirmation, like the source's tel: action.
@@ -48,5 +58,5 @@ internal fun NativeChiefText(source: String, modifier: Modifier = Modifier, colo
         runCatching { context.startActivity(Intent(action, uri)) }
     } }
     Text(text, modifier, color = color, fontSize = fontSize.sp, maxLines = lineLimit,
-        style = LocalTextStyle.current.copy(textDirection = TextDirection.Content), overflow = TextOverflow.Ellipsis)
+        style = nativeChiefTextStyle(fontSize), overflow = TextOverflow.Ellipsis)
 }

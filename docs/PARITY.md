@@ -1,5 +1,27 @@
 # Android parity tracker
 
+## Chief bubble and quote checkpoint — 2026-10-21
+
+The dark transcript now ports source run tails, circular tailless bodies, width
+reserve/cap, minimum centered text, accessibility padding, caption-scaled gaps,
+window-anchored gradient and separate original-sender quote outlines/connectors.
+Wrapped text bodies hug their longest rendered line. The actual pinned Swift
+execution supplies 36 shared paths, 20 width cases, five rounding/four drop and
+28 spacing vectors. This includes diagnostic shared tailless paths; the real
+UIKit and Android wrappers both use circular tailless corners.
+
+The final full JVM run passes 3,016 with four skips and zero failures. All 21
+Android cases pass in 41.16 s with an empty crash buffer. Four dark authored
+scenes share the UIKit fixture hash and 402×874 @3x viewport, and their PNG/
+metadata payloads were verified and inspected. Actual enlarged Android body type
+is 28.056341 logical points. Clock/system-bar/font and header/composer differences
+are recorded, so these are scoped structural checks and comparable scene inputs,
+not whole-screen parity acceptance. CHIEF.md records initial idle-loop and
+font-scale/width findings and final evidence. The restored emulator was stopped.
+Header/composer/drawer, quote/thread actions, emoji, poll/failed-badge UI, remaining
+typography/color/environment/accessibility and physical gates stay open. Signed
+candidate 705 and global implemented/reviewed pins are unchanged.
+
 ## Chief reference and literal text checkpoint — 2026-10-21
 
 Actual UIKit reference run `39513912473` at project `e431401c` passed both standard

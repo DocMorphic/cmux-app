@@ -1,5 +1,17 @@
 ## Current checkpoint — 2026-10-20
 
+Oct 21 bubble checkpoint: source run-tail curves, width/padding rules, native
+text-fitting bodies, window-anchored blue fills and separate original-sender
+quote outlines/connectors are implemented. Actual Swift path/metric vectors,
+3,016 JVM passes (four skips) and 21 Android passes (41.16 s, empty crash log)
+support this scoped port. Four identical-input dark scene captures use the
+UIKit reference viewport and were inspected; timestamps/system bars/fonts and
+the header/composer still differ. See CHIEF.md for provenance and failed-run
+diagnostics. Complete header/composer/drawer, quote/thread actions, emoji,
+poll/failed-badge UI, all font/locale/contrast/keyboard/wide-screen/animation and
+accessibility gates, plus remaining source inventory and actual Mac/Pixel/FCM
+verification. The owned emulator was restored/stopped; signed 705 is unchanged.
+
 HANDOFF.md contains the current physical Mac/Pixel and signed-candidate state;
 older dated entries below are historical evidence. Signed local 705 is verified
 and awaits a data-preserving Pixel upgrade. Chief's source/debug implementation

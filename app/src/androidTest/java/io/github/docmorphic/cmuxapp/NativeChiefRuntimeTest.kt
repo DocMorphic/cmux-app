@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -28,6 +29,8 @@ import org.junit.Test
 import java.time.Instant
 import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
+import org.json.JSONObject
+import java.security.MessageDigest
 
 /** Production Chief composition with a typed local owner; no account store or host mutations. */
 @OptIn(ExperimentalTestApi::class)
@@ -119,6 +122,130 @@ class NativeChiefRuntimeTest {
     private fun message(id: String, seq: ULong, text: String, human: Boolean = false, clientId: String? = null,
         parts: List<NativeChiefPart> = emptyList()) = NativeChiefMessage(id, seq, if (human) "user" else "chief",
         if (human) "You" else "Chief", if (human) "human" else "chief", text, instant, emptyList(), parts, null, clientId)
+
+    private fun openReferenceScene(name: String) {
+        val bytes = InstrumentationRegistry.getInstrumentation().context.assets.open("parity/chief-conversation-scenes.json").use { it.readBytes() }
+        assertEquals("e2d477d1db72e0ca574f8a1c04db8ad9245fbcd3df6d6015a317e3846df9c2fb",
+            MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) })
+        val scenes = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONArray("scenes")
+        val scene = (0 until scenes.length()).map(scenes::getJSONObject).single { it.getString("id") == name }
+        val rows = scene.getJSONArray("rows")
+        compose.runOnUiThread { api.rows = (0 until rows.length()).map { index ->
+            val row = rows.getJSONObject(index)
+            message(row.getString("id"), (index + 1).toULong(), row.getString("text"), row.getBoolean("outgoing"))
+                .copy(at = instant.plusSeconds((-300 + index * 30).toLong()), threadRoot = row.optString("replyTo").takeIf(String::isNotEmpty))
+        } }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        val last = rows.getJSONObject(rows.length() - 1).getString("id")
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefBubbleBody:$last").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForIdle()
+    }
+
+    private fun captureChiefReference(name: String) {
+        val bounds = compose.onAllNodes(SemanticsMatcher("Chief body bounds") {
+            it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("ChiefBubbleBody:") == true
+        }).fetchSemanticsNodes().associate { node ->
+            val rect = node.boundsInRoot
+            node.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] to
+                org.json.JSONArray(listOf(rect.left, rect.top, rect.width, rect.height))
+        }
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        val directory = File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        val file = File(directory, "chief-reference-$name.png")
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        val density = Density(compose.activity.resources.displayMetrics.density, testFontScale)
+        File(directory, "chief-reference-$name.json").writeText(JSONObject()
+            .put("scene", name).put("fixtureSha256", "e2d477d1db72e0ca574f8a1c04db8ad9245fbcd3df6d6015a317e3846df9c2fb")
+            .put("imageSha256", MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) })
+            .put("viewportPixels", org.json.JSONArray(listOf(bitmap.width, bitmap.height)))
+            .put("density", density.density).put("fontScale", testFontScale)
+            .put("effectiveBodyPoints", with(density) { 17.sp.toDp().value })
+            .put("messageAnchorDate", instant.toString()).put("timeZone", java.time.ZoneId.systemDefault().id)
+            .put("bodyBoundsInComposeRoot", JSONObject(bounds))
+            .put("scope", "Production composition with typed local owner; authored UIKit scene text/reply/run inputs. Android system bars included; timestamps differ; header/composer and full visual/physical acceptance remain open.")
+            .toString(2))
+        bitmap.recycle()
+    }
+
+    @Test fun sourceRunSceneUsesBodyGapsAndReservesOnlyFinalTails() {
+        openReferenceScene("runs-dark")
+        fun body(id: String) = compose.onNodeWithTag("ChiefBubbleBody:$id").fetchSemanticsNode().boundsInRoot
+        val density = compose.activity.resources.displayMetrics.density
+        val one = body("one"); val two = body("two"); val three = body("three")
+        assertEquals(4 * density, two.top - one.bottom, 2f)
+        assertEquals(10 * density, three.top - two.bottom, 2f)
+        val untailed = compose.onNodeWithTag("ChiefMessage:one").fetchSemanticsNode().boundsInRoot
+        val tailed = compose.onNodeWithTag("ChiefMessage:two").fetchSemanticsNode().boundsInRoot
+        assertEquals(one.height, untailed.height, 1f)
+        assertTrue(tailed.height - two.height > 6 * density)
+        val text = compose.onNodeWithText("Welcome from your Mac.").fetchSemanticsNode().boundsInRoot
+        assertEquals(20 * density, one.height - text.height, 2f)
+        val layout = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.onNodeWithText("Messages in one run share an edge.")
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layout) }
+        val measured = layout.single()
+        val widest = (0 until measured.lineCount).maxOf { kotlin.math.abs(measured.getLineRight(it) - measured.getLineLeft(it)) }
+        assertEquals(kotlin.math.ceil(widest + 28 * density), two.width, 1f)
+        captureChiefReference("runs-dark")
+    }
+
+    @Test fun sourceQuoteSceneUsesTheOriginalSenderSideAndSeparateOutline() {
+        openReferenceScene("quote-dark")
+        fun body(id: String) = compose.onNodeWithTag("ChiefBubbleBody:$id").fetchSemanticsNode().boundsInRoot
+        val parent = body("parent"); val reply = body("reply")
+        val quotedParent = compose.onNodeWithTag("ChiefQuote:reply").fetchSemanticsNode().boundsInRoot
+        val quotedReply = compose.onNodeWithTag("ChiefQuote:next").fetchSemanticsNode().boundsInRoot
+        assertEquals(parent.left, quotedParent.left, 1f)
+        assertEquals(reply.right, quotedReply.right, 1f)
+        assertTrue(quotedParent.bottom < reply.top)
+        assertTrue(quotedReply.bottom < body("next").top)
+        captureChiefReference("quote-dark")
+    }
+
+    @Test fun sourceLongSceneUsesTheReservedTranscriptWidthAndPreservesUnicode() {
+        openReferenceScene("long-dark")
+        val density = compose.activity.resources.displayMetrics.density
+        val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+        val first = compose.onNodeWithTag("ChiefBubbleBody:one").fetchSemanticsNode().boundsInRoot
+        val second = compose.onNodeWithTag("ChiefBubbleBody:two").fetchSemanticsNode().boundsInRoot
+        val maximum = viewport.width - (32 + 268f / 3) * density
+        assertTrue(first.width <= maximum + 2)
+        assertTrue(second.width <= maximum + 2)
+        compose.onNodeWithText("Keep this line break.\n日本語のメッセージも同じ幅で表示します。").assertExists()
+        captureChiefReference("long-dark")
+    }
+
+    @Test fun sourceLargeSceneUsesAccessibilityPaddingWithoutClippingTheComposer() {
+        compose.runOnUiThread {
+            // The real Android conversion is nonlinear; a nominal 28/17 ratio renders below 28.
+            var low = 1f; var high = 3f
+            repeat(24) {
+                val middle = (low + high) / 2
+                if (with(Density(1f, middle)) { 17.sp.toDp().value } < 28.01f) low = middle else high = middle
+            }
+            val points = with(Density(1f, high)) { 17.sp.toDp().value }
+            assertTrue("Actual body size was $points", points in 28f..28.2f)
+            testFontScale = high
+        }
+        openReferenceScene("large-dark")
+        val density = compose.activity.resources.displayMetrics.density
+        val body = compose.onNodeWithTag("ChiefBubbleBody:one").fetchSemanticsNode().boundsInRoot
+        val text = compose.onNodeWithText("Large text.").fetchSemanticsNode().boundsInRoot
+        assertEquals(24 * density, body.height - text.height, 2f)
+        assertEquals((100f / 3) * density, body.width - text.width, 2f)
+        compose.onNodeWithTag("ChiefComposer").assertIsDisplayed()
+        captureChiefReference("large-dark")
+    }
+
+    @Test fun minimumWidthBubbleCentersItsShortText() {
+        compose.runOnUiThread { api.rows = listOf(message("short", 1uL, "I")) }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefBubbleBody:short").fetchSemanticsNodes().isNotEmpty() }
+        val body = compose.onNodeWithTag("ChiefBubbleBody:short").fetchSemanticsNode().boundsInRoot
+        val text = compose.onNodeWithText("I").fetchSemanticsNode().boundsInRoot
+        assertEquals(48 * compose.activity.resources.displayMetrics.density, body.width, 1f)
+        assertEquals(body.center.x, text.center.x, 1f)
+    }
 
     @Test fun homeSearchSendEchoAndConversationDraftRestorationUseTheProductionComposition() {
         compose.onNodeWithTag("ChiefSearch").performTextInput("Release")

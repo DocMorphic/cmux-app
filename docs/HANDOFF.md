@@ -1,5 +1,20 @@
 ## Active full-parity goal — 2026-10-20
 
+Latest source/debug checkpoint (Oct 21): Chief now has source-mapped run tails,
+text-fitting body widths/padding, screen-anchored blue fills and original-sender
+quote outlines/connectors. Four dark Android scenes share the UIKit fixture
+inputs and 402×874 @3x viewport; all were hash-verified and inspected. Enlarged
+Android body text is actually 28.056341 logical points. The final full JVM suite
+passes 3,016 with four skips and zero failures; 21 Android cases pass in 41.16 s,
+with an empty crash buffer. The font-measurement idle loop and nonlinear-size
+test assumption found during development were resolved; failed diagnostics are
+retained. Display overrides were restored and the owned emulator stopped.
+CHIEF.md records exact source-vector coverage, artifacts and limits. Header,
+composer, fonts/colors across environments, quote interactions, polls/failed
+badges, emoji, accessibility and remaining full-parity gates stay open. This is
+newer than prepared signed candidate 705 and has not been installed on the Pixel.
+No additional phone or Mac account/pairing changes were made in this batch.
+
 The owner explicitly requested a persistent full feature/UI parity goal. It is
 active; the completion gates in REMAINING_WORK.md remain authoritative. Work
 continues from the physical checkpoint below, preserving the Pixel release data

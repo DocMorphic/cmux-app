@@ -3,7 +3,7 @@
   "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
   "license": "GPL-3.0-or-later",
   "copyright": "Copyright (c) 2024-present Manaflow, Inc.; other contributors retain copyright in their material",
-  "scope": "Chief wire/request/question reference plus separate mounted Home/backend/shell/artwork mapping; not global parity acceptance",
+  "scope": "Chief wire/request/question, mounted Home/backend/shell/artwork and selected transcript state/bubble geometry references; not global parity or complete conversation-package review",
   "files": {
     "Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileChiefClient.swift": "aaffb298314d74f4567e4ca7cd926259f9f1fc5166593c036a11a6a0994b6f8d",
     "Packages/Shared/CmuxAgentQuestion/Sources/CmuxAgentQuestion/AgentQuestion.swift": "549a17e3cb5dd0ba6075687fce6f98aa49c137216f3179e84c417a43a1bdaae1",
@@ -63,5 +63,11 @@
     "path": "Packages/iOS/CmuxConversation",
     "tree": "c637abe46f3eeb6e223ae8c6c075641663e6d0cc",
     "scope": "Immutable executable UIKit reference dependency; pinning the tree does not claim full semantic review"
+  },
+  "bubbleFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationBubbleGeometry.swift": "7b6a540977b49a97e99ede6121d47931ad2e085adc7f80afddbb4fa4f06f3100",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationTranscriptMetrics.swift": "b41f97a2656bd42b909be29e97369c22df790262e09bc0f0cde41709045bbfce",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/BubbleShape.swift": "ef43225cc25727424517a0b74c32d7fc3ff27b82c6e98f8692d2448ae335757c",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationTheme.swift": "533fe1579789bfe6bab5b57acf327ff38689224b4c2624d5cdba500d50e1d53d"
   }
 }

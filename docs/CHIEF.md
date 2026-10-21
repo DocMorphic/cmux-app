@@ -248,8 +248,9 @@ Evidence is ignored under `captures/recovery-20261020/`:
   `chief-history-ready-android-final.log`. These are scoped typed-owner emulator
   checks, not physical-device, matched-iOS or accessibility acceptance.
 
-This is an initial mounted implementation, not Chief parity acceptance. Finish
-exact bubble/tail/drawer geometry and colors, thread/reply interactions,
+This is a mounted implementation with the scoped bubble port below, not Chief
+parity acceptance. Finish drawer/header/composer geometry, remaining typography
+and colors, quote taps and thread/reply interactions,
 remaining detected-item behavior (including source address/date actions),
 fling-target history prefetch, remaining localization
 and TalkBack. Deeper uncertainty recovery, new-visit positioning and remaining scroll/keyboard behavior also
@@ -279,7 +280,7 @@ preserve literal Markdown/HTML characters. The source backend supplies no rich
 text runs, and `MessageCellLayout.buildAttributedBody` begins with verbatim text;
 the literal UIKit scene independently demonstrates this behavior. The Android
 Chief renderer no longer uses the Agent Feed Markdown parser for those rows.
-It underlines detected web/email/telephone links without replacing the message
+Body and pending rows underline detected web/email/telephone links without replacing the message
 text or recoloring outgoing links. Web/email taps use the system handler and
 telephone taps open the dialer. Android's native detector supplies ranges, so
 equivalence to all Apple date/address/phone/locale detection is still open;
@@ -299,3 +300,65 @@ eight question cases. Evidence is under `captures/recovery-20261021/` with the
 it is not installed on the Pixel and does not establish matched visual or
 physical acceptance. The preceding 3,015-pass/four-skip JVM result is historical
 and was not rerun for this Android-native text-only change.
+
+The later dark transcript bubble port uses the pinned continuous tail curves,
+circular tailless wrapper, source width reserve/85% ceiling and accessibility
+inset, 48-point minimum and centered short text. It measures at the wrapping
+limit, then sizes the body to its longest rendered line rather than Android
+Text's full wrapped box. Natural 17sp text replaces the inherited Material line
+spacing. Padding switches at an actual rendered body size of 28 points; caption
+spacing and corners use Android's measured system font. Tail reservation is
+subtracted from the following row's body gap. The source dark incoming fill,
+five-stop outgoing gradient and window anchor are ported; scroll position is
+read during drawing so movement keeps the path cached. Light colors are present
+in the component but the app still mounts its existing dark theme. High contrast,
+keyboard/rotation gradient behavior and exact color/font matching remain open.
+
+Quotes now sit above replies on the original sender's physical side, with an
+outline, at most two lines and the source leading connector control points.
+Quoted text follows the source's plain UILabel and has no inline URL actions;
+body and pending text retain link detection. Quote taps/thread navigation and
+animations are still open. Cards retain their initial action controls; this
+does not establish poll or failed-status/badge presentation parity.
+
+`check-chief-bubble.py` guards four immutable source files and executes the
+actual shared CoreGraphics geometry/metrics plus the unmodified theme width
+function with an explicit accessibility-input seam. Kotlin matches **36 paths**
+(18 tailed, 18 shared diagnostic tailless), **11 regular/nine accessibility
+widths, five pixel-rounding, four drop and 28 spacing vectors**. The UIKit wrapper
+uses circular tailless corners instead of the shared diagnostic path; Android
+does the same. The manifest pins are selected behavior references, not complete
+semantic review of the four files. Android and UIKit authored scene assets have
+the exact same fixture hash.
+
+The final build and full JVM suite pass **3,016 tests, four skips, zero failures**
+(3,020 across 404 XML classes). **21 Android cases pass in 41.16 s**: 19 Chief
+production compositions plus two real admitted-root/capability compositions.
+The crash buffer is empty. Four dark authored scene captures use the same
+402×874 logical window (@3x, 1206×2622 pixels) as the UIKit references: runs,
+quotes, long/Japanese text and enlarged text. All four PNG/metadata payloads were
+hash-paired and visually inspected; actual enlarged body size is **28.056341**
+Android logical points, compared with 28 in the UIKit capture. Metadata preserves
+the differing clock/date/zone and Android system bars. These are comparable
+scene inputs and scoped structural checks, not a matched whole-screen pass:
+header, composer, timestamps, glyph metrics/line breaks and other visible
+differences remain. TalkBack, full Dynamic Type mapping/AX hyphenation, light/high
+contrast, wider windows, performance and real-host/physical acceptance remain.
+
+Initial runtime work exposed a non-settling transcript composition while font
+metrics were recalculated; cached measurements keyed by density/style and an
+explicit natural text style fixed the observed loop. A later 20/21 run exposed
+the harness's linear font-scale assumption. Inspection of the actual installed
+Compose unit implementation confirmed nonlinear conversion; the corrected case
+solves/verifies its effective rendered size before checking accessibility
+padding. The stricter padding assertions remain. A first capture comparison
+also exposed wrapped Text boxes staying at maximum width; the final layout hugs
+the measured longest line, checked against actual rendered text bounds.
+Failed and diagnostic runs are retained. Final evidence:
+`captures/recovery-20261021/chief-bubble-hugging-build-jvm.log`,
+`chief-bubble-hugging-android-final.log`, `chief-bubble-hugging-crash.log`,
+`chief-bubble-swift-accepted/`, `chief-bubble-android-scenes/` and
+`chief-bubble-checkpoint.json`. Display overrides were restored to the owned
+emulator's original 1080×2400 /420 dpi, then the emulator was stopped. This is
+source/debug work newer than signed candidate 705; Pixel installation and fresh
+Mac/Pixel/FCM acceptance remain pending. The full-parity goal stays active.

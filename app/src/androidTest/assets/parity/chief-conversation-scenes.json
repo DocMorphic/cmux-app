@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "scenes": [
+    {"id": "runs-dark", "style": "dark", "category": "large", "rows": [
+      {"id": "one", "text": "Welcome from your Mac.", "outgoing": false},
+      {"id": "two", "text": "Messages in one run share an edge.", "outgoing": false},
+      {"id": "three", "text": "A short reply.", "outgoing": true},
+      {"id": "four", "text": "A second outgoing message.", "outgoing": true},
+      {"id": "five", "text": "Ready for the next task.", "outgoing": false}
+    ]},
+    {"id": "runs-light", "style": "light", "category": "large", "rows": [
+      {"id": "one", "text": "Welcome from your Mac.", "outgoing": false},
+      {"id": "two", "text": "Messages in one run share an edge.", "outgoing": false},
+      {"id": "three", "text": "A short reply.", "outgoing": true},
+      {"id": "four", "text": "A second outgoing message.", "outgoing": true},
+      {"id": "five", "text": "Ready for the next task.", "outgoing": false}
+    ]},
+    {"id": "long-dark", "style": "dark", "category": "large", "rows": [
+      {"id": "one", "text": "A longer reply should wrap within the same transcript column, leaving space beside the bubble rather than filling the entire screen.", "outgoing": false},
+      {"id": "two", "text": "Keep this line break.\n日本語のメッセージも同じ幅で表示します。", "outgoing": true}
+    ]},
+    {"id": "quote-dark", "style": "dark", "category": "large", "rows": [
+      {"id": "parent", "text": "The original message from your Mac.", "outgoing": false},
+      {"id": "reply", "text": "Replying to that message.", "outgoing": true, "replyTo": "parent"},
+      {"id": "next", "text": "A quote follows the original sender's side.", "outgoing": false, "replyTo": "reply"}
+    ]},
+    {"id": "large-dark", "style": "dark", "category": "accessibilityMedium", "rows": [
+      {"id": "one", "text": "Large text.", "outgoing": false},
+      {"id": "two", "text": "Still readable.", "outgoing": true}
+    ]},
+    {"id": "literal-dark", "style": "dark", "category": "large", "rows": [
+      {"id": "one", "text": "**Literal stars** and `literal backticks`.", "outgoing": false},
+      {"id": "two", "text": "[Literal label](https://example.com) stays in the message.", "outgoing": true}
+    ]},
+    {"id": "failed-dark", "style": "dark", "category": "large", "failedSend": "Retry this message", "rows": [
+      {"id": "one", "text": "Your draft remains available after a failed send.", "outgoing": false}
+    ]},
+    {"id": "approval-dark", "style": "dark", "category": "large", "rows": [
+      {"id": "one", "text": "Run focused checks?", "outgoing": false, "pollQuestion": "Run focused checks?", "pollChoices": ["allow", "deny"]}
+    ]},
+    {"id": "emoji-dark", "style": "dark", "category": "large", "rows": [
+      {"id": "one", "text": "👍", "outgoing": false},
+      {"id": "two", "text": "🙂 🎉", "outgoing": true}
+    ]}
+  ]
+}
