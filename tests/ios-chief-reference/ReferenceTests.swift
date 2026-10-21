@@ -762,6 +762,10 @@ extension CmuxChiefReferenceTests {
             let editor = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.composer.text" } as? UITextView)
             let draft = "Retain the draft through message actions"
             editor.text = draft; editor.delegate?.textViewDidChange?(editor); XCTAssertTrue(editor.becomeFirstResponder())
+            // Let the actual keyboard/layout arrive before locating a live
+            // landscape cell. Snapshotting a newly dequeued cell before its
+            // first display can return nil in the public source activation.
+            try await Task.sleep(for: .milliseconds(350)); window.layoutIfNeeded()
             @MainActor func bubble(_ id: String) -> UIAccessibilityElement? {
                 accessibleElements(in: controller.view, window: window).first { $0.accessibilityIdentifier == "conversation.bubble." + id }
             }
@@ -783,7 +787,12 @@ extension CmuxChiefReferenceTests {
             let activationFrame = activationContainer.convert(targetBubble.accessibilityFrameInContainerSpace, to: window)
             XCTAssertTrue(activationFrame.width > 0 && activationFrame.height > 0 && activationFrame.intersects(window.bounds))
             trace("activate menu")
-            XCTAssertTrue(targetBubble.accessibilityActivate())
+            try await wait("rendered source bubble action activation") {
+                window.layoutIfNeeded()
+                // Re-read the real mounted element after collection reuse;
+                // never keep calling an AX closure from a recycled cell.
+                return bubble(specification.messageID)?.accessibilityActivate() == true
+            }
             try await wait("actual source action overlay") { views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.actions" } }
             let overlay = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.actions" })
             try await wait("source action menu keyboard dismissal") { !editor.isFirstResponder }
