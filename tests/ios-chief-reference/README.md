@@ -90,3 +90,11 @@ cannot substitute. PNGs attach before closing so a failure retains visual
 diagnostics. No details/compact batch is accepted until the new run passes all
 thirteen scenes and both category invocations. These calls exercise public
 control actions; physical touch targeting and animations still need acceptance.
+Run `39535704928` captured the normal details PNG and passed its title/action/
+switch/focus checks, then could not activate the item object itself: UIKit exposed
+no legacy target/action and the item's accessibility activation returned false.
+The harness now locates the rendered control inside the labeled native bar-item
+wrapper and dispatches its registered public primary/touch action. A public
+accessibility activation of that rendered wrapper is also supported. Navigation
+view/control-event diagnostics attach before activation. The real dismissal and
+return checks remain mandatory; no manual modal dismissal is permitted.

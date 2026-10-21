@@ -9,7 +9,14 @@ the new harness assumptions about editor/store draft synchronization and Back
 being a UIControl. Assertions now inspect actual editor text and dispatch the
 native bar item's public target/action or accessibility activation; a handled
 action, actual close/return, retained text and lost focus remain required.
-Manual dismissal is rejected by the exporter. The next hosted run is pending;
+Manual dismissal is rejected by the exporter. Run `39535704928` compiled and
+captured normal details but found that the native item exposes no legacy action
+and its object-level accessibility activation returns false. The next harness
+dispatches registered public events on the rendered control inside that item's
+labeled wrapper (or activates the rendered wrapper's accessibility action), with
+navigation diagnostics retained before activation. Actual dismissal/return are
+still required. The normal details PNG was inspected, but the expanded batch
+remains unaccepted. The next hosted run is pending;
 do not claim expanded rendering passed. Thirteen synthetic integrity tests pass.
 The unchanged original nine UIKit scenes are joined by
 four separately hashed details/compact interaction cases. The source host now

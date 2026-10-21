@@ -161,12 +161,34 @@ extension CmuxChiefReferenceTests {
                 let navigation = try XCTUnwrap(presented as? UINavigationController)
                 let back = try XCTUnwrap(navigation.topViewController?.navigationItem.leftBarButtonItem)
                 XCTAssertEqual(back.accessibilityIdentifier, "conversation.details.back")
+                let bar = navigation.navigationBar
+                let barViews = views(in: bar)
+                let diagnostic: [String: Any] = ["diagnosticScene": specification.id,
+                    "navigationViews": barViews.map { view in ["class": String(describing: type(of: view)),
+                        "identifier": view.accessibilityIdentifier ?? "", "label": view.accessibilityLabel ?? "",
+                        "frame": frame(view, in: window), "isControl": view is UIControl,
+                        "controlEvents": (view as? UIControl)?.allControlEvents.rawValue ?? 0] }]
+                let diagnosticAttachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: diagnostic, options: [.prettyPrinted, .sortedKeys]), uniformTypeIdentifier: "public.json")
+                diagnosticAttachment.name = specification.id + "-navigation-diagnostic.json"; diagnosticAttachment.lifetime = .keepAlways; add(diagnosticAttachment)
                 // UIBarButtonItem need not expose a UIControl in UIKit's private view tree.
                 // Dispatch the item's actual public action, never a fabricated selector/dismissal.
                 let activated: Bool
                 if let action = back.action {
                     behavior["detailsCloseActivation"] = "barButtonTargetAction"
                     activated = UIApplication.shared.sendAction(action, to: back.target, from: back, for: nil)
+                } else if let wrapper = barViews.first(where: {
+                    $0.accessibilityIdentifier == back.accessibilityIdentifier || $0.accessibilityLabel == back.accessibilityLabel
+                }), let control = views(in: wrapper).compactMap({ $0 as? UIControl }).first(where: {
+                    $0.allControlEvents.contains(.primaryActionTriggered) || $0.allControlEvents.contains(.touchUpInside)
+                }) {
+                    behavior["detailsCloseActivation"] = "barButtonRenderedControl"
+                    control.sendActions(for: control.allControlEvents.contains(.primaryActionTriggered) ? .primaryActionTriggered : .touchUpInside)
+                    activated = true
+                } else if let wrapper = barViews.first(where: {
+                    $0.accessibilityIdentifier == back.accessibilityIdentifier || $0.accessibilityLabel == back.accessibilityLabel
+                }) {
+                    behavior["detailsCloseActivation"] = "barButtonRenderedAccessibilityActivate"
+                    activated = wrapper.accessibilityActivate()
                 } else {
                     behavior["detailsCloseActivation"] = "barButtonAccessibilityActivate"
                     activated = back.accessibilityActivate()
