@@ -545,7 +545,12 @@ class NativeChiefRuntimeTest {
         checkReplyEntryMotion(reduced = true)
     }
 
-    private fun checkReplyEntryMotion(reduced: Boolean) {
+    @Test fun closingDuringEntryReturnsFromTheCurrentPoseAndDropsTheCarriedSwipe() {
+        org.junit.Assume.assumeTrue("Enable animator duration scale for interrupted travel", android.animation.ValueAnimator.areAnimatorsEnabled())
+        checkReplyEntryMotion(reduced = false, closeDuringEntry = true)
+    }
+
+    private fun checkReplyEntryMotion(reduced: Boolean, closeDuringEntry: Boolean = false) {
         openReferenceScene("quote-dark")
         compose.onNodeWithTag("ChiefComposer").performClick()
         compose.waitUntil(10_000) {
@@ -591,6 +596,19 @@ class NativeChiefRuntimeTest {
             compose.waitForIdle()
             val middle = copy("reply")
             saveScreenshot(if (reduced) "chief-reply-reduced-middle" else "chief-reply-entry-middle")
+            if (closeDuringEntry) {
+                compose.onNodeWithTag("ChiefReplyClose").performClick()
+                compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
+                val closing = closingCopy("reply")
+                assertTrue("closing must not advance another entry frame", closing.top <= middle.top)
+                assertTrue("first return frame stays between current pose and its twin", closing.top >= original.top)
+                assertEquals("source return clears the carried swipe", original.left, closing.left, 1f)
+                compose.mainClock.advanceTimeBy(1200); compose.waitForIdle()
+                compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+                assertNull(computer.transcript()!!.state.value.reply)
+                assertTrue(api.sends.isEmpty())
+                return
+            }
             compose.mainClock.advanceTimeBy(1600)
             compose.waitForIdle()
             val landed = copy("reply")
@@ -613,6 +631,208 @@ class NativeChiefRuntimeTest {
                 .put("scope", "Production Compose adapter, real swipe and manual frame clock on disposable emulator; physical animation appearance and closing choreography remain open.")
                 .toString(2))
         } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    private fun closingCopy(id: String): androidx.compose.ui.geometry.Rect {
+        val probe = compose.onNodeWithTag("ChiefReplyClosing").fetchSemanticsNode().config[ChiefReplyCopyBounds]
+        var result: androidx.compose.ui.geometry.Rect? = null
+        compose.runOnUiThread { result = probe().getValue(id) }
+        return checkNotNull(result)
+    }
+
+    private fun openSettledReplyWithDraft(draft: String) {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput(draft)
+        settledComposerGeometry()
+        if (compose.onAllNodesWithTag("ChiefReplyActions:reply").fetchSemanticsNodes().isEmpty())
+            compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefReplyActions:reply"))
+        val action = compose.onNodeWithTag("ChiefReplyActions:reply").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Reply" }
+        compose.runOnUiThread { assertTrue(action.action()) }
+        waitForReplyThread()
+        compose.waitForIdle()
+    }
+
+    @Test fun closingReplyRestoresLogicalStateImmediatelyAndWaitsForReturnAfterBackgroundEnds() {
+        org.junit.Assume.assumeTrue("Enable animator duration scale for return travel", android.animation.ValueAnimator.areAnimatorsEnabled())
+        openSettledReplyWithDraft("Preserve through closing")
+        val start = compose.onNodeWithTag("ChiefThreadMessage:reply").fetchSemanticsNode().boundsInRoot
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
+            assertNull(computer.transcript()!!.state.value.reply)
+            compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefReplyClosing").assertExists()
+            compose.onNodeWithTag("ChiefMessage:next").assertExists()
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Preserve through closing")
+            val target = compose.onNodeWithTag("ChiefMessage:reply").fetchSemanticsNode().boundsInRoot
+            val first = closingCopy("reply")
+            assertEquals(start.top, first.top, 1f)
+            assertTrue("target differs from the lifted position", kotlin.math.abs(target.top - first.top) > 4f)
+            saveScreenshot("chief-reply-close-start")
+            compose.mainClock.advanceTimeBy(128); compose.waitForIdle()
+            val middle = closingCopy("reply")
+            assertTrue(middle.top in minOf(first.top, target.top)..maxOf(first.top, target.top))
+            assertTrue(kotlin.math.abs(middle.top - target.top) < kotlin.math.abs(first.top - target.top))
+            saveScreenshot("chief-reply-close-middle")
+            compose.mainClock.advanceTimeBy(192); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClosing").assertExists()
+            assertTrue("copies outlive the 300 ms background until rows land", kotlin.math.abs(closingCopy("reply").top - target.top) > 1f)
+            compose.mainClock.advanceTimeBy(1000); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefMessage:reply").assertIsDisplayed()
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Preserve through closing")
+            saveScreenshot("chief-reply-close-landed")
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun replySendFadesStationaryCopiesAndReleasesBackingWithoutWaitingForAcknowledgment() {
+        openSettledReplyWithDraft("Send from a retained copy")
+        val start = compose.onNodeWithTag("ChiefThreadMessage:reply").fetchSemanticsNode().boundsInRoot
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread { api.sendGate = gate }
+        compose.mainClock.autoAdvance = false
+        try {
+            tapSendWhenReady()
+            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
+            assertNull(computer.transcript()!!.state.value.reply)
+            compose.onNodeWithTag("ChiefReplyClosing").assertExists()
+            assertNotNull("backing AX is restored even when sending scrolls old rows out of view",
+                compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().config.getOrNull(androidx.compose.ui.semantics.SemanticsActions.ScrollBy))
+            val first = closingCopy("reply")
+            assertEquals(start.top, first.top, 1f)
+            compose.mainClock.advanceTimeBy(128); compose.waitForIdle()
+            assertEquals("send fades instead of returning", first.top, closingCopy("reply").top, 1f)
+            saveScreenshot("chief-reply-send-fade-middle")
+            compose.mainClock.advanceTimeBy(240); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+            assertEquals("reply", computer.transcript()!!.state.value.outgoing.single().replyToID)
+            assertFalse(gate.isCompleted)
+        } finally { compose.mainClock.autoAdvance = true; compose.runOnUiThread { gate.complete(Unit) } }
+    }
+
+    @Test fun reopeningDuringReturnReplacesOldCopiesAndRetiringTheOwnerPurgesBothPhases() {
+        openSettledReplyWithDraft("Keep through reopen")
+        val generation = computer.transcript()!!.state.value.reply!!.generation
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClosing").assertExists()
+            val action = compose.onNodeWithTag("ChiefReplyActions:next").fetchSemanticsNode()
+                .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Reply" }
+            compose.runOnUiThread { assertTrue(action.action()) }
+            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
+            assertTrue(computer.transcript()!!.state.value.reply!!.generation > generation)
+            assertEquals("next", computer.transcript()!!.state.value.reply!!.targetID)
+            compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+            compose.mainClock.advanceTimeBy(1600); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyThread").assertExists()
+            compose.onNodeWithTag("ChiefThreadMessage:parent").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefThreadMessage:next").assertExists()
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClosing").assertExists()
+            compose.runOnUiThread { computer.transcript()!!.close() }
+            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefComposer").assert(SemanticsMatcher.expectValue(
+                androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+            assertTrue(api.sends.isEmpty())
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun closingCopiesWithoutVisibleTwinsFadesThemInPlaceInsteadOfInventingReturnTargets() {
+        org.junit.Assume.assumeTrue("Enable animator duration scale to exercise missing-twin return", android.animation.ValueAnimator.areAnimatorsEnabled())
+        openSettledReplyWithDraft("Keep while new messages arrive")
+        compose.runOnUiThread {
+            api.rows = api.rows + (4..103).map { message("arrival-$it", it.toULong(), "Later message $it") }
+            check(api.transcriptChanges.trySend(api.snapshot()).isSuccess)
+        }
+        compose.waitUntil(10_000) { computer.transcript()!!.state.value.messages.lastOrNull()?.id == "arrival-103" }
+        compose.waitUntil(10_000) {
+            val probe = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().config[ChiefReplyVisibleRows]
+            var visible = emptySet<String>()
+            compose.runOnUiThread { visible = probe() }
+            "reply" !in visible && "parent" !in visible
+        }
+        compose.waitForIdle()
+        val start = compose.onNodeWithTag("ChiefThreadMessage:reply").fetchSemanticsNode().boundsInRoot
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefMessage:reply").assertDoesNotExist()
+            val first = closingCopy("reply")
+            assertEquals(start.top, first.top, 1f)
+            compose.mainClock.advanceTimeBy(128); compose.waitForIdle()
+            assertEquals("unseen twin has no invented destination", first.top, closingCopy("reply").top, 1f)
+            saveScreenshot("chief-reply-close-missing-twins-middle")
+            compose.mainClock.advanceTimeBy(240); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Keep while new messages arrive")
+            assertTrue(api.sends.isEmpty())
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun staleOwnershipRetiresReplyCopiesInsteadOfStartingAClosingTransition() {
+        openSettledReplyWithDraft("Keep until the owner retires")
+        val ownedSession = checkNotNull(computer.transcript())
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.runOnUiThread { current = false }
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            compose.mainClock.advanceTimeBy(400); compose.waitForIdle()
+            assertTrue(ownedSession.state.value.retired)
+            assertNull(ownedSession.state.value.reply)
+            assertEquals("", ownedSession.state.value.draft)
+            compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+            assertTrue(api.sends.isEmpty())
+        } finally {
+            compose.runOnUiThread { current = true }
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test fun accessibilityScrollingKeepsTheReadingPositionAcrossArrivalsAndCanResumeFollowingNewest() {
+        compose.runOnUiThread {
+            api.homeUnread = 0; api.readMarker = 100uL
+            api.rows = (1..100).map { message("ax-$it", it.toULong(), "Accessible transcript message $it") }
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:ax-100").fetchSemanticsNodes().isNotEmpty() }
+        fun axis() = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
+        compose.waitUntil(10_000) { axis().maxValue() > 0 && axis().maxValue() - axis().value() < 1f }
+        val newest = axis().value()
+        compose.onNodeWithTag("ChiefMessages").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
+            assertTrue(it(0f, -1000f))
+        }
+        compose.waitUntil(10_000) { axis().value() < newest }
+        compose.waitForIdle()
+        val reading = axis().value()
+        assertTrue("AX can move away from the tail: before=$newest after=$reading max=${axis().maxValue()}", reading < newest)
+        compose.runOnUiThread {
+            api.rows = api.rows + message("ax-101", 101uL, "Arrival while reading older messages")
+            check(api.transcriptChanges.trySend(api.snapshot()).isSuccess)
+        }
+        compose.waitUntil(10_000) { computer.transcript()!!.state.value.messages.lastOrNull()?.id == "ax-101" }
+        compose.waitForIdle()
+        assertEquals("arrivals must not undo AX reading", reading, axis().value(), 1f)
+        compose.onNodeWithTag("ChiefMessages").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
+            assertTrue(it(0f, 1_000_000f))
+        }
+        compose.waitUntil(10_000) { axis().maxValue() - axis().value() < 1f }
+        compose.runOnUiThread {
+            api.rows = api.rows + message("ax-102", 102uL, "Arrival after returning to newest")
+            check(api.transcriptChanges.trySend(api.snapshot()).isSuccess)
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:ax-102").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForIdle()
+        assertTrue("reaching newest resumes following", axis().maxValue() - axis().value() < 1f)
     }
 
     @Test fun rightSwipeOnAcknowledgedReplyTargetsThatMessageWithinItsLoadedRoot() {
@@ -735,12 +955,25 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefReplyClose").assertIsDisplayed()
         compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Keep this draft through the thread")
         val density = compose.activity.resources.displayMetrics.density
-        compose.waitUntil(10_000) {
-            val root = compose.onNodeWithTag("ChiefThreadRow:parent").fetchSemanticsNode().boundsInRoot
-            val child = compose.onNodeWithTag("ChiefThreadRow:reply").fetchSemanticsNode().boundsInRoot
-            val bubble = compose.onNodeWithTag("ChiefThreadMessage:reply").fetchSemanticsNode().boundsInRoot
-            val field = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot
+        // The source deliberately leaves this scroll content unclipped. In a
+        // short landscape viewport an entire row can extend beyond its bounds;
+        // clipped AX rectangles cannot measure the source's row-to-row spacing.
+        fun layoutFrame(tag: String): androidx.compose.ui.geometry.Rect {
+            val node = compose.onNodeWithTag(tag).fetchSemanticsNode()
+            val point = node.positionInRoot
+            return androidx.compose.ui.geometry.Rect(point.x, point.y, point.x + node.size.width, point.y + node.size.height)
+        }
+        var lastGeometry = ""
+        try { compose.waitUntil(10_000) {
+            val root = layoutFrame("ChiefThreadRow:parent")
+            val child = layoutFrame("ChiefThreadRow:reply")
+            val bubble = layoutFrame("ChiefThreadMessage:reply")
+            val field = layoutFrame("ChiefComposerField")
+            lastGeometry = "root=$root child=$child bubble=$bubble field=$field density=$density"
             kotlin.math.abs(child.top - root.bottom - 10 * density) < 2 && kotlin.math.abs(field.top - bubble.bottom - 10 * density) < 2
+        } } catch (error: AssertionError) {
+            saveScreenshot("chief-reply-layout-diagnostic")
+            throw AssertionError("Unclipped source thread spacing: $lastGeometry", error)
         }
         compose.runOnUiThread {
             api.rows = api.rows + message("new-reply", 4uL, "Arrived after the thread opened").copy(threadRoot = "parent")

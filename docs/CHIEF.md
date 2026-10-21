@@ -1,5 +1,46 @@
 # Chief conversations
 
+## Retained reply closing and accessibility reading intent — 2026-10-21
+
+Logical reply state now clears immediately while owned copies remain through both
+source return dynamics and the background fade. Sends/reduced motion fade in place
+and release the backing; missing twins fade instead of inventing destinations.
+Close/send stop entry on the admitted input event, and a prior generation cannot
+retire a reopened thread. Owner retirement/rejection clears both phases. Backing
+accessibility returns immediately; closing copies have no interactive controls.
+Visible row keys qualify cached coordinates against LazyColumn reuse/prefetch.
+
+Landscape testing exposed tail-follow undoing accessibility scrolling. AX scroll
+and index actions now record reading intent immediately; the old overflow collector
+rechecks live flags before scrolling. Arrivals preserve an older AX reading position;
+returning to newest resumes following. Rendered checks cover both directions.
+
+Final verification: 101 Chief JVM cases pass; portrait Chief plus two route checks
+55 pass/three expected skips in164.966 s; landscape nine pass in26.887 s; reduced
+motion seven pass in17.916 s. Skips are two landscape-only and one reduced-only
+case, exercised separately. All crash buffers empty. Five 1206x2622 PNGs verify
+and were inspected. Short-landscape geometry uses actual unclipped layout frames,
+with the source 10-point gaps unchanged; clipped AX bounds cannot measure rows
+outside the viewport. Receipt: `captures/recovery-20261021/chief-reply-close-checkpoint.json`.
+The first focused batch's anomalous977.604 s is diagnostic, not timing acceptance;
+independent repeats and final runs have host-clock receipts. Earlier failing race /
+AX/setup/measurement attempts are retained separately. Emulator size/density and
+animator scale restored1080x2400/420/0; owned emulator/Gradle daemon stopped.
+
+Full parity stays open. Next audit/refine origin filtering for a visible message
+cell whose quote is visible while its primary bubble lies outside the viewport;
+current bubble-intersection filtering is stricter than the source cell lookup.
+Then implement Back/X sequencing: enter Back.06, old glyph retained.32 then.05 out/
+.2 in; closing glyph.06, Back delayed.3 then.2. In-flight IME/font/orientation/RTL /
+TalkBack, material/font/line-break, complete source coverage and physical acceptance
+remain open. Existing Swift vectors cover dynamics/entry projection; these closing
+flows are source-reviewed/Compose-tested, not new UIKit animation or Pixel proof.
+Candidate710 predates entry/closing work; no signed APK or physical app changed.
+Pixel USB absent, last verified release703; first on return restore
+`svc power stayon false`. Real Mac/Pixel terminal, encrypted FCM and cold-tap gates
+remain open. Verified Mac40840/helper43849/control socket still alive at the check;
+no further Mac action is requested. The full-parity goal remains active.
+
 ## Mounted reply entry motion — 2026-10-21
 
 The source ReplyTrip engine now drives actual Compose entry. Visible bubble and

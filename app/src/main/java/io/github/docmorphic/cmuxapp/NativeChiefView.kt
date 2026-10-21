@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
@@ -234,6 +236,18 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     var readerScrolling by remember { mutableStateOf(false) }
     val dragged by list.interactionSource.collectIsDraggedAsState()
     val bottomTolerance = with(LocalDensity.current) { 44.dp.toPx() }
+    fun nearNewest(): Boolean {
+        val info = list.layoutInfo
+        val last = info.visibleItemsInfo.lastOrNull()
+        return !list.canScrollForward || (last != null && last.index == info.totalItemsCount - 1 &&
+            last.offset + last.size <= info.viewportEndOffset - info.afterContentPadding + bottomTolerance)
+    }
+    suspend fun <T> accessibilityScroll(action: suspend () -> T): T {
+        // AX scrolling expresses the same reading intent as dragging. Unpin
+        // before layout so tail-follow cannot undo an admitted scroll action.
+        pinned = false; readerScrolling = true
+        return try { action() } finally { pinned = nearNewest(); readerScrolling = false }
+    }
     val viewport = list.layoutInfo.viewportSize.height
     val historyGeometry = remember(timeline, state.hasMore, state.committed, state.actionErrors,
         LocalDensity.current.density, LocalDensity.current.fontScale, list.layoutInfo.viewportSize.width) {
@@ -263,9 +277,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     }
     LaunchedEffect(list, bottomTolerance) {
         snapshotFlow {
-            val info = list.layoutInfo; val last = info.visibleItemsInfo.lastOrNull()
-            Triple(dragged, list.isScrollInProgress, !list.canScrollForward ||
-                (last != null && last.index == info.totalItemsCount - 1 && last.offset + last.size <= info.viewportEndOffset - info.afterContentPadding + bottomTolerance))
+            Triple(dragged, list.isScrollInProgress, nearNewest())
         }.collect { (dragging, scrolling, nearBottom) ->
             if (dragging) readerScrolling = true
             if (readerScrolling && !programmatic) pinned = nearBottom
@@ -281,7 +293,10 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         }.collect { overflow ->
             // Delivery controls and font/keyboard reflow can finish measuring after the
             // timeline effect. Keep a pinned tail visible using the actual new layout.
-            if (overflow > 0) list.scrollBy(overflow.toFloat())
+            // The input event may change reading intent before recomposition
+            // cancels this old collector. Recheck the live flags at admission.
+            if (overflow > 0 && pinned && !dragged && !readerScrolling && !programmatic)
+                list.scrollBy(overflow.toFloat())
         }
     }
     LaunchedEffect(session, list, positioned, state.catchUpMarker) {
@@ -327,7 +342,9 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         }
     }
     val reply = state.reply
-    val replyOrigins = remember(session) { NativeChiefReplyOrigins() }
+    val replyOrigins = remember(session, list) { NativeChiefReplyOrigins {
+        list.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? String }.toSet()
+    } }
     var entryOrigins by remember(session) { mutableStateOf(replyOrigins.snapshot()) }
     fun captureReply(action: () -> Boolean): Boolean {
         val captured = replyOrigins.snapshot()
@@ -341,10 +358,25 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         val rootIndex = timeline.indexOfFirst { it.item.messageID == active.rootID }
         timeline.take(rootIndex + 1).lastOrNull { it.timestamp }?.item?.key
     }
-    val entryMotion = remember(session, reply?.generation) { reply?.let {
-        NativeChiefReplyEntryMotion(it, entryOrigins, stampKey, density, hostView.rootView.height / density.toDouble())
-    } }
-    fun closeReply() { try { session.closeReplyThread() } catch (_: IllegalStateException) {} }
+    var shownReply by remember(session) { mutableStateOf<NativeChiefReplyPresentation?>(null) }
+    if (state.retired) shownReply = null
+    else if (reply != null && shownReply?.reply?.generation != reply.generation) {
+        shownReply = NativeChiefReplyPresentation(reply, NativeChiefReplyMotionState(reply, entryOrigins,
+            stampKey, density, hostView.rootView.height / density.toDouble()), state.localSendRevision)
+    }
+    val presentation = shownReply
+    val replyMotion = presentation?.motion
+    if (reply == null && presentation != null && !presentation.motion.closing) {
+        presentation.motion.close(replyOrigins.snapshot(), settling = state.localSendRevision == presentation.sendRevision)
+    }
+    fun closeReply() {
+        // Stop entry on the input event, before an already-awaiting display frame
+        // can advance it while StateFlow's new logical state reaches Compose.
+        try {
+            session.closeReplyThread() // Reject stale ownership before changing any presentation.
+            presentation?.motion?.close(replyOrigins.snapshot(), settling = true)
+        } catch (_: IllegalStateException) {}
+    }
     fun replyTo(id: String): Boolean = try { captureReply { session.replyTo(id) } } catch (_: IllegalStateException) { false }
     fun swipeReply(id: String, offset: Float): Boolean = try { captureReply { session.replyTo(id, offset) } } catch (_: IllegalStateException) { false }
     fun openThread(id: String) { try { captureReply { session.openReplyThread(id) } } catch (_: IllegalStateException) {} }
@@ -372,8 +404,11 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             catch (error: IllegalStateException) { actionError = error.message; null }
         }, onSend = { text, revision ->
             actionError = null
-            try { session.submitFromComposer(text, revision) != null }
-            catch (error: IllegalStateException) { actionError = error.message; false }
+            try {
+                val admitted = session.submitFromComposer(text, revision) != null
+                if (admitted) presentation?.motion?.close(replyOrigins.snapshot(), settling = false)
+                admitted
+            } catch (error: IllegalStateException) { actionError = error.message; false }
         }, replyGeneration = reply?.generation)
     }, overlay = { headerHeight ->
         Box(Modifier.fillMaxSize()) {
@@ -402,7 +437,25 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         }
     }) { padding, headerHeight, composerHeight ->
         Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("ChiefMessages").onGloballyPositioned { replyOrigins.viewport = it }.then(if (reply != null) Modifier.blur((10 * (entryMotion?.veil ?: 0f)).dp).clearAndSetSemantics {} else Modifier), state = list,
+        LazyColumn(Modifier.fillMaxSize().testTag("ChiefMessages").onGloballyPositioned { replyOrigins.viewport = it }.then(if (replyMotion != null) Modifier.blur((10 * replyMotion.blur).dp) else Modifier)
+            .then(if (reply != null) Modifier.clearAndSetSemantics {
+                if (BuildConfig.DEBUG) this[ChiefReplyVisibleRows] = { replyOrigins.snapshot().bubbles.keys }
+            } else Modifier.semantics {
+                scrollBy { _, y ->
+                    val canScroll = if (y > 0) list.canScrollForward else if (y < 0) list.canScrollBackward else false
+                    if (canScroll) scope.launch(start = CoroutineStart.UNDISPATCHED) { accessibilityScroll { list.scrollBy(y) } }
+                    canScroll
+                }
+                scrollByOffset { requested ->
+                    val consumed = accessibilityScroll { list.scrollBy(requested.y) }
+                    Offset(0f, consumed)
+                }
+                scrollToIndex { index ->
+                    val valid = index in 0 until list.layoutInfo.totalItemsCount
+                    if (valid) scope.launch(start = CoroutineStart.UNDISPATCHED) { accessibilityScroll { list.scrollToItem(index) } }
+                    valid
+                }
+            }), state = list,
             contentPadding = padding, verticalArrangement = Arrangement.spacedBy(0.dp)) {
             if (state.hasMore) item(key = "older") {
                 ChiefOlderRow(state) { act { session.loadOlder() } }
@@ -415,7 +468,8 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                     onAnswer = { id, form -> act { session.answer(id, form) } },
                     onQuestion = { answerMessage = it }, onFailure = { failedMessage = it }, onQuote = ::openThread, onReply = ::replyTo,
                     onSwipeReply = if (reply == null && !state.retired) ::swipeReply else null,
-                    bodyAlpha = if (reply == null) 1f else if (row.item.key in reply.hiddenKeys) 0f else if (row.item.fromMe) 1f - .3f * (entryMotion?.veil ?: 0f) else 1f)
+                    bodyAlpha = if (row.item.key in (replyMotion?.hiddenKeys ?: emptySet())) 0f
+                        else if (row.item.fromMe) 1f - .3f * (replyMotion?.veil ?: 0f) else 1f)
             }
             if (state.working) item(key = "working") { Text("Chief is working…", color = chiefAccent) }
         }
@@ -424,8 +478,12 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             if (index == 0) ChiefOlderRow(state) {}
             else ChiefTranscriptRow(timeline[index - 1], timeline.getOrNull(index - 2), state, bubbleMetrics, { _, _ -> }, { _, _ -> }, {}, {})
         }
-        if (reply != null && !state.retired) key(reply.generation) {
-            NativeChiefReplyOverlay(reply, checkNotNull(entryMotion), headerHeight, composerHeight, bubbleMetrics, darkTranscript, ::closeReply, ::replyTo)
+        if (presentation != null && !state.retired) key(presentation.reply.generation) {
+            NativeChiefReplyOverlay(presentation.reply, presentation.motion, headerHeight, composerHeight,
+                bubbleMetrics, darkTranscript, ::closeReply, ::replyTo, onFinished = {
+                    // A previous generation's completion can never retire a reopened thread.
+                    if (shownReply === presentation) shownReply = null
+                })
         }
         }
 
@@ -521,7 +579,7 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
                 message.id, expanded = part != null, text = body.takeIf { part == null }, metrics = metrics, emojiSize = emojiSize,
                 modifier = Modifier.alpha(bodyAlpha).then(replyAction), onQuote = row.quote?.let { { onQuote(it.id) } },
                 onSwipeReply = onSwipeReply?.let { action -> { offset -> action(message.id, offset); Unit } },
-                onBubblePositioned = { origins?.bubbles?.set(row.item.messageID, it) }) {
+                onBubblePositioned = { origins?.bubbles?.set(row.item.messageID, NativeChiefReplyOrigins.Bubble(row.item.key, it)) }) {
                 if (part == null) SelectionContainer { NativeChiefText(body) }
                 part?.approval?.let { approval ->
                     Text(approval.prompt, fontWeight = FontWeight.SemiBold)
@@ -550,7 +608,7 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
                 NativeChiefBalloonRow(row.quote, true, row.lastInRun, outgoing.clientMessageId, false, outgoing.text, metrics,
                     emojiSize = emojiSize, modifier = Modifier.alpha(bodyAlpha).then(replyAction), pending = true,
                     onQuote = row.quote?.let { { onQuote(it.id) } },
-                    onBubblePositioned = { origins?.bubbles?.set(row.item.messageID, it) }) {
+                    onBubblePositioned = { origins?.bubbles?.set(row.item.messageID, NativeChiefReplyOrigins.Bubble(row.item.key, it)) }) {
                     SelectionContainer { NativeChiefText(outgoing.text) }
                 }
                 Text(when (outgoing.delivery) {

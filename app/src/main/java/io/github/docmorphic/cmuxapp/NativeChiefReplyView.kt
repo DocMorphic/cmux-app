@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.ScrollAxisRange
 import androidx.compose.ui.semantics.verticalScrollAxisRange
 import androidx.compose.ui.semantics.scrollBy
@@ -40,33 +41,36 @@ import androidx.compose.ui.unit.Constraints
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
-/** Loaded one-open thread copy with source entry travel. Return/close choreography and
- * full poll/failed rendering remain separate fidelity work. */
+/** One-open thread copies retained through the source entry/return/fade lifecycle. */
 @Composable
-internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChiefReplyEntryMotion, headerHeight: Dp, composerHeight: Dp,
-    metrics: NativeChiefBubbleMetrics, dark: Boolean, onClose: () -> Unit, onReply: (String) -> Boolean) {
+internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChiefReplyMotionState, headerHeight: Dp, composerHeight: Dp,
+    metrics: NativeChiefBubbleMetrics, dark: Boolean, onClose: () -> Unit, onReply: (String) -> Boolean, onFinished: () -> Unit) {
     val transcriptLabel = stringResource(R.string.chief_reply_transcript)
     val replyLabel = stringResource(R.string.chief_reply_action)
     val density = LocalDensity.current
     val view = LocalView.current
-    LaunchedEffect(motion) {
+    val finish by rememberUpdatedState(onFinished)
+    LaunchedEffect(motion, motion.closing) {
         val initialDuration = 1.0 / (view.display?.refreshRate?.takeIf { it > 0 } ?: 60f)
         while (!motion.resting) withFrameNanos { motion.frame(it, initialDuration) }
+        if (motion.closing) finish()
     }
     val captionFont = nativeChiefCaptionFont()
     val senderGeometry = NativeChiefCaptionGeometry.sender(captionFont.lineHeight, captionFont.spacing, density.density.toDouble())
     val senderStyle = nativeChiefTextStyle(11).copy(fontSize = with(density) {
         captionFont.pointSize.toFloat().dp.toSp()
     })
-    Box(Modifier.fillMaxSize().testTag("ChiefReplyThread").semantics { contentDescription = transcriptLabel; paneTitle = transcriptLabel }
+    Box(Modifier.fillMaxSize().testTag(if (motion.closing) "ChiefReplyClosing" else "ChiefReplyThread")
+        .then(if (motion.closing) Modifier.clearAndSetSemantics { if (BuildConfig.DEBUG) this[ChiefReplyCopyBounds] = { motion.copyBounds() } } else Modifier.semantics { contentDescription = transcriptLabel; paneTitle = transcriptLabel })
         .drawBehind { drawRect((if (dark) Color.Black else Color.White).copy(alpha = (if (dark) .41f else .58f) * motion.veil)) }
-        .pointerInput(reply.generation) { detectTapGestures(onTap = { onClose() }) }) {
+        .pointerInput(reply.generation, motion.closing) { if (!motion.closing) detectTapGestures(onTap = { onClose() }) }) {
         BoxWithConstraints(Modifier.fillMaxSize().padding(top = headerHeight, bottom = composerHeight + 6.dp)) {
             NativeChiefReplyScroll(Modifier.fillMaxSize().testTag("ChiefReplyTranscript"), motion) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).graphicsLayer { alpha = motion.contentAlpha }) {
                 reply.rows.firstOrNull()?.let { first ->
-                    Box(Modifier.fillMaxWidth().onGloballyPositioned { motion.row(NativeChiefReplyEntryMotion.stampKey, it) }) {
-                        ChiefTimestamp(first.at, "ChiefThreadTimestamp", Modifier.offset { IntOffset(0, motion.verticalPixels(NativeChiefReplyEntryMotion.stampKey)) })
+                    Box(Modifier.fillMaxWidth().onGloballyPositioned { motion.row(NativeChiefReplyMotionState.stampKey, it) }) {
+                        ChiefTimestamp(first.at, "ChiefThreadTimestamp", Modifier.offset { IntOffset(0, motion.verticalPixels(NativeChiefReplyMotionState.stampKey)) }
+                            .graphicsLayer { alpha = motion.rowAlpha(NativeChiefReplyMotionState.stampKey) })
                     }
                 }
                 reply.rows.forEachIndexed { index, item ->
@@ -74,13 +78,14 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChie
                     val message = item.quoteMessage()
                     Box(Modifier.fillMaxWidth().onGloballyPositioned { motion.row(item.key, it) }) {
                     Column(Modifier.fillMaxWidth().offset { IntOffset(0, motion.verticalPixels(item.key)) }
+                        .graphicsLayer { alpha = motion.rowAlpha(item.key) }
                         .onGloballyPositioned { motion.row(item.key, it, moving = true) }.testTag("ChiefThreadRow:${item.messageID}")) {
                         if (!item.fromMe) {
                             NativeChiefCaptionLabel(AnnotatedString(message.author.ifEmpty { message.authorId }),
                                 captionFont, senderGeometry.height,
                                 (senderGeometry.height - captionFont.lineHeight) / 2 + captionFont.ascender,
                                 Color(0xFF8E8E93), "ChiefThreadSender:${item.messageID}",
-                                Modifier.fillMaxWidth().padding(start = 14.dp).graphicsLayer { alpha = if (item.messageID == reply.targetID) motion.veil else 1f })
+                                Modifier.fillMaxWidth().padding(start = 14.dp).graphicsLayer { alpha = if (item.messageID == reply.targetID) motion.anchorChromeAlpha else 1f })
                             Spacer(Modifier.height((senderGeometry.bubbleOffset - senderGeometry.height).toFloat().dp))
                         }
                         val text = NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)
@@ -89,13 +94,13 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChie
                         val bubbleModifier = Modifier.align(if (item.fromMe) AbsoluteAlignment.Right else AbsoluteAlignment.Left)
                             .offset { IntOffset(motion.horizontalPixels(item.key), 0) }.onGloballyPositioned { motion.bubble(item.key, it) }
                             .testTag("ChiefThreadMessage:${item.messageID}").semantics {
-                                customActions = listOf(CustomAccessibilityAction(replyLabel) { onReply(item.messageID) })
+                                customActions = if (motion.closing) emptyList() else listOf(CustomAccessibilityAction(replyLabel) { onReply(item.messageID) })
                             }
-                            .pointerInput(reply.generation, item.key) { detectTapGestures(onTap = {}) }
+                            .pointerInput(reply.generation, item.key, motion.closing) { if (!motion.closing) detectTapGestures(onTap = {}) }
                         if (emoji != null) NativeChiefEmojiBalloon(text, emoji, "thread:${item.messageID}", bubbleModifier, metrics)
                         else NativeChiefBubble(item.fromMe, true, bubbleModifier, "ChiefThreadBody:${item.messageID}",
                             expanded = part != null, text = text.takeIf { part == null }, metrics = metrics) {
-                            SelectionContainer { Column {
+                            ChiefReplySelection(!motion.closing) { Column {
                                 if (part == null) NativeChiefText(text)
                                 part?.approval?.let { approval ->
                                     Text(approval.prompt)
@@ -124,7 +129,7 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChie
  * Keep the same layout behavior without putting a clipping verticalScroll around the copies. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NativeChiefReplyScroll(modifier: Modifier, motion: NativeChiefReplyEntryMotion, content: @Composable () -> Unit) {
+private fun NativeChiefReplyScroll(modifier: Modifier, motion: NativeChiefReplyMotionState, content: @Composable () -> Unit) {
     val scope = rememberCoroutineScope()
     val scrollLabel = stringResource(R.string.chief_reply_transcript)
     val currentIme = WindowInsets.ime
@@ -151,7 +156,7 @@ private fun NativeChiefReplyScroll(modifier: Modifier, motion: NativeChiefReplyE
             val consumed = scroll.scrollBy(-requested.y)
             Offset(0f, -consumed)
         }
-    }.scrollable(scroll, Orientation.Vertical)) { children, constraints ->
+    }.scrollable(scroll, Orientation.Vertical, enabled = !motion.closing)) { children, constraints ->
         val child = children.single().measure(Constraints.fixedWidth(constraints.maxWidth))
         // UIKit model frames already describe the keyboard's final position while
         // its presentation animates. Match that final layout instead of repeatedly
@@ -167,4 +172,9 @@ private fun NativeChiefReplyScroll(modifier: Modifier, motion: NativeChiefReplyE
             child.place(0, if (child.height < finalHeight) finalHeight - child.height else -offset.roundToInt())
         }
     }
+}
+
+@Composable
+private fun ChiefReplySelection(enabled: Boolean, content: @Composable () -> Unit) {
+    if (enabled) SelectionContainer(content = content) else content()
 }
