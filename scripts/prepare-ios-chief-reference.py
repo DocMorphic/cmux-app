@@ -35,7 +35,7 @@ def prepare(upstream, output):
             target.write_bytes(tar.extractfile(member).read()); count += 1
     (package_root / 'UPSTREAM_LICENSE').write_bytes(git(upstream, 'show', revision + ':LICENSE'))
     templates = root / 'tests/ios-chief-reference'
-    for name in ('ReferenceApp.swift', 'ReferenceTests.swift', 'Scenes.json'):
+    for name in ('ReferenceApp.swift', 'ReferenceTests.swift', 'Scenes.json', 'Interactions.json'):
         shutil.copyfile(templates / name, output / name)
     avatar = next(p for p in manifest['behaviorFiles'] if p.endswith('/ChiefAvatar.png'))
     pixels = git(upstream, 'show', revision + ':' + avatar)
@@ -45,6 +45,7 @@ def prepare(upstream, output):
                   'projectSourceCommit': git(root, 'rev-parse', 'HEAD').decode().strip(),
                   'projectSourceDirty': bool(git(root, 'status', '--porcelain', '--untracked-files=normal')),
                   'scenesSha256': hashlib.sha256((templates / 'Scenes.json').read_bytes()).hexdigest(),
+                  'interactionsSha256': hashlib.sha256((templates / 'Interactions.json').read_bytes()).hexdigest(),
                   'scope': 'Offline UIKit reference host; no account, pairing, network transport or production backend'}
     (output / 'Provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
 
@@ -56,7 +57,7 @@ def prepare(upstream, output):
         return uid(name)
     refs = {}
     for filename, kind in [('ReferenceApp.swift', 'sourcecode.swift'), ('ReferenceTests.swift', 'sourcecode.swift'),
-                           ('Scenes.json', 'text.json'), ('Provenance.json', 'text.json'), ('ChiefAvatar.png', 'image.png')]:
+                           ('Scenes.json', 'text.json'), ('Interactions.json', 'text.json'), ('Provenance.json', 'text.json'), ('ChiefAvatar.png', 'image.png')]:
         refs[filename] = obj(filename, 'PBXFileReference', f'lastKnownFileType = {q(kind)}; path = {q(filename)}; sourceTree = "<group>";')
     app_product = obj('app-product', 'PBXFileReference', 'explicitFileType = wrapper.application; path = CmuxChiefReferenceHost.app; sourceTree = BUILT_PRODUCTS_DIR;')
     test_product = obj('test-product', 'PBXFileReference', 'explicitFileType = wrapper.cfbundle; path = CmuxChiefReferenceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
@@ -72,7 +73,7 @@ def prepare(upstream, output):
     source_builds = {}
     for name in ('ReferenceApp.swift', 'ReferenceTests.swift'):
         source_builds[name] = obj(name + '-build', 'PBXBuildFile', f'fileRef = {refs[name]};')
-    resource_builds = [obj(name + '-build', 'PBXBuildFile', f'fileRef = {refs[name]};') for name in ('Scenes.json', 'Provenance.json', 'ChiefAvatar.png')]
+    resource_builds = [obj(name + '-build', 'PBXBuildFile', f'fileRef = {refs[name]};') for name in ('Scenes.json', 'Interactions.json', 'Provenance.json', 'ChiefAvatar.png')]
     app_sources = obj('app-sources', 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = ({source_builds["ReferenceApp.swift"]},); runOnlyForDeploymentPostprocessing = 0;')
     test_sources = obj('test-sources', 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = ({source_builds["ReferenceTests.swift"]},); runOnlyForDeploymentPostprocessing = 0;')
     test_frameworks = obj('test-frameworks', 'PBXFrameworksBuildPhase', f'buildActionMask = 2147483647; files = ({", ".join(frameworks)},); runOnlyForDeploymentPostprocessing = 0;')
@@ -86,7 +87,7 @@ def prepare(upstream, output):
             values.append(obj(name + configuration, 'XCBuildConfiguration', f'buildSettings = {{ {settings} }}; name = {configuration};'))
         return obj(name + '-configurations', 'XCConfigurationList', f'buildConfigurations = ({", ".join(values)},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug;')
     project_configs = configurations('project', common)
-    app_configs = configurations('app', 'PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = io.github.docmorphic.cmuxapp.reference.ios; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; TARGETED_DEVICE_FAMILY = 1; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";')
+    app_configs = configurations('app', 'PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = io.github.docmorphic.cmuxapp.reference.ios; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"; TARGETED_DEVICE_FAMILY = 1; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";')
     test_configs = configurations('test', 'PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = io.github.docmorphic.cmuxapp.reference.ios.tests; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 1; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CmuxChiefReferenceHost.app/CmuxChiefReferenceHost"; BUNDLE_LOADER = "$(TEST_HOST)"; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks",);')
     proxy = obj('host-proxy', 'PBXContainerItemProxy', f'containerPortal = {uid("project")}; proxyType = 1; remoteGlobalIDString = {uid("app")}; remoteInfo = CmuxChiefReferenceHost;')
     dependency = obj('host-dependency', 'PBXTargetDependency', f'target = {uid("app")}; targetProxy = {proxy};')

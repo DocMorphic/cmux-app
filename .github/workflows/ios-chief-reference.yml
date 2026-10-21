@@ -62,6 +62,7 @@ jobs:
             -scheme CmuxChiefReference -destination "platform=iOS Simulator,id=$REFERENCE_SIMULATOR" \
             -destination-timeout 90 -parallel-testing-enabled NO \
             -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureStandardChiefConversationScenes \
+            -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureStandardChiefInteractionReferences \
             -resultBundlePath "$RUNNER_TEMP/chief-reference-standard.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-standard-build.log"
       - name: Render accessibility UIKit scene with real system type
@@ -73,6 +74,7 @@ jobs:
             -scheme CmuxChiefReference -destination "platform=iOS Simulator,id=$REFERENCE_SIMULATOR" \
             -destination-timeout 90 -parallel-testing-enabled NO \
             -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureAccessibilityChiefConversationScene \
+            -only-testing:CmuxChiefReferenceTests/CmuxChiefReferenceTests/testCaptureAccessibilityChiefInteractionReferences \
             -resultBundlePath "$RUNNER_TEMP/chief-reference-accessibility.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-accessibility-build.log"
       - name: Export and verify scene payloads
@@ -83,7 +85,7 @@ jobs:
             if [ ! -d "$RUNNER_TEMP/chief-reference-$mode.xcresult" ]; then exit 1; fi
             xcrun xcresulttool export attachments --path "$RUNNER_TEMP/chief-reference-$mode.xcresult" --output-path "$RUNNER_TEMP/chief-reference-exported/$mode"
           done
-          python3 cmux-app/scripts/verify-ios-chief-reference.py --exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-scenes" --project-commit "$GITHUB_SHA"
+          python3 cmux-app/scripts/verify-ios-chief-reference.py --exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-scenes" --project-commit "$GITHUB_SHA" --with-interactions
       - name: Preserve reference evidence and diagnostics
         if: always()
         uses: actions/upload-artifact@v4

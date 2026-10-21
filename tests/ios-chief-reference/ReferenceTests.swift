@@ -8,6 +8,188 @@ private struct ReferenceScenes: Decodable { var schema: Int; var scenes: [Refere
 private struct ReferenceScene: Decodable {
     var id: String; var style: String; var category: String; var rows: [ReferenceRow]; var failedSend: String?
 }
+
+private struct ReferenceInteractions: Decodable { var schema: Int; var scenes: [ReferenceInteraction] }
+private struct ReferenceInteraction: Decodable {
+    var id: String; var sourceScene: String; var style: String; var category: String
+    var orientation: String; var mode: String; var draft: String?
+}
+
+extension CmuxChiefReferenceTests {
+    @MainActor func testCaptureStandardChiefInteractionReferences() async throws {
+        try await captureInteractions(sceneCategory: "large", systemCategory: .large)
+    }
+
+    @MainActor func testCaptureAccessibilityChiefInteractionReferences() async throws {
+        try await captureInteractions(sceneCategory: "accessibilityMedium", systemCategory: .accessibilityMedium)
+    }
+
+    @MainActor private func views(in view: UIView) -> [UIView] {
+        [view] + view.subviews.flatMap { views(in: $0) }
+    }
+
+    @MainActor private func frame(_ view: UIView, in window: UIWindow) -> [CGFloat] {
+        let r = view.convert(view.bounds, to: window)
+        return [r.minX, r.minY, r.width, r.height]
+    }
+
+    @MainActor private func controls(in root: UIView, window: UIWindow) -> [[String: Any]] {
+        views(in: root).compactMap { view in
+            guard let control = view as? UIControl, !view.isHidden, view.alpha > 0.01,
+                  !view.convert(view.bounds, to: window).intersection(window.bounds).isEmpty else { return nil }
+            var record: [String: Any] = ["class": String(describing: type(of: control)),
+                "identifier": control.accessibilityIdentifier ?? "", "label": control.accessibilityLabel ?? "",
+                "frame": frame(control, in: window), "enabled": control.isEnabled]
+            if let toggle = control as? UISwitch { record["on"] = toggle.isOn }
+            return record
+        }
+    }
+
+    @MainActor private func images(in root: UIView, window: UIWindow) -> [[String: Any]] {
+        views(in: root).compactMap { view in
+            guard let imageView = view as? UIImageView, let image = imageView.image,
+                  !view.isHidden, view.alpha > 0.01,
+                  !view.convert(view.bounds, to: window).intersection(window.bounds).isEmpty else { return nil }
+            return ["class": String(describing: type(of: imageView)), "frame": frame(imageView, in: window),
+                "imageSize": [image.size.width, image.size.height], "imageScale": image.scale,
+                "symbol": image.isSymbolImage]
+        }
+    }
+
+    @MainActor private func orient(_ scene: UIWindowScene, controller: UIViewController, landscape: Bool) async throws {
+        controller.setNeedsUpdateOfSupportedInterfaceOrientations()
+        scene.requestGeometryUpdate(.iOS(interfaceOrientations: landscape ? .landscapeRight : .portrait))
+        try await wait("actual reference orientation") {
+            scene.interfaceOrientation.isLandscape == landscape &&
+                (scene.coordinateSpace.bounds.width > scene.coordinateSpace.bounds.height) == landscape
+        }
+    }
+
+    @MainActor private func captureInteractions(sceneCategory: String, systemCategory: UIContentSizeCategory) async throws {
+        let input = try resource("Scenes.json"), interactionInput = try resource("Interactions.json")
+        let scenes = try JSONDecoder().decode(ReferenceScenes.self, from: input)
+        let interactions = try JSONDecoder().decode(ReferenceInteractions.self, from: interactionInput)
+        XCTAssertEqual(interactions.schema, 1)
+        let provenance = try JSONSerialization.jsonObject(with: resource("Provenance.json"))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        try await wait("actual application content-size category") {
+            UIApplication.shared.preferredContentSizeCategory == systemCategory && scene.activationState == .foregroundActive
+        }
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(true) }
+        for specification in interactions.scenes where specification.category == sceneCategory {
+            let base = try XCTUnwrap(scenes.scenes.first { $0.id == specification.sourceScene })
+            let date = Date()
+            let backend = ReferenceBackend(base, date: date)
+            let store = ConversationStore(backend: backend)
+            let controller = ConversationViewController(store: store, options: ConversationPresentationOptions(
+                placeholder: "Message Chief", serviceTitle: "Chief", serviceSubtitle: "Runs your agents on your Mac",
+                avatarImage: UIImage(data: try resource("ChiefAvatar.png")), trailingSymbol: "stop.fill",
+                trailingAccessibilityLabel: "Stop Chief", supportsReactions: false, supportsEditing: false,
+                supportsUnsend: false, supportsAttachments: false))
+            let window = UIWindow(windowScene: scene)
+            window.frame = scene.coordinateSpace.bounds
+            window.overrideUserInterfaceStyle = specification.style == "light" ? .light : .dark
+            window.rootViewController = controller; window.makeKeyAndVisible()
+            defer { store.stop(); window.isHidden = true; window.rootViewController = nil }
+            try await orient(scene, controller: controller, landscape: specification.orientation == "landscape")
+            try await wait(specification.id + ": history and appearance") {
+                window.layoutIfNeeded()
+                return store.hasLoadedNewest && store.messages.count == base.rows.count && store.isViewing
+            }
+            var behavior: [String: Any] = ["viewingBefore": store.isViewing]
+            var content: UIView = controller.view
+            var presented: UIViewController?
+            var editor: UITextView?
+            if specification.mode == "details" {
+                let text = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.composer.text" } as? UITextView)
+                let draft = try XCTUnwrap(specification.draft)
+                text.text = draft; text.delegate?.textViewDidChange?(text)
+                XCTAssertTrue(text.becomeFirstResponder()); XCTAssertEqual(store.draft, draft)
+                let name = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.header.name" } as? UIControl)
+                name.sendActions(for: .touchUpInside)
+                try await wait(specification.id + ": presented source details") {
+                    guard let modal = controller.presentedViewController else { return false }
+                    return modal.viewIfLoaded?.window === window && !modal.isBeingPresented && modal.transitionCoordinator == nil
+                }
+                let modal = try XCTUnwrap(controller.presentedViewController)
+                content = modal.view; presented = modal; editor = text
+                behavior["viewingWhileDetails"] = store.isViewing
+                behavior["editorFocusedWhileDetails"] = text.isFirstResponder
+                XCTAssertFalse(text.isFirstResponder)
+                func toggle(_ id: String) throws -> UISwitch {
+                    try XCTUnwrap(views(in: content).first { $0.accessibilityIdentifier == id } as? UISwitch)
+                }
+                let alerts = try toggle("conversation.details.hideAlerts"), receipts = try toggle("conversation.details.readReceipts")
+                XCTAssertFalse(alerts.isOn); XCTAssertTrue(receipts.isOn)
+                alerts.setOn(true, animated: false); alerts.sendActions(for: .valueChanged)
+                behavior["alertsOptimistic"] = store.info?.listState.muted == true
+                XCTAssertTrue(store.info?.listState.muted == true)
+                try await wait("actual unsupported alert rollback") { store.info?.listState.muted == false && !alerts.isOn }
+                receipts.setOn(false, animated: false); receipts.sendActions(for: .valueChanged)
+                behavior["receiptsOptimistic"] = store.info?.listState.sendReadReceipts == false
+                XCTAssertTrue(store.info?.listState.sendReadReceipts == false)
+                try await wait("actual unsupported receipts rollback") { store.info?.listState.sendReadReceipts == true && receipts.isOn }
+                behavior["alertsAfterRollback"] = alerts.isOn; behavior["receiptsAfterRollback"] = receipts.isOn
+            } else {
+                XCTAssertEqual(controller.traitCollection.verticalSizeClass, .compact)
+            }
+            try await Task.sleep(for: .milliseconds(500))
+            window.layoutIfNeeded()
+            let visibleLabels = labels(in: window, window: window)
+            let visibleControls = controls(in: content, window: window)
+            let visibleImages = images(in: content, window: window)
+            let capturedSafeArea = [window.safeAreaInsets.top, window.safeAreaInsets.bottom, window.safeAreaInsets.left, window.safeAreaInsets.right]
+            let capturedVerticalSizeClass = controller.traitCollection.verticalSizeClass == .compact ? "compact" : "regular"
+            if specification.mode == "details" {
+                let title = try XCTUnwrap(visibleLabels.first { ($0["accessibilityIdentifier"] as? String) == "conversation.details.title" })
+                XCTAssertGreaterThanOrEqual(title["fontSize"] as? CGFloat ?? 0, sceneCategory == "large" ? 28 : 38)
+                for id in ["call", "video", "mail"] {
+                    let button = try XCTUnwrap(visibleControls.first { ($0["identifier"] as? String) == "conversation.details.\(id)" })
+                    XCTAssertEqual(button["enabled"] as? Bool, false)
+                }
+            }
+            let format = UIGraphicsImageRendererFormat(); format.scale = scene.screen.scale
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+                XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
+            }
+            let png = try XCTUnwrap(image.pngData())
+            if let presented {
+                let back = try XCTUnwrap(views(in: presented.view).compactMap { $0 as? UIControl }.first {
+                    $0.accessibilityIdentifier == "conversation.details.back" || $0.accessibilityLabel == "Back"
+                })
+                back.sendActions(for: .touchUpInside)
+                try await wait("actual source details back action") { controller.presentedViewController == nil }
+                try await wait("actual source viewing after details return") { store.isViewing }
+                XCTAssertEqual(store.draft, specification.draft)
+                XCTAssertFalse(editor?.isFirstResponder ?? true)
+                behavior["viewingAfterReturn"] = store.isViewing
+                behavior["editorFocusedAfterReturn"] = editor?.isFirstResponder ?? true
+                behavior["draftPreserved"] = store.draft == specification.draft
+            }
+            let metadata: [String: Any] = ["scene": specification.id, "mode": specification.mode,
+                "provenance": provenance, "sourceScene": specification.sourceScene,
+                "fixtureSha256": SHA256.hash(data: input).map { String(format: "%02x", $0) }.joined(),
+                "interactionFixtureSha256": SHA256.hash(data: interactionInput).map { String(format: "%02x", $0) }.joined(),
+                "imageSha256": SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined(),
+                "style": specification.style, "category": specification.category, "date": ISO8601DateFormatter().string(from: date),
+                "applicationContentSizeCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
+                "applicationCategoryMatchesScene": UIApplication.shared.preferredContentSizeCategory == systemCategory,
+                "os": ProcessInfo.processInfo.operatingSystemVersionString, "orientation": specification.orientation,
+                "viewport": [image.size.width, image.size.height], "scale": format.scale,
+                "safeArea": capturedSafeArea, "verticalSizeClass": capturedVerticalSizeClass,
+                "labels": visibleLabels, "controls": visibleControls, "imageViews": visibleImages,
+                "storeMessages": store.messages.count, "behavior": behavior,
+                "scope": "Actual unmodified pinned UIKit controls, details rollback/focus/viewing observations and compact header; offline read-only backend. No real account/transport, physical device or animation acceptance."]
+            for (suffix, data, type) in [("png", png, "public.png"), ("json", try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]), "public.json")] {
+                let attachment = XCTAttachment(data: data, uniformTypeIdentifier: type)
+                attachment.name = specification.id + "." + suffix; attachment.lifetime = .keepAlways; add(attachment)
+            }
+            // Do not leave a persistent simulator orientation for the next invocation.
+            try await orient(scene, controller: controller, landscape: false)
+        }
+    }
+}
 private struct ReferenceRow: Decodable {
     var id: String; var text: String; var outgoing: Bool; var seconds: Int?; var replyTo: String?
     var pollQuestion: String?; var pollChoices: [String]?

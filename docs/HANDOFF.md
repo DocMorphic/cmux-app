@@ -1,5 +1,15 @@
 ## Active full-parity goal — 2026-10-20
 
+Current reference work: the unchanged original nine UIKit scenes are joined by
+four separately hashed details/compact interaction cases. The source host now
+observes real settings rollback, draft/focus on return and modal viewing, plus
+actual landscape/compact traits and image/control geometry. All thirteen are
+required by expanded CI export. Twelve synthetic verifier tests and local project/
+Swift parsing pass; expanded hosted compilation/rendering are still pending.
+These changes do not establish Android, animation or physical acceptance. The
+Pixel is absent from USB; the user has again been told USB/unlock/cmux/Tailscale
+and an unlocked Mac are needed for the live checks.
+
 Latest Oct 21 header/details checkpoint: source portrait photo/name/back-count/
 Stop layout, both real details entrances and history-exhaustion service intro
 are mounted. Details preserve drafts, close on retirement and mirror Chief's

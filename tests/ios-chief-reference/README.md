@@ -58,3 +58,21 @@ is `12307880734`, outer SHA-256
 `c8cf04f878ddc63372028f99c5d200b8a43edbc5894d1a739658d53571fa1a54`.
 This accepts the offline UIKit reference batch; matched Android comparison,
 interactions, transport and physical-device acceptance remain separate gates.
+
+The next expanded batch keeps `Scenes.json` and its nine accepted input hashes
+unchanged. A separate `Interactions.json` adds normal/accessibility details and
+normal/accessibility landscape headers. The host opens the source name control,
+edits the real composer, exercises the actual unsupported settings and back
+action, and records draft/focus/viewing behavior. Modal viewing is an observation,
+not a presumed suspension. Public scene geometry requests must yield real
+landscape bounds and compact vertical traits; no controller-only size override
+substitutes for rotation. Image-view metrics and safe-area/control frames accompany
+the captures. These are settled offline states with animations disabled, not
+keyboard animation, interactive zoom, accessibility or physical acceptance.
+
+New workflow exports use `--with-interactions` and require all thirteen scenes,
+both fixture hashes, source provenance, real title fonts, disabled unavailable
+actions, settings rollback and draft/focus checks. Default exporter mode retains
+the original nine-scene acceptance contract for older artifacts. Twelve synthetic
+integrity tests verify rejection of incomplete, altered or mislabeled evidence;
+they do not render UIKit. Expanded hosted compilation and rendering are pending.

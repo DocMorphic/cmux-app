@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "scenes": [
+    {"id": "details-dark", "sourceScene": "runs-dark", "style": "dark", "category": "large", "orientation": "portrait", "mode": "details", "draft": "Retain the draft through details"},
+    {"id": "details-large-dark", "sourceScene": "large-dark", "style": "dark", "category": "accessibilityMedium", "orientation": "portrait", "mode": "details", "draft": "Retain the draft through details"},
+    {"id": "compact-dark", "sourceScene": "runs-dark", "style": "dark", "category": "large", "orientation": "landscape", "mode": "header"},
+    {"id": "compact-large-dark", "sourceScene": "large-dark", "style": "dark", "category": "accessibilityMedium", "orientation": "landscape", "mode": "header"}
+  ]
+}
