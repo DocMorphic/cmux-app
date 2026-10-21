@@ -1,5 +1,12 @@
 # Chief conversations
 
+Oct 21 trimming follow-up: Home queries, work title/status/preview and question
+Other text/admission now reuse the composer policy verified against Foundation.
+All 62 actual Swift trim vectors are exercised through these consumers, including
+U+0085/U+200B trimming and retained U+001C. The full JVM suite passes 3,025 with
+four skips and no failures. Localized search, Unicode canonical-equivalence and
+remaining visual/interaction/device acceptance are still open.
+
 Latest header/details checkpoint (Oct 21): the centered 60-point portrait photo,
 source name capsule/back count/Stop controls, direct details page and exhausted
 history service introduction are mounted. Both details entrances preserve the

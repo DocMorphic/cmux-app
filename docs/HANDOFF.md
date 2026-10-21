@@ -1,6 +1,8 @@
 ## Active full-parity goal — 2026-10-20
 
-Current reference work: the unchanged original nine UIKit scenes are joined by
+Current reference work: hosted run `39533735026`, source
+`962ec10c4cc74e30a7fdf0a776bd37b570d3b4c2`, is in progress. Do not duplicate it.
+The unchanged original nine UIKit scenes are joined by
 four separately hashed details/compact interaction cases. The source host now
 observes real settings rollback, draft/focus on return and modal viewing, plus
 actual landscape/compact traits and image/control geometry. All thirteen are
@@ -9,6 +11,14 @@ Swift parsing pass; expanded hosted compilation/rendering are still pending.
 These changes do not establish Android, animation or physical acceptance. The
 Pixel is absent from USB; the user has again been told USB/unlock/cmux/Tailscale
 and an unlocked Mac are needed for the live checks.
+
+Chief Home query, work fields and question Other admission now share the same
+Foundation whitespace policy as the composer. A regression runs all 62 actual
+Swift trim vectors through those consumers, including U+0085/U+200B and U+001C.
+The full JVM run passes 3,025 with four skips and zero failures; log is
+`captures/recovery-20261021/chief-shared-trim-build.log`. This narrows trimming
+only; localized search/canonical-equivalence and broader UI/physical gates stay
+open. No account/pairing/signing/phone changes were made.
 
 Latest Oct 21 header/details checkpoint: source portrait photo/name/back-count/
 Stop layout, both real details entrances and history-exhaustion service intro

@@ -12,9 +12,12 @@ internal data class NativeChiefHomeState(
     val error: String? = null, val changeCursor: String? = null
 ) {
     val pinned get() = conversations.firstOrNull { it.pinned } ?: conversations.firstOrNull()
-    fun matching(query: String) = conversations.filter { query.trim().let { text ->
-        text.isEmpty() || it.title.contains(text, ignoreCase = true) || it.preview.contains(text, ignoreCase = true)
-    } }
+    fun matching(query: String): List<NativeChiefConversation> {
+        val text = NativeChiefTextPolicy.trim(query)
+        return conversations.filter {
+            text.isEmpty() || it.title.contains(text, ignoreCase = true) || it.preview.contains(text, ignoreCase = true)
+        }
+    }
 }
 
 /** Main-dispatcher confined. A retained owner supplies the exact same authority as the RPC client. */

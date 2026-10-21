@@ -9,6 +9,30 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefSessionTest {
+    @Test fun sourceFoundationTrimsApplyToHomeWorkAndOtherAnswerAdmission() {
+        // These are independently emitted by the pinned Swift trim implementation,
+        // including U+0085/U+200B (trimmed) and U+001C (retained).
+        val vectors = javaClass.getResourceAsStream("/parity/chief-composer.json")!!.bufferedReader().use {
+            MobileJson.objectValue(it.readText()).getJSONArray("trims")
+        }
+        val conversations = listOf(
+            NativeChiefConversation("one", "x", "hello", 0, false, false, instant),
+            NativeChiefConversation("two", "Different", "content", 0, false, false, instant))
+        val home = NativeChiefHomeState(conversations)
+        for (index in 0 until vectors.length()) {
+            val row = vectors.getJSONObject(index); val raw = row.getString("text"); val trimmed = row.getString("trimmed")
+            val expectedMatches = conversations.filter { trimmed.isEmpty() || it.title.contains(trimmed, true) || it.preview.contains(trimmed, true) }
+            assertEquals("search vector $index", expectedMatches, home.matching(raw))
+            val work = NativeChiefPart("work", NativeChiefWork("s", null, raw, raw, raw), null, null)
+            val expectedWork = if (trimmed.isEmpty()) "" else "$trimmed · $trimmed · $trimmed"
+            assertEquals("work vector $index", expectedWork, NativeChiefPresentation.displayText(message(1, text = "", parts = listOf(work))))
+            val form = NativeChiefQuestionForm(question(other = true)).editOther(raw)
+            assertEquals("answer text vector $index", trimmed.takeIf(String::isNotEmpty), form.text)
+            assertEquals("answer choice vector $index", trimmed.isNotEmpty(), form.selections["item"].isNullOrEmpty())
+            assertTrue("answer remains admissible vector $index", form.canSubmit)
+        }
+    }
+
     @Test fun unsupportedChiefDetailsRollBackWithoutChangingReadAdmissionOrTransport() = runTest {
         val api=Api();var current=true
         val session=NativeChiefTranscriptSession(this,api,"chief-main",{current})

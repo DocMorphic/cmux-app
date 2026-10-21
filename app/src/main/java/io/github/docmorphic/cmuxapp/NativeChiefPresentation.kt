@@ -42,7 +42,9 @@ internal object NativeChiefPresentation {
         if (work.isNotEmpty()) {
             var text = message.text
             work.forEach {
-                val title = it.title.trim(); val status = it.status.trim(); val preview = it.preview.orEmpty().trim()
+                val title = NativeChiefTextPolicy.trim(it.title)
+                val status = NativeChiefTextPolicy.trim(it.status)
+                val preview = NativeChiefTextPolicy.trim(it.preview.orEmpty())
                 val detail = listOf(status, preview).filter(String::isNotEmpty).joinToString(" · ")
                 val rendered = if (detail.isEmpty()) title else "$title · $detail"
                 val legacy = listOf(preview, title).firstOrNull { candidate -> candidate.isNotEmpty() && text.contains(candidate) }
@@ -74,7 +76,7 @@ internal data class NativeChiefQuestionForm(
 ) {
     val otherTarget get() = question.items.firstOrNull { it.allowsOther && selections[it.id].isNullOrEmpty() }
         ?: question.items.firstOrNull { it.allowsOther }
-    val text get() = otherText.trim().takeIf(String::isNotEmpty)
+    val text get() = NativeChiefTextPolicy.trim(otherText).takeIf(String::isNotEmpty)
     val canSubmit get() = question.items.isNotEmpty() && question.problems(
         (question.items.map { it.id } + selections.keys).distinct().associateWith { id ->
             NativeChiefQuestion.Selection(selections[id].orEmpty().toList(), text.takeIf { id == otherTarget?.id })
@@ -93,7 +95,7 @@ internal data class NativeChiefQuestionForm(
 
     fun editOther(text: String): NativeChiefQuestionForm {
         val target = otherTarget
-        return copy(otherText = text, selections = if (text.isNotBlank() && target != null && !target.multiSelect)
+        return copy(otherText = text, selections = if (NativeChiefTextPolicy.hasContent(text) && target != null && !target.multiSelect)
             selections + (target.id to emptySet()) else selections)
     }
 }

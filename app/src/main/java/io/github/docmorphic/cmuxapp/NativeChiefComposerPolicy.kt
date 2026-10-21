@@ -4,14 +4,20 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 
-/** Chief's text-only branch of ComposerBarGeometry and the store's plain send trimming. */
-internal object NativeChiefComposerPolicy {
+/** Foundation trimming shared by Chief's composer, Home search, work text and Other answers. */
+internal object NativeChiefTextPolicy {
     // CharacterSet.whitespacesAndNewlines, enumerated through the pinned Swift reference.
     private fun whitespace(c: Char) = c.code in 0x09..0x0d || c.code == 0x20 || c.code == 0x85 ||
         c.code == 0xa0 || c.code == 0x1680 || c.code in 0x2000..0x200b || c.code == 0x2028 ||
         c.code == 0x2029 || c.code == 0x202f || c.code == 0x205f || c.code == 0x3000
     fun trim(text: String) = text.trim(::whitespace)
     fun hasContent(text: String) = trim(text).isNotEmpty()
+}
+
+/** Chief's text-only branch of ComposerBarGeometry and the store's plain send trimming. */
+internal object NativeChiefComposerPolicy {
+    fun trim(text: String) = NativeChiefTextPolicy.trim(text)
+    fun hasContent(text: String) = NativeChiefTextPolicy.hasContent(text)
     fun sideInset(progress: Double, rest: Double = 28.0, keyboard: Double = 16.0) =
         rest + (keyboard - rest) * progress.coerceIn(0.0, 1.0)
     data class Rect(val x: Double, val y: Double, val width: Double, val height: Double)
