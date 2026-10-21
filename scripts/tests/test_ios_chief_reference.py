@@ -85,13 +85,14 @@ class ReferenceIntegrityTests(unittest.TestCase):
         baseline = json.loads((self.exported / (self.scenes[0]['id'] + '.json')).read_text())
         for index, specification in enumerate(json.loads(source)['scenes']):
             name = specification['id']; details = specification['mode'] == 'details'
-            image = png(100 + index, width=2 if details else 3, height=3 if details else 2)
+            landscape = specification['orientation'] == 'landscape'
+            image = png(100 + index, width=3 if landscape else 2, height=2 if landscape else 3)
             value = dict(baseline, **{key: specification[key] for key in ('id', 'style', 'category', 'sourceScene', 'mode', 'orientation')})
             value.update(scene=name, interactionFixtureSha256=interaction_sha,
-                         viewport=[2, 3] if details else [3, 2], imageSha256=hashlib.sha256(image).hexdigest(),
-                         safeArea=[0, 0, 0, 0], verticalSizeClass='regular' if details else 'compact',
+                         viewport=[3, 2] if landscape else [2, 3], imageSha256=hashlib.sha256(image).hexdigest(),
+                         safeArea=[0, 0, 0, 0], verticalSizeClass='compact' if landscape else 'regular',
                          imageViews=[{'imageSize': [17, 17], 'symbol': True}],
-                         behavior={'viewingBefore': True})
+                         behavior={'viewingBefore': True, 'ancestorVisibilityGuardPassed': True})
             value['provenance'] = dict(baseline['provenance'], interactionsSha256=interaction_sha)
             if details:
                 value['labels'] = [{'accessibilityIdentifier': 'conversation.details.title', 'text': 'Chief',
@@ -104,8 +105,25 @@ class ReferenceIntegrityTests(unittest.TestCase):
                     navigationLeftItemCount=1, navigationRightItemCount=0, navigationItemIdentifier='conversation.details.back',
                     editorFocusedWhileDetails=False, editorFocusedAfterReturn=False, draftPreserved=True,
                     alertsOptimistic=True, receiptsOptimistic=True, alertsAfterRollback=False, receiptsAfterRollback=True)
+            elif specification['mode'] == 'thread':
+                rows = next(s['rows'] for s in self.scenes if s['id'] == specification['sourceScene'])
+                selected = [row for row in rows if row['id'] == specification['rootID'] or row.get('replyTo') == specification['rootID']]
+                value['controls'] = [{'identifier': 'conversation.header.trailing', 'label': 'Close', 'enabled': True}]
+                value['thread'] = dict(rootID=specification['rootID'], quoteMessageID=specification['quoteMessageID'],
+                    bubbleIdentifiers=sorted('conversation.bubble.' + row['id'] for row in selected),
+                    labels=[{'text': row['text'], 'class': 'ConversationEffectLabel', 'fontSize': 28} for row in selected],
+                    contentFrame=[0, 0, 2, 2], contentSize=[2, 2], contentOffset=[0, 0], editorFrame=[0, 2, 2, 1],
+                    rowFrames=[{'identityTransform': True, 'frame': [0, 0, 2, 1]}])
+                value['behavior'].update(threadOpenActivation='sourceQuoteAccessibilityActivate', quoteContainerCount=1,
+                    quoteElementCount=1, threadCloseActivation='sourceTrailingTouchUpInside', threadCloseControlCount=1,
+                    viewingWhileThread=True, editorFocusedWhileThread=True, draftPreservedWhileThread=True,
+                    backingAccessibilityHidden=True, backHiddenWhileThread=True, threadRemovedAfterClose=True,
+                    backingAccessibilityRestored=True, viewingAfterReturn=True, editorFocusedAfterReturn=True,
+                    draftPreserved=True, normalHeaderRestored=True)
             else:
                 value['controls'] = [{'identifier': 'conversation.header.' + action, 'enabled': True} for action in ('name', 'trailing')]
+            for record in value['controls'] + value['imageViews']:
+                record.update(frame=[0, 0, 1, 1], visibleFrame=[0, 0, 1, 1])
             (self.exported / (name + '.png')).write_bytes(image)
             (self.exported / (name + '.json')).write_text(json.dumps(value))
 
@@ -113,10 +131,10 @@ class ReferenceIntegrityTests(unittest.TestCase):
         path = self.exported / (name + '.json'); value = json.loads(path.read_text())
         change(value); path.write_text(json.dumps(value))
 
-    def test_expanded_batch_requires_all_thirteen_scenes_and_a_distinct_fixture_hash(self):
+    def test_expanded_batch_requires_all_fifteen_scenes_and_a_distinct_fixture_hash(self):
         self.add_interactions(); self.verify(with_interactions=True)
         receipt = json.loads((self.output / 'receipt.json').read_text())
-        self.assertEqual(13, len(receipt['scenes']))
+        self.assertEqual(15, len(receipt['scenes']))
         self.assertNotEqual(receipt['scenesSha256'], receipt['interactionsSha256'])
         (self.exported / 'compact-dark.json').unlink()
         with self.assertRaisesRegex(ValueError, 'Missing/unexpected rendered scenes'): self.verify(with_interactions=True)
@@ -164,6 +182,58 @@ class ReferenceIntegrityTests(unittest.TestCase):
         self.mutate_interaction('details-dark', lambda value: value['behavior'].update(navigationPrimaryControlCount=2))
         with self.assertRaisesRegex(ValueError, 'Ambiguous source Back navigation controls'):
             self.verify(with_interactions=True)
+
+    def test_ancestor_visibility_guard_and_observed_clip_are_required(self):
+        self.add_interactions()
+        path = self.exported / 'compact-dark.json'; original = path.read_text()
+        for change, error in [
+            (lambda v: v['behavior'].pop('ancestorVisibilityGuardPassed'), 'Ancestor visibility observation guard'),
+            (lambda v: v['controls'][0].pop('visibleFrame'), 'Missing effective ancestor visibility'),
+            (lambda v: v['imageViews'][0].update(visibleFrame=[0, 0, 0, 1]), 'Invalid effective ancestor visibility'),
+            (lambda v: v['controls'][0].update(visibleFrame=[-1, 0, 2, 1]), 'Invalid effective ancestor visibility'),
+        ]:
+            with self.subTest(error=error):
+                path.write_text(original); self.mutate_interaction('compact-dark', change)
+                with self.assertRaisesRegex(ValueError, error): self.verify(with_interactions=True)
+
+    def test_thread_requires_the_real_quote_and_close_actions_and_retained_editor(self):
+        self.add_interactions()
+        path = self.exported / 'thread-dark.json'; original = path.read_text()
+        for key, bad in [('threadOpenActivation', 'privateSelector'), ('quoteElementCount', 2),
+                         ('threadCloseActivation', 'manualRemove'), ('threadCloseControlCount', 2),
+                         ('draftPreserved', False), ('editorFocusedAfterReturn', False),
+                         ('backingAccessibilityHidden', False), ('backingAccessibilityRestored', False)]:
+            with self.subTest(key=key):
+                path.write_text(original); self.mutate_interaction('thread-dark', lambda v: v['behavior'].update({key: bad}))
+                with self.assertRaisesRegex(ValueError, 'Actual source thread entry/close'): self.verify(with_interactions=True)
+
+    def test_thread_rejects_unrelated_nested_or_missing_loaded_copies(self):
+        self.add_interactions()
+        path = self.exported / 'thread-dark.json'; original = path.read_text()
+        for ids in [[], ['conversation.bubble.parent'], ['conversation.bubble.parent', 'conversation.bubble.reply', 'conversation.bubble.next']]:
+            path.write_text(original); self.mutate_interaction('thread-dark', lambda v: v['thread'].update(bubbleIdentifiers=ids))
+            with self.assertRaisesRegex(ValueError, 'exactly loaded root and direct replies'): self.verify(with_interactions=True)
+        path.write_text(original)
+        self.mutate_interaction('thread-dark', lambda v: v['thread']['labels'].append(dict(v['thread']['labels'][0])))
+        with self.assertRaisesRegex(ValueError, 'copies missing, duplicated'): self.verify(with_interactions=True)
+
+    def test_thread_rejects_back_control_leaks_unsettled_motion_or_missing_geometry(self):
+        self.add_interactions()
+        path = self.exported / 'thread-dark.json'; original = path.read_text()
+        for change, error in [
+            (lambda v: v['controls'].append(dict(v['controls'][0], identifier='', label='Back')), 'Hidden backing Back'),
+            (lambda v: v['controls'].append(dict(v['controls'][0])), 'Close control missing or ambiguous'),
+            (lambda v: v['thread']['rowFrames'][0].update(identityTransform=False), 'row motion did not settle'),
+            (lambda v: v['thread'].pop('editorFrame'), 'layout geometry missing'),
+        ]:
+            with self.subTest(error=error):
+                path.write_text(original); self.mutate_interaction('thread-dark', change)
+                with self.assertRaisesRegex(ValueError, error): self.verify(with_interactions=True)
+
+    def test_thread_accessibility_requires_actual_large_copy_type(self):
+        self.add_interactions()
+        self.mutate_interaction('thread-large-dark', lambda v: v['thread']['labels'][0].update(fontSize=17))
+        with self.assertRaisesRegex(ValueError, 'Actual thread accessibility type missing'): self.verify(with_interactions=True)
 
 
 if __name__ == '__main__': unittest.main()

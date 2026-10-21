@@ -35,6 +35,8 @@ jobs:
           pin_major="$(cut -d. -f1 .xcode-version)"
           CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
           xcodebuild -version
+      - name: Check reference export guards
+        run: python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_reference.py
       - name: Prepare immutable offline reference host
         run: |
           python3 cmux-app/scripts/prepare-ios-chief-reference.py --upstream upstream --output "$RUNNER_TEMP/chief-reference"

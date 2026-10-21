@@ -13,6 +13,7 @@ private struct ReferenceInteractions: Decodable { var schema: Int; var scenes: [
 private struct ReferenceInteraction: Decodable {
     var id: String; var sourceScene: String; var style: String; var category: String
     var orientation: String; var mode: String; var draft: String?
+    var rootID: String?; var quoteMessageID: String?
 }
 
 extension CmuxChiefReferenceTests {
@@ -33,13 +34,53 @@ extension CmuxChiefReferenceTests {
         return [r.minX, r.minY, r.width, r.height]
     }
 
+    @MainActor private func effectiveVisibleFrame(_ view: UIView, window: UIWindow) -> CGRect? {
+        guard view.window === window else { return nil }
+        var opacity: CGFloat = 1
+        var visible = view.convert(view.bounds, to: window).intersection(window.bounds)
+        var ancestor: UIView? = view
+        while let current = ancestor {
+            opacity *= current.alpha
+            guard !current.isHidden, opacity > 0.01 else { return nil }
+            if current.clipsToBounds { visible = visible.intersection(current.convert(current.bounds, to: window)) }
+            ancestor = current.superview
+        }
+        return visible.isNull || visible.isEmpty ? nil : visible
+    }
+
+    @MainActor private func accessibleElements(in root: UIView, window: UIWindow) -> [UIAccessibilityElement] {
+        views(in: root).filter { effectiveVisibleFrame($0, window: window) != nil }.flatMap { view in
+            (view.accessibilityElements ?? []).compactMap { $0 as? UIAccessibilityElement }
+        }
+    }
+
+    @MainActor private func verifyAncestorVisibility(window: UIWindow) throws {
+        // Render-observation guard: a visible child inside a hidden/transparent or
+        // clipped-away ancestor must not count as a visible source control/image.
+        let parent = UIView(frame: CGRect(x: 10, y: 10, width: 80, height: 80))
+        let button = UIButton(frame: CGRect(x: 0, y: 0, width: 40, height: 40))
+        let picture = UIImageView(image: try XCTUnwrap(UIImage(systemName: "xmark")))
+        picture.frame = button.frame; parent.addSubview(button); parent.addSubview(picture); window.addSubview(parent)
+        defer { parent.removeFromSuperview() }
+        XCTAssertEqual(controls(in: parent, window: window).count, 1)
+        XCTAssertEqual(images(in: parent, window: window).count, 1)
+        parent.alpha = 0
+        XCTAssertTrue(controls(in: parent, window: window).isEmpty); XCTAssertTrue(images(in: parent, window: window).isEmpty)
+        parent.alpha = 1; parent.isHidden = true
+        XCTAssertTrue(controls(in: parent, window: window).isEmpty); XCTAssertTrue(images(in: parent, window: window).isEmpty)
+        parent.isHidden = false; parent.clipsToBounds = true
+        button.frame.origin.x = 100; picture.frame.origin.x = 100
+        XCTAssertTrue(controls(in: parent, window: window).isEmpty); XCTAssertTrue(images(in: parent, window: window).isEmpty)
+    }
+
     @MainActor private func controls(in root: UIView, window: UIWindow) -> [[String: Any]] {
         views(in: root).compactMap { view in
-            guard let control = view as? UIControl, !view.isHidden, view.alpha > 0.01,
-                  !view.convert(view.bounds, to: window).intersection(window.bounds).isEmpty else { return nil }
+            guard let control = view as? UIControl,
+                  let visible = effectiveVisibleFrame(view, window: window) else { return nil }
             var record: [String: Any] = ["class": String(describing: type(of: control)),
                 "identifier": control.accessibilityIdentifier ?? "", "label": control.accessibilityLabel ?? "",
-                "frame": frame(control, in: window), "enabled": control.isEnabled]
+                "frame": frame(control, in: window), "enabled": control.isEnabled,
+                "visibleFrame": [visible.minX, visible.minY, visible.width, visible.height]]
             if let toggle = control as? UISwitch { record["on"] = toggle.isOn }
             return record
         }
@@ -48,11 +89,10 @@ extension CmuxChiefReferenceTests {
     @MainActor private func images(in root: UIView, window: UIWindow) -> [[String: Any]] {
         views(in: root).compactMap { view in
             guard let imageView = view as? UIImageView, let image = imageView.image,
-                  !view.isHidden, view.alpha > 0.01,
-                  !view.convert(view.bounds, to: window).intersection(window.bounds).isEmpty else { return nil }
+                  let visible = effectiveVisibleFrame(view, window: window) else { return nil }
             return ["class": String(describing: type(of: imageView)), "frame": frame(imageView, in: window),
                 "imageSize": [image.size.width, image.size.height], "imageScale": image.scale,
-                "symbol": image.isSymbolImage]
+                "symbol": image.isSymbolImage, "visibleFrame": [visible.minX, visible.minY, visible.width, visible.height]]
         }
     }
 
@@ -97,10 +137,13 @@ extension CmuxChiefReferenceTests {
                 window.layoutIfNeeded()
                 return store.hasLoadedNewest && store.messages.count == base.rows.count && store.isViewing
             }
-            var behavior: [String: Any] = ["viewingBefore": store.isViewing]
+            try verifyAncestorVisibility(window: window)
+            var behavior: [String: Any] = ["viewingBefore": store.isViewing, "ancestorVisibilityGuardPassed": true]
             var content: UIView = controller.view
             var presented: UIViewController?
             var editor: UITextView?
+            var thread: UIView?
+            var threadObservations: [String: Any] = [:]
             if specification.mode == "details" {
                 let text = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.composer.text" } as? UITextView)
                 let draft = try XCTUnwrap(specification.draft)
@@ -132,6 +175,64 @@ extension CmuxChiefReferenceTests {
                 XCTAssertTrue(store.info?.listState.sendReadReceipts == false)
                 try await wait("actual unsupported receipts rollback") { store.info?.listState.sendReadReceipts == true && receipts.isOn }
                 behavior["alertsAfterRollback"] = alerts.isOn; behavior["receiptsAfterRollback"] = receipts.isOn
+            } else if specification.mode == "thread" {
+                let rootID = try XCTUnwrap(specification.rootID)
+                let quoteID = try XCTUnwrap(specification.quoteMessageID)
+                let rootRow = try XCTUnwrap(base.rows.first { $0.id == rootID })
+                let quoteRow = try XCTUnwrap(base.rows.first { $0.id == quoteID })
+                XCTAssertEqual(quoteRow.replyTo, rootID)
+                let text = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.composer.text" } as? UITextView)
+                let draft = try XCTUnwrap(specification.draft)
+                text.text = draft; text.delegate?.textViewDidChange?(text)
+                XCTAssertTrue(text.becomeFirstResponder()); XCTAssertEqual(text.text, draft)
+                // Locate the quote on the real mounted cell's contentView, using
+                // its neighboring bubble identifier. Do not invoke private APIs.
+                try await wait(specification.id + ": mounted quoted source row") {
+                    window.layoutIfNeeded()
+                    return accessibleElements(in: controller.view, window: window).contains {
+                        $0.accessibilityIdentifier == "conversation.bubble." + quoteID
+                    }
+                }
+                let containers = views(in: controller.view).filter { view in
+                    effectiveVisibleFrame(view, window: window) != nil && (view.accessibilityElements ?? []).contains {
+                        ($0 as? UIAccessibilityElement)?.accessibilityIdentifier == "conversation.bubble." + quoteID
+                    }
+                }
+                let container = try XCTUnwrap(containers.count == 1 ? containers.first : nil, "Require a unique real quote-owning source cell")
+                let quotes = (container.accessibilityElements ?? []).compactMap { $0 as? UIAccessibilityElement }.filter {
+                    $0.accessibilityTraits.contains(.button) && $0.accessibilityLabel == rootRow.text
+                }
+                let quote = try XCTUnwrap(quotes.count == 1 ? quotes.first : nil, "Require the unique source quote accessibility element")
+                behavior["quoteContainerCount"] = containers.count; behavior["quoteElementCount"] = quotes.count
+                behavior["threadOpenActivation"] = "sourceQuoteAccessibilityActivate"
+                XCTAssertTrue(quote.accessibilityActivate())
+                try await wait(specification.id + ": actual source reply overlay") {
+                    window.layoutIfNeeded()
+                    return views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.replyThread" }
+                }
+                let overlay = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.replyThread" })
+                let collections = views(in: controller.view).compactMap { $0 as? UICollectionView }
+                let collection = try XCTUnwrap(collections.count == 1 ? collections.first : nil)
+                try await wait(specification.id + ": reply row motion and close chrome") {
+                    window.layoutIfNeeded()
+                    let scroller = overlay.subviews.compactMap { $0 as? UIScrollView }.first
+                    return scroller?.subviews.allSatisfy { $0.transform.isIdentity } == true &&
+                        text.isFirstResponder && controls(in: controller.view, window: window).contains {
+                            ($0["identifier"] as? String) == "conversation.header.trailing" && ($0["label"] as? String) == "Close"
+                        }
+                }
+                let expectedIDs = base.rows.filter { $0.id == rootID || $0.replyTo == rootID }.map { "conversation.bubble." + $0.id }.sorted()
+                let actualIDs = accessibleElements(in: overlay, window: window).compactMap { $0.accessibilityIdentifier }
+                    .filter { $0.hasPrefix("conversation.bubble.") }.sorted()
+                XCTAssertEqual(actualIDs, expectedIDs)
+                XCTAssertTrue(collection.accessibilityElementsHidden)
+                XCTAssertEqual(text.text, draft); XCTAssertTrue(text.isFirstResponder)
+                behavior["viewingWhileThread"] = store.isViewing
+                behavior["editorFocusedWhileThread"] = text.isFirstResponder
+                behavior["draftPreservedWhileThread"] = text.text == draft
+                behavior["backingAccessibilityHidden"] = collection.accessibilityElementsHidden
+                threadObservations = ["rootID": rootID, "quoteMessageID": quoteID, "bubbleIdentifiers": actualIDs]
+                thread = overlay; editor = text
             } else {
                 XCTAssertEqual(controller.traitCollection.verticalSizeClass, .compact)
             }
@@ -142,6 +243,20 @@ extension CmuxChiefReferenceTests {
             let visibleImages = images(in: content, window: window)
             let capturedSafeArea = [window.safeAreaInsets.top, window.safeAreaInsets.bottom, window.safeAreaInsets.left, window.safeAreaInsets.right]
             let capturedVerticalSizeClass = controller.traitCollection.verticalSizeClass == .compact ? "compact" : "regular"
+            if let thread {
+                let scroller = try XCTUnwrap(thread.subviews.compactMap { $0 as? UIScrollView }.first)
+                let boxes = controls(in: controller.view, window: window)
+                XCTAssertFalse(boxes.contains { ($0["label"] as? String) == "Back" })
+                behavior["backHiddenWhileThread"] = true
+                threadObservations["labels"] = labels(in: thread, window: window)
+                threadObservations["contentFrame"] = frame(scroller, in: window)
+                threadObservations["contentSize"] = [scroller.contentSize.width, scroller.contentSize.height]
+                threadObservations["contentOffset"] = [scroller.contentOffset.x, scroller.contentOffset.y]
+                threadObservations["rowFrames"] = scroller.subviews.filter { !$0.isHidden && $0.alpha > 0.01 }.map {
+                    ["class": String(describing: type(of: $0)), "frame": frame($0, in: window), "identityTransform": $0.transform.isIdentity] as [String: Any]
+                }
+                threadObservations["editorFrame"] = frame(try XCTUnwrap(editor), in: window)
+            }
             if specification.mode == "details" {
                 let title = try XCTUnwrap(visibleLabels.first { ($0["accessibilityIdentifier"] as? String) == "conversation.details.title" })
                 XCTAssertGreaterThanOrEqual(title["fontSize"] as? CGFloat ?? 0, sceneCategory == "large" ? 28 : 38)
@@ -197,6 +312,33 @@ extension CmuxChiefReferenceTests {
                 behavior["editorFocusedAfterReturn"] = editor?.isFirstResponder ?? true
                 behavior["draftPreserved"] = editor?.text == specification.draft
             }
+            if thread != nil {
+                let closeControls = views(in: controller.view).compactMap { $0 as? UIControl }.filter {
+                    $0.accessibilityIdentifier == "conversation.header.trailing" && $0.accessibilityLabel == "Close" &&
+                        $0.isEnabled && effectiveVisibleFrame($0, window: window) != nil && $0.allControlEvents.contains(.touchUpInside)
+                }
+                let close = try XCTUnwrap(closeControls.count == 1 ? closeControls.first : nil)
+                behavior["threadCloseControlCount"] = closeControls.count
+                behavior["threadCloseActivation"] = "sourceTrailingTouchUpInside"
+                close.sendActions(for: .touchUpInside)
+                try await wait("actual source thread close") {
+                    window.layoutIfNeeded()
+                    return !views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.replyThread" }
+                }
+                try await wait("actual source normal header after thread close") {
+                    controls(in: controller.view, window: window).contains { ($0["label"] as? String) == "Back" } &&
+                        close.accessibilityLabel == "Stop Chief"
+                }
+                let collections = views(in: controller.view).compactMap { $0 as? UICollectionView }
+                XCTAssertEqual(editor?.text, specification.draft); XCTAssertTrue(editor?.isFirstResponder ?? false)
+                XCTAssertTrue(store.isViewing); XCTAssertTrue(collections.allSatisfy { !$0.accessibilityElementsHidden })
+                behavior["threadRemovedAfterClose"] = true
+                behavior["backingAccessibilityRestored"] = collections.count == 1 && collections.allSatisfy { !$0.accessibilityElementsHidden }
+                behavior["viewingAfterReturn"] = store.isViewing
+                behavior["editorFocusedAfterReturn"] = editor?.isFirstResponder ?? false
+                behavior["draftPreserved"] = editor?.text == specification.draft
+                behavior["normalHeaderRestored"] = true
+            }
             let metadata: [String: Any] = ["scene": specification.id, "mode": specification.mode,
                 "provenance": provenance, "sourceScene": specification.sourceScene,
                 "fixtureSha256": SHA256.hash(data: input).map { String(format: "%02x", $0) }.joined(),
@@ -209,8 +351,8 @@ extension CmuxChiefReferenceTests {
                 "viewport": [image.size.width, image.size.height], "scale": format.scale,
                 "safeArea": capturedSafeArea, "verticalSizeClass": capturedVerticalSizeClass,
                 "labels": visibleLabels, "controls": visibleControls, "imageViews": visibleImages,
-                "storeMessages": store.messages.count, "behavior": behavior,
-                "scope": "Actual unmodified pinned UIKit controls, details rollback/focus/viewing observations and compact header; offline read-only backend. No real account/transport, physical device or animation acceptance."]
+                "storeMessages": store.messages.count, "behavior": behavior, "thread": threadObservations,
+                "scope": "Actual unmodified pinned UIKit controls, details rollback/focus/viewing, compact header and source quote activation/thread close observations; offline read-only backend. No real account/transport, physical device or animation acceptance."]
             for (suffix, data, type) in [("json", try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]), "public.json")] {
                 let attachment = XCTAttachment(data: data, uniformTypeIdentifier: type)
                 attachment.name = specification.id + "." + suffix; attachment.lifetime = .keepAlways; add(attachment)

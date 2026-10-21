@@ -3,12 +3,28 @@
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import shutil
 import struct
 
 
-def verify_interaction(name, value, specification):
+def verify_visible_geometry(name, value):
+    width, height = value['viewport']
+    for record in value.get('controls', []) + value.get('imageViews', []):
+        frame, visible = record.get('frame'), record.get('visibleFrame')
+        if any(not isinstance(rect, list) or len(rect) != 4 or
+               any(type(v) not in (int, float) or not math.isfinite(v) for v in rect)
+               for rect in (frame, visible)):
+            raise ValueError('Missing effective ancestor visibility geometry: ' + name)
+        x, y, w, h = visible
+        fx, fy, fw, fh = frame
+        if (w <= 0 or h <= 0 or x < -0.01 or y < -0.01 or x + w > width + 0.01 or y + h > height + 0.01 or
+            x < fx - 0.01 or y < fy - 0.01 or x + w > fx + fw + 0.01 or y + h > fy + fh + 0.01):
+            raise ValueError('Invalid effective ancestor visibility geometry: ' + name)
+
+
+def verify_interaction(name, value, specification, source_scene):
     """Require observed source behavior; never assume overFullScreen suspends viewing."""
     if any(value.get(key) != specification[key] for key in ('mode', 'sourceScene', 'orientation')):
         raise ValueError('Wrong interaction identity: ' + name)
@@ -23,6 +39,9 @@ def verify_interaction(name, value, specification):
     behavior = value.get('behavior', {})
     if behavior.get('viewingBefore') is not True:
         raise ValueError('Reference conversation did not start viewing: ' + name)
+    if behavior.get('ancestorVisibilityGuardPassed') is not True:
+        raise ValueError('Ancestor visibility observation guard did not run: ' + name)
+    verify_visible_geometry(name, value)
     controls = {control['identifier']: control for control in value.get('controls', []) if control.get('identifier')}
     if specification['mode'] == 'details':
         titles = [label for label in value['labels'] if label.get('accessibilityIdentifier') == 'conversation.details.title']
@@ -50,10 +69,50 @@ def verify_interaction(name, value, specification):
                     'alertsAfterRollback': False, 'receiptsAfterRollback': True}
         if any(behavior.get(key) is not expected for key, expected in required.items()):
             raise ValueError('Actual details focus, draft or rollback behavior failed: ' + name)
-    else:
+    elif specification['mode'] == 'thread':
+        thread = value.get('thread', {})
+        root_id, quote_id = specification['rootID'], specification['quoteMessageID']
+        rows = source_scene['rows']
+        by_id = {row['id']: row for row in rows}
+        if (root_id not in by_id or quote_id not in by_id or by_id[quote_id].get('replyTo') != root_id or
+            thread.get('rootID') != root_id or thread.get('quoteMessageID') != quote_id):
+            raise ValueError('Wrong actual thread root/quote identity: ' + name)
+        expected = sorted('conversation.bubble.' + row['id'] for row in rows if row['id'] == root_id or row.get('replyTo') == root_id)
+        if thread.get('bubbleIdentifiers') != expected:
+            raise ValueError('Thread must contain exactly loaded root and direct replies: ' + name)
+        required = {'threadOpenActivation': 'sourceQuoteAccessibilityActivate', 'quoteContainerCount': 1, 'quoteElementCount': 1,
+                    'threadCloseActivation': 'sourceTrailingTouchUpInside', 'threadCloseControlCount': 1,
+                    'viewingWhileThread': True, 'editorFocusedWhileThread': True, 'draftPreservedWhileThread': True,
+                    'backingAccessibilityHidden': True, 'backHiddenWhileThread': True,
+                    'threadRemovedAfterClose': True, 'backingAccessibilityRestored': True, 'viewingAfterReturn': True,
+                    'editorFocusedAfterReturn': True, 'draftPreserved': True, 'normalHeaderRestored': True}
+        if any(behavior.get(key) != expected or type(behavior.get(key)) is not type(expected) for key, expected in required.items()):
+            raise ValueError('Actual source thread entry/close, focus, draft or accessibility behavior failed: ' + name)
+        closes = [c for c in value.get('controls', []) if c.get('identifier') == 'conversation.header.trailing']
+        if len(closes) != 1 or closes[0].get('label') != 'Close' or closes[0].get('enabled') is not True:
+            raise ValueError('Actual source thread Close control missing or ambiguous: ' + name)
+        if any(c.get('label') == 'Back' for c in value.get('controls', [])):
+            raise ValueError('Hidden backing Back control leaked into thread observations: ' + name)
+        body = [label for label in thread.get('labels', []) if label.get('class') == 'ConversationEffectLabel']
+        expected_text = [row['text'] for row in rows if row['id'] == root_id or row.get('replyTo') == root_id]
+        if sorted(label.get('text', '') for label in body) != sorted(expected_text):
+            raise ValueError('Actual thread copies missing, duplicated or carrying nested quote text: ' + name)
+        if specification['category'] == 'accessibilityMedium' and any(label.get('fontSize', 0) < 28 for label in body):
+            raise ValueError('Actual thread accessibility type missing: ' + name)
+        frames = thread.get('rowFrames', [])
+        if not frames or any(row.get('identityTransform') is not True for row in frames):
+            raise ValueError('Actual thread row motion did not settle: ' + name)
+        for key, count in (('contentFrame', 4), ('contentSize', 2), ('contentOffset', 2), ('editorFrame', 4)):
+            points = thread.get(key)
+            if (not isinstance(points, list) or len(points) != count or
+                any(type(v) not in (int, float) or not math.isfinite(v) for v in points)):
+                raise ValueError('Actual thread layout geometry missing: ' + name)
+    elif specification['mode'] == 'header':
         for identifier in ('conversation.header.name', 'conversation.header.trailing'):
             if controls.get(identifier, {}).get('enabled') is not True:
                 raise ValueError('Missing actual compact header control: ' + name)
+    else:
+        raise ValueError('Unreviewed interaction mode: ' + name)
 
 
 def verify(exported, output, project_commit, with_interactions=False):
@@ -99,7 +158,7 @@ def verify(exported, output, project_commit, with_interactions=False):
         if name in interactions:
             if value.get('interactionFixtureSha256') != interaction_sha or provenance.get('interactionsSha256') != interaction_sha:
                 raise ValueError('Interaction fixture changed')
-            verify_interaction(name, value, interactions[name])
+            verify_interaction(name, value, interactions[name], scenes[interactions[name]['sourceScene']])
         image = images.get(value['imageSha256'])
         if image is None: raise ValueError('Missing or changed screenshot payload: ' + name)
         dimensions = struct.unpack('>II', image.read_bytes()[16:24])
@@ -123,5 +182,5 @@ if __name__ == '__main__':
     parser.add_argument('--exported', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--project-commit', required=True)
-    parser.add_argument('--with-interactions', action='store_true', help='Require all four actual details/compact interaction captures as well as the original nine scenes')
+    parser.add_argument('--with-interactions', action='store_true', help='Require all actual details/compact/thread interaction captures as well as the original nine scenes')
     args = parser.parse_args(); verify(args.exported.resolve(), args.output.resolve(), args.project_commit, args.with_interactions)

@@ -1,5 +1,17 @@
 # Chief conversations
 
+Oct 21 native thread reference extension: prepared normal/actual-accessibility
+thread cases through the real public quote element activation and registered
+Close header event. It requires loaded root/direct copies, settled transforms,
+draft/focus/viewing, hidden Back/backing accessibility and restored normal state,
+with thread/content/editor geometry. Image/control observations now honor hidden,
+transparent and clipping ancestors, with an actual runtime observation guard.
+All 19 exporter integrity tests and local Swift/project parsing pass. The original
+nine scene bytes and 227-file source package remain unchanged. Fifteen captures
+are now required for this new batch; hosted UIKit compilation/rendering, image
+inspection and matched Android comparison remain pending. This does not revise
+the previously accepted thirteen-scene artifact or establish thread motion/parity.
+
 Oct 21 reply workflow checkpoint: quotes now request the loaded
 parent thread, and the source Reply accessibility action targets the selected
 message within its loaded root. Missing roots cause no fallback read. The retained

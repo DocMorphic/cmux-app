@@ -1,5 +1,27 @@
 # Pinned UIKit Chief references
 
+Current extension adds normal and actual accessibility-size thread interactions
+to `Interactions.json`, requiring fifteen captures while leaving the original
+nine `Scenes.json` inputs and complete upstream package unchanged. The harness
+locates the unique quote accessibility element on the real mounted cell's
+content view, invokes its public `accessibilityActivate()`, and closes through
+the unique real Close header control's registered `touchUpInside` action. It
+requires exactly the root/direct reply copies, settled row transforms, retained
+draft/focus/viewing, hidden Back/backing accessibility and actual restoration.
+Thread row/content/editor geometry accompanies the screenshots. This exercises
+the real source callbacks with an offline backend; it does not verify gestures,
+animation timing, physical keyboard/touch or transport.
+
+Control/image observations now account for hidden/transparent/clipping ancestors.
+Each actual invocation exercises a small temporary parent/child visibility guard
+before capture, and records the resulting visible rectangles. Nineteen synthetic
+export-integrity tests pass, including rejection of missing/ambiguous source
+actions, wrong thread membership, hidden Back leaks, unsettled row transforms,
+missing geometry and ordinary-size accessibility copies. Local preparation,
+project parsing and Swift syntax parsing pass. Full UIKit compilation/rendering
+of this extension remains pending; the prior thirteen-scene batch stays accepted
+under its own source and fixture hashes.
+
 This disposable XCTest host renders the actual `CmuxConversationUI` package at
 the Chief audit revision. The complete package tree is pinned separately in the
 Chief manifest; this is an executable reference dependency, not a claim that
