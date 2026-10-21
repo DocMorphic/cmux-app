@@ -56,6 +56,7 @@ def verify(exported, output, commit):
         require(provenance.get('projectSourceCommit') == commit and provenance.get('projectSourceDirty') is False, 'Wrong/dirty project source')
         require(o.get('activation') == 'sourceBubbleAccessibilityActivate' and o.get('ancestorVisibilityGuardPassed') is True, 'Missing actual source activation/visibility guard')
         require(o.get('keyboardDismissed') is True and o.get('modal') is True and o.get('previewClips') is True, 'Wrong source menu ownership')
+        require(rect(o.get('sourceBubbleFrame')), 'Missing actual source bubble frame')
         require(rect(o['platterFrame']) and rect(o['previewFrame']) and abs(o['platterFrame'][2] - 250) < .01 and 1 <= o['previewScale'] <= 1.151, 'Invalid menu/preview geometry')
         preview, platter = o['previewFrame'], o['platterFrame']; inset = o['screenInset']; safe = o['safeArea']
         require(len(safe)==4 and all(type(x) in (float,int) and math.isfinite(x) and x>=0 for x in safe) and type(inset) in (float,int) and math.isfinite(inset) and inset>=0, 'Missing source safe-area/margins')

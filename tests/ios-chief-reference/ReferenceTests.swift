@@ -776,7 +776,12 @@ extension CmuxChiefReferenceTests {
                 }
             }
             let targetBubble = try XCTUnwrap(bubble(specification.messageID))
-            let activationFrame = targetBubble.accessibilityFrame
+            // The source element overrides its container-space frame provider.
+            // Direct in-process accessibilityFrame can remain zero without an
+            // AX server query; convert the actual public container frame.
+            let activationContainer = try XCTUnwrap(targetBubble.accessibilityContainer as? UIView)
+            let activationFrame = activationContainer.convert(targetBubble.accessibilityFrameInContainerSpace, to: window)
+            XCTAssertTrue(activationFrame.width > 0 && activationFrame.height > 0 && activationFrame.intersects(window.bounds))
             trace("activate menu")
             XCTAssertTrue(targetBubble.accessibilityActivate())
             try await wait("actual source action overlay") { views(in: controller.view).contains { $0.accessibilityIdentifier == "conversation.actions" } }

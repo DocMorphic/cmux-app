@@ -3,7 +3,8 @@ exercising outgoing Reply. The settled harness had globally disabled animations,
 which collapses the source menu dismissal before its 0.12 s Reply handoff timer.
 The corrected harness preserves source animation lifetime for Reply/Close while
 keeping settled PNG capture separate. Its exporter requires that callback scope;
-45 local export tests pass. A hosted rerun remains required. The failed run and
+46 local export tests pass. The source bubble frame is now converted from its
+public container-space provider and zero frames are rejected. A hosted rerun remains required. The failed run and
 its partial incoming-menu capture remain diagnostics, not accepted references.
 
 The action-reference extension now adds five separate `Actions.json` scenes:

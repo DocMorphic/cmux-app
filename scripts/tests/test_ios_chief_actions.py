@@ -19,7 +19,7 @@ class ActionGuards(unittest.TestCase):
    elif f['action']=='reply':b.update(replyHandoff='sourceMenuTouchUpInside',editorFocusedAfterReply=True,replyAnimationsEnabled=True)
    else:b.update(selectedInitially=['conversation.bubble.parent'],selectedAfterToggle=['conversation.bubble.parent','conversation.bubble.reply'],forwardVisible=False,composerHidden=True,selectionCancelRestoresComposer=True,deleteConfirmation=['Delete 2 Messages','Cancel'],directCoreLocalDeleteIDs=['next'],destructiveAlertActivated=False)
    p=dict(upstreamRevision=m['revision'],packageTree=m['referencePackage']['tree'],projectSourceDirty=False,projectSourceCommit=self.commit,actionsSha256=V.digest(template/'Actions.json'),scenesSha256=V.digest(template/'Scenes.json'),referenceTestsSha256=V.digest(template/'ReferenceTests.swift'),referenceAppSha256=V.digest(template/'ReferenceApp.swift'))
-   o=dict(activation='sourceBubbleAccessibilityActivate',ancestorVisibilityGuardPassed=True,keyboardDismissed=True,modal=True,previewClips=True,previewScale=1.1,rows=rows,platterFrame=platter,previewFrame=preview,screenInset=16,safeArea=[0,0,0,0],menuLabels=[dict(fontSize=17)]*4,behavior=b)
+   o=dict(activation='sourceBubbleAccessibilityActivate',ancestorVisibilityGuardPassed=True,keyboardDismissed=True,modal=True,previewClips=True,previewScale=1.1,rows=rows,platterFrame=platter,previewFrame=preview,sourceBubbleFrame=[x,30,250,70],screenInset=16,safeArea=[0,0,0,0],menuLabels=[dict(fontSize=17)]*4,behavior=b)
    value=dict(f,actionScene=name,actualStyle=f['style'],actualLandscape=landscape,applicationCategoryMatchesScene=True,animationsEnabled=False,outgoing=outgoing,capturePhase='selection' if f['action']=='more' else 'menu',fixtureSha256=V.digest(template/'Actions.json'),imageSha256=hashlib.sha256(image).hexdigest(),provenance=p,viewport=[w,h],scale=1,labels=[dict(fontSize=28,class_='ConversationEffectLabel')],controls=rows,observation=o)
    value['labels'][0]['class']=value['labels'][0].pop('class_');(self.export/(name+'.png')).write_bytes(image);(self.export/(name+'.json')).write_text(json.dumps(value))
  def verify(self):
@@ -56,4 +56,7 @@ class ActionGuards(unittest.TestCase):
  def test_reply_without_source_animation_lifetime_is_rejected(self):
   self.mutate(lambda v:v['observation']['behavior'].update(replyAnimationsEnabled=False),name='menu-outgoing-dark')
   with self.assertRaisesRegex(ValueError,'animation lifetime'):self.verify()
+ def test_zero_source_bubble_frame_is_rejected(self):
+  self.mutate(lambda v:v['observation'].update(sourceBubbleFrame=[0,0,0,0]))
+  with self.assertRaisesRegex(ValueError,'source bubble frame'):self.verify()
 if __name__=='__main__':unittest.main()
