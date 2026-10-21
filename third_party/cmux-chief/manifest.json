@@ -172,5 +172,14 @@
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ReplyTrip.swift": "5f5239b94f55f2f4e4379dbc5de15d7d7956930ed6e76d05f8fddf09d73c731e",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+Reply.swift": "d6d28236b8c71fd8833367b574f0b0c203cc5ba17f6e290c51aff42e6128937e",
     "Packages/iOS/CmuxConversation/Tests/CmuxConversationGeometryTests/ReplyTripTests.swift": "5bedae432e0a6006b496e49a71b266160aaf9a7145a55b61e20422f0ca4103c8"
+  },
+  "menuFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/MessagePressTiming.swift": "71fb85819e552b757625482765231ee18fe02ff97280a05f987d7945f6473091",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationMenuGlass.swift": "563a9a158f4b0eb72e1a7d5f769cdea25f64deb020476108332aae1a41eb11e8",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/MessageActionOverlay.swift": "dc0bf26c9d5d472d0a93d25efd5cdcd7bcfd8d54662331a28d4fe49a192a6904",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+Gestures.swift": "1252bef81cec6c4b48d0c398713a80299cafe34c8c4be2f620de50e9fc6dfa8c",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationAccessibility.swift": "a48b43212af55da6c08bce8c9c50690319fc89d720f478f4e7a8926c992be8bf",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+TextSelection.swift": "7e3dcca18b015399c051993fec9052cf48e2cf30c0ede3874ef4e099e1ca4182",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationStore.swift": "172895cb7b0c811b7765ea46c6261c6703d13ccd7a2f5cd87a8c61c83651a293"
   }
 }

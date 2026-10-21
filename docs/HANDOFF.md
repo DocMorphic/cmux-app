@@ -1,3 +1,33 @@
+## Chief menu and local deletion foundation — 2026-10-22
+
+Pinned source press timing, gesture arbitration, fixed menu metrics and the
+Chief-only lifted-preview/layout bodies now generate independent Swift vectors:
+1,152 placements, 32 gesture pairs, 11 release/tap cases and six scale sizes.
+The Kotlin port matches all vectors; two independent source generations have
+SHA256 cf032802227885c9f594e1932e562515aa41a0cb40b4e5377e107776e421934d.
+These inert-view numerical observations do not establish UIKit/Android rendering.
+
+The retained transcript now supports source-style deleteLocally(stable row IDs).
+It preserves drafts and read markers, sends no remote delete, and retains known
+server/client tombstones across pause/history refresh. A queued row removed
+before transmit is skipped, matching the source's current-message guard. An
+already-started request continues; its canonical ack IDs are tombstoned and any
+previously retained client-less echo is removed. Equal-text neighbours survive,
+and stale owner actions are rejected. The previous statement about admitted
+sends must be read with this queued versus in-flight distinction.
+
+119 focused Chief tests pass. Full JVM suite: 3068 tests, 3064 passes/four opt-in
+skips, zero failures/errors; 415 reports archived and hashed in
+captures/recovery-20261022/chief-menu-foundation-checkpoint.json. Owned Gradle
+9.3.1 daemon stopped; unrelated host Gradle processes are outside this task.
+
+The Android action menu and More selection UI are still not mounted. The next
+step is the source-qualified press/lift/ownership workflow, then Copy/Reply/Select/
+More with real geometry, keyboard and accessibility checks. Native reference
+run 39694449187 is pending; frame-guard correction below requires a fresh run.
+Signed 712 and physical 703 remain unchanged. All broad/physical parity gates
+remain active; no further Mac pairing-window action is requested.
+
 ## Chief action reference runtime repair — 2026-10-22 (rerun pending)
 
 Hosted run 39692913894 at ad9ddbe3 compiled and completed Copy, then failed
@@ -9,7 +39,10 @@ animations immediately remove the menu in dismiss(), before the separate
 actual source animations only around Reply/Close callbacks; settled menu PNGs
 retain the disabled-animation scope. A new exporter guard requires this live
 handoff scope, and per-scene stage traces aid future runtime diagnosis.
-45 local export guard tests pass; UIKit rerun is still required. No failed
+46 local export guard tests pass; UIKit rerun is still required.
+The partial capture also exposed a zero direct AX frame; the harness now
+converts the source element's actual container-space frame and requires a
+positive source bubble frame in both UIKit and export guards. No failed
 artifact is acceptance and no Android action menu is mounted yet.
 
 No further Mac menu action is requested: the saved recovery checkpoint verified

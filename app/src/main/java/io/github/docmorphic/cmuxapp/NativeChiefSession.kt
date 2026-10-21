@@ -469,12 +469,33 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     /** Delete only the failed local row. Known late echoes stay hidden for this owner's retained session. */
     fun discardFailed(clientMessageId: String): Boolean {
         checkOwner()
-        val failed = state.value.outgoing.singleOrNull { it.clientMessageId == clientMessageId && it.delivery.isFailed } ?: return false
-        deletedClientIds += failed.clientMessageId
-        failed.echoClientMessageId?.let { deletedClientIds += it }
-        failed.serverMessageId?.let { deletedMessageIds += it }
-        state.value.localClientIds.filterValues { it == clientMessageId }.keys.forEach { deletedMessageIds += it }
-        mutableState.value = state.value.copy(outgoing = state.value.outgoing.filterNot { it.clientMessageId == clientMessageId })
+        if (state.value.outgoing.none { it.clientMessageId == clientMessageId && it.delivery.isFailed }) return false
+        return deleteLocally(setOf("c:$clientMessageId"))
+    }
+
+    /** Source More/Delete: remove only the captured stable rows for this owner.
+     * Tombstones survive pause/history reads. Queued sends lose their row before
+     * transmit's admission check; an already-started request is not cancelled. */
+    fun deleteLocally(rowIds: Set<String>): Boolean {
+        checkOwner()
+        val doomed = NativeChiefTimeline.items(state.value).filter { it.key in rowIds }
+        if (doomed.isEmpty()) return false
+        for (item in doomed) {
+            item.message?.let { message ->
+                deletedMessageIds += message.id
+                message.clientMessageId?.let { deletedClientIds += it }
+                state.value.localClientIds[message.id]?.let { deletedClientIds += it }
+            }
+            item.outgoing?.let { outgoing ->
+                deletedClientIds += outgoing.clientMessageId
+                outgoing.echoClientMessageId?.let { deletedClientIds += it }
+                outgoing.serverMessageId?.let { deletedMessageIds += it }
+            }
+        }
+        state.value.localClientIds.filterValues { it in deletedClientIds }.keys.forEach { deletedMessageIds += it }
+        mutableState.value = state.value.copy(
+            messages = state.value.messages.filterNot { it.id in deletedMessageIds || it.clientMessageId in deletedClientIds },
+            outgoing = state.value.outgoing.filterNot { it.clientMessageId in deletedClientIds })
         return true
     }
 
@@ -498,6 +519,16 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         try {
             val sent = owned { client.send(text, conversationId, clientMessageId = id) }
             check(sent.conversation == conversationId) { "Chief returned another conversation" }
+            // Deletion can happen while send awaits the host. Retain canonical
+            // identifiers from its ack even if its local row has already gone,
+            // so a later history page without a client id cannot resurrect it.
+            if (id in deletedClientIds) {
+                sent.messageId?.let { deletedMessageIds += it }
+                sent.clientMessageId?.let { deletedClientIds += it }
+                mutableState.value = state.value.copy(messages = state.value.messages.filterNot {
+                    it.id in deletedMessageIds || it.clientMessageId in deletedClientIds
+                })
+            }
             mutableState.value = state.value.copy(outgoing = state.value.outgoing.map {
                 if (it.clientMessageId == id) it.copy(serverMessageId = sent.messageId, replyToID = null,
                     echoClientMessageId = sent.clientMessageId,

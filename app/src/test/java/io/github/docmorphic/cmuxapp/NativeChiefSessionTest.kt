@@ -663,6 +663,77 @@ class NativeChiefSessionTest {
         } finally { session.close() }
     }
 
+    @Test fun moreDeletesStableRowsLocallyAcrossRefreshWithoutChangingDraftOrSameTextNeighbours() = runTest {
+        val api = Api(); val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant })
+        val incoming = message(1, text = "Repeated")
+        val human = message(2, text = "Repeated", human = true, clientId = "from-another-device")
+        val neighbour = message(3, text = "Repeated")
+        try {
+            api.reads.send(Result.success(page(incoming, human, neighbour))); session.start(); runCurrent()
+            session.editDraft("Keep my draft")
+            val before = session.state.value
+            assertFalse(session.deleteLocally(setOf("s:missing", "c:missing")))
+            assertTrue(session.deleteLocally(setOf("s:m1", "c:from-another-device")))
+            assertEquals(listOf("m3"), session.state.value.messages.map { it.id })
+            assertEquals(before.draftRevision, session.state.value.draftRevision)
+            assertEquals(before.lastReadSeq, session.state.value.lastReadSeq)
+            assertEquals(before.headSeq, session.state.value.headSeq)
+            assertEquals(before.unread, session.state.value.unread)
+            session.refresh(); api.reads.send(Result.success(page(incoming, human, neighbour))); runCurrent()
+            api.waits.send(Result.success(page(message(4, "late-alias", "Repeated", true, "from-another-device"), message(5, text = "Repeated")))); runCurrent()
+            assertEquals(listOf("m3", "m5"), session.state.value.messages.map { it.id })
+            assertEquals("Keep my draft", session.state.value.draft)
+            assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty()); assertEquals(0, api.stops)
+        } finally { session.close() }
+    }
+
+    @Test fun deletingQueuedRowsSkipsTheirWriteButAnInflightDeletedAckCannotResurrectItsCanonicalRow() = runTest {
+        val api = Api(); var next = 0; val ack = CompletableDeferred<NativeChiefSent>()
+        var cancelled = false
+        api.sendBlock = { _, id ->
+            if (id == "local-1") try { ack.await() } catch (e: CancellationException) { cancelled = true; throw e }
+            else NativeChiefSent("chief-main", "kept", id, false)
+        }
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { true }, { instant }, { "local-${++next}" })
+        try {
+            api.reads.send(Result.success(page())); session.start(); runCurrent()
+            session.editDraft("Started"); val first = async { session.send() }; runCurrent()
+            session.editDraft("Still queued"); val second = async { session.send() }; runCurrent()
+            session.editDraft("Keep this send"); val third = async { session.send() }; runCurrent()
+            assertEquals(listOf("Started" to "local-1"), api.sends)
+            assertTrue(session.deleteLocally(setOf("c:local-1", "c:local-2")))
+            assertEquals(listOf("local-3"), session.state.value.outgoing.map { it.clientMessageId })
+            // A client-less live echo can precede the ack that identifies it.
+            val echo = message(1, "canonical", "Started", true)
+            api.waits.send(Result.success(page(echo))); runCurrent()
+            assertEquals(listOf("canonical"), session.state.value.messages.map { it.id })
+            api.reads.send(Result.success(page(echo)))
+            api.reads.send(Result.success(page(echo, message(2, "kept", "Keep this send", true, "local-3"))))
+            ack.complete(NativeChiefSent("chief-main", "canonical", "canonical-client", false)); runCurrent()
+            first.await(); second.await(); third.await()
+            assertFalse(cancelled)
+            assertEquals(listOf("Started" to "local-1", "Keep this send" to "local-3"), api.sends)
+            assertEquals(listOf("kept"), session.state.value.messages.map { it.id })
+            api.waits.send(Result.success(page(echo, message(3, "canonical-alias", "Started", true, "canonical-client")))); runCurrent()
+            assertEquals(listOf("kept"), session.state.value.messages.map { it.id })
+        } finally { session.close() }
+    }
+
+    @Test fun moreDeletionRejectsRetiredAuthorityAndCannotAffectANewOwnersSameRowID() = runTest {
+        val api = Api(); var current = true
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { current })
+        api.reads.send(Result.success(page(message(1)))); session.start(); runCurrent()
+        current = false
+        assertThrows(IllegalStateException::class.java) { session.deleteLocally(setOf("s:m1")) }
+        assertTrue(session.state.value.retired); assertTrue(session.state.value.messages.isEmpty())
+        val next = NativeChiefTranscriptSession(this, api, "chief-main", { true })
+        try {
+            api.reads.send(Result.success(page(message(1)))); next.start(); runCurrent()
+            assertEquals(listOf("m1"), next.state.value.messages.map { it.id })
+            assertTrue(api.sends.isEmpty())
+        } finally { session.close(); next.close() }
+    }
+
     @Test fun retirementClearsFailedTextAndRejectsRetryOrDeletionBeforeAnyHostCall() = runTest {
         val api = Api(); var current = true
         val session = NativeChiefTranscriptSession(this, api, "chief-main", { current }, { instant }, { "old-client" })

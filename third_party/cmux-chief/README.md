@@ -118,3 +118,21 @@ skip there); the separate landscape run passes all four. These source/fixture/
 emulator checks do not establish full UIKit, other OS/background branches,
 animation/accessibility or real-host/phone parity. See docs/CHIEF.md for scope,
 failed-run diagnostics and capture provenance.
+
+Chief's action-menu foundation now ports the pinned `MessagePressTiming`,
+`MessageMenuGeometry`, fixed menu metrics and Chief-only `layoutFinal` / lifted
+preview branch. `menuFiles` records source hashes. `scripts/check-chief-menu.py`
+compiles the whole geometry declarations and verbatim menu-size/lift/layout
+bodies with inert view dependencies and reactions/custom emoji disabled, matching
+the actual Chief host configuration. Source-generated vectors cover 1,152 menu
+placements/clips, 32 recognizer pairs, 11 release/tap boundaries and six sizes.
+This foundation is not a mounted Android menu or gesture implementation. Native
+UIKit action-reference capture is a separate workflow and must pass its source,
+fixture, template, geometry, callback and PNG association guards before acceptance.
+
+The retained session also ports Core's local deletion by stable row ID. Queued
+rows removed before transmit are skipped; already-started requests complete and
+their canonical acknowledgement IDs join local tombstones. Three additional
+session tests cover refreshed history, late aliases, equal-text neighbours,
+draft/read preservation and owner retirement. This backend foundation is not
+a mounted More/selection toolbar or a remote deletion API.
