@@ -1,3 +1,27 @@
+## Verified candidate 709 — 2026-10-21
+
+Signed candidate 709 includes the tested swipe work at clean source
+`ec108cd30441e09d6602b4df6967689c36e8a20b`. APK SHA-256
+`e75ce4efceffa9f4655fab2a5f66b6f7f097c7c297f36afafcf37fc243e0ada1`,
+277,633,913 bytes. Independent checks pass the existing signing certificate,
+22 native libraries/alignment, 21 viewer assets, 14 debug-fixture exclusions and
+selected Firebase resources. APK/source receipt:
+`captures/runtime/parity-candidate-709/`; strict receipt:
+`captures/recovery-20261021/apk-verification-709/apk-verification.json`.
+It is not installed or published. Gradle daemon/emulator stopped; display restored.
+Mac recheck still reports locked; Pixel USB absent. Preserve existing release
+app data and first restore `svc power stayon false` on authorized Pixel return.
+
+The native thread batch is accepted and swipe behavior tests pass as recorded
+below. Next source/UI comparison: matched normal/AX thread states, caption type,
+timestamp geometry (current Android labelSmall/padding/semibold differs from the
+actual source caption2/explicit row geometry/medium), material gray and exact
+font/inset/glyph treatment, followed by ReplyTrip travel/release-offset unwind.
+`captures/recovery-20261021/chief-thread-match-next.json` preserves source rules
+and actual native 28⅔/44⅓-point timestamp row measurements. Physical Mac/Pixel
+terminal, encrypted FCM/cold-tap/lifecycle and the remaining completion gates stay
+open. Full-parity goal remains active.
+
 ## Swipe entry and accepted native thread reference — 2026-10-21
 
 Acknowledged balloons now support source-shaped rightward swipe admission,
