@@ -835,6 +835,83 @@ class NativeChiefRuntimeTest {
         assertTrue("reaching newest resumes following", axis().maxValue() - axis().value() < 1f)
     }
 
+    @Test fun quoteVisibleCellCarriesItsOffscreenBubbleIntoAndBackOutOfTheThread() {
+        org.junit.Assume.assumeTrue("Enable animator duration scale for partial-cell travel", android.animation.ValueAnimator.areAnimatorsEnabled())
+        compose.runOnUiThread {
+            api.homeUnread = 0; api.readMarker = 50uL
+            api.rows = (1..50).map { index -> when (index) {
+                30 -> message("partial-root", 30uL, "Partial root from your Mac.")
+                31 -> message("partial-reply", 31uL, "Replying from a partial cell.", human = true).copy(threadRoot = "partial-root")
+                else -> message("partial-$index", index.toULong(), "Message $index")
+            } }
+            computer.home.refresh()
+        }
+        compose.waitUntil(10_000) { computer.home.state.value.pinned?.unread == 0L }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:partial-50").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep partial quote")
+        settledComposerGeometry()
+        val state = computer.transcript()!!.state.value
+        val index = NativeChiefTimeline.rows(state).indexOfFirst { it.item.messageID == "partial-reply" } +
+            if (state.hasMore || state.hasLoadedInfo) 1 else 0
+        compose.onNodeWithTag("ChiefMessages").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollToIndex) {
+            assertTrue(it(index))
+        }
+        compose.waitForIdle()
+        fun frame(tag: String): androidx.compose.ui.geometry.Rect {
+            val node = compose.onNodeWithTag(tag).fetchSemanticsNode()
+            val point = node.positionInRoot
+            return androidx.compose.ui.geometry.Rect(point.x, point.y, point.x + node.size.width, point.y + node.size.height)
+        }
+        val viewport = frame("ChiefMessages")
+        val quote = frame("ChiefQuote:partial-reply")
+        val desired = viewport.bottom - minOf(quote.height / 2, 12 * compose.activity.resources.displayMetrics.density)
+        compose.onNodeWithTag("ChiefMessages").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
+            assertTrue(it(0f, quote.top - desired))
+        }
+        compose.waitUntil(10_000) { kotlin.math.abs(frame("ChiefQuote:partial-reply").top - desired) < 2f }
+        val partialQuote = frame("ChiefQuote:partial-reply")
+        assertTrue(partialQuote.top < viewport.bottom && partialQuote.bottom > viewport.bottom)
+        val origins = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().config[ChiefReplyOriginsProbe]
+        var original: Float? = null
+        compose.runOnUiThread { original = origins().bubbles["partial-reply"] }
+        val originalTop = checkNotNull(original) { "A visible cell must retain its offscreen primary bubble" }
+        assertTrue("primary body is outside viewport", originalTop > viewport.bottom)
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("ChiefQuote:partial-reply").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+            compose.mainClock.advanceTimeByFrame(); compose.waitForIdle()
+            val probe = compose.onNodeWithTag("ChiefReplyThread").fetchSemanticsNode().config[ChiefReplyCopyBounds]
+            fun copy(): androidx.compose.ui.geometry.Rect {
+                var bounds: androidx.compose.ui.geometry.Rect? = null
+                compose.runOnUiThread { bounds = probe().getValue("partial-reply") }
+                return checkNotNull(bounds)
+            }
+            val first = copy()
+            assertEquals("source aligns the offscreen body, not the quote", originalTop, first.top, 1f)
+            saveScreenshot("chief-partial-cell-entry")
+            compose.mainClock.advanceTimeBy(1600); compose.waitForIdle()
+            val landed = copy()
+            assertTrue("copy enters from beyond the viewport", landed.top < first.top)
+            saveScreenshot("chief-partial-cell-landed")
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            compose.mainClock.advanceTimeBy(128); compose.waitForIdle()
+            val returning = closingCopy("partial-reply")
+            assertTrue("visible quote supplies a return target instead of a stationary fade", returning.top > landed.top + 1f)
+            saveScreenshot("chief-partial-cell-return")
+            compose.mainClock.advanceTimeBy(1200); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Keep partial quote")
+            assertTrue(api.sends.isEmpty())
+            fun rect(value: androidx.compose.ui.geometry.Rect) = org.json.JSONArray(listOf(value.left, value.top, value.width, value.height))
+            val directory = File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+            File(directory, "chief-partial-cell.json").writeText(JSONObject().put("viewport", rect(viewport))
+                .put("quote", rect(partialQuote)).put("originalBubbleTop", originalTop).put("entry", rect(first))
+                .put("landed", rect(landed)).put("returning", rect(returning)).put("orientation", compose.activity.resources.configuration.orientation)
+                .put("scope", "Actual message-cell/bubble layout and source entry/return on emulator; not physical or UIKit rendering acceptance.").toString(2))
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
     @Test fun rightSwipeOnAcknowledgedReplyTargetsThatMessageWithinItsLoadedRoot() {
         openReferenceScene("quote-dark")
         val body = compose.onNodeWithTag("ChiefMessage:reply").fetchSemanticsNode().boundsInRoot

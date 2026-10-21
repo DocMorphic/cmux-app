@@ -439,8 +439,12 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().testTag("ChiefMessages").onGloballyPositioned { replyOrigins.viewport = it }.then(if (replyMotion != null) Modifier.blur((10 * replyMotion.blur).dp) else Modifier)
             .then(if (reply != null) Modifier.clearAndSetSemantics {
-                if (BuildConfig.DEBUG) this[ChiefReplyVisibleRows] = { replyOrigins.snapshot().bubbles.keys }
+                if (BuildConfig.DEBUG) {
+                    this[ChiefReplyVisibleRows] = { replyOrigins.snapshot().bubbles.keys }
+                    this[ChiefReplyOriginsProbe] = { replyOrigins.snapshot() }
+                }
             } else Modifier.semantics {
+                if (BuildConfig.DEBUG) this[ChiefReplyOriginsProbe] = { replyOrigins.snapshot() }
                 scrollBy { _, y ->
                     val canScroll = if (y > 0) list.canScrollForward else if (y < 0) list.canScrollBackward else false
                     if (canScroll) scope.launch(start = CoroutineStart.UNDISPATCHED) { accessibilityScroll { list.scrollBy(y) } }
@@ -547,8 +551,10 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     onReply: ((String) -> Boolean)? = null, onSwipeReply: ((String, Float) -> Boolean)? = null, bodyAlpha: Float = 1f,
     origins: NativeChiefReplyOrigins? = null) {
     DisposableEffect(origins, row.item.key, row.timestamp) { onDispose {
-        origins?.bubbles?.remove(row.item.messageID); origins?.timestamps?.remove(row.item.key)
+        origins?.bubbles?.remove(row.item.messageID); origins?.cells?.remove(row.item.messageID)
+        origins?.timestamps?.remove(row.item.key)
     } }
+    val cellPosition = Modifier.onGloballyPositioned { origins?.cells?.set(row.item.messageID, it) }
     val baseGap = metrics.space(if (row.firstInRun) 10f else 4f)
     // Local outgoing rows already end in a status caption; acknowledged text ends in its tail.
     val previousMessage = previous?.item?.message
@@ -577,7 +583,7 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
             val emojiSize = remember(body, part) { if (part == null) NativeChiefEmojiPolicy.fontSize(body) else null }
             NativeChiefBalloonRow(row.quote, message.authorKind == "human", row.lastInRun,
                 message.id, expanded = part != null, text = body.takeIf { part == null }, metrics = metrics, emojiSize = emojiSize,
-                modifier = Modifier.alpha(bodyAlpha).then(replyAction), onQuote = row.quote?.let { { onQuote(it.id) } },
+                modifier = Modifier.alpha(bodyAlpha).then(replyAction).then(cellPosition), onQuote = row.quote?.let { { onQuote(it.id) } },
                 onSwipeReply = onSwipeReply?.let { action -> { offset -> action(message.id, offset); Unit } },
                 onBubblePositioned = { origins?.bubbles?.set(row.item.messageID, NativeChiefReplyOrigins.Bubble(row.item.key, it)) }) {
                 if (part == null) SelectionContainer { NativeChiefText(body) }
@@ -604,7 +610,7 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
         } else {
             val outgoing = checkNotNull(row.item.outgoing)
             val emojiSize = remember(outgoing.text) { NativeChiefEmojiPolicy.fontSize(outgoing.text) }
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.AbsoluteAlignment.Right) {
+            Column(Modifier.fillMaxWidth().then(cellPosition), horizontalAlignment = androidx.compose.ui.AbsoluteAlignment.Right) {
                 NativeChiefBalloonRow(row.quote, true, row.lastInRun, outgoing.clientMessageId, false, outgoing.text, metrics,
                     emojiSize = emojiSize, modifier = Modifier.alpha(bodyAlpha).then(replyAction), pending = true,
                     onQuote = row.quote?.let { { onQuote(it.id) } },

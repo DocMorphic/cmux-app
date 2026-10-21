@@ -14,6 +14,7 @@ import kotlin.math.roundToInt
 internal class NativeChiefReplyOrigins(private val visibleRows: () -> Set<String>) {
     data class Bubble(val rowKey: String, val coordinates: LayoutCoordinates)
     val bubbles = mutableMapOf<String, Bubble>()
+    val cells = mutableMapOf<String, LayoutCoordinates>()
     val timestamps = mutableMapOf<String, LayoutCoordinates>()
     var viewport: LayoutCoordinates? = null
 
@@ -31,7 +32,11 @@ internal class NativeChiefReplyOrigins(private val visibleRows: () -> Set<String
         // Lazy layouts may keep coordinates attached in their reuse/prefetch
         // pool. Match their row identity to the current visible layout as well.
         val bubbleYs = bubbles.mapNotNull { (id, bubble) ->
-            if (bubble.rowKey !in visible) null else y(bubble.coordinates)?.let { id to it }
+            val cell = cells[id]
+            if (bubble.rowKey !in visible || cell == null || y(cell) == null || !bubble.coordinates.isAttached) null
+            // Source converts the bubble of a visible MessageCell, even if only
+            // its quote/footer intersects the viewport and the body is outside.
+            else id to bubble.coordinates.positionInWindow().y
         }.toMap()
         val stampYs = timestamps.mapNotNull { (key, coordinates) ->
             if (key !in visible) null else y(coordinates)?.let { key to it }
@@ -42,6 +47,7 @@ internal class NativeChiefReplyOrigins(private val visibleRows: () -> Set<String
 
 /** Debug capture reads placed coordinates after layout, independently of the trip's
  * numeric model. It carries no text and is never exposed by release semantics. */
+internal val ChiefReplyOriginsProbe = SemanticsPropertyKey<() -> NativeChiefReplyOrigins.Snapshot>("ChiefReplyOriginsProbe")
 internal val ChiefReplyVisibleRows = SemanticsPropertyKey<() -> Set<String>>("ChiefReplyVisibleRows")
 internal val ChiefReplyCopyBounds = SemanticsPropertyKey<() -> Map<String, Rect>>("ChiefReplyCopyBounds")
 

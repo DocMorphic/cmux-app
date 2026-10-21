@@ -1,5 +1,46 @@
 # Chief conversations
 
+## Partial-cell reply origins — 2026-10-21
+
+Reply origins now use visible message-cell bounds and separately convert the
+primary bubble. A quote or local footer can keep its cell visible while its body
+lies beyond the conversation viewport. Timestamps remain separate, and current
+LazyColumn row identity still excludes reused/prefetched cells. The new rendered
+quote case proves body-over-body entry and a real return target in both orientations.
+Portrait viewport ends1614px, quote1578..1673, body1691; copy1691→1278→1571 on
+return. Landscape viewport ends462px, quote426..521, body539; copy539→126→455.
+Draft/focus survive and no send occurs. Footer membership is implemented; this new
+focused evidence specifically exercises the quote-visible/body-outside case.
+
+101 Chief JVM cases pass. Final portrait Chief plus two route checks:56 pass/three
+expected skips in252.683 s; landscape10 pass in28.036 s; reduced7 pass in31.718 s.
+All crash buffers empty. Six PNGs/paired layout receipts independently verify and
+were inspected. Evidence: `captures/recovery-20261021/chief-partial-cell-checkpoint.json`.
+The standalone portrait's176.609 s is diagnostic, not a performance claim. The
+final matrix has host-clock receipts. A duplicate emulator start was rejected;
+the verified existing owned instance52291 was reused, then restored/stopped. Size /
+density1080x2400/420 and animator0 restored; Gradle daemon stopped; USB empty.
+No signed APK/phone app changed; last physical release703 and candidate710 remain
+at their recorded scopes. First on Pixel return restore `svc power stayon false`.
+Verified Mac40840/helper43849 still run. Full-parity/physical terminal, encrypted
+FCM, cold/background taps, remaining source and visual gates stay open.
+
+Next is actual animated UIKit header evidence, then its Android port. The existing
+`captureInteractions` in `tests/ios-chief-reference/ReferenceTests.swift` calls
+`UIView.setAnimationsEnabled(false)`, so its settled fifteen-scene artifact cannot
+prove header fades/delays. Use a standalone animation-enabled reference test around
+the unmodified pinned package/offline ReferenceBackend. Enter via the actual quote
+accessibility activation; close via the actual overlay accessibility escape or
+trailing action. Sample timestamped presentation-layer opacity, labels, ancestor
+AX-hidden flags and real window hit testing for Back/trailing controls. Include
+steady enter/exit, early close, close around the delayed glyph swap, and reopen
+while returning. Record the actual runtime branch (accepted static refs26.4.1);
+SDK selection alone must not be treated as a simulator-runtime pin. No such dynamic
+probe is dispatched yet. Keep the original fixture/export contract intact. Header
+constants reviewed in source: Back enter.06; glyph delay.32 +out.05/in.2 on iOS26,
+.27 +out.05/in.05 on iOS27; exit glyph.06 and Back delay.3/in.2. Native interaction
+and cancellation during those intervals require observed evidence.
+
 ## Retained reply closing and accessibility reading intent — 2026-10-21
 
 Logical reply state now clears immediately while owned copies remain through both
