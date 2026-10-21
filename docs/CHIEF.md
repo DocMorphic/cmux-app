@@ -1,5 +1,14 @@
 # Chief conversations
 
+Latest header/details checkpoint (Oct 21): the centered 60-point portrait photo,
+source name capsule/back count/Stop controls, direct details page and exhausted
+history service introduction are mounted. Both details entrances preserve the
+draft; retirement closes details, and unsupported settings roll back without
+changing phone/helper preferences. Full JVM: 3,024 pass, four skip, zero failures.
+Final Android: 28 pass in 55.414 s, empty crash buffer. This is scoped source/debug
+acceptance; exact materials/transitions, wider lifecycle/accessibility and real
+host/device acceptance remain open. Detailed provenance and limits follow below.
+
 Latest text-composer checkpoint (Oct 21): the source/debug port now uses a
 growing text-only field with an internal send capsule, Foundation-compatible
 send trimming, synchronous send admission and synchronous local failed-row
@@ -461,3 +470,114 @@ Mac account/pairing or helper enrollment was changed. Pixel 703 and prepared
 signed 705 are unchanged; this source requires a fresh signed candidate before
 physical upgrade, rather than installing stale 705. The full-parity goal remains
 active and real Mac/Pixel/native terminal/FCM/cold notification taps remain gates.
+
+The later header/details port follows the same frozen `a5911a1f` conversation
+package. Portrait controls sit at the 16/20-point side margin in 44-point
+capsules; the photo is 60 points, with the source's wider 80-point portrait touch
+region. The name capsule starts 55 points below the consumed safe top, measures
+its actual text and caps the headline at 17–21 points. It grows its 32⅓-point
+height by the measured line-height difference. The back control speaks the
+original Home unread count as its value; the photo and name both open details.
+Stop retains its existing real session action. The source's compact avatar/name
+layout is ported too, normalizing coordinates by the status-bar inset already
+consumed by the Android shell. Pure geometry tests cover safe tops 0/24/48;
+actual landscape/wide-window lifecycle acceptance is still open.
+
+The direct details page uses the source 80-point photo, title, three disabled
+call/video/mail circles and two Info switches, without a Backgrounds tab or empty
+media sections. Bounded scrolling drives the source's collapse equations.
+The transcript behind the page is blurred; exact native material, scroll-edge
+pocket, negative-offset rubber band and avatar zoom transitions remain open.
+The Dialog explicitly retains its host density: the large-font case inspects the
+actual TextLayoutResult and requires fontScale 2 and a title of at least 38
+logical points. Opening details resigns composer focus, following source
+`openInfo`'s `view.endEditing(true)`; returning preserves the draft and does not
+refocus the field. Owner retirement clears and removes the page. UIKit details snapshots have not yet been captured
+for a matched visual comparison. The authored Android glyphs and custom switches
+still need that comparison, plus full TalkBack/RTL/locale/contrast/light testing.
+
+Chief's backend constructs a direct ConversationInfo with default list state,
+does not override `updateListState`, and does not implement background support.
+Its inherited method rejects with `-32601 / list state unsupported`. The source
+Info page nevertheless offers Hide Alerts and Send Read Receipts; the store
+publishes optimistically and restores the previous snapshot on rejection, with a
+generation fence. Android now mirrors that behavior in the retained owner. It
+does not invent an unsupported Chief wire method, persist a new setting, change
+the local FCM/helper enrollment or gate read admission on a transient switch.
+The source generation behavior is preserved even for successive optimistic
+updates: the newest rejection restores its own previous snapshot, rather than
+letting an older rejection overwrite it. JVM tests cover that behavior, missing
+initial info, retirement and absence of new send/answer/approval transport calls.
+
+The service introduction appears only after older history is exhausted, including
+an empty loaded conversation. It shows the source title and locked subtitle in
+caption type. It occupies the same leading index as the old-history row, and
+newest scrolling/catch-up offsets account for it. The existing history probe and
+loaded-window trim continue to operate on their real measured/message rows.
+Exact caption/timestamp spacing and accessibility grouping remain part of the
+broader typography/accessibility comparison.
+
+`scripts/check-chief-header.py` guards eight additional geometry/UI/core files
+and both label catalogs, compiles the actual unmodified portable Swift sources
+and verifies 36 compact frames, 56 direct details frames, five unread capsules,
+eight capped-name sizes, 12 quick-action category sizes and list defaults.
+UIKit portrait/details code and the unsupported backend branch are source
+guards, not executable UIKit acceptance. The checker also verifies 34 source
+label values across nine resource folders. The factual Body/Title 1/Caption 2
+point-size anchors come from Apple's primary iOS Dynamic Type specifications at
+`https://developer.apple.com/tutorials/data/design/human-interface-guidelines/typography.json`;
+the exact downloaded SHA is recorded in `headerTypography`. Android's continuous
+font scaling interpolates between those source categories. This does not replace
+the Android system font or establish whole-app typography parity. Final vector
+SHA-256: `807602026bb3ec0451ddd2930c8fbba67a05e852f45b97a31c8615494ba23aeb`.
+Global implemented/reviewed pins remain unchanged.
+
+Final build `captures/recovery-20261021/chief-header-accepted-build.log` passes the
+full JVM suite: 3,028 cases in 406 XML classes, 3,024 pass/four skip/zero errors or
+failures. Subsequent UI-only focus and test-harness builds are in
+`chief-header-focus-build.log` and `chief-header-ime-final-test-build.log`.
+The final Android log is `chief-header-ime-final-android.log`: 26 Chief
+cases plus two framed-root admission cases, **28 pass in 55.414 s**. The matching
+crash log has zero bytes. New cases cover both details entrances, the real draft,
+disabled quick actions, setting rollback, retirement dismissal, actual enlarged
+title metrics and the history-exhaustion introduction. Existing send, keyboard,
+read/catch-up, prefetch, history-window, literal-text and failed-send cases still
+pass. The earlier two Android failures asserted before queued scroll/dismissal
+work settled; tests now wait for observable completion and retain the full
+visibility/retirement assertions. Initial compile diagnostics and earlier runs
+are retained, not counted as accepted evidence.
+
+A later focus batch hit an intermittent combined send/window-trim timeout. Its
+original condition did not distinguish missed touch admission from trimming,
+so that log alone does not establish the cause. Three isolated diagnostic runs
+all admitted and trimmed correctly, while their recorded touch occurred before
+the native software IME became visible. The final harness waits for actual IME
+visibility and stable target bounds before its real Send touch, and separately
+requires one admitted request and the unchanged 1,000-row window. No product
+trim rule was relaxed. Temporary diagnostic flags/logging were removed before
+the final batch. Mid-animation input/trim stress and real-device keyboard/modal
+read-viewing behavior remain acceptance work; the stabilized batch is not proof
+of every pointer/IME timing case.
+
+Fresh captures are in `chief-header-accepted-scenes/`: four hashed reference-input
+PNG/metadata pairs at 1206×2622 /density 3, normal/large details, the expanded
+draft and enlarged failed sheet. The four pairs' hashes/dimensions/fixture inputs
+were verified and all four plus both details images visually inspected. The
+reference helper now also supplies unread count zero, matching the actual UIKit
+reference options. System bars, clock/time zone and font/line-break differences
+remain explicit. A read-only AppKit pixel measurement found the source Stop ink
+at 51×51 pixels (17 logical points), versus the initial Android 46×46. The final
+vector sizing produces 51×51 too; measurements and script are under
+`chief-header-source/`. This validates that one rendered dimension, not glyph or
+whole-screen equivalence. `chief-header-checkpoint.json` records final artifacts.
+
+The owned emulator was restored to 1080×2400 /420 dpi and stopped. No Pixel app,
+Mac account/pairing, helper enrollment, signing key or prepared signed artifact
+was changed. Pixel USB remains absent. Signed 705 is stale relative to this source;
+prepare a fresh stable-signer candidate before physical upgrade. Remaining gates
+include actual UIKit details/landscape references, full header overlay/status/
+edge-fade/blur/zoom/safe-area behavior, complete IME/rich composer/rotation/process
+restoration, emoji, quote/thread actions, poll/failed-badge presentation, all
+font/locale/contrast/light/TalkBack checks, remaining source inventory and real
+Mac/Pixel/native terminal/FCM/cold notification taps. The full-parity goal remains
+active; passing local references and typed-owner tests do not complete it.

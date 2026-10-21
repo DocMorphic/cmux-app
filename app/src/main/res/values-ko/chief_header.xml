@@ -1,0 +1,4 @@
+<resources>
+    <string name="chief_header_stop">Chief 중지</string>
+    <string name="chief_service_subtitle">Mac에서 에이전트를 실행합니다</string>
+</resources>

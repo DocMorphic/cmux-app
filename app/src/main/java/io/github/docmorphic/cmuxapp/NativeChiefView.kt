@@ -24,12 +24,14 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -188,6 +190,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     onBack: () -> Unit, modifier: Modifier) {
     val state by session.state.collectAsState()
     val scope = rememberCoroutineScope()
+    val composerFocus = LocalFocusManager.current
     var actionError by remember { mutableStateOf<String?>(null) }
     fun act(action: suspend () -> Unit) { scope.launch {
         actionError = null
@@ -198,10 +201,12 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     val list = rememberLazyListState()
     var answerMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var failedMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var detailsOpen by rememberSaveable { mutableStateOf(false) }
     val displayedFailure = failedMessage?.let { id -> state.outgoing.singleOrNull { it.clientMessageId == id && it.delivery.isFailed } }
     val displayedQuestion = answerMessage?.let { id -> state.messages.singleOrNull { it.id == id } }
         ?.let(NativeChiefPresentation::pendingPart)?.question
     val timeline = remember(state.messages, state.outgoing, state.localClientIds, state.working) { NativeChiefTimeline.rows(state) }
+    val leadingCount = if (state.hasMore || state.hasLoadedInfo) 1 else 0
     val currentTimeline by rememberUpdatedState(timeline)
     var positioned by rememberSaveable { mutableStateOf(false) }
     var pinned by rememberSaveable { mutableStateOf(true) }
@@ -216,7 +221,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         mutableStateOf<NativeChiefHistoryGeometry?>(null)
     }
     suspend fun scrollToNewest() {
-        val end = timeline.size + (if (state.hasMore) 1 else 0) + (if (state.working) 1 else 0) - 1
+        val end = timeline.size + leadingCount + (if (state.working) 1 else 0) - 1
         if (end < 0) return
         readerScrolling = false; programmatic = true
         try {
@@ -299,21 +304,13 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     BackHandler(onBack = onBack)
     val bubbleMetrics = nativeChiefBubbleMetrics()
     val darkTranscript = MaterialTheme.colorScheme.background.luminance() < .5f
-    Column(modifier.fillMaxSize().background(if (darkTranscript) Color.Black else Color.White)
+    Column(modifier.fillMaxSize().then(if (detailsOpen && !state.retired) Modifier.blur(16.dp) else Modifier).background(if (darkTranscript) Color.Black else Color.White)
         .imePadding().testTag("ChiefTranscript")) {
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("‹  Home") }
-            ChiefAvatar(Modifier.size(36.dp))
-            Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                Text(conversation.title, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() },
-                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text("Runs your agents on your Mac", color = chiefMuted, style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            }
-            IconButton(onClick = { act { session.stop() } }, enabled = "stop" !in state.deciding) {
-                Icon(painterResource(R.drawable.ic_chief_stop), "Stop Chief", tint = chiefAccent)
-            }
-        }
+        NativeChiefHeader(conversation, "stop" in state.deciding, onBack,
+            { if (state.hasLoadedInfo && !state.retired) {
+                // Source openInfo ends editing before presenting the details controller.
+                composerFocus.clearFocus(force = true); detailsOpen = true
+            } }, { act { session.stop() } })
         state.error?.let { error -> Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(error, Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
             TextButton(onClick = session::refresh) { Text("Reconnect") }
@@ -325,6 +322,8 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
             if (state.hasMore) item(key = "older") {
                 ChiefOlderRow(state) { act { session.loadOlder() } }
+            } else if (state.hasLoadedInfo) item(key = "start") {
+                NativeChiefServiceIntro(conversation.title)
             }
             itemsIndexed(timeline, key = { _, row -> row.item.key }) { index, row ->
                 ChiefTranscriptRow(row, timeline.getOrNull(index - 1), state, bubbleMetrics,
@@ -345,7 +344,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             val index = rows.indexOfFirst { it.item.message?.id == target }
             if (index >= 0) {
                 pinned = false; readerScrolling = false; programmatic = true
-                try { list.scrollToItem(index + if (session.state.value.hasMore) 1 else 0) }
+                try { list.scrollToItem(index + if (session.state.value.hasMore || session.state.value.hasLoadedInfo) 1 else 0) }
                 finally { programmatic = false }
                 session.dismissCatchUp()
             }
@@ -363,6 +362,11 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             catch (error: IllegalStateException) { actionError = error.message; false }
         })
     }
+    if (detailsOpen && !state.retired && state.hasLoadedInfo) NativeChiefDetails(conversation, state.listState,
+        onClose = { detailsOpen = false }, onChange = { muted, receipts ->
+            try { session.updateDetails(muted, receipts) }
+            catch (error: IllegalStateException) { detailsOpen = false; actionError = error.message ?: "Chief action unavailable" }
+        })
     if (displayedFailure != null) ModalBottomSheet(onDismissRequest = { failedMessage = null },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         modifier = Modifier.testTag("ChiefFailedSendDialog")) {

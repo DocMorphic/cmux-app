@@ -23,6 +23,27 @@ The UIKit-only source is hash-checked, not compiled by this portable checker.
 This is a scoped text-only comparison; keyboard/IME, rich editor, material and
 physical acceptance require their own evidence.
 
+The direct-conversation header/details checker guards eight additional Swift
+sources and executes the unmodified portable header/details geometry and list
+defaults. It verifies the Chief backend inherits the unsupported list-state
+default and does not implement shared backgrounds. Copied labels are checked
+against both pinned catalogs. The Android continuous text-scale mapping combines
+the source's quick-action category sizes with the factual Body/Title 1/Caption 2
+anchors in Apple's published iOS Dynamic Type table. Supply a local download of
+the exact primary JSON URL/hash recorded by `headerTypography` in the manifest:
+
+```sh
+python3 scripts/check-chief-header.py --upstream /absolute/path/to/cmux \
+  --typography /absolute/path/to/ignored-apple-typography.json \
+  --output /absolute/path/to/ignored-header-evidence
+```
+
+The portable execution covers 36 compact layouts, 56 direct details layouts,
+five unread capsules, eight name-size cases, 12 type categories and list defaults.
+The static portrait layout also uses guarded UIKit source plus Android layout
+assertions; this checker does not render UIKit or validate the details blur/zoom,
+OS interaction, physical account/connection or whole-screen parity.
+
 The Kotlin port covers the Chief capability set, nine RPC request shapes, typed
 response defaults, UInt64 sequence counters and shared structured questions,
 answers and validation. It uses the existing authenticated MobileRpcClient and

@@ -1,0 +1,12 @@
+<resources>
+    <string name="chief_header_back">Back</string>
+    <string name="chief_header_photo">Contact photo</string>
+    <string name="chief_header_unread">%1$d unread</string>
+    <string name="chief_details_call">Call</string>
+    <string name="chief_details_video">FaceTime</string>
+    <string name="chief_details_mail">Mail</string>
+    <string name="chief_details_hide_alerts">Hide Alerts</string>
+    <string name="chief_details_receipts">Send Read Receipts</string>
+    <string name="chief_header_stop">Stop Chief</string>
+    <string name="chief_service_subtitle">Runs your agents on your Mac</string>
+</resources>

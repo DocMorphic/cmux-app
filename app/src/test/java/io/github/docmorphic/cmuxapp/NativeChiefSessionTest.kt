@@ -9,6 +9,37 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefSessionTest {
+    @Test fun unsupportedChiefDetailsRollBackWithoutChangingReadAdmissionOrTransport() = runTest {
+        val api=Api();var current=true
+        val session=NativeChiefTranscriptSession(this,api,"chief-main",{current})
+        try {
+            session.updateDetails(muted=true);assertEquals(NativeChiefListState(),session.state.value.listState)
+            api.reads.send(Result.success(page(message(1))));session.start();runCurrent()
+            assertTrue(session.state.value.hasLoadedInfo)
+            session.updateDetails(muted=true);assertTrue(session.state.value.listState.muted)
+            runCurrent();assertEquals(NativeChiefListState(),session.state.value.listState)
+            session.updateDetails(readReceipts=false);assertFalse(session.state.value.listState.readReceipts)
+            runCurrent();assertEquals(NativeChiefListState(),session.state.value.listState)
+            assertTrue(api.sends.isEmpty());assertTrue(api.approvals.isEmpty());assertTrue(api.answers.isEmpty())
+            session.updateDetails(muted=true);current=false;runCurrent()
+            assertTrue(session.state.value.retired);assertEquals(NativeChiefListState(),session.state.value.listState)
+            assertThrows(IllegalStateException::class.java){session.updateDetails(readReceipts=false)}
+        } finally {session.close()}
+    }
+    @Test fun detailsRollbackUsesTheSourceGenerationAndPreviousSnapshot() = runTest {
+        val api=Api();val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+        try {
+            api.reads.send(Result.success(page()));session.start();runCurrent()
+            session.updateDetails(muted=true);session.updateDetails(readReceipts=false)
+            assertEquals(NativeChiefListState(true,false),session.state.value.listState)
+            runCurrent()
+            // Source's latest rejection restores its own previous snapshot; the older
+            // rejection must not overwrite a newer optimistic change.
+            assertEquals(NativeChiefListState(true,true),session.state.value.listState)
+            session.updateDetails(muted=false);session.close();runCurrent()
+            assertEquals(NativeChiefListState(),session.state.value.listState)
+        } finally {session.close()}
+    }
     @Test fun composerAdmissionIsSynchronousAndCannotClearANewerIdenticalDraft() = runTest {
         val api = Api(); val gate = CompletableDeferred<NativeChiefSent>(); var ids = 0
         api.sendBlock = { _, _ -> gate.await() }

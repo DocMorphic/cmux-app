@@ -1,5 +1,22 @@
 # Android parity tracker
 
+## Chief header/details checkpoint — 2026-10-21
+
+Portrait photo/name/back-count/Stop controls, both details entrances and the
+history-exhaustion service intro are mounted. Direct Info mirrors source disabled
+quick actions and unsupported setting rollback; it preserves drafts and closes
+on owner retirement. Compact coordinates subtract the already-consumed Android
+system inset. Actual Swift verifies 36 compact/56 details/five unread/eight name
+cases and list defaults; 12 primary Apple type anchors and 34 source labels are
+checked. Full JVM: 3,024 pass/four skip/zero failures. Final Android: 28 pass in
+55.414 s, empty crash buffer. Four fresh reference-input pairs and both details
+captures were inspected; actual enlarged title metrics and 17-point Stop ink are
+verified. See CHIEF.md for exact scope, artifact hashes and retained diagnostics.
+Matched UIKit details/landscape, header overlay/status/edge/material/zoom, full
+typography/accessibility/locale/lifecycle/rich editor, remaining row interactions/
+source inventory and real Mac/Pixel/terminal/FCM/cold taps stay open. Emulator
+restored/stopped; no physical/account/pairing/helper/signing change. Goal active.
+
 ## Chief text-composer checkpoint — 2026-10-21
 
 Chief now has source-mapped internal Send/blank visibility, text-only layout,

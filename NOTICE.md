@@ -25,6 +25,14 @@ follow ComposerBarGeometry.swift, ComposerFieldMeasurement.swift,
 ConversationRichText.swift and ConversationComposerView.swift at that revision.
 Selected composer placeholder/send translations are copied from the conversation
 and mobile-shell UI catalogs. Their exact source hashes/keys are in the manifest.
+Direct header/details geometry, disabled details actions, list-state defaults and
+unsupported-setting rollback follow ConversationHeaderGeometry.swift,
+ConversationDetailsHeaderGeometry.swift, ConversationHeaderView.swift,
+ConversationDetailsViewController.swift, ConversationDetailsInfoPage.swift,
+ConversationListState.swift and ConversationBackend.swift at that revision.
+Selected header/details and service labels are copied from the same UI catalogs.
+The continuous Android text-scale mapping uses factual point-size anchors from
+Apple's published iOS Dynamic Type specifications; provenance is in the manifest.
 
 Selected static UI translations are copied verbatim from the CMUXMobileCore,
 CmuxAgentChatUI, CmuxMobileChanges and CmuxMobileShellUI localization catalogs at

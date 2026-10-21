@@ -76,11 +76,14 @@ internal val NativeChiefDelivery.isFailed: Boolean
 internal data class NativeChiefOutgoing(val clientMessageId: String, val text: String, val at: Instant,
     val delivery: NativeChiefDelivery = NativeChiefDelivery.SENDING, val serverMessageId: String? = null, val error: String? = null,
     val echoClientMessageId: String? = null, val failedAnchorSeq: ULong? = null, val sentAfterSeq: ULong = 0uL)
+internal data class NativeChiefListState(val muted: Boolean = false, val readReceipts: Boolean = true)
+
 internal data class NativeChiefTranscriptState(
     val messages: List<NativeChiefMessage> = emptyList(), val outgoing: List<NativeChiefOutgoing> = emptyList(),
     val loading: Boolean = true, val loadingOlder: Boolean = false, val hasMore: Boolean = false,
     val historyRetryAttempt: Int = 0, val historyError: String? = null, val readsActive: Boolean = false,
     val working: Boolean = false, val connected: Boolean = false, val error: String? = null, val retired: Boolean = false,
+    val hasLoadedInfo: Boolean = false, val listState: NativeChiefListState = NativeChiefListState(),
     val lastReadSeq: ULong = 0uL, val unread: Long = 0, val headSeq: ULong = 0uL,
     val catchUpMarker: ULong? = null, val catchUpCount: Long = 0, val loadingCatchUp: Boolean = false,
     val localSendRevision: Long = 0,
@@ -96,6 +99,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
     private val mutableState = MutableStateFlow(NativeChiefTranscriptState())
+    private var listStateGeneration = 0L
     val state = mutableState.asStateFlow()
     private var monitor: Job? = null
     private var cursor: String? = null
@@ -140,7 +144,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
                     cursor = result.changeCursor ?: cursor
                     polledSeq = maxOf(polledSeq, messages.maxOfOrNull { it.seq } ?: 0uL)
                     val reconnecting = !state.value.connected
-                    mutableState.value = state.value.copy(loading = false, connected = true, error = null,
+                    mutableState.value = state.value.copy(loading = false, connected = true, hasLoadedInfo = true, error = null,
                         hasMore = if (initialPage) result.hasMore else state.value.hasMore, working = result.working,
                         headSeq = result.headSeq ?: maxOf(polledSeq, result.messages.maxOfOrNull { it.seq } ?: 0uL))
                     if (first || reconnecting) reading = reading.copy(pending = 0uL)
@@ -372,6 +376,25 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
             }
             return null
         } finally { if (generation == olderGeneration && job.isActive && permits()) mutableState.value = state.value.copy(loadingCatchUp = false) }
+    }
+
+    /** Chief inherits ConversationBackend's -32601 list-state rejection. Match the
+     * store's optimistic publication/generation-fenced rollback without inventing a host RPC
+     * or changing this phone's notification/helper preferences. */
+    fun updateDetails(muted: Boolean? = null, readReceipts: Boolean? = null) {
+        checkOwner()
+        if (!state.value.hasLoadedInfo) return
+        val previous = state.value.listState
+        val changed = previous.copy(muted = muted ?: previous.muted, readReceipts = readReceipts ?: previous.readReceipts)
+        if (changed == previous) return
+        val generation = ++listStateGeneration
+        mutableState.value = state.value.copy(listState = changed)
+        scope.launch {
+            // Source Task runs the unsupported backend call after the UI event.
+            yield()
+            if (!permits()) { close(); return@launch }
+            if (generation == listStateGeneration) mutableState.value = state.value.copy(listState = previous)
+        }
     }
 
     fun editDraft(text: String): Long {

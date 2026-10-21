@@ -1,0 +1,4 @@
+<resources>
+    <string name="chief_header_stop">Detener Chief</string>
+    <string name="chief_service_subtitle">Ejecuta tus agentes en tu Mac</string>
+</resources>

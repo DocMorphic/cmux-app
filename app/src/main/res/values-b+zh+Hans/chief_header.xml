@@ -1,0 +1,4 @@
+<resources>
+    <string name="chief_header_stop">停止 Chief</string>
+    <string name="chief_service_subtitle">在 Mac 上运行你的代理</string>
+</resources>

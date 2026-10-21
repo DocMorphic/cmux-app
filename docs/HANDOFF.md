@@ -1,5 +1,32 @@
 ## Active full-parity goal — 2026-10-20
 
+Latest Oct 21 header/details checkpoint: source portrait photo/name/back-count/
+Stop layout, both real details entrances and history-exhaustion service intro
+are mounted. Details preserve drafts, close on retirement and mirror Chief's
+unsupported setting rollback without changing phone/helper preferences. Compact
+geometry normalizes the Android shell's already-consumed system inset. Actual
+Swift verifies 36 compact/56 details/five unread/eight name cases and list defaults;
+12 primary Apple type anchors and 34 source strings/nine locales are checked.
+Final JVM: 3,024 pass/four skip/zero failures. Final Android: 28 pass in 55.414 s,
+empty crash buffer. Actual large-details density/font metrics are asserted.
+Details also resign composer focus before opening and preserve the draft without
+refocusing on return. Final test evidence is `chief-header-ime-final-android.log`;
+its Send touches await the real IME and stable bounds. One earlier combined
+send/trim timeout was not reproduced in three fast-touch diagnostics (all tapped
+before IME visibility); retain that limit and the mid-animation/physical stress
+gate rather than inferring every timing case passed.
+Four fresh reference pairs plus normal/large details images were inspected; Stop
+ink is independently measured at the source's 17 logical points. Evidence and
+remaining scope are in CHIEF.md and `chief-header-checkpoint.json`. Emulator
+display was restored and the owned emulator stopped. No physical/account/pairing/
+helper/signing change; USB still absent and signed 705 remains stale.
+
+Next useful source work includes actual UIKit details/landscape reference capture,
+header overlay/status/edge/material/zoom behavior, quote/thread taps, emoji and
+poll/failed-badge UI, plus rich editor/lifecycle/accessibility and broader audit.
+Physical Mac/Pixel/terminal/FCM/cold-tap acceptance still requires the unlocked
+Mac and Pixel. Preserve the stay-awake restoration instruction immediately below.
+
 Newest Oct 21 checkpoint: Chief's text-only composer now has the source internal
 send capsule/blank visibility, growing and scrolling field, Foundation trimming,
 memory-only editor reconciliation and synchronous retained-owner send/local

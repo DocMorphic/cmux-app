@@ -1,0 +1,4 @@
+<!-- Project-authored filled mail glyph. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="22dp" android:height="18dp" android:viewportWidth="22" android:viewportHeight="18">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M2,1L20,1Q22,1 22,3L11,10L0,3Q0,1 2,1 M0,5L10,11Q11,12 12,11L22,5L22,15Q22,17 20,17L2,17Q0,17 0,15Z" />
+</vector>

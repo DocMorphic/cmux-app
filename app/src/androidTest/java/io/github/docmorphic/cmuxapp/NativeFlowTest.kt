@@ -174,7 +174,7 @@ class NativeFlowTest {
         val chiefRequests = peer.requests.filter { it.optString("method").startsWith("chief.") }
         assertTrue(chiefRequests.any { it.optString("method") == "chief.read" })
         assertTrue(chiefRequests.none { it.optJSONObject("auth")?.has("attach_token") == true })
-        compose.onNodeWithText("‹  Home").performClick()
+        compose.onNodeWithTag("ChiefBack").performClick()
         compose.onNodeWithText("Workspaces").performClick()
         compose.onNodeWithText("Claude Code task").assertExists()
         assertTrue(clients.none { it.isClosed })

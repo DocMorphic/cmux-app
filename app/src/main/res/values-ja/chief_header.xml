@@ -1,0 +1,12 @@
+<resources>
+    <string name="chief_header_back">戻る</string>
+    <string name="chief_header_photo">連絡先の写真</string>
+    <string name="chief_header_unread">未開封%1$d件</string>
+    <string name="chief_details_call">電話</string>
+    <string name="chief_details_video">FaceTime</string>
+    <string name="chief_details_mail">メール</string>
+    <string name="chief_details_hide_alerts">通知を非表示</string>
+    <string name="chief_details_receipts">開封証明を送信</string>
+    <string name="chief_header_stop">Chiefを停止</string>
+    <string name="chief_service_subtitle">Macでエージェントを実行</string>
+</resources>

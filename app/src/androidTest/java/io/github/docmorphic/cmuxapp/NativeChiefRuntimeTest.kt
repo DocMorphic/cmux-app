@@ -74,9 +74,10 @@ class NativeChiefRuntimeTest {
         var uncertainAnswerOnce = false
         var sendFailure: Exception? = null
         var readFailure: Exception? = null
+        var homeUnread = 1L
         var sendGate: CompletableDeferred<Unit>? = null
         var rows = listOf(message("hello", 1uL, "Welcome from your Mac"))
-        val home get() = listOf(NativeChiefConversation("chief-main", "Chief", "Ready on your Mac", 1, true, false, instant),
+        val home get() = listOf(NativeChiefConversation("chief-main", "Chief", "Ready on your Mac", homeUnread, true, false, instant),
             NativeChiefConversation("build", "Release build", "Review the Android app", 0, false, false, instant))
         override suspend fun status() = NativeChiefStatus(true, null, null, "chief", "Chief", "", "", 1, 2, emptyList(), "chief-main")
         override suspend fun conversations(afterCursor: String?, waitForChange: Boolean) =
@@ -132,18 +133,19 @@ class NativeChiefRuntimeTest {
         val scenes = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONArray("scenes")
         val scene = (0 until scenes.length()).map(scenes::getJSONObject).single { it.getString("id") == name }
         val rows = scene.getJSONArray("rows")
-        compose.runOnUiThread { api.rows = (0 until rows.length()).map { index ->
+        compose.runOnUiThread { api.homeUnread = 0; api.rows = (0 until rows.length()).map { index ->
             val row = rows.getJSONObject(index)
             message(row.getString("id"), (index + 1).toULong(), row.getString("text"), row.getBoolean("outgoing"))
                 .copy(at = instant.plusSeconds((-300 + index * 30).toLong()), threadRoot = row.optString("replyTo").takeIf(String::isNotEmpty))
-        } }
+        }; computer.home.refresh() }
+        compose.waitUntil(10_000) { computer.home.state.value.pinned?.unread == 0L }
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         val last = rows.getJSONObject(rows.length() - 1).getString("id")
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefBubbleBody:$last").fetchSemanticsNodes().isNotEmpty() }
         compose.waitForIdle()
     }
 
-    private fun tapStableSheetAction(tag: String) {
+    private fun tapStableAction(tag: String) {
         // IME/window motion is external to Compose's test clock. Use a real touch only
         // after the actual target stops moving, including when reopening a dismissed sheet.
         var previous: androidx.compose.ui.geometry.Rect? = null
@@ -265,6 +267,77 @@ class NativeChiefRuntimeTest {
         assertEquals(body.center.x, text.center.x, 1f)
     }
 
+    @Test fun portraitHeaderAndBothDetailsEntrancesPreserveTheDraftAndSourceDefaults() {
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.hasLoadedInfo == true }
+        val density=compose.activity.resources.displayMetrics.density
+        val avatar=compose.onNodeWithTag("ChiefHeaderAvatar",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+        val stop=compose.onNodeWithTag("ChiefHeaderStop").fetchSemanticsNode().boundsInRoot
+        assertEquals(60*density,avatar.width,1f);assertEquals(44*density,stop.width,1f)
+        assertEquals(avatar.top,stop.top,1f)
+        compose.onNodeWithTag("ChiefBack").assert(SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.StateDescription,"1 unread"))
+        compose.onNodeWithTag("ChiefServiceIntro").assertExists()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Retain the draft through details")
+        compose.onNodeWithTag("ChiefHeaderName").performClick()
+        compose.onNodeWithTag("ChiefDetailsTitle").assertTextEquals("Chief")
+        for(tag in listOf("Call","Video","Mail"))compose.onNodeWithTag("ChiefDetails$tag").assertIsNotEnabled()
+        compose.onNodeWithTag("ChiefHideAlerts").assertIsOff().performClick()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.listState?.muted == false }
+        compose.onNodeWithTag("ChiefHideAlerts").assertIsOff()
+        compose.onNodeWithTag("ChiefReadReceipts").assertIsOn().performClick()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.listState?.readReceipts == true }
+        compose.onNodeWithTag("ChiefReadReceipts").assertIsOn()
+        saveScreenshot("chief-details-normal")
+        compose.onNodeWithTag("ChiefDetailsBack").performClick()
+        compose.onNodeWithTag("ChiefDetails").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").assertTextContains("Retain the draft through details")
+        compose.onNodeWithTag("ChiefComposer").assertIsNotFocused()
+        compose.onNodeWithTag("ChiefHeaderPhoto").performClick()
+        compose.onNodeWithTag("ChiefDetails").assertExists()
+        compose.runOnUiThread { computer.transcript()!!.close() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefDetails").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithTag("ChiefDetails").assertDoesNotExist()
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun enlargedDetailsKeepBackAndBothSettingsReachable() {
+        compose.runOnUiThread { testFontScale=2f }
+        compose.onNodeWithTag("ChiefPinnedConversation").performScrollTo().performClick()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.hasLoadedInfo == true }
+        compose.onNodeWithTag("ChiefHeaderName").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("ChiefDetailsBack").assertIsDisplayed()
+        val rendered=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.onNodeWithTag("ChiefDetailsTitle").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult){it(rendered)}
+        val layout=rendered.single()
+        assertEquals("Details must retain the actual host font scale",2f,layout.layoutInput.density.fontScale,.01f)
+        val points=with(layout.layoutInput.density){layout.layoutInput.style.fontSize.toDp().value}
+        assertTrue("Details must actually render accessibility title type",points>=38)
+        compose.onNodeWithTag("ChiefHideAlerts").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("ChiefReadReceipts").performScrollTo().assertIsDisplayed()
+        saveScreenshot("chief-details-large")
+        compose.onNodeWithTag("ChiefDetailsBack").performClick()
+        compose.onNodeWithTag("ChiefBack").assertIsDisplayed()
+    }
+
+    @Test fun serviceIntroductionOnlyAppearsWhenTheOlderHistoryIsExhausted() {
+        compose.runOnUiThread { api.rows=(1..150).map{message("m$it",it.toULong(),"History $it")} }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.hasMore == true }
+        compose.onNodeWithTag("ChiefServiceIntro").assertDoesNotExist()
+        val loaded=CompletableDeferred<Unit>()
+        compose.runOnUiThread { owner.launch{repeat(2){computer.transcript()!!.loadOlder()};loaded.complete(Unit)} }
+        compose.waitUntil(10_000) { loaded.isCompleted }
+        assertFalse(computer.transcript()!!.state.value.hasMore)
+        compose.onNodeWithTag("ChiefMessages").performTouchInput{swipeDown()}
+        compose.onNodeWithTag("ChiefMessages").performScrollToIndex(0)
+        compose.waitUntil(10_000) {
+            val intro=compose.onAllNodesWithTag("ChiefServiceIntro").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
+            val viewport=compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+            intro != null && intro.height > 0 && intro.top >= viewport.top && intro.bottom <= viewport.bottom
+        }
+        compose.onNodeWithTag("ChiefServiceIntro").assertIsDisplayed()
+    }
+
     @Test fun composerHidesBlankSendAndKeepsSendingAvailableWhenAReadFails() {
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Welcome from your Mac").fetchSemanticsNodes().isNotEmpty() }
@@ -363,7 +436,7 @@ class NativeChiefRuntimeTest {
         compose.onAllNodesWithText("A phone message", substring = false).assertCountEquals(1)
         assertEquals("A phone message", api.sends.single().first); assertFalse(api.sends.single().second.isNullOrBlank())
         compose.onNodeWithTag("ChiefComposer").performTextInput("Keep my draft")
-        compose.onNodeWithText("‹  Home").performClick()
+        compose.onNodeWithTag("ChiefBack").performClick()
         compose.onNodeWithTag("ChiefSearch").assertTextContains("Chief")
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithTag("ChiefComposer").assertTextContains("Keep my draft")
@@ -492,7 +565,7 @@ class NativeChiefRuntimeTest {
         compose.runOnUiThread { testFontScale = 2f }
         compose.onNodeWithTag("ChiefPinnedConversation").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Stop Chief").assertIsDisplayed()
-        compose.onNodeWithText("‹  Home").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefBack").assertIsDisplayed()
         compose.onNodeWithTag("ChiefComposer").performTextInput("Large text draft")
         compose.onNodeWithTag("ChiefComposer").assertTextContains("Large text draft")
         compose.onNodeWithTag("ChiefSend").assertIsDisplayed().assertIsEnabled()
@@ -519,7 +592,7 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefFailedSendDialog").assertExists()
         compose.onNodeWithTag("ChiefRetrySend").assertIsEnabled()
         compose.runOnUiThread { api.sendFailure = null }
-        tapStableSheetAction("ChiefRetrySend")
+        tapStableAction("ChiefRetrySend")
         compose.waitUntil(10_000) { api.sends.size == 2 }
         assertEquals(api.sends[0], api.sends[1])
         compose.onNodeWithTag("ChiefMessage:echo").assertExists()
@@ -563,7 +636,7 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefFailedSendDialog").assertDoesNotExist()
         compose.waitUntil(10_000) { compose.onNodeWithTag("ChiefFailed:$id").isDisplayed() }
         compose.onNodeWithTag("ChiefFailed:$id").assertIsDisplayed().performClick()
-        tapStableSheetAction("ChiefDiscardSend")
+        tapStableAction("ChiefDiscardSend")
         compose.onNodeWithTag("ChiefFailedSendDialog").assertDoesNotExist()
         compose.waitUntil(10_000) { computer.transcript()!!.state.value.outgoing.none { it.clientMessageId == id } }
         compose.waitUntil(10_000) {
@@ -587,7 +660,7 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefComposer").performTextInput("First retained send")
         tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
-        compose.onNodeWithText("‹  Home").performClick()
+        compose.onNodeWithTag("ChiefBack").performClick()
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithText("First retained send").assertExists()
         compose.onNodeWithText("Delivery unconfirmed").assertDoesNotExist()
@@ -689,7 +762,9 @@ class NativeChiefRuntimeTest {
         compose.runOnUiThread { api.sendGate = gate }
         compose.onNodeWithTag("ChiefComposer").performTextInput("Return to newest and bound the window")
         tapSendWhenReady()
-        compose.waitUntil(10_000) { api.sends.size == 1 && computer.transcript()?.state?.value?.messages?.size == 1000 }
+        try { compose.waitUntil(10_000) { api.sends.size == 1 } }
+        catch(error: Exception) { throw AssertionError("Send touch admission: sends=${api.sends.size}, outgoing=${computer.transcript()?.state?.value?.outgoing?.size}, draftLength=${computer.transcript()?.state?.value?.draft?.length}",error) }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.messages?.size == 1000 }
         compose.onNodeWithText("Return to newest and bound the window").assertIsDisplayed()
         assertTrue(computer.transcript()!!.state.value.hasMore)
         assertEquals(1001uL, computer.transcript()!!.state.value.messages.first().seq)
@@ -747,7 +822,14 @@ class NativeChiefRuntimeTest {
             val node = compose.onAllNodesWithTag("ChiefSend").fetchSemanticsNodes().singleOrNull()
             node != null && node.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Disabled) == null
         }
-        compose.onNodeWithTag("ChiefSend").assertIsEnabled().performClick()
+        // The real software IME is external to Compose's test clock. Sending while it
+        // is moving can place a recorded touch on the keyboard rather than the field.
+        compose.waitUntil(10_000) {
+            var visible=false
+            compose.runOnUiThread { visible=compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime()) }
+            visible
+        }
+        tapStableAction("ChiefSend")
     }
 
     private fun saveScreenshot(name: String) {

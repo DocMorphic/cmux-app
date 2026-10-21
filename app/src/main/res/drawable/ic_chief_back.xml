@@ -1,0 +1,4 @@
+<!-- Project-authored equivalent of the source header chevron. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="10dp" android:height="17dp" android:viewportWidth="10" android:viewportHeight="17">
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="2.4" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M8.5,1.5L1.5,8.5L8.5,15.5" />
+</vector>

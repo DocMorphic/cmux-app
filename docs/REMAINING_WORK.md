@@ -1,5 +1,24 @@
 ## Current checkpoint — 2026-10-20
 
+Latest Oct 21 header/details checkpoint: portrait photo/name/back count/Stop,
+both details entrances and exhausted-history intro are mounted. Source disabled
+actions, default settings and unsupported rollback preserve actual phone/helper
+preferences. Draft and owner-retirement behavior passes. Compact coordinates
+normalize the shell's system inset. Actual Swift/primary type/source-string
+checks plus 3,024 JVM passes/four skips and 28 Android passes (55.414 s, empty
+crash log) support this scoped port. Fresh scene/details captures were inspected;
+source Stop ink and actual large-details type are checked. CHIEF.md holds limits.
+Continue actual UIKit details/landscape captures, header overlay/status/edge/
+material/zoom, rich editor/full IME/lifecycle/font/locale/contrast/light/TalkBack,
+emoji/quote/thread/poll/failed badge, remaining source audit and real Mac/Pixel/
+terminal/FCM/cold taps. USB is absent; no physical/account/pairing/helper/signing
+change. Emulator restored/stopped; signed 705 is stale. Full-parity goal active.
+Retain mid-animation input/trim stress and modal read/viewing/keyboard checks:
+an earlier combined send/trim timeout did not identify its cause; three isolated
+fast-touch runs passed while tapping before IME visibility. The final normal
+harness awaits the actual IME and stable target, preserving admission and trim
+assertions. This is not evidence for every mid-animation timing case.
+
 Newest Oct 21 text-composer checkpoint: source internal Send/blank visibility,
 Foundation trimming, growing/scrolled field, revision-fenced memory-only editor
 and synchronous retained-owner send/local delete admission are implemented.
