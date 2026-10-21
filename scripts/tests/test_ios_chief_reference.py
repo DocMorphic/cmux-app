@@ -100,6 +100,7 @@ class ReferenceIntegrityTests(unittest.TestCase):
                 value['controls'] += [{'identifier': 'conversation.details.' + action, 'enabled': True, 'on': enabled}
                                       for action, enabled in (('hideAlerts', False), ('readReceipts', True))]
                 value['behavior'].update(viewingWhileDetails=True, viewingAfterReturn=True,
+                    detailsCloseActivation='barButtonTargetAction',
                     editorFocusedWhileDetails=False, editorFocusedAfterReturn=False, draftPreserved=True,
                     alertsOptimistic=True, receiptsOptimistic=True, alertsAfterRollback=False, receiptsAfterRollback=True)
             else:
@@ -150,6 +151,12 @@ class ReferenceIntegrityTests(unittest.TestCase):
         self.add_interactions()
         self.mutate_interaction('details-dark', lambda value: value['behavior'].update(viewingWhileDetails=False))
         self.verify(with_interactions=True)
+
+    def test_manual_modal_dismissal_cannot_substitute_for_the_source_back_item(self):
+        self.add_interactions()
+        self.mutate_interaction('details-dark', lambda value: value['behavior'].update(detailsCloseActivation='manualDismiss'))
+        with self.assertRaisesRegex(ValueError, 'actual source details Back item|Actual source details Back item'):
+            self.verify(with_interactions=True)
 
 
 if __name__ == '__main__': unittest.main()

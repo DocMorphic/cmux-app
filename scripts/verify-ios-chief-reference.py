@@ -39,6 +39,8 @@ def verify_interaction(name, value, specification):
                 raise ValueError('Source details switch did not roll back: ' + name)
         if type(behavior.get('viewingWhileDetails')) is not bool:
             raise ValueError('Missing actual modal viewing observation: ' + name)
+        if behavior.get('detailsCloseActivation') not in ('barButtonTargetAction', 'barButtonAccessibilityActivate'):
+            raise ValueError('Actual source details Back item was not exercised: ' + name)
         required = {'editorFocusedWhileDetails': False, 'editorFocusedAfterReturn': False,
                     'draftPreserved': True, 'viewingAfterReturn': True,
                     'alertsOptimistic': True, 'receiptsOptimistic': True,

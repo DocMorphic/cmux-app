@@ -4,7 +4,13 @@ Current reference work: hosted run `39533735026`, source
 `962ec10c4cc74e30a7fdf0a776bd37b570d3b4c2`, failed Swift 6 compilation in a nested
 test helper that captured XCTest self across actor isolation. Direct main-actor
 view lookup replaces that helper; the package and behavior guards are unchanged.
-The next hosted run is pending; do not claim expanded rendering passed.
+Follow-up run `39534383622` compiled and rendered the standard scenes but failed
+the new harness assumptions about editor/store draft synchronization and Back
+being a UIControl. Assertions now inspect actual editor text and dispatch the
+native bar item's public target/action or accessibility activation; a handled
+action, actual close/return, retained text and lost focus remain required.
+Manual dismissal is rejected by the exporter. The next hosted run is pending;
+do not claim expanded rendering passed. Thirteen synthetic integrity tests pass.
 The unchanged original nine UIKit scenes are joined by
 four separately hashed details/compact interaction cases. The source host now
 observes real settings rollback, draft/focus on return and modal viewing, plus

@@ -105,7 +105,9 @@ extension CmuxChiefReferenceTests {
                 let text = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.composer.text" } as? UITextView)
                 let draft = try XCTUnwrap(specification.draft)
                 text.text = draft; text.delegate?.textViewDidChange?(text)
-                XCTAssertTrue(text.becomeFirstResponder()); XCTAssertEqual(store.draft, draft)
+                XCTAssertTrue(text.becomeFirstResponder()); XCTAssertEqual(text.text, draft)
+                // The source VC's composer callback updates typing, not store.draft.
+                behavior["storeDraftMatchesEditorBefore"] = store.draft == draft
                 let name = try XCTUnwrap(views(in: controller.view).first { $0.accessibilityIdentifier == "conversation.header.name" } as? UIControl)
                 name.sendActions(for: .touchUpInside)
                 try await wait(specification.id + ": presented source details") {
@@ -153,18 +155,30 @@ extension CmuxChiefReferenceTests {
                 XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
             }
             let png = try XCTUnwrap(image.pngData())
+            let screenshot = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
+            screenshot.name = specification.id + ".png"; screenshot.lifetime = .keepAlways; add(screenshot)
             if let presented {
-                let back = try XCTUnwrap(views(in: presented.view).compactMap { $0 as? UIControl }.first {
-                    $0.accessibilityIdentifier == "conversation.details.back" || $0.accessibilityLabel == "Back"
-                })
-                back.sendActions(for: .touchUpInside)
+                let navigation = try XCTUnwrap(presented as? UINavigationController)
+                let back = try XCTUnwrap(navigation.topViewController?.navigationItem.leftBarButtonItem)
+                XCTAssertEqual(back.accessibilityIdentifier, "conversation.details.back")
+                // UIBarButtonItem need not expose a UIControl in UIKit's private view tree.
+                // Dispatch the item's actual public action, never a fabricated selector/dismissal.
+                let activated: Bool
+                if let action = back.action {
+                    behavior["detailsCloseActivation"] = "barButtonTargetAction"
+                    activated = UIApplication.shared.sendAction(action, to: back.target, from: back, for: nil)
+                } else {
+                    behavior["detailsCloseActivation"] = "barButtonAccessibilityActivate"
+                    activated = back.accessibilityActivate()
+                }
+                XCTAssertTrue(activated, "The actual source Back item must handle its action")
                 try await wait("actual source details back action") { controller.presentedViewController == nil }
                 try await wait("actual source viewing after details return") { store.isViewing }
-                XCTAssertEqual(store.draft, specification.draft)
+                XCTAssertEqual(editor?.text, specification.draft)
                 XCTAssertFalse(editor?.isFirstResponder ?? true)
                 behavior["viewingAfterReturn"] = store.isViewing
                 behavior["editorFocusedAfterReturn"] = editor?.isFirstResponder ?? true
-                behavior["draftPreserved"] = store.draft == specification.draft
+                behavior["draftPreserved"] = editor?.text == specification.draft
             }
             let metadata: [String: Any] = ["scene": specification.id, "mode": specification.mode,
                 "provenance": provenance, "sourceScene": specification.sourceScene,
@@ -180,7 +194,7 @@ extension CmuxChiefReferenceTests {
                 "labels": visibleLabels, "controls": visibleControls, "imageViews": visibleImages,
                 "storeMessages": store.messages.count, "behavior": behavior,
                 "scope": "Actual unmodified pinned UIKit controls, details rollback/focus/viewing observations and compact header; offline read-only backend. No real account/transport, physical device or animation acceptance."]
-            for (suffix, data, type) in [("png", png, "public.png"), ("json", try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]), "public.json")] {
+            for (suffix, data, type) in [("json", try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]), "public.json")] {
                 let attachment = XCTAttachment(data: data, uniformTypeIdentifier: type)
                 attachment.name = specification.id + "." + suffix; attachment.lifetime = .keepAlways; add(attachment)
             }

@@ -80,3 +80,13 @@ First expanded run `39533735026` failed Swift 6 compilation because a nested
 test helper captured XCTest's non-Sendable `self` across actor isolation. The
 helper is replaced by direct main-actor view lookup; the pinned package and
 behavior assertions are unchanged. Hosted rendering remains pending a new run.
+Run `39534383622` compiled and rendered the standard scenes, then found two
+incorrect harness assumptions: this VC's typing callback does not populate
+`store.draft`, and UIKit's native Back bar item need not expose a `UIControl`.
+The interaction test now asserts actual editor text retention and dispatches the
+real `UIBarButtonItem` target/action (or its public accessibility activation).
+It requires handled activation and actual dismissal/return; manual dismissal
+cannot substitute. PNGs attach before closing so a failure retains visual
+diagnostics. No details/compact batch is accepted until the new run passes all
+thirteen scenes and both category invocations. These calls exercise public
+control actions; physical touch targeting and animations still need acceptance.
