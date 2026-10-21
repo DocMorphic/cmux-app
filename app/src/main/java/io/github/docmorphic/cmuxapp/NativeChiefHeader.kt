@@ -1,6 +1,10 @@
 package io.github.docmorphic.cmuxapp
 
 import android.content.res.Configuration
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,10 +18,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -37,7 +43,16 @@ internal fun NativeChiefPhoto(modifier: Modifier = Modifier) {
 
 @Composable
 internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: Boolean, onBack: () -> Unit,
-    onInfo: () -> Unit, onStop: () -> Unit, replyMode: Boolean = false, onCloseReply: () -> Unit = {}) {
+    onInfo: () -> Unit, onStop: () -> Unit, replyMode: Boolean = false, onCloseReply: () -> Unit = {},
+    replyGeneration: Long? = null) {
+    val generation = if (replyMode) replyGeneration ?: 0L else null
+    val motion = remember { NativeChiefHeaderMotion(generation) }
+    val durationScale = chiefHeaderDurationScale()
+    var pose by remember { mutableStateOf(motion.frame(0.0)) }
+    LaunchedEffect(generation, durationScale) {
+        withFrameNanos { now -> motion.transition(generation, now / 1e6, durationScale); pose = motion.frame(now / 1e6) }
+        while (pose.running) withFrameNanos { pose = motion.frame(it / 1e6) }
+    }
     val density = LocalDensity.current
     val compact = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE && LocalConfiguration.current.screenHeightDp < 480
     val safeTop = WindowInsets.statusBars.getTop(density) / density.density.toDouble()
@@ -60,18 +75,19 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
     val unreadMeasure = remember(measurer, unreadStyle, unread) { unread?.let { measurer.measure(it, unreadStyle).size.width.toDouble() / density.density } }
     val backLabel = stringResource(R.string.chief_header_back)
     val photoLabel = stringResource(R.string.chief_header_photo)
-    val stopLabel = stringResource(if (replyMode) R.string.chief_reply_close else R.string.chief_header_stop)
+    val stopLabel = stringResource(if (replyMode && pose.closeLabel) R.string.chief_reply_close else R.string.chief_header_stop)
     val unreadLabel = unread?.let { stringResource(R.string.chief_header_unread, conversation.unread) }
     val height = if (compact) (maxOf(safeTop, 24.0) + 54 - safeTop).toFloat().dp else 92.dp
-    BoxWithConstraints(Modifier.fillMaxWidth().height(height).testTag("ChiefHeader")) {
+    BoxWithConstraints(Modifier.fillMaxWidth().height(height).testTag("ChiefHeader").then(
+        if (BuildConfig.DEBUG) Modifier.semantics { this[ChiefHeaderMotionProbe] = { pose } } else Modifier)) {
         val frame = NativeChiefHeaderPolicy.header(maxWidth.value.toDouble(), if (maxWidth >= 440.dp) 20.0 else 16.0,
             name.size.width / density.density.toDouble(), lines.first / density.density.toDouble(), lines.second / density.density.toDouble(), unreadMeasure, compact, safeTop = safeTop)
         fun Modifier.glass() = clip(CircleShape).background(if (dark) Color(0xFF202020) else Color(0xFFEAEAEA))
             .border(.5.dp, ink.copy(alpha = .10f), CircleShape)
         Layout(modifier = Modifier.fillMaxSize(), content = {
-            if (replyMode) Spacer(Modifier.clearAndSetSemantics {}) else Box(Modifier.testTag("ChiefBack").glass().clickable(role = Role.Button, onClick = onBack).semantics {
+            Box(Modifier.graphicsLayer { alpha = pose.backAlpha }.glass().then(if (replyMode) Modifier.clearAndSetSemantics {} else Modifier.testTag("ChiefBack").clickable(role = Role.Button, onClick = onBack).semantics {
                 contentDescription = backLabel; unreadLabel?.let { stateDescription = it }
-            }) {
+            })) {
                 Icon(painterResource(R.drawable.ic_chief_back), null, Modifier.align(Alignment.CenterStart)
                     .offset(x = (if (unread == null) 17f else 15.333333f).dp, y = (1f / 3).dp).size(10.dp, 17.dp), tint = ink)
                 if (unread != null && unreadMeasure != null) {
@@ -85,9 +101,14 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
             Box(Modifier.testTag(if (replyMode) "ChiefReplyClose" else "ChiefHeaderStop").glass()
                 .clickable(enabled = replyMode || !stopping, role = Role.Button, onClick = if (replyMode) onCloseReply else onStop)
                 .semantics { contentDescription = stopLabel }, Alignment.Center) {
-                // The vector's 14/24 ink reserve must draw the verified UIKit 17 pt stop.
-                Icon(painterResource(if (replyMode) R.drawable.ic_primary_close else R.drawable.ic_chief_stop), null,
-                    Modifier.size(if (replyMode) 24.dp else (204f / 7).dp), tint = ink)
+                // Fade the glyph, not its glass. The generic X's ink needs a
+                // 29-point canvas to match the measured native ~16⅓-point mark.
+                Box(Modifier.fillMaxSize().graphicsLayer { alpha = pose.trailingAlpha }, Alignment.Center) {
+                    Icon(painterResource(R.drawable.ic_chief_stop), null,
+                        Modifier.size((204f / 7).dp).graphicsLayer { alpha = 1 - pose.closeFraction }, tint = ink)
+                    Icon(painterResource(R.drawable.ic_primary_close), null,
+                        Modifier.size(29.dp).graphicsLayer { alpha = pose.closeFraction }, tint = ink)
+                }
             }
             Row(Modifier.testTag("ChiefHeaderName").then(if (compact) Modifier else Modifier.glass())
                 .clickable(role = Role.Button, onClick = onInfo).semantics(mergeDescendants = true) {}
@@ -113,6 +134,23 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
                 ((rects[i].x - if (i == 3 && !compact) 10 else 0) * density.density).roundToInt(), (rects[i].y * density.density).roundToInt()) } }
         }
     }
+}
+
+/** Debug-only, text-free observation of the production header's rendered pose. */
+internal val ChiefHeaderMotionProbe = SemanticsPropertyKey<() -> NativeChiefHeaderMotion.Pose>("ChiefHeaderMotionProbe")
+
+@Composable private fun chiefHeaderDurationScale(): Float {
+    val resolver = LocalContext.current.contentResolver
+    fun read() = Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+    var scale by remember(resolver) { mutableFloatStateOf(read()) }
+    DisposableEffect(resolver) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) { scale = read() }
+        }
+        resolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer)
+        onDispose { resolver.unregisterContentObserver(observer) }
+    }
+    return scale
 }
 
 private fun nativeChiefTextStyleForHeader(points: Float, density: androidx.compose.ui.unit.Density) =

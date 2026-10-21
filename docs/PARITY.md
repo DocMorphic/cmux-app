@@ -1,3 +1,54 @@
+## Android reply header and closing touch routing — 2026-10-21
+
+The production header now uses the pinned iOS 26 timing profile: Back fades over
+60 ms; the old trailing glyph holds 320 ms, fades out for 50 ms, swaps its image /
+AX label, then fades in for 200 ms. Exit restores the normal label immediately,
+cross-dissolves the glyph over 60 ms and delays Back 300 ms before its 200 ms fade.
+The glass remains visible around the trailing glyph. Each observed reply generation
+owns one timeline. The four tested early-close/reopen sequences recover correctly,
+intentionally avoiding the stale UIKit fades observed in run 39668896472. Android
+animation-duration changes preserve phase; disabling motion settles immediately.
+
+Back stays drawn while fading but loses its actions/AX immediately on reply entry.
+The generic close mark now uses a 29 dp canvas: its bright ink measures 49×49 px
+at 3×, matching the accepted native reference size (previous Android 40×40 px).
+Drawn Back return brightness is 0.498 of the settled arrow. Four full PNGs and
+control geometry were independently checked and inspected. This establishes
+size/fade behavior, not identical Apple artwork, optical placement or glass.
+
+A rendered reopen check exposed a real closing-overlay hit-test bug: empty
+pointer-input handlers still owned the hit path and swallowed transcript taps.
+Closing copies now remove backdrop/row/scroll pointer nodes altogether. Their
+text retains underlining without active link annotations, and selection/AX stay
+disabled. Actual quote taps now reopen during return; an early pointer tap on the
+still-Stop-looking trailing control closes rather than stopping/sending.
+
+107 Chief JVM tests pass. Broad portrait: 58 pass/four expected skips in 175.874 s.
+Landscape: 12 pass in 39.059 s; disabled animations: eight pass in 19.424 s. After
+the broad portrait run, only the two new tests' initial parent-list scroll setup
+changed to reach virtualized quotes with the landscape keyboard open; both were
+rerun in portrait (two pass, 16.691 s) and landscape. App source was unchanged.
+All crash buffers are empty. The failed pre-pointer-fix checks and initial
+landscape setup failures remain diagnostic. Source/APK hashes, logs, host clocks,
+PNG hashes and limits: `captures/recovery-20261021/chief-header-android-checkpoint.json`.
+The guarded local verifier refuses changed source/APKs. Emulator size/density
+1080×2400/420 and animator scale 0 were restored, owned emulator stopped, Gradle
+stopped, USB absent. Mac 40840/helper 43849 remain alive. No signed release or
+phone installation changed; physical 703 / older candidate 710 retain prior scope.
+
+Next verify and, if needed, drive header transitions synchronously from admitted
+close/send/open events: the current adapter observes generations in LaunchedEffect,
+so a close+reopen coalesced within one composition frame still needs an explicit
+runtime check (existing cases await frames). Also match native Back pointer-hit
+suppression during the return fade while keeping its AX actions: accepted UIKit
+samples switch hit false at 337.569 ms and true at 539.090 ms, AX-hidden false;
+Android currently permits Back taps throughout logical return. Generic X bright
+bounds are one pixel down/right of native at 3×; optical/material/font matching
+and the broad remaining source/UI audit stay open. Full app parity remains active,
+including physical Pixel/Mac terminal, encrypted FCM, cold/background taps,
+lifecycle, TalkBack and in-flight geometry. First on Pixel return restore
+`svc power stayon false`.
+
 ## Animated native header observations — 2026-10-21
 
 The animation-enabled pinned UIKit probe passes on run 39668896472, source
@@ -27,8 +78,8 @@ while AX-hidden; reopening during a pending glyph swap changes to Close after
 defects, not desired forced expectations. Normal source delays/fades remain in
 ConversationHeaderView/ConversationViewController+Reply; iOS 27 is not measured.
 
-Android header still switches immediately: no app implementation, signed release
-or phone installation changed here. Next port normal timing/labels/fades, retain
+At this earlier probe checkpoint the Android header still switched immediately;
+no app implementation, signed release or phone installation changed in that probe. Next port normal timing/labels/fades, retain
 Back visually during its fade, and cancel superseded transitions safely. Record
 intentional correction of stale callbacks explicitly rather than claiming exact
 interrupted UIKit matching. Recheck rendered interruption, touch/AX, draft/focus,

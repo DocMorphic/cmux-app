@@ -640,6 +640,115 @@ class NativeChiefRuntimeTest {
         return checkNotNull(result)
     }
 
+    private fun headerPose(): NativeChiefHeaderMotion.Pose {
+        val probe = compose.onNodeWithTag("ChiefHeader").fetchSemanticsNode().config[ChiefHeaderMotionProbe]
+        var value: NativeChiefHeaderMotion.Pose? = null
+        compose.runOnUiThread { value = probe() }
+        return checkNotNull(value)
+    }
+
+    @Test fun replyHeaderDelaysItsSymbolButAdmitsCloseImmediatelyAndPreservesTheEditor() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep header draft")
+        settledComposerGeometry()
+        compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefQuote:reply"))
+        compose.onNodeWithTag("ChiefQuote:reply").performScrollTo()
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("ChiefQuote:reply").performClick()
+            repeat(2) { compose.mainClock.advanceTimeByFrame() }; compose.waitForIdle()
+            compose.mainClock.advanceTimeBy(128); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefBack").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefReplyClose").assertContentDescriptionEquals("Stop Chief")
+            assertEquals(0f, headerPose().backAlpha, .001f)
+            assertEquals(1f, headerPose().trailingAlpha, .001f)
+            saveScreenshot("chief-header-before-swap")
+            compose.mainClock.advanceTimeBy(304); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClose").assertContentDescriptionEquals("Close")
+            assertTrue(headerPose().trailingAlpha in .01f.. .95f)
+            compose.mainClock.advanceTimeBy(400); compose.waitForIdle()
+            assertEquals(1f, headerPose().trailingAlpha, 0f)
+            saveScreenshot("chief-header-close-settled")
+            val rect = compose.onNodeWithTag("ChiefReplyClose").fetchSemanticsNode().boundsInRoot
+            val density = compose.activity.resources.displayMetrics.density
+            File(compose.activity.getExternalFilesDir(null), "screenshots/chief-header-close.json").writeText(JSONObject()
+                .put("density", density).put("trailingFrame", org.json.JSONArray(listOf(rect.left, rect.top, rect.width, rect.height)))
+                .put("scope", "Production Compose header, settled generic close vector; not physical or full pixel parity").toString(2))
+            compose.onNodeWithTag("ChiefReplyClose").performClick()
+            repeat(2) { compose.mainClock.advanceTimeByFrame() }; compose.waitForIdle()
+            compose.onNodeWithTag("ChiefHeaderStop").assertContentDescriptionEquals("Stop Chief")
+            compose.onNodeWithTag("ChiefBack").assertHasClickAction()
+            assertFalse(headerPose().closeLabel)
+            assertEquals(0f, headerPose().backAlpha, .001f)
+            compose.mainClock.advanceTimeBy(400); compose.waitForIdle()
+            assertTrue(headerPose().backAlpha > .1f && headerPose().backAlpha < 1f)
+            saveScreenshot("chief-header-back-return")
+            compose.mainClock.advanceTimeBy(800); compose.waitForIdle()
+            assertEquals(1f, headerPose().backAlpha, 0f)
+            compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Keep header draft")
+            assertNull(computer.transcript()!!.state.value.reply); assertTrue(api.sends.isEmpty())
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun interruptedHeaderTransitionsCannotHideStopOrRestoreBackIntoANewReply() {
+        org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Retain interrupted header draft")
+        settledComposerGeometry()
+        compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefQuote:reply"))
+        compose.onNodeWithTag("ChiefQuote:reply").performScrollTo()
+        compose.mainClock.autoAdvance = false
+        try {
+            for ((enterMillis, reopenMillis) in listOf(100L to null, 340L to null, 850L to 100L, 340L to 16L)) {
+                compose.onNodeWithTag("ChiefQuote:reply").performClick()
+                assertNotNull("Quote must admit the reply", computer.transcript()!!.state.value.reply)
+                repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+                compose.mainClock.advanceTimeBy(enterMillis); compose.waitForIdle()
+                if (enterMillis == 100L && reopenMillis == null) {
+                    compose.onNodeWithTag("ChiefReplyClose").assertContentDescriptionEquals("Stop Chief")
+                        .performTouchInput { click(center) }
+                } else compose.onNodeWithTag("ChiefReplyClose").performClick()
+                repeat(2) { compose.mainClock.advanceTimeByFrame() }; compose.waitForIdle()
+                assertNull(computer.transcript()!!.state.value.reply)
+                compose.onNodeWithTag("ChiefHeaderStop").assertContentDescriptionEquals("Stop Chief")
+                if (reopenMillis != null) {
+                    compose.mainClock.advanceTimeBy(reopenMillis); compose.waitForIdle()
+                    compose.onNodeWithTag("ChiefQuote:reply").performClick()
+                    assertNotNull("Quote must admit the replacement reply", computer.transcript()!!.state.value.reply)
+                    repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+                    compose.mainClock.advanceTimeBy(128); compose.waitForIdle()
+                    assertFalse("Old completion cannot skip the new delay", headerPose().closeLabel)
+                    compose.mainClock.advanceTimeBy(800); compose.waitForIdle()
+                    assertEquals("Reopened header $enterMillis/$reopenMillis: ${headerPose()}", 0f, headerPose().backAlpha, 0f)
+                    assertEquals(1f, headerPose().trailingAlpha, 0f)
+                    compose.onNodeWithTag("ChiefBack").assertDoesNotExist()
+                    compose.onNodeWithTag("ChiefReplyClose").assertContentDescriptionEquals("Close")
+                    compose.onNodeWithTag("ChiefReplyClose").performClick()
+                    repeat(2) { compose.mainClock.advanceTimeByFrame() }
+                }
+                compose.mainClock.advanceTimeBy(1200); compose.waitForIdle()
+                val normal = headerPose()
+                assertEquals(1f, normal.backAlpha, 0f); assertEquals(1f, normal.trailingAlpha, 0f)
+                assertEquals(0f, normal.closeFraction, 0f); assertFalse(normal.closeLabel)
+                compose.onNodeWithTag("ChiefHeaderStop").assertIsDisplayed().assertHasClickAction()
+                compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Retain interrupted header draft")
+                assertTrue(api.sends.isEmpty())
+            }
+            saveScreenshot("chief-header-interrupted-recovered")
+        } finally { compose.mainClock.autoAdvance = true }
+    }
+
+    @Test fun disabledHeaderAnimationsSettleWithoutLeavingPendingGlyphChanges() {
+        org.junit.Assume.assumeFalse(android.animation.ValueAnimator.areAnimatorsEnabled())
+        openSettledReplyWithDraft("Reduced header draft")
+        assertEquals(NativeChiefHeaderMotion.Pose(0f, 1f, 1f, true, false), headerPose())
+        compose.onNodeWithTag("ChiefReplyClose").performClick()
+        compose.waitForIdle()
+        assertEquals(NativeChiefHeaderMotion.Pose(1f, 1f, 0f, false, false), headerPose())
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused().assertTextContains("Reduced header draft")
+    }
+
     private fun openSettledReplyWithDraft(draft: String) {
         openReferenceScene("quote-dark")
         compose.onNodeWithTag("ChiefComposer").performTextInput(draft)
@@ -1527,7 +1636,7 @@ class NativeChiefRuntimeTest {
         // Exercise Android's real detector and the exact UTF-16 ranges carried by production Text.
         val source = "🙂 **bold** [Label](https://example.com/path) mail a@example.org or +1 650-253-0000"
         val opened = mutableListOf<String>()
-        val annotated = nativeChiefDetectedText(source, opened::add)
+        val annotated = nativeChiefDetectedText(source, open = opened::add)
         assertEquals(source, annotated.text)
         val links = annotated.getLinkAnnotations(0, annotated.length)
         val web = links.single { (it.item as? androidx.compose.ui.text.LinkAnnotation.Url)?.url == "https://example.com/path" }
@@ -1535,6 +1644,10 @@ class NativeChiefRuntimeTest {
         assertTrue(links.any { (it.item as? androidx.compose.ui.text.LinkAnnotation.Url)?.url == "mailto:a@example.org" })
         assertTrue(links.any { (it.item as? androidx.compose.ui.text.LinkAnnotation.Url)?.url?.startsWith("tel:") == true })
         web.item.linkInteractionListener?.onClick(web.item)
+        val closing = nativeChiefDetectedText(source, interactive = false, open = opened::add)
+        assertEquals(annotated.text, closing.text)
+        assertTrue("Retained closing text must have no link hit targets", closing.getLinkAnnotations(0, closing.length).isEmpty())
+        assertEquals(links.size, closing.spanStyles.count { it.item.textDecoration == androidx.compose.ui.text.style.TextDecoration.Underline })
         assertEquals(listOf("https://example.com/path"), opened)
     }
 

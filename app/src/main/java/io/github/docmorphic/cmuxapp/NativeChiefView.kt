@@ -397,7 +397,8 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             { if (state.hasLoadedInfo && !state.retired) {
                 // Source openInfo ends editing before presenting the details controller.
                 composerFocus.clearFocus(force = true); detailsOpen = true
-            } }, { act { session.stop() } }, replyMode = reply != null, onCloseReply = ::closeReply)
+            } }, { act { session.stop() } }, replyMode = reply != null, onCloseReply = ::closeReply,
+            replyGeneration = reply?.generation)
     }, composer = {
         NativeChiefComposer(state.draft, state.draftRevision, state.retired, onDraft = { text ->
             try { session.editDraft(text) }

@@ -33,7 +33,7 @@ internal fun nativeChiefTextStyle(size: Int = 17): TextStyle = TextStyle(
     textDirection = TextDirection.Content, platformStyle = PlatformTextStyle(includeFontPadding = false))
 
 /** Chief supplies plain text without rich-text runs; Markdown characters are message content. */
-internal fun nativeChiefDetectedText(source: String, open: (String) -> Unit): AnnotatedString {
+internal fun nativeChiefDetectedText(source: String, interactive: Boolean = true, open: (String) -> Unit): AnnotatedString {
     val detected = SpannableString(source)
     Linkify.addLinks(detected, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES or Linkify.PHONE_NUMBERS)
     return buildAnnotatedString {
@@ -41,17 +41,19 @@ internal fun nativeChiefDetectedText(source: String, open: (String) -> Unit): An
         detected.getSpans(0, detected.length, URLSpan::class.java).forEach { span ->
             val url = span.url
             if (Uri.parse(url).scheme?.lowercase() !in setOf("http", "https", "mailto", "tel")) return@forEach
-            addLink(LinkAnnotation.Url(url, TextLinkStyles(style = SpanStyle(textDecoration = TextDecoration.Underline)),
+            val style = SpanStyle(textDecoration = TextDecoration.Underline)
+            if (interactive) addLink(LinkAnnotation.Url(url, TextLinkStyles(style = style),
                 linkInteractionListener = { open(url) }), detected.getSpanStart(span), detected.getSpanEnd(span))
+            else addStyle(style, detected.getSpanStart(span), detected.getSpanEnd(span))
         }
     }
 }
 
 @Composable
 internal fun NativeChiefText(source: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified,
-    fontSize: Int = 17, lineLimit: Int = Int.MAX_VALUE) {
+    fontSize: Int = 17, lineLimit: Int = Int.MAX_VALUE, interactive: Boolean = true) {
     val context = LocalContext.current
-    val text = remember(source, context) { nativeChiefDetectedText(source) { url ->
+    val text = remember(source, context, interactive) { nativeChiefDetectedText(source, interactive) { url ->
         // A telephone tap opens the dialer for user confirmation, like the source's tel: action.
         val uri = Uri.parse(url)
         val action = if (uri.scheme == "tel") Intent.ACTION_DIAL else Intent.ACTION_VIEW

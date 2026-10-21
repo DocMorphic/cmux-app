@@ -66,7 +66,9 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChie
             if (BuildConfig.DEBUG) this[ChiefReplyCopyBounds] = { motion.copyBounds() }
         })
         .drawBehind { drawRect((if (dark) Color.Black else Color.White).copy(alpha = (if (dark) .41f else .58f) * motion.veil)) }
-        .pointerInput(reply.generation, motion.closing) { if (!motion.closing) detectTapGestures(onTap = { onClose() }) }) {
+        .then(if (motion.closing) Modifier else Modifier.pointerInput(reply.generation) {
+            detectTapGestures(onTap = { onClose() })
+        })) {
         BoxWithConstraints(Modifier.fillMaxSize().padding(top = headerHeight, bottom = composerHeight + 6.dp)) {
             NativeChiefReplyScroll(Modifier.fillMaxSize().testTag("ChiefReplyTranscript"), motion) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).graphicsLayer { alpha = motion.contentAlpha }) {
@@ -99,12 +101,14 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChie
                             .testTag("ChiefThreadMessage:${item.messageID}").semantics {
                                 customActions = if (motion.closing) emptyList() else listOf(CustomAccessibilityAction(replyLabel) { onReply(item.messageID) })
                             }
-                            .pointerInput(reply.generation, item.key, motion.closing) { if (!motion.closing) detectTapGestures(onTap = {}) }
+                            .then(if (motion.closing) Modifier else Modifier.pointerInput(reply.generation, item.key) {
+                                detectTapGestures(onTap = {})
+                            })
                         if (emoji != null) NativeChiefEmojiBalloon(text, emoji, "thread:${item.messageID}", bubbleModifier, metrics)
                         else NativeChiefBubble(item.fromMe, true, bubbleModifier, "ChiefThreadBody:${item.messageID}",
                             expanded = part != null, text = text.takeIf { part == null }, metrics = metrics) {
                             ChiefReplySelection(!motion.closing) { Column {
-                                if (part == null) NativeChiefText(text)
+                                if (part == null) NativeChiefText(text, interactive = !motion.closing)
                                 part?.approval?.let { approval ->
                                     Text(approval.prompt)
                                     approval.options.filterNot { it.startsWith("always:") }.forEach { Text(it) }
@@ -146,7 +150,7 @@ private fun NativeChiefReplyScroll(modifier: Modifier, motion: NativeChiefReplyM
         offset = (offset - delta).coerceIn(0f, maximum)
         before - offset
     }
-    Layout(content = { Box(Modifier.onGloballyPositioned { motion.content(it, geometry) }) { content() } }, modifier = modifier.semantics {
+    Layout(content = { Box(Modifier.onGloballyPositioned { motion.content(it, geometry) }) { content() } }, modifier = modifier.then(if (motion.closing) Modifier else Modifier.semantics {
         verticalScrollAxisRange = ScrollAxisRange({ offset }, { maximum })
         // Own these actions before scrollable's built-ins: this state's delta is
         // finger movement, while accessibility offsets describe content movement.
@@ -159,7 +163,7 @@ private fun NativeChiefReplyScroll(modifier: Modifier, motion: NativeChiefReplyM
             val consumed = scroll.scrollBy(-requested.y)
             Offset(0f, -consumed)
         }
-    }.scrollable(scroll, Orientation.Vertical, enabled = !motion.closing)) { children, constraints ->
+    }.scrollable(scroll, Orientation.Vertical))) { children, constraints ->
         val child = children.single().measure(Constraints.fixedWidth(constraints.maxWidth))
         // UIKit model frames already describe the keyboard's final position while
         // its presentation animates. Match that final layout instead of repeatedly
