@@ -1,4 +1,4 @@
-<!-- Project-authored compact title chevron. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="5dp" android:height="9dp" android:viewportWidth="5" android:viewportHeight="9">
-    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M1,1L4,4.5L1,8" />
+<!-- Project-authored title chevron; canvas and ink measured separately in the UIKit reference. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="8.333333dp" android:height="14.666667dp" android:viewportWidth="25" android:viewportHeight="44">
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="6.5" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M9,7L16,22L9,37" />
 </vector>

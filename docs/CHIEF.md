@@ -1,5 +1,32 @@
 # Chief conversations
 
+Oct 21 symbol-frame correction: Android now reserves the native 8⅓×14⅔-point
+symbol canvas in compact mode, with the source four-point text gap and eight-point
+trailing reserve. Portrait keeps its 4.7-point ink reserve and centers that same
+canvas over it. The project-authored vector is taller to approximate the measured
+native ink; it is not an exported SF Symbol. The actual unmodified Swift geometry
+now runs 72 compact cases spanning both the original diagnostic size and measured
+native canvas, plus the prior 56 details/five unread/eight name cases. Focused JVM
+geometry and debug/instrumentation builds pass. Both real landscape emulator
+cases pass in 4.659 s: fixed symbol canvas, 44-point avatar, centered full cluster,
+text/symbol/trailing spacing and actual details open/close at normal and actual
+28.056-point accessibility body type. Their 2622×1206 @3x screenshot/metadata
+hashes and shared authored-scene fixture are verified; both images were inspected.
+Both crash buffers are empty. The portrait invocation passes 32 Chief/root
+cases in 62.396 s; its two landscape-only assumptions are explicitly skipped
+there and pass in the separate landscape invocation. Five fresh portrait scene
+PNG/metadata hashes and dimensions are verified; the normal portrait header image
+was inspected. The owned emulator was restored to 1080×2400/420 and stopped.
+
+This accepts these header dimensions and interactions, not the full compact
+screen. Source and Android font metrics, system/cutout insets, the transcript's
+header overlay/top wash, scrolling/initial position, material and animation still
+differ or need verification. In particular, the source reference's service intro
+can sit behind the transparent header; Android still puts the header above the
+list. Never treat that column layout as accepted parity. The broader quote/thread,
+poll/failed UI, environment/accessibility/IME/lifecycle and real Mac/Pixel gates
+remain open. Signed candidate 707 predates this symbol correction.
+
 Oct 21 expanded UIKit reference checkpoint: run `39538527277` at source
 `7b54fafa51475be2e920cc464672d625aa3d479c` passed both native system-size
 invocations and all thirteen export guards. Artifact `12319300862` has verified
@@ -14,8 +41,11 @@ view/read admission during details, not every lifecycle path.
 
 Landscape references have real compact traits and 874×402 bounds, safe area
 `[0,20,62,62]`, 44-point avatars and intrinsic title-chevron images 8⅓×14⅔ points.
-The source's portrait chevron is fitted smaller; Android currently reuses that
-smaller glyph in compact mode, so matched compact sizing/insets still need work.
+The portrait layout reserves 4.7 points for ink while centering the same intrinsic
+symbol image over that reserve; compact layout reserves the full image. A later
+pixel check found roughly 4.7–5 × 12.3–12.7 points of visible ink in both modes,
+so the earlier assumption that portrait uses a nine-point-tall symbol was wrong.
+Matched compact sizing/insets remain a separate gate.
 Details controls report 63×28-point switch frames while their rendered tracks
 extend below those bounds; compare ink/control frames before changing the Android
 custom switch. Image-view observations can include descendants of hidden views;

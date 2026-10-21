@@ -12,7 +12,7 @@ class NativeChiefHeaderPolicyTest {
     @Test fun geometryAndTypeCategoriesMatchThePinnedExecutedReferences() {
         val v=JSONObject(checkNotNull(javaClass.getResourceAsStream("/parity/chief-header.json")).bufferedReader().use{it.readText()})
         v.getJSONArray("compact").let{ a -> repeat(a.length()) {
-            val r=a.getJSONObject(it);val c=NativeChiefHeaderPolicy.compact(r.getDouble("width"),r.getDouble("name"),21.0,safeTop=r.getDouble("safeTop"))
+            val r=a.getJSONObject(it);val c=NativeChiefHeaderPolicy.compact(r.getDouble("width"),r.getDouble("name"),21.0,r.getDouble("chevronWidth"),r.getDouble("chevronHeight"),safeTop=r.getDouble("safeTop"))
             rect(r.getJSONArray("avatar"),c.avatar);rect(r.getJSONArray("label"),c.label);rect(r.getJSONArray("chevron"),c.chevron)
             assertEquals(r.getDouble("height"),c.height,1e-8)
         } }

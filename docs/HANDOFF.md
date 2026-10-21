@@ -1,5 +1,31 @@
 ## Active full-parity goal — 2026-10-20
 
+Newest Android header checkpoint: the title chevron uses the actual symbol
+canvas (8⅓×14⅔) with separate portrait ink reserve and compact image reserve.
+Compact spacing is 12 points after the avatar, four after the title, eight after
+the image. The project-authored vector approximates measured native ink. Actual
+Swift covers 72 compact cases and prior details/default/type/string cases;
+two focused JVM tests and debug/instrumentation builds pass. Real 874×402 @3x
+landscape: two tests pass in 4.659 s; normal/accessibility body is 17/28.056 points.
+Portrait: 32 cases pass in 62.396 s, with the two landscape-only assumptions
+skipped there. Both crash buffers are empty. Two landscape and five portrait
+PNG/metadata pairs are hash/fixture/dimension verified; both landscape and the
+normal portrait images were inspected. Emulator restored/stopped. Full compact
+screen parity is NOT accepted: inset/font/material/overlay/scroll position and
+animation differences remain. The source intro may sit behind its transparent
+header; Android still has a header-above-list column. Signed 707 predates this
+correction and remains uninstalled. See CHIEF.md and `chief-compact-*` evidence.
+
+Mac fix build **39541508905**, exact source
+`a477efa1b3ecfdba3c1a6864c4f7748b409e512e`, is running after passing integration
+checks. Do not redispatch or replace the current running custom app until the
+artifact is verified and its workspace/security state can be preserved. Signed
+Android **707** at that source is strictly verified (signer, Firebase, 22 native
+libraries, 21 viewer assets, 14 fixture exclusions); SHA-256
+`23d2ed3d3ec91234c92f3efe4740719940a9d4722e1b3956f2d2d0d0b9c768b5`.
+It is not installed/published. Pixel USB remains absent. First upon its authorized
+return: restore original `svc power stayon false`; preserve existing release data.
+
 Newest Mac diagnosis: the same custom app (PID 15059, runtime 39498469545) is
 sampled blocking its main actor in a phone push-key exchange's Keychain read.
 Its producer capture-key loader is blocked separately off-main. Cached CLI lists

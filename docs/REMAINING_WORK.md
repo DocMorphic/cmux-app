@@ -1,3 +1,18 @@
+## Oct 21 Mac and reference update
+
+Mac Keychain exchange fix `a477efa1` is in full build run `39541508905`;
+11 actual patched-handler cases and the coalesced/cancelable deadline lane pass
+with inert Keychain/auth boundaries. The running Mac app is unchanged and live
+acceptance remains required. Signed Android candidate 707 at that source is built
+and strictly verified with the existing signer/Firebase/native inventory, but is
+not installed or published. It predates subsequent compact-header source work.
+Compact symbol canvas/spacing correction now passes two actual landscape checks
+and 32 portrait regressions (two landscape-only assumptions skipped in portrait
+and passed separately), with empty crash buffers. Full header/transcript overlay,
+inset/font/material/scroll-position/animation and physical gates remain open.
+Expanded UIKit run `39538527277` now accepts all thirteen reference exports;
+see CHIEF.md/HANDOFF.md for provenance and limitations. Pixel USB remains absent.
+
 ## Latest Chief emoji checkpoint — 2026-10-21
 
 The source/debug emoji port now covers bare one-to-three graphemes, fixed 72/48

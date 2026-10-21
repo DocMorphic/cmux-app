@@ -193,6 +193,12 @@ class NativeChiefRuntimeTest {
             .put("effectiveBodyPoints", with(density) { 17.sp.toDp().value })
             .put("messageAnchorDate", instant.toString()).put("timeZone", java.time.ZoneId.systemDefault().id)
             .put("bodyBoundsInComposeRoot", JSONObject(bounds))
+            .put("headerBoundsInComposeRoot", JSONObject(listOf("ChiefHeader", "ChiefHeaderPhoto", "ChiefHeaderAvatar",
+                "ChiefHeaderName", "ChiefHeaderTitle", "ChiefHeaderChevron", "ChiefBack", "ChiefHeaderStop").mapNotNull { tag ->
+                compose.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().singleOrNull()?.let { node ->
+                    tag to org.json.JSONArray(node.boundsInRoot.let { listOf(it.left, it.top, it.width, it.height) })
+                }
+            }.toMap()))
             .put("emojiLabels", org.json.JSONArray(emojiLabels))
             .put("scope", "Production composition with typed local owner; authored UIKit scene text/reply/run inputs. Android system bars included; timestamps differ; header/composer and full visual/physical acceptance remain open.")
             .toString(2))
@@ -302,6 +308,39 @@ class NativeChiefRuntimeTest {
         saveScreenshot("chief-emoji-failed")
     }
 
+    @Test fun compactHeaderUsesIntrinsicSymbolCanvasAndSourceClusterSpacing() = compactHeaderReference(false)
+
+    @Test fun compactLargeHeaderKeepsTheSameSymbolCanvasAndCappedName() = compactHeaderReference(true)
+
+    private fun compactHeaderReference(large: Boolean) {
+        val configuration = compose.activity.resources.configuration
+        org.junit.Assume.assumeTrue("Run on the matched landscape emulator surface",
+            configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE && configuration.screenHeightDp < 480)
+        if (large) useReferenceAccessibilityBodySize()
+        openReferenceScene("runs-dark")
+        val density = compose.activity.resources.displayMetrics.density
+        fun rect(tag: String) = compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val header = rect("ChiefHeader")
+        val avatar = rect("ChiefHeaderAvatar")
+        val title = rect("ChiefHeaderTitle")
+        val name = rect("ChiefHeaderName")
+        val symbol = rect("ChiefHeaderChevron")
+        assertEquals(44 * density, avatar.width, 1f)
+        assertEquals(44 * density, avatar.height, 1f)
+        assertEquals(25f / 3 * density, symbol.width, 1f)
+        assertEquals(44f / 3 * density, symbol.height, 1f)
+        assertEquals(12 * density, title.left - avatar.right, 1.5f)
+        assertEquals(4 * density, symbol.left - title.right, 1.5f)
+        assertEquals(8 * density, name.right - symbol.right, 1.5f)
+        assertEquals(header.center.x, (avatar.left + name.right) / 2, 1f)
+        assertEquals(avatar.center.y, symbol.center.y, 1f)
+        compose.onNodeWithTag("ChiefHeaderName").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("ChiefDetails").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefDetailsBack").performClick()
+        compose.onNodeWithTag("ChiefHeaderName").assertIsDisplayed()
+        captureChiefReference(if (large) "compact-large-dark" else "compact-dark")
+    }
+
     @Test fun sourceRunSceneUsesBodyGapsAndReservesOnlyFinalTails() {
         openReferenceScene("runs-dark")
         fun body(id: String) = compose.onNodeWithTag("ChiefBubbleBody:$id").fetchSemanticsNode().boundsInRoot
@@ -350,7 +389,7 @@ class NativeChiefRuntimeTest {
         captureChiefReference("long-dark")
     }
 
-    @Test fun sourceLargeSceneUsesAccessibilityPaddingWithoutClippingTheComposer() {
+    private fun useReferenceAccessibilityBodySize() {
         compose.runOnUiThread {
             // The real Android conversion is nonlinear; a nominal 28/17 ratio renders below 28.
             var low = 1f; var high = 3f
@@ -362,6 +401,10 @@ class NativeChiefRuntimeTest {
             assertTrue("Actual body size was $points", points in 28f..28.2f)
             testFontScale = high
         }
+    }
+
+    @Test fun sourceLargeSceneUsesAccessibilityPaddingWithoutClippingTheComposer() {
+        useReferenceAccessibilityBodySize()
         openReferenceScene("large-dark")
         val density = compose.activity.resources.displayMetrics.density
         val body = compose.onNodeWithTag("ChiefBubbleBody:one").fetchSemanticsNode().boundsInRoot

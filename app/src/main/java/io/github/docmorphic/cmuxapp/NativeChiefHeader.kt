@@ -89,10 +89,15 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
             }
             Row(Modifier.testTag("ChiefHeaderName").then(if (compact) Modifier else Modifier.glass())
                 .clickable(role = Role.Button, onClick = onInfo).semantics(mergeDescendants = true) {}
-                .padding(start = if (compact) 12.dp else 13.dp, end = 10.9.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, Modifier.weight(1f), color = ink, style = nameStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                .padding(start = if (compact) 12.dp else 13.dp, end = if (compact) 8.dp else 10.9.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, Modifier.weight(1f).testTag("ChiefHeaderTitle"), color = ink, style = nameStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.width(if (compact) 4.dp else 5.9.dp))
-                Icon(painterResource(R.drawable.ic_chief_forward), null, Modifier.size(4.7.dp, 9.dp), tint = muted)
+                // UIKit reserves the full symbol image in compact mode. Portrait
+                // reserves 4.7 points of ink and centers that same image over it.
+                Box(Modifier.width(if (compact) (25f / 3).dp else 4.7.dp).height((44f / 3).dp), Alignment.Center) {
+                    Icon(painterResource(R.drawable.ic_chief_forward), null,
+                        Modifier.requiredSize((25f / 3).dp, (44f / 3).dp).testTag("ChiefHeaderChevron"), tint = muted)
+                }
             }
             Box(Modifier.testTag("ChiefHeaderPhoto").clickable(role = Role.Button, onClick = onInfo)
                 .semantics { contentDescription = photoLabel }, Alignment.Center) {

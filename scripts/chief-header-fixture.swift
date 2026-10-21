@@ -5,11 +5,11 @@ import CoreGraphics
     static func rect(_ r: CGRect) -> [Double] { [Double(r.minX),Double(r.minY),Double(r.width),Double(r.height)] }
     static func main() throws {
         var compact: [[String: Any]] = []
-        for width in [320.0,402,440,844] { for name in [0.0,44,200] { for safeTop in [0.0,24,48] {
+        for width in [320.0,402,440,844] { for name in [0.0,44,200] { for safeTop in [0.0,24,48] { for chevron in [CGSize(width: 4.7, height: 9), CGSize(width: 25.0/3, height: 44.0/3)] {
             let r = ConversationHeaderGeometry.compactLayout(width: width, safeTop: safeTop,
-                nameSize: CGSize(width: name, height: 21), chevronSize: CGSize(width: 4.7, height: 9))
-            compact.append(["width":width,"name":name,"safeTop":safeTop,"avatar":rect(r.avatar),"label":rect(r.name),"chevron":rect(r.chevron),"height":Double(r.barTop+r.barHeight)])
-        } } }
+                nameSize: CGSize(width: name, height: 21), chevronSize: chevron)
+            compact.append(["width":width,"name":name,"safeTop":safeTop,"chevronWidth":Double(chevron.width),"chevronHeight":Double(chevron.height),"avatar":rect(r.avatar),"label":rect(r.name),"chevron":rect(r.chevron),"height":Double(r.barTop+r.barHeight)])
+        } } } }
         var details: [[String: Any]] = []
         for width in [402.0,440] { for offset in [-100.0,-40,0,30,60,97.23,200] {
             for title in [101.0/3,80] { for action in [48.0,73] {

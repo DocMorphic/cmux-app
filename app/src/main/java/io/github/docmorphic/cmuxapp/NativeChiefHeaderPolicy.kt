@@ -26,7 +26,7 @@ internal object NativeChiefHeaderPolicy {
     fun unreadFrame(textWidth: Double) = Rect(103.0 / 3, (44.0 - 19) / 2 + 1.0 / 6, unreadWidth(textWidth), 19.0)
     data class Header(val height: Double, val back: Rect, val stop: Rect, val avatar: Rect, val name: Rect)
     data class Compact(val avatar: Rect, val label: Rect, val chevron: Rect, val height: Double)
-    fun compact(width: Double, nameWidth: Double, nameHeight: Double, chevronWidth: Double = 4.7, chevronHeight: Double = 9.0, safeTop: Double = 0.0): Compact {
+    fun compact(width: Double, nameWidth: Double, nameHeight: Double, chevronWidth: Double = 25.0 / 3, chevronHeight: Double = 44.0 / 3, safeTop: Double = 0.0): Compact {
         val top = max(safeTop, 24.0)
         val cluster = 44 + 12 + nameWidth + 4 + chevronWidth + 8
         val avatar = Rect((width - cluster) / 2, top, 44.0, 44.0)
@@ -34,7 +34,7 @@ internal object NativeChiefHeaderPolicy {
         return Compact(avatar, name, Rect(name.x + name.width + 4, top + 22 - chevronHeight / 2, chevronWidth, chevronHeight), top + 54)
     }
     fun header(width: Double, layoutMargin: Double, nameWidth: Double, nameHeight: Double,
-        normalLine: Double, unreadTextWidth: Double?, compact: Boolean, chevronWidth: Double = 4.7, safeTop: Double = 0.0): Header {
+        normalLine: Double, unreadTextWidth: Double?, compact: Boolean, chevronWidth: Double = 25.0 / 3, safeTop: Double = 0.0): Header {
         val margin = margin(layoutMargin)
         if (compact) {
             val fitted = min(nameWidth, max(0.0, width - 2 * (margin + 44 + 8) - 44 - 24 - chevronWidth))

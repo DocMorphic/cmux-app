@@ -1,3 +1,16 @@
+## Compact header symbol checkpoint — 2026-10-21
+
+The Android header now separates intrinsic symbol canvas from portrait ink
+reserve and uses the source compact spacing. The actual Swift geometry covers
+72 compact cases; focused JVM/debug/instrumentation builds pass. Two actual
+landscape cases pass in 4.659 s at normal and 28.056-point body sizes; 32 portrait
+Chief/root cases pass in 62.396 s (the two landscape-only assumptions skip in
+portrait and pass separately). Both crash buffers are empty. Two landscape/five
+portrait capture pairs are verified and the two landscape/normal portrait images
+inspected. This is scoped header evidence: full compact inset/font/material/
+overlay/scroll-position/animation and physical parity remain open. CHIEF.md and
+HANDOFF.md record the evidence and signed-candidate/Mac-build state.
+
 ## Latest Chief emoji checkpoint — 2026-10-21
 
 Bare one-to-three emoji rows and fixed 72/48-point composer/transcript scaling
@@ -6,8 +19,9 @@ rules. Ninety-five actual Swift vectors agree with JVM ICU and the Android
 runtime. Explicit field measurement fixes the reproduced failure to shrink after
 returning to body text. Full JVM: 3,028 pass/four skip; Android Chief/root: all 32
 pass in 60.276 s, empty crash buffer. Current captures and platform/font limits
-are in CHIEF.md. The expanded UIKit details/compact reference run remains pending,
-as do physical, animation, rich IME, accessibility and whole-app parity gates.
+are in CHIEF.md. The expanded UIKit details/compact reference run is now accepted as an offline
+reference; physical, animation, rich IME, accessibility and whole-app parity gates
+remain open. See the newer compact checkpoint in CHIEF.md.
 
 # Android parity tracker
 
