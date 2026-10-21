@@ -100,7 +100,8 @@ class ReferenceIntegrityTests(unittest.TestCase):
                 value['controls'] += [{'identifier': 'conversation.details.' + action, 'enabled': True, 'on': enabled}
                                       for action, enabled in (('hideAlerts', False), ('readReceipts', True))]
                 value['behavior'].update(viewingWhileDetails=True, viewingAfterReturn=True,
-                    detailsCloseActivation='barButtonTargetAction',
+                    detailsCloseActivation='uniqueNavigationPrimaryAction', navigationPrimaryControlCount=1,
+                    navigationLeftItemCount=1, navigationRightItemCount=0, navigationItemIdentifier='conversation.details.back',
                     editorFocusedWhileDetails=False, editorFocusedAfterReturn=False, draftPreserved=True,
                     alertsOptimistic=True, receiptsOptimistic=True, alertsAfterRollback=False, receiptsAfterRollback=True)
             else:
@@ -156,6 +157,12 @@ class ReferenceIntegrityTests(unittest.TestCase):
         self.add_interactions()
         self.mutate_interaction('details-dark', lambda value: value['behavior'].update(detailsCloseActivation='manualDismiss'))
         with self.assertRaisesRegex(ValueError, 'actual source details Back item|Actual source details Back item'):
+            self.verify(with_interactions=True)
+
+    def test_an_ambiguous_navigation_bar_cannot_prove_the_source_back_action(self):
+        self.add_interactions()
+        self.mutate_interaction('details-dark', lambda value: value['behavior'].update(navigationPrimaryControlCount=2))
+        with self.assertRaisesRegex(ValueError, 'Ambiguous source Back navigation controls'):
             self.verify(with_interactions=True)
 
 

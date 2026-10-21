@@ -39,9 +39,11 @@ def verify_interaction(name, value, specification):
                 raise ValueError('Source details switch did not roll back: ' + name)
         if type(behavior.get('viewingWhileDetails')) is not bool:
             raise ValueError('Missing actual modal viewing observation: ' + name)
-        if behavior.get('detailsCloseActivation') not in ('barButtonTargetAction', 'barButtonAccessibilityActivate',
-                                                         'barButtonRenderedControl', 'barButtonRenderedAccessibilityActivate'):
+        if behavior.get('detailsCloseActivation') != 'uniqueNavigationPrimaryAction':
             raise ValueError('Actual source details Back item was not exercised: ' + name)
+        if (behavior.get('navigationPrimaryControlCount') != 1 or behavior.get('navigationLeftItemCount') != 1 or
+            behavior.get('navigationRightItemCount') != 0 or behavior.get('navigationItemIdentifier') != 'conversation.details.back'):
+            raise ValueError('Ambiguous source Back navigation controls: ' + name)
         required = {'editorFocusedWhileDetails': False, 'editorFocusedAfterReturn': False,
                     'draftPreserved': True, 'viewingAfterReturn': True,
                     'alertsOptimistic': True, 'receiptsOptimistic': True,

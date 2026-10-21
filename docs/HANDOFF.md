@@ -18,11 +18,15 @@ candidate before a latest-source Pixel upgrade. No phone/account/pairing/helper
 changes were made.
 
 Expanded UIKit run **39537005113**, source
-`929a5839152e2a9d411999720546893d020e4416`, is live. Track this handle rather than
-duplicating the run. It requires all thirteen scenes and retains navigation
-control diagnostics before attempting the actual rendered Back control. The
-expanded batch remains unaccepted pending hosted results, verification and
-inspection. Earlier failure history is below.
+`929a5839152e2a9d411999720546893d020e4416`, failed. Its verified diagnostics show
+no rendered navigation labels/identifiers but exactly one primary-action control
+(event 8192). The harness now proves the presented controller owns this bar, its
+sole left item is source Back and there are no right items, then requires exactly
+one registered primary control and sends its public primary event. The exporter
+also requires this unique shape; fourteen integrity tests pass. No manual close
+can substitute. Expanded hosted compilation/rendering remains pending a new run;
+all thirteen scenes and real close/return/focus/draft/viewing checks stay required.
+Earlier failure history is below.
 
 Current reference work: hosted run `39533735026`, source
 `962ec10c4cc74e30a7fdf0a776bd37b570d3b4c2`, failed Swift 6 compilation in a nested

@@ -170,30 +170,25 @@ extension CmuxChiefReferenceTests {
                         "controlEvents": (view as? UIControl)?.allControlEvents.rawValue ?? 0] }]
                 let diagnosticAttachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: diagnostic, options: [.prettyPrinted, .sortedKeys]), uniformTypeIdentifier: "public.json")
                 diagnosticAttachment.name = specification.id + "-navigation-diagnostic.json"; diagnosticAttachment.lifetime = .keepAlways; add(diagnosticAttachment)
-                // UIBarButtonItem need not expose a UIControl in UIKit's private view tree.
-                // Dispatch the item's actual public action, never a fabricated selector/dismissal.
-                let activated: Bool
-                if let action = back.action {
-                    behavior["detailsCloseActivation"] = "barButtonTargetAction"
-                    activated = UIApplication.shared.sendAction(action, to: back.target, from: back, for: nil)
-                } else if let wrapper = barViews.first(where: {
-                    $0.accessibilityIdentifier == back.accessibilityIdentifier || $0.accessibilityLabel == back.accessibilityLabel
-                }), let control = views(in: wrapper).compactMap({ $0 as? UIControl }).first(where: {
-                    $0.allControlEvents.contains(.primaryActionTriggered) || $0.allControlEvents.contains(.touchUpInside)
-                }) {
-                    behavior["detailsCloseActivation"] = "barButtonRenderedControl"
-                    control.sendActions(for: control.allControlEvents.contains(.primaryActionTriggered) ? .primaryActionTriggered : .touchUpInside)
-                    activated = true
-                } else if let wrapper = barViews.first(where: {
-                    $0.accessibilityIdentifier == back.accessibilityIdentifier || $0.accessibilityLabel == back.accessibilityLabel
-                }) {
-                    behavior["detailsCloseActivation"] = "barButtonRenderedAccessibilityActivate"
-                    activated = wrapper.accessibilityActivate()
-                } else {
-                    behavior["detailsCloseActivation"] = "barButtonAccessibilityActivate"
-                    activated = back.accessibilityActivate()
+                // The source installs only its Back item in this bar. UIKit's rendered
+                // primary control has no public label/id, so prove the item/bar shape and
+                // require exactly one registered primary control instead of guessing by class.
+                let item = try XCTUnwrap(bar.topItem)
+                XCTAssertTrue(item === navigation.topViewController?.navigationItem)
+                XCTAssertTrue(item.leftBarButtonItem === back)
+                XCTAssertEqual(item.leftBarButtonItems?.count, 1)
+                XCTAssertTrue(item.rightBarButtonItems?.isEmpty ?? true)
+                let primary = barViews.compactMap { $0 as? UIControl }.filter {
+                    $0.isEnabled && $0.allControlEvents.contains(.primaryActionTriggered)
                 }
-                XCTAssertTrue(activated, "The actual source Back item must handle its action")
+                let control = try XCTUnwrap(primary.count == 1 ? primary.first : nil,
+                    "Exactly one registered primary control must belong to the source Back-only navigation bar")
+                behavior["navigationPrimaryControlCount"] = primary.count
+                behavior["navigationLeftItemCount"] = item.leftBarButtonItems?.count ?? 0
+                behavior["navigationRightItemCount"] = item.rightBarButtonItems?.count ?? 0
+                behavior["navigationItemIdentifier"] = back.accessibilityIdentifier ?? ""
+                behavior["detailsCloseActivation"] = "uniqueNavigationPrimaryAction"
+                control.sendActions(for: .primaryActionTriggered)
                 try await wait("actual source details back action") { controller.presentedViewController == nil }
                 try await wait("actual source viewing after details return") { store.isViewing }
                 XCTAssertEqual(editor?.text, specification.draft)

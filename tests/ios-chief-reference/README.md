@@ -98,3 +98,12 @@ wrapper and dispatches its registered public primary/touch action. A public
 accessibility activation of that rendered wrapper is also supported. Navigation
 view/control-event diagnostics attach before activation. The real dismissal and
 return checks remain mandatory; no manual modal dismissal is permitted.
+Run `39537005113` confirmed why label-based lookup fails: UIKit exposes neither
+the item's identifier nor label on any rendered navigation view. The diagnostic
+tree contains exactly one enabled event-bearing control, registered for event
+8192 (`primaryActionTriggered`). The harness now proves that the bar's top item
+is the presented controller's own navigation item, that its sole left item is
+the pinned Back item, and that it has no right items. It requires exactly one
+registered primary control in that bar before dispatching that public event.
+The exporter requires those facts as well as the resulting close/focus/draft/
+viewing behavior; fourteen integrity tests reject ambiguous or manual shortcuts.
