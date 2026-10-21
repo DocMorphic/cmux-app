@@ -1,5 +1,29 @@
 ## Active full-parity goal — 2026-10-20
 
+Newest emoji checkpoint: source one-to-three grapheme rules, fixed 72/48-point
+bare transcript/pending/failed rows and stricter composer scaling are mounted.
+The editor now explicitly remeasures its height after font changes; marked IME
+text keeps the previous base font. Source execution/JVM/runtime cover 95 vectors
+and five guarded files. Final JVM: 3,028 pass/four skip/zero failures. Final
+Android: all 32 pass in 60.276 s with an empty crash buffer. Five shared-input
+PNG/metadata pairs are hash/viewport/density verified; normal/large emoji,
+failed-row and expanded-editor images were inspected. Details and diagnostic
+limits are in CHIEF.md. The large-font-to-body height failure was reproduced
+(313 px stayed 313 px), then fixed by explicit measurement. A footer check now
+awaits actual visibility; a long-field geometry check samples stable simultaneous
+field/Send/header bounds after IME visibility. The assertions remain; no forced
+scroll is used to make them pass. Mid-animation/physical IME stress stays open.
+This app work postdates local signed candidate 706; prepare a fresh stable-signer
+candidate before a latest-source Pixel upgrade. No phone/account/pairing/helper
+changes were made.
+
+Expanded UIKit run **39537005113**, source
+`929a5839152e2a9d411999720546893d020e4416`, is live. Track this handle rather than
+duplicating the run. It requires all thirteen scenes and retains navigation
+control diagnostics before attempting the actual rendered Back control. The
+expanded batch remains unaccepted pending hosted results, verification and
+inspection. Earlier failure history is below.
+
 Current reference work: hosted run `39533735026`, source
 `962ec10c4cc74e30a7fdf0a776bd37b570d3b4c2`, failed Swift 6 compilation in a nested
 test helper that captured XCTest self across actor isolation. Direct main-actor

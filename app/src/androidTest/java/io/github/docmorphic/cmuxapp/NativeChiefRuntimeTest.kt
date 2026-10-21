@@ -174,6 +174,17 @@ class NativeChiefRuntimeTest {
         val file = File(directory, "chief-reference-$name.png")
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         val density = Density(compose.activity.resources.displayMetrics.density, testFontScale)
+        val emojiLabels = compose.onAllNodes(SemanticsMatcher("Chief emoji glyph metrics") {
+            it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("ChiefEmojiGlyph:") == true
+        }).fetchSemanticsNodes().map { node ->
+            val tag = node.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag]
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            compose.onNodeWithTag(tag).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            val layout = layouts.single()
+            JSONObject().put("tag", tag).put("text", layout.layoutInput.text.text)
+                .put("fontPoints", with(density) { layout.layoutInput.style.fontSize.toDp().value })
+                .put("frameInRoot", org.json.JSONArray(node.boundsInRoot.let { listOf(it.left, it.top, it.width, it.height) }))
+        }
         File(directory, "chief-reference-$name.json").writeText(JSONObject()
             .put("scene", name).put("fixtureSha256", "e2d477d1db72e0ca574f8a1c04db8ad9245fbcd3df6d6015a317e3846df9c2fb")
             .put("imageSha256", MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) })
@@ -182,9 +193,113 @@ class NativeChiefRuntimeTest {
             .put("effectiveBodyPoints", with(density) { 17.sp.toDp().value })
             .put("messageAnchorDate", instant.toString()).put("timeZone", java.time.ZoneId.systemDefault().id)
             .put("bodyBoundsInComposeRoot", JSONObject(bounds))
+            .put("emojiLabels", org.json.JSONArray(emojiLabels))
             .put("scope", "Production composition with typed local owner; authored UIKit scene text/reply/run inputs. Android system bars included; timestamps differ; header/composer and full visual/physical acceptance remain open.")
             .toString(2))
         bitmap.recycle()
+    }
+
+    private fun assertFixedEmojiFont(tag: String, expected: Float) {
+        val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.onNodeWithTag(tag).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        val density = Density(compose.activity.resources.displayMetrics.density, testFontScale)
+        assertEquals(expected, with(density) { layouts.single().layoutInput.style.fontSize.toDp().value }, .2f)
+    }
+
+    private fun settledComposerGeometry(): List<androidx.compose.ui.geometry.Rect> {
+        val tags = listOf("ChiefComposerField", "ChiefSend", "ChiefHeaderStop")
+        var previous = emptyList<androidx.compose.ui.geometry.Rect>()
+        var stableSince = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(10_000) {
+            var imeVisible = false
+            compose.runOnUiThread { imeVisible = compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime()) }
+            val current = tags.mapNotNull { tag -> compose.onAllNodesWithTag(tag).fetchSemanticsNodes().singleOrNull()?.boundsInRoot }
+            val now = android.os.SystemClock.uptimeMillis()
+            if (!imeVisible || current != previous) stableSince = now
+            previous = current
+            imeVisible && current.size == tags.size && current.all { it.width > 0 && it.height > 0 } && now - stableSince >= 200
+        }
+        return previous
+    }
+
+    @Test fun emojiClassificationAgreesWithActualSwiftOnTheAndroidRuntime() {
+        val bytes = InstrumentationRegistry.getInstrumentation().context.assets.open("parity/chief-emoji.json").use { it.readBytes() }
+        assertEquals("9a6f61d51209117c39a3323381e5e0da190348db5892f5079e7cffcc46526c11",
+            MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) })
+        val rows = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONArray("cases")
+        repeat(rows.length()) { index ->
+            val row = rows.getJSONObject(index); val text = row.getString("text")
+            assertEquals("prefilter $index", row.getBoolean("prefilter"), NativeChiefEmojiPolicy.mayBeEmojiOnly(text))
+            assertEquals("predicate $index", row.getBoolean("emojiOnly"), NativeChiefEmojiPolicy.isEmojiOnly(text))
+            assertEquals("count $index", row.getInt("count"), NativeChiefEmojiPolicy.count(text))
+            assertEquals("font $index", row.getInt("fontSize").takeIf { row.getBoolean("emojiOnly") }, NativeChiefEmojiPolicy.fontSize(text))
+            assertEquals("composer $index", if (row.isNull("composerPointSize")) null else row.getInt("composerPointSize"), NativeChiefEmojiPolicy.composerFontSize(text))
+        }
+    }
+
+    @Test fun sourceEmojiSceneUsesABareSingleGlyphAndANormalSpacedPair() {
+        openReferenceScene("emoji-dark")
+        compose.onNodeWithTag("ChiefEmoji:one").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefBubbleBody:one").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefBubbleBody:two").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefEmoji:two").assertDoesNotExist()
+        assertFixedEmojiFont("ChiefEmojiGlyph:one", 72f)
+        val density = compose.activity.resources.displayMetrics.density
+        val glyph = compose.onNodeWithTag("ChiefEmojiGlyph:one").fetchSemanticsNode().boundsInRoot
+        val balloon = compose.onNodeWithTag("ChiefEmoji:one").fetchSemanticsNode().boundsInRoot
+        val following = compose.onNodeWithTag("ChiefBubbleBody:two").fetchSemanticsNode().boundsInRoot
+        assertEquals(26.84f * density, balloon.height - glyph.height, 2f)
+        assertEquals(10f * density, glyph.top - balloon.top, 1f)
+        assertEquals(10f * density, following.top - balloon.bottom, 2f)
+        captureChiefReference("emoji-dark")
+    }
+
+    @Test fun adjacentAndJoinedEmojiUseFixedSizesAtAccessibilityScale() {
+        compose.runOnUiThread {
+            testFontScale = 2f
+            api.rows = listOf(message("joined", 1uL, "👨‍👩‍👧‍👦"), message("pair", 2uL, "🙂🎉", true),
+                message("four", 3uL, "🙂🙂🙂🙂"))
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefBubbleBody:four").fetchSemanticsNodes().isNotEmpty() }
+        assertFixedEmojiFont("ChiefEmojiGlyph:joined", 72f)
+        assertFixedEmojiFont("ChiefEmojiGlyph:pair", 48f)
+        compose.onNodeWithTag("ChiefEmoji:four").assertDoesNotExist()
+        val density = compose.activity.resources.displayMetrics.density
+        val glyph = compose.onNodeWithTag("ChiefEmojiGlyph:joined").fetchSemanticsNode().boundsInRoot
+        val balloon = compose.onNodeWithTag("ChiefEmoji:joined").fetchSemanticsNode().boundsInRoot
+        assertEquals((26.84f * 1.2f) * density, balloon.height - glyph.height, 2f)
+        saveScreenshot("chief-emoji-accessibility")
+    }
+
+    @Test fun composerRestylesOnlyUntrimmedEmojiAndRetainsTheBarePendingAndFailedRow() {
+        openReferenceScene("emoji-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("👍🏽")
+        compose.waitForIdle()
+        assertFixedEmojiFont("ChiefComposer", 72f)
+        val bigHeight = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot.height
+        compose.onNodeWithTag("ChiefComposer").performTextReplacement(" 👍🏽 ")
+        compose.waitForIdle()
+        assertFixedEmojiFont("ChiefComposer", 17f)
+        val smallHeight = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot.height
+        assertTrue("Emoji field height $bigHeight; normal field height $smallHeight", smallHeight < bigHeight)
+        compose.onNodeWithTag("ChiefComposer").performTextReplacement("🙂🎉")
+        compose.waitForIdle()
+        assertFixedEmojiFont("ChiefComposer", 48f)
+        compose.runOnUiThread { api.sendGate = CompletableDeferred(); api.sendFailure = MobileRpcOutcomeUnknown() }
+        tapSendWhenReady()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        val id = api.sends.single().second!!
+        compose.onNodeWithTag("ChiefEmoji:$id").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefPendingBody:$id").assertDoesNotExist()
+        assertFixedEmojiFont("ChiefEmojiGlyph:$id", 48f)
+        compose.runOnUiThread { api.sendGate!!.complete(Unit) }
+        compose.waitUntil(10_000) { computer.transcript()!!.state.value.outgoing.singleOrNull()?.delivery?.isFailed == true }
+        // Owner state precedes the layout and pinned-tail follow after footer insertion.
+        compose.waitUntil(10_000) { compose.onNodeWithTag("ChiefFailed:$id").isDisplayed() }
+        compose.onNodeWithTag("ChiefEmoji:$id").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefFailed:$id").assertIsDisplayed()
+        saveScreenshot("chief-emoji-failed")
     }
 
     @Test fun sourceRunSceneUsesBodyGapsAndReservesOnlyFinalTails() {
@@ -366,13 +481,11 @@ class NativeChiefRuntimeTest {
         val initial = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot
         compose.onNodeWithTag("ChiefComposer").performTextInput((1..30).joinToString("\n") { "Draft line $it" })
         compose.waitForIdle()
-        val field = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot
-        val send = compose.onNodeWithTag("ChiefSend").fetchSemanticsNode().boundsInRoot
-        val header = compose.onNodeWithContentDescription("Stop Chief").fetchSemanticsNode().boundsInRoot
+        val (field, send, header) = settledComposerGeometry()
         assertTrue(field.height > 160 * compose.activity.resources.displayMetrics.density)
         assertTrue(field.height > initial.height * 5)
         assertTrue(field.top > header.bottom)
-        assertTrue(field.contains(send.topLeft) && field.contains(send.bottomRight))
+        assertTrue("Field $field must contain Send $send", field.contains(send.topLeft) && field.contains(send.bottomRight))
         compose.onNodeWithTag("ChiefComposer").assertTextContains("Draft line 30", substring = true)
         val editor = compose.onNodeWithTag("ChiefComposer").fetchSemanticsNode()
         val selection = editor.config[androidx.compose.ui.semantics.SemanticsProperties.TextSelectionRange]

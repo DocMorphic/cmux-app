@@ -1,5 +1,44 @@
 # Chief conversations
 
+Oct 21 emoji checkpoint: source-shaped bare emoji rows and composer scaling are
+mounted. The actual predicate allows one to three adjacent graphemes, preserves
+source-accepted non-RGI combinations, and rejects a spaced pair as ordinary text.
+Fonts stay at 72 logical points for one and 48 for multiple emoji even at large
+body-text sizes. The iOS 26 branch supplies 26.84 points of vertical balloon room,
+32.208 at accessibility body sizes, with no fill/tail or tail-spacing discount.
+Quotes retain their own outline/connector. Pending and failed sends use the same
+bare glyph presentation; existing status/retry UI remains subject to its separate
+source presentation gate.
+
+Draft scaling additionally requires no Foundation-trimmed boundary whitespace.
+Marked IME text retains the previous base font until composition finishes.
+Explicit current-font text measurement now controls the field's growing/capped
+height, preserving the editor state, selection, undo and IME connection. This
+fixes a reproduced case where a 313-pixel field stayed tall after its font had
+returned to body size. The 30-line draft still scrolls below the header with
+Send inside; geometry checks wait for actual IME visibility and a stable set of
+field/Send/header bounds. Mid-animation and physical IME stress remain open.
+
+Five exact source hashes guard the extracted, unchanged Swift prefilter,
+predicate, grapheme count, fixed font size and composer-eligibility bodies.
+Ninety-five vectors run through JVM ICU and the real Android runtime, including
+families, flags, keycaps, variation selectors, controls, zero-width space and the
+192-byte cutoff. `scripts/check-chief-emoji.py` regenerates/verifies the two exact
+JVM/runtime fixtures; vector SHA-256 is
+`9a6f61d51209117c39a3323381e5e0da190348db5892f5079e7cffcc46526c11`.
+The full JVM run passes 3,028 with four skips and no failures; all 32 Android
+Chief/root checks pass in 60.276 seconds with an empty crash buffer. Logs are
+`chief-emoji-height-accepted-build.log` and `chief-emoji-accepted-android.log`.
+
+Five fresh shared-input PNG/metadata pairs in `chief-emoji-accepted-scenes/`
+have verified payload hashes, fixture identity and 1206×2622 viewport at density
+3. Normal and accessibility emoji, the failed emoji row and expanded editor were
+inspected. Android uses system emoji artwork/Unicode/font metrics: the 72-point
+thumb's Android text frame is 89.67 logical points wide, versus UIKit's 77-point
+frame. This is not pixel identity or future/older-OS Unicode acceptance. The
+source/debug checkpoint does not close animation, rich IME, accessibility,
+physical Mac/Pixel or whole-app parity gates, and postdates signed candidate 706.
+
 Oct 21 trimming follow-up: Home queries, work title/status/preview and question
 Other text/admission now reuse the composer policy verified against Foundation.
 All 62 actual Swift trim vectors are exercised through these consumers, including

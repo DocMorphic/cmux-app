@@ -420,7 +420,12 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     onQuestion: (String) -> Unit, onFailure: (String) -> Unit) {
     val baseGap = metrics.space(if (row.firstInRun) 10f else 4f)
     // Local outgoing rows already end in a status caption; acknowledged text ends in its tail.
-    val previousOverhang = if (previous?.lastInRun == true && previous.item.message != null) metrics.drop else 0.dp
+    val previousMessage = previous?.item?.message
+    val previousEmoji = remember(previousMessage) {
+        previousMessage?.let { message -> NativeChiefPresentation.pendingPart(message) == null &&
+            NativeChiefEmojiPolicy.isEmojiOnly(NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)) } == true
+    }
+    val previousOverhang = if (previous?.lastInRun == true && previousMessage != null && !previousEmoji) metrics.drop else 0.dp
     val gap = if (row.timestamp) 0.dp else (baseGap - previousOverhang).coerceAtLeast(0.dp)
     Column(Modifier.fillMaxWidth().testTag("ChiefRow:${row.item.key}").padding(top = gap)) {
         if (row.timestamp) ChiefTimestamp(row.item.at, "ChiefTimestamp:${row.item.key}")
@@ -429,8 +434,9 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
             val part = NativeChiefPresentation.pendingPart(message)
             val actionable = message.id !in state.deciding && message.id !in state.committed
             val body = NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)
+            val emojiSize = remember(body, part) { if (part == null) NativeChiefEmojiPolicy.fontSize(body) else null }
             NativeChiefBalloonRow(row.quote, message.authorKind == "human", row.lastInRun,
-                message.id, expanded = part != null, text = body.takeIf { part == null }, metrics = metrics) {
+                message.id, expanded = part != null, text = body.takeIf { part == null }, metrics = metrics, emojiSize = emojiSize) {
                 if (body.isNotEmpty() || part == null) SelectionContainer { NativeChiefText(body) }
                 part?.approval?.let { approval ->
                     Text(approval.prompt, fontWeight = FontWeight.SemiBold)
@@ -453,8 +459,11 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
             }
         } else {
             val outgoing = checkNotNull(row.item.outgoing)
+            val emojiSize = remember(outgoing.text) { NativeChiefEmojiPolicy.fontSize(outgoing.text) }
             Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.AbsoluteAlignment.Right) {
-                NativeChiefBubble(true, row.lastInRun, Modifier.testTag("ChiefPending:${outgoing.clientMessageId}"),
+                if (emojiSize != null) NativeChiefEmojiBalloon(outgoing.text, emojiSize, outgoing.clientMessageId,
+                    Modifier.testTag("ChiefPending:${outgoing.clientMessageId}"), metrics)
+                else NativeChiefBubble(true, row.lastInRun, Modifier.testTag("ChiefPending:${outgoing.clientMessageId}"),
                     bodyTag = "ChiefPendingBody:${outgoing.clientMessageId}", text = outgoing.text, metrics = metrics) {
                     SelectionContainer { NativeChiefText(outgoing.text) }
                 }

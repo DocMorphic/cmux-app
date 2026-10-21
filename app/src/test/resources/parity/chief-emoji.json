@@ -1,0 +1,2530 @@
+{
+  "cases": [
+    {
+      "clusters": [],
+      "composerPointSize": null,
+      "count": 0,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": false,
+      "text": "",
+      "trimmed": "",
+      "trimmedClusters": []
+    },
+    {
+      "clusters": [
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 0,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": false,
+      "text": " ",
+      "trimmed": "",
+      "trimmedClusters": []
+    },
+    {
+      "clusters": [
+        "👍"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "👍",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "👍🏽"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "👍🏽",
+      "trimmed": "👍🏽",
+      "trimmedClusters": [
+        "👍🏽"
+      ]
+    },
+    {
+      "clusters": [
+        "👍🏻",
+        "👍🏿"
+      ],
+      "composerPointSize": 48,
+      "count": 2,
+      "emojiOnly": true,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "👍🏻👍🏿",
+      "trimmed": "👍🏻👍🏿",
+      "trimmedClusters": [
+        "👍🏻",
+        "👍🏿"
+      ]
+    },
+    {
+      "clusters": [
+        "👨‍👩‍👧‍👦"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "👨‍👩‍👧‍👦",
+      "trimmed": "👨‍👩‍👧‍👦",
+      "trimmedClusters": [
+        "👨‍👩‍👧‍👦"
+      ]
+    },
+    {
+      "clusters": [
+        "🇮🇳"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "🇮🇳",
+      "trimmed": "🇮🇳",
+      "trimmedClusters": [
+        "🇮🇳"
+      ]
+    },
+    {
+      "clusters": [
+        "1"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": false,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "1",
+      "trimmed": "1",
+      "trimmedClusters": [
+        "1"
+      ]
+    },
+    {
+      "clusters": [
+        "1️⃣"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "1️⃣",
+      "trimmed": "1️⃣",
+      "trimmedClusters": [
+        "1️⃣"
+      ]
+    },
+    {
+      "clusters": [
+        "#️⃣"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "#️⃣",
+      "trimmed": "#️⃣",
+      "trimmedClusters": [
+        "#️⃣"
+      ]
+    },
+    {
+      "clusters": [
+        "*️⃣"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "*️⃣",
+      "trimmed": "*️⃣",
+      "trimmedClusters": [
+        "*️⃣"
+      ]
+    },
+    {
+      "clusters": [
+        "♥"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": false,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "♥",
+      "trimmed": "♥",
+      "trimmedClusters": [
+        "♥"
+      ]
+    },
+    {
+      "clusters": [
+        "♥️"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "♥️",
+      "trimmed": "♥️",
+      "trimmedClusters": [
+        "♥️"
+      ]
+    },
+    {
+      "clusters": [
+        "©"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": false,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "©",
+      "trimmed": "©",
+      "trimmedClusters": [
+        "©"
+      ]
+    },
+    {
+      "clusters": [
+        "©️"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "©️",
+      "trimmed": "©️",
+      "trimmedClusters": [
+        "©️"
+      ]
+    },
+    {
+      "clusters": [
+        "™"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": false,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "™",
+      "trimmed": "™",
+      "trimmedClusters": [
+        "™"
+      ]
+    },
+    {
+      "clusters": [
+        "™️"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "™️",
+      "trimmed": "™️",
+      "trimmedClusters": [
+        "™️"
+      ]
+    },
+    {
+      "clusters": [
+        "🏳️‍🌈"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "🏳️‍🌈",
+      "trimmed": "🏳️‍🌈",
+      "trimmedClusters": [
+        "🏳️‍🌈"
+      ]
+    },
+    {
+      "clusters": [
+        "🧑‍🚀"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "🧑‍🚀",
+      "trimmed": "🧑‍🚀",
+      "trimmedClusters": [
+        "🧑‍🚀"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "🎉"
+      ],
+      "composerPointSize": 48,
+      "count": 2,
+      "emojiOnly": true,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂🎉",
+      "trimmed": "🙂🎉",
+      "trimmedClusters": [
+        "🙂",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "\n",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂\n🎉",
+      "trimmed": "🙂\n🎉",
+      "trimmedClusters": [
+        "🙂",
+        "\n",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "🙂",
+        "🙂"
+      ],
+      "composerPointSize": 48,
+      "count": 3,
+      "emojiOnly": true,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂🙂🙂",
+      "trimmed": "🙂🙂🙂",
+      "trimmedClusters": [
+        "🙂",
+        "🙂",
+        "🙂"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂"
+      ],
+      "composerPointSize": null,
+      "count": 4,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂🙂🙂🙂",
+      "trimmed": "🙂🙂🙂🙂",
+      "trimmedClusters": [
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂"
+      ]
+    },
+    {
+      "clusters": [
+        "A",
+        "👍"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": false,
+      "text": "A👍",
+      "trimmed": "A👍",
+      "trimmedClusters": [
+        "A",
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "👍",
+        "A"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": false,
+      "text": "👍A",
+      "trimmed": "👍A",
+      "trimmedClusters": [
+        "👍",
+        "A"
+      ]
+    },
+    {
+      "clusters": [
+        "h",
+        "e",
+        "l",
+        "l",
+        "o"
+      ],
+      "composerPointSize": null,
+      "count": 5,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": false,
+      "text": "hello",
+      "trimmed": "hello",
+      "trimmedClusters": [
+        "h",
+        "e",
+        "l",
+        "l",
+        "o"
+      ]
+    },
+    {
+      "clusters": [
+        "\u001c",
+        "👍",
+        "\u001c"
+      ],
+      "composerPointSize": null,
+      "count": 3,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "\u001c👍\u001c",
+      "trimmed": "\u001c👍\u001c",
+      "trimmedClusters": [
+        "\u001c",
+        "👍",
+        "\u001c"
+      ]
+    },
+    {
+      "clusters": [
+        "\t",
+        "👍",
+        "\r\n"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "\t👍\r\n",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "‍"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": false,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "‍",
+      "trimmed": "‍",
+      "trimmedClusters": [
+        "‍"
+      ]
+    },
+    {
+      "clusters": [
+        "️"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": false,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "️",
+      "trimmed": "️",
+      "trimmedClusters": [
+        "️"
+      ]
+    },
+    {
+      "clusters": [
+        " ́",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": false,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " ́👍 ",
+      "trimmed": "́👍",
+      "trimmedClusters": [
+        "́",
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "👍",
+        "\u0000"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "👍\u0000",
+      "trimmed": "👍\u0000",
+      "trimmedClusters": [
+        "👍",
+        "\u0000"
+      ]
+    },
+    {
+      "clusters": [
+        "🫩"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "🫩",
+      "trimmed": "🫩",
+      "trimmedClusters": [
+        "🫩"
+      ]
+    },
+    {
+      "clusters": [
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+      "trimmed": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+      "trimmedClusters": [
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿"
+      ]
+    },
+    {
+      "clusters": [
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿"
+      ],
+      "composerPointSize": 48,
+      "count": 3,
+      "emojiOnly": true,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🏴󠁧󠁢󠁥󠁮󠁧󠁿🏴󠁧󠁢󠁥󠁮󠁧󠁿🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+      "trimmed": "🏴󠁧󠁢󠁥󠁮󠁧󠁿🏴󠁧󠁢󠁥󠁮󠁧󠁿🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+      "trimmedClusters": [
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿"
+      ]
+    },
+    {
+      "clusters": [
+        "1́"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "1́",
+      "trimmed": "1́",
+      "trimmedClusters": [
+        "1́"
+      ]
+    },
+    {
+      "clusters": [
+        "©́"
+      ],
+      "composerPointSize": 72,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "©́",
+      "trimmed": "©́",
+      "trimmedClusters": [
+        "©́"
+      ]
+    },
+    {
+      "clusters": [
+        "A️"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": false,
+      "fontSize": 72,
+      "prefilter": false,
+      "text": "A️",
+      "trimmed": "A️",
+      "trimmedClusters": [
+        "A️"
+      ]
+    },
+    {
+      "clusters": [
+        "a‍",
+        "👍"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": false,
+      "text": "a‍👍",
+      "trimmed": "a‍👍",
+      "trimmedClusters": [
+        "a‍",
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "\t",
+        "👍",
+        "\t"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "\t👍\t",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "\t",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂\t🎉",
+      "trimmed": "🙂\t🎉",
+      "trimmedClusters": [
+        "🙂",
+        "\t",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "\n",
+        "👍",
+        "\n"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "\n👍\n",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "\n",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂\n🎉",
+      "trimmed": "🙂\n🎉",
+      "trimmedClusters": [
+        "🙂",
+        "\n",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "\u000b",
+        "👍",
+        "\u000b"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "\u000b👍\u000b",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "\u000b",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂\u000b🎉",
+      "trimmed": "🙂\u000b🎉",
+      "trimmedClusters": [
+        "🙂",
+        "\u000b",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "\f",
+        "👍",
+        "\f"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "\f👍\f",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "\f",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂\f🎉",
+      "trimmed": "🙂\f🎉",
+      "trimmedClusters": [
+        "🙂",
+        "\f",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "\r",
+        "👍",
+        "\r"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "\r👍\r",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "\r",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂\r🎉",
+      "trimmed": "🙂\r🎉",
+      "trimmedClusters": [
+        "🙂",
+        "\r",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "",
+        "👍",
+        ""
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "👍",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂🎉",
+      "trimmed": "🙂🎉",
+      "trimmedClusters": [
+        "🙂",
+        "",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "​",
+        "👍",
+        "​"
+      ],
+      "composerPointSize": null,
+      "count": 3,
+      "emojiOnly": true,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "​👍​",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "​",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 3,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂​🎉",
+      "trimmed": "🙂​🎉",
+      "trimmedClusters": [
+        "🙂",
+        "​",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        "👍",
+        " "
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": " 👍 ",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂 🎉",
+      "trimmed": "🙂 🎉",
+      "trimmedClusters": [
+        "🙂",
+        " ",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "　",
+        "👍",
+        "　"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "　👍　",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "　",
+        "🎉"
+      ],
+      "composerPointSize": null,
+      "count": 2,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": true,
+      "text": "🙂　🎉",
+      "trimmed": "🙂　🎉",
+      "trimmedClusters": [
+        "🙂",
+        "　",
+        "🎉"
+      ]
+    },
+    {
+      "clusters": [
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "​",
+        "👍"
+      ],
+      "composerPointSize": null,
+      "count": 101,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": false,
+      "text": "​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​👍",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        "👍"
+      ],
+      "composerPointSize": null,
+      "count": 1,
+      "emojiOnly": true,
+      "fontSize": 72,
+      "prefilter": true,
+      "text": "                                                                                                                                                                                                                                                                                                            👍",
+      "trimmed": "👍",
+      "trimmedClusters": [
+        "👍"
+      ]
+    },
+    {
+      "clusters": [
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂"
+      ],
+      "composerPointSize": null,
+      "count": 49,
+      "emojiOnly": false,
+      "fontSize": 48,
+      "prefilter": false,
+      "text": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂",
+      "trimmed": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂",
+      "trimmedClusters": [
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂",
+        "🙂"
+      ]
+    }
+  ],
+  "scalars": [
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 0,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 9,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 10,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 11,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 12,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 13,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 28,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 32,
+      "whitespace": true
+    },
+    {
+      "emoji": true,
+      "presentation": false,
+      "scalar": 35,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": false,
+      "scalar": 42,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": false,
+      "scalar": 49,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 65,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 97,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 101,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 104,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 108,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 111,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 133,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 160,
+      "whitespace": true
+    },
+    {
+      "emoji": true,
+      "presentation": false,
+      "scalar": 169,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 769,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 5760,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8192,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8193,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8194,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8195,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8196,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8197,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8198,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8199,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8200,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8201,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8202,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8203,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8205,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8232,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8233,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8239,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8287,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 8419,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": false,
+      "scalar": 8482,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": false,
+      "scalar": 9829,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 12288,
+      "whitespace": true
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 65039,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 127470,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 127475,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 127752,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 127881,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": false,
+      "scalar": 127987,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 127988,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 127995,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 127997,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 127999,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 128077,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 128102,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 128103,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 128104,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 128105,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 128578,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 128640,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 129489,
+      "whitespace": false
+    },
+    {
+      "emoji": true,
+      "presentation": true,
+      "scalar": 129769,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 917602,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 917605,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 917607,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 917614,
+      "whitespace": false
+    },
+    {
+      "emoji": false,
+      "presentation": false,
+      "scalar": 917631,
+      "whitespace": false
+    }
+  ]
+}

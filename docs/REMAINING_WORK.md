@@ -1,3 +1,15 @@
+## Latest Chief emoji checkpoint — 2026-10-21
+
+The source/debug emoji port now covers bare one-to-three graphemes, fixed 72/48
+logical font sizes, composer eligibility/marked-text font retention and explicit
+font-dependent field sizing. Actual Swift/JVM/Android agree on 95 cases. Full
+JVM: 3,028 pass/four skip; all 32 Chief/root Android checks pass in 60.276 s with
+an empty crash buffer. See CHIEF.md for exact source/capture scope and failed
+diagnostics. Platform emoji artwork/metrics differ. Expanded UIKit details/
+compact export, animations, rich/physical IME, accessibility and the full app's
+remaining requirement-to-evidence audit still need completion. Candidate 706
+predates this source batch; the Pixel remains unavailable.
+
 ## Current checkpoint — 2026-10-20
 
 Latest Oct 21 header/details checkpoint: portrait photo/name/back count/Stop,

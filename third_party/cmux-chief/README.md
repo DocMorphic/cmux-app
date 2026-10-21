@@ -23,6 +23,20 @@ The UIKit-only source is hash-checked, not compiled by this portable checker.
 This is a scoped text-only comparison; keyboard/IME, rich editor, material and
 physical acceptance require their own evidence.
 
+The emoji checker guards five source files and executes the actual prefilter,
+one-to-three grapheme predicate, count, fixed font-size and composer eligibility
+functions. Ninety-five cases cover joined families, flags, keycaps, variation
+selectors, source-accepted non-RGI combinations, adjacent/spaced runs, Foundation
+trimming and the byte limit. The same exact vectors run against JVM ICU and the
+Android runtime. Android supplies its system Unicode data and emoji artwork;
+these checks do not imply identical glyphs, UIKit metrics, send animations or
+future Unicode coverage. Run:
+
+```sh
+python3 scripts/check-chief-emoji.py --upstream /absolute/path/to/cmux \
+  --output /absolute/path/to/ignored-emoji-evidence
+```
+
 The direct-conversation header/details checker guards eight additional Swift
 sources and executes the unmodified portable header/details geometry and list
 defaults. It verifies the Chief backend inherits the unsupported list-state

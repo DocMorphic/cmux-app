@@ -33,6 +33,12 @@ ConversationListState.swift and ConversationBackend.swift at that revision.
 Selected header/details and service labels are copied from the same UI catalogs.
 The continuous Android text-scale mapping uses factual point-size anchors from
 Apple's published iOS Dynamic Type specifications; provenance is in the manifest.
+Chief's emoji prefilter, one-to-three grapheme predicate, glyph counts, fixed
+font sizes, iOS 26 vertical room and composer scaling rules follow
+ConversationTextScan.swift, ConversationRows.swift, MessageCellLayout.swift,
+ConversationTheme.swift and ConversationComposerView.swift at that revision.
+Android uses its platform Unicode segmentation/properties and emoji artwork;
+the source-derived checks and exact hashes are recorded in the same manifest.
 
 Selected static UI translations are copied verbatim from the CMUXMobileCore,
 CmuxAgentChatUI, CmuxMobileChanges and CmuxMobileShellUI localization catalogs at

@@ -153,7 +153,8 @@ internal fun NativeChiefBubble(outgoing: Boolean, tail: Boolean, modifier: Modif
  * behind both outlines, using the same control points as MessageCellLayout's direct-message path. */
 @Composable
 internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolean, tail: Boolean,
-    messageId: String, expanded: Boolean, text: String?, metrics: NativeChiefBubbleMetrics, content: @Composable ColumnScope.() -> Unit) {
+    messageId: String, expanded: Boolean, text: String?, metrics: NativeChiefBubbleMetrics,
+    emojiSize: Int? = null, content: @Composable ColumnScope.() -> Unit) {
     val density = LocalDensity.current
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
     var quoteSize by remember { mutableStateOf(IntSize.Zero) }
@@ -164,7 +165,7 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
             val x = 16.dp.toPx()
             val y = quoteSize.height / 2f
             val quoteLeft = if (quoted.authorKind == "human") size.width - quoteSize.width else 0f
-            val primaryHeight = bodySize.height - if (tail) with(density) { metrics.drop.toPx() } else 0f
+            val primaryHeight = bodySize.height - if (tail && emojiSize == null) with(density) { metrics.drop.toPx() } else 0f
             val end = maxOf(y + 28.dp.toPx(), quoteSize.height + gap.toPx() + primaryHeight / 2)
             val path = Path().apply {
                 moveTo(minOf(quoteLeft - 4.dp.toPx(), x + 14.dp.toPx()), y)
@@ -187,8 +188,26 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
             }
             Spacer(Modifier.height(gap))
         }
-        NativeChiefBubble(outgoing, tail, Modifier.align(if (outgoing) AbsoluteAlignment.Right else AbsoluteAlignment.Left)
-            .testTag("ChiefMessage:$messageId").onSizeChanged { bodySize = it }, "ChiefBubbleBody:$messageId", expanded,
-            text = text, metrics = metrics, content = content)
+        val bodyModifier = Modifier.align(if (outgoing) AbsoluteAlignment.Right else AbsoluteAlignment.Left)
+            .testTag("ChiefMessage:$messageId").onSizeChanged { bodySize = it }
+        if (emojiSize != null && text != null) NativeChiefEmojiBalloon(text, emojiSize, messageId, bodyModifier, metrics)
+        else NativeChiefBubble(outgoing, tail, bodyModifier, "ChiefBubbleBody:$messageId", expanded,
+                text = text, metrics = metrics, content = content)
+    }
+}
+
+/** iOS 26's plain big-emoji balloon: no fill/tail, fixed glyph size and source vertical room.
+ * Android supplies its system emoji artwork and font metrics. */
+@Composable
+internal fun NativeChiefEmojiBalloon(text: String, fontSize: Int, messageId: String,
+    modifier: Modifier = Modifier, metrics: NativeChiefBubbleMetrics = nativeChiefBubbleMetrics()) {
+    val density = LocalDensity.current
+    BoxWithConstraints(modifier) {
+        val maximum = NativeChiefBubbleGeometry.maxWidth(maxWidth.value.toDouble(), metrics.accessibility).coerceAtLeast(0.0).toFloat().dp
+        val style = nativeChiefTextStyle(fontSize).copy(fontSize = with(density) { fontSize.dp.toSp() })
+        Box(Modifier.widthIn(max = maximum).testTag("ChiefEmoji:$messageId")
+            .padding(top = 10.dp, bottom = (NativeChiefEmojiPolicy.verticalRoom(metrics.accessibility).toFloat() - 10).dp)) {
+            Text(text, Modifier.testTag("ChiefEmojiGlyph:$messageId"), style = style)
+        }
     }
 }

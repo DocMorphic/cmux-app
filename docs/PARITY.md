@@ -1,3 +1,14 @@
+## Latest Chief emoji checkpoint — 2026-10-21
+
+Bare one-to-three emoji rows and fixed 72/48-point composer/transcript scaling
+now follow the pinned source, including its whitespace, grapheme and byte-budget
+rules. Ninety-five actual Swift vectors agree with JVM ICU and the Android
+runtime. Explicit field measurement fixes the reproduced failure to shrink after
+returning to body text. Full JVM: 3,028 pass/four skip; Android Chief/root: all 32
+pass in 60.276 s, empty crash buffer. Current captures and platform/font limits
+are in CHIEF.md. The expanded UIKit details/compact reference run remains pending,
+as do physical, animation, rich IME, accessibility and whole-app parity gates.
+
 # Android parity tracker
 
 ## Chief header/details checkpoint — 2026-10-21

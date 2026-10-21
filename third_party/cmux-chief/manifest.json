@@ -3,7 +3,7 @@
   "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
   "license": "GPL-3.0-or-later",
   "copyright": "Copyright (c) 2024-present Manaflow, Inc.; other contributors retain copyright in their material",
-  "scope": "Chief wire/request/question, mounted Home/backend/shell/artwork and selected transcript/composer/header/details behavior and geometry references; not global parity or complete conversation-package review",
+  "scope": "Chief wire/request/question, mounted Home/backend/shell/artwork and selected transcript/composer/header/details/emoji behavior and geometry references; not global parity or complete conversation-package review",
   "files": {
     "Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileChiefClient.swift": "aaffb298314d74f4567e4ca7cd926259f9f1fc5166593c036a11a6a0994b6f8d",
     "Packages/Shared/CmuxAgentQuestion/Sources/CmuxAgentQuestion/AgentQuestion.swift": "549a17e3cb5dd0ba6075687fce6f98aa49c137216f3179e84c417a43a1bdaae1",
@@ -130,5 +130,12 @@
     "url": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/typography.json",
     "sha256": "85bf7dc78d41a6e5e16d4055f3bdadf7bac4f7d5cb2206514c8b82d5d24631ed",
     "scope": "iOS Body, Title 1 and Caption 2 point-size facts at twelve Dynamic Type categories; interpolation is the Android continuous-font-scale adaptation"
+  },
+  "emojiFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationTextScan.swift": "b0efe5e17482c829d9b88d4daf60ee2aa9d491987e90367dcebc87117e925a37",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationRows.swift": "267c73afadabad297998eda77cf32750032bd34939d5b55c7f01b1b70aaae43b",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/MessageCellLayout.swift": "95ae1cc47cb17e25c0b8ae739e105029d5f65b109faa5b516c93897abdeb36bc",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationTheme.swift": "533fe1579789bfe6bab5b57acf327ff38689224b4c2624d5cdba500d50e1d53d",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationComposerView.swift": "0c330915c1f033f577b6b44da624da41a0b862c463b88b44ec9b9f4e37e7d0a2"
   }
 }

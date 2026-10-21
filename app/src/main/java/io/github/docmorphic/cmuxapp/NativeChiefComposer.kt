@@ -38,6 +38,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
 import kotlin.math.roundToInt
+import kotlin.math.ceil
 
 /** Chief's text-only composer: no attachment affordances, an internal send capsule, and a field
  * that grows until the header rather than an arbitrary line count. Parent owns system insets. */
@@ -80,10 +81,13 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
         }
     }
     val density = LocalDensity.current
-    val style = nativeChiefTextStyle()
+    val bodyStyle = nativeChiefTextStyle()
+    val emojiDraftStyle = remember { NativeChiefEmojiDraftStyle() }
+    val emojiSize = emojiDraftStyle.update(editor.composition != null) { NativeChiefEmojiPolicy.composerFontSize(editor.text.toString()) }
+    val style = emojiSize?.let { bodyStyle.copy(fontSize = with(density) { it.dp.toSp() }) } ?: bodyStyle
     val measurer = rememberTextMeasurer()
-    val lineHeight = remember(measurer, style, density) {
-        measurer.measure("Hg", style).let { it.getLineBottom(0) - it.getLineTop(0) }
+    val lineHeight = remember(measurer, bodyStyle, density) {
+        measurer.measure("Hg", bodyStyle).let { it.getLineBottom(0) - it.getLineTop(0) }
     }
     val oneLine = with(density) { lineHeight.toDp() } + 20.dp
     val ime = WindowInsets.ime.getBottom(density)
@@ -95,17 +99,27 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
     val sendLabel = stringResource(R.string.chief_composer_send)
     BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = (12 * progress).dp).testTag("ChiefComposerBar")) {
         val cap = if (constraints.hasBoundedHeight) (maxHeight - 8.dp - 3.3.dp).coerceAtLeast(oneLine) else 600.dp
+        val textWidth = with(density) { (maxWidth - inset * 2 - 64.dp).toPx() }.toInt().coerceAtLeast(1)
+        val text = editor.text.toString()
+        // UIKit explicitly recomputes fieldHeight from sizeThatFits after restyling. Keep
+        // that responsibility here too; the editor's internal minimum may retain the old
+        // larger font's height. Preserve the same state/node and its IME/caret connection.
+        val naturalHeight = remember(text, style, textWidth, measurer, density, emojiSize, oneLine, lineHeight) {
+            val layout = measurer.measure(text.ifEmpty { "Hg" }, style, constraints = Constraints(maxWidth = textWidth))
+            if (emojiSize != null) maxOf(oneLine, ceil(layout.size.height / density.density + 20f).toFloat().dp)
+            else oneLine + with(density) { ((layout.lineCount - 1).coerceAtLeast(0) * lineHeight).toDp() }
+        }
+        val fieldHeight = naturalHeight.coerceIn(oneLine, cap)
         val shape = RoundedCornerShape(20.dp)
         Box(Modifier.fillMaxWidth().padding(horizontal = inset, vertical = 4.dp)) {
         Layout(modifier = Modifier.fillMaxWidth().testTag("ChiefComposerField").clip(shape)
             .background(if (dark) Color(0xFF1A1A1A) else Color(0xFFF3F3F3))
             .border(.5.dp, if (dark) Color.White.copy(alpha = .16f) else Color.Black.copy(alpha = .10f), shape), content = {
             BasicTextField(editor, enabled = !retired, scrollState = scroll, lineLimits = TextFieldLineLimits.MultiLine(),
-                modifier = Modifier.fillMaxWidth().testTag("ChiefComposer").semantics {
+                modifier = Modifier.fillMaxWidth().height(fieldHeight).testTag("ChiefComposer").semantics {
                     verticalScrollAxisRange = ScrollAxisRange({ scroll.value.toFloat() }, { scroll.maxValue.toFloat() })
                 }
-                    .padding(start = 16.dp, end = 48.dp, top = 10.dp, bottom = 10.dp)
-                    .heightIn(min = oneLine - 20.dp, max = (cap - 20.dp).coerceAtLeast(oneLine - 20.dp)),
+                    .padding(start = 16.dp, end = 48.dp, top = 10.dp, bottom = 10.dp),
                 textStyle = style.copy(color = ink), cursorBrush = SolidColor(if (dark) Color(0xFF0091FF) else Color(0xFF0088FF)),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Default),
                 decorator = { input ->
