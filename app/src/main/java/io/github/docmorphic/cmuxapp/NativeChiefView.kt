@@ -341,7 +341,8 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             } catch (error: Exception) { currentCoroutineContext().ensureActive() }
         }
     }
-    val reply = state.reply
+    val replyState = session.state.value
+    val reply = replyState.reply
     val headerMotion = remember(session) { NativeChiefHeaderMotionState(session.state.value.reply?.generation) }
     // Retirement and non-UI state changes still reconcile from the live owner;
     // a collected snapshot may be older than an already admitted UI action.
@@ -349,32 +350,39 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     val replyOrigins = remember(session, list) { NativeChiefReplyOrigins {
         list.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? String }.toSet()
     } }
+    val density = LocalDensity.current.density
+    val hostView = LocalView.current
+    var shownReply by remember(session) { mutableStateOf<NativeChiefReplyPresentation?>(null) }
     var entryOrigins by remember(session) { mutableStateOf(replyOrigins.snapshot()) }
+    fun replyPresentation(active: NativeChiefReply, snapshot: NativeChiefTranscriptState,
+        origins: NativeChiefReplyOrigins.Snapshot): NativeChiefReplyPresentation {
+        val rows = NativeChiefTimeline.rows(snapshot)
+        val rootIndex = rows.indexOfFirst { it.item.messageID == active.rootID }
+        val stamp = rows.take(rootIndex + 1).lastOrNull { it.timestamp }?.item?.key
+        return NativeChiefReplyPresentation(active, NativeChiefReplyMotionState(active, origins,
+            stamp, density, hostView.rootView.height / density.toDouble()), snapshot.localSendRevision)
+    }
     fun captureReply(action: () -> Boolean): Boolean {
         val captured = replyOrigins.snapshot()
         val admitted = action()
         if (admitted) {
             entryOrigins = captured
-            headerMotion.admit(session.state.value.reply?.generation)
+            val live = session.state.value
+            // Replace a closing root at admission, even when a later close is
+            // conflated into the same frame and this open is never composed.
+            live.reply?.let { shownReply = replyPresentation(it, live, captured) }
+            headerMotion.admit(live.reply?.generation)
         }
         return admitted
     }
-    val density = LocalDensity.current.density
-    val hostView = LocalView.current
-    val stampKey = reply?.let { active ->
-        val rootIndex = timeline.indexOfFirst { it.item.messageID == active.rootID }
-        timeline.take(rootIndex + 1).lastOrNull { it.timestamp }?.item?.key
-    }
-    var shownReply by remember(session) { mutableStateOf<NativeChiefReplyPresentation?>(null) }
-    if (state.retired) shownReply = null
+    if (replyState.retired) shownReply = null
     else if (reply != null && shownReply?.reply?.generation != reply.generation) {
-        shownReply = NativeChiefReplyPresentation(reply, NativeChiefReplyMotionState(reply, entryOrigins,
-            stampKey, density, hostView.rootView.height / density.toDouble()), state.localSendRevision)
+        shownReply = replyPresentation(reply, replyState, entryOrigins)
     }
     val presentation = shownReply
     val replyMotion = presentation?.motion
     if (reply == null && presentation != null && !presentation.motion.closing) {
-        presentation.motion.close(replyOrigins.snapshot(), settling = state.localSendRevision == presentation.sendRevision)
+        presentation.motion.close(replyOrigins.snapshot(), settling = replyState.localSendRevision == presentation.sendRevision)
     }
     fun closeReply() {
         // Stop entry on the input event, before an already-awaiting display frame

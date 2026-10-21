@@ -50,6 +50,8 @@ internal class NativeChiefReplyOrigins(private val visibleRows: () -> Set<String
 internal val ChiefReplyOriginsProbe = SemanticsPropertyKey<() -> NativeChiefReplyOrigins.Snapshot>("ChiefReplyOriginsProbe")
 internal val ChiefReplyVisibleRows = SemanticsPropertyKey<() -> Set<String>>("ChiefReplyVisibleRows")
 internal val ChiefReplyCopyBounds = SemanticsPropertyKey<() -> Map<String, Rect>>("ChiefReplyCopyBounds")
+internal data class NativeChiefReplyDisplayState(val generation: Long, val alpha: Float, val settles: Boolean)
+internal val ChiefReplyDisplayProbe = SemanticsPropertyKey<() -> NativeChiefReplyDisplayState>("ChiefReplyDisplayProbe")
 
 internal data class NativeChiefReplyPresentation(val reply: NativeChiefReply,
     val motion: NativeChiefReplyMotionState, val sendRevision: Long)
@@ -92,6 +94,7 @@ internal class NativeChiefReplyMotionState(
     private val fading = mutableSetOf<String>()
     private var firstFrame: Long? = null
     private var previousFrame: Long? = null
+    private var pendingClose: Pair<NativeChiefReplyOrigins.Snapshot, Boolean>? = null
     val resting get(): Boolean {
         revision
         val motionDone = closing && !settles || trips.filterKeys { it !in fading }.values.all { it.isResting }
@@ -101,6 +104,7 @@ internal class NativeChiefReplyMotionState(
     val anchorChromeAlpha get() = chrome
     val hiddenKeys get() = if (closing && !settles) emptySet() else reply.hiddenKeys
     fun rowAlpha(key: String): Float { revision; return if (key in fading) contentFade else 1f }
+    fun displayState() = NativeChiefReplyDisplayState(reply.generation, contentAlpha, settles)
 
     /** Clear the logical reply immediately, but retain these copies until BOTH the
      * source return dynamics and the background finish. Sends never return rows. */
@@ -109,11 +113,20 @@ internal class NativeChiefReplyMotionState(
         closingDim = veil
         closingContent = contentAlpha
         closing = true
-        settles = settling && !reduceMotion && ready
+        settles = settling && !reduceMotion
+        blur = 1f // The source ReplyBlurDriver explicitly starts its exit at one.
+        if (!ready) {
+            pendingClose = targets to settling
+            return
+        }
+        prepareClose(targets, settling)
+    }
+
+    private fun prepareClose(targets: NativeChiefReplyOrigins.Snapshot, settling: Boolean) {
+        settles = settling && !reduceMotion
         firstFrame = null
         previousFrame = null
         backgroundDone = false
-        blur = 1f // The source ReplyBlurDriver explicitly starts its exit at one.
         if (settles) {
             val origins = counterpartOrigins(targets)
             for (key in expected) {
@@ -128,9 +141,6 @@ internal class NativeChiefReplyMotionState(
                 }
             }
         }
-        // Before first layout there is nothing to travel; still permit the
-        // closing fade to finish instead of waiting forever for removed views.
-        ready = true
         contentFade = if (settles) 1f else closingContent
         revision++
     }
@@ -157,7 +167,7 @@ internal class NativeChiefReplyMotionState(
     }
 
     private fun prepare() {
-        if (ready || closing || content?.isAttached != true || expected.any { frames[it]?.isAttached != true } ||
+        if (ready || content?.isAttached != true || expected.any { frames[it]?.isAttached != true } ||
             reply.rows.any { movingFrames[it.key]?.isAttached != true || bubbles[it.key]?.isAttached != true }) return
         val origin = checkNotNull(contentY)
         val slots = expected.map { key ->
@@ -175,6 +185,13 @@ internal class NativeChiefReplyMotionState(
         }
         ready = true
         revision++
+        pendingClose?.let { (targets, settling) ->
+            pendingClose = null
+            // Build the just-admitted copy at its measured source origins,
+            // then return/fade without ever advancing the entry trip.
+            closingContent = if (reduceMotion) veil else 1f
+            prepareClose(targets, settling)
+        }
     }
 
     private fun counterpartOrigins(origins: NativeChiefReplyOrigins.Snapshot): Map<String, Double> {

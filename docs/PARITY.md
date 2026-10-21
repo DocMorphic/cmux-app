@@ -1,3 +1,46 @@
+## Copied reply ownership across synchronous actions — 2026-10-22
+
+Close/Open/Close and Send/Open/Close admitted within one UI event now replace
+copied content at admission, before Compose can conflate the intermediate open.
+Reconciliation reads live session state, so an older collected snapshot cannot
+restore the replaced root. A close before first layout waits for measured copies,
+constructs their entry origins without an entry step, then returns/fades them.
+The normal copies remain sharp at their measured twins; reduced motion retains
+its fade behavior. Retirement clears both open and closing content.
+
+The pre-fix reproduction had two failures: it retained parent/reply instead of
+reply/next. Both paths now verify the newest generation, exact row membership,
+measured twin positions, alpha/settling, draft/focus and one send. A separate
+24-message check verifies fresh tail position after scrolling and reopening the
+same root, with actual IME geometry stable first. Generation-keyed overlay state
+already existed; this check validates it rather than claiming a new scroll fix.
+
+113 Chief JVM tests pass. Focused 13 pass (51.213 s); full portrait 68 pass/four
+expected skips (207.327 s); landscape 22 pass (67.966 s); disabled animations 12
+pass (29.242 s). Four landscape setup cases also pass (15.380 s). All runs use the
+same guarded source/APKs. Four captured crash buffers are empty. The focused run
+passed 13 tests, then an expected-count typo stopped its runner before crash
+capture; that buffer is unavailable. The broader suites resumed with identical
+inputs. An earlier landscape timeout was inside test setup's scroll-to-node,
+before the transitions; scrolling to the lazy item avoids asking a tall action
+container to fit above the landscape IME. Neither failed harness run is an app
+acceptance result. Four full PNGs and copy geometry were checked and inspected;
+a landscape twin may lie outside the short keyboard viewport.
+
+Evidence: `captures/recovery-20261021/chief-copy-scroll-checkpoint.json`, guarded
+by `verify-chief-copy-scroll.py`. Owned emulators were restored to 1080×2400/420
+and animator scale 0, then stopped; Gradle stopped. Custom Mac 40840/helper 43849
+remain alive. The temporary pairing window is closed; no Mac action is requested.
+Account, pairing and signing data are preserved. Pixel USB is absent; installed
+703 is unchanged. First on its authorized return restore `svc power stayon false`.
+
+Next prepare a clean signed candidate containing the accumulated changes, then
+verify its data-preserving Pixel upgrade, real Mac terminal, encrypted FCM and
+cold/background notification taps, lifecycle and TalkBack. Continue optical /
+material / font, in-flight IME/geometry/RTL and the broader completion gates.
+The full-parity goal remains active; this checkpoint does not establish full app
+or physical-device parity.
+
 ## Synchronous reply admission and Back interaction — 2026-10-21
 
 Open/close/send now admit header transitions synchronously into a session-owned

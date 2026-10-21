@@ -799,6 +799,83 @@ class NativeChiefRuntimeTest {
         } finally { compose.mainClock.autoAdvance = true }
     }
 
+    @Test fun closeOpenCloseWithinOneFrameRetainsOnlyTheNewestReplyCopies() = checkCoalescedReplyCopies(sendFirst = false)
+    @Test fun sendOpenCloseWithinOneFrameRetainsOnlyTheNewestReplyCopies() = checkCoalescedReplyCopies(sendFirst = true)
+    @Test fun coalescedReplyCopiesArePurgedWhenTheirOwnerRetires() = checkCoalescedReplyCopies(sendFirst = false, retire = true)
+
+    private fun checkCoalescedReplyCopies(sendFirst: Boolean, retire: Boolean = false) {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Coalesced reply draft")
+        settledComposerGeometry()
+        // The last message can be taller than the landscape viewport with the
+        // keyboard open. Bring its lazy item into composition without asking
+        // performScrollToNode to fit the entire action container on screen.
+        compose.onNodeWithTag("ChiefMessages").performScrollToIndex(3)
+        val next = compose.onNodeWithTag("ChiefReplyActions:next").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Reply" }
+        compose.onNodeWithTag("ChiefMessages").performScrollToNode(hasTestTag("ChiefQuote:reply"))
+        compose.onNodeWithTag("ChiefQuote:reply").performClick()
+        waitForReplyThread(); compose.waitForIdle()
+        val close = checkNotNull(compose.onNodeWithTag("ChiefReplyClose").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        val send = checkNotNull(compose.onNodeWithTag("ChiefSend").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread { api.sendGate = gate }
+        val originProbe = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().config[ChiefReplyOriginsProbe]
+        var originalCopies = emptyMap<String, Float>()
+        compose.runOnUiThread { originalCopies = originProbe().bubbles }
+        compose.mainClock.autoAdvance = false
+        try {
+            var newestGeneration = 0L
+            compose.runOnUiThread {
+                assertTrue(if (sendFirst) send() else close())
+                assertTrue(next.action())
+                assertEquals("reply", computer.transcript()!!.state.value.reply!!.rootID)
+                newestGeneration = computer.transcript()!!.state.value.reply!!.generation
+                assertTrue(close())
+                assertNull(computer.transcript()!!.state.value.reply)
+                if (retire) computer.transcript()!!.close()
+            }
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            if (retire) {
+                compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+                compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+            } else {
+                val probe = compose.onNodeWithTag("ChiefReplyClosing").fetchSemanticsNode().config[ChiefReplyCopyBounds]
+                var ids = emptySet<String>()
+                var bounds = emptyMap<String, androidx.compose.ui.geometry.Rect>()
+                compose.runOnUiThread { bounds = probe(); ids = bounds.keys }
+                assertEquals("The replaced root must not survive the admitted newer root", setOf("reply", "next"), ids)
+                val stateProbe = compose.onNodeWithTag("ChiefReplyClosing").fetchSemanticsNode().config[ChiefReplyDisplayProbe]
+                compose.runOnUiThread {
+                    val display = stateProbe()
+                    assertEquals(newestGeneration, display.generation)
+                    if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
+                        assertTrue("A just-admitted normal copy must not disappear before first layout", display.alpha > .99f)
+                        assertTrue(display.settles)
+                        for ((id, rect) in bounds) assertEquals("First closing copy starts at its actual measured twin: $id",
+                            checkNotNull(originalCopies[id]), rect.top, 2f)
+                    }
+                }
+                saveScreenshot(if (sendFirst) "chief-copy-admission-send-close" else "chief-copy-admission-close-open-close")
+                val details = JSONObject().put("generation", newestGeneration).put("sendFirst", sendFirst)
+                    .put("originals", JSONObject(originalCopies)).put("copies", JSONObject(bounds.mapValues { (_, r) ->
+                        org.json.JSONArray(listOf(r.left, r.top, r.width, r.height)) }))
+                File(compose.activity.getExternalFilesDir(null), "screenshots/" +
+                    (if (sendFirst) "chief-copy-admission-send-close.json" else "chief-copy-admission-close-open-close.json")).writeText(details.toString(2))
+                compose.onNodeWithTag("ChiefComposer").assertIsFocused()
+                if (!sendFirst) compose.onNodeWithTag("ChiefComposer").assertTextContains("Coalesced reply draft")
+            }
+            compose.mainClock.advanceTimeBy(1600); compose.waitForIdle()
+            compose.onNodeWithTag("ChiefReplyClosing").assertDoesNotExist()
+            assertEquals(if (sendFirst) 1 else 0, api.sends.size)
+        } finally {
+            compose.mainClock.autoAdvance = true
+            compose.runOnUiThread { gate.complete(Unit) }
+        }
+    }
+
     @Test fun headerKeepsTheClosedPhaseWhenSendAndReopenAreAdmittedInOneFrame() {
         org.junit.Assume.assumeTrue(android.animation.ValueAnimator.areAnimatorsEnabled())
         openReferenceScene("quote-dark")
@@ -1443,7 +1520,17 @@ class NativeChiefRuntimeTest {
         }
         fun axis() = compose.onNodeWithTag("ChiefReplyTranscript").fetchSemanticsNode()
             .config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
-        compose.waitUntil(10_000) { axis().maxValue() > 0 && kotlin.math.abs(axis().value() - axis().maxValue()) < 1 }
+        var previousMaximum = -1f
+        var stableSince = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(10_000) {
+            var imeVisible = false
+            compose.runOnUiThread { imeVisible = compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime()) }
+            val maximum = axis().maxValue()
+            val now = android.os.SystemClock.uptimeMillis()
+            if (!imeVisible || maximum != previousMaximum) stableSince = now
+            previousMaximum = maximum
+            imeVisible && maximum > 0 && kotlin.math.abs(axis().value() - maximum) < 1 && now - stableSince >= 350
+        }
         val before = axis().value()
         assertEquals("Reply transcript", compose.onNodeWithTag("ChiefReplyTranscript").fetchSemanticsNode()
             .config[androidx.compose.ui.semantics.SemanticsActions.ScrollBy].label)
@@ -1465,6 +1552,48 @@ class NativeChiefRuntimeTest {
         assertEquals(24, computer.transcript()!!.state.value.reply!!.rows.size)
         assertTrue(api.sends.isEmpty())
         saveScreenshot("chief-reply-long-thread")
+    }
+
+    @Test fun reopeningTheSameLongThreadGetsFreshScrollStateAndStartsAtItsTail() {
+        compose.runOnUiThread {
+            api.rows = (1..24).map { i -> message("m$i", i.toULong(), "Loaded thread message $i")
+                .copy(threadRoot = if (i > 1) "m1" else null) }
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefQuote:m24").fetchSemanticsNodes().isNotEmpty() }
+        val reopen = checkNotNull(compose.onNodeWithTag("ChiefQuote:m24").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        compose.runOnUiThread { assertTrue(reopen()) }
+        waitForReplyThread(); compose.waitForIdle()
+        fun axis() = compose.onNodeWithTag("ChiefReplyTranscript").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
+        var previousMaximum = -1f
+        var stableSince = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(10_000) {
+            var imeVisible = false
+            compose.runOnUiThread { imeVisible = compose.activity.window.decorView.rootWindowInsets.isVisible(android.view.WindowInsets.Type.ime()) }
+            val maximum = axis().maxValue()
+            val now = android.os.SystemClock.uptimeMillis()
+            if (!imeVisible || maximum != previousMaximum) stableSince = now
+            previousMaximum = maximum
+            imeVisible && maximum > 0 && kotlin.math.abs(axis().value() - maximum) < 1 && now - stableSince >= 350
+        }
+        compose.onNodeWithTag("ChiefReplyTranscript").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
+            assertTrue(it(0f, -100 * compose.activity.resources.displayMetrics.density))
+        }
+        compose.waitUntil(10_000) { axis().value() < axis().maxValue() - 1 }
+        val close = checkNotNull(compose.onNodeWithTag("ChiefReplyClose").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.runOnUiThread { assertTrue(close()); assertTrue(reopen()) }
+            repeat(2) { compose.mainClock.advanceTimeByFrame(); compose.waitForIdle() }
+            compose.mainClock.advanceTimeBy(1600); compose.waitForIdle()
+            assertEquals("A new source overlay resets to the tail even with identical geometry",
+                axis().maxValue(), axis().value(), 1f)
+            assertEquals(24, computer.transcript()!!.state.value.reply!!.rows.size)
+            assertTrue(api.sends.isEmpty())
+        } finally { compose.mainClock.autoAdvance = true }
     }
 
     @Test fun sourceQuoteSceneUsesTheOriginalSenderSideAndSeparateOutline() {

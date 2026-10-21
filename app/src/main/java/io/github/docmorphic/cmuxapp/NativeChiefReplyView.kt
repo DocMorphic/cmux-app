@@ -61,7 +61,10 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChie
         captionFont.pointSize.toFloat().dp.toSp()
     })
     Box(Modifier.fillMaxSize().testTag(if (motion.closing) "ChiefReplyClosing" else "ChiefReplyThread")
-        .then(if (motion.closing) Modifier.clearAndSetSemantics { if (BuildConfig.DEBUG) this[ChiefReplyCopyBounds] = { motion.copyBounds() } } else Modifier.semantics {
+        .then(if (motion.closing) Modifier.clearAndSetSemantics { if (BuildConfig.DEBUG) {
+            this[ChiefReplyCopyBounds] = { motion.copyBounds() }
+            this[ChiefReplyDisplayProbe] = { motion.displayState() }
+        } } else Modifier.semantics {
             contentDescription = transcriptLabel; paneTitle = transcriptLabel
             if (BuildConfig.DEBUG) this[ChiefReplyCopyBounds] = { motion.copyBounds() }
         })
