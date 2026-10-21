@@ -1,5 +1,23 @@
 ## Active full-parity goal — 2026-10-20
 
+## Transcript overlay checkpoint — 2026-10-21
+
+Chief now uses a full transcript viewport with header/composer overlays, measured
+scroll insets, tail-overhang-adjusted 16.71-point resting body gap and the pinned
+iOS 26 plain-background wash. Exact source execution covers 50 wash/54 inset cases;
+85 Chief JVM cases and debug/instrumentation builds pass. Final portrait: 34 pass
+in 66.588 s, two landscape-only assumptions skip there. Landscape: all four pass
+in 6.52 s. Crash buffers are empty. Five portrait/two landscape capture pairs are
+verified; normal portrait, scrolled overlay and both landscape images inspected.
+The initial three harness failures and corrections are retained in CHIEF.md;
+all history-position, send containment and trim assertions remain. Emulator
+restored/stopped; source is newer than uninstalled signed 707. The Mac fix build
+39541508905 is still compiling at a477efa1; do not redispatch it. Pixel USB absent.
+Bottom soft edge/blur, other background/OS branches, materials/fonts/insets,
+scroll physics, quote/thread/poll/failed presentation, environment/IME/a11y/lifecycle,
+remaining source audit and actual Mac/Pixel/terminal/FCM/cold-tap gates stay open.
+Full parity remains active; these fixtures/emulator runs do not complete it.
+
 Newest Android header checkpoint: the title chevron uses the actual symbol
 canvas (8⅓×14⅔) with separate portrait ink reserve and compact image reserve.
 Compact spacing is 12 points after the avatar, four after the title, eight after

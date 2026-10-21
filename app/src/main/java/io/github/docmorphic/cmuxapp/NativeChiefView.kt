@@ -229,7 +229,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             // A timestamp, large bubble and delivery controls can exceed a viewport.
             // Index positioning alone aligns its top and leaves the send/retry footer hidden.
             list.layoutInfo.visibleItemsInfo.lastOrNull { it.index == end }?.let { last ->
-                val remaining = last.offset + last.size - list.layoutInfo.viewportEndOffset
+                val remaining = last.offset + last.size - (list.layoutInfo.viewportEndOffset - list.layoutInfo.afterContentPadding)
                 if (remaining > 0) list.scrollBy(remaining.toFloat())
             }
         } finally { programmatic = false }
@@ -246,7 +246,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         snapshotFlow {
             val info = list.layoutInfo; val last = info.visibleItemsInfo.lastOrNull()
             Triple(dragged, list.isScrollInProgress, !list.canScrollForward ||
-                (last != null && last.index == info.totalItemsCount - 1 && last.offset + last.size <= info.viewportEndOffset + bottomTolerance))
+                (last != null && last.index == info.totalItemsCount - 1 && last.offset + last.size <= info.viewportEndOffset - info.afterContentPadding + bottomTolerance))
         }.collect { (dragging, scrolling, nearBottom) ->
             if (dragging) readerScrolling = true
             if (readerScrolling && !programmatic) pinned = nearBottom
@@ -258,7 +258,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             val info = list.layoutInfo
             val last = info.visibleItemsInfo.lastOrNull()
             if (last?.index == info.totalItemsCount - 1)
-                (last.offset + last.size - info.viewportEndOffset).coerceAtLeast(0) else 0
+                (last.offset + last.size - (info.viewportEndOffset - info.afterContentPadding)).coerceAtLeast(0) else 0
         }.collect { overflow ->
             // Delivery controls and font/keyboard reflow can finish measuring after the
             // timeline effect. Keep a pinned tail visible using the actual new layout.
@@ -267,11 +267,17 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     }
     LaunchedEffect(session, list, positioned, state.catchUpMarker) {
         if (positioned && state.catchUpMarker != null) snapshotFlow {
-            list.layoutInfo.visibleItemsInfo.map { it.key } to currentTimeline
+            list.layoutInfo.visibleItemsInfo.map { it.key to (it.offset + it.size > 0) } to currentTimeline
         }.collect { (keys, rows) ->
-            val visible = keys.filterIsInstance<String>().toSet()
+            // The source target must extend below its adjusted top inset. Outgoing
+            // rows use the full collection's visible cells, including under bars.
+            val visible = keys.mapNotNull { it.first as? String }.toSet()
+            val belowHeader = keys.filter { it.second }.mapNotNull { it.first as? String }.toSet()
             val items = rows.filter { it.item.key in visible }.map { it.item }
-            try { session.observeVisible(items.mapNotNull { it.message?.id }.toSet(), items.any { it.outgoing != null }) }
+            val ids = rows.filter { it.item.key in belowHeader }.mapNotNull { it.item.message?.id }.toSet()
+            val outgoingVisible = items.any { it.outgoing != null || it.message?.let { message ->
+                message.authorKind == "human" && message.seq > (state.catchUpMarker ?: ULong.MAX_VALUE) } == true }
+            try { session.observeVisible(ids, outgoingVisible) }
             catch (error: Exception) { currentCoroutineContext().ensureActive() }
         }
     }
@@ -304,22 +310,58 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     BackHandler(onBack = onBack)
     val bubbleMetrics = nativeChiefBubbleMetrics()
     val darkTranscript = MaterialTheme.colorScheme.background.luminance() < .5f
-    Column(modifier.fillMaxSize().then(if (detailsOpen && !state.retired) Modifier.blur(16.dp) else Modifier).background(if (darkTranscript) Color.Black else Color.White)
-        .imePadding().testTag("ChiefTranscript")) {
+    val compactHeader = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE && LocalConfiguration.current.screenHeightDp < 480
+    val last = timeline.lastOrNull()
+    val lastMessage = last?.item?.message
+    val trailingEmoji = lastMessage?.let { NativeChiefPresentation.pendingPart(it) == null &&
+        NativeChiefEmojiPolicy.isEmojiOnly(NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it)) } == true
+    val trailingOverhang = if (!state.working && last?.lastInRun == true && lastMessage != null && !trailingEmoji) bubbleMetrics.drop else 0.dp
+    NativeChiefTranscriptFrame(modifier.fillMaxSize().then(if (detailsOpen && !state.retired) Modifier.blur(16.dp) else Modifier)
+        .background(if (darkTranscript) Color.Black else Color.White).imePadding().testTag("ChiefTranscript"),
+        compactHeader, darkTranscript, trailingOverhang, header = {
         NativeChiefHeader(conversation, "stop" in state.deciding, onBack,
             { if (state.hasLoadedInfo && !state.retired) {
                 // Source openInfo ends editing before presenting the details controller.
                 composerFocus.clearFocus(force = true); detailsOpen = true
             } }, { act { session.stop() } })
+    }, composer = {
+        NativeChiefComposer(state.draft, state.draftRevision, state.retired, onDraft = { text ->
+            try { session.editDraft(text) }
+            catch (error: IllegalStateException) { actionError = error.message; null }
+        }, onSend = { text, revision ->
+            actionError = null
+            try { session.submitFromComposer(text, revision) != null }
+            catch (error: IllegalStateException) { actionError = error.message; false }
+        })
+    }, overlay = { headerHeight ->
+        Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().padding(top = headerHeight)) {
         state.error?.let { error -> Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(error, Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
             TextButton(onClick = session::refresh) { Text("Reconnect") }
         } }
         actionError?.let { Text(it, Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.error) }
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        }
+        if (positioned && state.catchUpMarker != null) FilledTonalIconButton(onClick = { act {
+            val target = session.loadCatchUpTarget() ?: return@act
+            val rows = snapshotFlow { currentTimeline }.first { rows -> rows.any { it.item.message?.id == target } }
+            val index = rows.indexOfFirst { it.item.message?.id == target }
+            if (index >= 0) {
+                pinned = false; readerScrolling = false; programmatic = true
+                try { list.scrollToItem(index + if (session.state.value.hasMore || session.state.value.hasLoadedInfo) 1 else 0) }
+                finally { programmatic = false }
+                session.dismissCatchUp()
+            }
+        } }, enabled = !state.loadingCatchUp, modifier = Modifier.align(Alignment.TopEnd).padding(top = headerHeight + 14.dp, end = 14.dp)
+            .size(48.dp).testTag("ChiefCatchUp")) {
+            Icon(painterResource(R.drawable.ic_chief_catch_up), stringResource(R.string.chief_catch_up_label))
+        }
+        }
+    }) { padding, _, _ ->
+        Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().testTag("ChiefMessages"), state = list,
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            contentPadding = padding, verticalArrangement = Arrangement.spacedBy(0.dp)) {
             if (state.hasMore) item(key = "older") {
                 ChiefOlderRow(state) { act { session.loadOlder() } }
             } else if (state.hasLoadedInfo) item(key = "start") {
@@ -338,29 +380,9 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             if (index == 0) ChiefOlderRow(state) {}
             else ChiefTranscriptRow(timeline[index - 1], timeline.getOrNull(index - 2), state, bubbleMetrics, { _, _ -> }, { _, _ -> }, {}, {})
         }
-        if (positioned && state.catchUpMarker != null) FilledTonalIconButton(onClick = { act {
-            val target = session.loadCatchUpTarget() ?: return@act
-            val rows = snapshotFlow { currentTimeline }.first { rows -> rows.any { it.item.message?.id == target } }
-            val index = rows.indexOfFirst { it.item.message?.id == target }
-            if (index >= 0) {
-                pinned = false; readerScrolling = false; programmatic = true
-                try { list.scrollToItem(index + if (session.state.value.hasMore || session.state.value.hasLoadedInfo) 1 else 0) }
-                finally { programmatic = false }
-                session.dismissCatchUp()
-            }
-        } }, enabled = !state.loadingCatchUp, modifier = Modifier.align(Alignment.TopEnd).padding(14.dp)
-            .size(48.dp).testTag("ChiefCatchUp")) {
-            Icon(painterResource(R.drawable.ic_chief_catch_up), stringResource(R.string.chief_catch_up_label))
+
         }
-        }
-        NativeChiefComposer(state.draft, state.draftRevision, state.retired, onDraft = { text ->
-            try { session.editDraft(text) }
-            catch (error: IllegalStateException) { actionError = error.message; null }
-        }, onSend = { text, revision ->
-            actionError = null
-            try { session.submitFromComposer(text, revision) != null }
-            catch (error: IllegalStateException) { actionError = error.message; false }
-        })
+
     }
     if (detailsOpen && !state.retired && state.hasLoadedInfo) NativeChiefDetails(conversation, state.listState,
         onClose = { detailsOpen = false }, onChange = { muted, receipts ->

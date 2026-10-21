@@ -107,3 +107,14 @@ python3 scripts/check-chief-timeline.py --upstream /absolute/path/to/cmux \
 The latest full JVM run passed 2,986 and skipped four, with zero failures. Eight
 Android cases pass, including source timeline presentation and a font-scale-2
 probe. This is not full UIKit, matched-iOS or supporting-host acceptance.
+
+The header checker now also executes the unmodified `ConversationTopEdgeGeometry`
+(50 wash cases) and verbatim controller inset expressions with inert frames
+(54 cases), guarded by the recorded a591 file hashes. The Android transcript
+frame uses the full viewport with measured header/composer overlays, source
+resting body gap and plain-background iOS 26 wash. Eighty-five focused Chief JVM
+cases pass. Android portrait passes 34 cases (two landscape-only assumptions
+skip there); the separate landscape run passes all four. These source/fixture/
+emulator checks do not establish full UIKit, other OS/background branches,
+animation/accessibility or real-host/phone parity. See docs/CHIEF.md for scope,
+failed-run diagnostics and capture provenance.

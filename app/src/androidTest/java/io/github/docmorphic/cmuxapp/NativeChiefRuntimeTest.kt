@@ -212,6 +212,24 @@ class NativeChiefRuntimeTest {
         assertEquals(expected, with(density) { layouts.single().layoutInput.style.fontSize.toDp().value }, .2f)
     }
 
+    private fun usableMessagesBounds(): androidx.compose.ui.geometry.Rect {
+        val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+        val header = compose.onNodeWithTag("ChiefHeader").fetchSemanticsNode().boundsInRoot
+        val composer = compose.onNodeWithTag("ChiefComposerBar").fetchSemanticsNode().boundsInRoot
+        return viewport.copy(top = maxOf(viewport.top, header.bottom), bottom = minOf(viewport.bottom, composer.top))
+    }
+
+    private fun swipeMessagesDown() {
+        val list = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+        val usable = usableMessagesBounds()
+        compose.onNodeWithTag("ChiefMessages").performTouchInput {
+            // The real scroll viewport now extends under both bars. Begin on a
+            // message rather than the header's clickable name/photo or editor.
+            swipe(androidx.compose.ui.geometry.Offset(usable.center.x - list.left, usable.top + usable.height * .1f - list.top),
+                androidx.compose.ui.geometry.Offset(usable.center.x - list.left, usable.bottom - usable.height * .1f - list.top))
+        }
+    }
+
     private fun settledComposerGeometry(): List<androidx.compose.ui.geometry.Rect> {
         val tags = listOf("ChiefComposerField", "ChiefSend", "ChiefHeaderStop")
         var previous = emptyList<androidx.compose.ui.geometry.Rect>()
@@ -341,6 +359,39 @@ class NativeChiefRuntimeTest {
         captureChiefReference(if (large) "compact-large-dark" else "compact-dark")
     }
 
+    @Test fun transcriptUsesTheWholeViewportUnderBothBarsAndScrollsBehindTheWash() {
+        compose.runOnUiThread { api.rows = (1..100).map { message("m$it", it.toULong(), "Scrollable transcript message $it") } }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:m100").fetchSemanticsNodes().isNotEmpty() }
+        val frame = compose.onNodeWithTag("ChiefTranscript").fetchSemanticsNode().boundsInRoot
+        val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+        assertEquals(frame, viewport)
+        val header = compose.onNodeWithTag("ChiefHeader").fetchSemanticsNode().boundsInRoot
+        val composer = compose.onNodeWithTag("ChiefComposerBar").fetchSemanticsNode().boundsInRoot
+        assertEquals(viewport.top, header.top, 1f)
+        assertEquals(viewport.bottom, composer.bottom, 1f)
+        compose.onNodeWithTag("ChiefMessages").performScrollToIndex(30)
+        compose.waitForIdle()
+        val rows = compose.onAllNodes(SemanticsMatcher("Transcript bodies behind header") {
+            it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("ChiefBubbleBody:") == true
+        }).fetchSemanticsNodes()
+        assertTrue(rows.any { it.boundsInRoot.top < header.bottom && it.boundsInRoot.bottom > viewport.top })
+        compose.onNodeWithTag("ChiefTopEdgeFade").assertExists()
+        saveScreenshot("chief-overlay-scrolled")
+    }
+
+    @Test fun restingNewestBodyUsesTheSourceGapAboveTheOverlayComposer() {
+        compose.runOnUiThread { api.rows = (1..50).map { message("m$it", it.toULong(), "Message $it") } }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        val density = compose.activity.resources.displayMetrics.density
+        compose.waitUntil(10_000) {
+            val body = compose.onAllNodesWithTag("ChiefBubbleBody:m50").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
+            val field = compose.onAllNodesWithTag("ChiefComposerField").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
+            body != null && field != null && kotlin.math.abs(field.top - body.bottom - 16.71f * density) < 2f
+        }
+        compose.onNodeWithTag("ChiefBubbleBody:m50").assertIsDisplayed()
+    }
+
     @Test fun sourceRunSceneUsesBodyGapsAndReservesOnlyFinalTails() {
         openReferenceScene("runs-dark")
         fun body(id: String) = compose.onNodeWithTag("ChiefBubbleBody:$id").fetchSemanticsNode().boundsInRoot
@@ -379,7 +430,7 @@ class NativeChiefRuntimeTest {
     @Test fun sourceLongSceneUsesTheReservedTranscriptWidthAndPreservesUnicode() {
         openReferenceScene("long-dark")
         val density = compose.activity.resources.displayMetrics.density
-        val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+        val viewport = usableMessagesBounds()
         val first = compose.onNodeWithTag("ChiefBubbleBody:one").fetchSemanticsNode().boundsInRoot
         val second = compose.onNodeWithTag("ChiefBubbleBody:two").fetchSemanticsNode().boundsInRoot
         val maximum = viewport.width - (32 + 268f / 3) * density
@@ -486,11 +537,11 @@ class NativeChiefRuntimeTest {
         compose.runOnUiThread { owner.launch{repeat(2){computer.transcript()!!.loadOlder()};loaded.complete(Unit)} }
         compose.waitUntil(10_000) { loaded.isCompleted }
         assertFalse(computer.transcript()!!.state.value.hasMore)
-        compose.onNodeWithTag("ChiefMessages").performTouchInput{swipeDown()}
+        swipeMessagesDown()
         compose.onNodeWithTag("ChiefMessages").performScrollToIndex(0)
         compose.waitUntil(10_000) {
             val intro=compose.onAllNodesWithTag("ChiefServiceIntro").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
-            val viewport=compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+            val viewport=usableMessagesBounds()
             intro != null && intro.height > 0 && intro.top >= viewport.top && intro.bottom <= viewport.bottom
         }
         compose.onNodeWithTag("ChiefServiceIntro").assertIsDisplayed()
@@ -507,9 +558,8 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefComposer").performTextClearance()
         compose.onNodeWithTag("ChiefComposer").performTextInput("\u0085 **literal** \u200b")
         compose.onNodeWithTag("ChiefSend").assertIsDisplayed().assertIsEnabled()
-        val field = compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot
-        val send = compose.onNodeWithTag("ChiefSend").fetchSemanticsNode().boundsInRoot
-        assertTrue(field.contains(send.topLeft) && field.contains(send.bottomRight))
+        val (field, send, _) = settledComposerGeometry()
+        assertTrue("Send $send must stay inside field $field", field.contains(send.topLeft) && field.contains(send.bottomRight))
         tapSendWhenReady()
         compose.waitUntil(10_000) { api.sends.size == 1 }
         assertEquals("**literal**", api.sends.single().first)
@@ -741,7 +791,7 @@ class NativeChiefRuntimeTest {
         val id = api.sends.single().second!!
         compose.waitUntil(10_000) {
             val retry = compose.onAllNodesWithTag("ChiefFailed:$id").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
-            val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+            val viewport = usableMessagesBounds()
             retry != null && retry.height > 0 && retry.top >= viewport.top && retry.bottom <= viewport.bottom
         }
         compose.onNodeWithTag("ChiefFailed:$id").assertIsDisplayed().performClick()
@@ -766,7 +816,7 @@ class NativeChiefRuntimeTest {
         val id = api.sends.single().second!!
         compose.waitUntil(10_000) {
             val retry = compose.onAllNodesWithTag("ChiefFailed:$id").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
-            val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+            val viewport = usableMessagesBounds()
             retry != null && retry.height > 0 && retry.top >= viewport.top && retry.bottom <= viewport.bottom
         }
         assertEquals("", computer.transcript()!!.state.value.draft)
@@ -864,9 +914,9 @@ class NativeChiefRuntimeTest {
         }
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithTag("ChiefMessage:m100").assertIsDisplayed()
-        compose.onNodeWithTag("ChiefMessages").performTouchInput { swipeDown() }
+        swipeMessagesDown()
         compose.waitForIdle()
-        val viewport = compose.onNodeWithTag("ChiefMessages").fetchSemanticsNode().boundsInRoot
+        val viewport = usableMessagesBounds()
         val historyRows = SemanticsMatcher("Chief history message") {
             it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("ChiefMessage:m") == true
         }
@@ -903,7 +953,7 @@ class NativeChiefRuntimeTest {
         }
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithTag("ChiefMessage:m2000").assertIsDisplayed()
-        compose.onNodeWithTag("ChiefMessages").performTouchInput { swipeDown() }
+        swipeMessagesDown()
         compose.waitForIdle()
         val loaded = CompletableDeferred<Unit>()
         compose.runOnUiThread { owner.launch {
@@ -943,7 +993,7 @@ class NativeChiefRuntimeTest {
         assertTrue(api.historyRequests.isEmpty())
         // A reader drag owns unpinning; the subsequent exact-index movement only
         // stages a deterministic measured distance and must not pretend to be a drag.
-        compose.onNodeWithTag("ChiefMessages").performTouchInput { swipeDown() }
+        swipeMessagesDown()
         compose.waitForIdle()
         compose.onNodeWithTag("ChiefMessages").performScrollToIndex(5)
         compose.waitUntil(10_000) { api.historyRequests.size == 1 }

@@ -19,8 +19,19 @@ import CoreGraphics
         } }
         let unread = [0.0,6,23,80,150].map { w -> [String:Any] in ["text":w,"width":Double(ConversationHeaderGeometry.backWidth(unreadTextWidth:w)),"pill":rect(ConversationHeaderGeometry.unreadPillFrame(textWidth:w))] }
         let names = [0.0,14,17,19,21,23,28,53].map { ["input":$0,"output":Double(ConversationHeaderGeometry.namePointSize(scaled:$0))] }
+        var wash: [[String: Any]] = []
+        for height in [0.0,70,138,200,300] { for header in [-20.0,0,54,92,154] { for dark in [false,true] {
+            let stops = ConversationTopEdgeGeometry.ramp(height:height,headerBottom:header,dark:dark)
+            wash.append(["height":height,"header":header,"dark":dark,"stops":stops.map { [Double($0.location),Double($0.wash)] }])
+        } } }
+        var transcriptInsets: [[String: Any]] = []
+        for header in [54.0,92,154] { for footer in [44.0,80,220] { for overhang in [0.0,6.5,12] { for compact in [false,true] {
+            let (top,bottom) = sourceTranscriptInsets(headerBottom:header,footerHeight:footer,compact:compact)
+            transcriptInsets.append(["header":header,"footer":footer,"overhang":overhang,"compact":compact,
+                "top":Double(top),"paddingBottom":max(0,Double(bottom)+6-overhang)])
+        } } } }
         let state = ConversationListState()
-        let result: [String:Any] = ["compact":compact,"details":details,"unread":unread,"names":names,
+        let result: [String:Any] = ["compact":compact,"details":details,"wash":wash,"transcriptInsets":transcriptInsets,"unread":unread,"names":names,
             "quickSizes":ConversationDetailsHeaderGeometry.quickActionSizes.map(Double.init),
             "defaults":["muted":state.muted,"readReceipts":state.sendReadReceipts]]
         FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject:result, options:[.sortedKeys,.prettyPrinted]))

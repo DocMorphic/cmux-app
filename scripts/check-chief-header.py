@@ -18,6 +18,21 @@ def main():
         raw=source(path,sha)
         if '/CmuxConversationGeometry/' in path or path.endswith('/ConversationListState.swift'):
             dest=out/Path(path).name;dest.write_bytes(raw);files.append(str(dest))
+    controller_path='Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController.swift'
+    controller=source(controller_path,m['behaviorFiles'][controller_path]).decode()
+    anchors=[line.strip() for line in controller.splitlines() if line.strip().startswith(('let top = header.frame.maxY +','let bottom = max(0, view.bounds.maxY - composerContainer.frame.minY) +'))]
+    if len(anchors)!=2:raise ValueError('Reviewed transcript inset anchors changed')
+    inset_wrapper=out/'SourceTranscriptInsets.swift'
+    inset_wrapper.write_text('import CoreGraphics\n' + '''struct SourceHeader { let frame: CGRect; let isCompact: Bool }
+struct SourceView { let bounds: CGRect }
+struct SourceComposer { let frame: CGRect }
+func sourceTranscriptInsets(headerBottom: CGFloat, footerHeight: CGFloat, compact: Bool) -> (CGFloat, CGFloat) {
+    let header = SourceHeader(frame: CGRect(x: 0, y: 0, width: 402, height: headerBottom), isCompact: compact)
+    let view = SourceView(bounds: CGRect(x: 0, y: 0, width: 402, height: 874))
+    let composerContainer = SourceComposer(frame: CGRect(x: 0, y: 874-footerHeight, width: 402, height: footerHeight))
+    let translationIndicatorReserve: CGFloat = 0
+''' + '\n'.join(anchors) + '\nreturn (top, bottom)\n}\n')
+    files.append(str(inset_wrapper))
     chief=source('Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift',m['behaviorFiles']['Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift']).decode()
     assert 'func updateListState' not in chief and 'ConversationBackgroundBackend' not in chief
     backend=source('Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationBackend.swift',m['headerFiles']['Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationBackend.swift']).decode()
@@ -49,7 +64,7 @@ def main():
         actual={e.attrib['name']:e.text.replace("\\'","'") for e in ET.parse(root/'app/src/main/res'/folder/'chief_header.xml').getroot()}
         if expected!=actual:raise ValueError('Header strings differ: '+lang)
         count+=len(actual)
-    receipt={'revision':m['revision'],'compactCases':len(vectors['compact']),'detailsCases':len(vectors['details']),'unreadCases':len(vectors['unread']),'nameCases':len(vectors['names']),'typeAnchors':12,'strings':count,'vectorsSha256':hashlib.sha256(encoded).hexdigest(),'scope':'Actual unmodified portable Swift geometry/defaults, guarded UIKit/backend source, and primary Apple type anchors; not UIKit details, OS transition, full visual or real-host acceptance'}
+    receipt={'revision':m['revision'],'compactCases':len(vectors['compact']),'detailsCases':len(vectors['details']),'washCases':len(vectors['wash']),'transcriptInsetCases':len(vectors['transcriptInsets']),'unreadCases':len(vectors['unread']),'nameCases':len(vectors['names']),'typeAnchors':12,'strings':count,'vectorsSha256':hashlib.sha256(encoded).hexdigest(),'insetSourceSha256':m['behaviorFiles'][controller_path],'insetWrapperSha256':hashlib.sha256(inset_wrapper.read_bytes()).hexdigest(),'scope':'Actual unmodified portable Swift geometry/defaults/wash, exact source inset expressions with inert frame inputs, guarded UIKit/backend source and primary Apple type anchors; not complete UIKit, OS transition, visual or real-host acceptance'}
     (out/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps(receipt,indent=2))
 
 if __name__=='__main__':main()

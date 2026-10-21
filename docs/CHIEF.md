@@ -1,5 +1,46 @@
 # Chief conversations
 
+Oct 21 transcript-frame checkpoint:
+the transcript now fills the available Android surface under both the header and
+composer. Stable subcomposition slots measure the bars before computing source
+scroll insets; the same editor state/IME connection stays mounted. Resting top
+insets use header bottom plus 3⅓ points in portrait and zero extra in compact.
+Bottom padding combines the source controller inset, six-point layout ending and
+last-row tail overhang to leave the body 16.71 points above the field. Pinned-tail
+correction and near-bottom checks subtract the actual after-content padding;
+keyboard/editor growth therefore uses the unobscured bottom rather than the full
+viewport's bottom. History thresholds use the real full viewport. Catch-up target
+observations exclude rows wholly above the adjusted top; outgoing visibility
+still follows the source's full collection region.
+
+The plain-background iOS 26 wash uses the executed source ramp: peak opacity
+0.60 dark/0.855 light, clearing 46 points below the header. Its window anchoring
+accounts for Android's already-consumed status bar. Source drawing order is
+transcript, composer, wash, header, then overlay controls; the fade has no pointer
+handlers. This ports the inspected iOS 26 plain-background branch. Bottom soft
+edge/blur, iOS 27/background branches, exact materials/fonts/insets and animation
+still need work; no whole-screen or physical acceptance is claimed.
+
+Actual source execution now covers 50 wash and 54 controller-inset cases alongside
+the prior geometry/default/type/string checks. The controller expressions run
+verbatim against inert frame inputs, guarded by the exact source SHA. Eighty-five
+Chief JVM cases pass with no skips/failures; debug and instrumentation builds
+pass. Initial layout checks pass (full viewport, scrolling behind the header,
+source resting body gap). The first broad portrait run found three harness
+failures after changing list bounds: default swipes began on header controls,
+and separate field/Send bounds were read across IME frames. The corrected harness
+starts real swipes within the unobscured transcript and uses the existing stable
+IME geometry helper; all position/containment/trim assertions are retained. The final portrait run
+passes 34 Chief/root cases in 66.588 s, with its two landscape-only assumptions
+skipped there. All four landscape cases pass in 6.52 s, including both orientation-specific
+cases, full viewport/body-gap checks and normal/accessibility details
+navigation. Both crash buffers are empty. Five portrait and two landscape scene
+PNG/metadata pairs are hash/fixture/viewport/density verified. The normal portrait,
+scrolled-overlay and both landscape images were inspected. Emulator restored to
+1080×2400/420 and stopped; no phone/Mac/account/pairing/helper mutation. Logs are `chief-overlay-*` under
+`captures/recovery-20261021/`. Physical Pixel/Mac, remaining row/thread/poll/editor/
+locale/accessibility/lifecycle/source inventory and full parity gates stay open.
+
 Oct 21 symbol-frame correction: Android now reserves the native 8⅓×14⅔-point
 symbol canvas in compact mode, with the source four-point text gap and eight-point
 trailing reserve. Portrait keeps its 4.7-point ink reserve and centers that same
@@ -20,10 +61,10 @@ was inspected. The owned emulator was restored to 1080×2400/420 and stopped.
 
 This accepts these header dimensions and interactions, not the full compact
 screen. Source and Android font metrics, system/cutout insets, the transcript's
-header overlay/top wash, scrolling/initial position, material and animation still
-differ or need verification. In particular, the source reference's service intro
-can sit behind the transparent header; Android still puts the header above the
-list. Never treat that column layout as accepted parity. The broader quote/thread,
+scrolling/initial position, material and animation still differ or need
+verification. The source reference's service intro can sit behind the transparent
+header. The later transcript-frame checkpoint above supersedes Android's old
+header-above-list column; its remaining gates are recorded there. The broader quote/thread,
 poll/failed UI, environment/accessibility/IME/lifecycle and real Mac/Pixel gates
 remain open. Signed candidate 707 predates this symbol correction.
 
