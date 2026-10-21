@@ -402,18 +402,18 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         }
     }
 
-    fun openReplyThread(rootID: String, targetID: String = rootID): Boolean {
+    fun openReplyThread(rootID: String, targetID: String = rootID, releaseOffset: Float = 0f): Boolean {
         checkOwner()
-        val snapshot = NativeChiefReplyPolicy.open(state.value, rootID, targetID, replyGeneration + 1) ?: return false
+        val snapshot = NativeChiefReplyPolicy.open(state.value, rootID, targetID, replyGeneration + 1, releaseOffset) ?: return false
         replyGeneration = snapshot.generation
         mutableState.value = state.value.copy(reply = snapshot)
         return true
     }
 
-    fun replyTo(messageID: String): Boolean {
+    fun replyTo(messageID: String, releaseOffset: Float = 0f): Boolean {
         checkOwner()
         val item = NativeChiefTimeline.items(state.value).firstOrNull { it.messageID == messageID } ?: return false
-        return openReplyThread(item.replyToID ?: item.messageID, item.messageID)
+        return openReplyThread(item.replyToID ?: item.messageID, item.messageID, releaseOffset)
     }
 
     fun closeReplyThread() { checkOwner(); mutableState.value = state.value.copy(reply = null) }

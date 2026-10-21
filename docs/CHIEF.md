@@ -1,16 +1,58 @@
 # Chief conversations
 
+Oct 21 swipe-to-reply checkpoint: acknowledged balloons now accept physical
+rightward pans within the source 18-degree rule and incoming 28-point inset /
+156-point minimum area. They track the finger to 40 points, then logarithmically.
+Only the balloon moves; its quote/connector remain stationary. The 26-point arrow
+grows/sharpens from offset 22 to 40, with outgoing drift, a 300 ms pulse, delayed
+system haptic and source reset durations. Crossing above 40 while moving right
+commits; reversing below it while moving left uncommits. Cancellation and pending
+rows never open a thread. Release targets the selected message inside its loaded
+root and retains the release offset in owned thread state for the remaining
+ReplyTrip work. Vertical travel and horizontal unwind into the thread are not
+yet rendered. The arrow is project-authored artwork, not an exported SF Symbol;
+exact pulse/blur rendering and physical haptic feel remain unaccepted.
+
+The source checker compiles the complete actual ConversationReplyMotion plus the
+verbatim update/release decision with inert cell/indicator/haptic dependencies:
+34 geometry cases, six update sequences/19 steps. Ninety-four Chief JVM cases
+pass without skips/failures, and debug/instrumentation builds pass. Initial touch
+run: four pass, held-drag offset fails at zero. Compose's fitted velocity can be
+zero at the first touch-slop crossing; using the actual per-event velocity until
+the fit exists fixes admission. All five focused touch tests then pass in 8.927 s,
+retaining exact offset/quote-position assertions. Full portrait Chief/route run:
+44 pass in 82.67 s, two landscape-only assumptions skip. The separate missing-
+capability root gate passes in 2.869 s. All six landscape checks pass in 8.884 s:
+four existing compact/details/viewport/gap checks plus swipe entry and held
+balloon/quote/reversal. This is not full thread/keyboard landscape acceptance.
+Both crash buffers are empty. Seven shared-scene PNG/metadata pairs are verified;
+normal portrait and both held-swipe images were inspected. The emulator was
+restored to 1080×2400/420 and stopped. Evidence is `chief-reply-swipe-*` under
+recovery-20261021, with `chief-reply-swipe-checkpoint.json` as the scoped receipt.
+Signed 708 predates this swipe work and remains uninstalled.
+
 Oct 21 native thread reference extension: prepared normal/actual-accessibility
 thread cases through the real public quote element activation and registered
 Close header event. It requires loaded root/direct copies, settled transforms,
 draft/focus/viewing, hidden Back/backing accessibility and restored normal state,
 with thread/content/editor geometry. Image/control observations now honor hidden,
 transparent and clipping ancestors, with an actual runtime observation guard.
-All 19 exporter integrity tests and local Swift/project parsing pass. The original
-nine scene bytes and 227-file source package remain unchanged. Fifteen captures
-are now required for this new batch; hosted UIKit compilation/rendering, image
-inspection and matched Android comparison remain pending. This does not revise
-the previously accepted thirteen-scene artifact or establish thread motion/parity.
+All 19 exporter integrity tests and local Swift/project parsing pass. Run
+39550609607 at `9324a2b003f634303fb38b1f67be0b5422b73c7c` then passed both
+hosted UIKit invocations and all fifteen export checks. Artifact 12323841685 has
+verified outer SHA-256
+`9eb7b4546a72f45a61cd1b94d6162761ccb8d822074b394460251dc27f8008e3`.
+Independent source/fixture/PNG/dimension/interaction verification passes at
+`captures/recovery-20261021/ios-chief-thread-verified-9324a2b0/`. Both new thread
+images were inspected. The original nine scene bytes and 227-file source package
+remain unchanged; interaction fixture SHA is
+`77f80ccb3b17a79edbc6792ab24d92bf18274f720f88a0e1f26af8a265203717`.
+Actual entry shows parent/reply and excludes nested next; close retains editor
+draft/focus/viewing and restores Back/backing accessibility. Normal/AX body is
+17/28 points and timestamp/sender captions are 11/20. Native material produces a
+gray background where Android's current pure blur/wash remains black; matched
+caption, material, font, inset and motion work stays open. The accepted offline
+reference does not establish Android, gesture, animation or physical parity.
 
 Oct 21 reply workflow checkpoint: quotes now request the loaded
 parent thread, and the source Reply accessibility action targets the selected
@@ -60,9 +102,9 @@ are retained as `chief-reply-*` under recovery-20261021; the final receipt is
 `chief-reply-checkpoint.json`. These are authored local-owner workflow captures,
 not matched UIKit thread reference captures.
 
-This is a workflow port in progress, not full thread or app parity. Source right-
-swipe entry/indicator/haptics, ReplyTrip row travel and close/blur/chrome fades,
-exact poll/failed-card presentation, native UIKit thread reference captures,
+This is a workflow port in progress, not full thread or app parity. Exact swipe/
+pulse/haptic fidelity, ReplyTrip row travel and close/blur/chrome fades,
+exact poll/failed-card presentation, matched Android/UIKit thread captures,
 complex editor/keyboard motion, rotation/locale/contrast/full TalkBack and physical
 Mac/Pixel acceptance remain required. The current UIKit reference can be extended
 through the real public quote accessibility element's activation; source-package

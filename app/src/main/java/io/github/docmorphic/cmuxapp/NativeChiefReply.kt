@@ -2,17 +2,17 @@ package io.github.docmorphic.cmuxapp
 
 /** Memory-only, one-open snapshot, matching the source overlay's populate call. */
 internal data class NativeChiefReply(val generation: Long, val rootID: String, val targetID: String,
-    val rows: List<NativeChiefTimelineItem>) {
+    val rows: List<NativeChiefTimelineItem>, val releaseOffset: Float = 0f) {
     val hiddenKeys = rows.map { it.key }.toSet()
 }
 
 internal object NativeChiefReplyPolicy {
-    fun open(state: NativeChiefTranscriptState, rootID: String, targetID: String, generation: Long): NativeChiefReply? {
+    fun open(state: NativeChiefTranscriptState, rootID: String, targetID: String, generation: Long, releaseOffset: Float = 0f): NativeChiefReply? {
         val items = NativeChiefTimeline.items(state)
         if (items.none { it.messageID == rootID }) return null
         val rows = items.filter { it.messageID == rootID || it.replyToID == rootID }
         if (rows.none { it.messageID == targetID }) return null
-        return NativeChiefReply(generation, rootID, targetID, rows.toList())
+        return NativeChiefReply(generation, rootID, targetID, rows.toList(), releaseOffset)
     }
 }
 

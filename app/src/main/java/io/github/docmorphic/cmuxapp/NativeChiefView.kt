@@ -312,6 +312,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     val reply = state.reply
     fun closeReply() { try { session.closeReplyThread() } catch (_: IllegalStateException) {} }
     fun replyTo(id: String): Boolean = try { session.replyTo(id) } catch (_: IllegalStateException) { false }
+    fun swipeReply(id: String, offset: Float): Boolean = try { session.replyTo(id, offset) } catch (_: IllegalStateException) { false }
     fun openThread(id: String) { try { session.openReplyThread(id) } catch (_: IllegalStateException) {} }
     BackHandler { if (reply != null) closeReply() else onBack() }
     val bubbleMetrics = nativeChiefBubbleMetrics()
@@ -379,6 +380,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                     onApprove = { id, choice -> act { session.approve(id, choice) } },
                     onAnswer = { id, form -> act { session.answer(id, form) } },
                     onQuestion = { answerMessage = it }, onFailure = { failedMessage = it }, onQuote = ::openThread, onReply = ::replyTo,
+                    onSwipeReply = if (reply == null && !state.retired) ::swipeReply else null,
                     bodyAlpha = if (reply == null) 1f else if (row.item.key in reply.hiddenKeys) 0f else if (row.item.fromMe) .7f else 1f)
             }
             if (state.working) item(key = "working") { Text("Chief is working…", color = chiefAccent) }
@@ -450,7 +452,7 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     state: NativeChiefTranscriptState, metrics: NativeChiefBubbleMetrics,
     onApprove: (String, String) -> Unit, onAnswer: (String, NativeChiefQuestionForm) -> Unit,
     onQuestion: (String) -> Unit, onFailure: (String) -> Unit, onQuote: (String) -> Unit = {},
-    onReply: ((String) -> Boolean)? = null, bodyAlpha: Float = 1f) {
+    onReply: ((String) -> Boolean)? = null, onSwipeReply: ((String, Float) -> Boolean)? = null, bodyAlpha: Float = 1f) {
     val baseGap = metrics.space(if (row.firstInRun) 10f else 4f)
     // Local outgoing rows already end in a status caption; acknowledged text ends in its tail.
     val previousMessage = previous?.item?.message
@@ -474,7 +476,8 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
             val emojiSize = remember(body, part) { if (part == null) NativeChiefEmojiPolicy.fontSize(body) else null }
             NativeChiefBalloonRow(row.quote, message.authorKind == "human", row.lastInRun,
                 message.id, expanded = part != null, text = body.takeIf { part == null }, metrics = metrics, emojiSize = emojiSize,
-                modifier = Modifier.alpha(bodyAlpha).then(replyAction), onQuote = row.quote?.let { { onQuote(it.id) } }) {
+                modifier = Modifier.alpha(bodyAlpha).then(replyAction), onQuote = row.quote?.let { { onQuote(it.id) } },
+                onSwipeReply = onSwipeReply?.let { action -> { offset -> action(message.id, offset); Unit } }) {
                 if (part == null) SelectionContainer { NativeChiefText(body) }
                 part?.approval?.let { approval ->
                     Text(approval.prompt, fontWeight = FontWeight.SemiBold)

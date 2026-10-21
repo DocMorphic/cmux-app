@@ -1,0 +1,528 @@
+{
+  "angles": [
+    {
+      "allowed": false,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "allowed": false,
+      "x": 0,
+      "y": 100
+    },
+    {
+      "allowed": true,
+      "x": 100,
+      "y": 0
+    },
+    {
+      "allowed": true,
+      "x": -100,
+      "y": 0
+    },
+    {
+      "allowed": true,
+      "x": 100,
+      "y": 32
+    },
+    {
+      "allowed": false,
+      "x": 100,
+      "y": 33
+    },
+    {
+      "allowed": true,
+      "x": 100,
+      "y": -32
+    },
+    {
+      "allowed": false,
+      "x": 100,
+      "y": -33
+    },
+    {
+      "allowed": true,
+      "x": -100,
+      "y": 32
+    },
+    {
+      "allowed": false,
+      "x": -100,
+      "y": 33
+    },
+    {
+      "allowed": false,
+      "x": 1,
+      "y": 1
+    },
+    {
+      "allowed": false,
+      "x": 100,
+      "y": 100
+    },
+    {
+      "allowed": true,
+      "x": 100,
+      "y": 32.49196962329063
+    },
+    {
+      "allowed": false,
+      "x": 100,
+      "y": 32.49389922279718
+    }
+  ],
+  "areas": [
+    {
+      "area": [
+        40,
+        18,
+        156,
+        44
+      ],
+      "outgoing": false,
+      "width": 40
+    },
+    {
+      "area": [
+        -104,
+        18,
+        156,
+        44
+      ],
+      "outgoing": true,
+      "width": 40
+    },
+    {
+      "area": [
+        40,
+        18,
+        156,
+        44
+      ],
+      "outgoing": false,
+      "width": 155.999
+    },
+    {
+      "area": [
+        11.998999999999995,
+        18,
+        156,
+        44
+      ],
+      "outgoing": true,
+      "width": 155.999
+    },
+    {
+      "area": [
+        40,
+        18,
+        156,
+        44
+      ],
+      "outgoing": false,
+      "width": 156
+    },
+    {
+      "area": [
+        12,
+        18,
+        156,
+        44
+      ],
+      "outgoing": true,
+      "width": 156
+    },
+    {
+      "area": [
+        40,
+        18,
+        200,
+        44
+      ],
+      "outgoing": false,
+      "width": 200
+    },
+    {
+      "area": [
+        12,
+        18,
+        200,
+        44
+      ],
+      "outgoing": true,
+      "width": 200
+    }
+  ],
+  "crossings": [
+    {
+      "cancelCommit": false,
+      "releaseCommit": true,
+      "steps": [
+        {
+          "committed": false,
+          "haptics": 0,
+          "indicatorProgress": 0,
+          "offset": 22,
+          "pulses": 0,
+          "translation": 22,
+          "velocity": 100
+        },
+        {
+          "committed": false,
+          "haptics": 0,
+          "indicatorProgress": 1,
+          "offset": 40,
+          "pulses": 0,
+          "translation": 40,
+          "velocity": 100
+        },
+        {
+          "committed": true,
+          "haptics": 1,
+          "indicatorProgress": 1,
+          "offset": 40.00030400233732,
+          "pulses": 1,
+          "translation": 40.001,
+          "velocity": 100
+        }
+      ]
+    },
+    {
+      "cancelCommit": false,
+      "releaseCommit": true,
+      "steps": [
+        {
+          "committed": true,
+          "haptics": 1,
+          "indicatorProgress": 1,
+          "offset": 48.42883987859147,
+          "pulses": 1,
+          "translation": 80,
+          "velocity": 100
+        },
+        {
+          "committed": false,
+          "haptics": 2,
+          "indicatorProgress": 1,
+          "offset": 30,
+          "pulses": 1,
+          "translation": 30,
+          "velocity": -100
+        },
+        {
+          "committed": true,
+          "haptics": 3,
+          "indicatorProgress": 1,
+          "offset": 48.42883987859147,
+          "pulses": 2,
+          "translation": 80,
+          "velocity": 100
+        }
+      ]
+    },
+    {
+      "cancelCommit": false,
+      "releaseCommit": false,
+      "steps": [
+        {
+          "committed": true,
+          "haptics": 1,
+          "indicatorProgress": 1,
+          "offset": 48.42883987859147,
+          "pulses": 1,
+          "translation": 80,
+          "velocity": 100
+        },
+        {
+          "committed": true,
+          "haptics": 1,
+          "indicatorProgress": 1,
+          "offset": 20,
+          "pulses": 1,
+          "translation": 20,
+          "velocity": 0
+        },
+        {
+          "committed": true,
+          "haptics": 1,
+          "indicatorProgress": 1,
+          "offset": 20,
+          "pulses": 1,
+          "translation": 20,
+          "velocity": 100
+        },
+        {
+          "committed": false,
+          "haptics": 2,
+          "indicatorProgress": 1,
+          "offset": 20,
+          "pulses": 1,
+          "translation": 20,
+          "velocity": -100
+        }
+      ]
+    },
+    {
+      "cancelCommit": false,
+      "releaseCommit": true,
+      "steps": [
+        {
+          "committed": true,
+          "haptics": 1,
+          "indicatorProgress": 1,
+          "offset": 48.42883987859147,
+          "pulses": 1,
+          "translation": 80,
+          "velocity": 100
+        },
+        {
+          "committed": true,
+          "haptics": 1,
+          "indicatorProgress": 1,
+          "offset": 40,
+          "pulses": 1,
+          "translation": 40,
+          "velocity": -100
+        },
+        {
+          "committed": true,
+          "haptics": 1,
+          "indicatorProgress": 1,
+          "offset": 40.00030400233732,
+          "pulses": 1,
+          "translation": 40.001,
+          "velocity": -100
+        }
+      ]
+    },
+    {
+      "cancelCommit": false,
+      "releaseCommit": true,
+      "steps": [
+        {
+          "committed": false,
+          "haptics": 0,
+          "indicatorProgress": 1,
+          "offset": 48.42883987859147,
+          "pulses": 0,
+          "translation": 80,
+          "velocity": -100
+        },
+        {
+          "committed": false,
+          "haptics": 0,
+          "indicatorProgress": 1,
+          "offset": 68,
+          "pulses": 0,
+          "translation": 400,
+          "velocity": 0
+        },
+        {
+          "committed": true,
+          "haptics": 1,
+          "indicatorProgress": 1,
+          "offset": 68,
+          "pulses": 1,
+          "translation": 400,
+          "velocity": 100
+        }
+      ]
+    },
+    {
+      "cancelCommit": false,
+      "releaseCommit": false,
+      "steps": [
+        {
+          "committed": false,
+          "haptics": 0,
+          "indicatorProgress": 0,
+          "offset": 0,
+          "pulses": 0,
+          "translation": -10,
+          "velocity": 100
+        },
+        {
+          "committed": false,
+          "haptics": 0,
+          "indicatorProgress": 0,
+          "offset": 0,
+          "pulses": 0,
+          "translation": 0,
+          "velocity": 0
+        },
+        {
+          "committed": false,
+          "haptics": 0,
+          "indicatorProgress": 0.9999444444444445,
+          "offset": 39.999,
+          "pulses": 0,
+          "translation": 39.999,
+          "velocity": 100
+        }
+      ]
+    }
+  ],
+  "offsets": [
+    {
+      "incomingIndicator": null,
+      "offset": 0,
+      "outgoingIndicator": null,
+      "progress": 0,
+      "scale": 0.4,
+      "translation": -10
+    },
+    {
+      "incomingIndicator": null,
+      "offset": 0,
+      "outgoingIndicator": null,
+      "progress": 0,
+      "scale": 0.4,
+      "translation": 0
+    },
+    {
+      "incomingIndicator": null,
+      "offset": 21.999,
+      "outgoingIndicator": null,
+      "progress": 0,
+      "scale": 0.4,
+      "translation": 21.999
+    },
+    {
+      "incomingIndicator": null,
+      "offset": 22,
+      "outgoingIndicator": null,
+      "progress": 0,
+      "scale": 0.4,
+      "translation": 22
+    },
+    {
+      "incomingIndicator": [
+        74.79956666666666,
+        54.799566666666664,
+        10.40086666666667
+      ],
+      "offset": 22.001,
+      "outgoingIndicator": [
+        74.79929997777778,
+        54.799566666666664,
+        10.40086666666667
+      ],
+      "progress": 5.555555555562345e-05,
+      "scale": 0.4000333333333334,
+      "translation": 22.001
+    },
+    {
+      "incomingIndicator": [
+        67.00043333333333,
+        47.00043333333333,
+        25.999133333333333
+      ],
+      "offset": 39.999,
+      "outgoingIndicator": [
+        55.00149997777778,
+        47.00043333333333,
+        25.999133333333333
+      ],
+      "progress": 0.9999444444444445,
+      "scale": 0.9999666666666667,
+      "translation": 39.999
+    },
+    {
+      "incomingIndicator": [
+        67,
+        47,
+        26
+      ],
+      "offset": 40,
+      "outgoingIndicator": [
+        55,
+        47,
+        26
+      ],
+      "progress": 1,
+      "scale": 1,
+      "translation": 40
+    },
+    {
+      "incomingIndicator": [
+        67,
+        47,
+        26
+      ],
+      "offset": 40.00030400233732,
+      "outgoingIndicator": [
+        55,
+        47,
+        26
+      ],
+      "progress": 1,
+      "scale": 1,
+      "translation": 40.001
+    },
+    {
+      "incomingIndicator": [
+        67,
+        47,
+        26
+      ],
+      "offset": 40.30026823096964,
+      "outgoingIndicator": [
+        55,
+        47,
+        26
+      ],
+      "progress": 1,
+      "scale": 1,
+      "translation": 41
+    },
+    {
+      "incomingIndicator": [
+        67,
+        47,
+        26
+      ],
+      "offset": 48.42883987859147,
+      "outgoingIndicator": [
+        55,
+        47,
+        26
+      ],
+      "progress": 1,
+      "scale": 1,
+      "translation": 80
+    },
+    {
+      "incomingIndicator": [
+        67,
+        47,
+        26
+      ],
+      "offset": 68,
+      "outgoingIndicator": [
+        55,
+        47,
+        26
+      ],
+      "progress": 1,
+      "scale": 1,
+      "translation": 400
+    },
+    {
+      "incomingIndicator": [
+        67,
+        47,
+        26
+      ],
+      "offset": 163.14232024281705,
+      "outgoingIndicator": [
+        55,
+        47,
+        26
+      ],
+      "progress": 1,
+      "scale": 1,
+      "translation": 1000000
+    }
+  ],
+  "schema": 1
+}

@@ -1,3 +1,34 @@
+## Swipe entry and accepted native thread reference — 2026-10-21
+
+Acknowledged balloons now support source-shaped rightward swipe admission,
+logarithmic travel, direction-qualified commit/uncommit, cancellation and a
+stationary quote/connector. Pending rows cannot start a swipe. The arrow has
+source growth/drift/reset/pulse timing and uses a system haptic; exact rendering,
+haptic feel, text-selection/multitouch/IME/RTL/TalkBack and full native motion
+remain open. Release offset is retained in owned thread state; ReplyTrip vertical
+travel/horizontal unwind is still required. See CHIEF.md for the implementation
+and the reproduced/fixed zero-velocity-at-slop failure.
+
+Actual source execution: 34 geometry cases, six update sequences/19 steps.
+Chief JVM: 94 pass/no skips or failures; debug/instrumentation builds pass.
+Portrait Chief/route invocation: 44 pass/two landscape-only skips in 82.67 s;
+separate capability gate: one pass in 2.869 s. Landscape: six pass in 8.884 s,
+including entry and held-balloon/stationary-quote/reversal. Both crash buffers
+empty; seven capture pairs verified; normal portrait and held-swipe images in
+both orientations inspected. Emulator restored/stopped. Receipt:
+`captures/recovery-20261021/chief-reply-swipe-checkpoint.json`.
+
+Native reference run 39550609607 at 9324a2b0 SUCCEEDED. Artifact 12323841685,
+outer SHA `9eb7b4546a72f45a61cd1b94d6162761ccb8d822074b394460251dc27f8008e3`,
+passes independent source/fixture/PNG/geometry/behavior checks for all fifteen
+captures. Both new thread images inspected. Real quote/Close callbacks preserve
+draft/focus/viewing and restore hidden Back/backing accessibility. The reference
+exposes remaining caption (11/20-point), material gray, font and inset differences;
+matched Android normal/AX captures and motion remain next. Full parity active.
+Signed verified 708 predates swipe work and is uninstalled. Verified Mac fix
+bundle remains staged; old custom app/account/pairing untouched. Pixel USB absent;
+first on authorized return restore `svc power stayon false` and preserve app data.
+
 ## Signed candidate 708 and native thread reference run — 2026-10-21
 
 Candidate 708 is built from clean source

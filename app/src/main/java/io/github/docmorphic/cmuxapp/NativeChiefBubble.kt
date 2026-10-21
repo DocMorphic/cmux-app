@@ -156,7 +156,8 @@ internal fun NativeChiefBubble(outgoing: Boolean, tail: Boolean, modifier: Modif
 internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolean, tail: Boolean,
     messageId: String, expanded: Boolean, text: String?, metrics: NativeChiefBubbleMetrics,
     emojiSize: Int? = null, modifier: Modifier = Modifier, pending: Boolean = false,
-    onQuote: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+    onQuote: (() -> Unit)? = null, onSwipeReply: ((Float) -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit) {
     val density = LocalDensity.current
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
     var quoteSize by remember { mutableStateOf(IntSize.Zero) }
@@ -190,11 +191,14 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
             }
             Spacer(Modifier.height(gap))
         }
-        val bodyModifier = Modifier.align(if (outgoing) AbsoluteAlignment.Right else AbsoluteAlignment.Left)
+        NativeChiefReplySwipe(messageId, outgoing, onSwipeReply != null && !pending,
+            if (tail && emojiSize == null) metrics.drop else 0.dp, { onSwipeReply?.invoke(it) }) { swipeModifier ->
+        val bodyModifier = swipeModifier
             .testTag(if (pending) "ChiefPending:$messageId" else "ChiefMessage:$messageId").onSizeChanged { bodySize = it }
         if (emojiSize != null && text != null) NativeChiefEmojiBalloon(text, emojiSize, messageId, bodyModifier, metrics)
         else NativeChiefBubble(outgoing, tail, bodyModifier, if (pending) "ChiefPendingBody:$messageId" else "ChiefBubbleBody:$messageId", expanded,
                 text = text, metrics = metrics, content = content)
+        }
     }
 }
 

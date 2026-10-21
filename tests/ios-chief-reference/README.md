@@ -18,9 +18,19 @@ before capture, and records the resulting visible rectangles. Nineteen synthetic
 export-integrity tests pass, including rejection of missing/ambiguous source
 actions, wrong thread membership, hidden Back leaks, unsettled row transforms,
 missing geometry and ordinary-size accessibility copies. Local preparation,
-project parsing and Swift syntax parsing pass. Full UIKit compilation/rendering
-of this extension remains pending; the prior thirteen-scene batch stays accepted
-under its own source and fixture hashes.
+project parsing and Swift syntax parsing pass. The prior thirteen-scene batch
+remains recorded under its own source and fixture hashes.
+
+Run `39550609607` at `9324a2b003f634303fb38b1f67be0b5422b73c7c` subsequently
+passed both UIKit invocations and all fifteen export guards. Artifact
+`12323841685`, outer SHA-256
+`9eb7b4546a72f45a61cd1b94d6162761ccb8d822074b394460251dc27f8008e3`,
+was independently verified/canonicalized; both new thread images were inspected.
+Entry copies exactly parent/reply and excludes nested next; actual Close retains
+draft, editor focus and viewing and restores the hidden Back/backing accessibility.
+Normal/accessibility body sizes are 17/28 points and captions 11/20. Android
+matching, material/font/inset differences, row travel, swipe/haptic/touch and
+physical acceptance remain open. See the native thread checkpoint in CHIEF.md.
 
 This disposable XCTest host renders the actual `CmuxConversationUI` package at
 the Chief audit revision. The complete package tree is pinned separately in the

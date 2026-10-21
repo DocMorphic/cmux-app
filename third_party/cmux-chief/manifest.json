@@ -153,5 +153,12 @@
     "path": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
     "sha256": "e942c581def4193ffa841537b70774fa9b91f98688fef40e4c5001ef864183a7",
     "key": "mobile.chief.question.answer"
+  },
+  "replySwipeFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationReplyMotion.swift": "ac49fce8ebfa9c4ba40bb4fd7bda90b37be9bd97781ed970f538d28f1b213770",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+ReplySwipe.swift": "b9daf50cb6b41387b206e13d8280788f683fb3a1f4df7160ffe31e507031a8f8",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+Gestures.swift": "1252bef81cec6c4b48d0c398713a80299cafe34c8c4be2f620de50e9fc6dfa8c",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ReplySwipeIndicator.swift": "a3439318421c5daf59b19e2b6f32a2b7372f4d2e1c633ce0c1ff7c0eb11f073d",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationCells.swift": "b7db01bd0f01c53b35638957d945c9c37814f2720c1740ca2533e0a61db78b86"
   }
 }

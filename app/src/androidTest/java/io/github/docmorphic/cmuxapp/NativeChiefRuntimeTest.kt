@@ -422,6 +422,112 @@ class NativeChiefRuntimeTest {
         }
     }
 
+    @Test fun rightSwipeOnAcknowledgedReplyTargetsThatMessageWithinItsLoadedRoot() {
+        openReferenceScene("quote-dark")
+        val body = compose.onNodeWithTag("ChiefMessage:reply").fetchSemanticsNode().boundsInRoot
+        val row = compose.onNodeWithTag("ChiefReplySwipe:reply").fetchSemanticsNode().boundsInRoot
+        val density = compose.activity.resources.displayMetrics.density
+        val start = body.center - row.topLeft
+        compose.onNodeWithTag("ChiefReplySwipe:reply").performTouchInput {
+            swipe(start, start + androidx.compose.ui.geometry.Offset(80 * density, 0f), 350)
+        }
+        waitForReplyThread()
+        val reply = computer.transcript()!!.state.value.reply!!
+        assertEquals("parent", reply.rootID); assertEquals("reply", reply.targetID)
+        assertEquals(NativeChiefReplySwipePolicy.bubbleOffset(80.0).toFloat(), reply.releaseOffset, .25f)
+        compose.onNodeWithTag("ChiefThreadMessage:next").assertDoesNotExist()
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun replySwipeMovesOnlyTheBalloonAndReversingBelowThresholdUncommits() {
+        openReferenceScene("quote-dark")
+        val density = compose.activity.resources.displayMetrics.density
+        val body = compose.onNodeWithTag("ChiefMessage:reply").fetchSemanticsNode().boundsInRoot
+        val quote = compose.onNodeWithTag("ChiefQuote:reply").fetchSemanticsNode().boundsInRoot
+        val row = compose.onNodeWithTag("ChiefReplySwipe:reply").fetchSemanticsNode().boundsInRoot
+        val start = body.center - row.topLeft
+        compose.onNodeWithTag("ChiefReplySwipe:reply").performTouchInput {
+            down(start)
+            for (i in 1..10) moveTo(start + androidx.compose.ui.geometry.Offset(8f * i * density, 0f), 16)
+        }
+        val moved = compose.onNodeWithTag("ChiefMessage:reply").fetchSemanticsNode().boundsInRoot
+        assertEquals((NativeChiefReplySwipePolicy.bubbleOffset(80.0) * density).toFloat(), moved.left - body.left, 2f)
+        assertEquals(quote, compose.onNodeWithTag("ChiefQuote:reply").fetchSemanticsNode().boundsInRoot)
+        compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+        saveScreenshot("chief-reply-swipe-held")
+        compose.onNodeWithTag("ChiefReplySwipe:reply").performTouchInput {
+            for (i in 1..10) moveTo(start + androidx.compose.ui.geometry.Offset((80f - 6f * i) * density, 0f), 16)
+            up()
+        }
+        compose.waitUntil(5_000) {
+            kotlin.math.abs(compose.onNodeWithTag("ChiefMessage:reply").fetchSemanticsNode().boundsInRoot.left - body.left) < 1
+        }
+        assertNull(computer.transcript()!!.state.value.reply)
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun leftDiagonalAndOutsideIncomingSwipeDoNotEnterReplyMode() {
+        openReferenceScene("quote-dark")
+        val density = compose.activity.resources.displayMetrics.density
+        val row = compose.onNodeWithTag("ChiefReplySwipe:parent").fetchSemanticsNode().boundsInRoot
+        val body = compose.onNodeWithTag("ChiefMessage:parent").fetchSemanticsNode().boundsInRoot
+        val start = body.center - row.topLeft
+        compose.onNodeWithTag("ChiefReplySwipe:parent").performTouchInput {
+            swipe(start, start + androidx.compose.ui.geometry.Offset(-70 * density, 0f), 350)
+        }
+        assertNull(computer.transcript()!!.state.value.reply)
+        compose.onNodeWithTag("ChiefReplySwipe:parent").performTouchInput {
+            swipe(start, start + androidx.compose.ui.geometry.Offset(50 * density, 50 * density), 350)
+        }
+        assertNull(computer.transcript()!!.state.value.reply)
+        compose.onNodeWithTag("ChiefReplySwipe:parent").performTouchInput {
+            val edge = androidx.compose.ui.geometry.Offset(2 * density, start.y)
+            down(edge); moveTo(edge + androidx.compose.ui.geometry.Offset(10 * density, 0f), 20)
+            moveTo(edge + androidx.compose.ui.geometry.Offset(80 * density, 0f), 120); up()
+        }
+        assertNull(computer.transcript()!!.state.value.reply)
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun cancelledCommittedSwipeRestoresTheBalloonWithoutOpeningAThread() {
+        openReferenceScene("quote-dark")
+        val density = compose.activity.resources.displayMetrics.density
+        val row = compose.onNodeWithTag("ChiefReplySwipe:parent").fetchSemanticsNode().boundsInRoot
+        val body = compose.onNodeWithTag("ChiefMessage:parent").fetchSemanticsNode().boundsInRoot
+        val start = body.center - row.topLeft
+        compose.onNodeWithTag("ChiefReplySwipe:parent").performTouchInput {
+            down(start)
+            for (i in 1..10) moveTo(start + androidx.compose.ui.geometry.Offset(8f * i * density, 0f), 16)
+            cancel()
+        }
+        compose.waitUntil(5_000) {
+            kotlin.math.abs(compose.onNodeWithTag("ChiefMessage:parent").fetchSemanticsNode().boundsInRoot.left - body.left) < 1
+        }
+        assertNull(computer.transcript()!!.state.value.reply)
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun unacknowledgedOutgoingRowsCannotStartReplySwipes() {
+        openReferenceScene("quote-dark")
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread { api.sendGate = gate }
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Still waiting for acknowledgment")
+        tapSendWhenReady()
+        compose.waitUntil(10_000) { api.sends.size == 1 }
+        val id = checkNotNull(api.sends.single().second)
+        val density = compose.activity.resources.displayMetrics.density
+        val row = compose.onNodeWithTag("ChiefReplySwipe:$id").fetchSemanticsNode().boundsInRoot
+        val body = compose.onNodeWithTag("ChiefPending:$id").fetchSemanticsNode().boundsInRoot
+        val start = body.center - row.topLeft
+        compose.onNodeWithTag("ChiefReplySwipe:$id").performTouchInput {
+            swipe(start, start + androidx.compose.ui.geometry.Offset(80 * density, 0f), 350)
+        }
+        assertNull(computer.transcript()!!.state.value.reply)
+        assertEquals(NativeChiefDelivery.SENDING, computer.transcript()!!.state.value.outgoing.single().delivery)
+        assertEquals(1, api.sends.size)
+        compose.runOnUiThread { gate.complete(Unit) }
+    }
+
     @Test fun quoteOpensOnlyTheLoadedThreadAndKeepsTheDraftAndEditorFocusOnClose() {
         openReferenceScene("quote-dark")
         compose.onNodeWithTag("ChiefComposer").performTextInput("Keep this draft through the thread")
