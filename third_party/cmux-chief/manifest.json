@@ -160,5 +160,11 @@
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+Gestures.swift": "1252bef81cec6c4b48d0c398713a80299cafe34c8c4be2f620de50e9fc6dfa8c",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ReplySwipeIndicator.swift": "a3439318421c5daf59b19e2b6f32a2b7372f4d2e1c633ce0c1ff7c0eb11f073d",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationCells.swift": "b7db01bd0f01c53b35638957d945c9c37814f2720c1740ca2533e0a61db78b86"
+  },
+  "captionFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationCells.swift": "b7db01bd0f01c53b35638957d945c9c37814f2720c1740ca2533e0a61db78b86",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationTheme.swift": "533fe1579789bfe6bab5b57acf327ff38689224b4c2624d5cdba500d50e1d53d",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/MessageCellLayout.swift": "95ae1cc47cb17e25c0b8ae739e105029d5f65b109faa5b516c93897abdeb36bc",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationTranscriptMetrics.swift": "b41f97a2656bd42b909be29e97369c22df790262e09bc0f0cde41709045bbfce"
   }
 }

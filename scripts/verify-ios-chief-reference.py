@@ -49,7 +49,7 @@ def verify_caption_metrics(name, value, specification):
         metrics.get('actualCategory') != current['category']):
         raise ValueError('Caption trait probe does not match actual application category: ' + name)
     for actual, field in [('actualCaptionPointSize', 'captionPointSize'), ('actualCaptionLineHeight', 'captionLineHeight'),
-                          ('actualCaptionLeading', 'captionLeading')]:
+                          ('actualCaptionLeading', 'captionLeading'), ('actualBodyPointSize', 'bodyPointSize')]:
         if metrics.get(actual) != current[field]:
             raise ValueError('Compatible caption metrics differ from actual application font: ' + name)
     if specification['mode'] == 'thread':

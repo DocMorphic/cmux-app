@@ -257,7 +257,8 @@ class ReferenceIntegrityTests(unittest.TestCase):
             value['applicationContentSizeCategory'] = current['category']
             value['captionMetrics'] = dict(schema=1, records=records, currentName=spec['category'], boldText=False,
                 actualCategory=current['category'], actualCaptionPointSize=current['captionPointSize'],
-                actualCaptionLineHeight=current['captionLineHeight'], actualCaptionLeading=current['captionLeading'])
+                actualCaptionLineHeight=current['captionLineHeight'], actualCaptionLeading=current['captionLeading'],
+                actualBodyPointSize=current['bodyPointSize'])
             if spec['mode'] == 'thread':
                 height = 28.666666666666686 if current['captionPointSize'] == 11 else 44.333333333333314
                 label_height = 18 if current['captionPointSize'] == 11 else 24
@@ -290,6 +291,7 @@ class ReferenceIntegrityTests(unittest.TestCase):
         self.add_caption_metrics()
         path = self.exported / 'compact-dark.json'; original = path.read_text()
         for key, bad, error in [('actualCategory', 'fixture.small', 'does not match actual application category'),
+                                ('actualBodyPointSize', 26.333333333333332, 'differ from actual application font'),
                                 ('actualCaptionLineHeight', 19, 'differ from actual application font')]:
             path.write_text(original); self.mutate_interaction('compact-dark', lambda v: v['captionMetrics'].update({key: bad}))
             with self.assertRaisesRegex(ValueError, error): self.verify(with_interactions=True, with_caption_metrics=True)

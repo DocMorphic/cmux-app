@@ -117,8 +117,11 @@ extension CmuxChiefReferenceTests {
             let traits = UITraitCollection(traitsFrom: [scene.traitCollection, UITraitCollection(preferredContentSizeCategory: category)])
             let caption = UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traits)
             let regular = UIFont.systemFont(ofSize: caption.pointSize, weight: .regular)
+            let descriptor = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body, compatibleWith: traits)
+            let bubble = UIFont(descriptor: descriptor.withSymbolicTraits(.traitTightLeading) ?? descriptor, size: 0)
             return ["name": name, "category": category.rawValue,
-                "bodyPointSize": UIFontMetrics(forTextStyle: .body).scaledValue(for: 17, compatibleWith: traits),
+                "bodyPointSize": bubble.pointSize,
+                "scaledBodyValue": UIFontMetrics(forTextStyle: .body).scaledValue(for: 17, compatibleWith: traits),
                 "captionPointSize": caption.pointSize, "captionLineHeight": caption.lineHeight,
                 "captionLeading": caption.leading, "neutralLineHeight": regular.lineHeight,
                 "regularAscender": regular.ascender, "regularDescender": regular.descender]
@@ -126,9 +129,12 @@ extension CmuxChiefReferenceTests {
         // Compare explicit-compatible metrics with the actual application category.
         // The source reads this public preferred font without a trait override.
         let actual = UIFont.preferredFont(forTextStyle: .caption2)
+        let bodyDescriptor = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .body)
+        let actualBody = UIFont(descriptor: bodyDescriptor.withSymbolicTraits(.traitTightLeading) ?? bodyDescriptor, size: 0)
         return ["schema": 1, "records": records, "currentName": currentName,
             "actualCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
             "actualCaptionPointSize": actual.pointSize, "actualCaptionLineHeight": actual.lineHeight,
+            "actualBodyPointSize": actualBody.pointSize,
             "actualCaptionLeading": actual.leading, "boldText": UIAccessibility.isBoldTextEnabled,
             "scope": "Public UIKit compatible-category font metrics for the source caption2 expressions, cross-checked against the actual current application category. Not source-package modification or Android font artwork."]
     }

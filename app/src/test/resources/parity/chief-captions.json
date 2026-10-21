@@ -1,0 +1,3229 @@
+{
+  "cases": [
+    {
+      "ascender": 10.5,
+      "followingGap": 7,
+      "headerGap": 14.666666666666668,
+      "insets": [
+        2.3333333333333335,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": -0.126953125,
+      "lineGap": 13.666666666666666,
+      "lineHeight": 13.126953125,
+      "neutralLineHeight": 13.126953125,
+      "pointSize": 11,
+      "scale": 0,
+      "sender": [
+        14,
+        18
+      ],
+      "spacing": 13,
+      "timestamp": [
+        12.333333333333332,
+        29.33333333333333,
+        22.9365234375
+      ]
+    },
+    {
+      "ascender": 10.5,
+      "followingGap": 7,
+      "headerGap": 14.666666666666668,
+      "insets": [
+        2.3333333333333335,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": -0.126953125,
+      "lineGap": 13.666666666666666,
+      "lineHeight": 15.126953125,
+      "neutralLineHeight": 13.126953125,
+      "pointSize": 11,
+      "scale": 0,
+      "sender": [
+        16,
+        20
+      ],
+      "spacing": 13,
+      "timestamp": [
+        12.333333333333332,
+        29.33333333333333,
+        22.9365234375
+      ]
+    },
+    {
+      "ascender": 10.5,
+      "followingGap": 7,
+      "headerGap": 14.666666666666668,
+      "insets": [
+        2.3333333333333335,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": -0.126953125,
+      "lineGap": 13.666666666666666,
+      "lineHeight": 13.126953125,
+      "neutralLineHeight": 13.126953125,
+      "pointSize": 11,
+      "scale": 1,
+      "sender": [
+        14,
+        18
+      ],
+      "spacing": 13,
+      "timestamp": [
+        12.333333333333332,
+        29.33333333333333,
+        22.9365234375
+      ]
+    },
+    {
+      "ascender": 10.5,
+      "followingGap": 7,
+      "headerGap": 14.666666666666668,
+      "insets": [
+        2.3333333333333335,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": -0.126953125,
+      "lineGap": 13.666666666666666,
+      "lineHeight": 15.126953125,
+      "neutralLineHeight": 13.126953125,
+      "pointSize": 11,
+      "scale": 1,
+      "sender": [
+        16,
+        20
+      ],
+      "spacing": 13,
+      "timestamp": [
+        12.333333333333332,
+        29.33333333333333,
+        22.9365234375
+      ]
+    },
+    {
+      "ascender": 10.5,
+      "followingGap": 7,
+      "headerGap": 14.666666666666668,
+      "insets": [
+        2.3333333333333335,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": -0.126953125,
+      "lineGap": 13.666666666666666,
+      "lineHeight": 13.126953125,
+      "neutralLineHeight": 13.126953125,
+      "pointSize": 11,
+      "scale": 2,
+      "sender": [
+        13.5,
+        17.5
+      ],
+      "spacing": 13,
+      "timestamp": [
+        12.333333333333332,
+        28.83333333333333,
+        22.9365234375
+      ]
+    },
+    {
+      "ascender": 10.5,
+      "followingGap": 7,
+      "headerGap": 14.666666666666668,
+      "insets": [
+        2.3333333333333335,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": -0.126953125,
+      "lineGap": 13.666666666666666,
+      "lineHeight": 15.126953125,
+      "neutralLineHeight": 13.126953125,
+      "pointSize": 11,
+      "scale": 2,
+      "sender": [
+        15.5,
+        19.5
+      ],
+      "spacing": 13,
+      "timestamp": [
+        12.333333333333332,
+        28.83333333333333,
+        22.9365234375
+      ]
+    },
+    {
+      "ascender": 10.5,
+      "followingGap": 7,
+      "headerGap": 14.666666666666668,
+      "insets": [
+        2.3333333333333335,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": -0.126953125,
+      "lineGap": 13.666666666666666,
+      "lineHeight": 13.126953125,
+      "neutralLineHeight": 13.126953125,
+      "pointSize": 11,
+      "scale": 3,
+      "sender": [
+        13.333333333333334,
+        17.333333333333336
+      ],
+      "spacing": 13,
+      "timestamp": [
+        12.333333333333332,
+        28.666666666666664,
+        22.9365234375
+      ]
+    },
+    {
+      "ascender": 10.5,
+      "followingGap": 7,
+      "headerGap": 14.666666666666668,
+      "insets": [
+        2.3333333333333335,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": -0.126953125,
+      "lineGap": 13.666666666666666,
+      "lineHeight": 15.126953125,
+      "neutralLineHeight": 13.126953125,
+      "pointSize": 11,
+      "scale": 3,
+      "sender": [
+        15.333333333333334,
+        19.333333333333336
+      ],
+      "spacing": 13,
+      "timestamp": [
+        12.333333333333332,
+        28.666666666666664,
+        22.9365234375
+      ]
+    },
+    {
+      "ascender": 19,
+      "followingGap": 14,
+      "headerGap": 28.333333333333336,
+      "insets": [
+        4.666666666666667,
+        5
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        24
+      ],
+      "leading": 1.1328125,
+      "lineGap": 26.333333333333332,
+      "lineHeight": 23.8671875,
+      "neutralLineHeight": 23.8671875,
+      "pointSize": 20,
+      "scale": 0,
+      "sender": [
+        24,
+        32
+      ],
+      "spacing": 25,
+      "timestamp": [
+        10,
+        44,
+        29.06640625
+      ]
+    },
+    {
+      "ascender": 19,
+      "followingGap": 14,
+      "headerGap": 28.333333333333336,
+      "insets": [
+        4.666666666666667,
+        5
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        24
+      ],
+      "leading": 1.1328125,
+      "lineGap": 26.333333333333332,
+      "lineHeight": 25.8671875,
+      "neutralLineHeight": 23.8671875,
+      "pointSize": 20,
+      "scale": 0,
+      "sender": [
+        26,
+        34
+      ],
+      "spacing": 25,
+      "timestamp": [
+        10,
+        44,
+        29.06640625
+      ]
+    },
+    {
+      "ascender": 19,
+      "followingGap": 14,
+      "headerGap": 28.333333333333336,
+      "insets": [
+        4.666666666666667,
+        5
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        24
+      ],
+      "leading": 1.1328125,
+      "lineGap": 26.333333333333332,
+      "lineHeight": 23.8671875,
+      "neutralLineHeight": 23.8671875,
+      "pointSize": 20,
+      "scale": 1,
+      "sender": [
+        24,
+        32
+      ],
+      "spacing": 25,
+      "timestamp": [
+        10,
+        44,
+        29.06640625
+      ]
+    },
+    {
+      "ascender": 19,
+      "followingGap": 14,
+      "headerGap": 28.333333333333336,
+      "insets": [
+        4.666666666666667,
+        5
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        24
+      ],
+      "leading": 1.1328125,
+      "lineGap": 26.333333333333332,
+      "lineHeight": 25.8671875,
+      "neutralLineHeight": 23.8671875,
+      "pointSize": 20,
+      "scale": 1,
+      "sender": [
+        26,
+        34
+      ],
+      "spacing": 25,
+      "timestamp": [
+        10,
+        44,
+        29.06640625
+      ]
+    },
+    {
+      "ascender": 19,
+      "followingGap": 14,
+      "headerGap": 28.833333333333336,
+      "insets": [
+        4.666666666666667,
+        5
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        24
+      ],
+      "leading": 1.1328125,
+      "lineGap": 26.333333333333332,
+      "lineHeight": 23.8671875,
+      "neutralLineHeight": 23.8671875,
+      "pointSize": 20,
+      "scale": 2,
+      "sender": [
+        24,
+        31.5
+      ],
+      "spacing": 25,
+      "timestamp": [
+        10,
+        44,
+        29.06640625
+      ]
+    },
+    {
+      "ascender": 19,
+      "followingGap": 14,
+      "headerGap": 28.833333333333336,
+      "insets": [
+        4.666666666666667,
+        5
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        24
+      ],
+      "leading": 1.1328125,
+      "lineGap": 26.333333333333332,
+      "lineHeight": 25.8671875,
+      "neutralLineHeight": 23.8671875,
+      "pointSize": 20,
+      "scale": 2,
+      "sender": [
+        26,
+        33.5
+      ],
+      "spacing": 25,
+      "timestamp": [
+        10,
+        44,
+        29.06640625
+      ]
+    },
+    {
+      "ascender": 19,
+      "followingGap": 14.333333333333332,
+      "headerGap": 28.66666666666667,
+      "insets": [
+        4.666666666666667,
+        5
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        24
+      ],
+      "leading": 1.1328125,
+      "lineGap": 26,
+      "lineHeight": 23.8671875,
+      "neutralLineHeight": 23.8671875,
+      "pointSize": 20,
+      "scale": 3,
+      "sender": [
+        24,
+        31.666666666666668
+      ],
+      "spacing": 25,
+      "timestamp": [
+        10,
+        44.33333333333333,
+        29.06640625
+      ]
+    },
+    {
+      "ascender": 19,
+      "followingGap": 14.333333333333332,
+      "headerGap": 28.66666666666667,
+      "insets": [
+        4.666666666666667,
+        5
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        24
+      ],
+      "leading": 1.1328125,
+      "lineGap": 26,
+      "lineHeight": 25.8671875,
+      "neutralLineHeight": 23.8671875,
+      "pointSize": 20,
+      "scale": 3,
+      "sender": [
+        26,
+        33.666666666666664
+      ],
+      "spacing": 25,
+      "timestamp": [
+        10,
+        44.33333333333333,
+        29.06640625
+      ]
+    },
+    {
+      "ascender": 8,
+      "followingGap": 7.818181818181818,
+      "headerGap": 16.121212121212125,
+      "insets": [
+        1.696969696969697,
+        2.1818181818181817
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 0,
+      "lineGap": 14.303030303030303,
+      "lineHeight": 10,
+      "neutralLineHeight": 10,
+      "pointSize": 8,
+      "scale": 0,
+      "sender": [
+        10,
+        14
+      ],
+      "spacing": 10,
+      "timestamp": [
+        14,
+        27.81818181818182,
+        22
+      ]
+    },
+    {
+      "ascender": 8,
+      "followingGap": 7.818181818181818,
+      "headerGap": 16.121212121212125,
+      "insets": [
+        1.696969696969697,
+        2.1818181818181817
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 0,
+      "lineGap": 14.303030303030303,
+      "lineHeight": 12,
+      "neutralLineHeight": 10,
+      "pointSize": 8,
+      "scale": 0,
+      "sender": [
+        12,
+        16
+      ],
+      "spacing": 10,
+      "timestamp": [
+        14,
+        27.81818181818182,
+        22
+      ]
+    },
+    {
+      "ascender": 8,
+      "followingGap": 7.818181818181818,
+      "headerGap": 16.121212121212125,
+      "insets": [
+        1.696969696969697,
+        2.1818181818181817
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 0,
+      "lineGap": 14.303030303030303,
+      "lineHeight": 10,
+      "neutralLineHeight": 10,
+      "pointSize": 8,
+      "scale": 1,
+      "sender": [
+        10,
+        14
+      ],
+      "spacing": 10,
+      "timestamp": [
+        14,
+        27.81818181818182,
+        22
+      ]
+    },
+    {
+      "ascender": 8,
+      "followingGap": 7.818181818181818,
+      "headerGap": 16.121212121212125,
+      "insets": [
+        1.696969696969697,
+        2.1818181818181817
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 0,
+      "lineGap": 14.303030303030303,
+      "lineHeight": 12,
+      "neutralLineHeight": 10,
+      "pointSize": 8,
+      "scale": 1,
+      "sender": [
+        12,
+        16
+      ],
+      "spacing": 10,
+      "timestamp": [
+        14,
+        27.81818181818182,
+        22
+      ]
+    },
+    {
+      "ascender": 8,
+      "followingGap": 7.818181818181818,
+      "headerGap": 16.121212121212125,
+      "insets": [
+        1.696969696969697,
+        2.1818181818181817
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 0,
+      "lineGap": 14.303030303030303,
+      "lineHeight": 10,
+      "neutralLineHeight": 10,
+      "pointSize": 8,
+      "scale": 2,
+      "sender": [
+        10,
+        14
+      ],
+      "spacing": 10,
+      "timestamp": [
+        14,
+        27.81818181818182,
+        22
+      ]
+    },
+    {
+      "ascender": 8,
+      "followingGap": 7.818181818181818,
+      "headerGap": 16.121212121212125,
+      "insets": [
+        1.696969696969697,
+        2.1818181818181817
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 0,
+      "lineGap": 14.303030303030303,
+      "lineHeight": 12,
+      "neutralLineHeight": 10,
+      "pointSize": 8,
+      "scale": 2,
+      "sender": [
+        12,
+        16
+      ],
+      "spacing": 10,
+      "timestamp": [
+        14,
+        27.81818181818182,
+        22
+      ]
+    },
+    {
+      "ascender": 8,
+      "followingGap": 7.818181818181818,
+      "headerGap": 16.121212121212125,
+      "insets": [
+        1.696969696969697,
+        2.1818181818181817
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 0,
+      "lineGap": 14.303030303030303,
+      "lineHeight": 10,
+      "neutralLineHeight": 10,
+      "pointSize": 8,
+      "scale": 3,
+      "sender": [
+        10,
+        14
+      ],
+      "spacing": 10,
+      "timestamp": [
+        14,
+        27.81818181818182,
+        22
+      ]
+    },
+    {
+      "ascender": 8,
+      "followingGap": 7.818181818181818,
+      "headerGap": 16.121212121212125,
+      "insets": [
+        1.696969696969697,
+        2.1818181818181817
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 0,
+      "lineGap": 14.303030303030303,
+      "lineHeight": 12,
+      "neutralLineHeight": 10,
+      "pointSize": 8,
+      "scale": 3,
+      "sender": [
+        12,
+        16
+      ],
+      "spacing": 10,
+      "timestamp": [
+        14,
+        27.81818181818182,
+        22
+      ]
+    },
+    {
+      "ascender": 11,
+      "followingGap": 9,
+      "headerGap": 18.333333333333332,
+      "insets": [
+        2.666666666666667,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 1,
+      "lineGap": 16.333333333333332,
+      "lineHeight": 14.5,
+      "neutralLineHeight": 14.5,
+      "pointSize": 12,
+      "scale": 0,
+      "sender": [
+        15,
+        20
+      ],
+      "spacing": 15.5,
+      "timestamp": [
+        11.666666666666668,
+        31.66666666666667,
+        22.75
+      ]
+    },
+    {
+      "ascender": 11,
+      "followingGap": 9,
+      "headerGap": 18.333333333333332,
+      "insets": [
+        2.666666666666667,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 1,
+      "lineGap": 16.333333333333332,
+      "lineHeight": 16.5,
+      "neutralLineHeight": 14.5,
+      "pointSize": 12,
+      "scale": 0,
+      "sender": [
+        17,
+        22
+      ],
+      "spacing": 15.5,
+      "timestamp": [
+        11.666666666666668,
+        31.66666666666667,
+        22.75
+      ]
+    },
+    {
+      "ascender": 11,
+      "followingGap": 9,
+      "headerGap": 18.333333333333332,
+      "insets": [
+        2.666666666666667,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 1,
+      "lineGap": 16.333333333333332,
+      "lineHeight": 14.5,
+      "neutralLineHeight": 14.5,
+      "pointSize": 12,
+      "scale": 1,
+      "sender": [
+        15,
+        20
+      ],
+      "spacing": 15.5,
+      "timestamp": [
+        11.666666666666668,
+        31.66666666666667,
+        22.75
+      ]
+    },
+    {
+      "ascender": 11,
+      "followingGap": 9,
+      "headerGap": 18.333333333333332,
+      "insets": [
+        2.666666666666667,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 1,
+      "lineGap": 16.333333333333332,
+      "lineHeight": 16.5,
+      "neutralLineHeight": 14.5,
+      "pointSize": 12,
+      "scale": 1,
+      "sender": [
+        17,
+        22
+      ],
+      "spacing": 15.5,
+      "timestamp": [
+        11.666666666666668,
+        31.66666666666667,
+        22.75
+      ]
+    },
+    {
+      "ascender": 11,
+      "followingGap": 9,
+      "headerGap": 18.333333333333332,
+      "insets": [
+        2.666666666666667,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 1,
+      "lineGap": 16.333333333333332,
+      "lineHeight": 14.5,
+      "neutralLineHeight": 14.5,
+      "pointSize": 12,
+      "scale": 2,
+      "sender": [
+        14.5,
+        19.5
+      ],
+      "spacing": 15.5,
+      "timestamp": [
+        11.666666666666668,
+        31.16666666666667,
+        22.75
+      ]
+    },
+    {
+      "ascender": 11,
+      "followingGap": 9,
+      "headerGap": 18.333333333333332,
+      "insets": [
+        2.666666666666667,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 1,
+      "lineGap": 16.333333333333332,
+      "lineHeight": 16.5,
+      "neutralLineHeight": 14.5,
+      "pointSize": 12,
+      "scale": 2,
+      "sender": [
+        16.5,
+        21.5
+      ],
+      "spacing": 15.5,
+      "timestamp": [
+        11.666666666666668,
+        31.16666666666667,
+        22.75
+      ]
+    },
+    {
+      "ascender": 11,
+      "followingGap": 9,
+      "headerGap": 18.333333333333332,
+      "insets": [
+        2.666666666666667,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 1,
+      "lineGap": 16.333333333333332,
+      "lineHeight": 14.5,
+      "neutralLineHeight": 14.5,
+      "pointSize": 12,
+      "scale": 3,
+      "sender": [
+        14.666666666666666,
+        19.333333333333332
+      ],
+      "spacing": 15.5,
+      "timestamp": [
+        11.666666666666668,
+        31.333333333333336,
+        22.75
+      ]
+    },
+    {
+      "ascender": 11,
+      "followingGap": 9,
+      "headerGap": 18.333333333333332,
+      "insets": [
+        2.666666666666667,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 1,
+      "lineGap": 16.333333333333332,
+      "lineHeight": 16.5,
+      "neutralLineHeight": 14.5,
+      "pointSize": 12,
+      "scale": 3,
+      "sender": [
+        16.666666666666668,
+        21.333333333333336
+      ],
+      "spacing": 15.5,
+      "timestamp": [
+        11.666666666666668,
+        31.333333333333336,
+        22.75
+      ]
+    },
+    {
+      "ascender": 12,
+      "followingGap": 11,
+      "headerGap": 22,
+      "insets": [
+        3,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2.5,
+      "lineGap": 19,
+      "lineHeight": 15.5,
+      "neutralLineHeight": 15.5,
+      "pointSize": 13,
+      "scale": 0,
+      "sender": [
+        16,
+        22
+      ],
+      "spacing": 18,
+      "timestamp": [
+        11.166666666666668,
+        34.16666666666667,
+        23.25
+      ]
+    },
+    {
+      "ascender": 12,
+      "followingGap": 11,
+      "headerGap": 22,
+      "insets": [
+        3,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2.5,
+      "lineGap": 19,
+      "lineHeight": 17.5,
+      "neutralLineHeight": 15.5,
+      "pointSize": 13,
+      "scale": 0,
+      "sender": [
+        18,
+        24
+      ],
+      "spacing": 18,
+      "timestamp": [
+        11.166666666666668,
+        34.16666666666667,
+        23.25
+      ]
+    },
+    {
+      "ascender": 12,
+      "followingGap": 11,
+      "headerGap": 22,
+      "insets": [
+        3,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2.5,
+      "lineGap": 19,
+      "lineHeight": 15.5,
+      "neutralLineHeight": 15.5,
+      "pointSize": 13,
+      "scale": 1,
+      "sender": [
+        16,
+        22
+      ],
+      "spacing": 18,
+      "timestamp": [
+        11.166666666666668,
+        34.16666666666667,
+        23.25
+      ]
+    },
+    {
+      "ascender": 12,
+      "followingGap": 11,
+      "headerGap": 22,
+      "insets": [
+        3,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2.5,
+      "lineGap": 19,
+      "lineHeight": 17.5,
+      "neutralLineHeight": 15.5,
+      "pointSize": 13,
+      "scale": 1,
+      "sender": [
+        18,
+        24
+      ],
+      "spacing": 18,
+      "timestamp": [
+        11.166666666666668,
+        34.16666666666667,
+        23.25
+      ]
+    },
+    {
+      "ascender": 12,
+      "followingGap": 11,
+      "headerGap": 21.5,
+      "insets": [
+        3,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2.5,
+      "lineGap": 19,
+      "lineHeight": 15.5,
+      "neutralLineHeight": 15.5,
+      "pointSize": 13,
+      "scale": 2,
+      "sender": [
+        15.5,
+        21
+      ],
+      "spacing": 18,
+      "timestamp": [
+        11.166666666666668,
+        33.66666666666667,
+        23.25
+      ]
+    },
+    {
+      "ascender": 12,
+      "followingGap": 11,
+      "headerGap": 21.5,
+      "insets": [
+        3,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2.5,
+      "lineGap": 19,
+      "lineHeight": 17.5,
+      "neutralLineHeight": 15.5,
+      "pointSize": 13,
+      "scale": 2,
+      "sender": [
+        17.5,
+        23
+      ],
+      "spacing": 18,
+      "timestamp": [
+        11.166666666666668,
+        33.66666666666667,
+        23.25
+      ]
+    },
+    {
+      "ascender": 12,
+      "followingGap": 11,
+      "headerGap": 21.666666666666668,
+      "insets": [
+        3,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2.5,
+      "lineGap": 19,
+      "lineHeight": 15.5,
+      "neutralLineHeight": 15.5,
+      "pointSize": 13,
+      "scale": 3,
+      "sender": [
+        15.666666666666666,
+        21.333333333333332
+      ],
+      "spacing": 18,
+      "timestamp": [
+        11.166666666666668,
+        33.833333333333336,
+        23.25
+      ]
+    },
+    {
+      "ascender": 12,
+      "followingGap": 11,
+      "headerGap": 21.666666666666668,
+      "insets": [
+        3,
+        3
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2.5,
+      "lineGap": 19,
+      "lineHeight": 17.5,
+      "neutralLineHeight": 15.5,
+      "pointSize": 13,
+      "scale": 3,
+      "sender": [
+        17.666666666666668,
+        23.333333333333336
+      ],
+      "spacing": 18,
+      "timestamp": [
+        11.166666666666668,
+        33.833333333333336,
+        23.25
+      ]
+    },
+    {
+      "ascender": 14,
+      "followingGap": 11.666666666666666,
+      "headerGap": 24,
+      "insets": [
+        3.6666666666666665,
+        3.3333333333333335
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2,
+      "lineGap": 21.333333333333332,
+      "lineHeight": 18,
+      "neutralLineHeight": 18,
+      "pointSize": 15,
+      "scale": 0,
+      "sender": [
+        18,
+        24
+      ],
+      "spacing": 20,
+      "timestamp": [
+        10,
+        35.666666666666664,
+        24
+      ]
+    },
+    {
+      "ascender": 14,
+      "followingGap": 11.666666666666666,
+      "headerGap": 24,
+      "insets": [
+        3.6666666666666665,
+        3.3333333333333335
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2,
+      "lineGap": 21.333333333333332,
+      "lineHeight": 20,
+      "neutralLineHeight": 18,
+      "pointSize": 15,
+      "scale": 0,
+      "sender": [
+        20,
+        26
+      ],
+      "spacing": 20,
+      "timestamp": [
+        10,
+        35.666666666666664,
+        24
+      ]
+    },
+    {
+      "ascender": 14,
+      "followingGap": 11.666666666666666,
+      "headerGap": 24,
+      "insets": [
+        3.6666666666666665,
+        3.3333333333333335
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2,
+      "lineGap": 21.333333333333332,
+      "lineHeight": 18,
+      "neutralLineHeight": 18,
+      "pointSize": 15,
+      "scale": 1,
+      "sender": [
+        18,
+        24
+      ],
+      "spacing": 20,
+      "timestamp": [
+        10,
+        35.666666666666664,
+        24
+      ]
+    },
+    {
+      "ascender": 14,
+      "followingGap": 11.666666666666666,
+      "headerGap": 24,
+      "insets": [
+        3.6666666666666665,
+        3.3333333333333335
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2,
+      "lineGap": 21.333333333333332,
+      "lineHeight": 20,
+      "neutralLineHeight": 18,
+      "pointSize": 15,
+      "scale": 1,
+      "sender": [
+        20,
+        26
+      ],
+      "spacing": 20,
+      "timestamp": [
+        10,
+        35.666666666666664,
+        24
+      ]
+    },
+    {
+      "ascender": 14,
+      "followingGap": 12.166666666666666,
+      "headerGap": 24,
+      "insets": [
+        3.6666666666666665,
+        3.3333333333333335
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2,
+      "lineGap": 20.833333333333332,
+      "lineHeight": 18,
+      "neutralLineHeight": 18,
+      "pointSize": 15,
+      "scale": 2,
+      "sender": [
+        18,
+        24
+      ],
+      "spacing": 20,
+      "timestamp": [
+        10,
+        36.166666666666664,
+        24
+      ]
+    },
+    {
+      "ascender": 14,
+      "followingGap": 12.166666666666666,
+      "headerGap": 24,
+      "insets": [
+        3.6666666666666665,
+        3.3333333333333335
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2,
+      "lineGap": 20.833333333333332,
+      "lineHeight": 20,
+      "neutralLineHeight": 18,
+      "pointSize": 15,
+      "scale": 2,
+      "sender": [
+        20,
+        26
+      ],
+      "spacing": 20,
+      "timestamp": [
+        10,
+        36.166666666666664,
+        24
+      ]
+    },
+    {
+      "ascender": 14,
+      "followingGap": 12,
+      "headerGap": 23.666666666666668,
+      "insets": [
+        3.6666666666666665,
+        3.3333333333333335
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2,
+      "lineGap": 21,
+      "lineHeight": 18,
+      "neutralLineHeight": 18,
+      "pointSize": 15,
+      "scale": 3,
+      "sender": [
+        18,
+        24
+      ],
+      "spacing": 20,
+      "timestamp": [
+        10,
+        36,
+        24
+      ]
+    },
+    {
+      "ascender": 14,
+      "followingGap": 12,
+      "headerGap": 23.666666666666668,
+      "insets": [
+        3.6666666666666665,
+        3.3333333333333335
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        18
+      ],
+      "leading": 2,
+      "lineGap": 21,
+      "lineHeight": 20,
+      "neutralLineHeight": 18,
+      "pointSize": 15,
+      "scale": 3,
+      "sender": [
+        20,
+        26
+      ],
+      "spacing": 20,
+      "timestamp": [
+        10,
+        36,
+        24
+      ]
+    },
+    {
+      "ascender": 16,
+      "followingGap": 13,
+      "headerGap": 25.666666666666668,
+      "insets": [
+        4.333333333333333,
+        4
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        21
+      ],
+      "leading": 1.7,
+      "lineGap": 22.666666666666668,
+      "lineHeight": 20.3,
+      "neutralLineHeight": 20.3,
+      "pointSize": 17,
+      "scale": 0,
+      "sender": [
+        21,
+        28
+      ],
+      "spacing": 22,
+      "timestamp": [
+        10.333333333333334,
+        40.333333333333336,
+        26.35
+      ]
+    },
+    {
+      "ascender": 16,
+      "followingGap": 13,
+      "headerGap": 25.666666666666668,
+      "insets": [
+        4.333333333333333,
+        4
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        21
+      ],
+      "leading": 1.7,
+      "lineGap": 22.666666666666668,
+      "lineHeight": 22.3,
+      "neutralLineHeight": 20.3,
+      "pointSize": 17,
+      "scale": 0,
+      "sender": [
+        23,
+        30
+      ],
+      "spacing": 22,
+      "timestamp": [
+        10.333333333333334,
+        40.333333333333336,
+        26.35
+      ]
+    },
+    {
+      "ascender": 16,
+      "followingGap": 13,
+      "headerGap": 25.666666666666668,
+      "insets": [
+        4.333333333333333,
+        4
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        21
+      ],
+      "leading": 1.7,
+      "lineGap": 22.666666666666668,
+      "lineHeight": 20.3,
+      "neutralLineHeight": 20.3,
+      "pointSize": 17,
+      "scale": 1,
+      "sender": [
+        21,
+        28
+      ],
+      "spacing": 22,
+      "timestamp": [
+        10.333333333333334,
+        40.333333333333336,
+        26.35
+      ]
+    },
+    {
+      "ascender": 16,
+      "followingGap": 13,
+      "headerGap": 25.666666666666668,
+      "insets": [
+        4.333333333333333,
+        4
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        21
+      ],
+      "leading": 1.7,
+      "lineGap": 22.666666666666668,
+      "lineHeight": 22.3,
+      "neutralLineHeight": 20.3,
+      "pointSize": 17,
+      "scale": 1,
+      "sender": [
+        23,
+        30
+      ],
+      "spacing": 22,
+      "timestamp": [
+        10.333333333333334,
+        40.333333333333336,
+        26.35
+      ]
+    },
+    {
+      "ascender": 16,
+      "followingGap": 13,
+      "headerGap": 25.666666666666668,
+      "insets": [
+        4.333333333333333,
+        4
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        21
+      ],
+      "leading": 1.7,
+      "lineGap": 22.666666666666668,
+      "lineHeight": 20.3,
+      "neutralLineHeight": 20.3,
+      "pointSize": 17,
+      "scale": 2,
+      "sender": [
+        20.5,
+        27.5
+      ],
+      "spacing": 22,
+      "timestamp": [
+        10.333333333333334,
+        39.833333333333336,
+        26.35
+      ]
+    },
+    {
+      "ascender": 16,
+      "followingGap": 13,
+      "headerGap": 25.666666666666668,
+      "insets": [
+        4.333333333333333,
+        4
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        21
+      ],
+      "leading": 1.7,
+      "lineGap": 22.666666666666668,
+      "lineHeight": 22.3,
+      "neutralLineHeight": 20.3,
+      "pointSize": 17,
+      "scale": 2,
+      "sender": [
+        22.5,
+        29.5
+      ],
+      "spacing": 22,
+      "timestamp": [
+        10.333333333333334,
+        39.833333333333336,
+        26.35
+      ]
+    },
+    {
+      "ascender": 16,
+      "followingGap": 13,
+      "headerGap": 25.666666666666668,
+      "insets": [
+        4.333333333333333,
+        4
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        21
+      ],
+      "leading": 1.7,
+      "lineGap": 22.666666666666668,
+      "lineHeight": 20.3,
+      "neutralLineHeight": 20.3,
+      "pointSize": 17,
+      "scale": 3,
+      "sender": [
+        20.333333333333332,
+        27
+      ],
+      "spacing": 22,
+      "timestamp": [
+        10.333333333333334,
+        39.666666666666664,
+        26.35
+      ]
+    },
+    {
+      "ascender": 16,
+      "followingGap": 13,
+      "headerGap": 25.666666666666668,
+      "insets": [
+        4.333333333333333,
+        4
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        21
+      ],
+      "leading": 1.7,
+      "lineGap": 22.666666666666668,
+      "lineHeight": 22.3,
+      "neutralLineHeight": 20.3,
+      "pointSize": 17,
+      "scale": 3,
+      "sender": [
+        22.333333333333332,
+        29
+      ],
+      "spacing": 22,
+      "timestamp": [
+        10.333333333333334,
+        39.666666666666664,
+        26.35
+      ]
+    },
+    {
+      "ascender": 21,
+      "followingGap": 15.666666666666666,
+      "headerGap": 31.33333333333333,
+      "insets": [
+        5.333333333333334,
+        5.333333333333334
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        27
+      ],
+      "leading": 1,
+      "lineGap": 28.666666666666664,
+      "lineHeight": 26.3,
+      "neutralLineHeight": 26.3,
+      "pointSize": 22,
+      "scale": 0,
+      "sender": [
+        27,
+        35
+      ],
+      "spacing": 27.3,
+      "timestamp": [
+        10.333333333333334,
+        49,
+        31.35
+      ]
+    },
+    {
+      "ascender": 21,
+      "followingGap": 15.666666666666666,
+      "headerGap": 31.33333333333333,
+      "insets": [
+        5.333333333333334,
+        5.333333333333334
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        27
+      ],
+      "leading": 1,
+      "lineGap": 28.666666666666664,
+      "lineHeight": 28.3,
+      "neutralLineHeight": 26.3,
+      "pointSize": 22,
+      "scale": 0,
+      "sender": [
+        29,
+        37
+      ],
+      "spacing": 27.3,
+      "timestamp": [
+        10.333333333333334,
+        49,
+        31.35
+      ]
+    },
+    {
+      "ascender": 21,
+      "followingGap": 15.666666666666666,
+      "headerGap": 31.33333333333333,
+      "insets": [
+        5.333333333333334,
+        5.333333333333334
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        27
+      ],
+      "leading": 1,
+      "lineGap": 28.666666666666664,
+      "lineHeight": 26.3,
+      "neutralLineHeight": 26.3,
+      "pointSize": 22,
+      "scale": 1,
+      "sender": [
+        27,
+        35
+      ],
+      "spacing": 27.3,
+      "timestamp": [
+        10.333333333333334,
+        49,
+        31.35
+      ]
+    },
+    {
+      "ascender": 21,
+      "followingGap": 15.666666666666666,
+      "headerGap": 31.33333333333333,
+      "insets": [
+        5.333333333333334,
+        5.333333333333334
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        27
+      ],
+      "leading": 1,
+      "lineGap": 28.666666666666664,
+      "lineHeight": 28.3,
+      "neutralLineHeight": 26.3,
+      "pointSize": 22,
+      "scale": 1,
+      "sender": [
+        29,
+        37
+      ],
+      "spacing": 27.3,
+      "timestamp": [
+        10.333333333333334,
+        49,
+        31.35
+      ]
+    },
+    {
+      "ascender": 21,
+      "followingGap": 15.666666666666666,
+      "headerGap": 31.33333333333333,
+      "insets": [
+        5.333333333333334,
+        5.333333333333334
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        27
+      ],
+      "leading": 1,
+      "lineGap": 28.166666666666664,
+      "lineHeight": 26.3,
+      "neutralLineHeight": 26.3,
+      "pointSize": 22,
+      "scale": 2,
+      "sender": [
+        26.5,
+        35
+      ],
+      "spacing": 27.3,
+      "timestamp": [
+        10.333333333333334,
+        48.5,
+        31.35
+      ]
+    },
+    {
+      "ascender": 21,
+      "followingGap": 15.666666666666666,
+      "headerGap": 31.33333333333333,
+      "insets": [
+        5.333333333333334,
+        5.333333333333334
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        27
+      ],
+      "leading": 1,
+      "lineGap": 28.166666666666664,
+      "lineHeight": 28.3,
+      "neutralLineHeight": 26.3,
+      "pointSize": 22,
+      "scale": 2,
+      "sender": [
+        28.5,
+        37
+      ],
+      "spacing": 27.3,
+      "timestamp": [
+        10.333333333333334,
+        48.5,
+        31.35
+      ]
+    },
+    {
+      "ascender": 21,
+      "followingGap": 15.666666666666666,
+      "headerGap": 31.33333333333333,
+      "insets": [
+        5.333333333333334,
+        5.333333333333334
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        27
+      ],
+      "leading": 1,
+      "lineGap": 28.33333333333333,
+      "lineHeight": 26.3,
+      "neutralLineHeight": 26.3,
+      "pointSize": 22,
+      "scale": 3,
+      "sender": [
+        26.333333333333332,
+        34.666666666666664
+      ],
+      "spacing": 27.3,
+      "timestamp": [
+        10.333333333333334,
+        48.33333333333333,
+        31.35
+      ]
+    },
+    {
+      "ascender": 21,
+      "followingGap": 15.666666666666666,
+      "headerGap": 31.33333333333333,
+      "insets": [
+        5.333333333333334,
+        5.333333333333334
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        27
+      ],
+      "leading": 1,
+      "lineGap": 28.33333333333333,
+      "lineHeight": 28.3,
+      "neutralLineHeight": 26.3,
+      "pointSize": 22,
+      "scale": 3,
+      "sender": [
+        28.333333333333332,
+        36.666666666666664
+      ],
+      "spacing": 27.3,
+      "timestamp": [
+        10.333333333333334,
+        48.33333333333333,
+        31.35
+      ]
+    },
+    {
+      "ascender": 23,
+      "followingGap": 16.333333333333332,
+      "headerGap": 33.333333333333336,
+      "insets": [
+        6,
+        5.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        29
+      ],
+      "leading": 0.5,
+      "lineGap": 30,
+      "lineHeight": 28.5,
+      "neutralLineHeight": 28.5,
+      "pointSize": 24,
+      "scale": 0,
+      "sender": [
+        29,
+        38
+      ],
+      "spacing": 29,
+      "timestamp": [
+        10.166666666666666,
+        51.5,
+        33.25
+      ]
+    },
+    {
+      "ascender": 23,
+      "followingGap": 16.333333333333332,
+      "headerGap": 33.333333333333336,
+      "insets": [
+        6,
+        5.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        29
+      ],
+      "leading": 0.5,
+      "lineGap": 30,
+      "lineHeight": 30.5,
+      "neutralLineHeight": 28.5,
+      "pointSize": 24,
+      "scale": 0,
+      "sender": [
+        31,
+        40
+      ],
+      "spacing": 29,
+      "timestamp": [
+        10.166666666666666,
+        51.5,
+        33.25
+      ]
+    },
+    {
+      "ascender": 23,
+      "followingGap": 16.333333333333332,
+      "headerGap": 33.333333333333336,
+      "insets": [
+        6,
+        5.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        29
+      ],
+      "leading": 0.5,
+      "lineGap": 30,
+      "lineHeight": 28.5,
+      "neutralLineHeight": 28.5,
+      "pointSize": 24,
+      "scale": 1,
+      "sender": [
+        29,
+        38
+      ],
+      "spacing": 29,
+      "timestamp": [
+        10.166666666666666,
+        51.5,
+        33.25
+      ]
+    },
+    {
+      "ascender": 23,
+      "followingGap": 16.333333333333332,
+      "headerGap": 33.333333333333336,
+      "insets": [
+        6,
+        5.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        29
+      ],
+      "leading": 0.5,
+      "lineGap": 30,
+      "lineHeight": 30.5,
+      "neutralLineHeight": 28.5,
+      "pointSize": 24,
+      "scale": 1,
+      "sender": [
+        31,
+        40
+      ],
+      "spacing": 29,
+      "timestamp": [
+        10.166666666666666,
+        51.5,
+        33.25
+      ]
+    },
+    {
+      "ascender": 23,
+      "followingGap": 16.833333333333332,
+      "headerGap": 32.833333333333336,
+      "insets": [
+        6,
+        5.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        29
+      ],
+      "leading": 0.5,
+      "lineGap": 29.5,
+      "lineHeight": 28.5,
+      "neutralLineHeight": 28.5,
+      "pointSize": 24,
+      "scale": 2,
+      "sender": [
+        28.5,
+        37.5
+      ],
+      "spacing": 29,
+      "timestamp": [
+        10.166666666666666,
+        51.5,
+        33.25
+      ]
+    },
+    {
+      "ascender": 23,
+      "followingGap": 16.833333333333332,
+      "headerGap": 32.833333333333336,
+      "insets": [
+        6,
+        5.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        29
+      ],
+      "leading": 0.5,
+      "lineGap": 29.5,
+      "lineHeight": 30.5,
+      "neutralLineHeight": 28.5,
+      "pointSize": 24,
+      "scale": 2,
+      "sender": [
+        30.5,
+        39.5
+      ],
+      "spacing": 29,
+      "timestamp": [
+        10.166666666666666,
+        51.5,
+        33.25
+      ]
+    },
+    {
+      "ascender": 23,
+      "followingGap": 16.666666666666664,
+      "headerGap": 33,
+      "insets": [
+        6,
+        5.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        29
+      ],
+      "leading": 0.5,
+      "lineGap": 29.666666666666664,
+      "lineHeight": 28.5,
+      "neutralLineHeight": 28.5,
+      "pointSize": 24,
+      "scale": 3,
+      "sender": [
+        28.666666666666668,
+        37.66666666666667
+      ],
+      "spacing": 29,
+      "timestamp": [
+        10.166666666666666,
+        51.5,
+        33.25
+      ]
+    },
+    {
+      "ascender": 23,
+      "followingGap": 16.666666666666664,
+      "headerGap": 33,
+      "insets": [
+        6,
+        5.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        29
+      ],
+      "leading": 0.5,
+      "lineGap": 29.666666666666664,
+      "lineHeight": 30.5,
+      "neutralLineHeight": 28.5,
+      "pointSize": 24,
+      "scale": 3,
+      "sender": [
+        30.666666666666668,
+        39.66666666666667
+      ],
+      "spacing": 29,
+      "timestamp": [
+        10.166666666666666,
+        51.5,
+        33.25
+      ]
+    },
+    {
+      "ascender": 28,
+      "followingGap": 20.333333333333332,
+      "headerGap": 40.333333333333336,
+      "insets": [
+        7,
+        6.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        35
+      ],
+      "leading": 0.5,
+      "lineGap": 36,
+      "lineHeight": 34.5,
+      "neutralLineHeight": 34.5,
+      "pointSize": 29,
+      "scale": 0,
+      "sender": [
+        35,
+        46
+      ],
+      "spacing": 35,
+      "timestamp": [
+        10.166666666666668,
+        61.5,
+        38.25
+      ]
+    },
+    {
+      "ascender": 28,
+      "followingGap": 20.333333333333332,
+      "headerGap": 40.333333333333336,
+      "insets": [
+        7,
+        6.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        35
+      ],
+      "leading": 0.5,
+      "lineGap": 36,
+      "lineHeight": 36.5,
+      "neutralLineHeight": 34.5,
+      "pointSize": 29,
+      "scale": 0,
+      "sender": [
+        37,
+        48
+      ],
+      "spacing": 35,
+      "timestamp": [
+        10.166666666666668,
+        61.5,
+        38.25
+      ]
+    },
+    {
+      "ascender": 28,
+      "followingGap": 20.333333333333332,
+      "headerGap": 40.333333333333336,
+      "insets": [
+        7,
+        6.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        35
+      ],
+      "leading": 0.5,
+      "lineGap": 36,
+      "lineHeight": 34.5,
+      "neutralLineHeight": 34.5,
+      "pointSize": 29,
+      "scale": 1,
+      "sender": [
+        35,
+        46
+      ],
+      "spacing": 35,
+      "timestamp": [
+        10.166666666666668,
+        61.5,
+        38.25
+      ]
+    },
+    {
+      "ascender": 28,
+      "followingGap": 20.333333333333332,
+      "headerGap": 40.333333333333336,
+      "insets": [
+        7,
+        6.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        35
+      ],
+      "leading": 0.5,
+      "lineGap": 36,
+      "lineHeight": 36.5,
+      "neutralLineHeight": 34.5,
+      "pointSize": 29,
+      "scale": 1,
+      "sender": [
+        37,
+        48
+      ],
+      "spacing": 35,
+      "timestamp": [
+        10.166666666666668,
+        61.5,
+        38.25
+      ]
+    },
+    {
+      "ascender": 28,
+      "followingGap": 20.333333333333332,
+      "headerGap": 40.333333333333336,
+      "insets": [
+        7,
+        6.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        35
+      ],
+      "leading": 0.5,
+      "lineGap": 36,
+      "lineHeight": 34.5,
+      "neutralLineHeight": 34.5,
+      "pointSize": 29,
+      "scale": 2,
+      "sender": [
+        34.5,
+        45.5
+      ],
+      "spacing": 35,
+      "timestamp": [
+        10.166666666666668,
+        61,
+        38.25
+      ]
+    },
+    {
+      "ascender": 28,
+      "followingGap": 20.333333333333332,
+      "headerGap": 40.333333333333336,
+      "insets": [
+        7,
+        6.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        35
+      ],
+      "leading": 0.5,
+      "lineGap": 36,
+      "lineHeight": 36.5,
+      "neutralLineHeight": 34.5,
+      "pointSize": 29,
+      "scale": 2,
+      "sender": [
+        36.5,
+        47.5
+      ],
+      "spacing": 35,
+      "timestamp": [
+        10.166666666666668,
+        61,
+        38.25
+      ]
+    },
+    {
+      "ascender": 28,
+      "followingGap": 20.333333333333332,
+      "headerGap": 40.333333333333336,
+      "insets": [
+        7,
+        6.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        35
+      ],
+      "leading": 0.5,
+      "lineGap": 36,
+      "lineHeight": 34.5,
+      "neutralLineHeight": 34.5,
+      "pointSize": 29,
+      "scale": 3,
+      "sender": [
+        34.666666666666664,
+        45.33333333333333
+      ],
+      "spacing": 35,
+      "timestamp": [
+        10.166666666666668,
+        61.16666666666666,
+        38.25
+      ]
+    },
+    {
+      "ascender": 28,
+      "followingGap": 20.333333333333332,
+      "headerGap": 40.333333333333336,
+      "insets": [
+        7,
+        6.666666666666667
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        35
+      ],
+      "leading": 0.5,
+      "lineGap": 36,
+      "lineHeight": 36.5,
+      "neutralLineHeight": 34.5,
+      "pointSize": 29,
+      "scale": 3,
+      "sender": [
+        36.666666666666664,
+        47.33333333333333
+      ],
+      "spacing": 35,
+      "timestamp": [
+        10.166666666666668,
+        61.16666666666666,
+        38.25
+      ]
+    },
+    {
+      "ascender": 33,
+      "followingGap": 24,
+      "headerGap": 46.666666666666664,
+      "insets": [
+        8.333333333333334,
+        8
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        40
+      ],
+      "leading": 1,
+      "lineGap": 41.666666666666664,
+      "lineHeight": 40,
+      "neutralLineHeight": 40,
+      "pointSize": 34,
+      "scale": 0,
+      "sender": [
+        40,
+        53
+      ],
+      "spacing": 41,
+      "timestamp": [
+        10,
+        70,
+        43
+      ]
+    },
+    {
+      "ascender": 33,
+      "followingGap": 24,
+      "headerGap": 46.666666666666664,
+      "insets": [
+        8.333333333333334,
+        8
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        40
+      ],
+      "leading": 1,
+      "lineGap": 41.666666666666664,
+      "lineHeight": 42,
+      "neutralLineHeight": 40,
+      "pointSize": 34,
+      "scale": 0,
+      "sender": [
+        42,
+        55
+      ],
+      "spacing": 41,
+      "timestamp": [
+        10,
+        70,
+        43
+      ]
+    },
+    {
+      "ascender": 33,
+      "followingGap": 24,
+      "headerGap": 46.666666666666664,
+      "insets": [
+        8.333333333333334,
+        8
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        40
+      ],
+      "leading": 1,
+      "lineGap": 41.666666666666664,
+      "lineHeight": 40,
+      "neutralLineHeight": 40,
+      "pointSize": 34,
+      "scale": 1,
+      "sender": [
+        40,
+        53
+      ],
+      "spacing": 41,
+      "timestamp": [
+        10,
+        70,
+        43
+      ]
+    },
+    {
+      "ascender": 33,
+      "followingGap": 24,
+      "headerGap": 46.666666666666664,
+      "insets": [
+        8.333333333333334,
+        8
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        40
+      ],
+      "leading": 1,
+      "lineGap": 41.666666666666664,
+      "lineHeight": 42,
+      "neutralLineHeight": 40,
+      "pointSize": 34,
+      "scale": 1,
+      "sender": [
+        42,
+        55
+      ],
+      "spacing": 41,
+      "timestamp": [
+        10,
+        70,
+        43
+      ]
+    },
+    {
+      "ascender": 33,
+      "followingGap": 23.5,
+      "headerGap": 46.666666666666664,
+      "insets": [
+        8.333333333333334,
+        8
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        40
+      ],
+      "leading": 1,
+      "lineGap": 42.166666666666664,
+      "lineHeight": 40,
+      "neutralLineHeight": 40,
+      "pointSize": 34,
+      "scale": 2,
+      "sender": [
+        40,
+        52.5
+      ],
+      "spacing": 41,
+      "timestamp": [
+        10,
+        69.5,
+        43
+      ]
+    },
+    {
+      "ascender": 33,
+      "followingGap": 23.5,
+      "headerGap": 46.666666666666664,
+      "insets": [
+        8.333333333333334,
+        8
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        40
+      ],
+      "leading": 1,
+      "lineGap": 42.166666666666664,
+      "lineHeight": 42,
+      "neutralLineHeight": 40,
+      "pointSize": 34,
+      "scale": 2,
+      "sender": [
+        42,
+        54.5
+      ],
+      "spacing": 41,
+      "timestamp": [
+        10,
+        69.5,
+        43
+      ]
+    },
+    {
+      "ascender": 33,
+      "followingGap": 23.666666666666668,
+      "headerGap": 46.666666666666664,
+      "insets": [
+        8.333333333333334,
+        8
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        40
+      ],
+      "leading": 1,
+      "lineGap": 42,
+      "lineHeight": 40,
+      "neutralLineHeight": 40,
+      "pointSize": 34,
+      "scale": 3,
+      "sender": [
+        40,
+        52.666666666666664
+      ],
+      "spacing": 41,
+      "timestamp": [
+        10,
+        69.66666666666667,
+        43
+      ]
+    },
+    {
+      "ascender": 33,
+      "followingGap": 23.666666666666668,
+      "headerGap": 46.666666666666664,
+      "insets": [
+        8.333333333333334,
+        8
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        40
+      ],
+      "leading": 1,
+      "lineGap": 42,
+      "lineHeight": 42,
+      "neutralLineHeight": 40,
+      "pointSize": 34,
+      "scale": 3,
+      "sender": [
+        42,
+        54.666666666666664
+      ],
+      "spacing": 41,
+      "timestamp": [
+        10,
+        69.66666666666667,
+        43
+      ]
+    },
+    {
+      "ascender": 39,
+      "followingGap": 27,
+      "headerGap": 54.33333333333333,
+      "insets": [
+        9.666666666666666,
+        10
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        48
+      ],
+      "leading": 0,
+      "lineGap": 49.333333333333336,
+      "lineHeight": 48,
+      "neutralLineHeight": 48,
+      "pointSize": 40,
+      "scale": 0,
+      "sender": [
+        48,
+        63
+      ],
+      "spacing": 48,
+      "timestamp": [
+        10,
+        81,
+        49
+      ]
+    },
+    {
+      "ascender": 39,
+      "followingGap": 27,
+      "headerGap": 54.33333333333333,
+      "insets": [
+        9.666666666666666,
+        10
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        48
+      ],
+      "leading": 0,
+      "lineGap": 49.333333333333336,
+      "lineHeight": 50,
+      "neutralLineHeight": 48,
+      "pointSize": 40,
+      "scale": 0,
+      "sender": [
+        50,
+        65
+      ],
+      "spacing": 48,
+      "timestamp": [
+        10,
+        81,
+        49
+      ]
+    },
+    {
+      "ascender": 39,
+      "followingGap": 27,
+      "headerGap": 54.33333333333333,
+      "insets": [
+        9.666666666666666,
+        10
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        48
+      ],
+      "leading": 0,
+      "lineGap": 49.333333333333336,
+      "lineHeight": 48,
+      "neutralLineHeight": 48,
+      "pointSize": 40,
+      "scale": 1,
+      "sender": [
+        48,
+        63
+      ],
+      "spacing": 48,
+      "timestamp": [
+        10,
+        81,
+        49
+      ]
+    },
+    {
+      "ascender": 39,
+      "followingGap": 27,
+      "headerGap": 54.33333333333333,
+      "insets": [
+        9.666666666666666,
+        10
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        48
+      ],
+      "leading": 0,
+      "lineGap": 49.333333333333336,
+      "lineHeight": 50,
+      "neutralLineHeight": 48,
+      "pointSize": 40,
+      "scale": 1,
+      "sender": [
+        50,
+        65
+      ],
+      "spacing": 48,
+      "timestamp": [
+        10,
+        81,
+        49
+      ]
+    },
+    {
+      "ascender": 39,
+      "followingGap": 27,
+      "headerGap": 54.33333333333333,
+      "insets": [
+        9.666666666666666,
+        10
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        48
+      ],
+      "leading": 0,
+      "lineGap": 49.333333333333336,
+      "lineHeight": 48,
+      "neutralLineHeight": 48,
+      "pointSize": 40,
+      "scale": 2,
+      "sender": [
+        48,
+        63
+      ],
+      "spacing": 48,
+      "timestamp": [
+        10,
+        81,
+        49
+      ]
+    },
+    {
+      "ascender": 39,
+      "followingGap": 27,
+      "headerGap": 54.33333333333333,
+      "insets": [
+        9.666666666666666,
+        10
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        48
+      ],
+      "leading": 0,
+      "lineGap": 49.333333333333336,
+      "lineHeight": 50,
+      "neutralLineHeight": 48,
+      "pointSize": 40,
+      "scale": 2,
+      "sender": [
+        50,
+        65
+      ],
+      "spacing": 48,
+      "timestamp": [
+        10,
+        81,
+        49
+      ]
+    },
+    {
+      "ascender": 39,
+      "followingGap": 27,
+      "headerGap": 54.33333333333333,
+      "insets": [
+        9.666666666666666,
+        10
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        48
+      ],
+      "leading": 0,
+      "lineGap": 49.333333333333336,
+      "lineHeight": 48,
+      "neutralLineHeight": 48,
+      "pointSize": 40,
+      "scale": 3,
+      "sender": [
+        48,
+        62.666666666666664
+      ],
+      "spacing": 48,
+      "timestamp": [
+        10,
+        81,
+        49
+      ]
+    },
+    {
+      "ascender": 39,
+      "followingGap": 27,
+      "headerGap": 54.33333333333333,
+      "insets": [
+        9.666666666666666,
+        10
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        48
+      ],
+      "leading": 0,
+      "lineGap": 49.333333333333336,
+      "lineHeight": 50,
+      "neutralLineHeight": 48,
+      "pointSize": 40,
+      "scale": 3,
+      "sender": [
+        50,
+        64.66666666666667
+      ],
+      "spacing": 48,
+      "timestamp": [
+        10,
+        81,
+        49
+      ]
+    },
+    {
+      "ascender": 47,
+      "followingGap": 33,
+      "headerGap": 67.4,
+      "insets": [
+        11.6,
+        12
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        57
+      ],
+      "leading": 2,
+      "lineGap": 61.4,
+      "lineHeight": 57,
+      "neutralLineHeight": 57,
+      "pointSize": 48,
+      "scale": 0,
+      "sender": [
+        57,
+        75
+      ],
+      "spacing": 59,
+      "timestamp": [
+        10,
+        96,
+        57
+      ]
+    },
+    {
+      "ascender": 47,
+      "followingGap": 33,
+      "headerGap": 67.4,
+      "insets": [
+        11.6,
+        12
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        57
+      ],
+      "leading": 2,
+      "lineGap": 61.4,
+      "lineHeight": 59,
+      "neutralLineHeight": 57,
+      "pointSize": 48,
+      "scale": 0,
+      "sender": [
+        59,
+        77
+      ],
+      "spacing": 59,
+      "timestamp": [
+        10,
+        96,
+        57
+      ]
+    },
+    {
+      "ascender": 47,
+      "followingGap": 33,
+      "headerGap": 67.4,
+      "insets": [
+        11.6,
+        12
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        57
+      ],
+      "leading": 2,
+      "lineGap": 61.4,
+      "lineHeight": 57,
+      "neutralLineHeight": 57,
+      "pointSize": 48,
+      "scale": 1,
+      "sender": [
+        57,
+        75
+      ],
+      "spacing": 59,
+      "timestamp": [
+        10,
+        96,
+        57
+      ]
+    },
+    {
+      "ascender": 47,
+      "followingGap": 33,
+      "headerGap": 67.4,
+      "insets": [
+        11.6,
+        12
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        57
+      ],
+      "leading": 2,
+      "lineGap": 61.4,
+      "lineHeight": 59,
+      "neutralLineHeight": 57,
+      "pointSize": 48,
+      "scale": 1,
+      "sender": [
+        59,
+        77
+      ],
+      "spacing": 59,
+      "timestamp": [
+        10,
+        96,
+        57
+      ]
+    },
+    {
+      "ascender": 47,
+      "followingGap": 33.5,
+      "headerGap": 67.4,
+      "insets": [
+        11.6,
+        12
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        57
+      ],
+      "leading": 2,
+      "lineGap": 60.9,
+      "lineHeight": 57,
+      "neutralLineHeight": 57,
+      "pointSize": 48,
+      "scale": 2,
+      "sender": [
+        57,
+        75
+      ],
+      "spacing": 59,
+      "timestamp": [
+        10,
+        96.5,
+        57
+      ]
+    },
+    {
+      "ascender": 47,
+      "followingGap": 33.5,
+      "headerGap": 67.4,
+      "insets": [
+        11.6,
+        12
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        57
+      ],
+      "leading": 2,
+      "lineGap": 60.9,
+      "lineHeight": 59,
+      "neutralLineHeight": 57,
+      "pointSize": 48,
+      "scale": 2,
+      "sender": [
+        59,
+        77
+      ],
+      "spacing": 59,
+      "timestamp": [
+        10,
+        96.5,
+        57
+      ]
+    },
+    {
+      "ascender": 47,
+      "followingGap": 33.333333333333336,
+      "headerGap": 67.06666666666668,
+      "insets": [
+        11.6,
+        12
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        57
+      ],
+      "leading": 2,
+      "lineGap": 61.06666666666667,
+      "lineHeight": 57,
+      "neutralLineHeight": 57,
+      "pointSize": 48,
+      "scale": 3,
+      "sender": [
+        57,
+        75
+      ],
+      "spacing": 59,
+      "timestamp": [
+        10,
+        96.33333333333334,
+        57
+      ]
+    },
+    {
+      "ascender": 47,
+      "followingGap": 33.333333333333336,
+      "headerGap": 67.06666666666668,
+      "insets": [
+        11.6,
+        12
+      ],
+      "labelFrame": [
+        16,
+        10,
+        370,
+        57
+      ],
+      "leading": 2,
+      "lineGap": 61.06666666666667,
+      "lineHeight": 59,
+      "neutralLineHeight": 57,
+      "pointSize": 48,
+      "scale": 3,
+      "sender": [
+        59,
+        77
+      ],
+      "spacing": 59,
+      "timestamp": [
+        10,
+        96.33333333333334,
+        57
+      ]
+    }
+  ],
+  "schema": 1
+}

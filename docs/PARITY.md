@@ -1,3 +1,25 @@
+## Caption source equations and corrected UIKit probe — 2026-10-21
+
+NativeChiefCaptionGeometry now matches 104 executed source font/scale/tall-script
+cases for caption insets/gaps, sender geometry and TimestampCell row/label /
+baseline formulas. All 96 focused Chief JVM cases pass with no skips/failures.
+It is not mounted in Android yet; no caption UI acceptance is claimed. The next
+step is verified UIFont inputs, matched normal/AX thread captures and source
+main-transcript post-timestamp spacing. Details/receipts are in CHIEF.md and
+`captures/recovery-20261021/chief-caption-source-final/`.
+
+UIFont probe run 39554150141 at 19f300df rendered both categories, then failed
+export: the harness sampled UIFontMetrics.scaledValue(17) as body size, whereas
+source bubbles use a preferred body descriptor with tight leading (AX1: 26⅓
+versus actual 28). Its hash-verified diagnostic artifact is retained. The probe
+now uses the exact source descriptor construction, records scaled values
+separately and validates actual app body/caption fonts. All 24 verifier tests and
+local Swift/project parsing pass; follow-up hosted verification remains required.
+Do not treat the failed metrics batch as accepted. Existing fifteen-scene thread
+reference and signed 709 remain accepted in their recorded scopes; 709 is
+uninstalled and its actual Android UI is unchanged by this geometry groundwork.
+Full-parity/physical Mac/Pixel/terminal/FCM/cold-tap gates remain open.
+
 ## Verified candidate 709 — 2026-10-21
 
 Signed candidate 709 includes the tested swipe work at clean source

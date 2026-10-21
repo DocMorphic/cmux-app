@@ -11,6 +11,15 @@ is separate from the existing fifteen-scene contract so older accepted artifacts
 remain verifiable under their exact source/fixture hashes. These are numerical
 font/layout inputs; no Apple font or symbol artwork is extracted or packaged.
 
+First probe run 39554150141 rendered all scenes but export rejected its body
+anchor: the probe had used UIFontMetrics.scaledValue(17), while source bubbles
+construct a preferred body descriptor with tight leading. At AX1 those produce
+26⅓ and 28 respectively. The corrected probe constructs the source descriptor,
+records the scaled value separately and cross-checks the actual application body
+font. The failed artifact/guards remain diagnostic evidence; hosted verification
+of this correction is still required. This does not invalidate the previously
+accepted thread images under their original contract.
+
 Current extension adds normal and actual accessibility-size thread interactions
 to `Interactions.json`, requiring fifteen captures while leaving the original
 nine `Scenes.json` inputs and complete upstream package unchanged. The harness

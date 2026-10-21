@@ -12,6 +12,28 @@ accepted fifteen-scene artifacts retain their original verifier contract. These
 inputs will replace the current generic Android timestamp label sizing; no
 new Android caption geometry is accepted yet.
 
+Probe run 39554150141 at 19f300df compiled and rendered both category invocations
+but failed export. Verified diagnostic artifact 12325485516 has outer SHA
+`217d85c68d23fec80d45325ea6d1c03e818c6aaa1eb48801932087bb61bae516`.
+Its body probe used UIFontMetrics.scaledValue(17), which yields 26⅓ at AX1;
+the actual source bubble uses a preferred body descriptor with tight leading
+and renders 28. The probe now constructs that exact descriptor/font, retains
+the scaled value as a separate observation and checks actual application body
+point size too. This is a harness correction, not accepted Android type evidence.
+All 24 integrity tests and local Swift/project parsing pass after the correction;
+new hosted verification remains required. The failed artifact is retained intact.
+
+Separately, NativeChiefCaptionGeometry ports source caption insets/spacing,
+sender line/bubble offset and TimestampCell row/label/baseline formulas. The
+checker compiles the complete actual TranscriptMetrics and exact selected
+TimestampCell/pixelCeil/label-frame declarations against inert font inputs.
+All 104 source cases agree with Kotlin, including tall-script neutral spacing,
+interpolated/extrapolated caption insets and scale fallbacks. The 96 focused Chief
+JVM cases pass with no skips/failures. The helper is not mounted in Android UI
+yet: actual font data, matched normal/AX captures, source main-transcript four-
+point post-timestamp gap versus direct thread placement, and physical acceptance
+remain next. Source receipts/logs are `chief-caption-*` under recovery-20261021.
+
 Oct 21 swipe-to-reply checkpoint: acknowledged balloons now accept physical
 rightward pans within the source 18-degree rule and incoming 28-point inset /
 156-point minimum area. They track the finger to 40 points, then logarithmically.
