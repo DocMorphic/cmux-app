@@ -1,3 +1,52 @@
+## Eleven translation compositor references verified — 2026-10-22
+
+Native capture 39728880829 at edfdf666f475fee875c8f1028c9f8041cfd4f45e
+passed both real UI-test invocations: nine standard scenes in 181.256 seconds
+and two actual accessibility-type scenes in 38.888 seconds. All eleven images
+were inspected. States cover choices/source picker, incoming/outgoing, original
+and menu toggles, automatic indicator, RTL, landscape, light and large type.
+They use the unmodified pinned package, real physical presses/taps, actual
+traits/frames and controlled translations; native inference is not established.
+
+The capture job's export conclusion remains failure: XCUIScreen encodes the
+landscape PNG as 1206x2622 pixels with EXIF orientation 6, correctly displaying
+2622x1206 for the actual 874x402-point window. The old exporter compared raw
+axes. The corrected verifier checks PNG chunk CRCs and TIFF orientation, rejects
+mirrored/malformed metadata and unmarked swapped axes, and keeps every original
+PNG byte. Sixty-eight reference guards and all 131 Python guards pass.
+
+Independent workflow 39730641718 at f3c3d9507aafd1c830e18b0c6dd03680c40288e9
+passes against that immutable capture artifact. It requires both native capture
+steps to have succeeded and checks exact capture commit, current fixture/template
+hashes and every presentation state/image. Downloaded verified artifact
+12405072484 (3,363,216 bytes), SHA256
+9ad5c21845046d57d004799cca8adf64d339989e5f882cf76985d4638d840906,
+matches local canonical metadata, receipt and all eleven original image hashes.
+The source capture's red export status is retained; this is separate verified
+reference evidence. Full proof:
+`captures/recovery-20261022/chief-translation-reference-checkpoint.json`.
+
+The normal source choice/picker is anchored inline, with implicit outside
+cancellation. Apple documents this iOS 26 behavior at
+https://developer.apple.com/videos/play/wwdc2025/284/?time=873. Android's bottom
+sheet remains provisional. Source caption blue is #0091FF dark / #0088FF light;
+Caption 2 is 11 points normally and 20 at accessibilityMedium. The indicator
+stays 32 points/13-point title. Android still needs matching glyph advance/art,
+colors, anchoring, material and adaptations. The actual source menu also shows
+a small clipped blue caption fragment in its snapshot; preserve this observation.
+Date-phrase underlines in bodies are another broader detector-parity check.
+
+Next capture the same rows/translations on Android and implement/refine anchored
+choices/source picker, outside/Back dismissal and owner admission. Add source
+popup large/RTL/light/landscape variants and explicit runtime/size-class/
+attachment metrics where needed. The current source build uses Xcode 26.6;
+the observer did not record the exact OS runtime version. Do not infer it from
+the SDK. Complete actual inference, UI recreation, physical Pixel/TalkBack and
+every account/transport/terminal/notification/backend/release gate separately.
+Full parity remains active. The owned emulator is stopped; real account/pairing/
+signing/workspaces, Pixel 703 and signed 712 are unchanged. No further Mac
+pairing-window step or repeated phone request is needed.
+
 ## Cold translation preferences verified; native RTL host repaired — 2026-10-22
 
 An opt-in emulator probe now drives the actual installNativeChiefTranslation
