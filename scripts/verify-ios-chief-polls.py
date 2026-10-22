@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""Bind native Poll Details measurements to immutable source, fixtures and compositor bytes."""
+import argparse
+import hashlib
+import importlib.util
+import json
+import math
+from pathlib import Path
+import shutil
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location('translation_geometry', ROOT / 'scripts/verify-ios-chief-translations.py')
+geometry = importlib.util.module_from_spec(spec); spec.loader.exec_module(geometry)
+digest = geometry.digest
+require = geometry.require
+rect = geometry.rect
+
+
+def expected_sections(poll):
+    participants = {p['id']: p for p in poll['participants']}
+    def name(identifier):
+        p = participants.get(identifier)
+        return ('You' if p['isMe'] else p['name']) if p else identifier
+    sections = []
+    for option in poll['options']:
+        voters = [v['participantID'] for v in poll['votes'] if v['optionID'] == option['id']]
+        footer = '1 Vote' if len(voters) == 1 else str(len(voters)) + ' Votes'
+        if option.get('addedByID'):
+            footer += ' · ' + ('Added by You' if participants.get(option['addedByID'], {}).get('isMe') else 'Added by ' + name(option['addedByID']))
+        sections.append(dict(title=option['text'], footer=footer, names=[name(v) for v in voters] or ['No votes yet']))
+    voted = {v['participantID'] for v in poll['votes']}
+    non_voters = [name(p['id']) for p in poll['participants'] if p['id'] not in voted]
+    if non_voters:
+        sections.append(dict(title='No Votes', footer='', names=non_voters))
+    return sections
+
+
+def verify(exported, output, commit):
+    require(len(commit) == 40 and all(x in '0123456789abcdef' for x in commit), 'Exact project commit required')
+    template = ROOT / 'tests/ios-chief-reference'
+    fixture = json.loads((template / 'PollReferences.json').read_text())
+    manifest = json.loads((ROOT / 'third_party/cmux-chief/manifest.json').read_text())
+    scenes = {s['id']: s for s in fixture['scenes']}; values = {}; images = {}
+    for path in exported.rglob('*'):
+        if not path.is_file() or path.stat().st_size > 32 * 1024 * 1024: continue
+        data = path.read_bytes()
+        if data.startswith(b'\x89PNG\r\n\x1a\n'): images[hashlib.sha256(data).hexdigest()] = path
+        elif data.lstrip().startswith(b'{'):
+            try: value = json.loads(data)
+            except (ValueError, UnicodeError): continue
+            if isinstance(value, dict) and 'pollScene' in value:
+                name = value['pollScene']; require(name not in values, 'Duplicate poll scene')
+                values[name] = value
+    require(set(values) == set(scenes), 'Missing/unexpected poll scenes')
+    paired = []
+    for name, specification in scenes.items():
+        value = values[name]; source = value['provenance']; poll = fixture['polls'][specification['model']]
+        require(value.get('scene') == name and value.get('fixture') == specification, 'Wrong poll fixture state')
+        require(value.get('fixtureSha256') == digest(template / 'PollReferences.json') == source.get('pollFixtureSha256'), 'Changed poll fixture')
+        require(source.get('referenceAppSha256') == digest(template / 'PollReferenceApp.swift') and source.get('pollUiTestsSha256') == digest(template / 'PollUITests.swift'), 'Changed poll host/tests')
+        require(source.get('upstreamRevision') == manifest['revision'] and source.get('packageTree') == manifest['referencePackage']['tree'], 'Unreviewed poll package')
+        require(source.get('projectSourceCommit') == commit and source.get('projectSourceDirty') is False, 'Wrong/dirty poll project source')
+        require(value.get('captureMethod') == 'XCUIScreen.main.screenshot' and value.get('activation') == 'physicalPressAndSourcePollDetails', 'Missing actual poll activation/compositor capture')
+        require(value.get('ready') is True and value.get('presented') is True and value.get('doneDismissed') is True, 'Source poll was not presented/dismissed')
+        require(value.get('backendWriteAttempts') == 0, 'Read-only poll wrote to backend')
+        require(value.get('categoryMatches') is True and value.get('style') == specification['style'] and value.get('direction') == specification['direction'], 'Wrong actual poll traits')
+        size = value.get('viewport'); scale = value.get('scale')
+        require(isinstance(size, list) and len(size) == 2 and all(type(x) in (float, int) and math.isfinite(x) and x > 0 for x in size), 'Invalid poll viewport')
+        require(type(scale) in (float, int) and math.isfinite(scale) and scale > 0, 'Invalid poll scale')
+        require((size[0] > size[1]) == (specification['orientation'] == 'landscape'), 'Wrong actual poll orientation')
+        require(value.get('runtime', {}).get('systemVersion') and rect(value.get('navigationFrame')), 'Missing native runtime/navigation geometry')
+        require(value.get('navigationPrompt') == poll['question'], 'Wrong poll question prompt')
+        table = value['table']; require(table.get('style') == 2 and rect(table.get('frame')), 'Missing source inset-grouped table')
+        expected = expected_sections(poll); sections = table.get('sections', [])
+        require(len(sections) == len(expected), 'Wrong poll section count')
+        visible = 0
+        for section, wanted in zip(sections, expected):
+            require(section.get('title') == wanted['title'] and section.get('footer') == wanted['footer'], 'Wrong poll option/footer/adder')
+            rows = section.get('rows', []); require(len(rows) == len(wanted['names']), 'Wrong voter/non-voter row count')
+            for index, (row, text) in enumerate(zip(rows, wanted['names'])):
+                require(row.get('row') == index and rect(row.get('frame')) and type(row.get('visible')) is bool, 'Invalid poll row geometry')
+                if row['visible']:
+                    visible += 1
+                    require(row.get('text') == text and row.get('selectionStyle') == 0, 'Wrong selectable voter/non-voter name')
+        require(visible > 0, 'No visible source table rows')
+        labels = value.get('labels', [])
+        require(labels and all(rect(x.get('frame')) and type(x.get('fontSize')) in (float, int) and x['fontSize'] > 0 for x in labels), 'Missing visible native labels')
+        if specification['category'] == 'accessibilityMedium':
+            require(any(x['fontSize'] >= 28 for x in labels), 'Actual accessibility poll type missing')
+        image = images.get(value.get('imageSha256')); require(image is not None, 'Missing/changed poll screenshot')
+        image_geometry = geometry.png_geometry(image.read_bytes())
+        require(image_geometry['displaySize'] == [round(x * scale) for x in size], 'Wrong poll compositor dimensions')
+        paired.append((name, value, image, image_geometry))
+    output.mkdir(parents=True, exist_ok=True)
+    for name, value, image, image_geometry in paired:
+        shutil.copyfile(image, output / (name + '.png'))
+        (output / (name + '.json')).write_text(json.dumps(value, indent=2) + '\n')
+    receipt = dict(projectCommit=commit, verifierSha256=digest(Path(__file__)), revision=manifest['revision'],
+        packageTree=manifest['referencePackage']['tree'], scenes=list(scenes),
+        imageGeometry={name: g for name, value, image, g in paired},
+        scope='Actual pinned UIKit Poll Details controls, visible cells, source data-source sections and compositor frames with controlled pending/generic poll data. Offscreen cell text, live changes/votes, Chief RPC, Android/device/VoiceOver and full parity remain unverified.')
+    (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    print(json.dumps(receipt, indent=2))
+
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--exported', type=Path, required=True); p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--project-commit', required=True); args = p.parse_args()
+    verify(args.exported, args.output, args.project_commit)

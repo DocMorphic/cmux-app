@@ -1,3 +1,15 @@
+## Poll Details native reference preparation — 2026-10-22
+
+Seven controlled Poll Details compositor scenes and a separate native UI-test
+workflow now cover source presentation/Done, table sections/participants, light,
+RTL, landscape and actual accessibility type. All 146 Python guards pass; syntax/
+project parsing passes and existing generated default/translation projects remain
+byte-identical. UIKit execution is still required: no new native/Android/device
+acceptance is claimed. See CHIEF.md and tests/ios-chief-reference/README.md.
+Mac diagnostic build 39757002747 remains active at 47294236 and has reached the
+full tagged compilation step. Do not redispatch it. The user's phone and current
+Mac app are unchanged. Full app parity stays active.
+
 ## Active Mac reply diagnostic build — 2026-10-22
 
 Full native run [39757002747](https://github.com/DocMorphic/cmux-app/actions/runs/39757002747)

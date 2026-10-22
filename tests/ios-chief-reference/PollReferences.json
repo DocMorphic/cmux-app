@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "polls": {
+    "pending": {
+      "question": "Run deploy?",
+      "options": [
+        {
+          "id": "allow",
+          "text": "allow"
+        },
+        {
+          "id": "deny",
+          "text": "deny"
+        }
+      ],
+      "votes": [],
+      "participants": [
+        {
+          "id": "chief",
+          "name": "Chief",
+          "isMe": false
+        },
+        {
+          "id": "me",
+          "name": "You",
+          "isMe": true
+        }
+      ]
+    },
+    "voters": {
+      "question": "Which deployment window works for everyone?",
+      "options": [
+        {
+          "id": "morning",
+          "text": "Tomorrow morning"
+        },
+        {
+          "id": "afternoon",
+          "text": "Tomorrow afternoon",
+          "addedByID": "me"
+        },
+        {
+          "id": "later",
+          "text": "Wait until the review is complete",
+          "addedByID": "reviewer"
+        }
+      ],
+      "votes": [
+        {
+          "participantID": "me",
+          "optionID": "morning"
+        },
+        {
+          "participantID": "chief",
+          "optionID": "morning"
+        },
+        {
+          "participantID": "reviewer",
+          "optionID": "afternoon"
+        },
+        {
+          "participantID": "unknown",
+          "optionID": "afternoon"
+        }
+      ],
+      "participants": [
+        {
+          "id": "chief",
+          "name": "Chief",
+          "isMe": false
+        },
+        {
+          "id": "me",
+          "name": "Owner display name",
+          "isMe": true
+        },
+        {
+          "id": "reviewer",
+          "name": "Reviewer",
+          "isMe": false
+        },
+        {
+          "id": "observer",
+          "name": "Observer",
+          "isMe": false
+        }
+      ]
+    }
+  },
+  "scenes": [
+    {
+      "id": "poll-pending-dark",
+      "model": "pending",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-pending-light",
+      "model": "pending",
+      "category": "large",
+      "style": "light",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-pending-rtl",
+      "model": "pending",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "rtl",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-pending-landscape",
+      "model": "pending",
+      "category": "large",
+      "style": "dark",
+      "orientation": "landscape",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-pending-large",
+      "model": "pending",
+      "category": "accessibilityMedium",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-voters-dark",
+      "model": "voters",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-voters-large-bottom",
+      "model": "voters",
+      "category": "accessibilityMedium",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "bottom"
+    }
+  ]
+}
