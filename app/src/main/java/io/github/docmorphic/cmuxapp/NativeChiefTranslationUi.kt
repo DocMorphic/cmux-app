@@ -12,7 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -40,9 +42,10 @@ internal fun chiefTranslationLanguageName(language: NativeChiefTranslationLangua
 
 internal sealed interface NativeChiefTranslationSheet {
     val row: String
-    data class Choice(override val row: String) : NativeChiefTranslationSheet
+    val anchor: Rect?
+    data class Choice(override val row: String, override val anchor: Rect? = null) : NativeChiefTranslationSheet
     data class From(override val row: String, val conversation: Boolean,
-        val languages: List<NativeChiefTranslationLanguage>) : NativeChiefTranslationSheet
+        val languages: List<NativeChiefTranslationLanguage>, override val anchor: Rect? = null) : NativeChiefTranslationSheet
 }
 
 /** Presentation work is canceled on disposal. Accepted translations belong to the retained model. */
@@ -53,12 +56,22 @@ internal class NativeChiefTranslationUi(private val session: NativeChiefTranscri
     private var epoch = 0L
     private var work: Job? = null
     private var closed = false
+    private var locateAnchor: (() -> Rect?)? = null
     private fun current(row: String) = !closed && try { session.actionItem(row) != null } catch (_: IllegalStateException) { false }
-    fun dismiss() { ++epoch; work?.cancel(); work = null; sheet = null }
-    fun showChoice(row: String) { dismiss(); if (current(row) && model.canTranslate(row)) sheet = NativeChiefTranslationSheet.Choice(row) }
+    fun dismiss() { ++epoch; work?.cancel(); work = null; sheet = null; locateAnchor = null }
+    fun showChoice(row: String, locate: () -> Rect? = { null }) {
+        dismiss()
+        if (current(row) && model.canTranslate(row)) {
+            locateAnchor = locate
+            sheet = NativeChiefTranslationSheet.Choice(row, locate())
+        }
+    }
+    fun anchor(request: NativeChiefTranslationSheet): Rect? =
+        if (sheet === request && current(request.row)) locateAnchor?.invoke() else null
     fun choose(request: NativeChiefTranslationSheet, conversation: Boolean, language: NativeChiefTranslationLanguage? = null) {
         if (sheet !== request) return
         if (!current(request.row)) { dismiss(); return }
+        val locate = locateAnchor
         dismiss()
         val generation = epoch
         work = scope.launch {
@@ -67,7 +80,10 @@ internal class NativeChiefTranslationUi(private val session: NativeChiefTranscri
                 if (outcome == NativeChiefTranslationOutcome.NEEDS_SOURCE_LANGUAGE && language == null) {
                     val collator = Collator.getInstance(locale)
                     val languages = model.sourceLanguages().sortedWith { a, b -> collator.compare(chiefTranslationLanguageName(a, locale), chiefTranslationLanguageName(b, locale)) }
-                    if (generation == epoch && current(request.row) && languages.isNotEmpty()) sheet = NativeChiefTranslationSheet.From(request.row, conversation, languages)
+                    if (generation == epoch && current(request.row) && languages.isNotEmpty()) {
+                        locateAnchor = locate
+                        sheet = NativeChiefTranslationSheet.From(request.row, conversation, languages, locate?.invoke())
+                    }
                 }
             } catch (error: Exception) {
                 currentCoroutineContext().ensureActive()
@@ -77,31 +93,6 @@ internal class NativeChiefTranslationUi(private val session: NativeChiefTranscri
     }
     fun toggle(row: String) { if (current(row)) try { model.toggleOriginal(row) } catch (_: IllegalStateException) { } }
     override fun close() { closed = true; dismiss() }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun NativeChiefTranslationSheets(ui: NativeChiefTranslationUi) {
-    val request = ui.sheet ?: return
-    val locale = LocalConfiguration.current.locales[0]
-    ModalBottomSheet(onDismissRequest = ui::dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        modifier = Modifier.testTag(if (request is NativeChiefTranslationSheet.From) "ChiefTranslationFrom" else "ChiefTranslationChoice")) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
-            if (request is NativeChiefTranslationSheet.Choice) {
-                Text(stringResource(R.string.chief_translation_prompt), Modifier.fillMaxWidth().padding(vertical = 12.dp), textAlign = TextAlign.Center)
-                TextButton(onClick = { ui.choose(request, false) }, modifier = Modifier.fillMaxWidth().testTag("ChiefTranslateMessage")) { Text(stringResource(R.string.chief_translation_message)) }
-                TextButton(onClick = { ui.choose(request, true) }, modifier = Modifier.fillMaxWidth().testTag("ChiefTranslateConversation")) { Text(stringResource(R.string.chief_translation_conversation)) }
-            } else if (request is NativeChiefTranslationSheet.From) {
-                Text(stringResource(R.string.chief_translation_from), Modifier.fillMaxWidth().padding(vertical = 12.dp).semantics { heading() }, textAlign = TextAlign.Center)
-                request.languages.forEach { language ->
-                    TextButton(onClick = { ui.choose(request, request.conversation, language) }, modifier = Modifier.fillMaxWidth().testTag("ChiefTranslateFrom:${language.tag}")) {
-                        Text(chiefTranslationLanguageName(language, locale))
-                    }
-                }
-            }
-            TextButton(onClick = ui::dismiss, modifier = Modifier.fillMaxWidth().testTag("ChiefTranslationCancel")) { Text(stringResource(R.string.chief_translation_cancel)) }
-        }
-    }
 }
 
 @Composable
@@ -157,7 +148,9 @@ internal fun NativeChiefTranslationCaption(presentation: NativeChiefTranslationP
     val tappable = presentation.caption in setOf(NativeChiefTranslationCaption.SHOW_ORIGINAL, NativeChiefTranslationCaption.VIEW_TRANSLATION, NativeChiefTranslationCaption.NOT_DOWNLOADED)
     val active by rememberUpdatedState(tappable && enabled)
     val action by rememberUpdatedState(onClick)
-    val color = if (tappable) Color(0xFF007AFF) else Color(0xFF8E8E93)
+    val dark = MaterialTheme.colorScheme.background.luminance() < .5f
+    val color = if (tappable) { if (dark) Color(0xFF0091FF) else Color(0xFF0088FF) }
+        else if (dark) Color(0x99EBEBF5) else Color(0x993C3C43)
     val font = nativeChiefCaptionFont()
     val density = LocalDensity.current
     val style = nativeChiefTextStyle(11).copy(fontSize = with(density) { font.pointSize.toFloat().dp.toSp() })

@@ -437,6 +437,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     fun openThread(id: String) { try { captureReply { session.openReplyThread(id) } } catch (_: IllegalStateException) {} }
     BackHandler {
         when {
+            translationUi?.sheet != null -> translationUi.dismiss()
             menu.snapshot != null -> menu.dismiss()
             selectText != null -> selectText = null
             selecting -> selectedRows = null
@@ -545,10 +546,14 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 NativeChiefMenuAction.MORE -> { selectedRows = setOf(current.key); menu.dismiss() }
                 NativeChiefMenuAction.SELECT -> { selectText = menu.selection(frozen); menu.dismiss() }
                 NativeChiefMenuAction.POLL -> { pollDetails = current.message?.id; menu.dismiss() }
-                NativeChiefMenuAction.TRANSLATE -> { menu.dismiss(); translationUi?.showChoice(current.key) }
+                NativeChiefMenuAction.TRANSLATE -> {
+                    val locate = menu.translationAnchor(frozen)
+                    menu.dismiss(); translationUi?.showChoice(current.key) { locate?.invoke() }
+                }
                 NativeChiefMenuAction.SHOW_ORIGINAL, NativeChiefMenuAction.SHOW_TRANSLATION -> { menu.dismiss(); translationUi?.toggle(current.key) }
             }
         }
+        translationUi?.let { NativeChiefTranslationPopup(it, state) }
         }
     }) { padding, headerHeight, composerHeight ->
         Box(Modifier.fillMaxSize()) {
@@ -622,7 +627,6 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
 
     }
     if (!state.retired) {
-        translationUi?.let { NativeChiefTranslationSheets(it) }
         val host = session.translationHost
         if (host != null && translationModel != null) NativeChiefTranslationDownloadHost(host, translationModel!!)
     }

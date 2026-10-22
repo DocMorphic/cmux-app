@@ -1,0 +1,184 @@
+{
+  "run": 39731923761,
+  "projectCommit": "3fec8e2e1d007fffa6393e373ee8d262ea7c6a3d",
+  "scope": "Actual pinned UIKit popup/source rectangles on iOS 26.4.1; captured public geometry, independent of Android equations.",
+  "fixtureSha256": "4fc8dcd75f7737ed7854c38cf59ecd32d8edb8119d3eab9ac53dc534e4304e4e",
+  "cases": [
+    {
+      "scene": "translation-choice-dark",
+      "bounds": [
+        0,
+        62,
+        402,
+        778
+      ],
+      "source": [
+        16,
+        232.33333333333334,
+        238,
+        67.16703333333331
+      ],
+      "body": [
+        15,
+        313,
+        240,
+        246.33333333333337
+      ],
+      "side": "BELOW"
+    },
+    {
+      "scene": "translation-choice-landscape-dark",
+      "bounds": [
+        62,
+        0,
+        750,
+        382
+      ],
+      "source": [
+        365.3333333333333,
+        203.33333333333331,
+        430.6666666666667,
+        47.167033333333336
+      ],
+      "body": [
+        112,
+        103.00000000000001,
+        240,
+        246.33333333333337
+      ],
+      "side": "LEFT"
+    },
+    {
+      "scene": "translation-choice-large-dark",
+      "bounds": [
+        0,
+        62,
+        402,
+        778
+      ],
+      "source": [
+        16,
+        286,
+        332.6666666666667,
+        99.0721923627608
+      ],
+      "body": [
+        10,
+        398,
+        366,
+        313.33333333333326
+      ],
+      "side": "BELOW"
+    },
+    {
+      "scene": "translation-choice-outgoing-light",
+      "bounds": [
+        0,
+        62,
+        402,
+        778
+      ],
+      "source": [
+        132,
+        302.6666666666667,
+        254,
+        67.16703333333334
+      ],
+      "body": [
+        139,
+        383,
+        240,
+        246.33333333333337
+      ],
+      "side": "BELOW"
+    },
+    {
+      "scene": "translation-choice-rtl-dark",
+      "bounds": [
+        0,
+        62,
+        402,
+        778
+      ],
+      "source": [
+        132,
+        302.6666666666667,
+        254,
+        67.16703333333334
+      ],
+      "body": [
+        139,
+        383,
+        240,
+        246.33333333333337
+      ],
+      "side": "BELOW"
+    },
+    {
+      "scene": "translation-from-dark",
+      "bounds": [
+        0,
+        62,
+        402,
+        778
+      ],
+      "source": [
+        16,
+        232.33333333333334,
+        255.33333333333337,
+        67.16703333333331
+      ],
+      "body": [
+        23,
+        313,
+        240,
+        180.33333333333337
+      ],
+      "side": "BELOW"
+    },
+    {
+      "scene": "translation-from-landscape-dark",
+      "bounds": [
+        62,
+        0,
+        750,
+        382
+      ],
+      "source": [
+        78,
+        153,
+        411,
+        47.167033333333336
+      ],
+      "body": [
+        502,
+        86.00000000000001,
+        240,
+        180.33333333333337
+      ],
+      "side": "RIGHT"
+    },
+    {
+      "scene": "translation-from-large-dark",
+      "bounds": [
+        0,
+        62,
+        402,
+        778
+      ],
+      "source": [
+        16,
+        286,
+        333.3333333333333,
+        99.0721923627608
+      ],
+      "body": [
+        62,
+        398.00000000000006,
+        240,
+        245.33333333333331
+      ],
+      "side": "BELOW"
+    }
+  ]
+}

@@ -1,3 +1,27 @@
+## Anchored translation popup checkpoint — 2026-10-22
+
+Chief's provisional translation sheets are replaced by anchored, focusable
+popups with outside/Back dismissal, current-owner action admission and owner-keyed
+in-memory Activity backdrop capture. The separate popup window now preserves the
+parent's text scale/direction. See CHIEF.md for source measurements and scope.
+
+Expanded native run 39731923761 supplies 17 verified UIKit compositor references
+on actual iOS 26.4.1 (23E254a). Local canonical files match the uploaded artifact.
+Android v9 passes 19 regressions (69.074 s) and 17 fresh matched scene captures,
+with actual portrait/landscape validation and no crash-buffer events. Two measured
+geometry JVM tests and 135 Python guards pass. APK/source/image hashes and observed
+deltas are in `captures/recovery-20261022/chief-translation-popups-checkpoint.json`.
+
+Normal popup body sizes and the large source-picker body size match. The large
+choice still measures 373x347 1/3 against native 366x313 1/3 (four versus three
+header lines). Typography, material/motion, caption glyph metrics, other locales/
+type categories/Bold Text, live inference/download success, open-popup rotation/
+recreation, Pixel/TalkBack and every broader account/transport/terminal/notification/
+backend/release gate remain open. Component light captures do not establish global
+light-theme support. Full app parity remains active; physical 703, signed 712 and
+real account/pairing/signing/workspaces are unchanged. The owned AVD is stopped.
+No further manual Mac pairing-window action or repeated phone request is needed.
+
 ## Eleven translation compositor references verified — 2026-10-22
 
 Native capture 39728880829 at edfdf666f475fee875c8f1028c9f8041cfd4f45e

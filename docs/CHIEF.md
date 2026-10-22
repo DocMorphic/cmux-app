@@ -1,3 +1,63 @@
+## Anchored translation popups mounted and compared — 2026-10-22
+
+The provisional Material bottom sheets are replaced by focusable, anchored
+translation popups. Choice and source-language menus follow the current placed
+message rather than the lifted menu preview. Back, Escape and outside taps
+cancel without a visible Cancel row. Actions still recheck the live owner,
+message and presentation identity. Parent text scale and layout direction are
+explicitly supplied to the popup's separate AndroidComposeView. Presentation
+state and captured material are keyed by the UI owner, so an equal row/rectangle
+in a replacement session cannot reuse the former owner's pixels.
+
+The material copies only the owning Activity surface with PixelCopy, remains in
+memory, respects FLAG_SECURE and cancels on disposal. It does not sample its own
+popup or another application's window. Arrow spacing, normal 240-point width,
+header/button spacing, baseline frames and accessibility source-picker dimensions
+come from the measured UIKit presentation. Caption blue now uses the observed
+#0091FF dark / #0088FF light values; glyph artwork/advance/baseline remain open.
+
+Expanded native run 39731923761 succeeds at
+3fec8e2e1d007fffa6393e373ee8d262ea7c6a3d, with 17 real compositor captures.
+The observer now records actual iOS 26.4.1 (23E254a), size classes, source/popup
+rectangles, actual visible/hittable buttons, caption color and attachment canvas
+sizes. Xcode 26.6 is the build selection, not the runtime version. Artifact
+12406775620 is 21,555,694 bytes, SHA256
+83dc99d3208bab8e587fb8c7531596af7e2f0d59891141d730a427da85ea9842.
+Independent local verification matches all 35 uploaded canonical files exactly.
+The six added adaptation scenes were visually inspected. The global upstream
+pin remains unchanged.
+
+Android evidence is in `captures/recovery-20261022/chief-translation-popups-v9/`:
+19 focused regression tests pass in 69.074 seconds, followed by 17 successful
+matched scene invocations, no skips and an empty crash buffer. The driver removes
+only this disposable debug app's screenshot files before each capture; it keeps
+app data. PNG bytes/hashes, actual display orientation, fixture bytes, original
+wire messages, production source hashes and both APK hashes were independently
+checked. Two geometry JVM tests pass against eight measured source rectangles;
+all 135 Python reference guards pass. All 17 Android scenes were visually viewed.
+The checkpoint is `captures/recovery-20261022/chief-translation-popups-checkpoint.json`.
+
+Actual landscape captures are 2622x1206, with choices left of the outgoing row
+and the source picker right of the incoming row. Normal choice/picker body sizes
+match 240x246 1/3 and 240x180 1/3 points. At accessibility type the source picker
+matches 240x245 1/3; the choice remains 373x347 1/3 versus native 366x313 1/3,
+because the Android header wraps to four lines instead of three. This is an open
+typography/layout difference, not visual parity acceptance. Android's nonlinear
+font conversion is calibrated to the first scale at or above the source's
+28-point accessibility threshold; actual body size is recorded as 28.056 points.
+An earlier diagnostic run's setting-only rotation stayed portrait and its scale
+fell below that threshold. Those adaptation captures are not accepted.
+
+The controlled test uses registered bubble accessibility activation and actual
+popup taps, with fixed detection/translation results. It does not establish real
+inference, long-press capture parity, physical-device/TalkBack acceptance, UI
+recreation or open-popup rotation. Light captures override the component theme;
+production CmuxTheme is still dark. Material/motion, other locales/type categories/
+Bold Text, caption glyph metrics, source body positions and date detectors need
+further work. Continue these and every broader PARITY/REMAINING_WORK gate. The
+owned AVD is stopped; account/pairing/signing/workspaces, Pixel 703 and signed 712
+are unchanged. No further manual Mac pairing-window step is needed.
+
 ## Eleven translation compositor references verified — 2026-10-22
 
 Native capture 39728880829 at edfdf666f475fee875c8f1028c9f8041cfd4f45e

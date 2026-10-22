@@ -42,10 +42,20 @@ class NativeChiefRuntimeTest {
     private val api = Api()
     private var current = true
     private var testFontScale by mutableFloatStateOf(1f)
+    private var testLight by mutableStateOf(false)
     private var testLayoutDirection by mutableStateOf(androidx.compose.ui.unit.LayoutDirection.Ltr)
 
     @Before fun start() {
         check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk")) { "Use the disposable emulator" }
+        val reference=InstrumentationRegistry.getArguments().getString("chiefTranslationReferenceCase")
+        if(reference!=null) {
+            val device=androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            if(reference.contains("landscape"))device.setOrientationLeft() else device.setOrientationNatural()
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            val deadline=android.os.SystemClock.elapsedRealtime()+15_000
+            while((device.displayWidth>device.displayHeight)!=reference.contains("landscape") && android.os.SystemClock.elapsedRealtime()<deadline)Thread.sleep(50)
+            assertEquals("Actual display orientation",reference.contains("landscape"),device.displayWidth>device.displayHeight)
+        }
         compose.runOnUiThread {
             owner = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
             computer = NativeChiefComputerSession(owner, api) { current }
@@ -53,15 +63,20 @@ class NativeChiefRuntimeTest {
         // Match NativeScreenLayout's outer inset consumption. The Chief subtree
         // owns its transcript, while its production parent owns system bars.
         compose.setContent { CmuxTheme {
+            androidx.compose.material3.MaterialTheme(colorScheme = if (testLight) androidx.compose.material3.lightColorScheme() else androidx.compose.material3.MaterialTheme.colorScheme) {
             val hostDensity = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(hostDensity.density, testFontScale),
                 androidx.compose.ui.platform.LocalLayoutDirection provides testLayoutDirection) {
             Surface(Modifier.fillMaxSize().background(Color(0xFF0B0D10)).statusBarsPadding().navigationBarsPadding().imePadding()) {
             NativeChiefView(computer, true, Modifier.fillMaxSize())
-        } } } }
+        } } } } }
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPinnedConversation").fetchSemanticsNodes().isNotEmpty() }
     }
-    @After fun stop() { if (::owner.isInitialized) compose.runOnUiThread { computer.close(); owner.cancel() } }
+    @After fun stop() {
+        if (::owner.isInitialized) compose.runOnUiThread { computer.close(); owner.cancel() }
+        if(InstrumentationRegistry.getArguments().getString("chiefTranslationReferenceCase")!=null)
+            androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).unfreezeRotation()
+    }
 
     private inner class Api : NativeChiefApi {
         val homeChanges = Channel<NativeChiefSnapshot>(Channel.UNLIMITED)
@@ -2840,11 +2855,12 @@ class NativeChiefRuntimeTest {
         var download: NativeChiefTranslationDownload? = null
         var closed = 0
         var transform: (String) -> String = { "[UI translation] $it" }
+        var sourceForText: (String) -> String? = { if (it == "unknown") null else "es" }
         val calls = mutableListOf<Pair<Map<String, String>, String>>()
         override suspend fun availability(source: NativeChiefTranslationLanguage, target: NativeChiefTranslationLanguage) =
             if (missing) NativeChiefTranslationAvailability.DOWNLOADABLE else NativeChiefTranslationAvailability.INSTALLED
         override suspend fun supportedLanguages() = listOf("es", "en", "fr").map { NativeChiefTranslationLanguages.fromTag(it)!! }
-        override suspend fun detectLanguage(text: String) = if (text == "unknown") null else NativeChiefTranslationLanguages.fromTag("es")
+        override suspend fun detectLanguage(text: String) = sourceForText(text)?.let(NativeChiefTranslationLanguages::fromTag)
         override suspend fun translate(texts: Map<String, String>, source: NativeChiefTranslationLanguage,
             target: NativeChiefTranslationLanguage): Map<String, String> {
             calls += texts.toMap() to source.code
@@ -2895,6 +2911,146 @@ class NativeChiefRuntimeTest {
             else assertEquals("Incoming caption must keep the physical left edge", row.left, glyph.left, 1f)
         }
         saveScreenshot("chief-translation-rtl-physical-caption")
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun translationPopupDismissesOutsideBackAndRetiredCallbacks() {
+        openReferenceScene("quote-dark")
+        val engine = installUiTranslator()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Preserve popup draft")
+        beginTranslationChoice("parent")
+        compose.waitUntil(10_000) { compose.onNodeWithTag("ChiefTranslationChoice").fetchSemanticsNode().config[ChiefTranslationPopupProbe]().backdrop }
+        val probe = compose.onNodeWithTag("ChiefTranslationChoice").fetchSemanticsNode().config[ChiefTranslationPopupProbe]()
+        assertNotNull(probe.anchor); assertNotNull(probe.body)
+        assertTrue(probe.body!!.top >= probe.anchor!!.bottom || probe.side != "BELOW")
+        compose.onNodeWithTag("ChiefTranslationCancel").assertDoesNotExist()
+        val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        device.pressBack()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationChoice").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Preserve popup draft")
+        beginTranslationChoice("parent")
+        device.click(1, device.displayHeight / 2)
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationChoice").fetchSemanticsNodes().isEmpty() }
+        assertTrue(engine.calls.isEmpty())
+        beginTranslationChoice("parent")
+        val stale = checkNotNull(compose.onNodeWithTag("ChiefTranslateMessage").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        compose.runOnUiThread { current = false; computer.close() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationChoice").fetchSemanticsNodes().isEmpty() }
+        compose.runOnUiThread { stale(); assertTrue(engine.calls.isEmpty()) }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    /** Exact source corpus; controlled style/detection/output, actual production UI and OS PNG. */
+    @Test fun capturePinnedTranslationReference() {
+        val arguments = InstrumentationRegistry.getArguments()
+        val name = arguments.getString("chiefTranslationReferenceCase")
+        org.junit.Assume.assumeTrue("Opt-in matched source capture", name != null)
+        val bytes = InstrumentationRegistry.getInstrumentation().context.assets.open("parity/chief-translation-scenes.json").use { it.readBytes() }
+        val input = JSONObject(bytes.toString(Charsets.UTF_8))
+        val specifications = input.getJSONArray("scenes")
+        val spec = (0 until specifications.length()).map(specifications::getJSONObject).single { it.getString("id") == name }
+        val rows = input.getJSONArray("rows"); val target = spec.getString("target"); val mode = spec.getString("mode")
+        val originals = mutableMapOf<String, String>(); val outputs = mutableMapOf<String, String>()
+        compose.runOnUiThread {
+            // Android applies nonlinear sp scaling. Match the source's measured
+            // 28-point body, rather than assuming fontScale is a linear multiplier.
+            testFontScale = if (spec.getString("category") == "accessibilityMedium") {
+                var low=1f;var high=3f
+                repeat(30) {
+                    val middle=(low+high)/2
+                    val points=with(Density(compose.activity.resources.displayMetrics.density,middle)) { 17.sp.toDp().value }
+                    if(points<28f)low=middle else high=middle
+                }
+                high // Remain in the source's >=28-point accessibility layout category.
+            } else 1f
+            testLayoutDirection = if (spec.getString("direction") == "rtl") androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr
+            testLight = spec.getString("style") == "light"
+            api.homeUnread = 0
+            api.rows = (0 until rows.length()).map { index ->
+                val row = rows.getJSONObject(index); val id = row.getString("id")
+                val text = if (mode == "from" && id == target) input.getString("sameLanguageText") else row.getString("text")
+                originals[id] = text; outputs[text] = row.getString("translated")
+                message(id,(index+1).toULong(),text,row.getBoolean("outgoing")).copy(at=instant.plusSeconds((-300+index*30).toLong()))
+            }
+            computer.home.refresh()
+        }
+        compose.waitUntil(10_000) { computer.home.state.value.pinned?.unread == 0L }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefBubbleBody:later").fetchSemanticsNodes().isNotEmpty() }
+        val engine = installUiTranslator(TranslationEngine().apply {
+            transform = { checkNotNull(outputs[it]) }; sourceForText = { if (it == input.getString("sameLanguageText")) "en" else "es" }
+        })
+        beginTranslationChoice(target)
+        if (mode != "choice") {
+            compose.onNodeWithTag(if (mode == "conversation") "ChiefTranslateConversation" else "ChiefTranslateMessage").performClick()
+            if (mode == "from") compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationFrom").fetchSemanticsNodes().isNotEmpty() }
+            else {
+                awaitTranslationCaption("ChiefTranslationCaption:s:$target","Show Original")
+                if (mode == "original") {
+                    compose.onNodeWithTag("ChiefTranslationCaption:s:$target").performClick()
+                    awaitTranslationCaption("ChiefTranslationCaption:s:$target","View Translation")
+                } else if (mode == "menu") openTranslationMenu(target)
+            }
+        }
+        val popupTag = if (mode == "choice") "ChiefTranslationChoice" else if (mode == "from") "ChiefTranslationFrom" else null
+        if (popupTag != null) compose.waitUntil(10_000) {
+            compose.onNodeWithTag(popupTag).fetchSemanticsNode().config[ChiefTranslationPopupProbe]().backdrop
+        }
+        compose.waitForIdle()
+        val expectedPoints=with(Density(compose.activity.resources.displayMetrics.density,testFontScale)) { 17.sp.toDp().value }
+        val labelLayouts=org.json.JSONArray()
+        if(popupTag!=null) {
+            for(node in compose.onAllNodesWithTag("ChiefTranslationLabelText",useUnmergedTree=true).fetchSemanticsNodes()) {
+                val results=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+                assertTrue(checkNotNull(node.config[androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult].action).invoke(results))
+                val layout=results.single();val text=layout.layoutInput.text.text
+                val actualPoints=with(layout.layoutInput.density) { layout.layoutInput.style.fontSize.toDp().value }
+                labelLayouts.put(JSONObject().put("text",text).put("pointSize",actualPoints).put("lines",layout.lineCount)
+                    .put("pixelHeight",layout.size.height))
+                // A popup's AndroidComposeView must retain the parent's font scale.
+                // The From heading may shrink to fit; its language actions may not.
+                if(text!=compose.activity.getString(R.string.chief_translation_from))assertEquals(expectedPoints,actualPoints,.05f)
+            }
+            assertTrue(labelLayouts.length()>=3)
+        }
+        val captureName = "chief-reference-" + name
+        saveScreenshot(captureName)
+        val directory = File(compose.activity.getExternalFilesDir(null),"screenshots")
+        val png = File(directory,captureName+".png")
+        fun rect(value: androidx.compose.ui.geometry.Rect) = org.json.JSONArray(listOf(value.left,value.top,value.width,value.height))
+        val geometry = JSONObject()
+        for (tag in listOf("ChiefTranslationPrompt","ChiefTranslateMessage","ChiefTranslateConversation","ChiefTranslateFrom:fr","ChiefTranslateFrom:es","ChiefTranslationIndicator",
+            "ChiefTranslationCaption:s:target:Text","ChiefTranslationCaption:s:mine:Text","ChiefTranslationCaption:s:later:Text")) {
+            val node = compose.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().singleOrNull() ?: continue
+            geometry.put(tag,JSONObject().put("boundsInRoot",rect(node.boundsInRoot)).put("boundsInWindow",rect(node.boundsInWindow)))
+        }
+        val device=androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        assertEquals(spec.getString("orientation")=="landscape",device.displayWidth>device.displayHeight)
+        val proof = JSONObject().put("scene",name).put("fixture",spec)
+            .put("displayPixels",org.json.JSONArray(listOf(device.displayWidth,device.displayHeight)))
+            .put("fixtureSha256",MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) })
+            .put("imageSha256",MessageDigest.getInstance("SHA-256").digest(png.readBytes()).joinToString("") { "%02x".format(it) })
+            .put("density",compose.activity.resources.displayMetrics.density).put("fontScale",testFontScale)
+            .put("bodyPointSize",with(Density(compose.activity.resources.displayMetrics.density,testFontScale)) { 17.sp.toDp().value }).put("geometry",geometry)
+            .put("labelLayouts",labelLayouts).put("translationCalls",engine.calls.size).put("activation","registeredBubbleAccessibilityActionAndActualPopupTaps")
+            .put("scope","Controlled component style/detection/output with exact pinned corpus; production UI/PixelCopy/OS screenshot. Not global app theme, real inference, physical gesture or device acceptance.")
+        if (popupTag != null) {
+            val probe = compose.onNodeWithTag(popupTag).fetchSemanticsNode().config[ChiefTranslationPopupProbe]()
+            proof.put("popup",JSONObject().put("anchor",probe.anchor?.let(::rect)).put("body",probe.body?.let(::rect)).put("side",probe.side).put("backdrop",probe.backdrop))
+            // Compose's boundsInWindow is relative to the popup's own window.
+            // Preserve that raw frame and also publish the Activity-window frame.
+            val body=checkNotNull(probe.body);val margin=13*compose.activity.resources.displayMetrics.density
+            for(tag in geometry.keys()) {
+                val item=geometry.getJSONObject(tag);val raw=item.getJSONArray("boundsInWindow")
+                item.put("boundsInActivityWindow",org.json.JSONArray(listOf(raw.getDouble(0)+body.left-margin,
+                    raw.getDouble(1)+body.top-margin,raw.getDouble(2),raw.getDouble(3))))
+            }
+        }
+        compose.runOnUiThread {
+            assertEquals(originals,computer.transcript()!!.state.value.messages.associate { it.id to it.text })
+            proof.put("originalsPreserved",true)
+        }
+        File(directory,captureName+".json").writeText(proof.toString(2))
         assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
     }
 

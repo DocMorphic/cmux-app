@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "rows": [
+    {
+      "id": "target",
+      "text": "Hola, me gustaría revisar el proyecto contigo.",
+      "translated": "I would like to review the project with you.",
+      "outgoing": false
+    },
+    {
+      "id": "mine",
+      "text": "Podemos revisar los cambios mañana por la mañana.",
+      "translated": "We can review the changes tomorrow morning.",
+      "outgoing": true
+    },
+    {
+      "id": "later",
+      "text": "Gracias por tu ayuda con los siguientes pasos.",
+      "translated": "Thank you for helping with the next steps.",
+      "outgoing": false
+    }
+  ],
+  "scenes": [
+    {
+      "id": "translation-choice-dark",
+      "mode": "choice",
+      "target": "target",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-from-dark",
+      "mode": "from",
+      "target": "target",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-incoming-dark",
+      "mode": "message",
+      "target": "target",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-outgoing-light",
+      "mode": "message",
+      "target": "mine",
+      "category": "large",
+      "style": "light",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-menu-dark",
+      "mode": "menu",
+      "target": "target",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-original-dark",
+      "mode": "original",
+      "target": "target",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-conversation-dark",
+      "mode": "conversation",
+      "target": "target",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-rtl-dark",
+      "mode": "message",
+      "target": "mine",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "rtl"
+    },
+    {
+      "id": "translation-landscape-dark",
+      "mode": "message",
+      "target": "mine",
+      "category": "large",
+      "style": "dark",
+      "orientation": "landscape",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-large-dark",
+      "mode": "message",
+      "target": "target",
+      "category": "accessibilityMedium",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-large-conversation",
+      "mode": "conversation",
+      "target": "target",
+      "category": "accessibilityMedium",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-choice-outgoing-light",
+      "mode": "choice",
+      "target": "mine",
+      "category": "large",
+      "style": "light",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-choice-rtl-dark",
+      "mode": "choice",
+      "target": "mine",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "rtl"
+    },
+    {
+      "id": "translation-choice-landscape-dark",
+      "mode": "choice",
+      "target": "mine",
+      "category": "large",
+      "style": "dark",
+      "orientation": "landscape",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-choice-large-dark",
+      "mode": "choice",
+      "target": "target",
+      "category": "accessibilityMedium",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-from-landscape-dark",
+      "mode": "from",
+      "target": "target",
+      "category": "large",
+      "style": "dark",
+      "orientation": "landscape",
+      "direction": "ltr"
+    },
+    {
+      "id": "translation-from-large-dark",
+      "mode": "from",
+      "target": "target",
+      "category": "accessibilityMedium",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr"
+    }
+  ],
+  "sameLanguageText": "I would like to review the next steps of this project."
+}

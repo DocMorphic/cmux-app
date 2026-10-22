@@ -94,6 +94,18 @@ internal class NativeChiefMenuController(private val session: NativeChiefTranscr
         acting = true
         return true
     }
+    /** Popup anchors use the placed row after menu/keyboard layout, not its lifted preview.
+     * The provider returns no coordinates after this composition or row retires. */
+    fun translationAnchor(frozen: NativeChiefMenuSnapshot): (() -> Rect?)? {
+        val live = source?.takeIf { snapshot === frozen && it.row.item.key == frozen.row.item.key } ?: return null
+        return {
+            val root = live.root?.takeIf { it.isAttached }
+            val area = live.area()
+            if (current(frozen.row.item.key) == null || root == null || area == null) null
+            else area.translate(root.positionInWindow())
+        }
+    }
+
     fun selection(frozen: NativeChiefMenuSnapshot): NativeChiefSelectedText? {
         val live = source ?: return null
         if (snapshot !== frozen || current(frozen.row.item.key) == null) return null
