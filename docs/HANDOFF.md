@@ -1,3 +1,58 @@
+## Corrected Mac fetch verified; phone released — 2026-10-22
+
+Corrected Mac build 39796614645 at
+`4f89615457f1549c23a05a6da06ca6b70d373db5` is downloaded, independently
+verified and running. Artifact 12439208589 is 194,181,914 bytes with SHA256
+`50aee34938625872ac4e60721b8784729293d6f310a133970f80359c1751f3c8`.
+Fifteen upstream pins, 34 regenerated patch files, 30 archive symlinks, the
+relocated bundle identity and strict deep ad-hoc signature verify. Fresh private
+session/preferences/scrollback and three SQLite backups precede ordinary quit
+of PID 328; verified replacement PID 7952 restores the account/team hashes and
+all three workspace UUIDs/order/selection. Two actual inbox sweeps now complete
+with zero replies, replacing the old HTTP 400. This proves successful empty
+fetches, not reply ACK or terminal delivery. Checkpoint:
+`captures/recovery-20261022/mac-reply-corrected-runtime-checkpoint.json`.
+SecurityAgent is observed and helper Node has not started; CUA reports the Mac
+locked, so helper/pairing-menu UI remains pending. An unlock request is pending.
+The user can disconnect/use the Pixel: preserved signed 712 remains installed,
+local 713 is unpublished, and no physical device was accessed this turn.
+
+Native typography run 39806263693 at d493d24e succeeded. Artifact 12438078931
+is 4,315,223 bytes, SHA256
+`7dab5c680b9ca941ac264a4c36b9eb3f44864f2f6de36f01ad7cc943ff4b9143`.
+All nineteen canonical files byte-match immutable independent verification;
+normal and AX Medium pending screens were reviewed. Actual default-weight
+body-to-footnote point inputs are 14/12, 15/12, 16/12, 17/13, 19/15, 21/17,
+23/19, 28/23, 33/27, 40/33, 47/38 and 53/44. Current/visible native table fonts
+verify at normal and AX Medium. Compatible-trait inputs for the other categories
+are not rendered layout acceptance. Public image observations report white
+symbol tint; the rendered cyan material is not a cyan source-image tint.
+Android's provisional footer formula still needs replacement/validation.
+Checkpoint: `captures/recovery-20261022/chief-poll-native-typography-checkpoint.json`.
+
+Appearance/sign-in work is uncommitted: semantic light/dark shell roles,
+system-bar appearance and memory-only retained sign-in state/requests. Build v8
+passes 3,104 JVM cases with four opt-in skips (3,108 total), zero failures/errors;
+420 reports are archived in `adaptive-palette-unit-v8`. First UI attempt exposed
+real TLS eviction on Main during owner teardown. Privately owned HTTP clients
+now cancel/drain on workers; v2 has an empty crash buffer and twelve existing
+Chief regressions pass, but the two new appearance/form checks fail on Back
+navigation and a captured background pixel. The test harness now hides IME
+without navigating Back and retains screenshot evidence before assertions;
+v3 passes all fourteen regression checks in 51.226 s, a separate clean
+participant capture and five pending-layout captures. All source/APK/image
+hashes verify; five row geometries match the accepted Android baseline, crash
+buffer is empty and the owned emulator is stopped. Actual MainActivity follows
+light/dark/light and recreation with the email retained, readable foreground and
+matching system-bar icons. The injected production form retains one pending
+send/auth request across recreation, completes once and purges its fields; the
+synthetic code is absent from serialized saved state. Three Main screens and
+light/dark Poll screens were reviewed. See `adaptive-appearance-checkpoint.json`.
+This is scoped component/root acceptance; broad appearance changes remain
+uncommitted pending representative authenticated-screen and source review.
+Real authentication, process death, all locales/types/materials and physical
+acceptance remain open. Full app parity continues.
+
 ## Native rotation verified; typography input capture active — 2026-10-22
 
 Native Poll Details run 39801868525 succeeded at 438e29fa. Downloaded artifact
