@@ -1,3 +1,31 @@
+## Reconciled backend source at a5911a1f — 2026-10-22
+
+The scoped a5911a1f92f3eeb11c4d7f3e2ef89204718c5009 proxy differs from the
+older audit below: authentication is opportunistic. Pre-auth batches may flow
+under a namespaced anonymous identity, and auth-provider errors fall back to
+anonymous handling. Authenticated events use the server-authenticated user id;
+unauthenticated queued events retain only permitted build/store facts. Durable
+account-deletion tombstones and a forwarding lease prevent recreation of a
+deleted identity. This must be reconciled with consent and identity retirement
+before enabling an Android uploader, rather than assuming bearer auth is required.
+
+The event policy still allows its explicit ios_ catalog/families and $identify.
+Executing that exact pinned TypeScript policy locally accepts ios_app_launched
+and $identify, rejects android_app_launched/android_initial_connection/
+android_push_tapped, and classifies the Android bundle as third_party. The route
+filters individual invalid events; an Android-only batch with none accepted
+would receive no_valid_events/400. This is source/pure-policy evidence, not an
+upload to the live service. No request, product event, identity, recorder or
+consent change was sent/enabled. Android must not impersonate an iOS event or
+identity namespace to pass that filter. Accepted Android event/channel/identity
+and deletion semantics remain an unresolved integration requirement.
+
+Exact source copies/hashes and policy-check.json are under ignored
+`captures/recovery-20261022/backend-a591-reconciliation`. The web tree is not
+materialized in the sparse audit checkout; these files were read with git show
+from the exact commit. This scoped reconciliation does not advance the global
+parity pin or close uploader/replay/crash/provider and physical privacy gates.
+
 # Mobile analytics and privacy
 
 ## Android consent integration — 2026-10-10

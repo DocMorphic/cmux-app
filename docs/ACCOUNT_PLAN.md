@@ -1,3 +1,22 @@
+## Backend and source delta reconciled at a5911a1f — 2026-10-22
+
+The personal plan GET route at a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+retains the exact subscriptionPlanId/personal versus explicit-team schemas used
+by Android. The scoped diff from 186cec79 has no change to that route or
+teamPlanStatus.ts. The broader iOS billing package has 373 additions/25 deletions
+across fifteen files, including product periods, offer presentation and purchase
+reporting, so this is not complete iOS billing/UI delta acceptance.
+
+A source search over web, workers and CmuxMobileBilling finds no Google Play /
+Android Publisher / Play Billing verification integration. Its purchaseTokens
+hits are StoreKit fake-client UUIDs, not Google Play purchase-token handling.
+The API inventory supplies Apple account-token/transactions/notifications and
+web billing routes. Android product, publisher, verification/entitlement and
+native purchase/restore requirements therefore remain unresolved and are not
+waived as platform differences. No transaction, entitlement mutation, API probe
+or financial account action was performed. Source receipts are in ignored
+`captures/recovery-20261022/backend-a591-reconciliation`; global pins are unchanged.
+
 # Account plan and subscription settings
 
 Scoped source: `186cec79781256867ad4516f0802118738bd2393`. The global parity pin

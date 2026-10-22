@@ -47,6 +47,19 @@ class PollExportGuards(unittest.TestCase):
                 runtime=dict(systemVersion='Synthetic test only'), navigationFrame=[0, 40, w, 50],
                 navigationPrompt=poll['question'], table=dict(style=2, frame=[0, 90, w, h - 90], sections=sections),
                 labels=[dict(text='Synthetic verifier test', frame=[16, 100, 200, 44], fontSize=28)])
+            names = ['extraSmall', 'small', 'medium', 'large', 'extraLarge', 'extraExtraLarge', 'extraExtraExtraLarge',
+                'accessibilityMedium', 'accessibilityLarge', 'accessibilityExtraLarge', 'accessibilityExtraExtraLarge', 'accessibilityExtraExtraExtraLarge']
+            bodies = [14, 15, 16, 17, 19, 21, 23, 28, 33, 40, 47, 53]
+            footers = [12, 12, 12, 13, 15, 17, 19, 23, 27, 33, 38, 44]
+            records = [dict(name=n, category='Synthetic-' + n, bodyPointSize=b, bodyLineHeight=b * 1.2,
+                bodyAscender=b * .95, bodyDescender=-b * .25, footerPointSize=f, footerLineHeight=f * 1.2,
+                footerAscender=f * .95, footerDescender=-f * .25) for n, b, f in zip(names, bodies, footers)]
+            current = records[names.index(scene['category'])]
+            value['typeMetrics'] = dict(schema=1, records=records, currentName=scene['category'], actualCategory=current['category'],
+                actualBodyPointSize=current['bodyPointSize'], actualBodyLineHeight=current['bodyLineHeight'],
+                actualFooterPointSize=current['footerPointSize'], actualFooterLineHeight=current['footerLineHeight'], boldText=False)
+            if scene['model'] == 'pending':
+                value['labels'].append(dict(text='0 Votes', frame=[16, 140, 200, 20], fontSize=current['footerPointSize'], insidePollTable=True))
             (self.export / (name + '.json')).write_text(json.dumps(value))
 
     def verify(self, require_lifecycle=False):
@@ -182,6 +195,28 @@ class PollExportGuards(unittest.TestCase):
         self.rejects_lifecycle(lambda v: v['steps'][1]['state'].__setitem__('viewport', [402, 874]), 'orientation')
         self.rejects_lifecycle(lambda v: v['steps'][1]['state'].__setitem__('scale', 3), 'dimensions')
         self.rejects_lifecycle(lambda v: v['steps'][2]['state'].__setitem__('imageSha256', 'missing'), 'screenshot')
+
+    def test_incomplete_wrong_weight_or_nonfinite_font_profiles_rejected(self):
+        self.rejects(lambda v: v.pop('typeMetrics'), 'complete default-weight')
+        self.rejects(lambda v: v['typeMetrics']['records'].pop(), 'complete default-weight')
+        self.rejects(lambda v: v['typeMetrics'].__setitem__('boldText', True), 'complete default-weight')
+        self.rejects(lambda v: v['typeMetrics']['records'][0].__setitem__('footerLineHeight', float('nan')), 'finite poll font')
+        self.rejects(lambda v: v['typeMetrics']['records'][0].__setitem__('footerPointSize', -1), 'measured poll font')
+        self.rejects(lambda v: v['typeMetrics']['records'][0].__setitem__('bodyPointSize', 17), 'measured poll font')
+
+    def test_profile_must_match_actual_global_category_and_font(self):
+        self.rejects(lambda v: v['typeMetrics'].__setitem__('actualCategory', 'Synthetic-small'), 'actual application category')
+        self.rejects(lambda v: v['typeMetrics'].__setitem__('actualFooterPointSize', 12), 'Actual poll font')
+        self.rejects(lambda v: v['typeMetrics']['records'][0].__setitem__('category', 'Synthetic-small'), 'Duplicate compatible')
+
+    def test_visible_footer_and_body_fonts_are_validated_only_inside_actual_table(self):
+        self.rejects(lambda v: v['labels'][-1].__setitem__('fontSize', 12), 'Visible source footer')
+        self.rejects(lambda v: v['labels'][-1].__setitem__('insidePollTable', False), 'Missing visible actual source footer')
+        self.rejects(lambda v: v['labels'].append(dict(text='No votes yet', frame=[16, 100, 200, 44], fontSize=13, insidePollTable=True)), 'Visible source row')
+        # Covered transcript labels must not be mistaken for the presented table.
+        path = self.export / (self.names[0] + '.json'); value = json.loads(path.read_text())
+        value['labels'].append(dict(text='0 Votes', frame=[16, 100, 200, 44], fontSize=99, insidePollTable=False))
+        path.write_text(json.dumps(value)); self.verify()
 
 
 if __name__ == '__main__': unittest.main()

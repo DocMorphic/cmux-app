@@ -137,18 +137,45 @@ private final class PollBackend: ConversationBackend, @unchecked Sendable {
         value.resolvedColor(with: traits).getRed(&r, green: &g, blue: &b, alpha: &a)
         return [r, g, b, a]
     }
+    private func typeMetrics() -> [String: Any] {
+        let categories: [(String, UIContentSizeCategory)] = [
+            ("extraSmall", .extraSmall), ("small", .small), ("medium", .medium), ("large", .large),
+            ("extraLarge", .extraLarge), ("extraExtraLarge", .extraExtraLarge), ("extraExtraExtraLarge", .extraExtraExtraLarge),
+            ("accessibilityMedium", .accessibilityMedium), ("accessibilityLarge", .accessibilityLarge),
+            ("accessibilityExtraLarge", .accessibilityExtraLarge), ("accessibilityExtraExtraLarge", .accessibilityExtraExtraLarge),
+            ("accessibilityExtraExtraExtraLarge", .accessibilityExtraExtraExtraLarge)]
+        let records: [[String: Any]] = categories.map { name, category in
+            let traits = UITraitCollection(preferredContentSizeCategory: category)
+            let body = UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits)
+            let footer = UIFont.preferredFont(forTextStyle: .footnote, compatibleWith: traits)
+            return ["name": name, "category": category.rawValue,
+                "bodyPointSize": body.pointSize, "bodyLineHeight": body.lineHeight,
+                "bodyAscender": body.ascender, "bodyDescender": body.descender,
+                "footerPointSize": footer.pointSize, "footerLineHeight": footer.lineHeight,
+                "footerAscender": footer.ascender, "footerDescender": footer.descender]
+        }
+        let body = UIFont.preferredFont(forTextStyle: .body)
+        let footer = UIFont.preferredFont(forTextStyle: .footnote)
+        return ["schema": 1, "records": records, "currentName": fixture.category,
+            "actualCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
+            "actualBodyPointSize": body.pointSize, "actualBodyLineHeight": body.lineHeight,
+            "actualFooterPointSize": footer.pointSize, "actualFooterLineHeight": footer.lineHeight,
+            "boldText": UIAccessibility.isBoldTextEnabled,
+            "scope": "Compatible-trait UIKit body/footnote font inputs for all categories; only current application category and visible source labels are rendered evidence."]
+    }
     private func record(_ window: UIWindow) {
         if observation.superview !== window { window.addSubview(observation) }
         observation.frame.origin.y = window.safeAreaInsets.top + 1
         window.layoutIfNeeded()
         let views = descendants(window).filter { $0 !== observation && visible($0, window: window) }
+        let table = views.compactMap { $0 as? UITableView }.first { $0.accessibilityIdentifier == "conversation.poll.details" }
         let labels = views.compactMap { view -> [String: Any]? in
             guard let label = view as? UILabel, let text = label.text, !text.isEmpty else { return nil }
             return ["text": text, "frame": frame(label, window), "fontSize": label.font.pointSize,
                 "lineHeight": label.font.lineHeight, "lines": label.numberOfLines,
-                "colorRGBA": color(label.textColor, traits: label.traitCollection)]
+                "colorRGBA": color(label.textColor, traits: label.traitCollection),
+                "insidePollTable": table.map { label.isDescendant(of: $0) } ?? false]
         }
-        let table = views.compactMap { $0 as? UITableView }.first { $0.accessibilityIdentifier == "conversation.poll.details" }
         var tableInfo: [String: Any] = [:]
         if let table {
             tableInfo = ["frame": frame(table, window), "style": table.style.rawValue,
@@ -185,9 +212,16 @@ private final class PollBackend: ConversationBackend, @unchecked Sendable {
             "categoryMatches": UIApplication.shared.preferredContentSizeCategory == (fixture.category == "accessibilityMedium" ? .accessibilityMedium : .large),
             "style": controller.traitCollection.userInterfaceStyle == .dark ? "dark" : "light",
             "direction": controller.view.effectiveUserInterfaceLayoutDirection == .rightToLeft ? "rtl" : "ltr",
-            "labels": labels, "table": tableInfo, "presented": navigation != nil,
+            "labels": labels, "table": tableInfo, "presented": navigation != nil, "typeMetrics": typeMetrics(),
             "observationOwner": observationOwner, "presentationGeneration": presentationGeneration, "tableGeneration": tableGeneration,
             "navigationFrame": navigation.map { frame($0.navigationBar, window) } ?? [],
+            "navigationImages": navigation.map { nav in
+                descendants(nav.navigationBar).compactMap { view -> [String: Any]? in
+                    guard let image = view as? UIImageView, visible(image, window: window), let source = image.image else { return nil }
+                    return ["frame": frame(image, window), "imageSize": [source.size.width, source.size.height],
+                        "symbol": source.isSymbolImage, "tintRGBA": color(image.tintColor, traits: image.traitCollection)]
+                }
+            } ?? [],
             "navigationPrompt": navigation?.topViewController?.navigationItem.prompt ?? "",
             "backendWriteAttempts": backend.writeAttempts]
         observation.accessibilityLabel = String(data: try! JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]), encoding: .utf8)

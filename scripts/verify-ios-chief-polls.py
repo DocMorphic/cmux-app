@@ -36,6 +36,44 @@ def expected_sections(poll):
     return sections
 
 
+def validate_type_metrics(value, specification):
+    metrics = value.get('typeMetrics', {})
+    names = ['extraSmall', 'small', 'medium', 'large', 'extraLarge', 'extraExtraLarge', 'extraExtraExtraLarge',
+             'accessibilityMedium', 'accessibilityLarge', 'accessibilityExtraLarge',
+             'accessibilityExtraExtraLarge', 'accessibilityExtraExtraExtraLarge']
+    bodies = [14, 15, 16, 17, 19, 21, 23, 28, 33, 40, 47, 53]
+    records = metrics.get('records', [])
+    require(metrics.get('schema') == 1 and metrics.get('boldText') is False and
+        [x.get('name') for x in records] == names, 'Missing complete default-weight poll type metrics')
+    categories = []; previous = 0
+    fields = ['bodyPointSize', 'bodyLineHeight', 'bodyAscender', 'bodyDescender',
+              'footerPointSize', 'footerLineHeight', 'footerAscender', 'footerDescender']
+    for row, body in zip(records, bodies):
+        require(all(type(row.get(k)) in (int, float) and math.isfinite(row[k]) for k in fields), 'Invalid finite poll font input')
+        require(row['bodyPointSize'] == body and 0 < row['footerPointSize'] <= body and
+            row['footerPointSize'] >= previous and min(row['bodyLineHeight'], row['footerLineHeight']) > 0 and
+            min(row['bodyAscender'], row['footerAscender']) > 0 and max(row['bodyDescender'], row['footerDescender']) < 0,
+            'Invalid measured poll font input')
+        require(type(row.get('category')) is str and row['category'], 'Missing poll font category')
+        previous = row['footerPointSize']; categories.append(row['category'])
+    require(len(set(categories)) == len(names), 'Duplicate compatible poll font categories')
+    current = records[names.index(specification['category'])]
+    require(metrics.get('currentName') == specification['category'] and metrics.get('actualCategory') == current['category'],
+        'Poll font traits differ from actual application category')
+    for actual, key in [('actualBodyPointSize', 'bodyPointSize'), ('actualBodyLineHeight', 'bodyLineHeight'),
+                        ('actualFooterPointSize', 'footerPointSize'), ('actualFooterLineHeight', 'footerLineHeight')]:
+        require(metrics.get(actual) == current[key], 'Actual poll font differs from compatible input')
+    footers = {s.get('footer') for s in value['table']['sections'] if s.get('footer')}
+    labels = [x for x in value.get('labels', []) if x.get('insidePollTable') is True]
+    for label in labels:
+        if label.get('text') in footers:
+            require(label.get('fontSize') == current['footerPointSize'], 'Visible source footer does not use captured footnote font')
+        if label.get('text') == 'No votes yet':
+            require(label.get('fontSize') == current['bodyPointSize'], 'Visible source row does not use captured body font')
+    if specification['model'] == 'pending':
+        require(any(x.get('text') in footers for x in labels), 'Missing visible actual source footer font')
+
+
 def validate_state(value, specification, poll, commit, images, template, manifest, orientation=None, dismissed=True):
     name = specification['id']; source = value['provenance']
     require(value.get('scene') == name and value.get('fixture') == specification, 'Wrong poll fixture state')
@@ -70,6 +108,7 @@ def validate_state(value, specification, poll, commit, images, template, manifes
     require(labels and all(rect(x.get('frame')) and type(x.get('fontSize')) in (float, int) and x['fontSize'] > 0 for x in labels), 'Missing visible native labels')
     if specification['category'] == 'accessibilityMedium':
         require(any(x['fontSize'] >= 28 for x in labels), 'Actual accessibility poll type missing')
+    validate_type_metrics(value, specification)
     image = images.get(value.get('imageSha256')); require(image is not None, 'Missing/changed poll screenshot')
     image_geometry = geometry.png_geometry(image.read_bytes())
     require(image_geometry['displaySize'] == [round(x * scale) for x in size], 'Wrong poll compositor dimensions')

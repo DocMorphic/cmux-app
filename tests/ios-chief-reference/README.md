@@ -1,3 +1,31 @@
+## Native Poll Details rotation independently verified — 2026-10-22
+
+Run 39801868525 succeeds at exact source
+438e29fa8f983447432209f70fe7a0258c931ea3. Artifact 12436752288 is 4,389,296
+bytes; downloaded ZIP SHA256 matches the service receipt:
+fd6367c7d1880e12713fbed42c9cd5769cd61605919b01f2120df8c76d680dbb.
+All 19 canonical files match independent verification using the immutable source
+snapshot. The seven original scenes and three live-rotation screenshots were
+visually inspected. Actual runtime is iOS 26.4.1 (23E254a).
+
+The real source bubble/menu opens one Poll Details controller/table. Its observer
+lifetime, controller and table identities stay the same through 402x874 portrait,
+874x402 landscape and returned portrait; native Done dismisses it and all states
+report zero backend writes. This supplies native rotation evidence supporting
+Android's retained-owner implementation. It does not prove Chief RPC/votes/live
+changes, process restoration, physical devices, all type/locales or full visual
+parity. Checkpoint: `captures/recovery-20261022/chief-poll-native-lifecycle-checkpoint.json`.
+
+The next reference candidate adds measured UIKit body/footnote font inputs for
+all twelve compatible content-size categories and compares the actual current
+application category and visible table footer/row fonts. Covered transcript
+labels are excluded from that comparison. Public navigation image geometry/tint
+is also observed. Seventeen adversarial guards and Swift syntax pass; new native
+execution remains required before replacing Android's provisional footer scaling.
+Compatible-trait font inputs alone will not establish rendered layout acceptance
+for the ten additional categories or Bold Text. Source fixtures/global pins and
+signed Android candidate 713 are unchanged.
+
 ## Live Poll Details rotation reference candidate — 2026-10-22
 
 The native reference host now opens the real source Poll Details menu, captures
