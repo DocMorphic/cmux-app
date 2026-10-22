@@ -1,3 +1,51 @@
+## Cold translation preferences verified; native RTL host repaired — 2026-10-22
+
+An opt-in emulator probe now drives the actual installNativeChiefTranslation
+factory and its production SharedPreferences adapter across distinct app
+processes. It verifies an actual XML disk write of only version/source/target,
+restoration after force-stop, account/team/Mac/installation/conversation
+isolation, and a different target language starting fresh. A second conversation's
+real saved pair also cold-restores and survives stopping the first conversation,
+so preservation is checked against a populated sibling key. Cleanup verifies
+both probe keys are removed from disk. No account store/RPC/message text/model
+download/settings UI is used; this is not UI recreation or inference acceptance.
+
+The tracked driver scripts/check-chief-translation-persistence.py reproduced
+three phases successfully: write 0.459 s, cold read 0.455 s, cleanup 0.406 s,
+zero skips/failures and empty crash buffer. Writer PID 2946 differs from reader
+3487. Exact source/APK hashes and phase payloads are in
+`captures/recovery-20261022/chief-translation-persistence-checkpoint.json` and
+`chief-translation-persistence-accepted/verification.json`. Earlier narrower
+probes stay separately recorded. Build both debug APKs with no Gradle daemon,
+then run the driver with --output pointing to a new evidence directory; it
+requires no connected devices before starting/stopping its owned disposable AVD.
+The production Android implementation is unchanged in this checkpoint.
+
+Native run 39727396812 compiled and produced eight independently associated
+compositor/JSON diagnostic pairs; choices, source picker, message/original/menu
+and automatic flows reached the actual source controls. It then rejected LTR
+traits for the RTL fixture. The SwiftUI host now supplies layoutDirection, as
+it does colorScheme. Run 39728880829 at edfdf666f475fee875c8f1028c9f8041cfd4f45e
+is in progress; the full eleven-scene reference contract is still unaccepted.
+Do not substitute the partial failed batch for complete reference evidence.
+
+The diagnostics reveal a substantive remaining UI mismatch: the source choices
+and source picker are anchored inline action sheets, with no visible Cancel
+button; Android currently uses a bottom sheet. This matches Apple's iOS 26
+UIKit guidance (https://developer.apple.com/videos/play/wwdc2025/284/?time=873),
+which specifies implicit cancellation by tapping outside. Source normal-caption
+pixels are #0091FF dark / #0088FF light, with 11-point Caption 2; Android still
+uses an older fixed link blue and a different glyph. These observations guide
+implementation, not visual acceptance. Next finish native runtime/traits/
+attachment metrics and all scenes, then match action anchoring, outside dismissal,
+glyph/color/indicator/material and rotation/accessibility variants on Android.
+
+The owned emulator is stopped and probe keys cleaned up. Pixel 703, signed 712,
+account/pairing/signing/workspaces are unchanged; Mac app/helper remain running.
+No additional Mac pairing-window or repeated phone request is needed. All broader
+physical/device/transport/terminal/notification/backend/release gates remain
+open, and the full parity goal stays active.
+
 ## Translation RTL caption regression fixed; compositor reference in progress — 2026-10-22
 
 Chief translation captions now use absolute left/right arrangement, matching the
