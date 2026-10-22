@@ -217,6 +217,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     val scope = rememberCoroutineScope()
     val composerFocus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    val copyCapturedText = rememberChiefCopy(session)
     val menu = remember(session) { NativeChiefMenuController(session, scope) { composerFocus.clearFocus(force = true); keyboard?.hide() } }
     DisposableEffect(menu) { onDispose { menu.dismiss() } }
     var selectedRows by remember(session) { mutableStateOf<Set<String>?>(null) }
@@ -562,6 +563,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                     onAnswer = { id, form -> act { session.answer(id, form) } },
                     onQuestion = { answerMessage = it }, onFailure = { failedMessage = it }, onQuote = ::openThread, onReply = ::replyTo,
                     onSwipeReply = if (reply == null && !selecting && !state.retired) ::swipeReply else null,
+                    onCopy = copyCapturedText,
                     bodyAlpha = if (row.item.key in (replyMotion?.hiddenKeys ?: emptySet())) 0f
                         else if (row.item.fromMe) 1f - .3f * (replyMotion?.veil ?: 0f) else 1f,
                     menu = if (reply == null && !selecting && !state.retired) menu else null,
@@ -578,7 +580,10 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         }
         if (presentation != null && !state.retired) key(presentation.reply.generation) {
             NativeChiefReplyOverlay(presentation.reply, presentation.motion, headerHeight, composerHeight,
-                bubbleMetrics, darkTranscript, ::closeReply, ::replyTo, onFinished = {
+                bubbleMetrics, darkTranscript, ::closeReply, ::replyTo,
+                onCopy = { text ->
+                    !presentation.motion.closing && session.state.value.reply?.generation == presentation.reply.generation && copyCapturedText(text)
+                }, onFinished = {
                     // A previous generation's completion can never retire a reopened thread.
                     if (shownReply === presentation) shownReply = null
                 })
@@ -659,7 +664,7 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     onQuestion: (String) -> Unit, onFailure: (String) -> Unit, onQuote: (String) -> Unit = {},
     onReply: ((String) -> Boolean)? = null, onSwipeReply: ((String, Float) -> Boolean)? = null, bodyAlpha: Float = 1f,
     origins: NativeChiefReplyOrigins? = null, menu: NativeChiefMenuController? = null,
-    selected: Boolean? = null, onToggleSelection: () -> Unit = {}) {
+    selected: Boolean? = null, onCopy: ((String) -> Boolean)? = null, onToggleSelection: () -> Unit = {}) {
     val menuSource = remember(menu, row.item.key) { menu?.let { NativeChiefMenuSource(it, row) } }
     SideEffect { menuSource?.row = row }
     DisposableEffect(origins, row.item.key, row.timestamp) { onDispose {
@@ -676,13 +681,15 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     }
     val previousOverhang = if (previous?.lastInRun == true && previousMessage != null && !previousEmoji) metrics.drop else 0.dp
     val gap = if (row.timestamp) 0.dp else (baseGap - previousOverhang).coerceAtLeast(0.dp)
-    val replyLabel = stringResource(R.string.chief_reply_action)
+    val capturedText = row.item.message?.let { NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it) }
+        ?: row.item.outgoing!!.text
+    val accessibility = chiefMessageAccessibility(capturedText, onReply?.let { { it(row.item.messageID) } }, onCopy)
     val replyAction = if (onReply != null) Modifier.testTag("ChiefReplyActions:${row.item.messageID}").semantics {
-        customActions = listOf(CustomAccessibilityAction(replyLabel) { onReply(row.item.messageID) })
+        customActions = accessibility.actions
+        accessibility.copiedState?.let { stateDescription = it }
     } else Modifier
-    val selectionModifier = Modifier.chiefSelecting(selected, row.item.fromMe, row.item.message?.let {
-        NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it)
-    } ?: row.item.outgoing!!.text, onToggleSelection)
+    val selectionModifier = Modifier.chiefSelecting(selected, row.item.fromMe, capturedText,
+        accessibility.copy, accessibility.copiedState, onToggleSelection)
     Column(Modifier.fillMaxWidth().testTag("ChiefRow:${row.item.key}").padding(top = gap)) {
         if (row.timestamp) {
             ChiefTimestamp(row.item.at, "ChiefTimestamp:${row.item.key}", Modifier.onGloballyPositioned { origins?.timestamps?.set(row.item.key, it) })

@@ -43,7 +43,8 @@ import kotlin.math.roundToInt
 
 /** Source circle stays in the cell while only incoming content shifts 42 pt. */
 @Composable
-internal fun Modifier.chiefSelecting(selected: Boolean?, outgoing: Boolean, text: String, onToggle: () -> Unit): Modifier {
+internal fun Modifier.chiefSelecting(selected: Boolean?, outgoing: Boolean, text: String,
+    copy: CustomAccessibilityAction?, copiedState: String?, onToggle: () -> Unit): Modifier {
     if (selected == null) return this
     val toggle by rememberUpdatedState(onToggle)
     return then(Modifier.drawWithContent {
@@ -62,6 +63,8 @@ internal fun Modifier.chiefSelecting(selected: Boolean?, outgoing: Boolean, text
         }
     }.clearAndSetSemantics {
         this.selected = selected; role = Role.Checkbox; contentDescription = text
+        customActions = listOfNotNull(copy)
+        copiedState?.let { stateDescription = it }
         onClick { toggle(); true }
     }.pointerInput(Unit) {
         awaitEachGesture {

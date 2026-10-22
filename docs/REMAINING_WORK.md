@@ -1,3 +1,50 @@
+## Accessibility Copy and Android feedback verified — 2026-10-22
+
+Nonempty Chief messages now expose Copy as an accessibility custom action in
+the main transcript, More selection and active Reply copies. Text uses the
+same receipt/display projection as the pinned Chief backend; structured prompts
+are copied, truly empty text omits Copy, and whitespace is retained. Captured
+actions preserve their text across live updates. Copy preserves drafts,
+selection and Reply targets, and rejects a retired computer/account owner.
+Reply copies also reject actions from a closed or superseded presentation.
+Local failed-message Copy is exercised before explicit Retry reuses its ID.
+
+Android uses a transient Message copied stateDescription instead of the source's
+UIAccessibility announcement. Android 16 deprecates forced announcements and
+recommends semantic state/live-region updates:
+https://developer.android.com/about/versions/16/behavior-changes-all#disruptive-a11y
+This is an Android feedback implementation, not proof of spoken TalkBack parity.
+
+Final combined runtime: 22 passes, no skips/failures, 85.893 seconds, empty crash
+buffer. An independent test outside Compose's test clock enables a test-only
+framework accessibility service, invokes the actual exported Android Copy action,
+observes the state-change event (change mask 64), verifies repeated feedback,
+More selection preservation, Reply Copy and closed/stale action rejection.
+It uses Settings.Secure with temporary test permission, restores settings and
+permissions, and the runner independently confirms restoration after the test.
+The probe exists only in the instrumentation APK; the app manifest excludes it.
+No Compose accessibility force flag substitutes for this platform event path.
+
+Full JVM suite: 3068 cases, 3064 passes/four opt-in skips, zero failures/errors;
+415 XML reports are archived. The final production sources and app APK are
+identical to that unit run; subsequent changes were instrumentation only.
+Current source/APK hashes, actual platform events, settings before/after and
+excluded diagnostic runs are recorded in
+`captures/recovery-20261022/chief-accessibility-copy-checkpoint.json`.
+Provider text-search, event-environment setup and quoted-setting experiments
+remain failed diagnostics. They are not accepted as final proof; the final
+settings API and actual-provider path pass independently and in the combined run.
+
+Next implement the remaining source translation feature and continue the native
+selection handles/edit-menu, full Poll Details table/participants, menu/More
+motion/material/reduced-motion/haptic work. Other accessibility actions (Open
+Thread/failed Try Again and full More action-list/Reply coexistence), actual
+TalkBack speech/focus, locale/large-text/rotation and every broader/physical gate
+below remain open. Signed 712 and installed Pixel 703 are unchanged; the owned
+emulator was restored/stopped. Account, pairing, signing and workspace data were
+not changed. No new Mac action is requested; phone availability remains pending.
+Full parity remains active.
+
 ## More selection rejects reply swipes — 2026-10-22
 
 An actual physical-swipe regression reproduced a source mismatch: with More

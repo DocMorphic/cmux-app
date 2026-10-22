@@ -2580,6 +2580,13 @@ class NativeChiefRuntimeTest {
         tapSendWhenReady()
         compose.waitUntil(10_000) { computer.transcript()?.state?.value?.outgoing?.singleOrNull()?.delivery == NativeChiefDelivery.UNCONFIRMED }
         val id = computer.transcript()!!.state.value.outgoing.single().clientMessageId
+        val copy = chiefCopyAction("ChiefReplyActions:local:$id")
+        compose.runOnUiThread {
+            assertTrue(copy.action())
+            assertEquals("Explicit menu retry", compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+                .primaryClip!!.getItemAt(0).text.toString())
+            assertEquals(1, api.sends.size)
+        }
         compose.onNodeWithTag("ChiefReplyActions:local:$id").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:RETRY").fetchSemanticsNodes().isNotEmpty() }
         compose.runOnUiThread { api.sendFailure = null }
@@ -2604,6 +2611,109 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefSelectionCancel").performClick()
         compose.onNodeWithTag("ChiefComposer").assertTextEquals("Draft after Cancel").assertIsNotFocused()
         compose.onNodeWithTag("ChiefBack").assertExists()
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    private fun chiefCopyAction(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode()
+        .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Copy" }
+
+    @Test fun accessibilityCopyRetainsCapturedTextAndShowsCopiedState() {
+        openReferenceScene("quote-dark")
+        val captured = chiefCopyAction("ChiefReplyActions:parent")
+        compose.runOnUiThread { assertTrue(captured.action()) }
+        compose.onNodeWithTag("ChiefReplyActions:parent").assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Message copied"))
+        compose.runOnUiThread {
+            api.rows = api.rows.map { if (it.id == "parent") it.copy(text = "Updated after accessibility captured the action") else it }
+            api.transcriptChanges.trySend(api.snapshot())
+        }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.messages?.any { it.text.startsWith("Updated after") } == true }
+        compose.runOnUiThread {
+            assertTrue(captured.action())
+            assertEquals("The original message from your Mac.", compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+                .primaryClip!!.getItemAt(0).text.toString())
+        }
+        compose.onNodeWithTag("ChiefActionMenu").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun accessibilityCopyInMorePreservesSelectionAndDraftForBothSenderLanes() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep my accessibility draft")
+        compose.onNodeWithTag("ChiefReplyActions:parent").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:MORE").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMenu:MORE").performClick()
+        for ((id, expected) in listOf("parent" to "The original message from your Mac.", "reply" to "Replying to that message.")) {
+            val action = chiefCopyAction("ChiefReplyActions:$id")
+            compose.runOnUiThread {
+                assertTrue(action.action())
+                assertEquals(expected, compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+                    .primaryClip!!.getItemAt(0).text.toString())
+            }
+            compose.onNodeWithTag("ChiefReplyActions:parent").assertIsSelected()
+            compose.onNodeWithTag("ChiefReplyActions:reply").assertIsNotSelected()
+            compose.onNodeWithTag("ChiefSelectionCancel").assertExists()
+        }
+        compose.onNodeWithTag("ChiefSelectionCancel").performClick()
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Keep my accessibility draft")
+        val stale = chiefCopyAction("ChiefReplyActions:parent")
+        compose.runOnUiThread {
+            val clipboard = compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", "owner sentinel"))
+            current = false
+            assertFalse(stale.action())
+            assertEquals("owner sentinel", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun replyCopyAccessibilityKeepsItsTargetAndRejectsTheClosedPresentation() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep this reply draft")
+        compose.onNodeWithTag("ChiefQuote:reply").performClick()
+        waitForReplyThread()
+        val generation = computer.transcript()!!.state.value.reply!!.generation
+        for ((id, expected) in listOf("parent" to "The original message from your Mac.", "reply" to "Replying to that message.")) {
+            val action = chiefCopyAction("ChiefThreadMessage:$id")
+            compose.runOnUiThread {
+                assertTrue(action.action())
+                assertEquals(expected, compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+                    .primaryClip!!.getItemAt(0).text.toString())
+                assertEquals(generation, computer.transcript()!!.state.value.reply!!.generation)
+            }
+        }
+        val stale = chiefCopyAction("ChiefThreadMessage:parent")
+        tapStableAction("ChiefReplyClose")
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyThread").fetchSemanticsNodes().isEmpty() }
+        compose.runOnUiThread {
+            val clipboard = compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", "closed copy sentinel"))
+            assertFalse(stale.action())
+            assertEquals("closed copy sentinel", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        }
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Keep this reply draft").assertIsFocused()
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun accessibilityCopyUsesTheChiefProjectionAndOmitsOnlyEmptyText() {
+        compose.runOnUiThread {
+            api.rows = listOf(message("empty", 1uL, ""), message("space", 2uL, " "),
+                message("approval", 3uL, "", parts = listOf(NativeChiefPart("approval", null,
+                    NativeChiefApproval("request", "Review before running", listOf("allow", "deny"), null), null))))
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:approval").fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(compose.onNodeWithTag("ChiefReplyActions:empty").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].none { it.label == "Copy" })
+        for ((id, expected) in listOf("space" to " ", "approval" to "Review before running")) {
+            val action = chiefCopyAction("ChiefReplyActions:$id")
+            compose.runOnUiThread {
+                assertTrue(action.action())
+                assertEquals(expected, compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+                    .primaryClip!!.getItemAt(0).text.toString())
+            }
+        }
         assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
     }
 

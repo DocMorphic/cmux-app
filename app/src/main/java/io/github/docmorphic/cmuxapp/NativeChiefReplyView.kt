@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.ScrollAxisRange
 import androidx.compose.ui.semantics.verticalScrollAxisRange
@@ -44,9 +45,9 @@ import kotlinx.coroutines.launch
 /** One-open thread copies retained through the source entry/return/fade lifecycle. */
 @Composable
 internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChiefReplyMotionState, headerHeight: Dp, composerHeight: Dp,
-    metrics: NativeChiefBubbleMetrics, dark: Boolean, onClose: () -> Unit, onReply: (String) -> Boolean, onFinished: () -> Unit) {
+    metrics: NativeChiefBubbleMetrics, dark: Boolean, onClose: () -> Unit, onReply: (String) -> Boolean,
+    onCopy: (String) -> Boolean, onFinished: () -> Unit) {
     val transcriptLabel = stringResource(R.string.chief_reply_transcript)
-    val replyLabel = stringResource(R.string.chief_reply_action)
     val density = LocalDensity.current
     val view = LocalView.current
     val finish by rememberUpdatedState(onFinished)
@@ -99,10 +100,14 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChie
                         val text = NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)
                         val part = NativeChiefPresentation.pendingPart(message)
                         val emoji = NativeChiefEmojiPolicy.fontSize(text).takeIf { part == null }
+                        val accessibility = chiefMessageAccessibility(text,
+                            if (motion.closing) null else { { onReply(item.messageID) } },
+                            if (motion.closing) null else onCopy)
                         val bubbleModifier = Modifier.align(if (item.fromMe) AbsoluteAlignment.Right else AbsoluteAlignment.Left)
                             .offset { IntOffset(motion.horizontalPixels(item.key), 0) }.onGloballyPositioned { motion.bubble(item.key, it) }
                             .testTag("ChiefThreadMessage:${item.messageID}").semantics {
-                                customActions = if (motion.closing) emptyList() else listOf(CustomAccessibilityAction(replyLabel) { onReply(item.messageID) })
+                                customActions = accessibility.actions
+                                accessibility.copiedState?.let { stateDescription = it }
                             }
                             .then(if (motion.closing) Modifier else Modifier.pointerInput(reply.generation, item.key) {
                                 detectTapGestures(onTap = {})

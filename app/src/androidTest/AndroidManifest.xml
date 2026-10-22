@@ -2,6 +2,12 @@
     <!-- Only the instrumentation APK has these components. The private provider
          has a different UID from the app; access requires a real platform grant. -->
     <application>
+        <service android:name="io.github.docmorphic.cmuxapp.ChiefAccessibilityProbe"
+            android:label="cmux emulator accessibility probe" android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/chief_accessibility_probe" />
+        </service>
         <provider android:name="io.github.docmorphic.cmuxapp.GrantFixtureProvider"
             android:authorities="${applicationId}.keyboard-grants"
             android:exported="false" android:grantUriPermissions="true" />

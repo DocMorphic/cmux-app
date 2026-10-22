@@ -2,6 +2,7 @@
     <string name="chief_menu_actions">Message actions</string>
     <string name="chief_menu_reply">Reply</string>
     <string name="chief_menu_copy">Copy</string>
+    <string name="chief_message_copied">Message copied</string>
     <string name="chief_menu_select">Select</string>
     <string name="chief_menu_more">More…</string>
     <string name="chief_menu_poll_details">Poll Details</string>
