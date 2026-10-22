@@ -51,6 +51,14 @@ internal val ChiefPollScrollProbe = SemanticsPropertyKey<() -> NativeChiefPollSc
  * for other categories and platform sheet motion remain subject to comparison. */
 @Composable
 internal fun NativeChiefPollSheet(content: NativeChiefPollContents, onClose: () -> Unit) {
+    val preferredBodyPoints = with(LocalDensity.current) { 17.sp.toDp().value }
+    NativeChiefPollSheetLayout(content, preferredBodyPoints, onClose)
+}
+
+/** The presentation consumes resolved font points, independently of the
+ * platform's nonlinear system-scale conversion in NativeChiefPollSheet. */
+@Composable
+internal fun NativeChiefPollSheetLayout(content: NativeChiefPollContents, bodyPoints: Float, onClose: () -> Unit) {
     val inheritedDensity = LocalDensity.current
     // A presented UINavigationController uses the application's direction,
     // independently of a transcript view's semantic-direction override.
@@ -64,9 +72,8 @@ internal fun NativeChiefPollSheet(content: NativeChiefPollContents, onClose: () 
         CompositionLocalProvider(LocalDensity provides inheritedDensity, LocalLayoutDirection provides direction) {
             BackHandler(onBack = onClose)
             val density = LocalDensity.current
-            val bodyPoints = with(density) { 17.sp.toDp().value }
             val progress = ((bodyPoints - 17f) / 11f).coerceIn(0f, 1f)
-            val footerPoints = (13f + 10f * ((bodyPoints - 17f) / 11f)).coerceAtLeast(11f)
+            val footerFont = NativeChiefPollFooterFonts.forBody(bodyPoints.toDouble())
             val rowHeight = 53f + 35f / 3f * progress
             val dark = MaterialTheme.colorScheme.background.luminance() < .5f
             val background = if (dark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
@@ -157,7 +164,7 @@ internal fun NativeChiefPollSheet(content: NativeChiefPollContents, onClose: () 
                             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(32.dp)).background(cell).testTag("ChiefPollGroup:$index")) {
                                 Cell(stringResource(R.string.chief_poll_no_votes_yet), "ChiefPollOption:$index", placeholder = true)
                             }
-                            PollTableFooter(stringResource(R.string.chief_poll_votes, 0), footerPoints, secondary,
+                            PollTableFooter(stringResource(R.string.chief_poll_votes, 0), footerFont, secondary,
                                 30f + 62f / 3f * progress, 23f / 3f + 4f * progress,
                                 Modifier.fillMaxWidth().testTag("ChiefPollFooter:$index"))
                         }
@@ -187,9 +194,9 @@ internal fun NativeChiefPollSheet(content: NativeChiefPollContents, onClose: () 
     }
 }
 
-@Composable private fun PollTableFooter(text: String, points: Float, color: Color, minimum: Float, top: Float, modifier: Modifier) {
+@Composable private fun PollTableFooter(text: String, font: NativeChiefPollFooterFonts.Metrics, color: Color, minimum: Float, top: Float, modifier: Modifier) {
     val density = LocalDensity.current
-    Layout(content = { PollLabel(text, points, FontWeight.Normal, color, Modifier) }, modifier = modifier) { children, c ->
+    Layout(content = { PollLabel(text, font.pointSize.toFloat(), FontWeight.Normal, color, Modifier, nativeFont = font) }, modifier = modifier) { children, c ->
         val inset = 16.dp.roundToPx()
         val child = children.single().measure(Constraints(maxWidth = (c.maxWidth - 2 * inset).coerceAtLeast(1)))
         val y = (top * density.density).roundToInt()
@@ -210,7 +217,8 @@ internal fun NativeChiefPollSheet(content: NativeChiefPollContents, onClose: () 
 
 /** Native line box and baseline; glyphs stay those of the actual Android font. */
 @Composable private fun PollLabel(text: String, points: Float, weight: FontWeight, color: Color,
-    modifier: Modifier, maxLines: Int = Int.MAX_VALUE, align: TextAlign = TextAlign.Start) {
+    modifier: Modifier, maxLines: Int = Int.MAX_VALUE, align: TextAlign = TextAlign.Start,
+    nativeFont: NativeChiefPollFooterFonts.Metrics? = null) {
     val density = LocalDensity.current
     val style = nativeChiefTextStyle().copy(fontSize = with(density) { points.dp.toSp() }, fontWeight = weight)
     val measurer = rememberTextMeasurer()
@@ -220,9 +228,9 @@ internal fun NativeChiefPollSheet(content: NativeChiefPollContents, onClose: () 
     }) { children, c ->
         val measured = measurer.measure(text, style, maxLines = maxLines, constraints = Constraints(maxWidth = c.maxWidth))
         val child = children.single().measure(Constraints.fixedWidth(c.maxWidth))
-        val natural = points * 1.193359375 * measured.lineCount
+        val natural = (nativeFont?.lineHeight ?: (points * 1.193359375)) * measured.lineCount
         val nativeHeight = ceil(natural * density.density).toInt()
-        val nativeBaseline = ((points * .9521484375 + (nativeHeight / density.density - natural) / 2) * density.density).roundToInt()
+        val nativeBaseline = (((nativeFont?.ascender ?: (points * .9521484375)) + (nativeHeight / density.density - natural) / 2) * density.density).roundToInt()
         // A fallback script/font may have taller glyph metrics. Retain the
         // measured Latin box when it fits, and expand rather than clip when
         // Android's actual text needs more ascent or descent.
