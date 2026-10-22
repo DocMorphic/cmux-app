@@ -1,3 +1,33 @@
+## Signed 715 ready; physical upgrade remains pending — 2026-10-23
+
+Local/unpublished candidate 715 includes the recent localized Plan UI, shared
+window/editor continuity and Chief underline-opacity changes. Clean source:
+`ef4f24851e4224875c9c7f6cf2e19043d6985813`. APK:
+`captures/runtime/parity-candidate-715/app-release.apk`, 278,083,649 bytes,
+SHA256 `77a2e55cf0f4ed20103ac3088f15c3f6b7902cd71d4e9e97e2b53c29b9a36537`.
+The stable signer remains
+`1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+Verification passes 22 native libraries, 21 viewer assets, private Firebase
+configuration matching and exclusion of all 16 test-only components. Full JVM:
+3,114 passes, four opt-in skips, no failures/errors (3,118 cases, 424 reports).
+
+The actual signed APK passed two starts on a fresh disposable API 36 arm64
+Pixel 6a emulator. Both sign-in frames were visually reviewed; UI trees and
+images are hashed, crash buffers are empty, and only that owned AVD was deleted
+after its emulator exited 0. This is fresh unauthenticated release evidence,
+not an existing-account upgrade, real notification reply or full app parity.
+Checkpoint: `captures/recovery-20261023/parity-candidate-715-checkpoint.json`;
+runtime: `release-715-cold-v1/receipt.json` in that folder.
+
+Pixel is still released at last verified signed 712. A fresh availability reply
+is pending; no physical command was issued. The current immutable 715 identity
+supersedes 714 for the same 15-minute, data-preserving terminal/background-reply/
+cold-tap checks in `pixel-715-test-plan.json`. Do not use old availability
+replies. The Mac pairing controls are human-confirmed visible; no new pairing
+code or registration was created. Date/address detection/actions, native UI/
+font/material and physical/accessibility/lifecycle gates, billing/backend
+contracts and broader source reconciliation remain open. Full parity is active.
+
 ## Chief detected underline opacity verified; date/address actions open — 2026-10-23
 
 NativeChiefText now draws detected web/email/phone underlines separately from
