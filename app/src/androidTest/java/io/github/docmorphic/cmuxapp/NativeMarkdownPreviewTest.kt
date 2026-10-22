@@ -51,8 +51,29 @@ class NativeMarkdownPreviewTest {
         waitJs("!matchMedia('(prefers-color-scheme: dark)').matches")
         var original: WebView? = null
         var baseScale = 0f
-        compose.runOnUiThread { original = findWeb(compose.activity.window.decorView); baseScale = original!!.scale; original!!.zoomBy(1.3f) }
-        compose.waitUntil(5_000) { var zoomed = false; compose.runOnUiThread { zoomed = original!!.scale > baseScale * 1.2f }; zoomed }
+        val initialFrame = CountDownLatch(1)
+        compose.runOnUiThread {
+            original = findWeb(compose.activity.window.decorView)
+            original!!.postVisualStateCallback(0, object : WebView.VisualStateCallback() {
+                override fun onComplete(requestId: Long) { initialFrame.countDown() }
+            })
+        }
+        assertTrue("Initial Markdown frame did not commit", initialFrame.await(5, TimeUnit.SECONDS))
+        var zoomRequested = false
+        try {
+            compose.runOnUiThread {
+                baseScale = original!!.scale
+                assertTrue("Committed Markdown viewport must have positive dimensions and scale", baseScale > 0 && original!!.width > 0 && original!!.height > 0)
+                original!!.zoomBy(1.3f); zoomRequested = true
+            }
+            compose.waitUntil(5_000) { var zoomed = false; compose.runOnUiThread { zoomed = original!!.scale > baseScale * 1.2f }; zoomed }
+        } finally {
+            var zoom = JSONObject()
+            compose.runOnUiThread { zoom = JSONObject().put("beforeScale", baseScale.toDouble()).put("afterScale", original!!.scale.toDouble())
+                .put("zoomRequested", zoomRequested).put("width", original!!.width).put("height", original!!.height) }
+            File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+                .resolve("markdown-initial-zoom.json").writeText(zoom.toString(2))
+        }
         var readingScale = 0f
         compose.runOnUiThread { readingScale = original!!.scale }
         assertEquals("true", js("""

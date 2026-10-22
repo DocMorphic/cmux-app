@@ -53,7 +53,7 @@ class AccountPlanSettingsTest {
             } } }
             compose.onNodeWithTag("settings.plan").performClick()
             compose.onNodeWithTag("plan.current").assertTextEquals("Pro")
-            compose.onNodeWithTag("plan.manage").performClick()
+            compose.onNodeWithTag("plan.manage").performScrollTo().assertIsDisplayed().performClick()
             compose.runOnIdle { assertEquals(listOf("https://cmux.com/dashboard/billing"), links) }
             val before = reads
             compose.runOnUiThread {
@@ -63,7 +63,7 @@ class AccountPlanSettingsTest {
             }
             compose.onNodeWithTag("plan.current").assertTextEquals("Max")
             compose.runOnIdle { assertTrue(reads > before) }
-            compose.onNodeWithTag("plan.offers").performClick()
+            compose.onNodeWithTag("plan.offers").performScrollTo().assertIsDisplayed().performClick()
             compose.runOnIdle { assertEquals(AccountPlan.PRICING, links.last()) }
             capture("web-plan")
             compose.onNodeWithTag("plan.done").performClick()
@@ -90,7 +90,7 @@ class AccountPlanSettingsTest {
             compose.onNodeWithTag("plan.current").assertTextEquals("Go")
             compose.onNodeWithTag("plan.offers").assertDoesNotExist()
             compose.onNodeWithText("Billed through the App Store.").assertIsDisplayed()
-            compose.onNodeWithTag("plan.manage").performClick()
+            compose.onNodeWithTag("plan.manage").performScrollTo().assertIsDisplayed().performClick()
             compose.runOnIdle { assertEquals(listOf("https://apps.apple.com/account/subscriptions"), links) }
             capture("apple-plan")
         }

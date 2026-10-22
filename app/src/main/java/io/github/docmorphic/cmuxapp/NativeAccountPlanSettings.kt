@@ -87,58 +87,53 @@ internal fun AccountPlanSettings(controller: AccountPlanController, openExternal
     }
     if (expanded) {
         val scroll = rememberScrollState()
-        // Compose 1.9.x creates a new window on density changes but launches
-        // show() only once per call. Restart that call, keeping its owner and
-        // scroll state above the replacement window.
-        key(inheritedDensity) {
-            NativeDialog(onDismissRequest = { expanded = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-                CompositionLocalProvider(LocalDensity provides inheritedDensity, LocalLayoutDirection provides inheritedDirection) {
-                    Surface(Modifier.fillMaxSize()) {
-                        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(resources.getString(R.string.cmux_billing_title), Modifier.weight(1f).testTag("plan.title").semantics { heading() }, fontWeight = FontWeight.SemiBold)
-                                IconButton(onClick = { controller.refresh() }, enabled = !state.loading, modifier = Modifier.size(48.dp).testTag("plan.refresh")) {
-                                    Icon(Icons.Default.Refresh, resources.getString(R.string.cmux_billing_android_refresh))
-                                }
-                                IconButton(onClick = { expanded = false }, modifier = Modifier.size(48.dp).testTag("plan.done")) {
-                                    Icon(Icons.Default.Check, resources.getString(R.string.cmux_billing_done))
-                                }
+        NativeDialog(onDismissRequest = { expanded = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+            CompositionLocalProvider(LocalDensity provides inheritedDensity, LocalLayoutDirection provides inheritedDirection) {
+                Surface(Modifier.fillMaxSize()) {
+                    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+                        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(resources.getString(R.string.cmux_billing_title), Modifier.weight(1f).testTag("plan.title").semantics { heading() }, fontWeight = FontWeight.SemiBold)
+                            IconButton(onClick = { controller.refresh() }, enabled = !state.loading, modifier = Modifier.size(48.dp).testTag("plan.refresh")) {
+                                Icon(Icons.Default.Refresh, resources.getString(R.string.cmux_billing_android_refresh))
                             }
-                            if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll).padding(20.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                state.plan?.let { plan ->
-                                    Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
-                                        PlanLabelAndValue(resources.getString(if (state.failure == null) R.string.cmux_billing_currentplan else R.string.cmux_billing_android_last_loaded),
-                                            localizedPlanName(plan, resources), "plan.currentLabel", "plan.current",
-                                            Modifier.fillMaxWidth().padding(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    val sourceLabel = when (plan.source) {
-                                        "apple" -> R.string.cmux_billing_source_apple
-                                        "stripe" -> R.string.cmux_billing_source_web
-                                        else -> null
-                                    }
-                                    sourceLabel?.let { Text(resources.getString(it), Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                                    if (plan.teamBilled) Text(resources.getString(R.string.cmux_billing_ineligible_team), Modifier.fillMaxWidth())
-                                    plan.manageUrl?.let { url ->
-                                        Button(onClick = { open(url) }, modifier = Modifier.testTag("plan.manage")) { Text(resources.getString(R.string.cmux_billing_manage)) }
-                                    }
-                                    if (plan.canViewPlans) OutlinedButton(onClick = { open(AccountPlan.PRICING) }, modifier = Modifier.testTag("plan.offers")) {
-                                        Text(resources.getString(R.string.cmux_billing_android_web_offers))
-                                    }
-                                    if (!plan.billingAvailable && plan.source != "apple") Text(resources.getString(R.string.cmux_billing_ineligible_unavailable), Modifier.fillMaxWidth())
-                                    if (plan.source == "apple") Text(resources.getString(R.string.cmux_billing_android_apple_manage_help), Modifier.fillMaxWidth())
-                                }
-                                state.failure?.let {
-                                    Text(resources.getString(if (it == AccountPlanFailure.SIGNED_OUT) R.string.cmux_billing_error_signedout
-                                        else R.string.cmux_billing_android_load_failed), Modifier.fillMaxWidth().testTag("plan.failure"), color = MaterialTheme.colorScheme.error)
-                                    TextButton(onClick = { controller.refresh() }, enabled = !state.loading, modifier = Modifier.testTag("plan.retry")) { Text(resources.getString(R.string.cmux_billing_retry)) }
-                                }
-                                if (linkFailed) Text(resources.getString(R.string.cmux_billing_android_browser_failed), Modifier.fillMaxWidth().testTag("plan.browserFailure"), color = MaterialTheme.colorScheme.error)
-                                HorizontalDivider()
-                                TextButton(onClick = { open(NativeSupportLink.TERMS.address) }) { Text(resources.getString(R.string.cmux_billing_terms)) }
-                                TextButton(onClick = { open(NativeSupportLink.PRIVACY.address) }) { Text(resources.getString(R.string.cmux_billing_privacy)) }
+                            IconButton(onClick = { expanded = false }, modifier = Modifier.size(48.dp).testTag("plan.done")) {
+                                Icon(Icons.Default.Check, resources.getString(R.string.cmux_billing_done))
                             }
+                        }
+                        if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll).padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            state.plan?.let { plan ->
+                                Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
+                                    PlanLabelAndValue(resources.getString(if (state.failure == null) R.string.cmux_billing_currentplan else R.string.cmux_billing_android_last_loaded),
+                                        localizedPlanName(plan, resources), "plan.currentLabel", "plan.current",
+                                        Modifier.fillMaxWidth().padding(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                val sourceLabel = when (plan.source) {
+                                    "apple" -> R.string.cmux_billing_source_apple
+                                    "stripe" -> R.string.cmux_billing_source_web
+                                    else -> null
+                                }
+                                sourceLabel?.let { Text(resources.getString(it), Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                if (plan.teamBilled) Text(resources.getString(R.string.cmux_billing_ineligible_team), Modifier.fillMaxWidth())
+                                plan.manageUrl?.let { url ->
+                                    Button(onClick = { open(url) }, modifier = Modifier.testTag("plan.manage")) { Text(resources.getString(R.string.cmux_billing_manage)) }
+                                }
+                                if (plan.canViewPlans) OutlinedButton(onClick = { open(AccountPlan.PRICING) }, modifier = Modifier.testTag("plan.offers")) {
+                                    Text(resources.getString(R.string.cmux_billing_android_web_offers))
+                                }
+                                if (!plan.billingAvailable && plan.source != "apple") Text(resources.getString(R.string.cmux_billing_ineligible_unavailable), Modifier.fillMaxWidth())
+                                if (plan.source == "apple") Text(resources.getString(R.string.cmux_billing_android_apple_manage_help), Modifier.fillMaxWidth())
+                            }
+                            state.failure?.let {
+                                Text(resources.getString(if (it == AccountPlanFailure.SIGNED_OUT) R.string.cmux_billing_error_signedout
+                                    else R.string.cmux_billing_android_load_failed), Modifier.fillMaxWidth().testTag("plan.failure"), color = MaterialTheme.colorScheme.error)
+                                TextButton(onClick = { controller.refresh() }, enabled = !state.loading, modifier = Modifier.testTag("plan.retry")) { Text(resources.getString(R.string.cmux_billing_retry)) }
+                            }
+                            if (linkFailed) Text(resources.getString(R.string.cmux_billing_android_browser_failed), Modifier.fillMaxWidth().testTag("plan.browserFailure"), color = MaterialTheme.colorScheme.error)
+                            HorizontalDivider()
+                            TextButton(onClick = { open(NativeSupportLink.TERMS.address) }) { Text(resources.getString(R.string.cmux_billing_terms)) }
+                            TextButton(onClick = { open(NativeSupportLink.PRIVACY.address) }) { Text(resources.getString(R.string.cmux_billing_privacy)) }
                         }
                     }
                 }

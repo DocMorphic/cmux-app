@@ -196,7 +196,7 @@ class AccountPlanLocaleTest {
         scope.cancel()
     }
 
-    @Test fun densityWindowReplacementRetainsTheOpenPlanAndActualScroll() {
+    @Test fun densityChangeRetainsTheSameWindowOpenPlanAndActualScroll() {
         check(android.os.Build.MODEL.contains("sdk") || android.os.Build.FINGERPRINT.contains("generic"))
         var scale by mutableStateOf(2f)
         var reads = 0
@@ -220,11 +220,13 @@ class AccountPlanLocaleTest {
             val before = position()
             assertTrue("Must exercise actual positive scroll, not a zero-offset fixture", before.first > 0 && before.second > 0)
             val initialReads = reads
+            val beforeWindow = android.view.inspector.WindowInspector.getGlobalWindowViews().single { it.hasWindowFocus() }
             capture("window-density-before")
             compose.runOnIdle { scale = 1.9f }
             compose.waitUntil(5_000) { compose.onAllNodesWithTag("plan.title").fetchSemanticsNodes().isNotEmpty() }
             assertFits(compose.onNodeWithTag("plan.title"), 1.9f)
             val after = position()
+            compose.runOnIdle { assertSame(beforeWindow, android.view.inspector.WindowInspector.getGlobalWindowViews().single { it.hasWindowFocus() }) }
             assertTrue("The new viewport must still require scrolling", after.second > 0)
             assertEquals("Keep the old pixel offset, clamping only to the new maximum", minOf(before.first, after.second), after.first, 1f)
             compose.runOnIdle { assertEquals(initialReads, reads); assertSame(plan, controller.state.value.plan) }
@@ -233,7 +235,7 @@ class AccountPlanLocaleTest {
                 JSONObject().put("beforeOffset", before.first).put("beforeMaximum", before.second)
                     .put("afterOffset", after.first).put("afterMaximum", after.second)
                     .put("accountReadsBefore", initialReads).put("accountReadsAfter", reads)
-                    .put("samePlanInstance", true).put("scope", "Controlled local density 2 to 1.9, real dialog replacement and scrollbar; no OS font-setting, physical account or process restoration acceptance").toString(2))
+                    .put("samePlanInstance", true).put("sameWindow", true).put("scope", "Controlled local density 2 to 1.9, retained actual dialog and scrollbar; no OS font-setting, physical account or process restoration acceptance").toString(2))
             compose.onNodeWithTag("plan.done").performClick()
             compose.onNodeWithTag("plan.title").assertDoesNotExist()
         }
