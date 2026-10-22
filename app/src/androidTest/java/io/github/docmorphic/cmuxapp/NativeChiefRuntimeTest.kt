@@ -2137,7 +2137,7 @@ class NativeChiefRuntimeTest {
         val closing = nativeChiefDetectedText(source, interactive = false, open = opened::add)
         assertEquals(annotated.text, closing.text)
         assertTrue("Retained closing text must have no link hit targets", closing.getLinkAnnotations(0, closing.length).isEmpty())
-        assertEquals(links.size, closing.spanStyles.count { it.item.textDecoration == androidx.compose.ui.text.style.TextDecoration.Underline })
+        assertEquals(links.size, closing.getStringAnnotations(ChiefDetectedTextRange, 0, closing.length).size)
         assertEquals(listOf("https://example.com/path"), opened)
     }
 

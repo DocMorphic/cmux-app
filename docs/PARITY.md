@@ -1,3 +1,45 @@
+## Chief detected underline opacity verified; date/address actions open — 2026-10-23
+
+NativeChiefText now draws detected web/email/phone underlines separately from
+opaque glyphs, using the pinned a5911a1f rule: near-white 46%, otherwise 26%.
+The line replaces alpha independently of glyph alpha, follows actual UTF-16
+selection paths through wrapping/Bidi, and excludes hidden ellipsized text.
+Interactive URLs/dialer behavior is retained; closing previews retain pixels
+without link targets. Android font metrics remain platform geometry, not a
+claim of matching UIKit glyph/underline geometry. Source attribution and three
+exact file hashes are in NOTICE.md and the Chief manifest's dataDetectionFiles.
+
+Owned API 36 emulator `chief-underlines-v5` passes both cases in 7.680 seconds:
+eight raster profiles (white, black, colored, translucent, RTL, wrapping,
+ellipsis, actual font scale 2) plus the existing production transcript/quote/
+pending-send literal/link regression. Integrated raster opacity runs span
+144–380 px; original glyph colors remain. All eight closing frames are pixel
+identical with no URL hit targets; all eight captures were visually reviewed.
+Both APKs and exact changed sources are archived, crash buffer is empty,
+settings restore has no diagnostics and the owned emulator exited 0. Checkpoint:
+`captures/recovery-20261023/chief-underlines-checkpoint.json` (66 evidence hashes).
+Earlier cohorts are excluded: the full-annotation equality guard suppressed
+lines; the first raster assertion wrongly required full subpixel-row coverage;
+TextPaint's public underlineThickness field then masked the font metric getter.
+The final renderer uses Paint metrics and literal-string identity, and the
+raster assertion integrates coverage without changing the target opacity.
+
+The separate real SystemTextClassifier probe passes one observation case
+(0.425 s), not detector parity. It finds English dates in three public samples,
+but no German date or sample addresses; modern actions expose View/Schedule,
+while all legacy intents are null. No action was fired. The exact provider
+snapshot, inputs/APKs and observations are preserved under
+`chief-detector-provider-v1/receipt.json`. This provider is not enabled as a
+production substitute. Date/address actions, broader locales, physical
+accessibility, native geometry and authenticated/backend gates stay open.
+
+The user confirmed the Mac protected pairing window's instructions/controls
+are visible. No pairing code was generated and no capture protection bypassed.
+Pixel remains released at last verified signed 712; availability for the pending
+live checks remains unresolved. Signed 714 predates this change and the recent
+Plan/shared-window work. A newer signed candidate is being prepared; no phone,
+real account, purchase or backend was operated. Full parity remains active.
+
 ## Shared dialog environment and retained editors verified — 2026-10-23
 
 Implementation `ba78b915` replaces the Plan-only window restart with shared

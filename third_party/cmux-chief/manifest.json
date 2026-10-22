@@ -219,5 +219,10 @@
       "conversation.translate.message": "chief_translation_message",
       "conversation.translate.prompt": "chief_translation_prompt"
     }
+  },
+  "dataDetectionFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationLinkPreview.swift": "c121d69083d25c880fa93b7e37e0078e4b329f61739ffa0cf88b8e59f08b809c",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/MessageCellLayout.swift": "95ae1cc47cb17e25c0b8ae739e105029d5f65b109faa5b516c93897abdeb36bc",
+    "Packages/iOS/CmuxConversation/Tests/CmuxConversationCoreTests/ConversationDataDetectionUnderlineTests.swift": "a48f13ba1cb6516064b540141df1df82f41cb951a0f66779177da66ea0f52e33"
   }
 }

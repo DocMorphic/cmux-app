@@ -40,6 +40,13 @@ ConversationTheme.swift and ConversationComposerView.swift at that revision.
 Android uses its platform Unicode segmentation/properties and emoji artwork;
 the source-derived checks and exact hashes are recorded in the same manifest.
 
+Chief detected-item underline opacity in `NativeChiefText.kt` follows
+ConversationDataDetection in ConversationLinkPreview.swift and
+MessageCellLayout.swift at that same a5911a1f revision. The manifest's
+`dataDetectionFiles` records these sources and their native underline tests.
+Android keeps its system font geometry and existing web/email/phone detection;
+source date/address actions remain a separate open requirement.
+
 Selected static UI translations are copied verbatim from the CMUXMobileCore,
 CmuxAgentChatUI, CmuxMobileChanges and CmuxMobileShellUI localization catalogs at
 cmux `f4b1509054949eaad5d695569ad443c4c18ed68d`. Copyright Manaflow, Inc.;
