@@ -1,3 +1,27 @@
+## Rendered Markdown appearance and retained document — 2026-10-22
+
+Implementation `f9fda84910b7ca7cd34278ba10d81e3c3e6651d9` removes Markdown's forced-dark context.
+A mutable themed Android context supplies the real WebView color preference;
+configuration changes keep the same WebView and JavaScript document. The host
+waits for the actual media query before applying the six native CSS overrides
+and rendering. It ports the native 18-step WCAG contrast-overlay calculation,
+resolved against the Android viewer surface, with locale-independent CSS.
+The 21 pinned viewer assets and image/network/navigation policy are unchanged.
+
+Accepted component evidence: seven runtime cases (33.624 s), actual painted
+light/dark/light diagrams and syntax, same document/zoom/reading anchor and
+per-image consent, hostile markup, size limit, real pinch/recreation and
+bounded renderer recovery/raw fallback. Full unit suite: 3,106 passes/four
+opt-in skips, no failures/errors. Owned API 36/WebView 133 emulator stopped;
+crash buffer empty. Checkpoint:
+`captures/recovery-20261022/markdown-appearance-checkpoint.json`, with verified
+source/APK/image hashes and the precise rejected-intermediate-frame history.
+
+This supersedes the earlier forced-dark Markdown item, not the full visual or
+physical acceptance gates. Matched native fonts/materials/locales, all dialogs,
+status colors, accessibility, real Pixel/notification/reply/lifecycle tests,
+upstream a84 reconciliation and the other release/backend gates remain open.
+
 ## System appearance and retained sign-in foundation — 2026-10-22
 
 Committed `e1b7ebf3fa47e68998c433910c1935e70876d527` adds system light/dark

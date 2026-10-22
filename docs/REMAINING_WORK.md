@@ -1,3 +1,19 @@
+## Rendered Markdown appearance and retained document — 2026-10-22
+
+Forced-dark Markdown is implemented and verified in `f9fda849`: same WebView
+and document through light/dark/light, actual theme-correct diagram/code
+pixels, image consent, zoom and reading anchor retained. Seven emulator cases
+pass; the full unit suite has 3,106 passes/four opt-in skips, zero failures.
+See `captures/recovery-20261022/markdown-appearance-checkpoint.json` for scope,
+source/APK/image hashes, rejected intermediate frames and accepted captures.
+
+Continue with dialog system-bar/focus contrast, remaining status colors,
+measured Poll footer scaling, native font/material/locale and accessibility
+comparisons, upstream a84 applicability, Mac pairing/helper recovery and fresh
+physical notification/reply/lifecycle/terminal acceptance. Full app parity is
+still unproven. Pixel is released for normal use, preserved at signed 712; no
+phone operation or new release was performed in this Markdown work.
+
 ## System appearance and retained sign-in foundation — 2026-10-22
 
 Committed `e1b7ebf3fa47e68998c433910c1935e70876d527` adds system light/dark

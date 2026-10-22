@@ -1,3 +1,54 @@
+## Rendered Markdown appearance and retained document — 2026-10-22
+
+Implementation `f9fda84910b7ca7cd34278ba10d81e3c3e6651d9` removes Markdown's forced-dark context.
+A mutable themed Android context supplies the real WebView color preference;
+configuration changes keep the same WebView and JavaScript document. The host
+waits for the actual media query before applying the six native CSS overrides
+and rendering. It ports the native 18-step WCAG contrast-overlay calculation,
+resolved against the Android viewer surface, with locale-independent CSS.
+The 21 pinned viewer assets and image/network/navigation policy are unchanged.
+
+Native references are a5911a1f's `MarkdownWebTheme.swift`,
+`MarkdownWebContentView.swift` and `ChatArtifactMarkdownView.swift`; hashes and
+the official Android WebView theme reference are recorded in
+`captures/recovery-20261022/markdown-appearance-checkpoint.json`.
+
+The complete unit suite has **3,106 passes, four opt-in skips, zero
+failures/errors** (3,110 tests, 421 XML reports). Production/debug/test builds
+passed. `markdown-appearance-v7` passes seven real runtime cases in 33.624 s
+on owned Android 16/API 36, WebView 133.0.6943.137, with an empty crash buffer
+and the AVD stopped. Input/source/APK/evidence hashes were revalidated; the
+production APK is identical to the full-unit build. Final test-only changes
+were built by `markdown-appearance-build-v10.log`.
+
+The two new checks exercise light/dark/light Mermaid/Vega/code/table rendering
+and same-WebView/document/image-consent/reading-position retention at 1.3×
+reader zoom. Visual anchor positions are 0.490/1.156/1.156 CSS px; native scale
+stays 3.9 at density 3. Approved load attempts continue 2/4/6 while the second
+image remains unapproved (zero attempts). The literal ::2 fixture is rejected
+by the unchanged native address policy before DNS/socket access. Raw HTML is
+intentional: pinned marked escapes IPv6 brackets in Markdown image syntax.
+Five existing checks cover hostile markup, size threshold, raw/rendered,
+real pinch/recreation and two renderer replacements followed by raw fallback.
+
+Three final theme compositor frames, the second recovery and raw fallback
+were visually reviewed. The paint check now requires simultaneous expected
+heading/keyword colors, Mermaid foreground/background and Vega background
+pixels. Earlier v2 snapshots were rejected as stale frames; later failed
+fixture attempts are retained, not acceptance. The final test waits until its
+setup scroll/image layout is settled. Viewport paint detection distinguishes
+native raw text from rendered GitHub text and does not count a bright page as
+painted text. Evidence and source/APK/image hashes are in the checkpoint.
+
+This closes the forced-dark Markdown implementation issue and the specified
+emulator component checks. Pixel appearance, matched native fonts/materials,
+all dialogs/status colors, complete accessibility and physical release gates
+remain open. Pixel stays preserved signed 712 and free to use; 713 remains a
+local unpublished candidate. No new phone test or release was performed.
+Continue with dialog/system-bar focus, status colors, measured Poll footer
+profiles, a84 applicability and the pending Mac-helper/real-reply checks;
+retain every broader PARITY.md/REMAINING_WORK.md gate.
+
 ## System appearance and retained sign-in foundation committed — 2026-10-22
 
 Implementation `e1b7ebf3fa47e68998c433910c1935e70876d527` follows system
