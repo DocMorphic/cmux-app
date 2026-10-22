@@ -1,3 +1,37 @@
+## Dialog window appearance and live Mac menu recheck — 2026-10-22
+
+Window-owned dialog/bar appearance and the pale light-Cloud Running label
+are implemented in `79a69f1e`. A 35-case functional cohort and five final
+frame-matching cases pass against the same production APK; 3,106 unit tests
+pass with four opt-in skips. Final 27 compositor frames require expected bar
+backgrounds, readable icons/labels and exact parent focus restoration. See
+`captures/recovery-20261022/dialog-bars-checkpoint.json` for accepted/rejected
+scope and source/APK/evidence hashes. No physical or full native UI acceptance.
+
+The real Mac is now accessible; verified build 39796614645/PID 7952 remains
+running. The private helper has one active registration, zero retired rows,
+mode-0600 owner socket and accepts a connection. All three workspace UUIDs,
+order and selection match the post-update snapshot. No phone operation, new
+pairing offer, clipboard copy, re-enrollment, or account/signing change occurred.
+
+CUA now opens/closes/reopens the actual Pair Android Notifications window.
+Refresh full AX and click the menu item in the same CUA call to avoid a stale
+menu index. The instructions, Release app selector, New Pairing Code, disabled
+Copy and Close are in the actual accessibility tree. A blank screenshot is
+consistent with the verified source's `window.sharingType = .none`; the main
+window captures normally. Preserve that protection. An async human visual
+check is pending, so do not claim the actual visible pairing content is proved.
+See `captures/recovery-20261022/mac-pairing-menu-live-recheck.json`. Fresh phone
+reply/ACK/delivery remains open; the phone stays released at signed 712 and
+local 713 remains unpublished.
+
+Continue with measured Poll footer profiles, the remaining status-color and
+native font/material/locale/accessibility audit, upstream a84 applicability,
+then a prepared signed candidate and coordinated real Pixel/Mac notification,
+reply, terminal and lifecycle checks. IME, transient/three-button bars, physical
+night-mode transitions and every broader release/backend gate remain open.
+Full app parity remains active and unproven.
+
 ## Rendered Markdown appearance and retained document — 2026-10-22
 
 Forced-dark Markdown is implemented and verified in `f9fda849`: same WebView

@@ -1,3 +1,57 @@
+## Dialog window appearance and live Mac menu recheck — 2026-10-22
+
+Implementation `79a69f1e2c8fd7280faaccadef04134b224501c5` gives custom dialogs, alerts and bottom sheets
+window-owned bar appearance, reapplied on focus return. Alerts retain the
+parent bar roles; bottom-sheet navigation follows its container. Fullscreen
+media keeps an independent dark bar context. Fullscreen dialogs draw under
+the bars, with safe/IME padding inside painted surfaces for files, shortcuts,
+workspace customization, plans, changes and the SSH browser. This removes the
+dim gray strips observed around the text viewer. Cloud Running now uses the
+adaptive semantic green (5.36:1 light-card and 8.88:1 dark-card contrast).
+
+The full unit suite passes 3,106 tests with four opt-in skips and no
+failures/errors (3,110 total, 421 XML reports). The same production APK passed
+a 35-case functional cohort in 170.837 s, then five cases with stricter final
+capture assertions in 40 s. Final `dialog-bars-v6` requires all 27 compositor
+frames to match their expected bar backgrounds, >=3:1 actual icon contrast,
+exact label ink, the same dialog across appearance changes and the exact media
+parent after nested-alert dismissal. Source/APK/evidence hashes revalidate;
+final test APK is archived, crash buffer empty and owned AVD stopped.
+
+The broad cohort covers root OS appearance/sign-in recreation, adaptive panels,
+pairing/setup guidance, native text selection/copy, durable drafts, push consent,
+account confirmation and poll rotation/retained snapshots. It uses controlled
+services/owned emulator data; no real account/Cloud operation or phone test.
+Earlier green frame captures were rejected as stale, v4 lost its ADB session,
+and an intermediate return-frame test could focus the closing child. The final
+test fixes all three acceptance gaps. Source and complete receipt:
+`captures/recovery-20261022/dialog-bars-checkpoint.json`. This is not a matched
+native font/material/type/locale or full accessibility/device sign-off.
+
+The real Mac is now accessible; verified build 39796614645/PID 7952 remains
+running. The private helper has one active registration, zero retired rows,
+mode-0600 owner socket and accepts a connection. All three workspace UUIDs,
+order and selection match the post-update snapshot. No phone operation, new
+pairing offer, clipboard copy, re-enrollment, or account/signing change occurred.
+
+CUA now opens/closes/reopens the actual Pair Android Notifications window.
+Refresh full AX and click the menu item in the same CUA call to avoid a stale
+menu index. The instructions, Release app selector, New Pairing Code, disabled
+Copy and Close are in the actual accessibility tree. A blank screenshot is
+consistent with the verified source's `window.sharingType = .none`; the main
+window captures normally. Preserve that protection. An async human visual
+check is pending, so do not claim the actual visible pairing content is proved.
+See `captures/recovery-20261022/mac-pairing-menu-live-recheck.json`. Fresh phone
+reply/ACK/delivery remains open; the phone stays released at signed 712 and
+local 713 remains unpublished.
+
+Continue with measured Poll footer profiles, the remaining status-color and
+native font/material/locale/accessibility audit, upstream a84 applicability,
+then a prepared signed candidate and coordinated real Pixel/Mac notification,
+reply, terminal and lifecycle checks. IME, transient/three-button bars, physical
+night-mode transitions and every broader release/backend gate remain open.
+Full app parity remains active and unproven.
+
 ## Rendered Markdown appearance and retained document — 2026-10-22
 
 Implementation `f9fda84910b7ca7cd34278ba10d81e3c3e6651d9` removes Markdown's forced-dark context.
