@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+  "catalogSha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd",
+  "strings": [
+    {
+      "key": "mobile.billing.settingsRow",
+      "resource": "cmux_billing_settingsrow",
+      "translations": {
+        "en": "Plan",
+        "ar": "الخطة",
+        "de": "Tarif",
+        "es": "Suscripción",
+        "fr": "Forfait",
+        "ja": "プラン",
+        "ko": "플랜",
+        "zh-Hans": "方案",
+        "zh-Hant": "方案"
+      }
+    },
+    {
+      "key": "mobile.billing.title",
+      "resource": "cmux_billing_title",
+      "translations": {
+        "en": "Plans",
+        "ar": "الخطط",
+        "de": "Tarife",
+        "es": "Planes",
+        "fr": "Forfaits",
+        "ja": "プラン",
+        "ko": "플랜",
+        "zh-Hans": "方案",
+        "zh-Hant": "方案"
+      }
+    },
+    {
+      "key": "mobile.billing.currentPlan",
+      "resource": "cmux_billing_currentplan",
+      "translations": {
+        "en": "Current plan",
+        "ar": "الخطة الحالية",
+        "de": "Aktueller Tarif",
+        "es": "Plan actual",
+        "fr": "Forfait actuel",
+        "ja": "現在のプラン",
+        "ko": "현재 플랜",
+        "zh-Hans": "当前方案",
+        "zh-Hant": "目前方案"
+      }
+    },
+    {
+      "key": "mobile.billing.loading",
+      "resource": "cmux_billing_loading",
+      "translations": {
+        "en": "Loading plans",
+        "ar": "جارٍ تحميل الخطط",
+        "de": "Tarife werden geladen",
+        "es": "Cargando planes",
+        "fr": "Chargement des forfaits",
+        "ja": "プランを読み込み中",
+        "ko": "플랜 불러오는 중",
+        "zh-Hans": "正在加载方案",
+        "zh-Hant": "正在載入方案"
+      }
+    },
+    {
+      "key": "mobile.billing.done",
+      "resource": "cmux_billing_done",
+      "translations": {
+        "en": "Done",
+        "ar": "تم",
+        "de": "Fertig",
+        "es": "OK",
+        "fr": "OK",
+        "ja": "完了",
+        "ko": "완료",
+        "zh-Hans": "完成",
+        "zh-Hant": "完成"
+      }
+    },
+    {
+      "key": "mobile.billing.retry",
+      "resource": "cmux_billing_retry",
+      "translations": {
+        "en": "Try Again",
+        "ar": "إعادة المحاولة",
+        "de": "Erneut versuchen",
+        "es": "Reintentar",
+        "fr": "Réessayer",
+        "ja": "再試行",
+        "ko": "다시 시도",
+        "zh-Hans": "重试",
+        "zh-Hant": "再試一次"
+      }
+    },
+    {
+      "key": "mobile.billing.manage",
+      "resource": "cmux_billing_manage",
+      "translations": {
+        "en": "Manage Subscription",
+        "ar": "إدارة الاشتراك",
+        "de": "Abo verwalten",
+        "es": "Gestionar suscripción",
+        "fr": "Gérer l’abonnement",
+        "ja": "サブスクリプションを管理",
+        "ko": "구독 관리",
+        "zh-Hans": "管理订阅",
+        "zh-Hant": "管理訂閱"
+      }
+    },
+    {
+      "key": "mobile.billing.source.apple",
+      "resource": "cmux_billing_source_apple",
+      "translations": {
+        "en": "Billed through the App Store.",
+        "ar": "تتم الفوترة عبر App Store.",
+        "de": "Abrechnung über den App Store.",
+        "es": "Facturado a través del App Store.",
+        "fr": "Facturé via l’App Store.",
+        "ja": "App Store で請求されます。",
+        "ko": "App Store를 통해 청구됩니다.",
+        "zh-Hans": "通过 App Store 计费。",
+        "zh-Hant": "透過 App Store 計費。"
+      }
+    },
+    {
+      "key": "mobile.billing.source.web",
+      "resource": "cmux_billing_source_web",
+      "translations": {
+        "en": "Billed on the web.",
+        "ar": "تتم الفوترة عبر الويب.",
+        "de": "Abrechnung über das Web.",
+        "es": "Facturado en la web.",
+        "fr": "Facturé sur le Web.",
+        "ja": "Web で請求されます。",
+        "ko": "웹에서 청구됩니다.",
+        "zh-Hans": "通过网页计费。",
+        "zh-Hant": "透過網頁計費。"
+      }
+    },
+    {
+      "key": "mobile.billing.ineligible.team",
+      "resource": "cmux_billing_ineligible_team",
+      "translations": {
+        "en": "Your team admin manages billing for this account.",
+        "ar": "يدير مسؤول فريقك الفوترة لهذا الحساب.",
+        "de": "Die Abrechnung für dieses Konto verwaltet dein Team-Admin.",
+        "es": "El administrador de tu equipo gestiona la facturación de esta cuenta.",
+        "fr": "L’administrateur de votre équipe gère la facturation de ce compte.",
+        "ja": "このアカウントの請求はチーム管理者が管理しています。",
+        "ko": "이 계정의 결제는 팀 관리자가 관리합니다.",
+        "zh-Hans": "此账户的账单由你的团队管理员管理。",
+        "zh-Hant": "此帳號的帳單由你的團隊管理員管理。"
+      }
+    },
+    {
+      "key": "mobile.billing.ineligible.unavailable",
+      "resource": "cmux_billing_ineligible_unavailable",
+      "translations": {
+        "en": "Plans can't be bought in this version of the app.",
+        "ar": "لا يمكن شراء الخطط في هذا الإصدار من التطبيق.",
+        "de": "In dieser Version der App können keine Tarife gekauft werden.",
+        "es": "No se pueden comprar planes en esta versión de la app.",
+        "fr": "Les forfaits ne peuvent pas être achetés dans cette version de l’app.",
+        "ja": "このバージョンのアプリではプランを購入できません。",
+        "ko": "이 버전의 앱에서는 플랜을 구입할 수 없습니다.",
+        "zh-Hans": "此版本的 App 无法购买方案。",
+        "zh-Hant": "此版本的 App 無法購買方案。"
+      }
+    },
+    {
+      "key": "mobile.billing.terms",
+      "resource": "cmux_billing_terms",
+      "translations": {
+        "en": "Terms of Use",
+        "ar": "شروط الاستخدام",
+        "de": "Nutzungsbedingungen",
+        "es": "Condiciones de uso",
+        "fr": "Conditions d’utilisation",
+        "ja": "利用規約",
+        "ko": "이용 약관",
+        "zh-Hans": "使用条款",
+        "zh-Hant": "使用條款"
+      }
+    },
+    {
+      "key": "mobile.billing.privacy",
+      "resource": "cmux_billing_privacy",
+      "translations": {
+        "en": "Privacy Policy",
+        "ar": "سياسة الخصوصية",
+        "de": "Datenschutzerklärung",
+        "es": "Política de privacidad",
+        "fr": "Politique de confidentialité",
+        "ja": "プライバシーポリシー",
+        "ko": "개인정보 처리방침",
+        "zh-Hans": "隐私政策",
+        "zh-Hant": "隱私權政策"
+      }
+    },
+    {
+      "key": "mobile.billing.plan.free",
+      "resource": "cmux_billing_plan_free",
+      "translations": {
+        "en": "Free",
+        "ar": "مجاني",
+        "de": "Kostenlos",
+        "es": "Gratis",
+        "fr": "Gratuit",
+        "ja": "無料",
+        "ko": "무료",
+        "zh-Hans": "免费",
+        "zh-Hant": "免費"
+      }
+    },
+    {
+      "key": "mobile.billing.plan.go",
+      "resource": "cmux_billing_plan_go",
+      "translations": {
+        "en": "Go",
+        "ar": "Go",
+        "de": "Go",
+        "es": "Go",
+        "fr": "Go",
+        "ja": "Go",
+        "ko": "Go",
+        "zh-Hans": "Go",
+        "zh-Hant": "Go"
+      }
+    },
+    {
+      "key": "mobile.billing.plan.pro",
+      "resource": "cmux_billing_plan_pro",
+      "translations": {
+        "en": "Pro",
+        "ar": "Pro",
+        "de": "Pro",
+        "es": "Pro",
+        "fr": "Pro",
+        "ja": "Pro",
+        "ko": "Pro",
+        "zh-Hans": "Pro",
+        "zh-Hant": "Pro"
+      }
+    },
+    {
+      "key": "mobile.billing.plan.max",
+      "resource": "cmux_billing_plan_max",
+      "translations": {
+        "en": "Max",
+        "ar": "Max",
+        "de": "Max",
+        "es": "Max",
+        "fr": "Max",
+        "ja": "Max",
+        "ko": "Max",
+        "zh-Hans": "Max",
+        "zh-Hant": "Max"
+      }
+    },
+    {
+      "key": "mobile.billing.error.signedOut",
+      "resource": "cmux_billing_error_signedout",
+      "translations": {
+        "en": "Sign in to cmux to manage your plan.",
+        "ar": "سجّل الدخول إلى cmux لإدارة خطتك.",
+        "de": "Melde dich bei cmux an, um deinen Tarif zu verwalten.",
+        "es": "Inicia sesión en cmux para gestionar tu plan.",
+        "fr": "Connectez-vous à cmux pour gérer votre forfait.",
+        "ja": "プランを管理するには cmux にサインインしてください。",
+        "ko": "플랜을 관리하려면 cmux에 로그인하세요.",
+        "zh-Hans": "登录 cmux 以管理你的方案。",
+        "zh-Hant": "登入 cmux 以管理你的方案。"
+      }
+    }
+  ]
+}

@@ -23,11 +23,6 @@ internal data class AccountPlan(val id: String, val source: String, val manageme
         management == "stripe" && billingAvailable && !teamBilled -> "https://cmux.com/dashboard/billing"
         else -> null
     }
-    val sourceLabel get() = when (source) {
-        "apple" -> "Billed through the App Store."
-        "stripe" -> "Billed on the web."
-        else -> null
-    }
     val canViewPlans get() = billingAvailable && source != "apple" && !teamBilled
 
     companion object {
@@ -51,7 +46,8 @@ internal data class AccountPlan(val id: String, val source: String, val manageme
     }
 }
 internal class AccountPlanSignedOut : java.io.IOException("Sign in again to load your plan")
-internal data class AccountPlanState(val plan: AccountPlan? = null, val loading: Boolean = false, val failure: String? = null)
+internal enum class AccountPlanFailure { SIGNED_OUT, LOAD_FAILED }
+internal data class AccountPlanState(val plan: AccountPlan? = null, val loading: Boolean = false, val failure: AccountPlanFailure? = null)
 
 /** Scoped, read-only loading. An old response cannot publish after refresh or sign-out. */
 internal class AccountPlanController(parent: CoroutineScope, private val load: suspend () -> AccountPlan,
@@ -77,8 +73,8 @@ internal class AccountPlanController(parent: CoroutineScope, private val load: s
                 if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
                 val signedOut = failure is AccountPlanSignedOut || failure is CloudNotSignedIn ||
                     failure is CloudApiFailure && failure.status == 401
-                mutable.value = mutable.value.copy(plan = mutable.value.plan.takeUnless { signedOut }, loading = false, failure = if (signedOut)
-                    "Sign in again to load your plan." else "Couldn’t load your plan. Check your connection and try again.")
+                mutable.value = mutable.value.copy(plan = mutable.value.plan.takeUnless { signedOut }, loading = false,
+                    failure = if (signedOut) AccountPlanFailure.SIGNED_OUT else AccountPlanFailure.LOAD_FAILED)
             }
         }
     }

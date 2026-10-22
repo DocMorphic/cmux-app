@@ -67,10 +67,10 @@ class AccountPlanTest {
             result = { throw java.io.IOException("raw server detail must not be displayed") }
             controller.refresh(); runCurrent()
             assertEquals("max", controller.state.value.plan?.id)
-            assertFalse(controller.state.value.failure!!.contains("raw server")); assertFalse(controller.state.value.loading)
+            assertEquals(AccountPlanFailure.LOAD_FAILED, controller.state.value.failure); assertFalse(controller.state.value.loading)
             result = { throw AccountPlanSignedOut() }
             controller.refresh(); runCurrent()
-            assertNull(controller.state.value.plan); assertTrue(controller.state.value.failure!!.contains("Sign in"))
+            assertNull(controller.state.value.plan); assertEquals(AccountPlanFailure.SIGNED_OUT, controller.state.value.failure)
         }
     }
 

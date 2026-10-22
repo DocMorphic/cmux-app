@@ -66,7 +66,7 @@ class AccountPlanSettingsTest {
             compose.onNodeWithTag("plan.offers").performClick()
             compose.runOnIdle { assertEquals(AccountPlan.PRICING, links.last()) }
             capture("web-plan")
-            compose.onNodeWithText("Done").performClick()
+            compose.onNodeWithTag("plan.done").performClick()
             compose.onNodeWithTag("settings.plan").assertTextContains("Max")
         }
         scope.cancel()

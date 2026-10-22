@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "provenance": "Project-authored translations of Android-specific read-only plan controls and recovery states; not copied from upstream.",
+  "strings": [
+    {
+      "resource": "cmux_billing_android_refresh",
+      "translations": {
+        "en": "Refresh",
+        "ar": "تحديث",
+        "de": "Aktualisieren",
+        "es": "Actualizar",
+        "fr": "Actualiser",
+        "ja": "更新",
+        "ko": "새로고침",
+        "zh-Hans": "刷新",
+        "zh-Hant": "重新整理"
+      }
+    },
+    {
+      "resource": "cmux_billing_android_view_plan",
+      "translations": {
+        "en": "View plan",
+        "ar": "عرض الخطة",
+        "de": "Tarif ansehen",
+        "es": "Ver plan",
+        "fr": "Voir le forfait",
+        "ja": "プランを見る",
+        "ko": "플랜 보기",
+        "zh-Hans": "查看方案",
+        "zh-Hant": "檢視方案"
+      }
+    },
+    {
+      "resource": "cmux_billing_android_last_loaded",
+      "translations": {
+        "en": "Last loaded plan",
+        "ar": "آخر خطة تم تحميلها",
+        "de": "Zuletzt geladener Tarif",
+        "es": "Último plan cargado",
+        "fr": "Dernier forfait chargé",
+        "ja": "最後に読み込んだプラン",
+        "ko": "마지막으로 불러온 플랜",
+        "zh-Hans": "上次加载的方案",
+        "zh-Hant": "上次載入的方案"
+      }
+    },
+    {
+      "resource": "cmux_billing_android_load_failed",
+      "translations": {
+        "en": "Couldn’t load your plan. Check your connection and try again.",
+        "ar": "تعذر تحميل خطتك. تحقق من اتصالك وحاول مرة أخرى.",
+        "de": "Dein Tarif konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",
+        "es": "No se pudo cargar tu plan. Comprueba tu conexión e inténtalo de nuevo.",
+        "fr": "Impossible de charger votre forfait. Vérifiez votre connexion et réessayez.",
+        "ja": "プランを読み込めませんでした。接続を確認して、もう一度お試しください。",
+        "ko": "플랜을 불러오지 못했습니다. 연결을 확인하고 다시 시도하세요.",
+        "zh-Hans": "无法加载你的方案。请检查连接并重试。",
+        "zh-Hant": "無法載入你的方案。請檢查連線後再試一次。"
+      }
+    },
+    {
+      "resource": "cmux_billing_android_browser_failed",
+      "translations": {
+        "en": "Couldn’t open the browser. Try again.",
+        "ar": "تعذر فتح المتصفح. حاول مرة أخرى.",
+        "de": "Der Browser konnte nicht geöffnet werden. Versuche es erneut.",
+        "es": "No se pudo abrir el navegador. Inténtalo de nuevo.",
+        "fr": "Impossible d’ouvrir le navigateur. Réessayez.",
+        "ja": "ブラウザを開けませんでした。もう一度お試しください。",
+        "ko": "브라우저를 열지 못했습니다. 다시 시도하세요.",
+        "zh-Hans": "无法打开浏览器。请重试。",
+        "zh-Hant": "無法開啟瀏覽器。請再試一次。"
+      }
+    },
+    {
+      "resource": "cmux_billing_android_web_offers",
+      "translations": {
+        "en": "View plans on cmux.com",
+        "ar": "عرض الخطط على cmux.com",
+        "de": "Tarife auf cmux.com ansehen",
+        "es": "Ver planes en cmux.com",
+        "fr": "Voir les forfaits sur cmux.com",
+        "ja": "cmux.comでプランを見る",
+        "ko": "cmux.com에서 플랜 보기",
+        "zh-Hans": "在 cmux.com 查看方案",
+        "zh-Hant": "在 cmux.com 檢視方案"
+      }
+    },
+    {
+      "resource": "cmux_billing_android_apple_manage_help",
+      "translations": {
+        "en": "Manage this subscription with the Apple Account used for the purchase.",
+        "ar": "أدِر هذا الاشتراك باستخدام حساب Apple المستخدم في الشراء.",
+        "de": "Verwalte dieses Abo mit dem Apple Account, der für den Kauf verwendet wurde.",
+        "es": "Gestiona esta suscripción con la cuenta de Apple utilizada para la compra.",
+        "fr": "Gérez cet abonnement avec le compte Apple utilisé pour l’achat.",
+        "ja": "購入に使用したApple Accountでこのサブスクリプションを管理してください。",
+        "ko": "구매에 사용한 Apple 계정으로 이 구독을 관리하세요.",
+        "zh-Hans": "请使用购买时所用的 Apple 账户管理此订阅。",
+        "zh-Hant": "請使用購買時所用的 Apple 帳號管理此訂閱。"
+      }
+    }
+  ]
+}
