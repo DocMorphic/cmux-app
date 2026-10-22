@@ -1,3 +1,30 @@
+## Poll Details reference and identity snapshot checkpoint — 2026-10-22
+
+Native capture 39762098177 succeeded at 266b6a61, supplying seven compositor
+scenes on iOS 26.4.1 (23E254a). Downloaded artifact SHA256 matches the service
+receipt, and all 15 canonical files match independent verification. All seven
+screens were viewed. Source sections, visible cell names, footers, frame/type
+measurements and Done dismissal are accepted within controlled fixture scope.
+Actual Chief RPC/votes/live updates, offscreen text and full locale/device
+acceptance are not inferred. See CHIEF.md and the ignored native checkpoint.
+
+Android now keeps a single selected-human You alias, other author names and
+first-seen order, avoids duplicate fallback Chief, and retains participants and
+options atomically after the poll becomes a receipt. Source English/Japanese
+labels and 0 Votes capitalization are mounted. Eight focused regressions pass
+(26.89 s), plus a clean separate visible participant capture (4.613 s); source/
+APK/log/image hashes verify and no crash events remain. The owned AVD is stopped.
+The first compile typo and clipboard-contaminated screenshot are diagnostic only.
+`captures/recovery-20261022/chief-poll-snapshot-checkpoint.json` records scope.
+
+The Material sheet remains provisional. Next implement the measured grouped
+table/nav prompt/title/Done and presentation/type adaptation, then compare actual
+matched Android captures. Mac diagnostic build 39757002747 remains active in its
+full compilation step; inspect that handle without restarting it. Background
+reply acceptance and every broader account/transport/terminal/backend/device/
+release gate remain open. The current Mac and Pixel 712 are unchanged, the phone
+is free, and full app parity remains active.
+
 ## Background reply diagnostic candidate — 2026-10-22
 
 The exact pinned Mac inbox client now classifies fetch/ack failures with fixed

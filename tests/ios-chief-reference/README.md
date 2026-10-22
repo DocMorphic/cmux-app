@@ -1,3 +1,21 @@
+## Poll Details reference verified and participant behavior corrected — 2026-10-22
+
+Native run 39762098177 at 266b6a61bd0784f1e031027baaf3ddbd4896e822
+succeeds for all seven real compositor scenes. Artifact 12418312787 is 3,494,835
+bytes; the downloaded ZIP independently hashes to
+f3dcb3e7f46c0a047be2b2f6c90916ba810b23ecdd54c4285c286df8da5a97b3.
+All 15 uploaded canonical files match independent local verification. Actual
+runtime is iOS 26.4.1 (23E254a). All seven screens were visually inspected.
+`captures/recovery-20261022/chief-poll-native-checkpoint.json` records the scope.
+
+The source uses an inset-grouped table, a question prompt above the centered
+navigation title, and the native Done check control. Normal rows are 53 points
+high with 17-point labels; measured accessibility rows are 64 2/3 with 28-point
+labels. Footers are 13/23 points; the navigation prompt stays 13 and title grows
+17 to 21. Portrait row inset is 20 points, with another 16 for labels; landscape
+row inset is 82. The table backgrounds are #1C1C1E dark / #F2F2F7 light. These
+are measured reference inputs, not Android layout acceptance.
+
 ## Poll Details compositor reference candidate — 2026-10-22
 
 The new optional `--with-poll-ui` host links the same unmodified pinned

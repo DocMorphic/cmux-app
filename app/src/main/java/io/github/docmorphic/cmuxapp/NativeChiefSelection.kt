@@ -158,42 +158,62 @@ internal fun NativeChiefTextSelection(frozen: NativeChiefSelectedText, permitted
     }
 }
 
-private data class NativeChiefPollContents(val question: String, val options: List<String>)
-private fun pollContents(message: NativeChiefMessage): NativeChiefPollContents? {
+private data class NativeChiefPollParticipant(val id: String, val name: String)
+private data class NativeChiefPollContents(val question: String, val options: List<String>,
+    val participants: List<NativeChiefPollParticipant>)
+private fun pollContents(message: NativeChiefMessage, messages: List<NativeChiefMessage>,
+    humanID: String, you: String, answerQuestions: String): NativeChiefPollContents? {
     val part = NativeChiefPresentation.pendingPart(message) ?: return null
-    part.approval?.let { return NativeChiefPollContents(it.prompt, it.options.filterNot { choice -> choice.startsWith("always:") }) }
+    // ChiefConversationBackend.info selects one human identity, preserves
+    // first-seen author order, and supplies only missing fallback identities.
+    // Another human author keeps their name rather than also becoming "You".
+    val authors = messages.distinctBy { it.authorId }
+    val participants = authors.map { author -> NativeChiefPollParticipant(author.authorId,
+        if (author.authorId == humanID) you else author.author.ifEmpty { author.authorId }) }.toMutableList()
+    if (authors.none { it.authorId == humanID }) participants += NativeChiefPollParticipant(humanID, you)
+    val chiefID = messages.firstOrNull { it.authorKind == "chief" }?.authorId ?: "agent_chief"
+    if (authors.none { it.authorId == chiefID } && chiefID != humanID)
+        participants += NativeChiefPollParticipant(chiefID, "Chief")
+    part.approval?.let { return NativeChiefPollContents(it.prompt,
+        it.options.filterNot { choice -> choice.startsWith("always:") }, participants) }
     val question = part.question ?: return null
     val compact = NativeChiefPresentation.compactQuestion(question)
     return NativeChiefPollContents(compact?.prompt ?: NativeChiefPresentation.summary(question),
-        compact?.options?.map { it.label } ?: listOf("Answer questions"))
+        compact?.options?.map { it.label } ?: listOf(answerQuestions), participants)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NativeChiefPollDetails(id: String, state: NativeChiefTranscriptState, onClose: () -> Unit) {
-    var content by remember(id) { mutableStateOf(state.messages.firstOrNull { it.id == id }?.let(::pollContents)) }
-    val updated = state.messages.firstOrNull { it.id == id }?.let(::pollContents)
-    SideEffect { if (updated != null) content = updated }
+    val you = stringResource(R.string.chief_poll_you)
+    val answerQuestions = stringResource(R.string.chief_reply_answer_questions)
+    var retainedHumanID by remember(id) { mutableStateOf("me") }
+    val humanID = state.messages.firstOrNull { it.authorKind == "human" }?.authorId ?: retainedHumanID
+    val updated = state.messages.firstOrNull { it.id == id }?.let {
+        pollContents(it, state.messages, humanID, you, answerQuestions)
+    }
+    var content by remember(id) { mutableStateOf(updated) }
+    // Native reload returns without changing any sections once a pending card
+    // becomes a receipt/disappears. Keep participants and options atomically.
+    SideEffect { if (updated != null) { content = updated; retainedHumanID = humanID } }
     val shown = content ?: return
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         modifier = Modifier.testTag("ChiefPollDetails")) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(20.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.chief_menu_poll_details), Modifier.weight(1f).semantics { heading() })
-                TextButton(onClick = onClose) { Text("Done") }
+                TextButton(onClick = onClose) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
             }
             Text(shown.question, Modifier.padding(vertical = 12.dp))
             shown.options.forEach { option ->
                 Text(option, Modifier.padding(top = 16.dp).semantics { heading() })
-                Text("No votes yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("0 votes", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.chief_poll_no_votes_yet), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.chief_poll_votes, 0), style = MaterialTheme.typography.labelSmall)
             }
-            Text("No Votes", Modifier.padding(top = 16.dp).semantics { heading() })
-            state.messages.distinctBy { it.authorId }.forEach { participant ->
-                Text(if (participant.authorKind == "human") "You" else participant.author.ifEmpty { participant.authorId })
+            Text(stringResource(R.string.chief_poll_no_votes), Modifier.padding(top = 16.dp).semantics { heading() })
+            shown.participants.forEach { participant ->
+                Text(participant.name, Modifier.testTag("ChiefPollParticipant:${participant.id}"))
             }
-            if (state.messages.none { it.authorKind == "human" }) Text("You")
-            if (state.messages.none { it.authorKind == "chief" }) Text("Chief")
         }
     }
 }

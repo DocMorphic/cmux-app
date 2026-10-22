@@ -2830,6 +2830,69 @@ class NativeChiefRuntimeTest {
         assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
     }
 
+    @Test fun pollDetailsKeepsOneYouAndRetainsTheWholeSnapshotAfterAnswer() {
+        val approval = NativeChiefPart("approval", null,
+            NativeChiefApproval("request", "Run deploy?", listOf("allow", "deny"), null), null)
+        compose.runOnUiThread {
+            api.rows = listOf(message("owner", 1uL, "Owner greeting", human = true),
+                message("other", 2uL, "Another participant", human = true).copy(authorId = "alex", author = "Alex"),
+                message("approval", 3uL, "", parts = listOf(approval)))
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:approval").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefReplyActions:approval").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.onNodeWithTag("ChiefMenu:POLL").performClick()
+        compose.onNodeWithTag("ChiefPollParticipant:user").assertTextEquals("You")
+        compose.onNodeWithTag("ChiefPollParticipant:alex").assertTextEquals("Alex")
+        compose.onNodeWithTag("ChiefPollParticipant:chief").assertTextEquals("Chief")
+        compose.runOnUiThread {
+            api.rows = api.rows.map { when (it.id) {
+                "other" -> it.copy(author = "Alex updated")
+                "approval" -> it.copy(partPayloads = listOf(approval.copy(approval = approval.approval!!.copy(options = listOf("allow", "review", "deny")))))
+                else -> it
+            } }
+            api.transcriptChanges.trySend(api.snapshot())
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("No votes yet").fetchSemanticsNodes().size == 3 }
+        compose.onNodeWithTag("ChiefPollParticipant:alex").assertTextEquals("Alex updated")
+        compose.runOnUiThread {
+            api.rows = api.rows.map { when (it.id) {
+                "other" -> it.copy(author = "Changed after receipt")
+                "approval" -> it.copy(partPayloads = listOf(approval.copy(approval = approval.approval!!.copy(decided = "allow"))))
+                else -> it
+            } }
+            api.transcriptChanges.trySend(api.snapshot())
+        }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.messages?.firstOrNull { it.id == "approval" }
+            ?.partPayloads?.firstOrNull()?.approval?.decided == "allow" }
+        compose.onNodeWithTag("ChiefPollParticipant:alex").assertTextEquals("Alex updated")
+        compose.onAllNodesWithText("No votes yet").assertCountEquals(3)
+        compose.onNode(hasText("Changed after receipt") and hasAnyAncestor(hasTestTag("ChiefPollDetails"))).assertDoesNotExist()
+        compose.onNodeWithTag("ChiefPollParticipant:chief").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("ChiefPollParticipant:user").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefPollParticipant:alex").assertIsDisplayed()
+        saveScreenshot("chief-poll-participant-snapshot")
+        compose.onNodeWithText("Done").performScrollTo().performClick()
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun pollDetailsDoesNotDuplicateAnExistingFallbackChiefIdentity() {
+        compose.runOnUiThread {
+            api.rows = listOf(message("approval", 1uL, "", parts = listOf(NativeChiefPart("approval", null,
+                NativeChiefApproval("request", "Run deploy?", listOf("allow", "deny"), null), null)))
+                .copy(authorId = "agent_chief", author = "Agent alias", authorKind = "service"))
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:approval").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefReplyActions:approval").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.onNodeWithTag("ChiefMenu:POLL").performClick()
+        compose.onNodeWithTag("ChiefPollParticipant:agent_chief").assertTextEquals("Agent alias")
+        compose.onNodeWithTag("ChiefPollParticipant:me").assertTextEquals("You")
+        compose.onNode(hasText("Chief") and hasAnyAncestor(hasTestTag("ChiefPollDetails"))).assertDoesNotExist()
+        compose.onNodeWithText("Done").performClick()
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
     @Test fun moreProtectsSelectedRowsFromTheRestingHistoryWindowUntilCancel() {
         compose.runOnUiThread { api.readMarker = 1uL; api.homeUnread = 0 }
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
