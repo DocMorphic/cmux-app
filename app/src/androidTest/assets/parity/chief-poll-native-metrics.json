@@ -575,6 +575,129 @@
         }
       ],
       "imageSha256": "15a2b9a5acb2d55a3918dfe7aca1b5aa1c881662986dcd9e2eadbe0ea4c66be6"
+    },
+    "poll-no-prompt-dark": {
+      "nativeSheetTop": 62,
+      "navigationFrame": [
+        0,
+        78,
+        402,
+        54
+      ],
+      "sections": [
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            240.33333079020184,
+            402,
+            30
+          ],
+          "headerFrame": [
+            0,
+            132,
+            402,
+            55.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                187.33333206176758,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "allow"
+        },
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            368.6666628519694,
+            402,
+            30
+          ],
+          "headerFrame": [
+            0,
+            270.33333015441895,
+            402,
+            45.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                315.6666622161865,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "deny"
+        },
+        {
+          "footer": "",
+          "footerFrame": [
+            0,
+            542.6666628519695,
+            402,
+            17.333333333333258
+          ],
+          "headerFrame": [
+            0,
+            398.6666622161865,
+            402,
+            38
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                436.6666622161865,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "Chief",
+              "visible": true
+            },
+            {
+              "frame": [
+                20,
+                489.6666622161865,
+                362,
+                53
+              ],
+              "row": 1,
+              "selectionStyle": 0,
+              "text": "You",
+              "visible": true
+            }
+          ],
+          "title": "No Votes"
+        }
+      ],
+      "imageSha256": "9a5acf66da508c864649c08750fe4ff7175cfeb494ae227dd33a2d7dc1be6cf6",
+      "source": {
+        "projectCommit": "7b528b1f6f43076b6f28c02de03f4a69057fc62f",
+        "captureRun": 39853547366,
+        "artifact": 12459336868,
+        "artifactSha256": "cc7c06ea242637aaf7486083d9ecf73529f25438030580d99caad0ddc66e0cad",
+        "scene": "poll-no-prompt-dark",
+        "payloadSha256": "bf04b3029d11fe8baa57388c68d12ac79970c36ee9bae19e6d7727fd45f306e0",
+        "categoryScope": "large"
+      }
     }
   }
 }

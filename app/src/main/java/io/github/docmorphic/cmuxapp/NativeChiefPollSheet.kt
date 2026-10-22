@@ -46,9 +46,7 @@ import kotlin.math.roundToInt
 internal data class NativeChiefPollScrollProbe(val offset: Int, val maximum: Int, val drag: Float)
 internal val ChiefPollScrollProbe = SemanticsPropertyKey<() -> NativeChiefPollScrollProbe>("ChiefPollScrollProbe")
 
-/** Settled UIKit table measurements from native run 39762098177 / upstream
- * a5911a1f. Normal and accessibility-medium are rendered references; interpolation
- * for other categories and platform sheet motion remain subject to comparison. */
+/** Resolve the platform's preferred body size before presenting the sheet. */
 @Composable
 internal fun NativeChiefPollSheet(content: NativeChiefPollContents, onClose: () -> Unit) {
     val preferredBodyPoints = with(LocalDensity.current) { 17.sp.toDp().value }
@@ -72,9 +70,8 @@ internal fun NativeChiefPollSheetLayout(content: NativeChiefPollContents, bodyPo
         CompositionLocalProvider(LocalDensity provides inheritedDensity, LocalLayoutDirection provides direction) {
             BackHandler(onBack = onClose)
             val density = LocalDensity.current
-            val progress = ((bodyPoints - 17f) / 11f).coerceIn(0f, 1f)
             val footerFont = NativeChiefPollFooterFonts.forBody(bodyPoints.toDouble())
-            val rowHeight = 53f + 35f / 3f * progress
+            val tableMetrics = NativeChiefPollTableMetrics.forBody(bodyPoints.toDouble())
             val dark = MaterialTheme.colorScheme.background.luminance() < .5f
             val background = if (dark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
             val cell = if (dark) Color(0xFF2C2C2E) else Color.White
@@ -115,7 +112,7 @@ internal fun NativeChiefPollSheetLayout(content: NativeChiefPollContents, bodyPo
                 val sheetTop = WindowInsets.statusBars.getTop(density).toFloat().div(density.density).dp
                 val navGap = if (landscape) 24f else 16f
                 val prompted = content.question.isNotEmpty()
-                val headerHeight = navGap + if (prompted) 88f else 44f
+                val headerHeight = navGap + if (prompted) 88f else 54f
                 val safeLeft = (WindowInsets.safeDrawing.getLeft(density, direction) / density.density).dp
                 val safeRight = (WindowInsets.safeDrawing.getRight(density, direction) / density.density).dp
                 val groupedSafe = maxOf(safeLeft, safeRight)
@@ -129,9 +126,9 @@ internal fun NativeChiefPollSheetLayout(content: NativeChiefPollContents, bodyPo
                         if (prompted) PollLabel(content.question, 13f, FontWeight.Normal, ink,
                             Modifier.fillMaxWidth().padding(horizontal = 16.dp).offset(y = (navGap + 29f / 3f).dp).testTag("ChiefPollPrompt"),
                             maxLines = 1, align = TextAlign.Center)
-                        val center = navGap + if (prompted) 56f else 22f
+                        val center = navGap + if (prompted) 56f else 27f
                         Box(Modifier.fillMaxWidth().height(44.dp).offset(y = (center - 22f).dp).padding(horizontal = 68.dp), Alignment.Center) {
-                            PollLabel(pollTitle, 17f + 4f * progress, FontWeight.SemiBold, ink,
+                            PollLabel(pollTitle, tableMetrics.titlePointSize.toFloat(), FontWeight.SemiBold, ink,
                                 Modifier.fillMaxWidth().testTag("ChiefPollTitle").semantics(mergeDescendants = true) { heading() }, maxLines = 1, align = TextAlign.Center)
                         }
                         val done = stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)
@@ -145,15 +142,17 @@ internal fun NativeChiefPollSheetLayout(content: NativeChiefPollContents, bodyPo
                         .testTag("ChiefPollTable").semantics {
                             if (BuildConfig.DEBUG) this[ChiefPollScrollProbe] = { NativeChiefPollScrollProbe(scroll.value, scroll.maxValue, drag) }
                         }.padding(horizontal = 20.dp + groupedSafe)
-                        .padding(bottom = maxOf(if (landscape) 20.dp else 34.dp, WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()))) {
+                        .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
                         @Composable fun Header(text: String, index: Int, nonVoters: Boolean = false) {
-                            val base = if (nonVoters) 38f else if (index == 0) 166f / 3f else 136f / 3f
-                            val top = if (nonVoters) 35f / 3f + 14f * progress else (if (index == 0) 86f / 3f else 56f / 3f) + 43f / 3f * progress
-                            PollTableHeader(text, bodyPoints, secondary, base + 30f * progress, top,
+                            val height = if (nonVoters) tableMetrics.nonVoterHeaderHeight.toFloat() else
+                                (if (index == 0) tableMetrics.firstHeaderHeight else tableMetrics.continuationHeaderHeight).toFloat()
+                            val top = if (nonVoters) tableMetrics.nonVoterHeaderLabelTop.toFloat() else
+                                (if (index == 0) tableMetrics.firstHeaderLabelTop else tableMetrics.continuationHeaderLabelTop).toFloat()
+                            PollTableHeader(text, bodyPoints, tableMetrics.referenceBodyPoints.toFloat(), secondary, height, top,
                                 Modifier.fillMaxWidth().testTag("ChiefPollSection:$index"))
                         }
                         @Composable fun Cell(text: String, tag: String, last: Boolean = true, placeholder: Boolean = false) {
-                            PollTableRow(text, bodyPoints, rowHeight, if (placeholder) secondary else ink,
+                            PollTableRow(text, bodyPoints, tableMetrics.referenceBodyPoints.toFloat(), tableMetrics.rowHeight.toFloat(), if (placeholder) secondary else ink,
                                 Modifier.fillMaxWidth().testTag(tag).semantics(mergeDescendants = true) {}.drawWithContent {
                                     drawContent()
                                     if (!last) drawLine(separator, Offset(16.dp.toPx(), size.height - .5f), Offset(size.width - 16.dp.toPx(), size.height - .5f), 1f)
@@ -165,7 +164,7 @@ internal fun NativeChiefPollSheetLayout(content: NativeChiefPollContents, bodyPo
                                 Cell(stringResource(R.string.chief_poll_no_votes_yet), "ChiefPollOption:$index", placeholder = true)
                             }
                             PollTableFooter(stringResource(R.string.chief_poll_votes, 0), footerFont, secondary,
-                                30f + 62f / 3f * progress, 23f / 3f + 4f * progress,
+                                tableMetrics.footerHeight.toFloat(), tableMetrics.footerLabelTop.toFloat(),
                                 Modifier.fillMaxWidth().testTag("ChiefPollFooter:$index"))
                         }
                         Header(stringResource(R.string.chief_poll_no_votes), content.options.size, true)
@@ -174,7 +173,7 @@ internal fun NativeChiefPollSheetLayout(content: NativeChiefPollContents, bodyPo
                                 Cell(participant.name, "ChiefPollParticipant:${participant.id}", index == content.participants.lastIndex)
                             }
                         }
-                        Spacer(Modifier.height((52f / 3f).dp))
+                        Spacer(Modifier.height((tableMetrics.emptyFooterHeight + tableMetrics.tableBottomPadding).toFloat().dp))
                     }
                 }
             }
@@ -182,14 +181,19 @@ internal fun NativeChiefPollSheetLayout(content: NativeChiefPollContents, bodyPo
     }
 }
 
-@Composable private fun PollTableHeader(text: String, points: Float, color: Color, minimum: Float, top: Float, modifier: Modifier) {
+// UIKit and Android can round a single line's ascent/descent one pixel
+// differently. Absorb that pixel in the measured padding before growing the
+// container for wrapping or taller fallback glyphs; never clip the label.
+private fun pollExtraLineHeight(actual: Int, reference: Int) = (actual - reference - 1).coerceAtLeast(0)
+
+@Composable private fun PollTableHeader(text: String, points: Float, referencePoints: Float, color: Color, minimum: Float, top: Float, modifier: Modifier) {
     val density = LocalDensity.current
     Layout(content = { PollLabel(text, points, FontWeight.SemiBold, color, Modifier.semantics(mergeDescendants = true) { heading() }) }, modifier = modifier) { children, c ->
         val inset = 16.dp.roundToPx()
         val child = children.single().measure(Constraints(maxWidth = (c.maxWidth - 2 * inset).coerceAtLeast(1)))
-        val single = ceil(points * 1.193359375 * density.density).toInt()
-        val height = maxOf((minimum * density.density).roundToInt() + (child.height - single).coerceAtLeast(0),
-            (top * density.density).roundToInt() + child.height + 6.dp.roundToPx())
+        val single = ceil(referencePoints * 1.193359375 * density.density).toInt()
+        val height = maxOf((minimum * density.density).roundToInt() + pollExtraLineHeight(child.height, single),
+            (top * density.density).roundToInt() + child.height)
         layout(c.maxWidth, height) { child.place(inset, (top * density.density).roundToInt()) }
     }
 }
@@ -200,17 +204,19 @@ internal fun NativeChiefPollSheetLayout(content: NativeChiefPollContents, bodyPo
         val inset = 16.dp.roundToPx()
         val child = children.single().measure(Constraints(maxWidth = (c.maxWidth - 2 * inset).coerceAtLeast(1)))
         val y = (top * density.density).roundToInt()
-        val height = maxOf((minimum * density.density).roundToInt(), y + child.height + (20.dp / 3).roundToPx())
+        val single = ceil(font.lineHeight * density.density).toInt()
+        val height = maxOf((minimum * density.density).roundToInt() + pollExtraLineHeight(child.height, single), y + child.height)
         layout(c.maxWidth, height) { child.place(inset, y) }
     }
 }
 
-@Composable private fun PollTableRow(text: String, points: Float, minimum: Float, color: Color, modifier: Modifier) {
+@Composable private fun PollTableRow(text: String, points: Float, referencePoints: Float, minimum: Float, color: Color, modifier: Modifier) {
     val density = LocalDensity.current
     Layout(content = { PollLabel(text, points, FontWeight.Normal, color, Modifier) }, modifier = modifier) { children, c ->
         val inset = 16.dp.roundToPx()
         val child = children.single().measure(Constraints(maxWidth = (c.maxWidth - 2 * inset).coerceAtLeast(1)))
-        val height = maxOf((minimum * density.density).roundToInt(), child.height + 30.dp.roundToPx())
+        val single = ceil(referencePoints * 1.193359375 * density.density).toInt()
+        val height = (minimum * density.density).roundToInt() + pollExtraLineHeight(child.height, single)
         layout(c.maxWidth, height) { child.place(inset, (height - child.height) / 2) }
     }
 }

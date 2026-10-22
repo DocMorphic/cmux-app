@@ -1633,7 +1633,7 @@ class NativeChiefRuntimeTest {
 
     private fun chiefRect(rect: androidx.compose.ui.geometry.Rect) = org.json.JSONArray(listOf(rect.left, rect.top, rect.width, rect.height))
     private fun saveChiefGeometry(name: String, value: JSONObject) {
-        File(compose.activity.getExternalFilesDir(null), "screenshots/$name.json").writeText(value.toString(2))
+        File(compose.activity.getExternalFilesDir(null), "screenshots/$name.json").apply { parentFile?.mkdirs() }.writeText(value.toString(2))
     }
 
     @Test fun composerGrowthDuringReplyEntryKeepsTheSourceGapAndDraft() = checkReplyComposerGrowth(false)
@@ -2971,15 +2971,20 @@ class NativeChiefRuntimeTest {
         val bytes = InstrumentationRegistry.getInstrumentation().context.assets.open("parity/chief-poll-scenes.json").use { it.readBytes() }
         val input = JSONObject(bytes.toString(Charsets.UTF_8)); val scenes = input.getJSONArray("scenes")
         val spec = (0 until scenes.length()).map(scenes::getJSONObject).single { it.getString("id") == name }
-        assertEquals("Pending Chief projection only", "pending", spec.getString("model"))
-        val poll = input.getJSONObject("polls").getJSONObject("pending")
+        assertTrue("Pending Chief projection only", spec.getString("model") in setOf("pending", "pending-no-prompt"))
+        val poll = input.getJSONObject("polls").getJSONObject(spec.getString("model"))
         val options = poll.getJSONArray("options")
+        var fontCandidates = org.json.JSONArray()
         compose.runOnUiThread {
             testFontScale = if (spec.getString("category") == "accessibilityMedium") {
                 var low = 1f; var high = 3f
                 repeat(30) { val middle = (low + high) / 2
                     if (with(Density(compose.activity.resources.displayMetrics.density, middle)) { 17.sp.toDp().value } < 28f) low = middle else high = middle }
-                high
+                val candidates = listOf(low, high).map { candidate ->
+                    candidate to with(Density(compose.activity.resources.displayMetrics.density, candidate)) { 17.sp.toDp().value }
+                }
+                fontCandidates = org.json.JSONArray(candidates.map { (candidate, points) -> JSONObject().put("fontScale", candidate).put("bodyPoints", points) })
+                candidates.minBy { kotlin.math.abs(it.second - 28f) }.first
             } else 1f
             testLight = spec.getString("style") == "light"
             testLayoutDirection = if (spec.getString("direction") == "rtl") androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr
@@ -2998,19 +3003,49 @@ class NativeChiefRuntimeTest {
             .use { it.readBytes().toString(Charsets.UTF_8) }).getJSONObject("cases").getJSONObject(name!!)
         val scale = compose.activity.resources.displayMetrics.density
         val sheet = compose.onNodeWithTag("ChiefPollSheet").fetchSemanticsNode().boundsInWindow
-        val tags = listOf("ChiefPollSheet", "ChiefPollHeader", "ChiefPollPrompt", "ChiefPollTitle", "ChiefPollDone", "ChiefPollTable",
-            "ChiefPollOption:0", "ChiefPollOption:1", "ChiefPollNonVoters", "ChiefPollParticipant:chief", "ChiefPollParticipant:me")
+        val tags = listOf("ChiefPollSheet", "ChiefPollHeader", "ChiefPollTitle", "ChiefPollDone", "ChiefPollTable",
+            "ChiefPollSection:0", "ChiefPollFooter:0", "ChiefPollSection:1", "ChiefPollFooter:1",
+            "ChiefPollOption:0", "ChiefPollOption:1", "ChiefPollNonVoters", "ChiefPollParticipant:chief", "ChiefPollParticipant:me") +
+            if (poll.getString("question").isNotEmpty()) listOf("ChiefPollPrompt") else emptyList()
+        if (poll.getString("question").isEmpty()) compose.onNodeWithTag("ChiefPollPrompt").assertDoesNotExist()
         val geometry = JSONObject()
         tags.forEach { tag ->
             val box = compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInWindow
             geometry.put(tag, org.json.JSONArray(listOf(box.left / scale, box.top / scale, box.width / scale, box.height / scale)))
         }
+        val nativeNavigation = reference.getJSONArray("navigationFrame")
+        assertEquals("Native navigation header including top gap", nativeNavigation.getDouble(1) + nativeNavigation.getDouble(3) - reference.getDouble("nativeSheetTop"),
+            geometry.getJSONArray("ChiefPollHeader").getDouble(3), 1.01 / scale)
+        saveChiefGeometry("chief-reference-$name-before-assert", JSONObject().put("geometry", geometry)
+            .put("fontScale", testFontScale).put("fontCandidates", fontCandidates).put("bodyPointSize", with(Density(scale, testFontScale)) { 17.sp.toDp().value }))
+        if (spec.getString("category") == "accessibilityMedium") assertEquals("Closest attainable Android descriptor", 28.0,
+            with(Density(scale, testFontScale)) { 17.sp.toDp().value }.toDouble(), .1)
+        val tableProfiles = JSONObject(InstrumentationRegistry.getInstrumentation().context.assets.open("parity/chief-poll-table-metrics.json")
+            .bufferedReader().use { it.readText() }).getJSONArray("metrics")
+        val nativeBody = (0 until tableProfiles.length()).map(tableProfiles::getJSONObject)
+            .single { it.getString("name") == spec.getString("category") }.getDouble("bodyPoints")
+        val androidBody = with(Density(scale, testFontScale)) { 17.sp.toDp().value }.toDouble()
+        fun measured(field: String, body: Double): Double {
+            for (i in 1 until tableProfiles.length()) {
+                val a = tableProfiles.getJSONObject(i - 1); val b = tableProfiles.getJSONObject(i)
+                if (body <= b.getDouble("bodyPoints")) {
+                    val t = ((body - a.getDouble("bodyPoints")) / (b.getDouble("bodyPoints") - a.getDouble("bodyPoints"))).coerceIn(0.0, 1.0)
+                    return a.getDouble(field) + (b.getDouble(field) - a.getDouble(field)) * t
+                }
+            }
+            return tableProfiles.getJSONObject(tableProfiles.length() - 1).getDouble(field)
+        }
+        fun delta(field: String) = measured(field, androidBody) - measured(field, nativeBody)
+        // Stock Android conversion buckets do not necessarily reach the exact
+        // UIKit descriptor. Compare this API-flow capture at its actual size;
+        // the separate layout tests exercise all twelve exact native knots.
         val sections = reference.getJSONArray("sections")
         for (index in 0..1) {
             val native = sections.getJSONObject(index).getJSONArray("rows").getJSONObject(0).getJSONArray("frame")
             val actual = compose.onNodeWithTag("ChiefPollOption:$index").fetchSemanticsNode().boundsInWindow
-            assertEquals("Row height", native.getDouble(3), (actual.height / scale).toDouble(), 1.01 / scale)
-            assertEquals("Row top relative to sheet safe origin", native.getDouble(1) - reference.getDouble("nativeSheetTop"),
+            assertEquals("Row height at actual descriptor", native.getDouble(3) + delta("rowHeight"), (actual.height / scale).toDouble(), 1.01 / scale)
+            val topDelta = delta("firstHeaderHeight") + if (index == 1) delta("rowHeight") + delta("footerHeight") + delta("continuationHeaderHeight") else 0.0
+            assertEquals("Row top relative to sheet safe origin at actual descriptor", native.getDouble(1) - reference.getDouble("nativeSheetTop") + topDelta,
                 ((actual.top - sheet.top) / scale).toDouble(), 1.01 / scale)
             assertEquals("Grouped rows keep the native centered alignment", native.getDouble(0) + native.getDouble(2) / 2 - reference.getJSONArray("navigationFrame").getDouble(2) / 2,
                 ((actual.center.x - sheet.center.x) / scale).toDouble(), 1.01 / scale)
@@ -3018,8 +3053,12 @@ class NativeChiefRuntimeTest {
         val output = JSONObject().put("scene", name).put("fixture", spec).put("geometry", geometry)
             .put("fixtureSha256", MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) })
             .put("density", scale).put("fontScale", testFontScale)
+            .put("fontCandidates", fontCandidates)
+            .put("nativeBodyPointSize", nativeBody).put("actualDescriptorDeltas", JSONObject()
+                .put("rowHeight", delta("rowHeight")).put("firstHeaderHeight", delta("firstHeaderHeight"))
+                .put("continuationHeaderHeight", delta("continuationHeaderHeight")).put("footerHeight", delta("footerHeight")))
             .put("bodyPointSize", with(Density(scale, testFontScale)) { 17.sp.toDp().value })
-            .put("scope", "Production pending-poll UI with controlled Chief API and component style. Row geometry is compared relative to each platform safe origin. Not generic voters, true RPC, physical gestures/device, all type/locale or full visual parity.")
+            .put("scope", "Production pending-poll UI with controlled Chief API and stock local Android scaling. Row geometry is compared relative to platform safe origins, adjusting the native case by the independently measured twelve-knot curve at the actual Android descriptor. Exact native knots are checked separately in production-layout captures. Not generic voters, true RPC, physical gestures/device, locales or full visual parity.")
         saveScreenshot("chief-reference-$name")
         val png = File(compose.activity.getExternalFilesDir(null), "screenshots/chief-reference-$name.png")
         val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())

@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.unit.sp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
@@ -95,6 +96,59 @@ class NativeChiefPollLifecycleTest {
         compose.onNodeWithTag("ChiefPollSheet").assertDoesNotExist()
         assertTrue(session.state.value.retired); assertNull(session.pollDetails.value)
         assertEquals(0, api.writes)
+    }
+    @Test fun actualSystemFontScaleRecreatesActivityAndRetainsTheOpenPollAndScroll() {
+        val session = computer.transcript()!!; val snapshot = session.pollDetails.value!!
+        val table = compose.onNodeWithTag("ChiefPollTable")
+        table.performSemanticsAction(SemanticsActions.ScrollBy) { assertTrue(it(0f, 300f)) }
+        compose.mainClock.advanceTimeBy(1_000); compose.waitForIdle()
+        val offset = probe().offset; assertTrue(offset > 0)
+        val savedSetting = device.executeShellCommand("settings get system font_scale").trim()
+        require(savedSetting == "null" || savedSetting.toFloatOrNull()?.let { it.isFinite() && it > 0 } == true)
+        var before: NativeChiefLifecycleTestActivity? = null
+        var scaled: NativeChiefLifecycleTestActivity? = null
+        var original = 1f
+        scenario!!.onActivity { before = it; original = it.resources.configuration.fontScale }
+        val target = if (kotlin.math.abs(original - 1.3f) < .01f) 1.5f else 1.3f
+        capture("chief-poll-system-font-before", JSONObject().put("fontScale", original).put("offset", offset))
+        try {
+            device.executeShellCommand("settings put system font_scale $target")
+            compose.waitUntil(15_000) { runCatching {
+                var ready = false
+                scenario!!.onActivity {
+                    if (it !== before && kotlin.math.abs(it.resources.configuration.fontScale - target) < .001f) { scaled = it; ready = true }
+                }
+                ready
+            }.getOrDefault(false) }
+            val text = compose.onNode(hasTestTag("ChiefPollLabel") and hasAnyAncestor(hasTestTag("ChiefPollParticipant:chief")), useUnmergedTree = true)
+            var actual: androidx.compose.ui.text.TextLayoutResult? = null
+            compose.waitUntil(10_000) { runCatching {
+                val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+                text.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+                actual = layouts.single()
+                kotlin.math.abs(actual!!.layoutInput.density.fontScale - target) < .001f
+            }.getOrDefault(false) }
+            text.assertIsDisplayed()
+            compose.waitForIdle()
+            assertSame(session, computer.transcript()); assertEquals(snapshot, session.pollDetails.value)
+            assertEquals("OS recreation retains actual scroll pixels", offset, probe().offset)
+            val layout = checkNotNull(actual).layoutInput
+            val points = with(layout.density) { layout.style.fontSize.toDp().value }
+            assertEquals(with(layout.density) { 17.sp.toDp().value }.toDouble(), points.toDouble(), .02)
+            capture("chief-poll-system-font-scaled", JSONObject().put("fontScale", layout.density.fontScale)
+                .put("bodyPoints", points).put("offset", probe().offset).put("activityReplaced", true).put("sameSnapshot", true))
+            assertEquals(0, api.writes)
+        } finally {
+            device.executeShellCommand(if (savedSetting == "null") "settings delete system font_scale" else "settings put system font_scale $savedSetting")
+            compose.waitUntil(15_000) { runCatching {
+                var ready = false
+                scenario!!.onActivity { ready = it !== scaled && kotlin.math.abs(it.resources.configuration.fontScale - original) < .001f }
+                ready
+            }.getOrDefault(false) }
+            compose.onNodeWithTag("ChiefPollSheet").assertIsDisplayed()
+            assertSame(session, computer.transcript()); assertEquals(snapshot, session.pollDetails.value)
+            capture("chief-poll-system-font-restored", JSONObject().put("fontScale", original).put("sameSnapshot", true))
+        }
     }
     private inner class Api : NativeChiefApi {
         val changes = Channel<NativeChiefRead>(Channel.UNLIMITED)
