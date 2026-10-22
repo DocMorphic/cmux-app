@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.MutableContextWrapper
 import android.content.res.Configuration
 import android.net.Uri
 import android.view.ContextThemeWrapper
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
@@ -74,6 +76,9 @@ internal object MarkdownAssets {
 internal fun MarkdownWebPreview(markdown: String, viewport: MarkdownViewportState, onFailure: (String) -> Unit) {
     val context = LocalContext.current
     val zoom = LocalDensity.current.fontScale
+    val dark = NativeAppColors.dark
+    val background = NativeAppColors.page.toArgb()
+    val appearance = remember(dark, background) { MarkdownWebTheme.resolve(dark, background) }
     val latestFailure by rememberUpdatedState(onFailure)
     var recovery by remember { mutableIntStateOf(0) }
     val shell by produceState<String?>(null) {
@@ -84,17 +89,17 @@ internal fun MarkdownWebPreview(markdown: String, viewport: MarkdownViewportStat
     key(recovery) {
         val controller = remember { MarkdownWebController(context, shell!!, markdown, zoom, {
             if (recovery < 2) recovery++ else latestFailure("Markdown renderer stopped. Showing raw source.")
-        }, { latestFailure(it) }, viewport) }
+        }, { latestFailure(it) }, viewport, appearance) }
         DisposableEffect(controller) { onDispose { controller.close() } }
         AndroidView(factory = { controller.create() }, modifier = Modifier.fillMaxSize().semantics { contentDescription = "Rendered Markdown" },
-            update = { controller.update(markdown, zoom) }, onRelease = { controller.close() })
+            update = { controller.update(markdown, zoom, appearance) }, onRelease = { controller.close() })
     }
 }
 
 /** Loads only the bundled shell; activated links leave the viewer and images use the consent route. */
 internal class MarkdownWebController(private val context: Context, private val shell: String, private var markdown: String,
     private var zoom: Float, private val onCrash: () -> Unit, private val onFailure: (String) -> Unit,
-    private val viewport: MarkdownViewportState = MarkdownViewportState()) : AutoCloseable {
+    private val viewport: MarkdownViewportState = MarkdownViewportState(), private var appearance: MarkdownWebTheme = MarkdownWebTheme.resolve(true, 0xff0b0c0e.toInt())) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val images = MarkdownRemoteImages()
     private val requested = mutableSetOf<String>()
@@ -102,14 +107,15 @@ internal class MarkdownWebController(private val context: Context, private val s
     private var viewportBinding: MarkdownViewportBinding? = null
     @Volatile private var loaded = false
     @Volatile private var closed = false
+    private fun configuration() = Configuration(context.resources.configuration).apply {
+        uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+            if (appearance.dark) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
+    }
+    private fun themedContext() = ContextThemeWrapper(context.createConfigurationContext(configuration()),
+        if (appearance.dark) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar)
+    private val webContext = MutableContextWrapper(themedContext())
     @SuppressLint("SetJavaScriptEnabled")
-    fun create(): WebView = MarkdownViewportWebView(ContextThemeWrapper(context, android.R.style.Theme_Material_NoActionBar).apply {
-        // Compose's dark palette does not change the Activity's legacy light theme.
-        // WebView derives prefers-color-scheme from its Android context.
-        applyOverrideConfiguration(Configuration(context.resources.configuration).apply {
-            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or Configuration.UI_MODE_NIGHT_YES
-        })
-    }).also { web ->
+    fun create(): WebView = MarkdownViewportWebView(webContext).also { web ->
         view = web
         NativeViewHaptics(web)
         viewportBinding = MarkdownViewportBinding(web, viewport)
@@ -162,21 +168,28 @@ internal class MarkdownWebController(private val context: Context, private val s
         }
         web.loadDataWithBaseURL(null, shell, "text/html", "UTF-8", null)
     }
-    fun update(value: String, fontScale: Float) {
-        val changed = value != markdown || zoom != fontScale
-        markdown = value; zoom = fontScale
+    fun update(value: String, fontScale: Float, theme: MarkdownWebTheme = appearance) {
+        val themeChanged = appearance != theme
+        val changed = value != markdown || zoom != fontScale || themeChanged
+        markdown = value; zoom = fontScale; appearance = theme
+        if (themeChanged) {
+            // WebView reads isLightTheme from this context when configuration changes.
+            // Keep the WebView/document alive so viewport and image consent survive.
+            webContext.baseContext = themedContext()
+            view?.dispatchConfigurationChanged(configuration())
+        }
         if (changed && loaded) push()
     }
     private fun push() {
         val web = view ?: return
         web.settings.textZoom = (zoom * 100).toInt().coerceIn(50, 400)
-        web.evaluateJavascript(MarkdownPreviewPolicy.renderScript(markdown) + "true;") { result ->
+        web.evaluateJavascript(appearance.renderScript(markdown)) { result ->
             if (!closed && result != "true") onFailure("Markdown renderer failed. Showing raw source.")
-            else if (!closed) viewportBinding?.rendered()
         }
     }
     private suspend fun handle(message: JSONObject) {
         if (closed) return
+        if (message.optString("action") == "markdownRendered") { viewportBinding?.rendered(); return }
         if (message.optString("action") == "markdownViewport") { viewportBinding?.geometry(message); return }
         val lib = message.optString("lib")
         val specs = MarkdownAssets.libraries[lib]

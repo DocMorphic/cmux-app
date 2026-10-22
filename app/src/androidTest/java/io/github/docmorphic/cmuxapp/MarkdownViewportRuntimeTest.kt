@@ -35,16 +35,21 @@ class MarkdownViewportRuntimeTest {
         while (SystemClock.elapsedRealtime() < end) { if (block()) return; Thread.sleep(100) }
         screenshot("failure"); fail(message)
     }
-    private fun screenshot(name: String) {
+    private fun screenshot(name: String, foreground: Int? = null) {
         val dir = File(context.getExternalFilesDir(null), "markdown-lifecycle").apply { mkdirs() }
         // UiAutomator can capture before Chromium paints, even after JS/native scroll agree.
         awaitPaint@ for (attempt in 0..40) {
             val bitmap = instrumentation.uiAutomation.takeScreenshot()
             var ink = 0
+            val dark = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            val expected = if (foreground != null) intArrayOf(android.graphics.Color.red(foreground), android.graphics.Color.green(foreground), android.graphics.Color.blue(foreground))
+                else if (dark) intArrayOf(230, 237, 243) else intArrayOf(31, 35, 40)
             for (y in bitmap.height / 6 until bitmap.height * 4 / 5 step 3)
                 for (x in bitmap.width / 8 until bitmap.width * 7 / 8 step 3) {
                     val pixel = bitmap.getPixel(x, y)
-                    if (android.graphics.Color.red(pixel) > 150 && android.graphics.Color.green(pixel) > 150 && android.graphics.Color.blue(pixel) > 150) ink++
+                    if (kotlin.math.abs(android.graphics.Color.red(pixel) - expected[0]) <= 12 &&
+                        kotlin.math.abs(android.graphics.Color.green(pixel) - expected[1]) <= 12 &&
+                        kotlin.math.abs(android.graphics.Color.blue(pixel) - expected[2]) <= 12) ink++
                 }
             if (ink > 1_000 || attempt == 40) {
                 File(dir, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
@@ -145,6 +150,8 @@ class MarkdownViewportRuntimeTest {
             scenario.onActivity { text = findArtifactText(it.window.decorView)?.textView?.text?.toString() }
             text?.startsWith("## Section 1") == true && text?.contains("## Section 100") == true
         }
-        screenshot("bounded-fallback")
+        var foreground = 0
+        scenario.onActivity { foreground = findArtifactText(it.window.decorView)!!.textView.currentTextColor }
+        screenshot("bounded-fallback", foreground)
     }
 }
