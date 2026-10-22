@@ -1,3 +1,58 @@
+## Shared dialog environment and retained editors verified — 2026-10-23
+
+Implementation `ba78b915` replaces the Plan-only window restart with shared
+handling in NativeDialog, NativeAlertDialog and NativeModalBottomSheet. Window
+construction receives the real physical density with a stable font-scale key;
+all user content, alert slots and sheet content/handle receive the caller's
+actual density, context, configuration and direction. Text remains enlarged.
+The actual LocalView/window owner is retained. Pinned UI 1.9.1 and Material3
+1.3.2 constructor sources use that density only for their 8 dp shadow. The UI
+dialog's Unit-keyed show could leave a replacement unshown; sheets show their
+replacement correctly but would still discard remembered child state. No
+framework upgrade or user font-scale cap was introduced. Source bindings:
+`captures/recovery-20261023/shared-window-source.json`.
+
+Three new production-wrapper checks keep the same actual dialog, nested alert/
+parent and bottom-sheet windows across controlled font/locale/theme changes.
+Plain remember tokens, a typed safe draft, selection 2–5 and editor focus remain;
+real scroll stays at 1,362 px in the dialog and 2,328 px in the sheet. The sheet
+owner and expanded state remain. Actual title layouts report scale 2 and current
+localized text; before/after frames were reviewed. The Plan check now also
+requires the same window, plan object and two account reads, with its scroll
+clamped from 798 to the new 680 px maximum. Its older restart workaround is gone.
+
+Accepted same-production-APK cohorts: `dialog-environment-v2` passes 25 broad
+cases (114.747 s), and `dialog-environment-v3` passes six narrow Plan cases
+(21.862 s) plus all six native-relative Poll geometry captures. Broad source
+hashes and APK hash are checked before reusing that cohort; only narrow fixture
+input visibility differs between test APKs. Coverage includes 27 real bar/icon
+appearance frames, twelve exact Poll descriptors/seven local scales with 38
+raster checks, actual OS font/appearance recreation, Markdown color/document/
+zoom and viewport/recovery, production help/toolbar/drafts/alerts and controlled
+Cloud card appearance. The full unit suite passes 3,112 tests with four opt-in
+skips and no failures/errors (3,116 total, 423 reports). Both tested APK pairs
+and exact changed sources are archived. Crash buffers are empty, settings
+restore commands succeeded and the owned emulator stopped. Checkpoint:
+`captures/recovery-20261023/dialog-environment-checkpoint.json`.
+
+Earlier v1 is excluded as a whole: Markdown's initial programmatic zoom ran
+before a committed native frame. Its fixture now waits for that frame and
+records the actual 3 to 3.9 scale change, retaining its original threshold.
+The first v2 narrow run is excluded: the fixture tapped an offscreen offers
+button and observed the previous callback. It now scrolls, verifies visibility
+and taps the actual control; exact fixed-URL checks pass. Instrumentation-only
+compile errors are retained as diagnostics. No production Markdown/controller
+or billing transport behavior was changed to satisfy these fixture issues.
+
+This proves controlled shared-window/editor continuity and the listed
+regressions, not physical IME/TalkBack, system-language/display-density/host
+replacement, full authenticated lifecycle, real backend delivery or full app
+parity. Dependency/global upstream pins remain unchanged. Pixel stays released
+at last verified 712, with availability pending; signed 714 remains local and
+predates these changes. No phone or real account was operated. Billing project
+identification and every broader device/backend/release gate remain open; full
+parity stays active and a newer verified signed build is still needed.
+
 ## Localized read-only Plan UI and retained window — 2026-10-23
 
 Implementation `5afe6886` localizes the existing read-only Plan screen and
