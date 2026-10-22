@@ -28,12 +28,17 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val navigationAccent = Color(0xFF76B9FF)
-private val navigationText = Color(0xFFE5E7EB)
+private val navigationAccent: Color @Composable get() = NativeAppColors.accent
+private val navigationText: Color @Composable get() = NativeAppColors.text
 private val pill = RoundedCornerShape(40.dp)
-private fun Modifier.navigationSurface() = shadow(8.dp, pill).clip(pill)
-    .background(Brush.verticalGradient(listOf(Color(0xF22A2D34), Color(0xF21B1D22))))
-    .border(0.7.dp, Color(0xFF42464F), pill)
+@Composable
+private fun Modifier.navigationSurface(): Modifier {
+    val dark = NativeAppColors.dark
+    val stops = if (dark) listOf(Color(0xF22A2D34), Color(0xF21B1D22))
+        else listOf(Color(0xF2FFFFFF), Color(0xF2F2F2F7))
+    return shadow(8.dp, pill).clip(pill).background(Brush.verticalGradient(stops))
+        .border(0.7.dp, if (dark) Color(0xFF42464F) else Color(0xFFD1D1D6), pill)
+}
 
 /** iOS 26 primary-tab structure, with Android focus/IME and accessibility semantics. */
 @Composable
@@ -103,7 +108,7 @@ internal fun NativePrimaryNavigation(
 private fun PrimaryTab(label: String, spokenLabel: String, icon: Int, active: Boolean,
     unreadCount: Int, modifier: Modifier, sidebar: Boolean = false, action: () -> Unit) {
     Column(modifier.height(58.dp).clip(if (sidebar) RoundedCornerShape(8.dp) else pill)
-        .background(if (active && !sidebar) Color(0xFF3B3F48) else Color.Transparent)
+        .background(if (active && !sidebar) NativeAppColors.control else Color.Transparent)
         .selectable(active, role = Role.Tab, onClick = action).clearAndSetSemantics {
             text = AnnotatedString(spokenLabel); selected = active; role = Role.Tab
             onClick { action(); true }

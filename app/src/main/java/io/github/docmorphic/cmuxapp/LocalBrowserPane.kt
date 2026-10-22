@@ -81,18 +81,18 @@ internal fun LocalBrowserPane(surface: LocalBrowserSurface, beforeNavigation: (s
         lifecycle.addObserver(observer); onDispose { lifecycle.removeObserver(observer) }
     }
     fun submit() { if (surface.submitAddress()) { focus.clearFocus(); keyboard?.hide() } }
-    Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E)).imePadding().testTag("LocalBrowserPane")) {
-        Row(Modifier.fillMaxWidth().background(Color(0xFF191B1F)).padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().background(NativeAppColors.page).imePadding().testTag("LocalBrowserPane")) {
+        Row(Modifier.fillMaxWidth().background(NativeAppColors.panel).padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             LocalBrowserButton("Browser Back", "‹", state.canGoBack) { surface.request(LocalBrowserCommand.BACK) }
             LocalBrowserButton("Browser Forward", "›", state.canGoForward) { surface.request(LocalBrowserCommand.FORWARD) }
             BasicTextField(state.address, surface::editAddress, singleLine = true, enabled = !state.closed,
-                textStyle = TextStyle(color = Color.White, fontSize = 13.sp), cursorBrush = SolidColor(Color(0xFF76B9FF)),
+                textStyle = TextStyle(color = NativeAppColors.text, fontSize = 13.sp), cursorBrush = SolidColor(NativeAppColors.accent),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false,
                     keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { submit() }),
-                modifier = Modifier.weight(1f).clip(RoundedCornerShape(9.dp)).background(Color(0xFF303238))
+                modifier = Modifier.weight(1f).clip(RoundedCornerShape(9.dp)).background(NativeAppColors.control)
                     .padding(horizontal = 10.dp, vertical = 11.dp).onFocusChanged { surface.editing(it.isFocused) }
                     .semantics { contentDescription = "Browser address" }.testTag("LocalBrowserAddress"),
-                decorationBox = { field -> Box { if (state.address.isEmpty()) Text("Search or enter address", color = Color(0xFFAAAAAE), fontSize = 13.sp); field() } })
+                decorationBox = { field -> Box { if (state.address.isEmpty()) Text("Search or enter address", color = NativeAppColors.muted, fontSize = 13.sp); field() } })
             LocalBrowserButton(if (state.loading) "Stop loading" else "Reload page", if (state.loading) "⊗" else "↻", !state.closed) {
                 surface.request(if (state.loading) LocalBrowserCommand.STOP else LocalBrowserCommand.RELOAD)
             }
@@ -101,7 +101,7 @@ internal fun LocalBrowserPane(surface: LocalBrowserSurface, beforeNavigation: (s
         if (state.loading) LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth().height(2.dp)
             .semantics { contentDescription = "Browser loading" }) else Spacer(Modifier.height(2.dp))
         state.error?.let { message -> Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(message, color = Color(0xFFFFB2B2), fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text(message, color = NativeAppColors.error, fontSize = 12.sp, modifier = Modifier.weight(1f))
             TextButton(onClick = { surface.request(LocalBrowserCommand.RELOAD) }, enabled = !state.closed) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
         } }
         key(surface.id) {
@@ -131,6 +131,6 @@ internal fun LocalBrowserPane(surface: LocalBrowserSurface, beforeNavigation: (s
 @Composable
 private fun LocalBrowserButton(label: String, glyph: String, enabled: Boolean, action: () -> Unit) {
     IconButton(onClick = action, enabled = enabled, modifier = Modifier.size(44.dp).semantics { contentDescription = label }) {
-        Text(glyph, color = if (enabled) Color(0xFF76B9FF) else Color(0xFF727680), fontSize = 24.sp)
+        Text(glyph, color = if (enabled) NativeAppColors.accent else Color(0xFF727680), fontSize = 24.sp)
     }
 }

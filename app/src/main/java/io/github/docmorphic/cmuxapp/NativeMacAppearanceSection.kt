@@ -56,13 +56,13 @@ internal fun NativeMacAppearanceSection(target: NativeComputerTarget, value: Nat
         }
     }
     Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("APPEARANCE", color = Color(0xFF9B9FA8), fontSize = 11.sp)
+        Text("APPEARANCE", color = NativeAppColors.muted, fontSize = 11.sp)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             NativeMacAvatar(value, nativeMacColorIdentity(target.deviceId, target.buildTag).colorSeed, index = colorIndex)
             Text(value.displayName(target.name), maxLines = 2)
         }
         if (readError) {
-            Text("Could not load saved appearance. Retry before making changes.", color = Color(0xFFFF9999))
+            Text("Could not load saved appearance. Retry before making changes.", color = NativeAppColors.error)
             TextButton(enabled = !pending, onClick = {
                 pending = true
                 scope.launch { try { retry() } finally { pending = false } }
@@ -75,7 +75,7 @@ internal fun NativeMacAppearanceSection(target: NativeComputerTarget, value: Nat
                 keyboardActions = KeyboardActions(onDone = { val text = name; change { it.copy(name = text) } }))
             TextButton(enabled = !pending && !readError, onClick = { val text = name; change { it.copy(name = text) } }) { Text("Save name") }
         }
-        Text("Leave the name empty to use the Mac's name.", color = Color(0xFF9B9FA8), fontSize = 12.sp)
+        Text("Leave the name empty to use the Mac's name.", color = NativeAppColors.muted, fontSize = 12.sp)
         Text("Color", fontSize = 14.sp)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             AppearanceChoice("Auto color", value.color == null, !pending && !readError, { change { it.copy(color = null) } }) { Text("Auto", fontSize = 12.sp) }
@@ -115,7 +115,7 @@ internal fun NativeMacAppearanceSection(target: NativeComputerTarget, value: Nat
             TextButton(enabled = !pending && !readError && emoji.isNotBlank(), onClick = { submitEmoji() }) { Text("Use emoji") }
         }
         if (pending) LinearProgressIndicator(Modifier.fillMaxWidth())
-        error?.let { Text(it, color = Color(0xFFFF9999), fontSize = 13.sp) }
+        error?.let { Text(it, color = NativeAppColors.error, fontSize = 13.sp) }
     }
     if (colorPicker) NativeAppearanceColorDialog(value.color, { colorPicker = false }) { color ->
         colorPicker = false; change { it.copy(color = color) }

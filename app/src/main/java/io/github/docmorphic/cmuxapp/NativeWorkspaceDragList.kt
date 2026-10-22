@@ -183,9 +183,9 @@ internal fun NativeWorkspaceDragList(
             val nextKey = snapshot.getOrNull(destination)?.key
             val lineY = visible.firstOrNull { it.key == nextKey }?.offset
                 ?: if (destination == snapshot.size) visible.lastOrNull()?.let { it.offset + it.size } else null
-            if (lineY != null) Box(Modifier.offset { IntOffset(0, lineY) }.fillMaxWidth().height(2.dp).background(Color(0xFF76B9FF)))
+            if (lineY != null) Box(Modifier.offset { IntOffset(0, lineY) }.fillMaxWidth().height(2.dp).background(NativeAppColors.accent))
             Column(Modifier.offset { IntOffset(0, (pointerY - fingerOffset).roundToInt()) }.fillMaxWidth()
-                .graphicsLayer { shadowElevation = 16f; alpha = 0.96f }.background(Color(0xFF24272D))
+                .graphicsLayer { shadowElevation = 16f; alpha = 0.96f }.background(NativeAppColors.panel)
                 .clearAndSetSemantics { }) { row(moving) }
         }
     }

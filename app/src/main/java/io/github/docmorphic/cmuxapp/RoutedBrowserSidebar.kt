@@ -195,14 +195,14 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                     else -> date.format(DateTimeFormatter.ofPattern("EEEE, MMM d", java.util.Locale.getDefault()))
                 } } }.getOrDefault(row.title), LocalWorkspaceGeometryHeld.current) { text, _ ->
                     Text(text, Modifier.padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 8.dp)
-                    .semantics { heading() }, color = Color(0xFF9B9FA8), style = MaterialTheme.typography.labelLarge)
+                    .semantics { heading() }, color = NativeAppColors.muted, style = MaterialTheme.typography.labelLarge)
                 }
                 "updates" -> Column {
                     NativeFeedHistoryToggle(NativeFeedDisclosure(row.key, row.count ?: 0, row.expanded)) { expanded ->
                         if (admitted()) controller.query(ui.query.copy(expanded =
                             if (expanded) ui.query.expanded + row.key else ui.query.expanded - row.key))
                     }
-                    HorizontalDivider(color = Color(0xFF292C31))
+                    HorizontalDivider(color = NativeAppColors.line)
                 }
                 "notification" -> Column {
                     NativeFeedRow(NativeFeedRowValue(row.key, NotificationPresentation(row.title, row.subtitle, row.preview),

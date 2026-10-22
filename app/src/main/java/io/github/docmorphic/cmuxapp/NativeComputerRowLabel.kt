@@ -51,12 +51,12 @@ internal fun NativeComputerRowLabel(name: String, buildLabel: String?, connectio
         }
         Text(if (reconnect) heartbeat else connection.phrase + (connection.workspaceCount?.let {
             " · $it ${if (it == 1) "workspace" else "workspaces"}"
-        } ?: ""), color = Color(0xFF9B9FA8), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        } ?: ""), color = NativeAppColors.muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         val route = routeDescription ?: "no route"
         val diagnostic = if (reconnect || (presence.online == null && connection.availability == NativeFeedAvailability.CONNECTED)) route
             else "Presence: ${if (presence.online == null) "unknown" else heartbeat} · $route"
         Text((if (olderPairing) "Older pairing · " else "") + diagnostic,
-            color = Color(0xFF9B9FA8), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            color = NativeAppColors.muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         NativeMacUpdateGuidance(identity)
     }
 }
@@ -67,11 +67,11 @@ internal fun NativeComputerStatusDot(connection: NativeComputerConnection, prese
     val connecting = connection.availability == NativeFeedAvailability.CONNECTING
     val description = if (connecting) connection.phrase else if (reconnect) heartbeat else connection.phrase
     val color = if (reconnect) {
-        if (presence.online == true) Color(0xFF72D49A) else Color(0xFF9B9FA8)
+        if (presence.online == true) Color(0xFF72D49A) else NativeAppColors.muted
     } else when (connection.availability) {
         NativeFeedAvailability.CONNECTED -> Color(0xFF72D49A)
         NativeFeedAvailability.CONNECTING -> Color(0xFFFFC46B)
-        NativeFeedAvailability.OFFLINE -> Color(0xFF9B9FA8)
+        NativeFeedAvailability.OFFLINE -> NativeAppColors.muted
     }
     Box(Modifier.padding(horizontal = 8.dp).semantics { contentDescription = "Computer status: $description" }) {
         if (connecting && reconnect) CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = Color(0xFFFFC46B))
@@ -84,7 +84,7 @@ internal fun NativeComputerStatusDot(connection: NativeComputerConnection, prese
 internal fun NativeComputerMethodSections(rows: List<NativeComputerListRow>, row: @Composable (NativeComputerListRow) -> Unit) {
     NativeComputerList.sections(rows).forEach { (title, computers) ->
         Text(title, Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
-            color = Color(0xFF9B9FA8), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+            color = NativeAppColors.muted, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
         computers.forEach { computer -> key(computer.mac.origin) { row(computer) } }
     }
 }

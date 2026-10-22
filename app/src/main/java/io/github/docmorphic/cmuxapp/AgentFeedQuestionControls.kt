@@ -24,14 +24,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-internal val questionAccent = Color(0xFF76B9FF)
-internal val questionMuted = Color(0xFF9CA3AF)
+internal val questionAccent: Color @Composable get() = NativeAppColors.accent
+internal val questionMuted: Color @Composable get() = NativeAppColors.muted
 
 @Composable
 internal fun AgentFeedQuestionControls(item: NativeAgentFeedItem, enabled: Boolean, onAnswer: () -> Unit) {
     val first = item.questions.firstOrNull() ?: return
     val shape = RoundedCornerShape(18.dp)
-    Column(Modifier.fillMaxWidth().alpha(if (enabled) 1f else .55f).padding(top = 4.dp).background(Color(0xFF191C21), shape)
+    Column(Modifier.fillMaxWidth().alpha(if (enabled) 1f else .55f).padding(top = 4.dp).background(NativeAppColors.panel, shape)
         .border(1.dp, questionAccent.copy(alpha = .24f), shape).padding(14.dp).testTag("AgentFeedQuestions"),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -48,7 +48,7 @@ internal fun AgentFeedQuestionControls(item: NativeAgentFeedItem, enabled: Boole
             verticalAlignment = Alignment.CenterVertically) {
             if (first.multiSelect) {
                 Checkbox(true, null, modifier = Modifier.padding(end = 6.dp).size(16.dp),
-                    colors = CheckboxDefaults.colors(checkedColor = questionMuted, checkmarkColor = Color(0xFF191C21)))
+                    colors = CheckboxDefaults.colors(checkedColor = questionMuted, checkmarkColor = NativeAppColors.panel))
             }
             Text(if (first.multiSelect) "Select all that apply" else "Choose one", color = questionMuted,
                 fontSize = 12.sp, modifier = Modifier.weight(1f))

@@ -87,7 +87,7 @@ internal fun NativeNetworkingScreen(load: suspend (Boolean) -> NativeNetworkingS
             } finally { pending = false }
         }
     }
-    Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
+    Surface(Modifier.fillMaxSize(), color = NativeAppColors.page) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onBack) { Text("‹  Back") }
@@ -104,7 +104,7 @@ internal fun NativeNetworkingScreen(load: suspend (Boolean) -> NativeNetworkingS
                 TextButton(enabled = !pending && !resetPending, onClick = {
                     if (!pending && !resetPending) { pending = true; requests.trySend(Unit) }
                 }) { Text(if (pending) "Refreshing…" else "Refresh Networking") }
-                error?.let { Text(it, color = Color(0xFFFFC170), fontSize = 13.sp) }
+                error?.let { Text(it, color = NativeAppColors.warning, fontSize = 13.sp) }
                 snapshot?.let { value ->
                     Heading("STATUS")
                     NetworkingRow("Transport", when (value.runtime) {
@@ -134,7 +134,7 @@ internal fun NativeNetworkingScreen(load: suspend (Boolean) -> NativeNetworkingS
                             Text(buildString {
                                 append(if (relay.usable) "Available" else "Expired")
                                 if (relay.home) append(" · Home Relay")
-                            }, fontSize = 12.sp, color = if (relay.usable) muted else Color(0xFFFFC170))
+                            }, fontSize = 12.sp, color = if (relay.usable) muted else NativeAppColors.warning)
                             Text("Expires ${networkingDate(relay.expiresAt)}", fontSize = 12.sp, color = muted)
                         }
                     }
@@ -151,7 +151,7 @@ internal fun NativeNetworkingScreen(load: suspend (Boolean) -> NativeNetworkingS
     }
 }
 
-private val muted = Color(0xFF9B9FA8)
+private val muted: Color @Composable get() = NativeAppColors.muted
 @Composable private fun Heading(text: String) {
     Text(text, color = muted, fontSize = 11.sp, modifier = Modifier.padding(top = 18.dp, bottom = 8.dp))
 }
@@ -177,7 +177,7 @@ private fun NativeNetworkingResetButton(reset: suspend () -> Unit, enabled: Bool
         title = { Text(stringResource(R.string.cmux_ui_mobile_iroh_reset_title_9115ca3c)) },
         text = { Column {
             Text("Disable all private addresses in this team. Saved addresses will remain so you can enable them again.")
-            if (error) Text("Could not reset networking. Try again.", color = Color(0xFFFFC170))
+            if (error) Text("Could not reset networking. Try again.", color = NativeAppColors.warning)
         } },
         confirmButton = { TextButton(enabled = !pending, onClick = {
             if (!pending) {

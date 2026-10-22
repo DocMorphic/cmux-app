@@ -40,9 +40,9 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.Base64
 
-internal val filesAccent = Color(0xFF76B9FF)
-internal val filesMuted = Color(0xFF9B9FA8)
-private val filesPanel = Color(0xFF191B1F)
+internal val filesAccent: Color @Composable get() = NativeAppColors.accent
+internal val filesMuted: Color @Composable get() = NativeAppColors.muted
+private val filesPanel: Color @Composable get() = NativeAppColors.panel
 
 @Composable
 internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, refreshSignal: Int = 0, navigation: ArtifactNavigationState? = null,
@@ -60,7 +60,7 @@ internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
         snapshotFlow { latestSignal }.drop(1).collect { if (showingSession) store.refreshLive() }
     }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize(), color = Color(0xFF111316), contentColor = Color(0xFFE5E7EB)) {
+        Surface(Modifier.fillMaxSize(), color = NativeAppColors.page, contentColor = NativeAppColors.text) {
             Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
                 // collectAsState can retain its previous flow's value until its collector
                 // restarts. A new client must never observe the old session admission.
@@ -134,8 +134,8 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
                 .background(filesPanel, RoundedCornerShape(10.dp))) {
                 listOf(true to "Session", false to "In view").forEach { (value, label) ->
                     TextButton(onClick = { sessionScope = value }, Modifier.weight(1f)
-                        .background(if (sessionScope == value) Color(0xFF30343B) else Color.Transparent, RoundedCornerShape(10.dp))) {
-                        Text(label, color = if (sessionScope == value) Color.White else filesMuted)
+                        .background(if (sessionScope == value) NativeAppColors.control else Color.Transparent, RoundedCornerShape(10.dp))) {
+                        Text(label, color = if (sessionScope == value) NativeAppColors.text else filesMuted)
                     }
                 }
             }
@@ -146,8 +146,9 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
                         ArtifactFilter.entries.forEach { option ->
                             TextButton(onClick = { filter = option }, shape = RoundedCornerShape(50),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
-                                colors = ButtonDefaults.textButtonColors(containerColor = if (filter == option) Color(0xFF007AFF) else filesPanel)) {
-                                Text(option.title, color = if (filter == option) Color.White else filesMuted, fontWeight = FontWeight.Medium)
+                                colors = ButtonDefaults.textButtonColors(containerColor = if (filter == option) NativeAppColors.accent else filesPanel,
+                                    contentColor = if (filter == option) MaterialTheme.colorScheme.onPrimary else NativeAppColors.text)) {
+                                Text(option.title, color = if (filter == option) MaterialTheme.colorScheme.onPrimary else filesMuted, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
@@ -194,7 +195,7 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
                     groups.forEach { group ->
                         if (group.title.isNotEmpty() && group.items.isNotEmpty()) item(key = "section:${group.title}", span = { GridItemSpan(maxLineSpan) }) {
                             TextButton(onClick = { folded = if (group.title in folded) folded - group.title else folded + group.title }, Modifier.fillMaxWidth()) {
-                                Text("${if (group.title in folded) "›" else "⌄"}  ${group.title}", Modifier.weight(1f), color = Color.White)
+                                Text("${if (group.title in folded) "›" else "⌄"}  ${group.title}", Modifier.weight(1f), color = NativeAppColors.text)
                                 Text(group.items.size.toString(), color = filesMuted)
                             }
                         }
@@ -236,15 +237,16 @@ internal fun FilesHeader(title: String, onBack: (() -> Unit)?, onDone: () -> Uni
 
 @Composable
 private fun FilesSearchField(value: String, onChange: (String) -> Unit) {
-    BasicTextField(value, onChange, singleLine = true, textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
+    val searchInk = filesMuted
+    BasicTextField(value, onChange, singleLine = true, textStyle = TextStyle(color = NativeAppColors.text, fontSize = 16.sp),
         cursorBrush = SolidColor(filesAccent),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(min = 40.dp)
             .background(filesPanel, RoundedCornerShape(10.dp)).padding(horizontal = 12.dp),
         decorationBox = { field ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Canvas(Modifier.size(16.dp)) {
-                    drawCircle(filesMuted, radius = size.width * .3f, center = androidx.compose.ui.geometry.Offset(size.width * .36f, size.height * .36f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.8.dp.toPx()))
-                    drawLine(filesMuted, androidx.compose.ui.geometry.Offset(size.width * .6f, size.height * .6f), androidx.compose.ui.geometry.Offset(size.width * .95f, size.height * .95f), strokeWidth = 1.8.dp.toPx())
+                    drawCircle(searchInk, radius = size.width * .3f, center = androidx.compose.ui.geometry.Offset(size.width * .36f, size.height * .36f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.8.dp.toPx()))
+                    drawLine(searchInk, androidx.compose.ui.geometry.Offset(size.width * .6f, size.height * .6f), androidx.compose.ui.geometry.Offset(size.width * .95f, size.height * .95f), strokeWidth = 1.8.dp.toPx())
                 }
                 Box(Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 9.dp)) {
                     if (value.isEmpty()) Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_search_e891948e), color = filesMuted, fontSize = 16.sp)
@@ -289,12 +291,12 @@ private fun ArtifactGalleryRowContent(rpc: ArtifactRpc, item: ArtifactItem, grid
             .semantics { contentDescription = "Open ${if (item.kind == ArtifactKind.DIRECTORY) "folder" else "file"} ${item.path}" }
         if (grid) Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
             ArtifactGlyph(item, thumbnails, authorization, Modifier.fillMaxWidth().aspectRatio(1f).background(filesPanel, RoundedCornerShape(12.dp)))
-            Text(item.displayName, Modifier.padding(top = 7.dp), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = if (item.exists) Color.White else filesMuted)
+            Text(item.displayName, Modifier.padding(top = 7.dp), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = if (item.exists) NativeAppColors.text else filesMuted)
             ArtifactMetadataLabel(item)
         } else Row(modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             ArtifactGlyph(item, thumbnails, authorization, Modifier.size(42.dp).background(filesPanel, RoundedCornerShape(8.dp)))
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(item.displayName, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (item.exists) Color.White else filesMuted)
+                Text(item.displayName, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (item.exists) NativeAppColors.text else filesMuted)
                 ArtifactMetadataLabel(item)
             }
             if (item.kind == ArtifactKind.DIRECTORY) Text("›", color = filesMuted, fontSize = 22.sp)

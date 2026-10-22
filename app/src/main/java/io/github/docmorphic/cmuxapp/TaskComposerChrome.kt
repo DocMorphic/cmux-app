@@ -26,11 +26,11 @@ internal fun TaskComposerFailureBanner(failure: TaskComposerFailure) {
         .semantics { liveRegion = LiveRegionMode.Polite }.padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Icon(painterResource(R.drawable.ic_task_warning), contentDescription = null,
-            tint = Color(0xFFFF9999), modifier = Modifier.size(18.dp))
+            tint = NativeAppColors.error, modifier = Modifier.size(18.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(failure.title, color = Color(0xFFFF9999), style = MaterialTheme.typography.titleSmall,
+            Text(failure.title, color = NativeAppColors.error, style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.testTag("TaskComposerFailureTitle"))
-            Text(failure.message, color = Color(0xFFFF9999), style = MaterialTheme.typography.bodySmall,
+            Text(failure.message, color = NativeAppColors.error, style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag("TaskComposerFailureMessage"))
         }
     }
@@ -42,8 +42,8 @@ internal fun TaskComposerCircle(label: String, icon: Int, enabled: Boolean, acce
     busy: Boolean = false, onClick: () -> Unit) {
     IconButton(onClick, Modifier.size(48.dp).semantics { contentDescription = label }, enabled = enabled) {
         Surface(Modifier.size(38.dp), shape = CircleShape,
-            color = if (accent && enabled) Color(0xFF76B9FF) else Color(0xFF25272B),
-            contentColor = if (accent && enabled) Color(0xFF081421) else if (enabled) Color(0xFFE1E3E8) else Color(0xFF74777E)) {
+            color = if (accent && enabled) NativeAppColors.accent else NativeAppColors.control,
+            contentColor = if (accent && enabled) MaterialTheme.colorScheme.onPrimary else if (enabled) NativeAppColors.onControl else NativeAppColors.muted) {
             Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
                 if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 else Icon(painterResource(icon), null, Modifier.size(18.dp))
@@ -57,7 +57,7 @@ internal fun TaskComposerPill(onClick: () -> Unit, enabled: Boolean, modifier: M
     content: @Composable RowScope.() -> Unit) {
     FilledTonalButton(onClick, modifier.height(38.dp), enabled = enabled,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp), shape = CircleShape,
-        colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFF25272B), contentColor = Color(0xFFE1E3E8))) {
+        colors = ButtonDefaults.filledTonalButtonColors(containerColor = NativeAppColors.control, contentColor = NativeAppColors.onControl)) {
         ProvideTextStyle(MaterialTheme.typography.labelMedium) { content() }
     }
 }
@@ -67,7 +67,7 @@ internal fun TaskComposerPill(onClick: () -> Unit, enabled: Boolean, modifier: M
 @Composable
 internal fun TaskComposerPillScroller(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     val scroll = rememberScrollState()
-    val canvas = Color(0xFF0B0C0E)
+    val canvas = NativeAppColors.page
     Box(modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
         Row(Modifier.fillMaxWidth().height(48.dp).horizontalScroll(scroll).padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, content = content)

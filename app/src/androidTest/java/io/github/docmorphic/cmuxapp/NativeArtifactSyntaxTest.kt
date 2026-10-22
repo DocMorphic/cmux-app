@@ -79,9 +79,9 @@ class NativeArtifactSyntaxTest {
         val state = ArtifactViewerState(compose.activity, LocalFilePreview(file, file.length(), "text/plain", ChangesPreviewRoute.TEXT))
         val document = ArtifactTextDocument(text)
         state.document = document
-        state.highlightedDocument = document // Hold publication to exercise a genuinely late result.
+        state.highlightedDocument = document; state.highlightedDark = true // Hold publication to exercise a genuinely late result.
         state.setFont(18f)
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+        compose.setContent { CmuxTheme(darkTheme = true) { Surface(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().safeDrawingPadding()) { ArtifactRawTextPreview(state) }
         } } }
         compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Raw text preview").fetchSemanticsNodes().isNotEmpty() }
@@ -118,7 +118,7 @@ class NativeArtifactSyntaxTest {
     @Test fun realViewerAutomaticallyHighlightsPureScriptWithNativeSpans() {
         val text = "module Main where\nimport Prelude\nmain = log \"Hello Pixel\""
         val file = File(compose.activity.cacheDir, "Main.purs").apply { writeText(text) }; files.add(file)
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+        compose.setContent { CmuxTheme(darkTheme = true) { Surface(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().safeDrawingPadding()) { FilePreviewContent(LocalFilePreview(file, file.length(), "text/plain", ChangesPreviewRoute.TEXT)) }
         } } }
         compose.waitUntil(25_000) { hasSyntax() }
@@ -132,7 +132,7 @@ class NativeArtifactSyntaxTest {
     @Test fun oversizedFileExplainsHighlightingLimitAndKeepsRawTextAvailable() {
         val text = "val stillReadable = 42"
         val file = File(compose.activity.cacheDir, "large-policy.kt").apply { writeText(text) }; files.add(file)
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+        compose.setContent { CmuxTheme(darkTheme = true) { Surface(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().safeDrawingPadding()) { FilePreviewContent(LocalFilePreview(file, ArtifactSyntaxPolicy.MAX_HIGHLIGHT_BYTES + 1, "text/plain", ChangesPreviewRoute.TEXT)) }
         } } }
         compose.onNodeWithText("Highlighting off").performClick()

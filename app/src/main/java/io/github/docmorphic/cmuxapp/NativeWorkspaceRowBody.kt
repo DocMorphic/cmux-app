@@ -15,8 +15,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val nativeMuted = Color(0xFF9B9FA8)
-private val nativeAccent = Color(0xFF76B9FF)
+private val nativeMuted: Color @Composable get() = NativeAppColors.muted
+private val nativeAccent: Color @Composable get() = NativeAppColors.accent
 
 internal data class WorkspaceRowVisual(val workspace: NativeWorkspace,
     val preferences: NativeDisplayPreferences, val highlighted: Boolean,

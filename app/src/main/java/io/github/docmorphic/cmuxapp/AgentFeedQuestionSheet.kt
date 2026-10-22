@@ -55,7 +55,7 @@ internal fun AgentFeedQuestionSheet(entry: AgentFeedUiEntry, modal: AgentFeedMod
         if (next != drafts) { drafts = next; onChange(modal.copy(draft = next.encode())) }
     }
     ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color(0xFF111317), contentColor = Color(0xFFE9E9EC)) {
+        containerColor = NativeAppColors.page, contentColor = NativeAppColors.text) {
         val focus = LocalFocusManager.current
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).imePadding().testTag("AgentFeedQuestionSheet")) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -70,7 +70,7 @@ internal fun AgentFeedQuestionSheet(entry: AgentFeedUiEntry, modal: AgentFeedMod
                 }, enabled = enabled && entry.connected && answers != null,
                     modifier = Modifier.testTag("AgentFeedQuestionSubmit"),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF176FC1), contentColor = Color.White,
-                        disabledContainerColor = Color(0xFF282C32), disabledContentColor = Color(0xFF737983)),
+                        disabledContainerColor = NativeAppColors.control, disabledContentColor = NativeAppColors.muted),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_submitshort_4be616d1)) }
             }
             Column(Modifier.weight(1f).fillMaxWidth().onSizeChanged { viewportHeight = it.height }
@@ -84,7 +84,7 @@ internal fun AgentFeedQuestionSheet(entry: AgentFeedUiEntry, modal: AgentFeedMod
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LinearProgressIndicator(progress = { answered.toFloat() / questions.size.coerceAtLeast(1) },
                             modifier = Modifier.weight(1f).height(4.dp).clearAndSetSemantics { }, color = questionAccent,
-                            trackColor = Color(0xFF343940), drawStopIndicator = {})
+                            trackColor = NativeAppColors.line, drawStopIndicator = {})
                         Text("$answered/${questions.size}", fontSize = 12.sp, color = questionMuted,
                             modifier = Modifier.semantics { contentDescription = "$answered of ${questions.size} answered" })
                     }
@@ -106,16 +106,16 @@ internal fun AgentFeedQuestionSheet(entry: AgentFeedUiEntry, modal: AgentFeedMod
 private fun QuestionCard(question: AgentFeedQuestion, index: Int, drafts: AgentFeedQuestionDrafts,
     enabled: Boolean, viewportHeight: Int, onChoose: (String) -> Unit, onCustom: () -> Unit, onWrite: (String) -> Unit) {
     val shape = RoundedCornerShape(18.dp)
-    Column(Modifier.fillMaxWidth().background(Color(0xFF1B1E23), shape)
-        .border(1.dp, Color.White.copy(alpha = .12f), shape).padding(14.dp)
+    Column(Modifier.fillMaxWidth().background(NativeAppColors.panel, shape)
+        .border(1.dp, NativeAppColors.text.copy(alpha = .12f), shape).padding(14.dp)
         .testTag("AgentFeedQuestionCard:${question.id}"), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Question ${index + 1}", fontSize = 12.sp, color = questionMuted)
-            if (drafts.answered(question) != null) Row(Modifier.background(Color(0xFF69CE8D).copy(alpha = .12f), RoundedCornerShape(50))
+            if (drafts.answered(question) != null) Row(Modifier.background(NativeAppColors.success.copy(alpha = .12f), RoundedCornerShape(50))
                 .padding(horizontal = 7.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Default.CheckCircle, null, Modifier.size(14.dp), tint = Color(0xFF69CE8D))
-                Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_answeredshort_8b2f1fa6), color = Color(0xFF69CE8D), fontSize = 12.sp)
+                Icon(Icons.Default.CheckCircle, null, Modifier.size(14.dp), tint = NativeAppColors.success)
+                Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_answeredshort_8b2f1fa6), color = NativeAppColors.success, fontSize = 12.sp)
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -126,7 +126,7 @@ private fun QuestionCard(question: AgentFeedQuestion, index: Int, drafts: AgentF
             if (question.multiSelect) Text(stringResource(R.string.cmux_ui_mobile_agentfeed_question_multiselect_28b029e3), color = questionMuted, fontSize = 12.sp)
         }
         if (question.options.isNotEmpty()) Column(Modifier.fillMaxWidth()
-            .background(Color.White.copy(alpha = .035f), RoundedCornerShape(14.dp)).padding(4.dp),
+            .background(NativeAppColors.text.copy(alpha = .035f), RoundedCornerShape(14.dp)).padding(4.dp),
             verticalArrangement = Arrangement.spacedBy(if (question.multiSelect) 8.dp else 0.dp)) {
             question.options.forEachIndexed { optionIndex, option ->
                 val selected = question.id !in drafts.customSelected && option.id in drafts.selected[question.id].orEmpty()
@@ -142,7 +142,7 @@ private fun QuestionCard(question: AgentFeedQuestion, index: Int, drafts: AgentF
                     }
                 }
                 if (!question.multiSelect && optionIndex < question.options.lastIndex)
-                    HorizontalDivider(Modifier.padding(start = 44.dp), color = Color.White.copy(alpha = .1f))
+                    HorizontalDivider(Modifier.padding(start = 44.dp), color = NativeAppColors.text.copy(alpha = .1f))
             }
         }
         QuestionCustomAnswer(question, drafts.custom[question.id].orEmpty(), question.id in drafts.customSelected,
@@ -150,6 +150,7 @@ private fun QuestionCard(question: AgentFeedQuestion, index: Int, drafts: AgentF
     }
 }
 
+@Composable
 private fun Modifier.questionSelection(selected: Boolean): Modifier {
     val shape = RoundedCornerShape(11.dp)
     return heightIn(min = 44.dp).clip(shape)
@@ -160,7 +161,7 @@ private fun Modifier.questionSelection(selected: Boolean): Modifier {
 @Composable
 private fun QuestionSelectionGlyph(multi: Boolean, selected: Boolean, enabled: Boolean) {
     if (multi) Checkbox(selected, null, enabled = enabled,
-        colors = CheckboxDefaults.colors(checkedColor = questionAccent, checkmarkColor = Color(0xFF111317)), modifier = Modifier.size(20.dp).clearAndSetSemantics { })
+        colors = CheckboxDefaults.colors(checkedColor = questionAccent, checkmarkColor = NativeAppColors.page), modifier = Modifier.size(20.dp).clearAndSetSemantics { })
     else RadioButton(selected, null, enabled = enabled, modifier = Modifier.size(20.dp).clearAndSetSemantics { })
 }
 
@@ -178,14 +179,14 @@ private fun QuestionCustomAnswer(question: AgentFeedQuestion, text: String, sele
         if (focused) { withFrameNanos { }; bring.bringIntoView() }
     }
     Row(Modifier.fillMaxWidth().questionSelection(selected)
-        .background(if (selected) Color.Transparent else Color.White.copy(alpha = .055f))
+        .background(if (selected) Color.Transparent else NativeAppColors.text.copy(alpha = .055f))
         .bringIntoViewRequester(bring).onSizeChanged { height = it.height }, verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(44.dp).selectable(selected, enabled,
             if (question.multiSelect) Role.Checkbox else Role.RadioButton) { onCustom(); focus.requestFocus() }
             .semantics { contentDescription = "Your answer" }.testTag("AgentFeedQuestionOther:${question.id}"),
             contentAlignment = Alignment.Center) { QuestionSelectionGlyph(question.multiSelect, selected, enabled) }
         BasicTextField(text, onWrite, enabled = enabled, minLines = 1, maxLines = 4,
-            textStyle = LocalTextStyle.current.copy(color = Color(0xFFE9E9EC), fontSize = 16.sp),
+            textStyle = LocalTextStyle.current.copy(color = NativeAppColors.text, fontSize = 16.sp),
             cursorBrush = SolidColor(questionAccent), modifier = Modifier.weight(1f)
                 .focusRequester(focus).onFocusChanged { focused = it.isFocused; if (it.isFocused) onCustom() }
                 .testTag("AgentFeedQuestionOtherText:${question.id}").padding(top = 10.dp, bottom = 10.dp, end = 12.dp),

@@ -70,7 +70,7 @@ internal fun NativePanePicker(title: String, rows: List<NativePanePickerRow>, se
     val feedback = LocalNativeFeedback.current
     Box(modifier, contentAlignment = Alignment.Center) {
         Text("$title ▾", Modifier.testTag("terminal-picker").semantics { contentDescription = "Choose terminal or pane" }
-            .clickable { expanded = true }.background(Color(0xFF191B1F), RoundedCornerShape(18.dp))
+            .clickable { expanded = true }.background(NativeAppColors.panel, RoundedCornerShape(18.dp))
             .padding(horizontal = 15.dp, vertical = 7.dp), fontWeight = FontWeight.Medium,
             fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {

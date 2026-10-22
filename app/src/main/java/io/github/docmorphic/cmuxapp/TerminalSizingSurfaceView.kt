@@ -44,11 +44,11 @@ internal fun TerminalSizingSurfaceView(snapshot: NativeTerminalSizingSession.Sna
                 } finally { reattaching = false }
             }
         }
-        Column(Modifier.fillMaxSize().background(Color(0xFF191B1F)).padding(24.dp),
+        Column(Modifier.fillMaxSize().background(NativeAppColors.panel).padding(24.dp),
             verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Terminal disconnected", color = Color.White, fontSize = 20.sp)
+            Text("Terminal disconnected", color = NativeAppColors.text, fontSize = 20.sp)
             Text(listOfNotNull(detached.byName, detached.byDevice, detached.at).joinToString(" · ")
-                .ifBlank { "Reattach to continue using this terminal." }, color = Color(0xFF9B9FA8))
+                .ifBlank { "Reattach to continue using this terminal." }, color = NativeAppColors.muted)
             failure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(enabled = ready && !reattaching, onClick = { reattach(false) }) { Text("Reattach") }
             TextButton(enabled = ready && !reattaching, onClick = { reattach(true) }) { Text("Reattach as viewer") }

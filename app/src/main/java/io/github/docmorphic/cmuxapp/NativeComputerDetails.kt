@@ -254,7 +254,7 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
     backEnabled: Boolean = true, forget: @Composable () -> Unit = {}, connectionMethod: @Composable () -> Unit = {},
     showPrivateAddresses: Boolean = true,
     checkDisabledMessage: String = "Wait for your account’s computer list, then try again.") {
-    Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
+    Surface(Modifier.fillMaxSize(), color = NativeAppColors.page) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onBack, enabled = backEnabled) { Text("‹  Back") }
@@ -263,8 +263,8 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 Column(Modifier.fillMaxWidth().padding(22.dp)) {
-                    Text(if (available) "Available in this team" else "Not currently discovered", color = Color(0xFF9B9FA8))
-                    Text("App Build: ${target.buildTag}", fontSize = 13.sp, color = Color(0xFF9B9FA8))
+                    Text(if (available) "Available in this team" else "Not currently discovered", color = NativeAppColors.muted)
+                    Text("App Build: ${target.buildTag}", fontSize = 13.sp, color = NativeAppColors.muted)
                 }
                 connectionMethod()
                 appearance()
@@ -277,9 +277,9 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
                     load = paths, change = changePaths, showReset = false,
                     emptyMessage = "This Mac is not currently available for new private addresses.")
                 Column(Modifier.fillMaxWidth().padding(22.dp)) {
-                    Text("IDENTITY", color = Color(0xFF9B9FA8), fontSize = 11.sp)
+                    Text("IDENTITY", color = NativeAppColors.muted, fontSize = 11.sp)
                     Text("Device ID", Modifier.padding(top = 12.dp), fontSize = 13.sp)
-                    SelectionContainer { Text(target.deviceId, fontSize = 13.sp, color = Color(0xFF9B9FA8)) }
+                    SelectionContainer { Text(target.deviceId, fontSize = 13.sp, color = NativeAppColors.muted) }
                 }
                 forget()
             }

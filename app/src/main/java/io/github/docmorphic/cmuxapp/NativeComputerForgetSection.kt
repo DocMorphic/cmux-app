@@ -21,7 +21,7 @@ internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: N
     val currentFinished by rememberUpdatedState(onFinished)
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
         TextButton(onClick = { showing = true }, enabled = (enabled || state.remoteConfirmed || flow.canRetry()) && !state.busy) {
-            Text(if (state.remoteConfirmed) "Finish forgetting this computer" else "Forget This Computer", color = Color(0xFFFF9999))
+            Text(if (state.remoteConfirmed) "Finish forgetting this computer" else "Forget This Computer", color = NativeAppColors.error)
         }
     }
     if (showing) AlertDialog(
@@ -31,7 +31,7 @@ internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: N
         text = { Column {
             Text(if (state.remoteConfirmed) "The server has already confirmed removal. Finish clearing the saved pairing on this phone."
                 else "Removes this computer’s $buildTag registration from its owning cmux team on all your devices. An online Mac may reappear when it registers again.")
-            state.error?.let { Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(top = 12.dp)) }
+            state.error?.let { Text(it, color = NativeAppColors.error, modifier = Modifier.padding(top = 12.dp)) }
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 16.dp))
         } },
         confirmButton = { TextButton(enabled = !state.busy, onClick = {
@@ -43,7 +43,7 @@ internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: N
             state.remoteConfirmed -> "Retry local cleanup"
             state.error != null -> "Retry"
             else -> "Forget Computer"
-        }, color = Color(0xFFFF9999)) } },
+        }, color = NativeAppColors.error) } },
         dismissButton = { TextButton(onClick = { showing = false }, enabled = !state.busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }
     )
 }

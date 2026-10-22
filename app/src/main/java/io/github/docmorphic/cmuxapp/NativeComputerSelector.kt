@@ -73,9 +73,9 @@ internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>,
                 ?: selectedSsh?.name ?: selected?.let(appearances::name) ?: "All Computers"
         }) {
             if (pending != null) CircularProgressIndicator(Modifier.size(20.dp).testTag("computer.switch.progress"),
-                strokeWidth = 2.dp, color = Color(0xFF76B9FF))
+                strokeWidth = 2.dp, color = NativeAppColors.accent)
             else if (selected == null) Icon(painterResource(R.drawable.ic_feed_computer), null,
-                tint = Color(0xFF9B9FA8), modifier = Modifier.size(22.dp))
+                tint = NativeAppColors.muted, modifier = Modifier.size(22.dp))
             else NativeMacAvatar(appearances.get(selected), selected.colorIdentity.colorSeed, Modifier.size(28.dp), colorIndices[selected.colorIdentity])
         }
         DropdownMenu(open && opening?.owner == owner, onDismissRequest = { onOpen(false) }) {

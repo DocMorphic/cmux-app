@@ -16,7 +16,7 @@ internal fun NativeAccountDeletionButton(login: String?, receipt: NativeAccountD
     // A confirmation never survives recreation or a different login.
     var confirming by remember(login) { mutableStateOf(false) }
     val pending = receipt?.result == NativeAccountDeletionResult.PROCESSING
-    val destructive = Color(0xFFFF9999)
+    val destructive = NativeAppColors.error
     TextButton(onClick = { confirming = true }, enabled = login != null && receipt == null,
         modifier = Modifier.padding(horizontal = 14.dp)) {
         Text(if (pending) "Deleting Account…" else "Delete Account", color = destructive)

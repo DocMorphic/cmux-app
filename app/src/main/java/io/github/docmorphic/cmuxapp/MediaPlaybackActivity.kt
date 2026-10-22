@@ -55,7 +55,7 @@ open class MediaPlaybackActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { finishPlayback() }
         })
-        setContent { CmuxTheme {
+        setContent { CmuxTheme(darkTheme = true) {
             if (!admitted) {
                 Surface(Modifier.fillMaxSize(), color = Color.Black) {}
                 return@CmuxTheme

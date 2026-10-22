@@ -34,11 +34,11 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private val page = Color(0xFF0B0C0E)
-private val panel = Color(0xFF191B1F)
-private val line = Color(0xFF292C31)
-private val muted = Color(0xFF969AA3)
-private val blue = Color(0xFF76B9FF)
+private val page: Color @Composable get() = NativeAppColors.page
+private val panel: Color @Composable get() = NativeAppColors.panel
+private val line: Color @Composable get() = NativeAppColors.line
+private val muted: Color @Composable get() = NativeAppColors.muted
+private val blue: Color @Composable get() = NativeAppColors.accent
 
 @Composable
 fun BridgeScreen(onUseNative: () -> Unit = {}) {
@@ -246,7 +246,7 @@ private fun PairView(
             enabled = pairingText.isNotBlank(),
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = blue, contentColor = Color(0xFF0B1722))
+            colors = ButtonDefaults.buttonColors(containerColor = blue, contentColor = MaterialTheme.colorScheme.onPrimary)
         ) { Text("Connect", fontWeight = FontWeight.SemiBold) }
         Spacer(Modifier.height(8.dp))
         TextButton(onClick = onScan, modifier = Modifier.fillMaxWidth()) {
@@ -257,7 +257,7 @@ private fun PairView(
         }
         if (error != null) {
             Spacer(Modifier.height(14.dp))
-            Text(error, color = Color(0xFFFF8D8D), fontSize = 13.sp)
+            Text(error, color = NativeAppColors.error, fontSize = 13.sp)
         }
         Spacer(Modifier.height(32.dp))
         Text("Unofficial Android companion · Connects through your private Mac helper and Tailscale", color = muted, fontSize = 12.sp)
@@ -288,7 +288,7 @@ private fun WorkspaceView(
             TextButton(onClick = onRefresh) { Text("Refresh", color = blue) }
         }
         if (error != null) {
-            Text(error, Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(12.dp), color = Color(0xFFFFA4A4), fontSize = 13.sp)
+            Text(error, Modifier.fillMaxWidth().background(NativeAppColors.errorContainer).padding(12.dp), color = NativeAppColors.onErrorContainer, fontSize = 13.sp)
         }
         if (loading && workspaces.isEmpty()) {
             Text("Connecting to your Mac…", Modifier.padding(24.dp), color = muted)
@@ -425,7 +425,7 @@ private fun TerminalView(
                 workspace.terminals.forEachIndexed { index, terminal ->
                     Text(
                         terminal.title.ifBlank { "Terminal ${index + 1}" },
-                        Modifier.background(if (terminal.id == selectedSurface) Color(0xFF2D3540) else panel, RoundedCornerShape(16.dp))
+                        Modifier.background(if (terminal.id == selectedSurface) NativeAppColors.control else panel, RoundedCornerShape(16.dp))
                             .clickable { onSelectSurface(terminal.id) }.padding(horizontal = 12.dp, vertical = 7.dp),
                         color = if (terminal.id == selectedSurface) blue else muted,
                         fontSize = 12.sp
@@ -445,10 +445,10 @@ private fun TerminalView(
                 )
             }
         }
-        if (error != null) Text(error, Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(8.dp), color = Color(0xFFFFA4A4), fontSize = 12.sp)
+        if (error != null) Text(error, Modifier.fillMaxWidth().background(NativeAppColors.errorContainer).padding(8.dp), color = NativeAppColors.onErrorContainer, fontSize = 12.sp)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).background(panel).padding(horizontal = 8.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf("Esc" to "escape", "Tab" to "tab", "Ctrl+C" to "ctrl+c", "↑" to "up", "↓" to "down", "←" to "left", "→" to "right").forEach { (label, key) ->
-                TextButton(onClick = { onKey(key) }) { Text(label, color = Color(0xFFE1E4E8), fontSize = 13.sp) }
+                TextButton(onClick = { onKey(key) }) { Text(label, color = NativeAppColors.text, fontSize = 13.sp) }
             }
         }
         Row(Modifier.fillMaxWidth().background(panel).padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -461,7 +461,7 @@ private fun TerminalView(
                 shape = RoundedCornerShape(26.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { onSend() }),
-                colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFF25282D), unfocusedContainerColor = Color(0xFF25282D))
+                colors = TextFieldDefaults.colors(focusedContainerColor = NativeAppColors.control, unfocusedContainerColor = NativeAppColors.control)
             )
             Spacer(Modifier.width(8.dp))
             TextButton(onClick = onSend, enabled = input.isNotBlank()) {

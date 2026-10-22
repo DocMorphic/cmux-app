@@ -59,9 +59,9 @@ internal fun NativePrivatePathsSection(computers: List<IrohV2Computer>,
         finally { pending = false }
     }
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 10.dp)) {
-        Text("PRIVATE ADDRESSES", color = Color(0xFF9B9FA8), fontSize = 11.sp)
+        Text("PRIVATE ADDRESSES", color = NativeAppColors.muted, fontSize = 11.sp)
         Text("Use an IP address and UDP port to reach a Mac over your LAN or private VPN. Changes apply on the next connection.",
-            fontSize = 13.sp, color = Color(0xFF9B9FA8))
+            fontSize = 13.sp, color = NativeAppColors.muted)
         paths.forEach { path ->
             Column(Modifier.padding(vertical = 6.dp)) {
                 Text(path.name + if (path.buildTag != "default") " (${path.buildTag})" else "")
@@ -80,8 +80,8 @@ internal fun NativePrivatePathsSection(computers: List<IrohV2Computer>,
         }
         if (paths.isEmpty() && computers.isEmpty()) Text(emptyMessage, fontSize = 13.sp)
         if (showReset && paths.any { it.enabled }) TextButton(enabled = !pending, onClick = { error = null; resetting = true }) { Text("Reset Private Addresses") }
-        error?.let { Text(it, color = Color(0xFFFFC170), fontSize = 13.sp) }
-        Text("Addresses stay on this Android device and are not included in connection reports.", fontSize = 12.sp, color = Color(0xFF9B9FA8))
+        error?.let { Text(it, color = NativeAppColors.warning, fontSize = 13.sp) }
+        Text("Addresses stay on this Android device and are not included in connection reports.", fontSize = 12.sp, color = NativeAppColors.muted)
     }
     editor?.let { path ->
         key(path.deviceId, path.buildTag) {
@@ -90,11 +90,11 @@ internal fun NativePrivatePathsSection(computers: List<IrohV2Computer>,
         }
     }
     removing?.let { path -> AlertDialog(onDismissRequest = { if (!pending) removing = null },
-        title = { Text("Remove Private Addresses?") }, text = { Column { Text("Remove saved addresses for ${path.name} from this device?"); error?.let { Text(it, color = Color(0xFFFFC170)) } } },
+        title = { Text("Remove Private Addresses?") }, text = { Column { Text("Remove saved addresses for ${path.name} from this device?"); error?.let { Text(it, color = NativeAppColors.warning) } } },
         confirmButton = { TextButton(enabled = !pending, onClick = { apply { it.remove(path.deviceId, path.buildTag) } }) { Text(stringResource(R.string.cmux_ui_mobile_common_remove_8640ef68)) } },
         dismissButton = { TextButton(enabled = !pending, onClick = { removing = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }) }
     if (resetting) AlertDialog(onDismissRequest = { if (!pending) resetting = false },
-        title = { Text("Reset Private Addresses?") }, text = { Column { Text("Disable all private addresses in this team. Saved addresses are kept so you can enable them again."); error?.let { Text(it, color = Color(0xFFFFC170)) } } },
+        title = { Text("Reset Private Addresses?") }, text = { Column { Text("Disable all private addresses in this team. Saved addresses are kept so you can enable them again."); error?.let { Text(it, color = NativeAppColors.warning) } } },
         confirmButton = { TextButton(enabled = !pending, onClick = { apply { it.reset() } }) { Text("Reset") } },
         dismissButton = { TextButton(enabled = !pending, onClick = { resetting = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }
@@ -118,7 +118,7 @@ private fun NativePrivatePathEditor(path: NativePrivatePath, pending: Boolean, e
                 Text(stringResource(R.string.cmux_ui_mobile_iroh_private_custom_enabled_dd00c1e2), Modifier.weight(1f))
                 Switch(modifier = Modifier.semantics { contentDescription = "Use These Addresses" }, checked = enabled, onCheckedChange = { enabled = it }, enabled = !pending)
             }
-            error?.let { Text(it, color = Color(0xFFFFC170)) }
+            error?.let { Text(it, color = NativeAppColors.warning) }
         } },
         confirmButton = { TextButton(enabled = parsed != null && !pending,
             onClick = { parsed?.let { onSave(path.copy(addresses = it, enabled = enabled)) } }) { Text(if (pending) "Saving…" else "Save") } },

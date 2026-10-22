@@ -70,11 +70,11 @@ internal fun NativeNotificationFeedView(
                                         if (it.expanded != expanded) toggleAction(it.group)
                                     }
                                 }
-                                HorizontalDivider(color = Color(0xFF292C31))
+                                HorizontalDivider(color = NativeAppColors.line)
                             }
                             is NativeFeedListRow.Heading -> WorkspaceMeasuredContent(row.text, held) { text, _ ->
                                 Text(text, Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 8.dp)
-                                    .semantics { heading() }, color = Color(0xFF9B9FA8), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                    .semantics { heading() }, color = NativeAppColors.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             }
                             else -> WorkspaceMeasuredContent(row, held) { shown, measuring ->
                                 NativeFeedStatusBody(shown, measuring) {
@@ -119,7 +119,7 @@ internal fun NativeFeedRow(value: NativeFeedRowValue, context: NativeFeedRowCont
     }.getOrDefault("") }.orEmpty() }
     NativeWorkspaceSwipeActions(value.key, !value.isRead, canRead, false,
         onRead = { unread -> read(!unread) }, onClose = {}) { dismissSwipe, swipeActions ->
-        Box(Modifier.fillMaxWidth().background(Color(0xFF0B0C0E))) {
+        Box(Modifier.fillMaxWidth().background(NativeAppColors.page)) {
             WorkspaceMeasuredContent(NativeFeedVisual(value, context, time), LocalWorkspaceGeometryHeld.current) { shown, measuring ->
                 NativeFeedRowBody(shown, if (measuring) Modifier.fillMaxWidth() else Modifier.fillMaxWidth().testTag("feed.row:${value.key}")
                     .combinedClickable(enabled = canOpen || canRead,

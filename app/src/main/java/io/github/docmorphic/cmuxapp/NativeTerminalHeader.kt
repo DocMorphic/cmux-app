@@ -26,7 +26,7 @@ internal fun NativeTerminalTabs(terminals: List<NativeTerminal>, selected: Nativ
     if (terminals.size > 1) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         terminals.forEach { item -> TextButton(onClick = { onSelect(item) }) {
-            Text(item.title.ifBlank { "Terminal" }, color = if (item.id == selected.id) Color(0xFF76B9FF) else Color(0xFF9B9FA8),
+            Text(item.title.ifBlank { "Terminal" }, color = if (item.id == selected.id) NativeAppColors.accent else NativeAppColors.muted,
                 fontSize = 12.sp, maxLines = 1)
         } }
     }
@@ -41,7 +41,7 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null,
     onSizing: (() -> Unit)? = null, debugText: () -> String? = { null },
     altScreenNotice: (@Composable () -> Unit)? = null) {
-    val accent = Color(0xFF76B9FF)
+    val accent = NativeAppColors.accent
     Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         NativeWorkspaceBackControl { TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
             Text("‹  $workspaceCount", color = accent)

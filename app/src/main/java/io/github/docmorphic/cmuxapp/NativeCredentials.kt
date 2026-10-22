@@ -291,6 +291,8 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
 
     suspend fun signIn(code: String): Unit = withContext(Dispatchers.IO) { emailSignIn.signIn(code) }
 
+    internal fun cancelPendingSignIn() = emailSignIn.clear()
+
     suspend fun accessToken(forceRefresh: Boolean = false): String? = refreshMutex.withLock {
         val state = store.load() ?: return@withLock null
         val current = state.optString("access_token").takeIf { it.isNotBlank() }

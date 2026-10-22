@@ -27,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -53,6 +54,7 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
     var followTail = false
     var syntax by mutableStateOf<ArtifactSyntaxResult?>(null)
     var highlightedDocument: ArtifactTextDocument? = null
+    var highlightedDark: Boolean? = null
     var searchOpen by mutableStateOf(false)
     var goToLineOpen by mutableStateOf(false)
     var query by mutableStateOf("")
@@ -109,22 +111,30 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
 @Composable
 internal fun ArtifactRawTextPreview(state: ArtifactViewerState, streaming: Boolean = false) {
     val context = LocalContext.current
+    val dark = NativeAppColors.dark
+    val appearance = ArtifactTextAppearance(NativeAppColors.text.toArgb(),
+        if (dark) 0xFF92979F.toInt() else NativeAppColors.muted.toArgb(),
+        if (dark) 0xFF41483E.toInt() else 0xFFC8E6C9.toInt(),
+        if (dark) 0xFF8A6320.toInt() else 0xFFFFE082.toInt(),
+        NativeAppColors.accent.copy(alpha = .3f).toArgb())
     LaunchedEffect(state, streaming) {
         if (!streaming && state.document == null) try {
             state.document = withContext(Dispatchers.IO) { ArtifactTextDocument(state.artifact.file.readText()) }
         } catch (error: Exception) { ensureActive(); state.failure = ARTIFACT_TEXT_READ_FAILURE }
     }
-    LaunchedEffect(state, state.document) {
+    LaunchedEffect(state, state.document, dark) {
         val document = state.document ?: return@LaunchedEffect
-        if (state.highlightedDocument === document) return@LaunchedEffect
+        if (state.highlightedDocument === document && state.highlightedDark == dark) return@LaunchedEffect
+        // Old-theme spans must not leave light text on the new light background.
+        if (state.highlightedDark != dark) state.syntax = null
         val decision = ArtifactSyntaxPolicy.decision(state.artifact.file.name, state.artifact.size)
         try {
-            val result = if (decision.enabled) ArtifactSyntaxHighlighter.highlight(context, document.text, decision.language) else null
+            val result = if (decision.enabled) ArtifactSyntaxHighlighter.highlight(context, document.text, decision.language, dark) else null
             ensureActive()
-            if (state.document === document) { state.syntax = result; state.highlightedDocument = document }
+            if (state.document === document) { state.syntax = result; state.highlightedDocument = document; state.highlightedDark = dark }
         } catch (error: Exception) {
             ensureActive() // Cancellation cannot publish into a replaced page.
-            state.highlightedDocument = document // Keep the fully usable plain-text view on engine failure.
+            state.highlightedDocument = document; state.highlightedDark = dark // Keep readable plain text on engine failure.
         }
     }
     LaunchedEffect(state.document, state.query) {
@@ -147,7 +157,7 @@ internal fun ArtifactRawTextPreview(state: ArtifactViewerState, streaming: Boole
         if (document == null && state.failure == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         else if (document != null) AndroidView(factory = { ArtifactTextScrollView(it, state::setFont) },
             modifier = Modifier.fillMaxWidth().weight(1f).clipToBounds().semantics { contentDescription = "Raw text preview" },
-            update = { it.update(state, document) }, onRelease = { it.release() })
+            update = { it.update(state, document, appearance) }, onRelease = { it.release() })
     }
 }
 
@@ -187,6 +197,8 @@ private fun ArtifactLineDialog(state: ArtifactViewerState) {
     LaunchedEffect(Unit) { focus.requestFocus() }
 }
 
+internal data class ArtifactTextAppearance(val foreground: Int, val gutter: Int, val match: Int, val selectedMatch: Int, val selection: Int)
+
 /** One selectable native text buffer preserves selection/copy across newlines and wrapped lines. */
 internal class ArtifactTextScrollView(context: Context, private val changeFont: (Float) -> Unit) : ScrollView(context) {
     val textView = ArtifactNumberedTextView(context)
@@ -197,6 +209,7 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
     private var syntax: ArtifactSyntaxResult? = null
     private var ranges: List<IntRange>? = null
     private var selected = -1
+    private var appearance: ArtifactTextAppearance? = null
     private var appliedJump: Pair<Long, Int>? = null
     private var font = 15f
     private var wrapping: Boolean? = null
@@ -263,7 +276,14 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
         state.horizontalDp = horizontal.scrollX / resources.displayMetrics.density
         state.selectionStart = textView.selectionStart; state.selectionEnd = textView.selectionEnd
     }
-    fun update(state: ArtifactViewerState, value: ArtifactTextDocument) {
+    fun update(state: ArtifactViewerState, value: ArtifactTextDocument, colors: ArtifactTextAppearance) {
+        if (appearance != colors) {
+            appearance = colors
+            textView.setTextColor(colors.foreground)
+            textView.setNumberColor(colors.gutter)
+            textView.highlightColor = colors.selection
+            ranges = null
+        }
         val first = viewerState !== state
         val appended = !first && document !== value && document?.let { value.text.startsWith(it.text) } == true
         if (appended) { captureViewport(); restoring = true }
@@ -298,7 +318,7 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
         if (ranges !== state.matches || selected != state.selected) {
             val buffer = textView.text as Spannable
             buffer.getSpans(0, buffer.length, BackgroundColorSpan::class.java).forEach(buffer::removeSpan)
-            state.matches.forEachIndexed { index, range -> buffer.setSpan(BackgroundColorSpan(if (index == state.selected) 0xFF8A6320.toInt() else 0xFF41483E.toInt()), range.first, range.last + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
+            state.matches.forEachIndexed { index, range -> buffer.setSpan(BackgroundColorSpan(if (index == state.selected) colors.selectedMatch else colors.match), range.first, range.last + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
             ranges = state.matches; selected = state.selected
         }
         if (first || appended) {
@@ -355,6 +375,9 @@ internal class ArtifactNumberedTextView(context: Context) : TextView(context) {
         setPadding(12, 12, 12, 24); includeFontPadding = false
         NativeViewHaptics(this)
     }
+    fun setNumberColor(value: Int) {
+        if (numberPaint.color != value) { numberPaint.color = value; invalidate() }
+    }
     fun setNumbers(value: Boolean) {
         numbers = value
         numberPaint.textSize = textSize
@@ -392,16 +415,17 @@ internal class ArtifactSyntaxSpan(val color: Int, val style: Int) : MetricAffect
 @Composable
 internal fun ArtifactHighlightingOffPill(bytes: Long) {
     var expanded by remember(bytes) { mutableStateOf(false) }
+    val pillInk = filesMuted
     val context = LocalContext.current
     val explanation = "This file is ${android.text.format.Formatter.formatShortFileSize(context, bytes)}. Syntax highlighting is off above ${android.text.format.Formatter.formatShortFileSize(context, ArtifactSyntaxPolicy.MAX_HIGHLIGHT_BYTES)} to keep scrolling smooth."
     Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), contentAlignment = Alignment.CenterEnd) {
         TextButton(onClick = { expanded = !expanded }, shape = androidx.compose.foundation.shape.CircleShape,
             modifier = Modifier.widthIn(max = 360.dp),
-            colors = ButtonDefaults.textButtonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF24272C), contentColor = filesMuted),
+            colors = ButtonDefaults.textButtonColors(containerColor = NativeAppColors.control, contentColor = filesMuted),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
             androidx.compose.foundation.Canvas(Modifier.size(18.dp)) {
                 val scale = size.width / 24
-                fun line(x: Float, y: Float, xx: Float, yy: Float) = drawLine(filesMuted,
+                fun line(x: Float, y: Float, xx: Float, yy: Float) = drawLine(pillInk,
                     androidx.compose.ui.geometry.Offset(x * scale, y * scale), androidx.compose.ui.geometry.Offset(xx * scale, yy * scale), 1.5f * scale)
                 line(5f, 4f, 16f, 4f); line(16f, 4f, 16f, 11f); line(16f, 11f, 5f, 11f); line(5f, 11f, 5f, 4f)
                 line(10.5f, 11f, 10.5f, 21f); line(2f, 2f, 22f, 22f)

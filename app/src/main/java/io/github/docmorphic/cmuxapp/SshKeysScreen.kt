@@ -45,7 +45,7 @@ import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.util.UUID
 
-private val sshMuted = Color(0xFF9B9FA8)
+private val sshMuted: Color @Composable get() = NativeAppColors.muted
 private const val KEY_TEXT_LIMIT = 64 * 1024
 
 @Composable
@@ -180,7 +180,7 @@ private fun SshKeyHeader(title: String, onBack: () -> Unit, enabled: Boolean = t
 private fun SshKeyRow(record: SshKeyRecord, enabled: Boolean, onCopy: () -> Unit, onShare: () -> Unit,
     onRename: () -> Unit, onDelete: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
-    Surface(shape = MaterialTheme.shapes.medium, color = Color(0xFF191B1F)) {
+    Surface(shape = MaterialTheme.shapes.medium, color = NativeAppColors.panel) {
         Row(Modifier.fillMaxWidth().padding(start = 14.dp, top = 12.dp, bottom = 12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(record.label, fontWeight = FontWeight.SemiBold, modifier = Modifier.testTag("ssh.key.${record.id}.name"))

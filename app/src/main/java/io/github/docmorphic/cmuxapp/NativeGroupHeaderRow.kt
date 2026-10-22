@@ -21,8 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
 
-private val nativeMuted = Color(0xFF9B9FA8)
-private val destructiveTint = Color(0xFFFF9999)
+private val nativeMuted: Color @Composable get() = NativeAppColors.muted
+private val destructiveTint: Color @Composable get() = NativeAppColors.error
 
 @Composable
 internal fun NativeGroupHeaderRow(

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.viewinterop.AndroidView
 
@@ -102,6 +103,9 @@ internal class AgentFeedSourceScroll(context: Context, private val position: Age
 
 @Composable
 internal fun AgentFeedSourceReader(source: String, position: AgentFeedSourcePosition) {
+    val foreground = NativeAppColors.text.toArgb()
+    val link = NativeAppColors.accent.toArgb()
     AndroidView(factory = { AgentFeedSourceScroll(it, position, source) },
+        update = { it.body.setTextColor(foreground); it.body.setLinkTextColor(link) },
         modifier = Modifier.fillMaxSize().clipToBounds(), onRelease = { it.release() })
 }

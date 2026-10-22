@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
 
-private val nativeMuted = Color(0xFF9B9FA8)
+private val nativeMuted: Color @Composable get() = NativeAppColors.muted
 internal data class GroupRowVisual(val group: NativeGroup, val expanded: Boolean,
     val unread: NativeWorkspaceUnread, val highlighted: Boolean)
 
@@ -55,7 +55,7 @@ internal fun NativeGroupHeaderBody(model: GroupRowVisual, measuring: Boolean, ha
             }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Icon(painterResource(nativeWorkspaceGroupIcon(group.iconSymbol)), null, Modifier.size(15.dp), tint = nativeMuted)
-            Text(group.name, Modifier.weight(1f, fill = false), color = Color.White,
+            Text(group.name, Modifier.weight(1f, fill = false), color = NativeAppColors.text,
                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (group.isPinned) Icon(painterResource(R.drawable.ic_workspace_pin_fill), null,
                 Modifier.size(12.dp), tint = nativeMuted)

@@ -49,7 +49,7 @@ internal fun NativeWorkspaceShell(owner: Any?, hasDetail: Boolean, allowSplit: B
             if (split) Row(modifier.testTag("workspace.shell.split")) {
                 if (visible) {
                     Box(Modifier.width(380.dp).fillMaxHeight().testTag("workspace.shell.sidebar")) { sidebarContent() }
-                    VerticalDivider(color = Color(0xFF292C31))
+                    VerticalDivider(color = NativeAppColors.line)
                 }
                 Box(Modifier.weight(1f).fillMaxHeight().testTag("workspace.shell.detail")) {
                     if (hasDetail) detailContent() else NativeWorkspaceSelectionPlaceholder()
@@ -69,7 +69,7 @@ internal fun NativeWorkspaceSidebarToggle() {
     val chrome = LocalWorkspaceShellChrome.current
     if (chrome.split) IconButton(onClick = chrome.toggleSidebar) {
         Icon(painterResource(R.drawable.ic_workspace_sidebar),
-            if (chrome.sidebarVisible) "Hide sidebar" else "Show sidebar", tint = Color(0xFF76B9FF))
+            if (chrome.sidebarVisible) "Hide sidebar" else "Show sidebar", tint = NativeAppColors.accent)
     }
 }
 
@@ -83,7 +83,7 @@ internal fun NativeWorkspaceBackControl(compact: @Composable () -> Unit) {
 @Composable
 internal fun NativeWorkspaceSelectionPlaceholder() {
     Box(Modifier.fillMaxSize().testTag("workspace.shell.placeholder"), contentAlignment = Alignment.Center) {
-        Text("Select a workspace", color = Color(0xFF9B9FA8))
+        Text("Select a workspace", color = NativeAppColors.muted)
         Box(Modifier.align(Alignment.TopStart)) { NativeWorkspaceBackControl {} }
     }
 }

@@ -34,19 +34,19 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
     var admitted by remember { mutableStateOf(true) }
     DisposableEffect(Unit) { onDispose { admitted = false } }
     val owner = state.userId to state.scope?.login
-    Text("ACCOUNT", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() }, color = Color(0xFF9B9FA8), fontSize = 11.sp)
+    Text("ACCOUNT", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() }, color = NativeAppColors.muted, fontSize = 11.sp)
     if (state.userId != null) SelectionContainer {
         Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp)) {
             Text(state.displayName ?: "cmux account")
-            state.email?.let { Text(it, color = Color(0xFF9B9FA8), fontSize = 13.sp) }
+            state.email?.let { Text(it, color = NativeAppColors.muted, fontSize = 13.sp) }
         }
     }
     if (state.cached) Text("Showing saved account details. Connect to refresh your teams.",
-        Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = Color(0xFF9B9FA8), fontSize = 13.sp)
+        Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = NativeAppColors.muted, fontSize = 13.sp)
     afterAccount()
     if (state.teams.size > 1) {
         Text("TEAM", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() },
-            color = Color(0xFF9B9FA8), fontSize = 11.sp)
+            color = NativeAppColors.muted, fontSize = 11.sp)
         Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).selectableGroup()) {
             state.teams.forEach { team ->
                 // Keep cached accessibility actions bound to their original account and team.
@@ -69,9 +69,9 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
             }
         }
         Text("Switches which cmux team's computers and devices this app shows.",
-            Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = Color(0xFF9B9FA8), fontSize = 13.sp)
+            Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = NativeAppColors.muted, fontSize = 13.sp)
     }
-    state.error?.let { Text(it, Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = Color(0xFFFF9999), fontSize = 13.sp) }
+    state.error?.let { Text(it, Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = NativeAppColors.error, fontSize = 13.sp) }
     Row(Modifier.padding(horizontal = 14.dp)) {
         TextButton(onClick = onRefresh, enabled = !busy) { Text("Refresh account") }
         TextButton(onClick = { name = ""; creating = true }, enabled = !busy && canManage) { Text("Create Team") }
@@ -83,7 +83,7 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
             Text("Create a team for your cmux account and switch to it.")
             OutlinedTextField(value = name, onValueChange = { if (it.length <= 120) name = it },
                 label = { Text("Team name") }, singleLine = true, enabled = !busy && canManage)
-            state.error?.let { Text(it, color = Color(0xFFFF9999), fontSize = 13.sp) }
+            state.error?.let { Text(it, color = NativeAppColors.error, fontSize = 13.sp) }
         } },
         confirmButton = { TextButton(enabled = !busy && canManage && name.trim().isNotEmpty(), onClick = {
             if (!submitting) {

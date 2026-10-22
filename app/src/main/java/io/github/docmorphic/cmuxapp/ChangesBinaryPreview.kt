@@ -76,7 +76,7 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
                     modifier = Modifier.semantics { contentDescription = "Viewer actions" }) {
                     if (busy || actions.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Box(Modifier.size(24.dp).border(1.dp, filesMuted, CircleShape), contentAlignment = Alignment.Center) { Text("⋯", fontSize = 19.sp) }
                 }
-                DropdownMenu(menu, { menu = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF232428)) {
+                DropdownMenu(menu, { menu = false }, containerColor = NativeAppColors.panel) {
                     listOf(FilePreviewAction.SHARE, FilePreviewAction.SAVE, FilePreviewAction.OPEN).forEach { action -> DropdownMenuItem(text = { Text(action.label) }, onClick = { perform(action) }) }
                     if (artifact?.route == ChangesPreviewRoute.IMAGE) DropdownMenuItem(text = { Text("Copy Image") }, onClick = { perform(FilePreviewAction.COPY_IMAGE) })
                     remote?.let { source -> DropdownMenuItem(text = { Text(stringResource(R.string.cmux_ui_chat_artifact_copy_path_56643fb4)) }, onClick = {

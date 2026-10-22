@@ -51,9 +51,9 @@ internal fun NativeStartingTerminalPane(terminal: NativeTerminal, workspace: Nat
 
 @Composable
 internal fun NativeTerminalCreationRecovery(creating: Boolean, canCreate: Boolean, onRetry: () -> Unit) {
-    Row(Modifier.fillMaxWidth().background(Color(0xFF3C2B19)).padding(horizontal = 16.dp, vertical = 10.dp)
+    Row(Modifier.fillMaxWidth().background(NativeAppColors.warning.copy(alpha = .12f)).padding(horizontal = 16.dp, vertical = 10.dp)
         .testTag("MobileTerminalCreationRecovery"), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("⚠", color = Color(0xFFFFB65B))
+        Text("⚠", color = NativeAppColors.warning)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(NativeTerminalStartup.TIMEOUT_MESSAGE, style = MaterialTheme.typography.bodyMedium)
             Button(onClick = onRetry, enabled = canCreate && !creating, modifier = Modifier.testTag("MobileTerminalCreationRetry")) {

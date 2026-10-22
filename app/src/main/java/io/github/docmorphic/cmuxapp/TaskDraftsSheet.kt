@@ -25,7 +25,7 @@ internal fun TaskDraftsSheet(
     drafts: List<TaskDraft>, busy: Boolean, error: String?, onDismiss: () -> Unit, onNew: () -> Unit,
     onResume: (TaskDraft) -> Unit, onDelete: (TaskDraft) -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF191B1F)) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = NativeAppColors.panel) {
         val view = LocalView.current
         SideEffect {
             // Material 3 1.3 uses the system light theme for this separate dialog
@@ -42,27 +42,27 @@ internal fun TaskDraftsSheet(
             Text("Drafts", Modifier.weight(1f).padding(12.dp), style = MaterialTheme.typography.titleMedium)
             TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
         }
-        error?.let { Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
+        error?.let { Text(it, color = NativeAppColors.error, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
         if (drafts.isEmpty()) Column(Modifier.fillMaxWidth().padding(28.dp)) {
             Text("No Other Drafts", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
-            Text("Leave the composer with an unsent task and save it here.", color = Color(0xFF9B9FA8))
+            Text("Leave the composer with an unsent task and save it here.", color = NativeAppColors.muted)
         } else LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
             items(drafts.sortedByDescending { it.updatedAt }, key = { it.id }) { draft ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
                     Column(Modifier.weight(1f).clickable(enabled = !busy) { onResume(draft) }.padding(vertical = 14.dp)) {
                         Text(draft.title, maxLines = 2, style = MaterialTheme.typography.titleMedium)
                         Text(listOf(draft.templateName ?: draft.agent.label, draft.macName, draft.directory).filter { it.isNotBlank() }.joinToString(" · "),
-                            maxLines = 1, color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
+                            maxLines = 1, color = NativeAppColors.muted, style = MaterialTheme.typography.bodySmall)
                         Text(DateUtils.getRelativeTimeSpanString(draft.updatedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString(),
-                            color = Color(0xFF9B9FA8), style = MaterialTheme.typography.labelSmall)
+                            color = NativeAppColors.muted, style = MaterialTheme.typography.labelSmall)
                     }
                     TextButton(onClick = { onDelete(draft) }, enabled = !busy,
                         modifier = Modifier.semantics { contentDescription = "Delete draft: ${draft.title}" }) {
-                        Text("Delete", color = Color(0xFFFF9999))
+                        Text("Delete", color = NativeAppColors.error)
                     }
                 }
-                HorizontalDivider(color = Color(0xFF30333A))
+                HorizontalDivider(color = NativeAppColors.line)
             }
         }
         Spacer(Modifier.height(24.dp))

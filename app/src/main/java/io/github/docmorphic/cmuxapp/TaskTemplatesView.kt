@@ -37,7 +37,7 @@ internal fun TaskTemplateIcon(value: String, modifier: Modifier = Modifier) {
         "agent:codex" -> R.drawable.ic_task_codex; "agent:opencode" -> R.drawable.ic_task_opencode; else -> null }
     if (image != null) Image(painterResource(image), contentDescription = null, modifier = modifier.size(24.dp))
     else if (value in templateSymbols.map { it.first }) Icon(painterResource(nativeWorkspaceGroupIcon(value)),
-        contentDescription = null, modifier = modifier.size(24.dp), tint = Color(0xFFE1E3E8))
+        contentDescription = null, modifier = modifier.size(24.dp), tint = NativeAppColors.text)
     else Text(value, modifier, style = MaterialTheme.typography.titleLarge)
 }
 
@@ -70,7 +70,7 @@ internal fun TaskTemplatesView(state: TaskTemplateState, onDismiss: () -> Unit,
         }
     }
     BackHandler { back() }
-    Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
+    Surface(Modifier.fillMaxSize(), color = NativeAppColors.page) {
         if (editing != null || adding) key(editing?.id, adding) {
             val initial = editing
             var name by rememberSaveable { mutableStateOf(initial?.name.orEmpty()) }
@@ -90,11 +90,11 @@ internal fun TaskTemplatesView(state: TaskTemplateState, onDismiss: () -> Unit,
                 }
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true, label = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb)) })
-                    Text("Icon", color = Color(0xFF9B9FA8))
+                    Text("Icon", color = NativeAppColors.muted)
                     templateSymbols.chunked(6).forEach { row ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             row.forEach { (value, label) ->
-                                Box(Modifier.size(48.dp).background(if (icon == value) Color(0xFF253440) else Color(0xFF191B1F), androidx.compose.foundation.shape.CircleShape)
+                                Box(Modifier.size(48.dp).background(if (icon == value) NativeAppColors.selected else NativeAppColors.panel, androidx.compose.foundation.shape.CircleShape)
                                     .semantics { contentDescription = "Template icon: $label"; selected = icon == value }
                                     .clickable(enabled = !busy) { icon = value; emoji = "" }, contentAlignment = Alignment.Center) {
                                     TaskTemplateIcon(value)
@@ -114,10 +114,10 @@ internal fun TaskTemplatesView(state: TaskTemplateState, onDismiss: () -> Unit,
                         textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                         keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
                     Text("The task prompt is available to the command as \$CMUX_TASK_PROMPT. Example: claude -- \"\$CMUX_TASK_PROMPT\"",
-                        color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
+                        color = NativeAppColors.muted, style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(directory, { directory = it }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true,
                         label = { Text("Default directory") }, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
-                    error?.let { Text(it, color = Color(0xFFFF9999)) }
+                    error?.let { Text(it, color = NativeAppColors.error) }
                     Spacer(Modifier.height(16.dp))
                 }
             }
@@ -128,7 +128,7 @@ internal fun TaskTemplatesView(state: TaskTemplateState, onDismiss: () -> Unit,
                 TextButton(onClick = { newId = UUID.randomUUID().toString(); adding = true; error = null }, enabled = !busy,
                     modifier = Modifier.semantics { contentDescription = "Add Template" }) { Text("＋") }
             }
-            error?.let { Text(it, color = Color(0xFFFF9999)) }
+            error?.let { Text(it, color = NativeAppColors.error) }
             LazyColumn(Modifier.weight(1f)) {
                 items(state.entries, key = { it.id }) { template ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -137,16 +137,16 @@ internal fun TaskTemplatesView(state: TaskTemplateState, onDismiss: () -> Unit,
                             TaskTemplateIcon(template.icon)
                             Column(Modifier.weight(1f)) { Text(template.name)
                                 Text(if (template.plainShell) "Plain shell" else template.command, maxLines = 1,
-                                    color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall) }
+                                    color = NativeAppColors.muted, style = MaterialTheme.typography.bodySmall) }
                         }
                         if (template.builtInKind == null) TextButton(enabled = !busy,
                             modifier = Modifier.semantics { contentDescription = "Delete template: ${template.name}" },
-                            onClick = { commit(TaskTemplateChange.Delete(template.id)) { onDeleted(template.id) } }) { Text("Delete", color = Color(0xFFFF9999)) }
+                            onClick = { commit(TaskTemplateChange.Delete(template.id)) { onDeleted(template.id) } }) { Text("Delete", color = NativeAppColors.error) }
                     }
-                    HorizontalDivider(color = Color(0xFF30333A))
+                    HorizontalDivider(color = NativeAppColors.line)
                 }
                 item { Text("The task prompt is available to the command as \$CMUX_TASK_PROMPT. A blank command opens a plain shell.",
-                    Modifier.padding(vertical = 18.dp), color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall) }
+                    Modifier.padding(vertical = 18.dp), color = NativeAppColors.muted, style = MaterialTheme.typography.bodySmall) }
             }
         }
     }

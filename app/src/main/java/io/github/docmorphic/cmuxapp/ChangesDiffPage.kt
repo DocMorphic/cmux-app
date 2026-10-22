@@ -142,7 +142,7 @@ private fun ChangesDiffRow(line: ChangesDiffLine, hunk: String, gutter: androidx
         when (line.kind) {
             DiffKind.NO_NEWLINE -> Text("↳ No newline at end of file", Modifier.padding(horizontal = 8.dp, vertical = 2.dp), color = changesMuted, fontSize = 10.sp)
             DiffKind.HEADER -> Text(line.text, Modifier.fillMaxWidth().then(interaction).padding(horizontal = 8.dp, vertical = 5.dp),
-                color = Color(0xFF8BB5F6), fontFamily = FontFamily.Monospace, fontSize = size.sp)
+                color = NativeAppColors.accent, fontFamily = FontFamily.Monospace, fontSize = size.sp)
             else -> Row(Modifier.fillMaxWidth().then(interaction).padding(vertical = 2.dp), verticalAlignment = Alignment.Top) {
                 for ((label, number) in listOf("Old" to line.oldNumber, "New" to line.newNumber)) Text(number?.toString().orEmpty(),
                     Modifier.width(gutter).padding(end = 3.dp).semantics { contentDescription = "$label line ${number ?: "none"}" },
@@ -151,7 +151,7 @@ private fun ChangesDiffRow(line: ChangesDiffLine, hunk: String, gutter: androidx
                     color = if (line.kind == DiffKind.ADDITION) changesAdded else changesRemoved, fontFamily = FontFamily.Monospace, fontSize = size.sp)
                 SelectionContainer(Modifier.weight(1f).padding(start = 3.dp, end = 6.dp)) {
                     Text(text.ifEmpty { AnnotatedString(" ") }, fontFamily = FontFamily.Monospace, fontSize = size.sp,
-                        color = Color(0xFFD5D9E0), softWrap = true)
+                        color = NativeAppColors.text, softWrap = true)
                 }
             }
         }

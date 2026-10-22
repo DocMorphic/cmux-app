@@ -25,7 +25,7 @@ internal fun NativeFeedHistoryToggle(disclosure: NativeFeedDisclosure?, onToggle
                 }, enabled = !measuring && latest?.group == shown.group, modifier = Modifier.semantics {
                     contentDescription = if (shown.expanded) "Hide earlier notifications" else "Show earlier notifications"
                     stateDescription = "${shown.count} updates"
-                }) { Text("${shown.count} ${if (shown.expanded) "⌄" else "›"}", color = Color(0xFF9B9FA8)) }
+                }) { Text("${shown.count} ${if (shown.expanded) "⌄" else "›"}", color = NativeAppColors.muted) }
             }
         }
     }
@@ -34,7 +34,7 @@ internal fun NativeFeedHistoryToggle(disclosure: NativeFeedDisclosure?, onToggle
 @Composable
 internal fun NativeFeedDivider(visible: Boolean) {
     WorkspaceMeasuredContent(visible, LocalWorkspaceGeometryHeld.current) { shown, _ ->
-        Box(Modifier.fillMaxWidth()) { if (shown) HorizontalDivider(color = Color(0xFF292C31)) }
+        Box(Modifier.fillMaxWidth()) { if (shown) HorizontalDivider(color = NativeAppColors.line) }
     }
 }
 
@@ -45,7 +45,7 @@ internal fun NativeFeedStatusBody(row: NativeFeedListRow, measuring: Boolean, on
         when (row) {
             is NativeFeedListRow.Notice -> Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Text(row.text, Modifier.weight(1f), color = Color(0xFFFFB86C), fontSize = 12.sp)
+                Text(row.text, Modifier.weight(1f), color = NativeAppColors.warning, fontSize = 12.sp)
                 TextButton(onClick = { if (!measuring) onAction() }, enabled = !measuring) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
             }
             NativeFeedListRow.More -> TextButton(onClick = { if (!measuring) onAction() }, enabled = !measuring,
@@ -54,7 +54,7 @@ internal fun NativeFeedStatusBody(row: NativeFeedListRow, measuring: Boolean, on
                 if (row.loading) {
                     if (measuring) Spacer(Modifier.size(24.dp)) else CircularProgressIndicator(Modifier.size(24.dp))
                 }
-                Text(row.text, color = Color(0xFF9B9FA8))
+                Text(row.text, color = NativeAppColors.muted)
                 if (row.retry) TextButton(onClick = { if (!measuring) onAction() }, enabled = !measuring) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
             }
             else -> Unit

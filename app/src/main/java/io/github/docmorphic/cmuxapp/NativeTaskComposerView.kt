@@ -504,7 +504,7 @@ internal fun NativeTaskComposerView(
         text = { Text("Only continue if the task is not present. Starting again may create a duplicate.") },
         confirmButton = { TextButton(enabled = canEdit && recoveryApplies && recoveryReady, onClick = {
             confirmStartAgain = false; launchTask(startAgain = true)
-        }) { Text("Start Again", color = Color(0xFFFF9999)) } },
+        }) { Text("Start Again", color = NativeAppColors.error) } },
         dismissButton = { TextButton(onClick = { confirmStartAgain = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     if (confirmLeave) AlertDialog(onDismissRequest = { if (!busy) confirmLeave = false },
         title = { Text("Save this draft?") },
@@ -525,7 +525,7 @@ internal fun NativeTaskComposerView(
                         confirmLeave = false
                     } finally { busy = false }
                 }
-            }) { Text("Delete Draft", color = Color(0xFFFF9999)) }
+            }) { Text("Delete Draft", color = NativeAppColors.error) }
             TextButton(enabled = canEdit, onClick = { confirmLeave = false }) { Text("Keep Editing") }
         } })
     if (showDrafts) TaskDraftsSheet(entries.values.filter { it.id != editor.id && !it.isEmpty }, busy, error,
@@ -554,7 +554,7 @@ internal fun NativeTaskComposerView(
     }
     val loadingModels = loading && modelResult?.usable != true
     val layout: @Composable (@Composable () -> Unit, @Composable () -> Unit, (TerminalPasteContent) -> Boolean) -> Unit = { attachmentStrip, attachmentPicker, receiveAttachment ->
-        Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {
+        Column(Modifier.fillMaxSize().background(NativeAppColors.page)) {
             Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { leave() }, enabled = canLeave) {
                     Icon(painterResource(R.drawable.ic_task_back), "Back to workspaces", Modifier.size(22.dp))
@@ -596,7 +596,7 @@ internal fun NativeTaskComposerView(
                         interactionSource = promptInteractions,
                         placeholder = { Text(if (plainShell) "Workspace title (optional)" else directory.trim().takeIf { it.isNotEmpty() }
                         ?.let { "Describe a coding task in ${TaskDirectoryPaths.name(it)}" } ?: "Describe a coding task",
-                        color = Color(0xFF64676E), fontSize = 20.sp) },
+                        color = NativeAppColors.muted, fontSize = 20.sp) },
                     colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                         disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent, disabledIndicatorColor = Color.Transparent)) })
@@ -604,9 +604,9 @@ internal fun NativeTaskComposerView(
             Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (client == null) Text(if (hasSelectedMac) "That Mac is not connected. Open cmux on the Mac to start this task."
                     else "Pair a Mac to start this task. You can save your draft now.",
-                    color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
+                    color = NativeAppColors.muted, style = MaterialTheme.typography.bodySmall)
                 if (supportsTaskCreation == false) Text("Pair this Mac again or update cmux to create tasks.",
-                    color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
+                    color = NativeAppColors.error, modifier = Modifier.padding(bottom = 12.dp))
                 if (recoveryApplies) {
                     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                         TaskComposerFailureBanner(TaskComposerFailure(
@@ -623,11 +623,11 @@ internal fun NativeTaskComposerView(
                 } else if (error != null) TaskComposerFailureBanner(
                     submissionIssue?.takeIf { it.message == error } ?: TaskComposerFailure(TaskComposerFailure.FAILED, error.orEmpty()))
                 if (!groupSelection.valid) Text(if (groupSelection.pending) "Loading the selected Mac’s groups…" else "The selected group is unavailable. Open Task Options to choose another group or None.",
-                    color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
+                    color = NativeAppColors.error, modifier = Modifier.padding(bottom = 12.dp))
 
-                if (preparingAttachments) Text("Preparing attachments…", color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
+                if (preparingAttachments) Text("Preparing attachments…", color = NativeAppColors.muted, style = MaterialTheme.typography.bodySmall)
                 if (client != null && !plainShell && draft.attachments.isNotEmpty() && !supportsAttachments)
-                    Text("This Mac does not support task attachments. Update cmux or remove the attachments.", color = Color(0xFFFF9999))
+                    Text("This Mac does not support task attachments. Update cmux or remove the attachments.", color = NativeAppColors.error)
                 attachmentStrip()
                 Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
                     TaskComposerCircle("Task Options", R.drawable.ic_task_options, canEdit,
@@ -664,7 +664,7 @@ internal fun NativeTaskComposerView(
                                         if (loadingModels) CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp)
                                         if (!loadingModels) Icon(painterResource(R.drawable.ic_task_model), null, Modifier.size(16.dp).padding(end = 3.dp))
                                         Text(if (loadingModels) "Loading models…" else modelError ?: "${selectedModel?.name ?: "Default"} ▾",
-                                            color = if (modelError != null) Color(0xFFFF9999) else Color.Unspecified, maxLines = 1)
+                                            color = if (modelError != null) NativeAppColors.error else Color.Unspecified, maxLines = 1)
                                     }
                                     DropdownMenu(expanded = modelMenu != null, onDismissRequest = { modelMenu = null }) {
                                         DropdownMenuItem(text = { Text("Default") }, onClick = {

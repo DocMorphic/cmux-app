@@ -95,7 +95,7 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
             }
         }
         Column(Modifier.fillMaxWidth().absoluteOffset { IntOffset((offset * direction).roundToInt(), 0) }
-            .background(Color(0xFF191B1F))
+            .background(NativeAppColors.panel)
             .combinedClickable(onClick = { if (opened) dismiss() }, onLongClick = { if (!currentBusy && (actions.isNotEmpty() || currentFailure != null)) menu = true })
             .semantics { customActions = if (busy) emptyList() else buildList {
                 if (connectionFailure != null) add(CustomAccessibilityAction("Try Again Now", ::retry))
@@ -136,7 +136,7 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
                     color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
             }
             connectionFailure?.let {
-                Text(if (automaticallyRetrying) "Couldn't connect. Retrying automatically." else "Couldn't connect.", color = Color(0xFFFFC071), fontSize = 13.sp,
+                Text(if (automaticallyRetrying) "Couldn't connect. Retrying automatically." else "Couldn't connect.", color = NativeAppColors.warning, fontSize = 13.sp,
                     modifier = Modifier.testTag("cloud.connection.failure.${machine.id}"))
                 Text(it.userReason, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }

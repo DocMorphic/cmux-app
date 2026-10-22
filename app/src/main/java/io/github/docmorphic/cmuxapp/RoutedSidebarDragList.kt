@@ -146,10 +146,10 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
                 val y = target.offset + if (drop.placement == RoutedSidebarDropPlacement.AFTER) target.size else 0
                 Box(Modifier.offset { IntOffset(0, y) }.fillMaxWidth()
                     .height(if (into) with(LocalDensity.current) { target.size.toDp() } else 2.dp)
-                    .background(Color(0xFF76B9FF).copy(alpha = if (into) .18f else 1f)))
+                    .background(NativeAppColors.accent.copy(alpha = if (into) .18f else 1f)))
             } }
             held?.let { moving -> Column(Modifier.offset { IntOffset(0, (pointerY - fingerOffset).roundToInt()) }.fillMaxWidth()
-                .graphicsLayer { shadowElevation = 16f; alpha = .96f }.background(Color(0xFF24272D)).clearAndSetSemantics { }) { row(moving) } }
+                .graphicsLayer { shadowElevation = 16f; alpha = .96f }.background(NativeAppColors.panel).clearAndSetSemantics { }) { row(moving) } }
         }
     }
     }

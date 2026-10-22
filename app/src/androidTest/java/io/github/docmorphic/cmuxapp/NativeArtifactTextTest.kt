@@ -39,7 +39,7 @@ class NativeArtifactTextTest {
     private val current = mutableStateOf<LocalFilePreview?>(null)
     @Before fun setup() {
         compose.activity.getSharedPreferences("cmux-artifact-text", Context.MODE_PRIVATE).edit().clear().commit()
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+        compose.setContent { CmuxTheme(darkTheme = true) { Surface(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().safeDrawingPadding()) { current.value?.let { key(it.file) { FilePreviewContent(it) } } }
         } } }
     }

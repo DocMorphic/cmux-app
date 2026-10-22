@@ -29,8 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val feedMuted = Color(0xFF9CA3AF)
-private val feedAccent = Color(0xFF76B9FF)
+private val feedMuted: Color @Composable get() = NativeAppColors.muted
+private val feedAccent: Color @Composable get() = NativeAppColors.accent
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -53,11 +53,11 @@ internal fun NativeAgentFeedRow(entry: AgentFeedUiEntry, model: NativeAgentFeedP
                     if (ready && item.surfaceId != null && item.workspaceId != null) add(CustomAccessibilityAction("Open tab") { dismiss(); onOpen(true); true })
                 }
             }.padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(40.dp).background(Color(0xFF202329), CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(40.dp).background(NativeAppColors.panel, CircleShape), contentAlignment = Alignment.Center) {
                 if (item.source.lowercase() in setOf("claude", "codex", "opencode")) TaskTemplateIcon("agent:${item.source.lowercase()}")
                 else Text(model.author.take(1), fontWeight = FontWeight.Bold, color = feedMuted)
                 if (needsInput) Box(Modifier.align(Alignment.BottomEnd).size(10.dp).background(feedAccent, CircleShape)
-                    .border(2.dp, Color(0xFF0B0C0E), CircleShape))
+                    .border(2.dp, NativeAppColors.page, CircleShape))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -71,7 +71,7 @@ internal fun NativeAgentFeedRow(entry: AgentFeedUiEntry, model: NativeAgentFeedP
                 model.tool?.let { tool ->
                     if (item.kind == AgentFeedKind.TOOL_RESULT) AgentFeedInlinePreview(tool,
                         item.fullTextTruncated || item.fullTextPreview?.let { it != tool } == true, 2, ready, onFullText,
-                        color = if (item.toolResultIsError) Color(0xFFFF6666) else feedMuted, monospaced = true, fontSize = 12)
+                        color = if (item.toolResultIsError) NativeAppColors.error else feedMuted, monospaced = true, fontSize = 12)
                     else Text(tool, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = feedMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 if (model.resolution != null) Text(model.resolution, fontSize = 12.sp, color = feedMuted)

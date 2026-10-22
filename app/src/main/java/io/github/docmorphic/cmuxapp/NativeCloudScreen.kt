@@ -27,8 +27,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
-private val cloudPanel = Color(0xFF191B1F)
-private val cloudMuted = Color(0xFF9B9FA8)
+private val cloudPanel: Color @Composable get() = NativeAppColors.panel
+private val cloudMuted: Color @Composable get() = NativeAppColors.muted
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun NativeCloudScreen(controller: CloudMachinesController?, onSettings: () -> Unit,

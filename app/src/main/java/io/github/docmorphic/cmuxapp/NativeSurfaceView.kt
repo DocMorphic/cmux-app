@@ -101,7 +101,7 @@ private fun NativeSurfaceCard(workspace: NativeWorkspace, surface: NativeSurface
     Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally) {
         if (surface.kind == "browser") {
-            val blue = androidx.compose.ui.graphics.Color(0xFF76B9FF)
+            val blue = NativeAppColors.accent
             Box(Modifier.size(88.dp).background(blue.copy(alpha = .14f), CircleShape)
                 .border(1.dp, blue.copy(alpha = .22f), CircleShape), contentAlignment = Alignment.Center) {
                 Icon(painterResource(R.drawable.ic_workspace_globe), null, Modifier.size(36.dp), tint = blue)

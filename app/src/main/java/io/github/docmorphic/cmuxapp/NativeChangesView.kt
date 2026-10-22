@@ -27,9 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
-internal val changesMuted = Color(0xFF969CA6)
-internal val changesAdded = Color(0xFF2EA043)
-internal val changesRemoved = Color(0xFFF85149)
+internal val changesMuted: Color @Composable get() = NativeAppColors.muted
+internal val changesAdded: Color @Composable get() = if (NativeAppColors.dark) Color(0xFF2EA043) else NativeAppColors.success
+internal val changesRemoved: Color @Composable get() = if (NativeAppColors.dark) Color(0xFFF85149) else NativeAppColors.error
 
 @Composable
 internal fun NativeChangesView(client: MobileRpcClient, workspaceId: String, title: String, onBack: () -> Unit,
@@ -70,7 +70,7 @@ internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Un
     var fontSize by remember { mutableFloatStateOf(clampDiffFont(preferences.getFloat("diff-font-size", 12f))) }
     fun returnToList() { store.clearSelection(); selected = null }
     BackHandler { if (selected == null) onBack() else returnToList() }
-    Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {
+    Column(Modifier.fillMaxSize().background(NativeAppColors.page)) {
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             if (LocalWorkspaceShellChrome.current.let { it.split && !it.sidebarVisible }) NativeWorkspaceSidebarToggle()
             if (selected == null) TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Close changes" }) { Text("×") }
@@ -108,7 +108,7 @@ internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Un
                         Icon(painterResource(R.drawable.ic_browser_forward), null, Modifier.size(18.dp))
                     }
                 }
-                HorizontalDivider(color = Color(0xFF292C31))
+                HorizontalDivider(color = NativeAppColors.line)
                 HorizontalPager(pager, Modifier.weight(1f), key = { files[it].path }) { index ->
                     ChangesDiffPage(store, files[index], fontSize, { fontSize = clampDiffFont(it) },
                         { preferences.edit().putFloat("diff-font-size", clampDiffFont(it)).apply() }, content, active = files[index].path == selected)
@@ -120,7 +120,7 @@ internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Un
 
 @Composable
 private fun ChangesSummary(snapshot: ChangesSnapshot) {
-    Column(Modifier.fillMaxWidth().background(Color(0xFF15171A)).padding(horizontal = 18.dp, vertical = 12.dp)) {
+    Column(Modifier.fillMaxWidth().background(NativeAppColors.panel).padding(horizontal = 18.dp, vertical = 12.dp)) {
         Text("${snapshot.branch ?: "Detached HEAD"}  →  ${snapshot.base ?: "HEAD"}", fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(Modifier.padding(top = 7.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("${snapshot.fileCount} files changed", fontSize = 12.sp, color = changesMuted)
@@ -167,7 +167,7 @@ private fun ChangesFileList(state: ChangesListState, store: ChangesStore, naviga
                             Text(file.kind.badge, Modifier.width(26.dp), fontWeight = FontWeight.Bold, color = when (file.kind) {
                                 ChangeKind.ADDED, ChangeKind.UNTRACKED -> changesAdded
                                 ChangeKind.DELETED -> changesRemoved
-                                else -> Color(0xFF76B9FF)
+                                else -> NativeAppColors.accent
                             })
                             Column(Modifier.weight(1f)) {
                                 Text(file.filename, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
@@ -179,7 +179,7 @@ private fun ChangesFileList(state: ChangesListState, store: ChangesStore, naviga
                                 Text("−${file.deletions}", color = changesRemoved, fontSize = 12.sp)
                             }
                         }
-                        HorizontalDivider(color = Color(0xFF292C31))
+                        HorizontalDivider(color = NativeAppColors.line)
                     }
                 }
             }

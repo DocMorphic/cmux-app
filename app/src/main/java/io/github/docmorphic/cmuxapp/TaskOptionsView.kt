@@ -39,21 +39,21 @@ internal fun TaskOptionsView(draft: TaskDraft, macs: List<NativeCredentialStore.
     var macMenu by remember { mutableStateOf(false) }
     var groupMenu by remember { mutableStateOf(false) }
     BackHandler(enabled) { onDismiss() }
-    Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
+    Surface(Modifier.fillMaxSize(), color = NativeAppColors.page) {
         Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Task Options", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 TextButton(onClick = onDismiss, enabled = enabled) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1C1E)) {
+                Surface(shape = RoundedCornerShape(16.dp), color = NativeAppColors.panel) {
                     TextField(draft.workspaceName, onName, Modifier.fillMaxWidth(), enabled = enabled, singleLine = true,
                         label = { Text("Workspace name (optional)", fontSize = 12.sp) }, placeholder = { Text("Generated from prompt") },
                         colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                             disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent, disabledIndicatorColor = Color.Transparent))
                 }
-                Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1C1E)) {
+                Surface(shape = RoundedCornerShape(16.dp), color = NativeAppColors.panel) {
                 Column(Modifier.padding(vertical = 4.dp)) {
                 Box {
                     TaskOptionRouteRow("Machine", macs.firstOrNull { it.ownsOrigin(draft.origin) }?.let(computerName) ?: draft.macName, R.drawable.ic_feed_computer, "Task Mac",
@@ -65,11 +65,11 @@ internal fun TaskOptionsView(draft: TaskDraft, macs: List<NativeCredentialStore.
                             onClick = { macMenu = false; if (!mac.ownsOrigin(draft.origin)) onMac(mac.origin) }) }
                     }
                 }
-                HorizontalDivider(Modifier.padding(start = 60.dp), color = Color(0xFF34363B))
+                HorizontalDivider(Modifier.padding(start = 60.dp), color = NativeAppColors.line)
                 TaskOptionRouteRow("Directory", draft.directory.ifBlank { "Choose Folder" }, R.drawable.ic_workspace_folder_fill,
                     "Browse folders", enabled, monospace = true, onClick = onDirectory)
                 if (groups.visible) {
-                    HorizontalDivider(Modifier.padding(start = 60.dp), color = Color(0xFF34363B))
+                    HorizontalDivider(Modifier.padding(start = 60.dp), color = NativeAppColors.line)
                     Box {
                         TaskOptionRouteRow("Workspace group", groups.label,
                             groups.groups.singleOrNull { it.id == groups.id }?.iconSymbol?.let(::nativeWorkspaceGroupIcon) ?: R.drawable.ic_primary_workspaces,
@@ -88,10 +88,10 @@ internal fun TaskOptionsView(draft: TaskDraft, macs: List<NativeCredentialStore.
                 }
                 }
                 if (!groups.valid) {
-                    Text(if (groups.pending) "Waiting for this Mac’s groups." else "Choose another group or select None before submitting.", color = Color(0xFFFF9999))
+                    Text(if (groups.pending) "Waiting for this Mac’s groups." else "Choose another group or select None before submitting.", color = NativeAppColors.error)
                     TextButton(onClick = onRefreshGroups, enabled = enabled) { Text("Refresh groups") }
                 }
-                error?.let { Text(it, color = Color(0xFFFF9999)) }
+                error?.let { Text(it, color = NativeAppColors.error) }
             }
         }
     }
@@ -104,13 +104,13 @@ private fun TaskOptionRouteRow(title: String, value: String, icon: Int, descript
         .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
-            Icon(painterResource(icon), null, Modifier.size(21.dp), tint = Color(0xFF76B9FF))
+            Icon(painterResource(icon), null, Modifier.size(21.dp), tint = NativeAppColors.accent)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = Color(0xFF9B9FA8), fontSize = 12.sp, maxLines = 1)
+            Text(title, color = NativeAppColors.muted, fontSize = 12.sp, maxLines = 1)
             Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text(if (menu) "⌃\n⌄" else "›", color = Color(0xFF9B9FA8), fontSize = 12.sp, lineHeight = 7.sp)
+        Text(if (menu) "⌃\n⌄" else "›", color = NativeAppColors.muted, fontSize = 12.sp, lineHeight = 7.sp)
     }
 }

@@ -45,8 +45,8 @@ internal fun NativeRemoteBrowserPane(client: MobileRpcClient?, browser: NativeBr
                 if (switch != null) BrowserModePicker(BrowserMode.STREAMED, access.onDeviceUnavailableReason) { switch("") }
                 val heading = browser.title.ifBlank { "Browser" }
                 if (panePicker != null) panePicker(heading) else Text(heading, style = MaterialTheme.typography.titleMedium)
-                Text(if (busy) "Reconnecting to your Mac…" else "Browser disconnected", color = Color(0xFF9B9FA8))
-                connectionError?.let { Text(it, color = Color(0xFFFF9999)) }
+                Text(if (busy) "Reconnecting to your Mac…" else "Browser disconnected", color = NativeAppColors.muted)
+                connectionError?.let { Text(it, color = NativeAppColors.error) }
                 TextButton(onClick = onReconnect, enabled = !busy) { Text("Reconnect") }
             }
         }

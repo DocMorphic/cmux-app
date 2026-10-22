@@ -112,14 +112,14 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
         }
     }
     ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color(0xFF111317), contentColor = Color(0xFFE9E9EC)) {
+        containerColor = NativeAppColors.page, contentColor = NativeAppColors.text) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).imePadding().testTag("AgentFeedReplySheet")) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
                 Button(::send, enabled = canSend, modifier = Modifier.testTag("AgentFeedComposeSend"),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF176FC1), contentColor = Color.White,
-                        disabledContainerColor = Color(0xFF282C32), disabledContentColor = Color(0xFF737983)),
+                        disabledContainerColor = NativeAppColors.control, disabledContentColor = NativeAppColors.muted),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
                     Text(if (pending) "Sending…" else if (modal.mode == "terminal") "Reply" else "Send", fontWeight = FontWeight.Bold)
                 }
@@ -131,7 +131,7 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
                 heading = {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(model.author, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        model.headline?.let { Text(it, Modifier.weight(1f), color = Color(0xFF9CA3AF), fontSize = 14.sp,
+                        model.headline?.let { Text(it, Modifier.weight(1f), color = NativeAppColors.muted, fontSize = 14.sp,
                             maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     }
                 },
@@ -139,34 +139,34 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
                     if (fullText == null) model.output?.let { preview ->
                         when {
                             !modal.expanded -> AgentFeedInlinePreview(preview, item.fullTextTruncated, 6, ready,
-                                { update { it.copy(expanded = true) } }, color = Color(0xFF9CA3AF))
+                                { update { it.copy(expanded = true) } }, color = NativeAppColors.muted)
                             failed -> TextButton(onClick = { attempt++ }, enabled = ready) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_compose_fulltextretry_8d76f687)) }
                             else -> LinearProgressIndicator(Modifier.fillMaxWidth())
                         }
                     }
                 },
-                replying = { Text("Replying to ${model.author}", color = Color(0xFF76B9FF), fontSize = 12.sp,
+                replying = { Text("Replying to ${model.author}", color = NativeAppColors.accent, fontSize = 12.sp,
                     modifier = Modifier.padding(top = 6.dp, bottom = 10.dp)) },
                 draft = {
                     // A restored expanded sheet resumes reading. Reopening the
                     // keyboard here would scroll the long quote back to its editor.
                     LaunchedEffect(Unit) { if (!modal.expanded) focus.requestFocus() }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-                        Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(36.dp))
-                        val editorStyle = MaterialTheme.typography.bodyLarge.copy(color = Color(0xFFE9E9EC), fontSize = 17.sp)
+                        Icon(Icons.Default.AccountCircle, contentDescription = null, tint = NativeAppColors.muted, modifier = Modifier.size(36.dp))
+                        val editorStyle = MaterialTheme.typography.bodyLarge.copy(color = NativeAppColors.text, fontSize = 17.sp)
                         BasicTextField(editing.draft, { text -> update { it.copy(draft = text) } }, enabled = !pending,
-                            minLines = 3, maxLines = 12, textStyle = editorStyle, cursorBrush = SolidColor(Color(0xFF76B9FF)),
+                            minLines = 3, maxLines = 12, textStyle = editorStyle, cursorBrush = SolidColor(NativeAppColors.accent),
                             modifier = Modifier.weight(1f).padding(top = 8.dp).focusRequester(focus).testTag("AgentFeedComposeDraft"),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { send() }),
                             decorationBox = { field -> Box {
                                 if (editing.draft.isEmpty()) Text(if (modal.mode == "terminal") "Reply to agent…" else "What should change?",
-                                    style = editorStyle.copy(color = Color(0xFF9CA3AF)))
+                                    style = editorStyle.copy(color = NativeAppColors.muted))
                                 field()
                             } })
                     }
                 },
                 status = {
-                    if (!ready) Text("Reconnect to send your reply.", color = Color(0xFF9CA3AF), modifier = Modifier.padding(top = 8.dp))
+                    if (!ready) Text("Reconnect to send your reply.", color = NativeAppColors.muted, modifier = Modifier.padding(top = 8.dp))
                     entry.failure?.let { Text(it.message, color = MaterialTheme.colorScheme.error) }
                 })
         }
@@ -176,7 +176,7 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
 
 @Composable
 private fun FeedComposerAvatar(source: String?) {
-    Box(Modifier.size(40.dp).background(Color(0xFF25292E), CircleShape), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(40.dp).background(NativeAppColors.control, CircleShape), contentAlignment = Alignment.Center) {
         val agent = source?.lowercase(Locale.ROOT)
         TaskTemplateIcon(if (agent in setOf("claude", "codex", "opencode")) "agent:$agent" else "terminal", Modifier.size(22.dp))
     }

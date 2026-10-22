@@ -27,7 +27,7 @@ internal fun NativeFeedRowBody(model: NativeFeedVisual, modifier: Modifier = Mod
     Column(modifier.padding(start = if (context.nested) 38.dp else 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp)) {
                 Row(verticalAlignment = Alignment.Top) {
                     Text(if (value.isRead) "  " else "●", Modifier.width(14.dp).clearAndSetSemantics { },
-                        color = Color(0xFF76B9FF), fontSize = 9.sp)
+                        color = NativeAppColors.accent, fontSize = 9.sp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(if (hideHeadline) (if (!hideSource) row.source else null) ?: row.preview.orEmpty() else row.headline,
@@ -36,19 +36,19 @@ internal fun NativeFeedRowBody(model: NativeFeedVisual, modifier: Modifier = Mod
                                 fontSize = if (hideHeadline) 14.sp else 15.sp, maxLines = if (hideHeadline) 3 else 2,
                                 overflow = TextOverflow.Ellipsis)
                             if (model.time.isNotEmpty()) Text(model.time, Modifier.widthIn(max = 105.dp),
-                                color = Color(0xFF9B9FA8), fontSize = 11.sp, maxLines = 1)
+                                color = NativeAppColors.muted, fontSize = 11.sp, maxLines = 1)
                         }
                         if ((!hideSource && !hideHeadline && row.source != null) || !hideComputer) {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                                 Row(Modifier.weight(1f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     if (!hideSource && !hideHeadline) row.source?.let {
-                                        Icon(painterResource(R.drawable.ic_feed_bell), null, Modifier.size(12.dp), tint = Color(0xFF9B9FA8))
+                                        Icon(painterResource(R.drawable.ic_feed_bell), null, Modifier.size(12.dp), tint = NativeAppColors.muted)
                                         Spacer(Modifier.width(4.dp))
-                                        Text(it, color = Color(0xFF9B9FA8), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        Text(it, color = NativeAppColors.muted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                                 if (!hideComputer) Row(Modifier.widthIn(max = 150.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    val color = if (connected) Color(0xFF9B9FA8) else Color(0xFFFFB86C)
+                                    val color = if (connected) NativeAppColors.muted else NativeAppColors.warning
                                     Icon(painterResource(R.drawable.ic_feed_computer), null, Modifier.size(12.dp), tint = color)
                                     Spacer(Modifier.width(4.dp))
                                     Text(value.computer, color = color, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -56,7 +56,7 @@ internal fun NativeFeedRowBody(model: NativeFeedVisual, modifier: Modifier = Mod
                             }
                         }
                         if (!hideHeadline || (!hideSource && row.source != null)) row.preview?.let {
-                            Text(it, color = Color(0xFF9B9FA8), fontSize = 14.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            Text(it, color = NativeAppColors.muted, fontSize = 14.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }

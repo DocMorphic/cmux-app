@@ -102,9 +102,10 @@ internal fun NativeTodoView(authoritative: TodoSnapshot, enabled: Boolean,
         confirmButton = { TextButton(onClick = model::dismissFailure) { Text(stringResource(R.string.cmux_ui_chat_artifact_ok_fa3d181e)) } })
 }
 
+@Composable
 private fun TodoStatus.tint() = when (this) {
-    TodoStatus.TODO -> Color(0xFF9B9FA8)
-    TodoStatus.WORKING -> Color(0xFF76B9FF)
+    TodoStatus.TODO -> NativeAppColors.muted
+    TodoStatus.WORKING -> NativeAppColors.accent
     TodoStatus.ATTENTION -> Color(0xFFFF6B33)
     TodoStatus.REVIEW -> Color(0xFF4ACA6C)
     TodoStatus.DONE -> Color(0xFF739E80)
@@ -114,7 +115,7 @@ private fun TodoStatus.tint() = when (this) {
 private fun TodoStatusPicker(snapshot: TodoSnapshot, enabled: Boolean, choose: (TodoStatus?) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val title = if (snapshot.statusHidden) "No Status" else snapshot.status.title
-    val tint = if (snapshot.statusHidden) Color(0xFF9B9FA8) else snapshot.status.tint()
+    val tint = if (snapshot.statusHidden) NativeAppColors.muted else snapshot.status.tint()
     LaunchedEffect(enabled) { if (!enabled) open = false }
     Box {
         TextButton(onClick = { open = true }, enabled = enabled,

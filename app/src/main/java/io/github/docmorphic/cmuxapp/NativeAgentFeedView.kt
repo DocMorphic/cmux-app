@@ -30,8 +30,8 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 private val agentFeedModalSaver = Saver<AgentFeedModal?, String>(save = { it?.encode() }, restore = AgentFeedModal::decode)
-private val agentFeedMuted = Color(0xFF9CA3AF)
-private val agentFeedAccent = Color(0xFF76B9FF)
+private val agentFeedMuted: Color @Composable get() = NativeAppColors.muted
+private val agentFeedAccent: Color @Composable get() = NativeAppColors.accent
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -156,7 +156,7 @@ internal fun AgentFeedTimeline(
                             onFullText = { modal = AgentFeedModal.from(scopeKey, entry, "read") })
                     }
                 }
-                HorizontalDivider(color = Color(0xFF292C31))
+                HorizontalDivider(color = NativeAppColors.line)
             }
         }
         }
@@ -230,7 +230,7 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
         }
     }
     ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color(0xFF111317), contentColor = Color(0xFFE9E9EC)) {
+        containerColor = NativeAppColors.page, contentColor = NativeAppColors.text) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("AgentFeedFullTextSheet")) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onDismiss, modifier = Modifier.width(96.dp)) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619)) }

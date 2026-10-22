@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.core.text.PrecomputedTextCompat
@@ -76,10 +77,11 @@ private fun TerminalTextSheetContent(snapshot: TerminalTextSnapshot?, failure: S
     retry: () -> Unit, canRetry: Boolean, onDismiss: () -> Unit, prepared: PrecomputedTextCompat? = null) {
     val context = LocalContext.current
     val haptics = rememberNativeHaptics()
+    val foreground = NativeAppColors.text.toArgb()
     var copied by remember(snapshot) { mutableStateOf(false) }
     var copyError by remember(snapshot) { mutableStateOf<String?>(null) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize(), color = Color(0xFF111316), contentColor = Color(0xFFE0E5EB)) {
+        Surface(Modifier.fillMaxSize(), color = NativeAppColors.page, contentColor = NativeAppColors.text) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
@@ -107,9 +109,9 @@ private fun TerminalTextSheetContent(snapshot: TerminalTextSnapshot?, failure: S
                     }
                 } else {
                     if (snapshot.truncated) Text("Showing the last ${snapshot.lineBudget} lines.",
-                        Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color(0xFF9B9FA8))
+                        Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = NativeAppColors.muted)
                     if (snapshot.text.isEmpty()) Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text("No terminal text available", color = Color(0xFF9B9FA8))
+                        Text("No terminal text available", color = NativeAppColors.muted)
                     } else AndroidView(factory = { viewContext ->
                         ScrollView(viewContext).apply {
                             isFillViewport = true
@@ -119,7 +121,9 @@ private fun TerminalTextSheetContent(snapshot: TerminalTextSnapshot?, failure: S
                                 NativeViewHaptics(this)
                             })
                         }
-                    }, modifier = Modifier.fillMaxWidth().weight(1f))
+                    }, modifier = Modifier.fillMaxWidth().weight(1f), update = {
+                        (it.getChildAt(0) as TextView).setTextColor(foreground)
+                    })
                 }
             }
         }

@@ -17,7 +17,7 @@ internal fun ArtifactPathSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization
     onDismiss: () -> Unit) {
     val detail = navigation ?: remember(terminal, path) { ArtifactNavigationState() }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize(), color = Color(0xFF111316), contentColor = Color(0xFFE5E7EB)) {
+        Surface(Modifier.fillMaxSize(), color = NativeAppColors.page, contentColor = NativeAppColors.text) {
             Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
                 key(terminal, path) { ArtifactPathContent(rpc, terminal, path, onDismiss, detail, retainedPreview, retainedFolder, connection) }
             }

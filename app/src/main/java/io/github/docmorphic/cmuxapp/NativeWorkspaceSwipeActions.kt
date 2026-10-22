@@ -130,7 +130,7 @@ internal fun NativeWorkspaceSwipeActions(
             }
         }
         Box(Modifier.absoluteOffset { IntOffset((displayed * direction).roundToInt(), 0) }
-            .background(Color(0xFF0B0C0E))) {
+            .background(NativeAppColors.page)) {
             CompositionLocalProvider(LocalWorkspaceGeometryHeld provides geometryHeld) { content(::dismiss, shownActions) }
         }
     }

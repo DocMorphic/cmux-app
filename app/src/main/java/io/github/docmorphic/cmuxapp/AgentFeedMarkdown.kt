@@ -156,7 +156,8 @@ internal fun AgentFeedMarkdownText(markdown: String, modifier: Modifier = Modifi
 private fun agentFeedAnnotatedText(markdown: String): AnnotatedString {
     val context = LocalContext.current
     val runs = remember(markdown) { AgentFeedMarkdown.parse(markdown) }
-    return remember(runs, context) { buildAnnotatedString {
+    val accent = NativeAppColors.accent
+    return remember(runs, context, accent) { buildAnnotatedString {
         runs.forEach { run ->
             val style = run.style
             val index = pushStyle(SpanStyle(fontWeight = FontWeight.Bold.takeIf { style.bold },
@@ -164,7 +165,7 @@ private fun agentFeedAnnotatedText(markdown: String): AnnotatedString {
                 textDecoration = TextDecoration.LineThrough.takeIf { style.strike },
                 background = if (style.code) Color(0x222C7ABB) else Color.Unspecified))
             if (style.link != null) {
-                pushLink(LinkAnnotation.Url(style.link, TextLinkStyles(style = SpanStyle(color = Color(0xFF76B9FF), textDecoration = TextDecoration.Underline)),
+                pushLink(LinkAnnotation.Url(style.link, TextLinkStyles(style = SpanStyle(color = accent, textDecoration = TextDecoration.Underline)),
                     linkInteractionListener = { link ->
                         (link as? LinkAnnotation.Url)?.url?.takeIf(MarkdownPreviewPolicy::external)?.let { url ->
                             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
@@ -203,7 +204,7 @@ internal fun AgentFeedInlinePreview(text: String, hasMore: Boolean, lineLimit: I
     modifier: Modifier = Modifier) {
     val complete = agentFeedAnnotatedText(text)
     val latestMore by rememberUpdatedState(onMore)
-    val linkColor = Color(0xFF76B9FF).let { if (enabled) it else it.copy(alpha = .38f) }
+    val linkColor = NativeAppColors.accent.let { if (enabled) it else it.copy(alpha = .38f) }
     val suffix = remember(enabled, linkColor) { buildAnnotatedString {
         append("… ")
         if (enabled) pushLink(LinkAnnotation.Clickable("AgentFeedSeeMore",

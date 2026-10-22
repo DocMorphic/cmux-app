@@ -197,7 +197,7 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
     if (dialog != null) BrowserDialog(checkNotNull(dialog), client, panelId,
         onResolved = { id -> if (dialog?.optString("dialog_id") == id) dialog = null }, onError = { error = it })
 
-    Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {
+    Column(Modifier.fillMaxSize().background(NativeAppColors.page)) {
         Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
             NativeWorkspaceBackControl { TextButton(onClick = { policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide(); onBack() }) { Text("‹  Workspaces") } }
             val heading = page.title.ifBlank { title.ifBlank { "Browser" } }
@@ -211,35 +211,35 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
         }
         Box(Modifier.fillMaxWidth().weight(1f).onSizeChanged { measured = it }, contentAlignment = Alignment.Center) {
             val current = frame
-            if (current == null) Text(if (ready && page.url in setOf("", "about:blank")) "Search or enter an address below." else "Waiting for browser…", color = Color(0xFF969AA3))
+            if (current == null) Text(if (ready && page.url in setOf("", "about:blank")) "Search or enter an address below." else "Waiting for browser…", color = NativeAppColors.muted)
             else BrowserPageSurface(current, queue, scrollMotion, streamGeneration,
                 inputEnabled && pointerReady && (client.pointerReady == null || appliedViewport == viewport),
                 onTap = { focusManager.clearFocus() }, pageDescription = client.pageDescription)
         }
         val visibleError = connectionError ?: error
         if (visibleError != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(visibleError, Modifier.weight(1f), color = Color(0xFFFF9999), fontSize = 12.sp)
+            Text(visibleError, Modifier.weight(1f), color = NativeAppColors.error, fontSize = 12.sp)
             TextButton(onClick = { queue.pause(); onReconnect?.invoke(); retry++ }) { Text("Reconnect") }
         }
         if (inputError != null) Column(Modifier.padding(horizontal = 12.dp)) {
-            Text(inputError.orEmpty(), color = Color(0xFFFF9999), fontSize = 12.sp)
+            Text(inputError.orEmpty(), color = NativeAppColors.error, fontSize = 12.sp)
             TextButton(onClick = { queue.resume() }, enabled = ready) { Text("Resume browser input") }
         }
         Surface(Modifier.fillMaxWidth().padding(horizontal = 10.dp).padding(top = 6.dp, bottom = 10.dp),
-            shape = RoundedCornerShape(28.dp), color = Color(0xFF202226)) {
+            shape = RoundedCornerShape(28.dp), color = NativeAppColors.panel) {
             Column {
                 Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                     BrowserChromeButton("Browser Back", R.drawable.ic_browser_back, inputEnabled && (!client.reportsHistory || page.canGoBack)) { queue.offer(BrowserInput.Navigation("back")) }
                     BrowserChromeButton("Browser Forward", R.drawable.ic_browser_forward, inputEnabled && (!client.reportsHistory || page.canGoForward)) { queue.offer(BrowserInput.Navigation("forward")) }
                     BasicTextField(address, { address = it }, Modifier.weight(1f).heightIn(min = 44.dp)
-                        .background(Color(0xFF303238), RoundedCornerShape(22.dp)).padding(horizontal = 12.dp, vertical = 12.dp)
+                        .background(NativeAppColors.control, RoundedCornerShape(22.dp)).padding(horizontal = 12.dp, vertical = 12.dp)
                         .semantics { contentDescription = "Browser address" }
                         .onFocusChanged { state ->
                             if (state.isFocused && !addressFocused) { scrollMotion.stop(); address = page.url }
                             addressFocused = state.isFocused
                         }, singleLine = true, enabled = foreground && ready && inputError == null,
-                        textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, textAlign = if (addressFocused) TextAlign.Start else TextAlign.Center),
-                        cursorBrush = SolidColor(Color(0xFF76B9FF)), keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(color = NativeAppColors.text, textAlign = if (addressFocused) TextAlign.Start else TextAlign.Center),
+                        cursorBrush = SolidColor(NativeAppColors.accent), keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = {
                             val target = address.trim()
                             if (target.isNotEmpty()) {
@@ -247,7 +247,7 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
                                 policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide()
                             }
                         }), decorationBox = { inner ->
-                            if (address.isEmpty()) Text("Search or address", color = Color(0xFF969AA3), fontSize = 12.sp, maxLines = 1)
+                            if (address.isEmpty()) Text("Search or address", color = NativeAppColors.muted, fontSize = 12.sp, maxLines = 1)
                             inner()
                         })
                     BrowserChromeButton("Reload browser", R.drawable.ic_browser_reload, inputEnabled) { queue.offer(BrowserInput.Navigation("reload")) }

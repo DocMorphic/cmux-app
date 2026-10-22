@@ -46,7 +46,7 @@ private fun WorkspaceChromeBody(row: WorkspaceListChrome, measuring: Boolean, on
     }
     when (row.kind) {
         WorkspaceChromeKind.STATUS -> Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(row.text, Modifier.weight(1f), color = Color(0xFF9B9FA8), fontSize = 12.sp)
+            Text(row.text, Modifier.weight(1f), color = NativeAppColors.muted, fontSize = 12.sp)
             if (row.action != null) button()
         }
         WorkspaceChromeKind.ERROR -> Column(Modifier.fillMaxWidth().padding(12.dp)) {

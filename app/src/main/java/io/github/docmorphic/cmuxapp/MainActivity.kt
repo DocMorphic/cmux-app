@@ -7,14 +7,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import androidx.activity.ComponentActivity
-import androidx.core.view.WindowCompat
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
 
 open class MainActivity : ComponentActivity() {
@@ -28,10 +26,6 @@ open class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = false
-            isAppearanceLightNavigationBars = false
-        }
         if (!routesModel.initialized) launchRoutes = when {
             savedInstanceState?.containsKey(NativeLaunchRoutes.STATE_KEY) == true ->
                 NativeLaunchRoutes.decode(savedInstanceState.getString(NativeLaunchRoutes.STATE_KEY))
@@ -90,15 +84,12 @@ open class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun CmuxTheme(content: @Composable () -> Unit) {
+fun CmuxTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    NativeSystemBarAppearance(darkTheme)
     NativeHapticsProvider {
-        MaterialTheme(colorScheme = darkColorScheme(
-            primary = Color(0xFF76B9FF),
-            background = Color(0xFF0B0C0E),
-            surface = Color(0xFF0B0C0E),
-            onBackground = Color(0xFFF4F5F7),
-            onSurface = Color(0xFFF4F5F7)
-        )) { FileSaveHost(content) }
+        MaterialTheme(colorScheme = if (darkTheme) cmuxDarkColorScheme() else cmuxLightColorScheme()) {
+            FileSaveHost(content)
+        }
     }
 }
 

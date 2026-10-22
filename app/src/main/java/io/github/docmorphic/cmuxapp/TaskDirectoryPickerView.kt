@@ -88,7 +88,7 @@ internal fun TaskDirectoryPickerView(client: MobileRpcClient?, origin: String, s
     fun choose(path: String) { if (currentGuard()) onSelect(path) }
     val page = browse.snapshot
     val results = index.merged(remote, query)
-    Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
+    Surface(Modifier.fillMaxSize(), color = NativeAppColors.page) {
         Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (stack.isNotEmpty()) TextButton(onClick = ::back, modifier = Modifier.semantics { contentDescription = "Parent folder" }) { Text("‹ Back") }
@@ -103,17 +103,17 @@ internal fun TaskDirectoryPickerView(client: MobileRpcClient?, origin: String, s
                     item {
                         if (searching) Text("Searching this Mac…", Modifier.padding(12.dp))
                         else if (results.isEmpty() && searchError == null) Text("No Matching Folders", Modifier.padding(12.dp))
-                        remote?.status?.let { Text(it, Modifier.padding(12.dp), color = Color(0xFF9B9FA8)) }
-                        searchError?.let { Text(it, Modifier.padding(12.dp), color = Color(0xFFFF9999)); TextButton(onClick = { searchRetry++ }) { Text("Retry search") } }
-                        Text("Search checks the Mac’s indexed folders and scans its home folder live. Browse to reach restricted locations.", Modifier.padding(12.dp), color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
+                        remote?.status?.let { Text(it, Modifier.padding(12.dp), color = NativeAppColors.muted) }
+                        searchError?.let { Text(it, Modifier.padding(12.dp), color = NativeAppColors.error); TextButton(onClick = { searchRetry++ }) { Text("Retry search") } }
+                        Text("Search checks the Mac’s indexed folders and scans its home folder live. Browse to reach restricted locations.", Modifier.padding(12.dp), color = NativeAppColors.muted, style = MaterialTheme.typography.bodySmall)
                     }
                 } else if (current == null) {
                     if (suggested.isNotEmpty()) {
-                        item { Text("Suggested", color = Color(0xFF9B9FA8), modifier = Modifier.padding(vertical = 8.dp)) }
+                        item { Text("Suggested", color = NativeAppColors.muted, modifier = Modifier.padding(vertical = 8.dp)) }
                         items(suggested, key = { it.path }) { candidate -> DirectoryCandidateRow(candidate, selectedPath) { choose(candidate.path) } }
                     }
                     item {
-                        Text("Locations", color = Color(0xFF9B9FA8), modifier = Modifier.padding(vertical = 12.dp))
+                        Text("Locations", color = NativeAppColors.muted, modifier = Modifier.padding(vertical = 12.dp))
                         TextButton(onClick = { navigate("~") }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cmux_ui_diagnostics_simulator_button_home_a816032a)) }
                         TextButton(onClick = { navigate("/") }, modifier = Modifier.fillMaxWidth()) { Text("Computer") }
                         if (selectedPath.isNotBlank() && selectedPath !in setOf("~", "/")) TextButton(onClick = { navigate(selectedPath) }) { Text(selectedPath) }
@@ -123,22 +123,22 @@ internal fun TaskDirectoryPickerView(client: MobileRpcClient?, origin: String, s
                         Row(Modifier.fillMaxWidth().semantics { contentDescription = "Open folder: ${entry.name}" }
                             .clickable(enabled = entry.readable) { navigate(entry.path) }.padding(vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(painterResource(R.drawable.ic_workspace_folder), null, Modifier.size(24.dp), tint = if (entry.readable) Color(0xFF76B9FF) else Color.Gray)
+                            Icon(painterResource(R.drawable.ic_workspace_folder), null, Modifier.size(24.dp), tint = if (entry.readable) NativeAppColors.accent else Color.Gray)
                             Column(Modifier.weight(1f)) {
-                                Text(entry.name, color = if (entry.readable) Color.White else Color.Gray)
+                                Text(entry.name, color = if (entry.readable) NativeAppColors.text else Color.Gray)
                                 val details = listOfNotNull("Hidden".takeIf { entry.hidden }, "Package".takeIf { entry.isPackage }, "Symbolic link".takeIf { entry.symbolicLink }, "Cannot read folder".takeUnless { entry.readable })
-                                if (details.isNotEmpty()) Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = Color(0xFF9B9FA8))
+                                if (details.isNotEmpty()) Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = NativeAppColors.muted)
                             }
-                            Text("›", color = Color(0xFF9B9FA8))
+                            Text("›", color = NativeAppColors.muted)
                         }
-                        HorizontalDivider(color = Color(0xFF30333A))
+                        HorizontalDivider(color = NativeAppColors.line)
                     }
                     item {
                         if (browse.pending != null) Text("Loading folders…", Modifier.padding(12.dp))
-                        if (browse.error != null) { Text(browse.error!!, Modifier.padding(12.dp), color = Color(0xFFFF9999)); TextButton(onClick = { browse = browse.retry() }) { Text("Retry folder") } }
+                        if (browse.error != null) { Text(browse.error!!, Modifier.padding(12.dp), color = NativeAppColors.error); TextButton(onClick = { browse = browse.retry() }) { Text("Retry folder") } }
                         if (page != null) {
-                            Text(page.path, Modifier.padding(vertical = 12.dp), fontFamily = FontFamily.Monospace, color = Color(0xFF9B9FA8))
-                            Text("${page.total} folders", color = Color(0xFF9B9FA8))
+                            Text(page.path, Modifier.padding(vertical = 12.dp), fontFamily = FontFamily.Monospace, color = NativeAppColors.muted)
+                            Text("${page.total} folders", color = NativeAppColors.muted)
                             if (page.next != null && browse.pending == null && browse.error == null) {
                                 LaunchedEffect(page.next) { browse = browse.next() }
                             }
@@ -160,9 +160,9 @@ internal fun TaskDirectoryPickerView(client: MobileRpcClient?, origin: String, s
 private fun DirectoryCandidateRow(candidate: TaskDirectoryCandidate, selectedPath: String, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().semantics { selected = candidate.path == selectedPath; contentDescription = "Use folder: ${candidate.path}" }
         .clickable(onClick = onClick).padding(vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Icon(painterResource(R.drawable.ic_workspace_folder), null, Modifier.size(24.dp), tint = Color(0xFF76B9FF))
-        Column(Modifier.weight(1f)) { Text(TaskDirectoryPaths.name(candidate.path)); Text(candidate.path, style = MaterialTheme.typography.bodySmall, color = Color(0xFF9B9FA8))
-            Text(listOfNotNull(candidate.source.label, candidate.context).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = Color(0xFF9B9FA8)) }
+        Icon(painterResource(R.drawable.ic_workspace_folder), null, Modifier.size(24.dp), tint = NativeAppColors.accent)
+        Column(Modifier.weight(1f)) { Text(TaskDirectoryPaths.name(candidate.path)); Text(candidate.path, style = MaterialTheme.typography.bodySmall, color = NativeAppColors.muted)
+            Text(listOfNotNull(candidate.source.label, candidate.context).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = NativeAppColors.muted) }
         if (candidate.path == selectedPath) Text("✓")
     }
 }

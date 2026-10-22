@@ -44,20 +44,20 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 12.dp)) {
         if (method == NativeMacConnectionMethod.TAILSCALE && routes?.isEmpty() == true) {
             Text("No authorized Tailscale route yet. This computer stays disconnected until you add a Tailscale connection.",
-                color = Color(0xFFFFBC70), fontSize = 13.sp)
+                color = NativeAppColors.warning, fontSize = 13.sp)
         }
-        Text("ROUTES", Modifier.padding(top = 12.dp, bottom = 8.dp), color = Color(0xFF9B9FA8), fontSize = 11.sp)
+        Text("ROUTES", Modifier.padding(top = 12.dp, bottom = 8.dp), color = NativeAppColors.muted, fontSize = 11.sp)
         Text(stringResource(R.string.cmux_ui_diagnostics_transport_iroh_b604d1b1), fontSize = 15.sp)
-        Text("This Mac’s enrolled identity", color = Color(0xFF9B9FA8), fontSize = 12.sp)
+        Text("This Mac’s enrolled identity", color = NativeAppColors.muted, fontSize = 12.sp)
         if (routes == null) {
-            Text("Could not read saved Tailscale connections.", color = Color(0xFFFFBC70))
+            Text("Could not read saved Tailscale connections.", color = NativeAppColors.warning)
             TextButton(onClick = reload, enabled = !busy && enabled) { Text("Retry Tailscale connections") }
         } else routes.forEach { route -> key(route.id) {
             var menu by remember { mutableStateOf(false) }
             Row(Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f).padding(vertical = 12.dp)) {
                     Text(stringResource(R.string.cmux_ui_diagnostics_transport_tailscale_21287e0f), fontSize = 15.sp)
-                    Text(route.route.displayAddress(), color = Color(0xFF9B9FA8), fontSize = 13.sp)
+                    Text(route.route.displayAddress(), color = NativeAppColors.muted, fontSize = 13.sp)
                 }
                 Box {
                     TextButton(onClick = { menu = true }, enabled = !busy && enabled,
@@ -70,7 +70,7 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
             }
         } }
         TextButton(onClick = { openEditor(null) }, enabled = !busy && enabled && routes != null) { Text("Add Tailscale Connection") }
-        if (!editor && removing == null) error?.let { Text(it, color = Color(0xFFFF9999)) }
+        if (!editor && removing == null) error?.let { Text(it, color = NativeAppColors.error) }
     }
     if (editor) AlertDialog(onDismissRequest = { if (!busy) editor = false },
         properties = DialogProperties(dismissOnBackPress = !busy, dismissOnClickOutside = !busy),
@@ -91,7 +91,7 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
                 modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(10.dp))
             Text("Connect sends your cmux account session over Tailscale and verifies ${target.name} (${target.buildTag}) before saving this route.", fontSize = 12.sp)
-            error?.let { Text(it, color = Color(0xFFFF9999)) }
+            error?.let { Text(it, color = NativeAppColors.error) }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         } },
         confirmButton = {
@@ -121,7 +121,7 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
         text = { Column {
             Text(route.route.displayAddress())
             Text("If no authorized route remains, Tailscale Only will stay disconnected.", fontSize = 13.sp)
-            error?.let { Text(it, color = Color(0xFFFF9999)) }
+            error?.let { Text(it, color = NativeAppColors.error) }
         } },
         confirmButton = { TextButton(enabled = !busy && enabled, onClick = {
             if (busy) return@TextButton

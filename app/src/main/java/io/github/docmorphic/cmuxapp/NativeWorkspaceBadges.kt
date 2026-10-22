@@ -26,10 +26,10 @@ import androidx.compose.ui.unit.sp
 internal fun NativeUnreadGutter(unread: NativeWorkspaceUnread, gap: Dp = 8.dp, modifier: Modifier = Modifier) {
     Box(modifier.width(18.5.dp + gap).height(20.dp).clearAndSetSemantics { }) {
         unread.badgeCount?.let { count ->
-            Box(Modifier.offset(x = (-1.5).dp).size(20.dp).background(Color(0xFF76B9FF), CircleShape),
+            Box(Modifier.offset(x = (-1.5).dp).size(20.dp).background(NativeAppColors.accent, CircleShape),
                 contentAlignment = Alignment.Center) {
                 BasicText(count.toString(), Modifier.width(17.dp),
-                    style = TextStyle(color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold,
+                    style = TextStyle(color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center),
                     maxLines = 1, autoSize = TextAutoSize.StepBased(minFontSize = 6.25.sp, maxFontSize = 12.5.sp, stepSize = 0.25.sp))
             }

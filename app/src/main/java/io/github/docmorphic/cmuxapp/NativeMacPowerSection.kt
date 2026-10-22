@@ -79,10 +79,10 @@ internal fun NativeBorrowedMacPowerSettings(session: NativeMacPowerSession, offe
 @Composable
 internal fun NativeMacPowerSection(state: NativeMacPowerState, change: (Boolean) -> Unit, retry: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(22.dp)) {
-        Text("MAC POWER", color = Color(0xFF9B9FA8), fontSize = 11.sp)
+        Text("MAC POWER", color = NativeAppColors.muted, fontSize = 11.sp)
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(R.drawable.ic_keep_awake), contentDescription = null,
-                modifier = Modifier.padding(end = 12.dp).size(22.dp), tint = Color(0xFF9B9FA8))
+                modifier = Modifier.padding(end = 12.dp).size(22.dp), tint = NativeAppColors.muted)
             Text("Keep Mac Awake", Modifier.weight(1f))
             if (state.connected && state.supported != false && state.enabled == null) {
                 if (!state.busy && state.error != null) TextButton(onClick = retry) { Text(stringResource(R.string.cmux_ui_changes_retry_d64c31a6)) }
@@ -98,8 +98,8 @@ internal fun NativeMacPowerSection(state: NativeMacPowerState, change: (Boolean)
             state.supported == false -> "Update cmux on this Mac to control Keep Mac Awake from Android."
             else -> state.error
         }
-        if (explanation != null) Text(explanation, Modifier.padding(top = 8.dp), color = Color(0xFF9B9FA8), fontSize = 13.sp)
+        if (explanation != null) Text(explanation, Modifier.padding(top = 8.dp), color = NativeAppColors.muted, fontSize = 13.sp)
         Text("Prevents this Mac from sleeping while cmux is open. Its display can still turn off.",
-            Modifier.padding(top = 8.dp), color = Color(0xFF9B9FA8), fontSize = 13.sp)
+            Modifier.padding(top = 8.dp), color = NativeAppColors.muted, fontSize = 13.sp)
     }
 }

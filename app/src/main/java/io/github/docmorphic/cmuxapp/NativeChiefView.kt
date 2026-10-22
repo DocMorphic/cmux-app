@@ -64,8 +64,8 @@ import java.time.temporal.ChronoUnit
 import java.text.SimpleDateFormat
 import java.util.Date
 
-private val chiefAccent = Color(0xFF76B9FF)
-private val chiefMuted = Color(0xFF9B9FA8)
+private val chiefAccent: Color @Composable get() = NativeAppColors.accent
+private val chiefMuted: Color @Composable get() = NativeAppColors.muted
 
 @Composable
 internal fun NativeChiefView(computer: NativeChiefComputerSession, active: Boolean, modifier: Modifier = Modifier) {

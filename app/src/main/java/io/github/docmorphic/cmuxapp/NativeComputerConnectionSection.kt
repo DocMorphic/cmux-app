@@ -11,13 +11,13 @@ import androidx.compose.ui.unit.sp
 @Composable
 internal fun NativeComputerConnectionSection(connection: NativeComputerConnection) {
     Column(Modifier.fillMaxWidth().padding(22.dp)) {
-        Text("CONNECTION", color = Color(0xFF9B9FA8), fontSize = 11.sp)
+        Text("CONNECTION", color = NativeAppColors.muted, fontSize = 11.sp)
         Row(Modifier.fillMaxWidth().padding(top = 12.dp)) {
             Text("This phone", Modifier.weight(1f))
             Text(connection.phrase, color = when (connection.availability) {
                 NativeFeedAvailability.CONNECTED -> Color(0xFF72D49A)
                 NativeFeedAvailability.CONNECTING -> Color(0xFFFFC46B)
-                NativeFeedAvailability.OFFLINE -> Color(0xFF9B9FA8)
+                NativeFeedAvailability.OFFLINE -> NativeAppColors.muted
             })
         }
         if (connection.foreground) Row(Modifier.fillMaxWidth().padding(top = 12.dp)) {

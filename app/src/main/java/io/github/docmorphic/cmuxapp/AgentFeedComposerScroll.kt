@@ -16,6 +16,7 @@ import android.widget.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -99,6 +100,9 @@ internal fun AgentFeedComposerScroll(modifier: Modifier, fullText: CharSequence?
     val currentDraft by rememberUpdatedState(draft)
     val currentStatus by rememberUpdatedState(status)
     val density = LocalDensity.current
+    val foreground = NativeAppColors.muted.toArgb()
+    val link = NativeAppColors.accent.toArgb()
+    val quoteLine = NativeAppColors.line.toArgb()
     // NestedScrollView dispatches child scroll deltas through AndroidView to
     // Compose's native IME animation controller, including a held partial drag.
     AndroidView(modifier = modifier.imeNestedScroll().clipToBounds(), factory = { context ->
@@ -123,7 +127,7 @@ internal fun AgentFeedComposerScroll(modifier: Modifier, fullText: CharSequence?
                     orientation = LinearLayout.HORIZONTAL
                     isBaselineAligned = false
                     addView(FrameLayout(context).apply {
-                        addView(View(context).apply { setBackgroundColor(0xFF45494F.toInt()) },
+                        addView(View(context).apply { tag = "AgentFeedQuoteLine"; setBackgroundColor(quoteLine) },
                             FrameLayout.LayoutParams(dp(2), -1).apply { leftMargin = dp(19); topMargin = dp(40) })
                         addView(part(R.id.feed_compose_avatar) { currentAvatar() }, FrameLayout.LayoutParams(dp(40), dp(40)))
                     }, LinearLayout.LayoutParams(dp(40), -1))
@@ -146,6 +150,8 @@ internal fun AgentFeedComposerScroll(modifier: Modifier, fullText: CharSequence?
         }
     }, update = { scroll ->
         val body = scroll.findViewWithTag<TextView>("AgentFeedExpandedQuote")
+        body.setTextColor(foreground); body.setLinkTextColor(link)
+        scroll.findViewWithTag<View>("AgentFeedQuoteLine").setBackgroundColor(quoteLine)
         // Do not replace text on draft keystrokes or reset selection/focus.
         if (scroll.displayedBody !== fullText) {
             scroll.restoreY = position.y

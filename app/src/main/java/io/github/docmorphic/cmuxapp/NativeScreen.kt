@@ -88,10 +88,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 
-private val nativePage = Color(0xFF0B0C0E)
-private val nativePanel = Color(0xFF191B1F)
-private val nativeAccent = Color(0xFF76B9FF)
-private val nativeMuted = Color(0xFF9B9FA8)
+private val nativePage: Color @Composable get() = NativeAppColors.page
+private val nativePanel: Color @Composable get() = NativeAppColors.panel
+private val nativeAccent: Color @Composable get() = NativeAppColors.accent
+private val nativeMuted: Color @Composable get() = NativeAppColors.muted
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -155,6 +155,7 @@ internal fun NativeScreen(
     val scope = rememberCoroutineScope()
     val terminalFocusRequester = remember { FocusRequester() }
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
+    LaunchedEffect(signedIn, sharedConnections) { if (signedIn) sharedConnections?.signIn?.clear() }
     val accountDeletion = remember(sharedConnections, account, store) {
         sharedConnections?.accountDeletion ?: NativeAccountDeletionController(scope, store::load, store::update) { login ->
             NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
@@ -2498,6 +2499,7 @@ internal fun NativeScreen(
 
                 fun signOutCurrentAccount(owner: String? = null): Boolean = try {
                     if (account.signOut(owner)) {
+                        sharedConnections?.signIn?.clear()
                         // Retire credentials first: service/connection teardown cannot leave a
                         // deleted account admitted if stopping a background component fails.
                         runCatching { NativeNotificationService.setEnabled(context, false) }
@@ -2827,7 +2829,7 @@ internal fun NativeScreen(
                             showSettings = false
                         }.onFailure { error = it.message }
                     }, enabled = canRemoveLocalPairing(), modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.remove-local-pairing")) {
-                        Text("Remove local pairing", color = Color(0xFFFF9999)) }
+                        Text("Remove local pairing", color = NativeAppColors.error) }
                     NativeSettingsSetupHelp(displayPolicy)
                     TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
                     }, notifications = {
@@ -3249,7 +3251,7 @@ internal fun NativeScreen(
                             })
                         TerminalZoomOverlay(terminalZoom, displayPreferences,
                             foreground = runCatching { Color(android.graphics.Color.parseColor(currentGrid.foreground)) }.getOrDefault(Color.White),
-                            background = runCatching { Color(android.graphics.Color.parseColor(currentGrid.background)) }.getOrDefault(nativePanel),
+                            background = runCatching { Color(android.graphics.Color.parseColor(currentGrid.background)) }.getOrDefault(Color(0xFF191B1F)),
                             modifier = Modifier.align(Alignment.Center))
                         }
                         TerminalToolbarView(toolbarStore.layout, inputModifiers, inputOwner = inputClient to inputTarget,
@@ -3284,9 +3286,9 @@ internal fun NativeScreen(
                             }, insert = if (terminalAttached && !directTyping && client != null && terminalDraft.operation == null && !preparingAttachments &&
                                 (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty())) ({ sendComposer(submit = false) }) else null)
                         inputFailure?.let { message ->
-                            Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(8.dp),
+                            Row(Modifier.fillMaxWidth().background(NativeAppColors.errorContainer).padding(8.dp),
                                 verticalAlignment = Alignment.CenterVertically) {
-                                Text(message, Modifier.weight(1f), color = Color(0xFFFFAAAA), fontSize = 12.sp)
+                                Text(message, Modifier.weight(1f), color = NativeAppColors.onErrorContainer, fontSize = 12.sp)
                                 TextButton(onClick = {
                                     val key = deliveryKey
                                     if (key != null && terminalInputs.requiresReconnect(key)) retry++
@@ -3363,8 +3365,8 @@ internal fun NativeScreen(
                             }
                         }
                         (dictationState.error ?: composerAttachmentError ?: terminalDraft.error ?: draftSaveError)?.let { message ->
-                            Text(message, Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(12.dp),
-                                color = Color(0xFFFFAAAA), fontSize = 12.sp)
+                            Text(message, Modifier.fillMaxWidth().background(NativeAppColors.errorContainer).padding(12.dp),
+                                color = NativeAppColors.onErrorContainer, fontSize = 12.sp)
                         }
                     }
                 }
@@ -3422,7 +3424,7 @@ internal fun NativeScreen(
                             NativeWorkspaceBackControl { TextButton(onClick = { selectedChangesWorkspace = null; selectedWorkspace = null }) { Text("‹  Workspaces") } }
                             Text("Changes in ${workspace.title}", style = MaterialTheme.typography.titleMedium)
                             Text(if (busy) "Reconnecting to your Mac…" else "Changes disconnected", color = nativeMuted)
-                            connectionError?.let { Text(it, color = Color(0xFFFF9999)) }
+                            connectionError?.let { Text(it, color = NativeAppColors.error) }
                             TextButton(onClick = { retry++ }, enabled = !busy) { Text("Reconnect") }
                         }
                     }
@@ -3787,7 +3789,7 @@ internal fun NativeScreen(
                                         color = nativeAccent, fontSize = 12.sp)
                                 }
                                 }
-                                HorizontalDivider(color = Color(0xFF292C31))
+                                HorizontalDivider(color = NativeAppColors.line)
                                 }
                         }
                         if (searchState.active == null && !isSidebar) NativeTaskComposerButton(
@@ -4034,7 +4036,8 @@ internal fun NativeScreen(
                     }
                     when {
                         !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
-                            onLicenses = { showLicenses = true }, macPolicy = displayPolicy, onSignedIn = { signedIn = true; error = null })
+                            onLicenses = { showLicenses = true }, macPolicy = displayPolicy, onSignedIn = { signedIn = true; error = null },
+                            retained = sharedConnections?.signIn)
                         showOnboarding -> onboardingContent()
                         showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
                         showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
@@ -4137,9 +4140,9 @@ internal fun NativeScreen(
                     }
                     if (signedIn) NativeCreationNoticeBanner(creationNavigation.noticeFor(browserLogin, paneTeam), creationNavigation::dismissNotice)
                     val visibleError = error ?: connectionError.takeIf { sshRoute == null && (selectedTerminal != null || selectedBrowser != null || (workspaceSources.isEmpty() && sshTargets.isEmpty())) }
-                    if (signedIn && visibleError != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
+                    if (signedIn && visibleError != null) Row(Modifier.fillMaxWidth().background(NativeAppColors.errorContainer).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text(visibleError, Modifier.weight(1f).padding(vertical = 12.dp), color = Color(0xFFFFAAAA))
+                        Text(visibleError, Modifier.weight(1f).padding(vertical = 12.dp), color = NativeAppColors.onErrorContainer)
                         if (selectedTerminal != null) TextButton(onClick = { retryDelay = 2_000; retry++ }) { Text("Reconnect") }
                     }
                 }
@@ -4276,7 +4279,7 @@ internal fun NativeWorkspaceRow(
                         trailingIcon = { Icon(painterResource(R.drawable.ic_workspace_chevron_right), null, Modifier.size(16.dp)) },
                         onClick = { groupPicker = true })
                     if (canClose) DropdownMenuItem(text = { Text("Delete") },
-                        colors = MenuDefaults.itemColors(textColor = Color(0xFFFF9999), leadingIconColor = Color(0xFFFF9999)),
+                        colors = MenuDefaults.itemColors(textColor = NativeAppColors.error, leadingIconColor = NativeAppColors.error),
                         leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_delete) }, onClick = {
                         menu.expanded = false; requestClose()
                     })
@@ -4369,9 +4372,9 @@ internal fun NativeComputerPicker(
             Text("Finding your computers…", color = nativeMuted)
         }
         (teamState.error ?: computerState.error)?.let {
-            Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(vertical = 10.dp))
+            Text(it, color = NativeAppColors.error, modifier = Modifier.padding(vertical = 10.dp))
         }
-        connectionFailure?.let { Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(vertical = 10.dp)) }
+        connectionFailure?.let { Text(it, color = NativeAppColors.error, modifier = Modifier.padding(vertical = 10.dp)) }
         if (hasAccountMismatch && onSignOut != null) key(teamState.userId, teamState.scope) {
             var admitted by remember { mutableStateOf(true) }
             DisposableEffect(Unit) { onDispose { admitted = false } }
@@ -4478,17 +4481,21 @@ internal fun NativeComputerPicker(
 internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (String) -> Unit,
                          onUseHelper: () -> Unit, onLicenses: () -> Unit,
                          macPolicy: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked,
-                         onSignedIn: () -> Unit) {
+                         onSignedIn: () -> Unit, retained: NativeSignInSession? = null) {
     val scope = rememberCoroutineScope()
+    val send by rememberUpdatedState(sendCode)
+    val authenticate by rememberUpdatedState(signIn)
+    val completed by rememberUpdatedState(onSignedIn)
+    val local = remember(retained) { if (retained == null) NativeSignInSession(scope, { send(it) }, { authenticate(it) }) else null }
+    val session = retained ?: checkNotNull(local)
+    DisposableEffect(local) { onDispose { local?.close() } }
+    val form by session.state.collectAsState()
+    val email = form.email; val otp = form.code; val codeSent = form.codeSent; val busy = form.busy; val signInError = form.error
+    LaunchedEffect(session, form.completion) { form.completion?.let { if (session.consumeCompletion(it)) completed() } }
     var showPairingHelp by rememberSaveable { mutableStateOf(false) }
     if (showPairingHelp) NativePairingHelp(macPolicy, signedIn = false,
         onDismiss = { showPairingHelp = false }, onFindMac = { showPairingHelp = false },
         onTailscalePairing = {})
-    var email by remember { mutableStateOf("") }
-    var otp by remember { mutableStateOf("") }
-    var codeSent by remember { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(false) }
-    var signInError by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
     NativeHeader("Sign in to cmux")
     Column(Modifier.fillMaxWidth().padding(24.dp)) {
@@ -4498,40 +4505,22 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
             Text("Set up cmux on your Mac")
         }
         Spacer(Modifier.height(24.dp))
-        OutlinedTextField(email, { email = it; codeSent = false; otp = ""; signInError = null },
-            Modifier.fillMaxWidth(), label = { Text("Email") }, singleLine = true, enabled = !busy,
+        OutlinedTextField(email, session::editEmail,
+            Modifier.fillMaxWidth().testTag("signin.email"), label = { Text("Email") }, singleLine = true, enabled = !busy,
             keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email))
         Spacer(Modifier.height(12.dp))
-        Button(onClick = {
-            scope.launch {
-                busy = true; signInError = null; codeSent = false; otp = ""
-                try { sendCode(email); codeSent = true }
-                catch (failure: Exception) {
-                    if (failure is CancellationException) throw failure
-                    signInError = failure.message ?: "Could not send the code. Please try again."
-                } finally { busy = false }
-            }
-        }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { session.requestCode() }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth().testTag("signin.request")) {
             Text(if (busy && !codeSent) "Sending code…" else if (codeSent) "Send a new code" else "Email me a sign-in code")
         }
-        signInError?.let { Text(it, Modifier.fillMaxWidth().padding(vertical = 12.dp), color = Color(0xFFFFAAAA)) }
+        signInError?.let { Text(it, Modifier.fillMaxWidth().padding(vertical = 12.dp), color = NativeAppColors.onErrorContainer) }
         if (codeSent) {
             Spacer(Modifier.height(16.dp))
-            OutlinedTextField(otp, { otp = it.filter { char -> char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' }.take(6) },
-                Modifier.fillMaxWidth(), label = { Text("Six-character code") }, singleLine = true, enabled = !busy,
+            OutlinedTextField(otp, session::editCode,
+                Modifier.fillMaxWidth().testTag("signin.code"), label = { Text("Six-character code") }, singleLine = true, enabled = !busy,
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
-            Button(onClick = {
-                scope.launch {
-                    busy = true; signInError = null
-                    try { signIn(otp); onSignedIn() }
-                    catch (failure: Exception) {
-                        if (failure is CancellationException) throw failure
-                        signInError = failure.message ?: "Could not sign in. Please try again."
-                    } finally { busy = false }
-                }
-            }, enabled = !busy && otp.length == 6, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "Signing in…" else "Sign in") }
+            Button(onClick = { session.submitCode() }, enabled = !busy && otp.length == 6, modifier = Modifier.fillMaxWidth().testTag("signin.submit")) { Text(if (busy) "Signing in…" else "Sign in") }
         }
-        TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
+        TextButton(onClick = { session.clear(); onUseHelper() }) { Text("Use existing helper connection") }
         TextButton(onClick = onLicenses) { Text("Open-source licenses") }
     }
 }

@@ -27,8 +27,8 @@ internal fun NativeLocalResetSection(requestErase: (() -> Boolean)? = null) {
     var confirming by remember { mutableStateOf(false) }
     var erasing by rememberSaveable { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
-    val destructive = Color(0xFFFF9999)
-    val muted = Color(0xFF92979F)
+    val destructive = NativeAppColors.error
+    val muted = NativeAppColors.muted
     Column(Modifier.padding(bottom = 24.dp)) {
         Text("RESET", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = muted, fontSize = 11.sp)
         TextButton(onClick = { failed = false; confirming = true }, enabled = !erasing,

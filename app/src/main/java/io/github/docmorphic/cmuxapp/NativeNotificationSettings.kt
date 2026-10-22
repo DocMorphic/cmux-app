@@ -72,16 +72,16 @@ internal fun NativeNotificationSettings(openSettings: ((Intent) -> Unit)? = null
             Text("Android notification settings")
         }
         Text("Control sounds and app icon badges in Android settings.",
-            Modifier.padding(horizontal = 22.dp), color = Color(0xFF92979F), fontSize = 12.sp)
+            Modifier.padding(horizontal = 22.dp), color = NativeAppColors.muted, fontSize = 12.sp)
         if (badgeChannels.isNotEmpty()) {
             Text("To keep ongoing activity from adding an app icon badge, turn off badges for these categories:",
-                Modifier.padding(horizontal = 22.dp, vertical = 8.dp), color = Color(0xFF92979F), fontSize = 12.sp)
+                Modifier.padding(horizontal = 22.dp, vertical = 8.dp), color = NativeAppColors.muted, fontSize = 12.sp)
             badgeChannels.forEach { (id, label) ->
                 TextButton(onClick = { open(id) }, modifier = Modifier.padding(horizontal = 14.dp)) { Text(label) }
             }
         }
         if (failed) Text("Could not open Android settings. Open Settings › Apps › cmux › Notifications on your phone.",
             Modifier.padding(horizontal = 22.dp, vertical = 8.dp).semantics { liveRegion = LiveRegionMode.Polite },
-            color = Color(0xFFFF9999), fontSize = 13.sp)
+            color = NativeAppColors.error, fontSize = 13.sp)
     }
 }

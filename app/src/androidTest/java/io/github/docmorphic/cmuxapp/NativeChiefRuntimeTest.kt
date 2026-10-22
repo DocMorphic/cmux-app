@@ -63,8 +63,8 @@ class NativeChiefRuntimeTest {
         }
         // Match NativeScreenLayout's outer inset consumption. The Chief subtree
         // owns its transcript, while its production parent owns system bars.
-        compose.setContent { CmuxTheme {
-            androidx.compose.material3.MaterialTheme(colorScheme = if (testLight) androidx.compose.material3.lightColorScheme() else androidx.compose.material3.MaterialTheme.colorScheme) {
+        compose.setContent { CmuxTheme(darkTheme = !testLight) {
+            androidx.compose.material3.MaterialTheme(colorScheme = if (testLight) cmuxLightColorScheme() else androidx.compose.material3.MaterialTheme.colorScheme) {
             val hostDensity = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(hostDensity.density, testFontScale),
                 androidx.compose.ui.platform.LocalLayoutDirection provides testLayoutDirection) {

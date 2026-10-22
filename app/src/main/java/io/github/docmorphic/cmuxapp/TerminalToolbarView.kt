@@ -69,8 +69,8 @@ internal fun TerminalToolbarView(layout: TerminalToolbarLayout, modifiers: Termi
     canInput: Boolean, filesEnabled: Boolean, onModifier: (TerminalInputModifiers.Key) -> Unit,
     onButton: (TerminalToolbarButton) -> Unit, onCustom: (TerminalToolbarAction) -> Unit,
     onCustomize: () -> Unit, insert: (() -> Unit)? = null, inputOwner: Any?) {
-    val accent = Color(0xFF76B9FF)
-    val background = Color(0xFF191B1F)
+    val accent = NativeAppColors.accent
+    val background = NativeAppColors.panel
     val contact = remember { mutableStateOf(false) }
     val scroll = rememberTerminalToolbarScrollState(contact)
     Row(Modifier.fillMaxWidth().background(background), verticalAlignment = Alignment.CenterVertically) {
@@ -115,8 +115,8 @@ internal fun TerminalToolbarView(layout: TerminalToolbarLayout, modifiers: Termi
                         if (button?.modifier != null) stateDescription = if (locked) "Locked" else if (armed) "Armed" else "Off"
                     }, shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.textButtonColors(containerColor = if (armed) accent else Color.Transparent,
-                        contentColor = if (armed) Color.Black else Color(0xFF9B9FA8)),
-                    border = if (locked) androidx.compose.foundation.BorderStroke(2.dp, Color.White) else null
+                        contentColor = if (armed) MaterialTheme.colorScheme.onPrimary else NativeAppColors.muted),
+                    border = if (locked) androidx.compose.foundation.BorderStroke(2.dp, NativeAppColors.text) else null
                 ) { Text(button?.label ?: custom?.title.orEmpty(), maxLines = 1,
                     fontWeight = if (locked) FontWeight.Bold else FontWeight.Normal) }
             } }

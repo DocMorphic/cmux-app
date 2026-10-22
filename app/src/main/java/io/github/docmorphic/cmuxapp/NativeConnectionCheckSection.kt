@@ -42,14 +42,14 @@ internal fun NativeConnectionCheckSection(enabled: Boolean, run: suspend () -> N
     var report by remember { mutableStateOf<NativeConnectionReport?>(null) }
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 10.dp)) {
-        Text("CONNECTION CHECK", color = Color(0xFF9B9FA8), fontSize = 11.sp)
+        Text("CONNECTION CHECK", color = NativeAppColors.muted, fontSize = 11.sp)
         TextButton(enabled = enabled && !running, onClick = {
             if (!running) {
                 running = true; report = null
                 scope.launch { try { report = run() } finally { running = false } }
             }
         }) { Text(if (running) "Checking…" else "Check Connection") }
-        if (!enabled) Text(disabledMessage, fontSize = 13.sp, color = Color(0xFF9B9FA8))
+        if (!enabled) Text(disabledMessage, fontSize = 13.sp, color = NativeAppColors.muted)
         report?.let { result ->
             CheckRow("Active Route", result.route)
             CheckRow("Encrypted Transport", result.encryption)
@@ -57,11 +57,11 @@ internal fun NativeConnectionCheckSection(enabled: Boolean, run: suspend () -> N
             CheckRow("Account Access", if (result.accountAccess) "Verified" else "Not Verified")
             result.transport?.roundTripMillis?.let { CheckRow("Transport RTT", "$it ms") }
             result.responseMillis?.let { CheckRow("RPC Response", "$it ms") }
-            result.failure?.let { Text(it.advice, color = Color(0xFFFFC170), fontSize = 13.sp) }
+            result.failure?.let { Text(it.advice, color = NativeAppColors.warning, fontSize = 13.sp) }
             TextButton(onClick = { share(result.shareText()) }) { Text(stringResource(R.string.cmux_ui_mobile_iroh_check_sharereport_3580df6b)) }
         }
         Text("Reports exclude computer names, terminal content, network addresses and credentials.",
-            fontSize = 12.sp, color = Color(0xFF9B9FA8))
+            fontSize = 12.sp, color = NativeAppColors.muted)
     }
 }
 
