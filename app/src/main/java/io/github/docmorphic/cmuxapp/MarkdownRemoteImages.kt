@@ -98,5 +98,14 @@ internal class MarkdownRemoteImages : AutoCloseable {
         }
         return null
     }
-    override fun close() { closed = true; calls.forEach { it.cancel() }; calls.clear(); client.connectionPool.evictAll() }
+    private val retired = java.util.concurrent.atomic.AtomicBoolean()
+    override fun close() {
+        if (!retired.compareAndSet(false, true)) return
+        closed = true; calls.clear()
+        val worker = client.dispatcher.executorService
+        worker.execute {
+            try { client.dispatcher.cancelAll(); client.connectionPool.evictAll() }
+            finally { worker.shutdown() }
+        }
+    }
 }

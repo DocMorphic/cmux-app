@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class NativeMacCompatibilityRuntime(context: Context, private val store: NativeCredentialStore, active: StateFlow<IrxProbeActivity>,
     teams: StateFlow<NativeAccountTeamsState>, private val isCurrent: (NativeTeamScope) -> Boolean,
@@ -26,6 +27,7 @@ internal class NativeMacCompatibilityRuntime(context: Context, private val store
     val gate = NativeMacCompatibilityGate(isCurrent, cache.policy, audience, retainsForeground) { owner, _, _ -> persist(owner) }
     private val http = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS)
         .followRedirects(false).followSslRedirects(false).build()
+    private val closed = AtomicBoolean()
     private val refreshLock = Mutex()
     private var lastAttemptNanos: Long? = null
 
@@ -64,7 +66,17 @@ internal class NativeMacCompatibilityRuntime(context: Context, private val store
         } catch (_: Exception) { currentCoroutineContext().ensureActive() /* retain cached/baked policy */ }
     }
 
-    override fun close() { scope.cancel(); http.dispatcher.cancelAll(); http.connectionPool.evictAll() }
+    override fun close() {
+        if (!closed.compareAndSet(false, true)) return
+        scope.cancel()
+        // TLS pool eviction can write close_notify. Retirement occurs on Main;
+        // cancel and drain this privately owned client on its worker instead.
+        val worker = http.dispatcher.executorService
+        worker.execute {
+            try { http.dispatcher.cancelAll(); http.connectionPool.evictAll() }
+            finally { worker.shutdown() }
+        }
+    }
 
     companion object {
         const val ORIGIN = "https://cmux.com"
