@@ -1,3 +1,35 @@
+## Signed candidate 714 ready for coordinated Pixel checks — 2026-10-22
+
+Candidate 714 is built from clean committed `c540ae6f6ad4a128bf1356140e77e19ee3a76d6e`
+and remains local/unpublished. APK: `captures/runtime/parity-candidate-714/app-release.apk`,
+278,047,217 bytes, SHA-256
+`b0d9b3347495c91891cd94edef7e4ad1797ed4ddd2d18cc6662896f4c05a0ced`.
+The stable signer remains
+`1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+Verification passes all 22 native libraries, 21 viewer assets, private Firebase
+configuration and exclusion of 16 test-only components. Its full unit build
+passes 3,112 tests with four opt-in skips, zero failures/errors (3,116 total).
+
+The actual signed APK passed two starts on a newly created API 36 arm64
+Pixel 6a emulator, including a process restart. UI trees and screenshots are
+hashed, the sign-in screen was visually reviewed, and both crash buffers are
+empty. The emulator stopped and only that owned disposable AVD was deleted.
+This proves fresh unauthenticated release startup, not an existing-account
+upgrade, physical native connection or notification delivery. Evidence:
+`captures/recovery-20261022/parity-candidate-714-checkpoint.json` and
+`release-714-cold-v1/receipt.json`; build/verification logs and unit XML archive
+are retained alongside them.
+
+A new phone-availability question is pending. Do not act on the earlier 711/712
+availability replies. The Pixel remains released at signed 712; 713 and 714
+have not been installed on it. The prepared bounded 714 plan covers a stable-
+signer data-preserving upgrade, one disposable terminal, actual bidirectional
+output, a background inline reply after the corrected Mac fetch, one cold
+notification destination and original-workspace/settings cleanup. Plan:
+`captures/recovery-20261022/pixel-714-test-plan.json`. It is not test evidence.
+Continue independent parity work while availability is pending. Full app
+parity stays active; the remaining visual/device/backend/release gates apply.
+
 ## Poll table spacing, no-question header and live font recreation — 2026-10-22
 
 Implementation `927c43f1` replaces the normal/accessibility-medium
