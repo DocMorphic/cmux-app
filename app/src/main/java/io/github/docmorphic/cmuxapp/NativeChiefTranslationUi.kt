@@ -165,10 +165,12 @@ internal fun NativeChiefTranslationCaption(presentation: NativeChiefTranslationP
     Layout(modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp).testTag("$tag:Frame"), content = {
         Row(Modifier.fillMaxWidth().testTag(tag).semantics(mergeDescendants = true) {}
             .then(if (tappable && enabled) Modifier.clickable(role = Role.Button) { if (active) action() } else Modifier),
-            horizontalArrangement = if (outgoing) Arrangement.End else Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
-            Icon(painterResource(R.drawable.ic_chief_translate), null, Modifier.size(font.pointSize.toFloat().dp), tint = color)
+            // Pinned UIKit uses physical .right/.left paragraph alignment. Its
+            // English attachment/text sequence also keeps its order in RTL UI.
+            horizontalArrangement = if (outgoing) Arrangement.Absolute.Right else Arrangement.Absolute.Left, verticalAlignment = Alignment.CenterVertically) {
+            Icon(painterResource(R.drawable.ic_chief_translate), null, Modifier.size(font.pointSize.toFloat().dp).testTag("$tag:Glyph"), tint = color)
             Spacer(Modifier.width(3.dp))
-            Text(label, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, Modifier.testTag("$tag:Text"), style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }) { children, constraints ->
         val child = children.single().measure(constraints.copy(minHeight = 0))

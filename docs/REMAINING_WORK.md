@@ -1,3 +1,37 @@
+## Translation RTL caption regression fixed; compositor reference in progress — 2026-10-22
+
+Chief translation captions now use absolute left/right arrangement, matching the
+pinned UIKit sender-side paragraph alignment. A new mounted runtime regression
+first reproduced the English glyph order failure under RTL composition, then
+passed with incoming captions on the physical left and outgoing captions on the
+physical right. The final screenshot was inspected. All 18 combined translation
+and message-action checks pass in 60.051 seconds, with no skips/failures and an
+empty crash buffer. Exact inputs and APK/screenshot hashes are recorded in
+`captures/recovery-20261022/chief-translation-rtl-checkpoint.json`. This covers
+English labels under RTL layout, not Arabic/Hebrew bidi or full visual acceptance.
+
+The separate iOS translation UI-test host links the unmodified pinned package,
+drives real bubble long presses/menu/UIAlert controls and captures the OS
+compositor. Eleven fixtures cover choices, source picker, toggles, automatic
+indicator, outgoing/light, RTL, landscape and actual accessibility type. A
+transparent AX observation node exports UIKit geometry; it is not VoiceOver
+acceptance. Both project modes/schemes/resources, Swift syntax and all 125 Python
+guards pass locally; the corrected host's 62 reference guards also pass.
+First run 39726179590 compiled and physically reached the source choice sheet,
+then rejected actual light traits for the dark fixture. The host now supplies
+SwiftUI preferredColorScheme and retains state/images before final assertions.
+Run 39727396812 at baae106135efb42717c590c4cea60eda1c4fbbd4 is in progress;
+complete native frames and independent verification remain required. Failed
+run artifacts are diagnostics. Controlled outputs never prove native inference.
+
+Next finish that reference run, compare/refine Android sheets, captions, indicator,
+glyphs, colors and material, then complete locale/rotation/recreation/native-output
+and every broader physical/account/terminal/notification/backend/release gate.
+The owned emulator was restored/stopped; Pixel 703, signed 712, account/pairing/
+signing/workspaces are unchanged. The latest CUA check reports a locked Mac;
+no further Mac pairing-window step or repeated phone request is needed. Full
+parity stays active.
+
 ## Translation UI mounted with scoped preferences — 2026-10-22
 
 Production Chief now supplies an account/team/Mac-installation preference scope

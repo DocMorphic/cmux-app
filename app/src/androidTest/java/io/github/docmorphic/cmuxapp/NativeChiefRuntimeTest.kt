@@ -2876,6 +2876,28 @@ class NativeChiefRuntimeTest {
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationChoice").fetchSemanticsNodes().isNotEmpty() }
     }
 
+    @Test fun englishTranslationCaptionsKeepTheirPhysicalSenderEdgeAndGlyphOrderInRtl() {
+        compose.runOnUiThread { testLayoutDirection = androidx.compose.ui.unit.LayoutDirection.Rtl }
+        openReferenceScene("quote-dark")
+        installUiTranslator()
+        compose.runOnUiThread { owner.launch {
+            computer.transcript()!!.translations.value!!.translateMessage("s:parent")
+            computer.transcript()!!.translations.value!!.translateMessage("s:reply")
+        } }
+        for ((id, outgoing) in listOf("parent" to false, "reply" to true)) {
+            val tag = "ChiefTranslationCaption:s:$id"
+            awaitTranslationCaption(tag, "Show Original")
+            val row = compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val glyph = compose.onNodeWithTag("$tag:Glyph", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val text = compose.onNodeWithTag("$tag:Text", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            assertTrue("English translation glyph must precede its text physically", glyph.right < text.left)
+            if (outgoing) assertEquals("Outgoing caption must keep the physical right edge", row.right, text.right, 1f)
+            else assertEquals("Incoming caption must keep the physical left edge", row.left, glyph.left, 1f)
+        }
+        saveScreenshot("chief-translation-rtl-physical-caption")
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
     @Test fun translationChoiceCaptionsAndMenuTogglesKeepTheOriginalDraft() {
         openReferenceScene("quote-dark")
         val engine = installUiTranslator()
