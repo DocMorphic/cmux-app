@@ -1,3 +1,33 @@
+## Native Chief action callbacks and geometry verified — 2026-10-22
+
+Run 39695701927 at f817f0a08b569feaac68698e985937421300f092 succeeded.
+Artifact 12391636822 was downloaded; both the existing fifteen-scene verifier
+and the independent five-action-scene verifier pass locally. All five action
+PNGs were inspected. Source public AX activation and registered Copy/Reply/More
+controls execute; actual category/orientation, placed frames/menu fonts, retained
+draft/focus/viewing and zero backend writes pass. More observes selection and
+its confirmation/Cancel; Core local deletion remains separate from destructive
+UIAlert activation. Native receipt:
+captures/recovery-20261022/chief-actions-native-checkpoint.json.
+
+The first Reply failure was the disabled-animation harness lifetime. The next
+runs exposed newly mounted/virtualized cells before first display; the harness
+now waits through keyboard arrival and re-reads actual live AX activation.
+Runs 39692913894, 39694449187 and 39694960103 remain failed diagnostics.
+
+Optical limitation: the menu PNGs contain strong refracted/duplicated background
+content through glass in window.drawHierarchy capture. OS-compositor agreement
+is unproven; obtain OS-level captures before accepting menu glass/material
+parity. This source callback/geometry evidence is not Android or physical proof.
+
+Current Android worktree has an uncommitted mounted menu/More/selection path.
+Round3 passes actual AX Copy with outer menu metrics, More/confirmed local
+removal, Reply focus and stale-owner clipboard rejection. A separate press test
+is being moved outside Compose's virtual test clock to normal Android uptime;
+its result is pending. Select/Poll Details, motion/haptics, translation, broader
+layout/owner stress and physical acceptance remain open. Signed 712 and Pixel
+703 are unchanged; no Mac menu action is requested. Full parity stays active.
+
 ## Chief menu and local deletion foundation — 2026-10-22
 
 Pinned source press timing, gesture arbitration, fixed menu metrics and the

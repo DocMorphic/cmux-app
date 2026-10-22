@@ -1,3 +1,17 @@
+Action run 39695701927 at f817f0a08b569feaac68698e985937421300f092 passed
+both UIKit invocations and all export guards. Artifact 12391636822 was
+independently verified locally for fifteen existing plus five action scenes;
+all five action PNGs were inspected. Wait for actual first display/live-cell
+activation after keyboard arrival; a newly dequeued cell can have no snapshot
+yet. Reply callbacks require the source animation lifetime even though settled
+PNG capture disables animations. Failed earlier runs remain diagnostics.
+
+The action evidence establishes actual source controls, ownership and geometry.
+The menu glass PNGs have refracted/duplicated backdrop content in drawHierarchy;
+agreement with the actual OS compositor is not proven. Obtain OS-level captures
+before using these to accept material/optical parity. No physical long press,
+Android parity, destructive alert activation or animation timing is established.
+
 Run 39692913894 compiled but failed after the first action capture while
 exercising outgoing Reply. The settled harness had globally disabled animations,
 which collapses the source menu dismissal before its 0.12 s Reply handoff timer.
