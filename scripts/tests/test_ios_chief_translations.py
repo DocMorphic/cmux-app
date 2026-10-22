@@ -38,7 +38,8 @@ class TranslationExportGuards(unittest.TestCase):
             controls = []
             if translated:
                 labels.append(dict(identifier='conversation.message.translation',frame=[16,164,250,20],fontSize=12,
-                    colorRGBA=[0,.56,1,1],attachment=dict(imageSize=[17,13],bounds=[0,0,0,0])))
+                    colorRGBA=[0,.56,1,1],fontName='Synthetic guard only',fontAscender=11,fontCapHeight=9,spaceAdvance=3,
+                    attachment=dict(imageSize=[17,13],bounds=[0,0,0,0],prefixAdvance=20,textAdvance=65)))
             if mode=='menu': controls.append(dict(identifier='conversation.menu.translate',label='Show Original',frame=[16,200,250,42]))
             if mode=='conversation': controls.append(dict(identifier='conversation.translation.indicator',frame=[60,300,250,32]))
             presentations = []
@@ -56,6 +57,7 @@ class TranslationExportGuards(unittest.TestCase):
                 labels=labels,controls=controls,presentations=presentations,translationCalls=int(translated),
                 automatic=mode=='conversation',alertActions=(['Translate This Message','Translate Conversation','Cancel'] if mode=='choice' else ['French','Spanish','Cancel'] if mode=='from' else []),
                 alertTitle='Translate From' if mode=='from' else '',imageSha256=hashlib.sha256(image).hexdigest())
+            value['captionFontProfiles']=[dict(category='synthetic-'+str(i),fontName='Synthetic guard only',bodyPointSize=17,pointSize=11,lineHeight=13,ascender=10,descender=-3,capHeight=8,spaceAdvance=3,imageSize=[17,13]) for i in range(12)]
             value['runtime']=dict(systemVersion='26.6',operatingSystemVersion='Synthetic verifier fixture only',idiom=0,horizontalSizeClass=1,verticalSizeClass=1 if scene['orientation']=='landscape' else 2)
             if mode in ('choice','from'):
                 value['alertGeometry']=dict(presentedFrame=[16,200,240,248],sourceRect=[16,90,250,70],popoverFrame=[16,200,240,248])
@@ -95,6 +97,18 @@ class TranslationExportGuards(unittest.TestCase):
     def test_missing_caption_attachment_is_rejected(self):
         self.mutate(lambda v:v['labels'][-1].pop('attachment'))
         with self.assertRaisesRegex(ValueError,'attachment metrics'):self.verify()
+
+    def test_missing_font_profile_is_rejected(self):
+        self.mutate(lambda v:v['captionFontProfiles'].pop())
+        with self.assertRaisesRegex(ValueError,'font profiles'):self.verify()
+
+    def test_nonfinite_font_metric_is_rejected(self):
+        self.mutate(lambda v:v['captionFontProfiles'][0].update(spaceAdvance=float('nan')))
+        with self.assertRaisesRegex(ValueError,'font metrics'):self.verify()
+
+    def test_missing_actual_caption_prefix_advance_is_rejected(self):
+        self.mutate(lambda v:v['labels'][-1]['attachment'].pop('prefixAdvance'))
+        with self.assertRaisesRegex(ValueError,'run advances'):self.verify()
 
     def test_non_hittable_popup_action_is_rejected(self):
         self.mutate(lambda v:v['presentedButtons'][0].update(hittable=False),'translation-choice-dark')

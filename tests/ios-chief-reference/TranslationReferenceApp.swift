@@ -153,15 +153,36 @@ private final class TranslationBackend: ConversationBackend, @unchecked Sendable
             let alignment = (attributes[.paragraphStyle] as? NSParagraphStyle)?.alignment ?? label.textAlignment
             var record: [String: Any] = ["identifier": label.accessibilityIdentifier ?? "", "class": String(describing: type(of: label)), "text": text,
                 "frame": rect(label, window: window), "fontSize": font.pointSize, "lineHeight": font.lineHeight,
-                "alignment": alignment.rawValue]
+                "alignment": alignment.rawValue,
+                "fontName": font.fontName, "fontAscender": font.ascender, "fontDescender": font.descender,
+                "fontLeading": font.leading, "fontCapHeight": font.capHeight,
+                "spaceAdvance": (" " as NSString).size(withAttributes: [.font: font]).width,
+                "plainTextAdvance": (text as NSString).size(withAttributes: [.font: font]).width]
             let color = (attributes[.foregroundColor] as? UIColor ?? label.textColor ?? .label).resolvedColor(with: label.traitCollection)
             var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
             if color.getRed(&red, green: &green, blue: &blue, alpha: &alpha) { record["colorRGBA"] = [red, green, blue, alpha] }
             if let attachment = attributes[.attachment] as? NSTextAttachment, let image = attachment.image {
                 record["attachment"] = ["imageSize": [image.size.width, image.size.height],
-                    "bounds": [attachment.bounds.minX, attachment.bounds.minY, attachment.bounds.width, attachment.bounds.height]]
+                    "bounds": [attachment.bounds.minX, attachment.bounds.minY, attachment.bounds.width, attachment.bounds.height],
+                    "prefixAdvance": attributed!.attributedSubstring(from: NSRange(location: 0, length: min(2, attributed!.length))).size().width,
+                    "textAdvance": attributed!.attributedSubstring(from: NSRange(location: min(2, attributed!.length), length: max(0, attributed!.length - 2))).size().width]
             }
             return record
+        }
+        // Intrinsic API measurements only; these do not claim rendered acceptance
+        // for every category or replace the actual visible UILabel records above.
+        let captionProfiles: [[String: Any]] = [UIContentSizeCategory.extraSmall, .small, .medium, .large,
+            .extraLarge, .extraExtraLarge, .extraExtraExtraLarge, .accessibilityMedium, .accessibilityLarge,
+            .accessibilityExtraLarge, .accessibilityExtraExtraLarge, .accessibilityExtraExtraExtraLarge].map { category in
+            let traits = UITraitCollection(preferredContentSizeCategory: category)
+            let pointSize = UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traits).pointSize
+            let font = UIFont.systemFont(ofSize: pointSize)
+            let image = UIImage(systemName: "translate", withConfiguration: UIImage.SymbolConfiguration(font: font))!
+            return ["category": category.rawValue, "bodyPointSize": UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).pointSize,
+                "fontName": font.fontName, "pointSize": pointSize, "lineHeight": font.lineHeight,
+                "ascender": font.ascender, "descender": font.descender, "capHeight": font.capHeight,
+                "spaceAdvance": (" " as NSString).size(withAttributes: [.font: font]).width,
+                "imageSize": [image.size.width, image.size.height]]
         }
         let controls = views.compactMap { view -> [String: Any]? in
             guard let control = view as? UIControl else { return nil }
@@ -202,7 +223,7 @@ private final class TranslationBackend: ConversationBackend, @unchecked Sendable
             "categoryMatches": UIApplication.shared.preferredContentSizeCategory == (fixture.category == "accessibilityMedium" ? .accessibilityMedium : .large),
             "style": controller.traitCollection.userInterfaceStyle == .dark ? "dark" : "light",
             "direction": controller.view.effectiveUserInterfaceLayoutDirection == .rightToLeft ? "rtl" : "ltr",
-            "labels": labels, "controls": controls, "presentations": presentations,
+            "labels": labels, "controls": controls, "presentations": presentations, "captionFontProfiles": captionProfiles,
             "alertActions": alert?.actions.compactMap(\.title) ?? [], "alertTitle": alert?.title ?? "",
             "automatic": store.translations.autoTranslation != nil, "translationCalls": engine.calls,
             "backendWriteAttempts": backend.writeAttempts]

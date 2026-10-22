@@ -88,13 +88,24 @@ def verify(exported, output, commit):
         require(isinstance(size,list) and len(size)==2 and all(type(x) in (int,float) and math.isfinite(x) and x>0 for x in size) and type(scale) in (int,float) and math.isfinite(scale) and scale>0,'Invalid translation viewport')
         require((size[0]>size[1])==(spec['orientation']=='landscape'),'Wrong translation orientation')
         require(rect(v.get('controllerFrame')) and all(abs(a-b)<.1 for a,b in zip(v['controllerFrame'],[0,0,*size])),'Source controller does not fill capture viewport')
+        profiles=v.get('captionFontProfiles',[])
+        require(isinstance(profiles,list) and len(profiles)==12 and len({x.get('category') for x in profiles})==12,'Missing/duplicate caption font profiles')
+        for profile in profiles:
+            require(isinstance(profile.get('fontName'),str) and profile['fontName'],'Missing measured font identity')
+            require(all(type(profile.get(k)) in (int,float) and math.isfinite(profile[k]) and profile[k]>0 for k in ('bodyPointSize','pointSize','lineHeight','ascender','capHeight','spaceAdvance')),'Invalid measured caption font metrics')
+            require(type(profile.get('descender')) in (int,float) and math.isfinite(profile['descender']) and profile['descender']<0,'Invalid measured caption descender')
+            image=profile.get('imageSize')
+            require(isinstance(image,list) and len(image)==2 and all(type(x) in (int,float) and math.isfinite(x) and x>0 for x in image),'Invalid measured caption image canvas')
         labels=v.get('labels',[]);controls=v.get('controls',[])
         require(labels and all(rect(x.get('frame')) and x.get('fontSize',0)>0 for x in labels) and all(rect(x.get('frame')) for x in controls),'Missing translation geometry')
         for label in labels:
             if label.get('identifier')!='conversation.message.translation': continue
             color=label.get('colorRGBA');attachment=label.get('attachment',{});glyph=attachment.get('imageSize')
+            require(isinstance(label.get('fontName'),str) and label['fontName'],'Missing actual caption font identity')
+            require(all(type(label.get(k)) in (int,float) and math.isfinite(label[k]) and label[k]>0 for k in ('fontAscender','fontCapHeight','spaceAdvance')),'Invalid actual caption font metrics')
             require(isinstance(color,list) and len(color)==4 and all(type(x) in (int,float) and math.isfinite(x) and 0<=x<=1 for x in color),'Missing source caption color')
             require(isinstance(glyph,list) and len(glyph)==2 and all(type(x) in (int,float) and math.isfinite(x) and x>0 for x in glyph),'Missing source attachment metrics')
+            require(all(type(attachment.get(k)) in (int,float) and math.isfinite(attachment[k]) and attachment[k]>0 for k in ('prefixAdvance','textAdvance')),'Missing actual caption run advances')
         if spec['category']=='accessibilityMedium':
             body=[x for x in labels if x.get('class')=='ConversationEffectLabel'];require(body and all(x['fontSize']>=28 for x in body),'Actual accessibility body type missing')
         presentations={x['id']:x for x in v['presentations']};require(set(presentations)==set(rows),'Wrong source transcript')

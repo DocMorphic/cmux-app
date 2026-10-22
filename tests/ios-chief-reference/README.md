@@ -298,3 +298,12 @@ Early close leaves the native trailing opacity at zero; interrupted reopen can
 restore Back visually or let an old completion swap the glyph too soon. These
 outcomes are preserved as observations, not forced expected results. Android
 matching and physical accessibility remain open.
+
+The translation observer also records each visible UILabel's resolved font name,
+ascender/descender/cap height, space and plain-text advances, plus the attachment
+and following-space prefix advance. A twelve-category intrinsic Caption 2 profile
+uses the source's system-font size choice and records translation image canvas
+sizes without exporting symbol pixels. These API measurements supplement the
+actual compositor scenes; they do not establish rendered, Bold Text or VoiceOver
+acceptance for all categories. Historical captures retain their original template
+commit and must be verified with that commit's contract.
