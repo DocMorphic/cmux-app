@@ -240,6 +240,15 @@
       "orientation": "portrait",
       "direction": "ltr",
       "scroll": "top"
+    },
+    {
+      "id": "poll-type-accessibilityExtraExtraExtraLarge-bottom",
+      "model": "pending",
+      "category": "accessibilityExtraExtraExtraLarge",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "bottom"
     }
   ]
 }

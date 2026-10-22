@@ -144,6 +144,14 @@ final class CmuxChiefPollUITests: XCTestCase {
                 return stable >= 3
             }
             var value = try XCTUnwrap(observation(app))
+            if specification["model"] == "pending" && specification["scroll"] == "bottom" {
+                let labels = try XCTUnwrap(value["labels"] as? [[String: Any]])
+                let texts = Set(labels.filter { $0["insidePollTable"] as? Bool == true }.compactMap { $0["text"] as? String })
+                XCTAssertTrue(Set(["No Votes", "Chief", "You"]).isSubset(of: texts))
+                let tableState = try XCTUnwrap(value["table"] as? [String: Any])
+                let offset = try XCTUnwrap(tableState["contentOffset"] as? [Double])
+                XCTAssertGreaterThan(offset[1], 0)
+            }
             let image = XCUIScreen.main.screenshot().pngRepresentation
             value["pollScene"] = name; value["fixture"] = specification
             value["fixtureSha256"] = SHA256.hash(data: input).map { String(format: "%02x", $0) }.joined()

@@ -73,6 +73,11 @@ def validate_type_metrics(value, specification):
             require(label.get('fontSize') == current['bodyPointSize'], 'Visible source row does not use captured body font')
     if specification['model'] == 'pending':
         require(any(x.get('text') in footers for x in labels), 'Missing visible actual source footer font')
+        if specification['scroll'] == 'bottom':
+            require(value['table'].get('contentOffset', [0, 0])[1] > 0, 'Pending bottom reference did not scroll')
+            require({'No Votes', 'Chief', 'You'} <= {x.get('text') for x in labels}, 'Missing visible pending bottom content')
+            require(all(x.get('fontSize') == current['bodyPointSize'] for x in labels if x.get('text') in {'No Votes', 'Chief', 'You'}),
+                'Visible pending bottom font differs from actual body')
 
 
 def validate_state(value, specification, poll, commit, images, template, manifest, orientation=None, dismissed=True):

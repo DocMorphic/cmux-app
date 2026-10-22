@@ -60,6 +60,10 @@ class PollExportGuards(unittest.TestCase):
                 actualFooterPointSize=current['footerPointSize'], actualFooterLineHeight=current['footerLineHeight'], boldText=False)
             if scene['model'] == 'pending':
                 value['labels'].append(dict(text='0 Votes', frame=[16, 140, 200, 20], fontSize=current['footerPointSize'], lineHeight=current['footerLineHeight'], insidePollTable=True))
+                if scene['scroll'] == 'bottom':
+                    value['table']['contentOffset'] = [0, 400]
+                    value['labels'] += [dict(text=t, frame=[16, 180 + i * 70, 200, 64], fontSize=current['bodyPointSize'], insidePollTable=True)
+                        for i, t in enumerate(['No Votes', 'Chief', 'You'])]
             (self.export / (name + '.json')).write_text(json.dumps(value))
 
     def verify(self, require_lifecycle=False):
@@ -222,5 +226,11 @@ class PollExportGuards(unittest.TestCase):
 
     def test_visible_footer_line_height_must_match_actual_application_footnote(self):
         self.rejects(lambda v: v['labels'][-1].__setitem__('lineHeight', 99), 'footer line height')
+
+    def test_pending_bottom_requires_scroll_and_visible_table_labels(self):
+        scene = 'poll-type-accessibilityExtraExtraExtraLarge-bottom'
+        self.rejects(lambda v: v['table'].__setitem__('contentOffset', [0, 0]), 'did not scroll', scene)
+        self.rejects(lambda v: v['labels'][-1].__setitem__('insidePollTable', False), 'Missing visible pending bottom', scene)
+        self.rejects(lambda v: v['labels'][-1].__setitem__('fontSize', 17), 'bottom font', scene)
 
 if __name__ == '__main__': unittest.main()
