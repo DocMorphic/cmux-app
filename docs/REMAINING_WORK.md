@@ -1,3 +1,30 @@
+## System appearance and retained sign-in foundation — 2026-10-22
+
+Committed `e1b7ebf3fa47e68998c433910c1935e70876d527` adds system light/dark
+shell roles and recolors native code/feed/terminal-text content without replacing
+its buffers. Sign-in requests/forms survive configuration recreation in memory;
+completion is single-use and the code is absent from saved state. The full unit
+suite has 3,104 passes/four opt-in skips and zero failures/errors. Current
+production passes 31 functional checks, a separate participant check and five
+Poll geometry captures. Seven final static capture cases pass with 27 images,
+verified source/APK/image hashes, no crashes and owned emulators stopped.
+
+This is foundation/component acceptance, not full visual/device/backend parity.
+Rendered Markdown's forced-dark context, dialog system-bar/focus contrast,
+remaining status colors (including pale light-Cloud Running), measured Poll
+footer scaling, matched native materials/types/locales, accessibility, process
+and physical tests remain open. Screenshot QA rejected intermediate/backing-
+window images; the corrected static compositor evidence and precise scope are
+in `captures/recovery-20261022/adaptive-panels-checkpoint.json` and HANDOFF.md.
+
+Candidate upstream a84b7c278b5444820cff5b1f67addcf980f02b90 has 180 changed
+paths from a5911a1f. No pin adoption: native iOS UI/app trees have no path delta,
+but SSH/cache fallbacks, cmux-tui, hosted sign-in/deeplink and Cloud service
+changes need applicability reconciliation (`upstream-a84-reconciliation`).
+Pixel remains preserved signed 712 and free to use; candidate 713 is local and
+unpublished. The corrected Mac's helper/UI still needs an unlocked Mac before
+another coordinated phone reply/ACK test. Full app parity remains active.
+
 ## Corrected Mac fetch verified; phone released — 2026-10-22
 
 Corrected Mac build 39796614645 at

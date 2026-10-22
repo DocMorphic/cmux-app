@@ -1,3 +1,65 @@
+## System appearance and retained sign-in foundation committed — 2026-10-22
+
+Implementation `e1b7ebf3fa47e68998c433910c1935e70876d527` follows system
+appearance and uses semantic shell/content roles across navigation, settings,
+computers, tasks, notifications, browser chrome, files and diffs. Media and
+server-owned terminal/stream pixels keep their independent appearance. Native
+raw-code, terminal-text and feed readers update paint/link/search colors in
+place; code highlighting selects xcode or xcode-dark as the pinned iOS source
+does. Dark card containers and the variant surface have distinct roles so route
+values retain the primary foreground. Canvas colors are read before drawing;
+remembered Markdown annotations include their current accent key.
+
+Sign-in fields and single-flight requests now belong to the retained connection
+owner. Theme/configuration recreation keeps the in-flight request and form;
+changed email/leaving/retirement invalidates its challenge, and auth success
+purges the fields. Codes stay in memory and out of Activity saved state. Four
+new unit cases and real production form/actual MainActivity recreation checks
+cover the admission, cancellation, completion and privacy behavior. This does
+not establish a new live authentication or process-death acceptance.
+
+Build `adaptive-panels-build-v5.log` passes 3,104 JVM cases with four opt-in
+skips (3,108 total), zero failures/errors; 420 XML reports are archived in
+`adaptive-panels-unit-v5`. `adaptive-panels-v4` passes 31 functional checks in
+105.148 s, a separate clean participant check and all five Poll reference
+captures; row geometry matches the prior accepted Android baselines. The same
+production APK passes seven final static compositor capture cases in
+`adaptive-panels-v7` (18.336 s), producing 27 light/dark/returned-light images
+and fifteen actual foreground-raster records. Source/APK/image hashes verify,
+crash buffers are empty and owned emulators are stopped. Native readers retain
+buffer/selection; raw code also retains its real scroll/search position.
+
+Visual review rejected the earlier backing-window gallery captures, a dialog
+fade overlay and a pre-highlight code frame. Final static captures suppress and
+restore animation scales only on the owned AVD and wait for the relevant native
+draw; corrected gallery/quote/code scenes were reviewed along with representative
+panels/readers from the identical production APK. Those static captures do not
+prove animation parity. Evidence: `captures/recovery-20261022/adaptive-panels-checkpoint.json`
+and `adaptive-panels-source-review.json`; the 31-test source/APK is archived
+separately because the subsequent test-only change corrects screenshot capture.
+
+Next: rendered Markdown still forces a dark WebView context; verify theme changes
+with document/viewport/image-consent retention. Audit real-OS dialog system-bar
+contrast/focus restoration and remaining status colors (light Cloud Running text
+is still pale). Replace Poll footer interpolation with the measured twelve UIKit
+font profiles. Full native material/type/locale/accessibility, real auth/backend,
+process and physical-device gates remain open. Pixel stays on preserved signed
+712 and remains free; local 713 is unpublished. Corrected Mac 39796614645 still
+needs unlocked UI/helper checks before a coordinated fresh phone reply/ACK test.
+
+Read-only GitHub inspection observes candidate upstream
+`a84b7c278b5444820cff5b1f67addcf980f02b90` (2026-10-22 09:38:56 UTC).
+Top-level Git objects/ancestry and the 180 changed paths relative to a5911a1f
+verify locally; fetch returned failure only during automatic vendor/bonsplit
+submodule access. No checkout or pin adoption occurred. Only two iOS source
+files changed: cache-directory fallbacks in the SSH TUI installer and hidden-
+computer verifier; native iOS UI/AgentChat/app trees have no path delta. The Mac
+host installation adds a similar application-support fallback. Hosted web sign-in
+adds an unverified-email/password-fallback explanation; native mobile sign-in is
+unchanged in this delta. cmux-tui, agent/deeplink and Cloud service changes still
+need applicability reconciliation. Inventory: `upstream-a84-reconciliation`.
+Full app parity remains active.
+
 ## Corrected Mac fetch verified; phone released — 2026-10-22
 
 Corrected Mac build 39796614645 at
