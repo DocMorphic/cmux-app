@@ -1,3 +1,34 @@
+## More selection rejects reply swipes — 2026-10-22
+
+An actual physical-swipe regression reproduced a source mismatch: with More
+selection active, swiping the incoming parent entered a Reply thread. The
+identical test now passes after the transcript withholds its reply-swipe
+callback during selection. Pinned native gestureRecognizerShouldBegin explicitly
+guards !isSelecting before horizontal-pan admission. This changes gesture
+admission without changing the source's intentional incoming-content shift.
+
+The test verifies incoming and outgoing swipes keep Reply closed, the initial
+selection unchanged and Cancel available. After Cancel the same incoming swipe
+enters Reply and the draft remains. Two normal swipe controls, the eleven prior
+menu workflow checks and the standalone real-uptime press check also pass:
+15 passes, no skips/failures, 58.36 seconds, empty crash buffer. The full JVM run
+has 3068 cases: 3064 passes/four opt-in skips, zero failures/errors; all 415 XML
+reports are archived. Source/APK/test hashes, the retained failing before run
+and identical-test comparison are recorded in
+`captures/recovery-20261022/chief-more-swipe-checkpoint.json`.
+Fresh selection PNG inspection retains the expected layout, including the
+previously source-confirmed quote clipping. This verifies gesture admission,
+not source animation/material/selection-handle or physical-device parity.
+
+Next implement the source accessibility Copy action with captured-text and
+retired-owner checks, then continue the open translation, native selection
+handles/edit-menu, full Poll Details table/participants and menu/More motion,
+material, reduced-motion and haptic work. Broader app and real Pixel/Mac gates
+below remain open. Signed 712 and installed Pixel 703 are unchanged; the owned
+emulator was restored/stopped, and no account, pairing, signing or workspace
+data was changed. No new Mac action is requested; the phone availability
+question remains pending. Full parity remains active.
+
 ## Captured Copy lifetime and conditional Retry verified — 2026-10-22
 
 Menu Copy now retains its captured text after a live message update or after

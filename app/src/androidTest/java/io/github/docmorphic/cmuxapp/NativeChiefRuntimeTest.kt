@@ -2607,6 +2607,36 @@ class NativeChiefRuntimeTest {
         assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
     }
 
+    @Test fun moreRejectsHorizontalReplyGesturesUntilSelectionEnds() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep this selection draft")
+        compose.onNodeWithTag("ChiefReplyActions:parent").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:MORE").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMenu:MORE").performClick()
+        val density = compose.activity.resources.displayMetrics.density
+        fun swipeRow(id: String) {
+            compose.onNodeWithTag("ChiefReplyActions:$id").performTouchInput {
+                val start = androidx.compose.ui.geometry.Offset(width / 2f, height - 25 * density)
+                swipe(start, start + androidx.compose.ui.geometry.Offset(80 * density, 0f), 350)
+            }
+        }
+        for (id in listOf("parent", "reply")) {
+            swipeRow(id)
+            compose.runOnUiThread { assertNull("More selection must reject swipe Reply on $id", computer.transcript()!!.state.value.reply) }
+            compose.onNodeWithTag("ChiefReplyThread").assertDoesNotExist()
+            compose.onNodeWithTag("ChiefReplyActions:parent").assertIsSelected()
+            compose.onNodeWithTag("ChiefReplyActions:reply").assertIsNotSelected()
+            compose.onNodeWithTag("ChiefSelectionCancel").assertIsDisplayed()
+        }
+        compose.onNodeWithTag("ChiefSelectionCancel").performClick()
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Keep this selection draft")
+        // Same physical gesture must still enter Reply after leaving More.
+        swipeRow("parent")
+        waitForReplyThread()
+        compose.runOnUiThread { assertEquals("parent", computer.transcript()!!.state.value.reply!!.targetID) }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
     @Test fun selectUsesActualNativeTextRangeEndsOnCollapseAndRejectsRetiredClipboardActions() {
         openReferenceScene("quote-dark")
         fun openSelection() {

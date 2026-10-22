@@ -561,7 +561,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                     onApprove = { id, choice -> act { session.approve(id, choice) } },
                     onAnswer = { id, form -> act { session.answer(id, form) } },
                     onQuestion = { answerMessage = it }, onFailure = { failedMessage = it }, onQuote = ::openThread, onReply = ::replyTo,
-                    onSwipeReply = if (reply == null && !state.retired) ::swipeReply else null,
+                    onSwipeReply = if (reply == null && !selecting && !state.retired) ::swipeReply else null,
                     bodyAlpha = if (row.item.key in (replyMotion?.hiddenKeys ?: emptySet())) 0f
                         else if (row.item.fromMe) 1f - .3f * (replyMotion?.veil ?: 0f) else 1f,
                     menu = if (reply == null && !selecting && !state.retired) menu else null,
