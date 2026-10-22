@@ -41,7 +41,7 @@ class PollExportGuards(unittest.TestCase):
                     for i, text in enumerate(wanted['names'])]))
             value = dict(scene=name, pollScene=name, fixture=scene, provenance=provenance,
                 fixtureSha256=provenance['pollFixtureSha256'], imageSha256=hashlib.sha256(image).hexdigest(),
-                captureMethod='XCUIScreen.main.screenshot', activation='physicalPressAndSourcePollDetails',
+                captureMethod='XCUIScreen.main.screenshot', activation='physicalPressAndSourcePollDetails', activationPoint='bubbleTopPadding',
                 ready=True, presented=True, doneDismissed=True, backendWriteAttempts=0,
                 categoryMatches=True, style=scene['style'], direction=scene['direction'], viewport=[w, h], scale=1,
                 runtime=dict(systemVersion='Synthetic test only'), navigationFrame=[0, 40, w, 50],
@@ -102,6 +102,7 @@ class PollExportGuards(unittest.TestCase):
     def test_missing_real_controls_dismissal_traits_and_no_write_proof_rejected(self):
         for key, bad, message in [('activation', 'directPrivateSelector', 'activation'),
             ('captureMethod', 'drawHierarchy', 'activation'), ('doneDismissed', False, 'dismissed'),
+            ('activationPoint', 'bubbleCenter', 'physical press location'),
             ('backendWriteAttempts', 1, 'wrote'), ('categoryMatches', False, 'traits'),
             ('style', 'light', 'traits'), ('direction', 'rtl', 'traits')]:
             with self.subTest(key=key): self.rejects(lambda v: v.__setitem__(key, bad), message)
@@ -234,9 +235,6 @@ class PollExportGuards(unittest.TestCase):
         self.rejects(lambda v: v['table'].__setitem__('contentOffset', [0, 0]), 'did not scroll', scene)
         self.rejects(lambda v: v['labels'][-1].__setitem__('insidePollTable', False), 'Missing visible pending bottom', scene)
         self.rejects(lambda v: v['labels'][-1].__setitem__('fontSize', 17), 'bottom font', scene)
-
-    def test_empty_options_requires_visible_non_voter_content(self):
-        self.rejects(lambda v: v['labels'][-1].__setitem__('insidePollTable', False), 'Missing visible pending bottom', 'poll-empty-options-dark')
 
     def test_explicit_category_subset_cannot_pass_as_full_inventory(self):
         fixture = json.loads((ROOT / 'tests/ios-chief-reference/PollReferences.json').read_text())

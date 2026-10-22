@@ -90,6 +90,7 @@ def validate_state(value, specification, poll, commit, images, template, manifes
     require(source.get('upstreamRevision') == manifest['revision'] and source.get('packageTree') == manifest['referencePackage']['tree'], 'Unreviewed poll package')
     require(source.get('projectSourceCommit') == commit and source.get('projectSourceDirty') is False, 'Wrong/dirty poll project source')
     require(value.get('captureMethod') == 'XCUIScreen.main.screenshot' and value.get('activation') == 'physicalPressAndSourcePollDetails', 'Missing actual poll activation/compositor capture')
+    require(value.get('activationPoint') == 'bubbleTopPadding', 'Missing non-voting physical press location')
     require(value.get('ready') is True and value.get('presented') is True and (not dismissed or value.get('doneDismissed') is True), 'Source poll was not presented/dismissed')
     require(value.get('backendWriteAttempts') == 0, 'Read-only poll wrote to backend')
     require(value.get('categoryMatches') is True and value.get('style') == specification['style'] and value.get('direction') == specification['direction'], 'Wrong actual poll traits')

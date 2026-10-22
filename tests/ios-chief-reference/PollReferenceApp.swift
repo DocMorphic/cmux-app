@@ -206,7 +206,8 @@ private final class PollBackend: ConversationBackend, @unchecked Sendable {
             presentationGeneration += 1; previousPresentation = presented
         }
         if let table, table !== previousTable { tableGeneration += 1; previousTable = table }
-        let payload: [String: Any] = ["schema": 1, "scene": fixture.id, "ready": !store.messages.isEmpty,
+        let payload: [String: Any] = ["schema": 1, "scene": fixture.id, "ready": !store.messages.isEmpty && store.info != nil,
+            "pollCardVisible": views.contains { $0.accessibilityIdentifier == "conversation.poll" },
             "provenance": try! JSONSerialization.jsonObject(with: resource("Provenance.json")),
             "viewport": [window.bounds.width, window.bounds.height], "scale": window.screen.scale,
             "runtime": ["systemVersion": UIDevice.current.systemVersion, "operatingSystemVersion": ProcessInfo.processInfo.operatingSystemVersionString],

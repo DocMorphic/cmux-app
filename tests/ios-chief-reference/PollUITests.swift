@@ -29,9 +29,10 @@ final class CmuxChiefPollUITests: XCTestCase {
         app.launch()
         defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
         _ = try wait("lifecycle-ready", app: app) { $0["ready"] as? Bool == true && $0["categoryMatches"] as? Bool == true }
+        _ = try wait("lifecycle-poll-card", app: app) { $0["pollCardVisible"] as? Bool == true }
         let bubble = app.descendants(matching: .any).matching(identifier: "conversation.bubble.poll").firstMatch
         XCTAssertTrue(bubble.waitForExistence(timeout: 10)); XCTAssertTrue(bubble.isHittable)
-        bubble.press(forDuration: 0.9)
+        bubble.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 4)).press(forDuration: 0.9)
         let details = app.buttons["conversation.menu.chart.bar.doc.horizontal"]
         XCTAssertTrue(details.waitForExistence(timeout: 10)); XCTAssertTrue(details.isHittable)
         XCTAssertEqual(details.label, "Poll Details"); details.tap()
@@ -67,6 +68,7 @@ final class CmuxChiefPollUITests: XCTestCase {
             value["imageSha256"] = SHA256.hash(data: image).map { String(format: "%02x", $0) }.joined()
             value["captureMethod"] = "XCUIScreen.main.screenshot"
             value["activation"] = "physicalPressAndSourcePollDetails"
+            value["activationPoint"] = "bubbleTopPadding"
             steps.append(["phase": phase, "state": value])
             let screenshot = XCTAttachment(data: image, uniformTypeIdentifier: "public.png")
             screenshot.name = "poll-lifecycle-" + phase + ".png"; screenshot.lifetime = .keepAlways; add(screenshot)
@@ -124,9 +126,12 @@ final class CmuxChiefPollUITests: XCTestCase {
                 guard let size = value["viewport"] as? [Double], size.count == 2 else { return false }
                 return (size[0] > size[1]) == (specification["orientation"] == "landscape")
             }
+            _ = try wait("poll-card-" + name, app: app) { $0["pollCardVisible"] as? Bool == true }
             let bubble = app.descendants(matching: .any).matching(identifier: "conversation.bubble.poll").firstMatch
             XCTAssertTrue(bubble.waitForExistence(timeout: 10)); XCTAssertTrue(bubble.isHittable)
-            bubble.press(forDuration: 0.9)
+            // The center can hit an interactive choice. Use the source bubble's
+            // non-voting top padding, still through a physical long press.
+            bubble.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 4)).press(forDuration: 0.9)
             let details = app.buttons["conversation.menu.chart.bar.doc.horizontal"]
             XCTAssertTrue(details.waitForExistence(timeout: 10)); XCTAssertTrue(details.isHittable)
             XCTAssertEqual(details.label, "Poll Details"); details.tap()
@@ -158,6 +163,7 @@ final class CmuxChiefPollUITests: XCTestCase {
             value["imageSha256"] = SHA256.hash(data: image).map { String(format: "%02x", $0) }.joined()
             value["captureMethod"] = "XCUIScreen.main.screenshot"
             value["activation"] = "physicalPressAndSourcePollDetails"
+            value["activationPoint"] = "bubbleTopPadding"
             value["scope"] = "Unmodified pinned conversation package with controlled pending/generic poll data and public UIKit observation. Compositor reference only; not Chief RPC, votes, live updates, physical device or VoiceOver acceptance."
             let done = app.buttons["Done"].firstMatch
             XCTAssertTrue(done.exists); XCTAssertTrue(done.isHittable); done.tap()
