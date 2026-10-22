@@ -157,13 +157,14 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
     emojiSize: Int? = null, modifier: Modifier = Modifier, pending: Boolean = false,
     onQuote: (() -> Unit)? = null, onSwipeReply: ((Float) -> Unit)? = null,
     onBubblePositioned: ((androidx.compose.ui.layout.LayoutCoordinates) -> Unit)? = null,
+    menuSource: NativeChiefMenuSource? = null,
     content: @Composable ColumnScope.() -> Unit) {
     val density = LocalDensity.current
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
     var quoteSize by remember { mutableStateOf(IntSize.Zero) }
     var bodySize by remember { mutableStateOf(IntSize.Zero) }
     val gap = metrics.space(6f)
-    Column(modifier.fillMaxWidth().drawBehind {
+    Column(modifier.fillMaxWidth().chiefMenuSource(menuSource).drawBehind {
         if (quoted != null && quoteSize.height > 0 && bodySize.height > 0) {
             val x = 16.dp.toPx()
             val y = quoteSize.height / 2f
@@ -184,7 +185,8 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
             val fromMe = quoted.authorKind == "human"
             val quoteText = NativeChiefPresentation.receipt(quoted) ?: NativeChiefPresentation.displayText(quoted)
             NativeChiefBubble(fromMe, true, Modifier.align(if (fromMe) AbsoluteAlignment.Right else AbsoluteAlignment.Left)
-                .testTag("ChiefQuote:$messageId").then(if (onQuote != null) Modifier.clickable(onClick = onQuote) else Modifier).onSizeChanged { quoteSize = it }, quote = true, text = quoteText, metrics = metrics) {
+                .testTag("ChiefQuote:$messageId").then(if (onQuote != null) Modifier.clickable(onClick = onQuote) else Modifier).onSizeChanged { quoteSize = it }
+                .onGloballyPositioned { menuSource?.quote = it }, quote = true, text = quoteText, metrics = metrics) {
                 Text(quoteText,
                     style = nativeChiefTextStyle(15), maxLines = 2, overflow = TextOverflow.Ellipsis,
                     color = if (fromMe) Color(0xFF409CFF) else if (dark) Color(0xFF8E8E93) else Color(0xFF8A8A8E))
@@ -195,7 +197,7 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
             if (tail && emojiSize == null) metrics.drop else 0.dp, { onSwipeReply?.invoke(it) }) { swipeModifier ->
         val bodyModifier = swipeModifier
             .testTag(if (pending) "ChiefPending:$messageId" else "ChiefMessage:$messageId").onSizeChanged { bodySize = it }
-            .onGloballyPositioned { onBubblePositioned?.invoke(it) }
+            .onGloballyPositioned { onBubblePositioned?.invoke(it); menuSource?.body = it }
         if (emojiSize != null && text != null) NativeChiefEmojiBalloon(text, emojiSize, messageId, bodyModifier, metrics)
         else NativeChiefBubble(outgoing, tail, bodyModifier, if (pending) "ChiefPendingBody:$messageId" else "ChiefBubbleBody:$messageId", expanded,
                 text = text, metrics = metrics, content = content)

@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
  * Measure bars first so editor growth changes scroll insets without replacing its state. */
 @Composable
 internal fun NativeChiefTranscriptFrame(modifier: Modifier, compact: Boolean, dark: Boolean, trailingOverhang: Dp,
-    header: @Composable () -> Unit, composer: @Composable () -> Unit, overlay: @Composable (Dp) -> Unit,
+    header: @Composable () -> Unit, composer: @Composable () -> Unit, overlay: @Composable (Dp, Dp) -> Unit,
     content: @Composable (PaddingValues, Dp, Dp) -> Unit) {
     SubcomposeLayout(modifier) { constraints ->
         val width = constraints.maxWidth
@@ -34,7 +34,7 @@ internal fun NativeChiefTranscriptFrame(modifier: Modifier, compact: Boolean, da
         val transcript = subcompose("transcript") { content(padding, headerHeight, composerHeight) }
             .single().measure(Constraints.fixed(width, height))
         val wash = subcompose("wash") { NativeChiefTopEdgeFade(headerHeight, dark) }.single().measure(barConstraints)
-        val controls = subcompose("overlay") { overlay(headerHeight) }.single().measure(Constraints.fixed(width, height))
+        val controls = subcompose("overlay") { overlay(headerHeight, composerHeight) }.single().measure(Constraints.fixed(width, height))
         layout(width, height) {
             transcript.place(0, 0)
             bottom.place(0, height - bottom.height)

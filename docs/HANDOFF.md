@@ -1,3 +1,50 @@
+## Chief message actions mounted — 2026-10-22
+
+The Android transcript now mounts a recorded lifted-message menu with Reply,
+Copy, Select, conditional Retry/Poll Details and More. More retains stable row
+selection, Cancel and confirmed local deletion, preserves drafts and protects
+selected history from the resting retention window. Menu Reply passes the
+lifted origin into the existing reply workflow after its 0.12 s delay. Captures,
+actions and selection clipboard callbacks reject retired owners. Select uses
+an actual Android TextView range; Poll Details is read-only and observes live
+pending options. These are initial functional implementations.
+
+Exact source/APK receipts match the final focused run (9 passes) and broader
+Chief/navigation regression (83 passes, four expected skips, zero failures).
+Both crash buffers are empty. The final JVM run has 3068 cases: 3064 passes,
+four opt-in skips, zero failures/errors; all 415 XML reports are archived.
+46 native-export guards also pass. Evidence and hashes:
+`captures/recovery-20261022/chief-menu-mounted-checkpoint.json`.
+The physical press test uses Android uptime outside Compose's virtual clock:
+short release cancels, qualified release opens, held timeout opens before up,
+and movement cancels. Accessibility observation latency is recorded separately;
+this does not establish native frame-timing or haptic parity. Failed exploratory
+runs remain diagnostic evidence and are excluded from acceptance.
+
+Native run 39695701927 at f817f0a08b569feaac68698e985937421300f092
+also passes independent existing-15 and new-five-scene verifiers. It executes
+actual source AX and Copy/Reply/More callbacks, including selection confirmation
+and Cancel. Its drawHierarchy glass captures do not establish OS compositor
+agreement; actual native destructive alert activation remains separate.
+
+Full parity remains active. Next fixes include captured Copy surviving row
+retention/update, selection-mode reply-quote clipping observed in fresh PNGs,
+conditional Retry and accessibility Copy coverage. Translation, source menu
+present/dismiss/cancel/reduced-motion/haptic behavior, source More transitions,
+menu material/icons, visible selection handles/edit-menu geometry, full Poll
+Details table/participants/optimistic states, RTL/landscape/large-text/lifecycle
+stress and broader app/physical gates remain open. Poll Details currently uses
+a provisional Material bottom sheet; Select range/copy/collapse tests do not
+prove visible native handles or toolbar. Screenshots taken after Copy include
+the system clipboard overlay and must not be used to claim that acceptance.
+
+Signed candidate 712 and installed Pixel 703 are unchanged. No phone upgrade,
+publishing or new Mac action occurred. The saved Mac recovery receipt preserves
+its account, pairing and registration; no additional pairing-window click is
+requested. The Pixel availability question remains pending. Keep the first
+return step `svc power stayon false` and all real terminal/FCM/Doze/notification-
+tap/revocation/accessibility gates below.
+
 ## Native Chief action callbacks and geometry verified — 2026-10-22
 
 Run 39695701927 at f817f0a08b569feaac68698e985937421300f092 succeeded.

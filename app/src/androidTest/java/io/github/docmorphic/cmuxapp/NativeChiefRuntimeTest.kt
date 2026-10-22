@@ -68,6 +68,7 @@ class NativeChiefRuntimeTest {
         val transcriptChanges = Channel<NativeChiefRead>(Channel.UNLIMITED)
         val sends = CopyOnWriteArrayList<Pair<String, String?>>()
         val answers = CopyOnWriteArrayList<Pair<List<String>, String?>>()
+        val approvals = CopyOnWriteArrayList<Pair<String?, String>>()
         val marks = CopyOnWriteArrayList<ULong>()
         val historyRequests = CopyOnWriteArrayList<ULong>()
         var historyGate: CompletableDeferred<Unit>? = null
@@ -112,7 +113,9 @@ class NativeChiefRuntimeTest {
             return NativeChiefMarked("chief-main", upToSeq, true)
         }
         override suspend fun stop(conversation: String?) = NativeChiefStopped("chief-main", true)
-        override suspend fun approve(conversation: String?, request: String?, choice: String) = NativeChiefApproved("chief-main", request.orEmpty(), choice, true)
+        override suspend fun approve(conversation: String?, request: String?, choice: String): NativeChiefApproved {
+            approvals += request to choice; return NativeChiefApproved("chief-main", request.orEmpty(), choice, true)
+        }
         override suspend fun answer(conversation: String?, message: String?, choices: List<String>, text: String?): NativeChiefAnswered {
             answers += choices to text
             if (uncertainAnswerOnce) { uncertainAnswerOnce = false; throw MobileRpcOutcomeUnknown() }
@@ -2440,6 +2443,194 @@ class NativeChiefRuntimeTest {
             visible
         }
         tapStableAction("ChiefSend")
+    }
+
+    @Test fun messageActionsCopyTheCapturedTextAndRetainTheDraftWithSourceMenuMetrics() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep this draft")
+        compose.onNodeWithTag("ChiefReplyActions:parent").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefActionMenu").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMenu:REPLY").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefMenu:COPY").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefMenu:SELECT").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefMenu:MORE").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefMenu:RETRY").assertDoesNotExist()
+        val platter = compose.onNodeWithTag("ChiefMenuPlatter").fetchSemanticsNode().boundsInRoot
+        var density = 0f; compose.runOnUiThread { density = compose.activity.resources.displayMetrics.density }
+        assertEquals(250f, platter.width / density, .7f)
+        assertEquals(202f, platter.height / density, .7f)
+        assertEquals(42f, compose.onNodeWithTag("ChiefMenu:COPY").fetchSemanticsNode().boundsInRoot.height / density, .7f)
+        saveScreenshot("chief-menu-incoming-mounted")
+        compose.onNodeWithTag("ChiefMenu:COPY").performClick()
+        compose.onNodeWithTag("ChiefActionMenu").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Keep this draft").assertIsNotFocused()
+        compose.runOnUiThread {
+            val clipboard = compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+            assertEquals("The original message from your Mac.", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun messageMoreSelectsRowsConfirmsLocalDeleteAndKeepsHistoryTombstoned() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep the selection draft")
+        compose.onNodeWithTag("ChiefReplyActions:parent").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:MORE").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMenu:MORE").performClick()
+        compose.onNodeWithTag("ChiefSelectionCancel").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefReplyActions:parent").assertIsSelected()
+        saveScreenshot("chief-selection-initial-mounted")
+        compose.onNodeWithTag("ChiefReplyActions:reply").performClick().assertIsSelected()
+        compose.onNodeWithTag("ChiefComposer").assertDoesNotExist()
+        compose.onNodeWithText("Forward").assertDoesNotExist()
+        saveScreenshot("chief-selection-mounted")
+        compose.onNodeWithTag("ChiefSelectionDelete").performClick()
+        compose.onNodeWithText("Delete 2 Messages").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefConfirmLocalDelete").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefSelectionToolbar").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithTag("ChiefMessage:parent").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefMessage:reply").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefMessage:next").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Keep the selection draft")
+        compose.runOnUiThread { api.transcriptChanges.trySend(api.snapshot()) }
+        compose.waitForIdle()
+        compose.onNodeWithTag("ChiefMessage:parent").assertDoesNotExist()
+        assertTrue(api.sends.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun menuReplyHandsTheLiftedMessageToTheExistingThreadAndRestoresEditorFocus() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Retain my reply draft")
+        compose.onNodeWithTag("ChiefReplyActions:reply").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:REPLY").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMenu:REPLY").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyThread").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefActionMenu").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Retain my reply draft").assertIsFocused()
+        tapStableAction("ChiefReplyClose")
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyThread").fetchSemanticsNodes().isEmpty() }
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun retiredMenuCannotCopyCapturedMessageTextIntoTheClipboard() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefReplyActions:parent").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:COPY").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnUiThread {
+            compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+                .setPrimaryClip(android.content.ClipData.newPlainText("", "untouched sentinel"))
+            current = false
+        }
+        compose.onNodeWithTag("ChiefMenu:COPY").performClick()
+        compose.waitForIdle()
+        compose.runOnUiThread {
+            assertEquals("untouched sentinel", compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+                .primaryClip!!.getItemAt(0).text.toString())
+        }
+        compose.onNodeWithTag("ChiefActionMenu").assertDoesNotExist()
+        assertTrue(api.sends.isEmpty())
+    }
+
+    @Test fun moreCanDeselectEverythingAndCancelWithoutLosingTheDraft() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Draft after Cancel")
+        compose.onNodeWithTag("ChiefReplyActions:parent").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:MORE").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMenu:MORE").performClick()
+        compose.onNodeWithTag("ChiefBack").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefReplyActions:parent").performClick().assertIsNotSelected()
+        compose.onNodeWithTag("ChiefSelectionDelete").assertIsNotEnabled()
+        compose.onNodeWithTag("ChiefSelectionCancel").performClick()
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Draft after Cancel").assertIsNotFocused()
+        compose.onNodeWithTag("ChiefBack").assertExists()
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun selectUsesActualNativeTextRangeEndsOnCollapseAndRejectsRetiredClipboardActions() {
+        openReferenceScene("quote-dark")
+        fun openSelection() {
+            compose.onNodeWithTag("ChiefReplyActions:parent").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:SELECT").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("ChiefMenu:SELECT").performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTextSelection").fetchSemanticsNodes().isNotEmpty() }
+        }
+        fun findSelection(view: android.view.View): android.widget.TextView? {
+            if (view is android.widget.TextView && view.isTextSelectable) return view
+            if (view is android.view.ViewGroup) for (i in 0 until view.childCount) findSelection(view.getChildAt(i))?.let { return it }
+            return null
+        }
+        openSelection()
+        compose.runOnUiThread {
+            val native = checkNotNull(findSelection(compose.activity.window.decorView))
+            assertEquals("The original message from your Mac.", native.text.toString())
+            assertEquals(0, native.selectionStart); assertEquals(native.text.length, native.selectionEnd)
+            assertTrue(native.onTextContextMenuItem(android.R.id.copy))
+            assertEquals(0, native.selectionStart); assertEquals(native.text.length, native.selectionEnd)
+            val clipboard = compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+            assertEquals(native.text.toString(), clipboard.primaryClip!!.getItemAt(0).text.toString())
+        }
+        saveScreenshot("chief-text-selection-mounted")
+        compose.runOnUiThread {
+            val native = checkNotNull(findSelection(compose.activity.window.decorView))
+            android.text.Selection.setSelection(native.text as android.text.Spannable, 0)
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTextSelection").fetchSemanticsNodes().isEmpty() }
+        openSelection()
+        compose.runOnUiThread {
+            val clipboard = compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", "selection sentinel"))
+            current = false
+            checkNotNull(findSelection(compose.activity.window.decorView)).onTextContextMenuItem(android.R.id.copy)
+            assertEquals("selection sentinel", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTextSelection").fetchSemanticsNodes().isEmpty() }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun pollDetailsIsReadOnlyOmitsAlwaysChoicesAndReflectsLivePendingOptions() {
+        compose.runOnUiThread {
+            api.rows = listOf(message("approval", 1uL, "", parts = listOf(NativeChiefPart("approval", null,
+                NativeChiefApproval("request", "Run deploy?", listOf("allow", "deny", "always:allow"), null), null))))
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:approval").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefReplyActions:approval").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:POLL").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMenu:SELECT").assertDoesNotExist()
+        compose.onNodeWithTag("ChiefMenu:POLL").performClick()
+        compose.onNodeWithTag("ChiefPollDetails").assertIsDisplayed()
+        compose.onNode(hasText("Run deploy?") and hasAnyAncestor(hasTestTag("ChiefPollDetails"))).assertIsDisplayed()
+        compose.onNodeWithText("always:allow").assertDoesNotExist()
+        compose.onAllNodesWithText("No votes yet").assertCountEquals(2)
+        compose.runOnUiThread {
+            api.rows = api.rows.map { it.copy(partPayloads = listOf(NativeChiefPart("approval", null,
+                NativeChiefApproval("request", "Run deploy?", listOf("allow", "review", "deny"), null), null))) }
+            api.transcriptChanges.trySend(api.snapshot())
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("No votes yet").fetchSemanticsNodes().size == 3 }
+        saveScreenshot("chief-poll-details-mounted")
+        compose.onNodeWithText("Done").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPollDetails").fetchSemanticsNodes().isEmpty() }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun moreProtectsSelectedRowsFromTheRestingHistoryWindowUntilCancel() {
+        compose.runOnUiThread { api.readMarker = 1uL; api.homeUnread = 0 }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:hello").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefReplyActions:hello").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:MORE").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMenu:MORE").performClick()
+        compose.runOnUiThread {
+            api.rows = api.rows + (2..1501).map { message("m$it", it.toULong(), "Arrival $it") }
+            api.transcriptChanges.trySend(api.snapshot())
+        }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.messages?.size == 1501 }
+        compose.runOnUiThread { assertTrue(computer.transcript()!!.state.value.messages.any { it.id == "hello" }) }
+        compose.onNodeWithTag("ChiefSelectionCancel").performClick()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.messages?.size == 1000 }
+        compose.runOnUiThread { assertFalse(computer.transcript()!!.state.value.messages.any { it.id == "hello" }) }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
     }
 
     private fun saveScreenshot(name: String) {

@@ -47,7 +47,8 @@ internal fun NativeChiefPhoto(modifier: Modifier = Modifier) {
 
 @Composable
 internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: Boolean, onBack: () -> Unit,
-    onInfo: () -> Unit, onStop: () -> Unit, motion: NativeChiefHeaderMotionState, onCloseReply: () -> Unit = {}) {
+    onInfo: () -> Unit, onStop: () -> Unit, motion: NativeChiefHeaderMotionState, onCloseReply: () -> Unit = {},
+    selecting: Boolean = false, onCancelSelection: () -> Unit = {}) {
     val generation = motion.generation
     val replyMode = generation != null
     val durationScale = chiefHeaderDurationScale()
@@ -79,7 +80,7 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
     val unreadMeasure = remember(measurer, unreadStyle, unread) { unread?.let { measurer.measure(it, unreadStyle).size.width.toDouble() / density.density } }
     val backLabel = stringResource(R.string.chief_header_back)
     val photoLabel = stringResource(R.string.chief_header_photo)
-    val stopLabel = stringResource(if (replyMode && pose.closeLabel) R.string.chief_reply_close else R.string.chief_header_stop)
+    val stopLabel = stringResource(if (selecting) R.string.chief_retry_cancel else if (replyMode && pose.closeLabel) R.string.chief_reply_close else R.string.chief_header_stop)
     val unreadLabel = unread?.let { stringResource(R.string.chief_header_unread, conversation.unread) }
     val height = if (compact) (maxOf(safeTop, 24.0) + 54 - safeTop).toFloat().dp else 92.dp
     BoxWithConstraints(Modifier.fillMaxWidth().height(height).testTag("ChiefHeader").then(
@@ -93,14 +94,14 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
                 // UIKit's delayed presentation alpha does not hide the restored
                 // button from AX. Draw opacity must not make this semantic node
                 // transparent, as graphicsLayer(alpha = 0) would.
-                val alpha = motion.pose.backAlpha
+                val alpha = if (selecting) 0f else motion.pose.backAlpha
                 if (alpha >= 1f) drawContent()
                 else if (alpha > 0f) {
                     backPaint.alpha = alpha
                     drawContext.canvas.saveLayer(Rect(Offset.Zero, size), backPaint)
                     drawContent(); drawContext.canvas.restore()
                 }
-            }.glass().then(if (replyMode) Modifier.clearAndSetSemantics {} else Modifier.testTag("ChiefBack")
+            }.glass().then(if (replyMode || selecting) Modifier.clearAndSetSemantics {} else Modifier.testTag("ChiefBack")
                 .clearAndSetSemantics {
                     role = Role.Button; contentDescription = backLabel; unreadLabel?.let { stateDescription = it }
                     onClick { if (motion.generation == null) { onBack(); true } else false }
@@ -117,18 +118,18 @@ internal fun NativeChiefHeader(conversation: NativeChiefConversation, stopping: 
                     }
                 }
             }
-            Box(Modifier.testTag(if (replyMode) "ChiefReplyClose" else "ChiefHeaderStop").glass()
-                .clickable(enabled = replyMode || !stopping, role = Role.Button, onClick = {
-                    if (motion.generation != null) onCloseReply() else onStop()
+            Box(Modifier.testTag(if (selecting) "ChiefSelectionCancel" else if (replyMode) "ChiefReplyClose" else "ChiefHeaderStop").glass()
+                .clickable(enabled = selecting || replyMode || !stopping, role = Role.Button, onClick = {
+                    if (selecting) onCancelSelection() else if (motion.generation != null) onCloseReply() else onStop()
                 })
                 .semantics { contentDescription = stopLabel }, Alignment.Center) {
                 // Fade the glyph, not its glass. The generic X's ink needs a
                 // 29-point canvas to match the measured native ~16⅓-point mark.
-                Box(Modifier.fillMaxSize().graphicsLayer { alpha = pose.trailingAlpha }, Alignment.Center) {
+                Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (selecting) 1f else pose.trailingAlpha }, Alignment.Center) {
                     Icon(painterResource(R.drawable.ic_chief_stop), null,
-                        Modifier.size((204f / 7).dp).graphicsLayer { alpha = 1 - pose.closeFraction }, tint = ink)
+                        Modifier.size((204f / 7).dp).graphicsLayer { alpha = if (selecting) 0f else 1 - pose.closeFraction }, tint = ink)
                     Icon(painterResource(R.drawable.ic_primary_close), null,
-                        Modifier.size(29.dp).graphicsLayer { alpha = pose.closeFraction }, tint = ink)
+                        Modifier.size(29.dp).graphicsLayer { alpha = if (selecting) 1f else pose.closeFraction }, tint = ink)
                 }
             }
             Row(Modifier.testTag("ChiefHeaderName").then(if (compact) Modifier else Modifier.glass())

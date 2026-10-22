@@ -418,6 +418,12 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
 
     fun closeReplyThread() { checkOwner(); mutableState.value = state.value.copy(reply = null) }
 
+    /** Admission for composition-owned message actions, including clipboard reads. */
+    fun actionItem(rowID: String): NativeChiefTimelineItem? {
+        checkOwner()
+        return NativeChiefTimeline.items(state.value).firstOrNull { it.key == rowID }
+    }
+
     fun editDraft(text: String): Long {
         checkOwner()
         if (text != state.value.draft) mutableState.value = state.value.copy(draft = text, draftRevision = state.value.draftRevision + 1)

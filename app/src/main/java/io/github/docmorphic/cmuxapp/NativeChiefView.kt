@@ -35,6 +35,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -212,6 +216,17 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     val state by session.state.collectAsState()
     val scope = rememberCoroutineScope()
     val composerFocus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val menu = remember(session) { NativeChiefMenuController(session, scope) { composerFocus.clearFocus(force = true); keyboard?.hide() } }
+    DisposableEffect(menu) { onDispose { menu.dismiss() } }
+    var selectedRows by remember(session) { mutableStateOf<Set<String>?>(null) }
+    var confirmedDelete by remember(session) { mutableStateOf<Set<String>?>(null) }
+    var selectText by remember(session) { mutableStateOf<NativeChiefSelectedText?>(null) }
+    var pollDetails by remember(session) { mutableStateOf<String?>(null) }
+    val selecting = selectedRows != null && !state.retired
+    SideEffect { if (state.retired) {
+        menu.dismiss(); selectedRows = null; confirmedDelete = null; selectText = null; pollDetails = null
+    } }
     var actionError by remember { mutableStateOf<String?>(null) }
     fun act(action: suspend () -> Unit) { scope.launch {
         actionError = null
@@ -321,9 +336,9 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     }
     LaunchedEffect(session, positioned, pinned, timeline, state.loadingOlder, state.loadingCatchUp,
         state.deciding, state.committed, state.uncertain, state.catchUpMarker, state.unread, state.lastReadSeq,
-        list.isScrollInProgress, programmatic, readerScrolling, displayedQuestion?.id, displayedFailure?.clientMessageId, state.reply) {
+        list.isScrollInProgress, programmatic, readerScrolling, displayedQuestion?.id, displayedFailure?.clientMessageId, state.reply, selecting) {
         if (positioned && pinned && !list.isScrollInProgress && !programmatic && !readerScrolling &&
-            displayedQuestion == null && displayedFailure == null && state.reply == null) {
+            displayedQuestion == null && displayedFailure == null && state.reply == null && !selecting) {
             try { session.trimHistoryIfResting() }
             catch (error: Exception) { currentCoroutineContext().ensureActive() }
         }
@@ -366,8 +381,9 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         return NativeChiefReplyPresentation(active, NativeChiefReplyMotionState(active, origins,
             stamp, density, hostView.rootView.height / density.toDouble()), snapshot.localSendRevision)
     }
-    fun captureReply(action: () -> Boolean): Boolean {
-        val captured = replyOrigins.snapshot()
+    fun captureReply(anchor: Pair<String, Float>? = null, action: () -> Boolean): Boolean {
+        val liveOrigins = replyOrigins.snapshot()
+        val captured = if (anchor == null) liveOrigins else liveOrigins.copy(bubbles = liveOrigins.bubbles + anchor)
         val admitted = action()
         if (admitted) {
             entryOrigins = captured
@@ -401,7 +417,15 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     fun replyTo(id: String): Boolean = try { captureReply { session.replyTo(id) } } catch (_: IllegalStateException) { false }
     fun swipeReply(id: String, offset: Float): Boolean = try { captureReply { session.replyTo(id, offset) } } catch (_: IllegalStateException) { false }
     fun openThread(id: String) { try { captureReply { session.openReplyThread(id) } } catch (_: IllegalStateException) {} }
-    BackHandler { if (session.state.value.reply != null) closeReply() else onBack() }
+    BackHandler {
+        when {
+            menu.snapshot != null -> menu.dismiss()
+            selectText != null -> selectText = null
+            selecting -> selectedRows = null
+            session.state.value.reply != null -> closeReply()
+            else -> onBack()
+        }
+    }
     val bubbleMetrics = nativeChiefBubbleMetrics()
     val darkTranscript = MaterialTheme.colorScheme.background.luminance() < .5f
     val compactHeader = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE && LocalConfiguration.current.screenHeightDp < 480
@@ -414,12 +438,18 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         .background(if (darkTranscript) Color.Black else Color.White).imePadding().testTag("ChiefTranscript")
         .onPreviewKeyEvent { if (session.state.value.reply != null && it.key == Key.Escape && it.type == KeyEventType.KeyDown) { closeReply(); true } else false },
         compactHeader, darkTranscript, trailingOverhang, header = {
+        Box(Modifier.then(if (menu.opened) Modifier.clearAndSetSemantics {} else Modifier)) {
         NativeChiefHeader(conversation, "stop" in state.deciding, onBack,
             { if (state.hasLoadedInfo && !state.retired) {
                 // Source openInfo ends editing before presenting the details controller.
                 composerFocus.clearFocus(force = true); detailsOpen = true
-            } }, { act { session.stop() } }, motion = headerMotion, onCloseReply = ::closeReply)
+            } }, { act { session.stop() } }, motion = headerMotion, onCloseReply = ::closeReply,
+            selecting = selecting, onCancelSelection = { selectedRows = null })
+        }
     }, composer = {
+        Box(Modifier.then(if (selecting) Modifier.graphicsLayer { alpha = 0f }.clearAndSetSemantics {}
+            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() } } }
+            else if (menu.opened) Modifier.clearAndSetSemantics {} else Modifier)) {
         NativeChiefComposer(state.draft, state.draftRevision, state.retired, onDraft = { text ->
             try { session.editDraft(text) }
             catch (error: IllegalStateException) { actionError = error.message; null }
@@ -435,7 +465,8 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 admitted
             } catch (error: IllegalStateException) { actionError = error.message; false }
         }, replyGeneration = reply?.generation)
-    }, overlay = { headerHeight ->
+        }
+    }, overlay = { headerHeight, composerHeight ->
         Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(top = headerHeight)) {
         state.error?.let { error -> Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -459,11 +490,43 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             .size(48.dp).testTag("ChiefCatchUp")) {
             Icon(painterResource(R.drawable.ic_chief_catch_up), stringResource(R.string.chief_catch_up_label))
         }
+        if (selecting) NativeChiefSelectionToolbar(!selectedRows.isNullOrEmpty(), darkTranscript,
+            Modifier.align(Alignment.BottomStart).padding(bottom = (composerHeight / 2 - 20.dp).coerceAtLeast(0.dp))) {
+            confirmedDelete = selectedRows?.toSet()
+        }
+        if (selectText != null && !state.retired) NativeChiefTextSelection(selectText!!,
+            permitted = { selectText?.rowKey?.let { menu.current(it) } != null }) { selectText = null }
+        if (menu.snapshot != null && !state.retired) NativeChiefActionMenu(menu, headerHeight, darkTranscript) { frozen, action, anchorY ->
+            if (!menu.takeAction(frozen)) return@NativeChiefActionMenu
+            val current = menu.current(frozen.row.item.key)
+            if (current == null) menu.dismiss() else when (action) {
+                NativeChiefMenuAction.COPY -> {
+                    hostView.context.getSystemService(android.content.ClipboardManager::class.java)
+                        .setPrimaryClip(android.content.ClipData.newPlainText("", frozen.text))
+                    menu.dismiss()
+                }
+                NativeChiefMenuAction.REPLY -> scope.launch {
+                    kotlinx.coroutines.delay(120)
+                    val live = menu.current(frozen.row.item.key)
+                    if (menu.snapshot === frozen && live != null) {
+                        menu.dismiss()
+                        try { captureReply(live.messageID to anchorY) { session.replyTo(live.messageID) } }
+                        catch (_: IllegalStateException) {}
+                    }
+                }.let { Unit }
+                NativeChiefMenuAction.RETRY -> {
+                    menu.dismiss(); current.outgoing?.let { outgoing -> act { session.retry(outgoing.clientMessageId) } }
+                }
+                NativeChiefMenuAction.MORE -> { selectedRows = setOf(current.key); menu.dismiss() }
+                NativeChiefMenuAction.SELECT -> { selectText = menu.selection(frozen); menu.dismiss() }
+                NativeChiefMenuAction.POLL -> { pollDetails = current.message?.id; menu.dismiss() }
+            }
+        }
         }
     }) { padding, headerHeight, composerHeight ->
         Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().testTag("ChiefMessages").onGloballyPositioned { replyOrigins.viewport = it }.then(if (replyMotion != null) Modifier.blur((10 * replyMotion.blur).dp) else Modifier)
-            .then(if (reply != null) Modifier.clearAndSetSemantics {
+            .then(if (reply != null || menu.opened) Modifier.clearAndSetSemantics {
                 if (BuildConfig.DEBUG) {
                     this[ChiefReplyVisibleRows] = { replyOrigins.snapshot().bubbles.keys }
                     this[ChiefReplyOriginsProbe] = { replyOrigins.snapshot() }
@@ -498,7 +561,11 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                     onQuestion = { answerMessage = it }, onFailure = { failedMessage = it }, onQuote = ::openThread, onReply = ::replyTo,
                     onSwipeReply = if (reply == null && !state.retired) ::swipeReply else null,
                     bodyAlpha = if (row.item.key in (replyMotion?.hiddenKeys ?: emptySet())) 0f
-                        else if (row.item.fromMe) 1f - .3f * (replyMotion?.veil ?: 0f) else 1f)
+                        else if (row.item.fromMe) 1f - .3f * (replyMotion?.veil ?: 0f) else 1f,
+                    menu = if (reply == null && !selecting && !state.retired) menu else null,
+                    selected = selectedRows?.contains(row.item.key), onToggleSelection = {
+                        if (menu.current(row.item.key) != null) selectedRows = selectedRows?.let { if (row.item.key in it) it - row.item.key else it + row.item.key }
+                    })
             }
             if (state.working) item(key = "working") { Text("Chief is working…", color = chiefAccent) }
         }
@@ -557,6 +624,21 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         val id = answerMessage ?: return@NativeChiefQuestionSheet
         act { if (session.answer(id, form)) answerMessage = null }
     }
+    if (pollDetails != null && !state.retired) NativeChiefPollDetails(pollDetails!!, state) { pollDetails = null }
+    val doomed = confirmedDelete
+    if (doomed != null && doomed.isNotEmpty() && !state.retired) ModalBottomSheet(onDismissRequest = { confirmedDelete = null },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), modifier = Modifier.testTag("ChiefDeleteConfirmation")) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(20.dp)) {
+            TextButton(onClick = {
+                selectedRows = null; confirmedDelete = null
+                try { session.deleteLocally(doomed) } catch (_: IllegalStateException) {}
+            }, modifier = Modifier.fillMaxWidth().testTag("ChiefConfirmLocalDelete")) {
+                Text(if (doomed.size == 1) stringResource(R.string.chief_selection_delete_one)
+                    else stringResource(R.string.chief_selection_delete_many, doomed.size), color = MaterialTheme.colorScheme.error)
+            }
+            TextButton(onClick = { confirmedDelete = null }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.chief_retry_cancel)) }
+        }
+    }
 }
 
 @Composable
@@ -574,7 +656,10 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     onApprove: (String, String) -> Unit, onAnswer: (String, NativeChiefQuestionForm) -> Unit,
     onQuestion: (String) -> Unit, onFailure: (String) -> Unit, onQuote: (String) -> Unit = {},
     onReply: ((String) -> Boolean)? = null, onSwipeReply: ((String, Float) -> Boolean)? = null, bodyAlpha: Float = 1f,
-    origins: NativeChiefReplyOrigins? = null) {
+    origins: NativeChiefReplyOrigins? = null, menu: NativeChiefMenuController? = null,
+    selected: Boolean? = null, onToggleSelection: () -> Unit = {}) {
+    val menuSource = remember(menu, row.item.key) { menu?.let { NativeChiefMenuSource(it, row) } }
+    SideEffect { menuSource?.row = row }
     DisposableEffect(origins, row.item.key, row.timestamp) { onDispose {
         origins?.bubbles?.remove(row.item.messageID); origins?.cells?.remove(row.item.messageID)
         origins?.timestamps?.remove(row.item.key)
@@ -593,6 +678,9 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     val replyAction = if (onReply != null) Modifier.testTag("ChiefReplyActions:${row.item.messageID}").semantics {
         customActions = listOf(CustomAccessibilityAction(replyLabel) { onReply(row.item.messageID) })
     } else Modifier
+    val selectionModifier = Modifier.chiefSelecting(selected, row.item.fromMe, row.item.message?.let {
+        NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it)
+    } ?: row.item.outgoing!!.text, onToggleSelection)
     Column(Modifier.fillMaxWidth().testTag("ChiefRow:${row.item.key}").padding(top = gap)) {
         if (row.timestamp) {
             ChiefTimestamp(row.item.at, "ChiefTimestamp:${row.item.key}", Modifier.onGloballyPositioned { origins?.timestamps?.set(row.item.key, it) })
@@ -608,10 +696,14 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
             val emojiSize = remember(body, part) { if (part == null) NativeChiefEmojiPolicy.fontSize(body) else null }
             NativeChiefBalloonRow(row.quote, message.authorKind == "human", row.lastInRun,
                 message.id, expanded = part != null, text = body.takeIf { part == null }, metrics = metrics, emojiSize = emojiSize,
-                modifier = Modifier.alpha(bodyAlpha).then(replyAction).then(cellPosition), onQuote = row.quote?.let { { onQuote(it.id) } },
+                modifier = Modifier.alpha(bodyAlpha).then(replyAction).then(cellPosition).then(selectionModifier), onQuote = row.quote?.let { { onQuote(it.id) } },
                 onSwipeReply = onSwipeReply?.let { action -> { offset -> action(message.id, offset); Unit } },
+                menuSource = menuSource,
                 onBubblePositioned = { origins?.bubbles?.set(row.item.messageID, NativeChiefReplyOrigins.Bubble(row.item.key, it)) }) {
-                if (part == null) SelectionContainer { NativeChiefText(body) }
+                if (part == null) {
+                    if (menuSource != null) NativeChiefText(body, Modifier.onGloballyPositioned { if (emojiSize == null) menuSource.text = it })
+                    else SelectionContainer { NativeChiefText(body) }
+                }
                 part?.approval?.let { approval ->
                     Text(approval.prompt, fontWeight = FontWeight.SemiBold)
                     approval.options.filterNot { it.startsWith("always:") }.forEach { choice ->
@@ -637,10 +729,12 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
             val emojiSize = remember(outgoing.text) { NativeChiefEmojiPolicy.fontSize(outgoing.text) }
             Column(Modifier.fillMaxWidth().then(cellPosition), horizontalAlignment = androidx.compose.ui.AbsoluteAlignment.Right) {
                 NativeChiefBalloonRow(row.quote, true, row.lastInRun, outgoing.clientMessageId, false, outgoing.text, metrics,
-                    emojiSize = emojiSize, modifier = Modifier.alpha(bodyAlpha).then(replyAction), pending = true,
+                    emojiSize = emojiSize, modifier = Modifier.alpha(bodyAlpha).then(replyAction).then(selectionModifier), pending = true,
                     onQuote = row.quote?.let { { onQuote(it.id) } },
+                    menuSource = menuSource,
                     onBubblePositioned = { origins?.bubbles?.set(row.item.messageID, NativeChiefReplyOrigins.Bubble(row.item.key, it)) }) {
-                    SelectionContainer { NativeChiefText(outgoing.text) }
+                    if (menuSource != null) NativeChiefText(outgoing.text, Modifier.onGloballyPositioned { if (emojiSize == null) menuSource.text = it })
+                    else SelectionContainer { NativeChiefText(outgoing.text) }
                 }
                 Text(when (outgoing.delivery) {
                     NativeChiefDelivery.SENDING -> "Sending…"

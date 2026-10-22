@@ -1,0 +1,11 @@
+<resources>
+    <string name="chief_menu_actions">Message actions</string>
+    <string name="chief_menu_reply">Reply</string>
+    <string name="chief_menu_copy">Copy</string>
+    <string name="chief_menu_select">Select</string>
+    <string name="chief_menu_more">More…</string>
+    <string name="chief_menu_poll_details">Poll Details</string>
+    <string name="chief_selection_delete">Delete</string>
+    <string name="chief_selection_delete_one">Delete Message</string>
+    <string name="chief_selection_delete_many">Delete %1$d Messages</string>
+</resources>
