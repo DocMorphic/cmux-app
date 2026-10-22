@@ -3,7 +3,7 @@
 The personal plan GET route at a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
 retains the exact subscriptionPlanId/personal versus explicit-team schemas used
 by Android. The scoped diff from 186cec79 has no change to that route or
-teamPlanStatus.ts. The broader iOS billing package has 373 additions/25 deletions
+teamPlanStatus.ts. The broader billing delta has 373 additions/25 deletions
 across fifteen files, including product periods, offer presentation and purchase
 reporting, so this is not complete iOS billing/UI delta acceptance.
 

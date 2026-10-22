@@ -1,3 +1,28 @@
+## Native rotation verified; typography input capture active — 2026-10-22
+
+Native Poll Details run 39801868525 succeeded at 438e29fa. Downloaded artifact
+12436752288 SHA256 matches fd6367c7d1880e12713fbed42c9cd5769cd61605919b01f2120df8c76d680dbb;
+all nineteen canonical files match immutable independent verification and all ten
+screens were viewed. On iOS 26.4.1 the same observed source controller/table and
+observer survive portrait-landscape-portrait; native Done dismisses with zero
+backend writes. See `captures/recovery-20261022/chief-poll-native-lifecycle-checkpoint.json`.
+This closes that controlled native rotation reference only, not physical/device,
+RPC/live changes, process restoration or full visual/app parity.
+
+Next font-input run [39806263693](https://github.com/DocMorphic/cmux-app/actions/runs/39806263693)
+is active at d493d24e80a7939b85d91cdedcd197be2018be05. It observes compatible
+UIKit body/footnote metrics for all twelve categories, checks actual current and
+visible table fonts, and records public navigation-image geometry/tint. Seventeen
+export guards pass. Immutable inputs: `poll-type-source-d493d24e` and
+`chief-poll-type-prepared-checkpoint.json` under captures/recovery-20261022.
+Wait for actual execution/verification before changing Android's provisional
+footer scaling; compatible-trait profiles do not prove every rendered category.
+Corrected Mac run 39796614645 remains active and must be verified before its
+runtime replacement/reply checks. Pixel stays on 712, signed local 713 is ready,
+and the user's phone remains free. Analytics/billing source gaps were reconciled
+at a5911a1f in their dedicated docs; those backend gates remain open. Full parity
+continues.
+
 ## Signed candidate 713 verified; native rotation capture running — 2026-10-22
 
 Signed candidate 713 is ready from clean source
