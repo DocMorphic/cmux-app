@@ -1,3 +1,40 @@
+## Pixel 712 upgrade and live Mac checks — 2026-10-22
+
+The user made the unlocked Pixel 6a available. Stable-signed candidate 712 from
+355c88bd2c45ae36ee9c386adc54529590c451a9 upgraded release 703 with `adb install -r`;
+its verified SHA256 is 06eecb1e90bebfc3185a4b4b6342b51a8d582e2ae9be0718a53674f35d8503e6.
+Original first-install time, account/pairing and live workspace discovery were
+preserved. The new owned acceptance terminal opened without a reattach workaround,
+displayed the Mac's marker on the Pixel, and executed a validated phone composer
+command on the Mac. An initial immediate post-focus text injection produced `cho`
+rather than `echo`; that failed attempt is retained. The retry waited for focus
+and checked the entire field before Send. This is actual UI input injection,
+not physical Gboard acceptance.
+
+A fresh private-helper alert was provider-accepted and displayed after the release
+process was stopped. The background process was then killed, its absence and the
+notification's continued presence were checked, and the real notification was
+tapped. It restored the correct terminal and saved Mac without the earlier
+"saved Mac is no longer available" failure. This accepts one cold route, not the
+whole lifecycle/network/Doze matrix. A warm inline reply, with the app on Workspaces
+and its native connection open, executed exactly once in the owned Mac terminal.
+Its post-reply Pixel terminal output was not captured. A separate background inline
+reply did not produce terminal output before cleanup and remains unaccepted.
+Receiver dispatch/WorkManager SUCCESS do not establish terminal delivery. The Mac
+log contains repeated coarse `phoneReply.sweepFetchFailed` events; its cause is
+not established. Unauthenticated presence probes returning 403 do not diagnose
+an authenticated failure. Do not label the later E/F alerts as FCM-only evidence.
+
+All three original Mac workspace IDs and the original selected workspace were
+verified after closing only the owned fixture. Build 712 remains installed;
+`stay_on_while_plugged_in=0` is restored and no real credentials/settings were
+cleared. The phone was returned to its original workspace list and the user was
+told it can be used/disconnected. Evidence, hashes, failed assertions and scope:
+`captures/recovery-20261022/pixel-712-live/checkpoint.json`. That APK predates the
+current unshipped translation popup/caption work. Background reply completion,
+Doze/token rotation/revocation, TalkBack and every remaining source/feature/UI/
+backend/release gate remain open. Full app parity stays active.
+
 ## Anchored translation popup checkpoint — 2026-10-22
 
 Chief's provisional translation sheets are replaced by anchored, focusable
