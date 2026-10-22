@@ -75,9 +75,15 @@ internal class NativeChiefMenuController(private val session: NativeChiefTranscr
     private var wantedOpen = false
     private var capture: Job? = null
     fun current(rowKey: String) = try { session.actionItem(rowKey) } catch (_: IllegalStateException) { null }
-    fun takeAction(frozen: NativeChiefMenuSnapshot): Boolean {
+    fun takeAction(frozen: NativeChiefMenuSnapshot, action: NativeChiefMenuAction): Boolean {
         if (snapshot !== frozen || !opened || acting) return false
-        if (current(frozen.row.item.key) == null) { dismiss(); return false }
+        // Native Copy closes over message.text when presenting the menu. It
+        // does not depend on that row remaining in the retained history window.
+        val admitted = if (action == NativeChiefMenuAction.COPY) try {
+            session.admitCapturedAction(); true
+        } catch (_: IllegalStateException) { false }
+        else current(frozen.row.item.key) != null
+        if (!admitted) { dismiss(); return false }
         acting = true
         return true
     }

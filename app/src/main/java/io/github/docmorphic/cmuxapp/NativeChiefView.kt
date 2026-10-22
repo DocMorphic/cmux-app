@@ -497,14 +497,16 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         if (selectText != null && !state.retired) NativeChiefTextSelection(selectText!!,
             permitted = { selectText?.rowKey?.let { menu.current(it) } != null }) { selectText = null }
         if (menu.snapshot != null && !state.retired) NativeChiefActionMenu(menu, headerHeight, darkTranscript) { frozen, action, anchorY ->
-            if (!menu.takeAction(frozen)) return@NativeChiefActionMenu
+            if (!menu.takeAction(frozen, action)) return@NativeChiefActionMenu
+            if (action == NativeChiefMenuAction.COPY) {
+                hostView.context.getSystemService(android.content.ClipboardManager::class.java)
+                    .setPrimaryClip(android.content.ClipData.newPlainText("", frozen.text))
+                menu.dismiss()
+                return@NativeChiefActionMenu
+            }
             val current = menu.current(frozen.row.item.key)
             if (current == null) menu.dismiss() else when (action) {
-                NativeChiefMenuAction.COPY -> {
-                    hostView.context.getSystemService(android.content.ClipboardManager::class.java)
-                        .setPrimaryClip(android.content.ClipData.newPlainText("", frozen.text))
-                    menu.dismiss()
-                }
+                NativeChiefMenuAction.COPY -> Unit // Captured text is handled before live-row admission.
                 NativeChiefMenuAction.REPLY -> scope.launch {
                     kotlinx.coroutines.delay(120)
                     val live = menu.current(frozen.row.item.key)

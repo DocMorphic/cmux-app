@@ -2531,6 +2531,67 @@ class NativeChiefRuntimeTest {
         assertTrue(api.sends.isEmpty())
     }
 
+    @Test fun menuCopyRetainsTheCapturedTextAfterALiveMessageUpdate() {
+        openReferenceScene("quote-dark")
+        compose.onNodeWithTag("ChiefReplyActions:parent").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:COPY").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnUiThread {
+            api.rows = api.rows.map { if (it.id == "parent") it.copy(text = "A newer message body") else it }
+            api.transcriptChanges.trySend(api.snapshot())
+        }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.messages?.any { it.text == "A newer message body" } == true }
+        compose.onNodeWithTag("ChiefMenu:COPY").performClick()
+        compose.runOnUiThread {
+            assertEquals("The original message from your Mac.", compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+                .primaryClip!!.getItemAt(0).text.toString())
+        }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun menuCopySurvivesRestingHistoryRetentionButReplyRequiresALiveRow() {
+        compose.runOnUiThread { api.readMarker = 1uL; api.homeUnread = 0 }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:hello").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefReplyActions:hello").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:COPY").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnUiThread {
+            api.rows = api.rows + (2..1501).map { message("m$it", it.toULong(), "Arrival $it") }
+            api.transcriptChanges.trySend(api.snapshot())
+        }
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.messages?.size == 1000 }
+        compose.runOnUiThread {
+            val session = computer.transcript()!!
+            assertNull(session.actionItem("s:hello"))
+            assertFalse(session.replyTo("hello"))
+        }
+        compose.onNodeWithTag("ChiefMenu:COPY").performClick()
+        compose.onNodeWithTag("ChiefActionMenu").assertDoesNotExist()
+        compose.runOnUiThread {
+            assertEquals("Welcome from your Mac", compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+                .primaryClip!!.getItemAt(0).text.toString())
+        }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun menuRetryRequiresAFailedRowAndReusesTheOriginalClientId() {
+        compose.runOnUiThread { api.sendFailure = MobileRpcOutcomeUnknown() }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Explicit menu retry")
+        tapSendWhenReady()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.outgoing?.singleOrNull()?.delivery == NativeChiefDelivery.UNCONFIRMED }
+        val id = computer.transcript()!!.state.value.outgoing.single().clientMessageId
+        compose.onNodeWithTag("ChiefReplyActions:local:$id").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:RETRY").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnUiThread { api.sendFailure = null }
+        compose.onNodeWithTag("ChiefMenu:RETRY").performClick()
+        compose.waitUntil(10_000) { api.sends.size == 2 && computer.transcript()?.state?.value?.outgoing?.isEmpty() == true }
+        assertEquals(listOf("Explicit menu retry" to id, "Explicit menu retry" to id), api.sends.toList())
+        compose.onNodeWithTag("ChiefReplyActions:echo").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMenu:COPY").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefMenu:RETRY").assertDoesNotExist()
+        assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
     @Test fun moreCanDeselectEverythingAndCancelWithoutLosingTheDraft() {
         openReferenceScene("quote-dark")
         compose.onNodeWithTag("ChiefComposer").performTextInput("Draft after Cancel")

@@ -418,7 +418,10 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
 
     fun closeReplyThread() { checkOwner(); mutableState.value = state.value.copy(reply = null) }
 
-    /** Admission for composition-owned message actions, including clipboard reads. */
+    /** Captured message text remains usable after retention, within its original owner. */
+    fun admitCapturedAction() { checkOwner() }
+
+    /** Admission for actions that need the current retained message. */
     fun actionItem(rowID: String): NativeChiefTimelineItem? {
         checkOwner()
         return NativeChiefTimeline.items(state.value).firstOrNull { it.key == rowID }

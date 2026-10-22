@@ -1,3 +1,42 @@
+## Captured Copy lifetime and conditional Retry verified — 2026-10-22
+
+Menu Copy now retains its captured text after a live message update or after
+its row leaves the resting history window. The original session/account owner
+must still be valid; live-row actions retain their current-row admission. This
+matches the pinned native Copy closure over message.text in
+MessageActionOverlay.swift:974. The two new rendered checks pass, along with
+existing stale-owner clipboard rejection. A new menu Retry check verifies an
+explicit retry reuses the original client ID and that Retry disappears after
+acknowledgement. Its first attempt used an incorrect test tag (missing local:);
+that failed diagnostic is preserved, and the corrected run passes independently.
+
+Focused final runtime: 12 passes, no skips/failures, 51.115 seconds, empty crash
+buffer. It includes the preceding eight menu/More/Select/Poll checks and actual
+Android-uptime press/release/timeout/movement check. Final production source and
+APK exactly match the successful full JVM run: 3064 passes/four opt-in skips,
+zero failures/errors, 415 archived XML reports. Only the instrumentation test
+tag changed afterward. The earlier 83-pass/four-skip broad run belongs to the
+preceding mounted-menu commit a97df0a26c0ac0a9a29a377990ebc31685659c11,
+not this subsequent Copy fix. Receipt:
+`captures/recovery-20261022/chief-menu-copy-checkpoint.json`.
+
+Correction to the preceding visual-review note: the incoming selection row's
+physical-right quote clipping is also present in the fresh native selection PNG.
+Pinned source shifts the full incoming shiftable container, including quotes,
+by 42 points. Preserve this source behavior; do not reflow that quote solely to
+remove the clipping. Source/image hashes are in
+`captures/recovery-20261022/chief-menu-copy-source-audit.json`.
+
+Next audit select-mode horizontal gesture rejection: the root still passes a
+swipe-reply callback during More selection, while source gestures forbid it.
+Add a real horizontal-drag rejection check and fix admission if reproduced.
+Accessibility Copy, source animations/materials/reduced motion/haptics, native
+selection toolbar/handles, full Poll Details table/participants and translation
+remain open, together with every broader/physical acceptance gate below.
+The owned emulator was restored and stopped. Signed 712, physical Pixel 703,
+Mac account/pairing/workspaces and the pending phone-availability question are
+unchanged. No additional Mac action is needed. Full parity remains active.
+
 ## Chief message actions mounted — 2026-10-22
 
 The Android transcript now mounts a recorded lifted-message menu with Reply,
