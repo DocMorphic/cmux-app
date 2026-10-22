@@ -2,6 +2,13 @@ name: Pinned iOS Chief Poll Details references
 
 on:
   workflow_dispatch:
+    inputs:
+      category:
+        description: Actual system text category (all requires the full fixture inventory)
+        type: choice
+        required: true
+        default: all
+        options: [all, large, accessibilityMedium, accessibilityExtraExtraExtraLarge]
 
 permissions:
   contents: read
@@ -14,6 +21,8 @@ jobs:
   capture:
     runs-on: macos-26
     timeout-minutes: 40
+    env:
+      REFERENCE_CATEGORY: ${{ inputs.category || 'all' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,6 +64,7 @@ jobs:
           Path(os.environ['RUNNER_TEMP'] + '/selected-simulator.json').write_text(json.dumps(selected, indent=2) + '\n')
           PY
       - name: Capture standard Poll Details through actual source controls
+        if: env.REFERENCE_CATEGORY == 'all' || env.REFERENCE_CATEGORY == 'large'
         run: |
           set -euo pipefail
           xcrun simctl boot "$REFERENCE_SIMULATOR" || xcrun simctl bootstatus "$REFERENCE_SIMULATOR" -b
@@ -68,6 +78,7 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/chief-reference-standard.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-standard-build.log"
       - name: Capture Poll Details with actual system accessibility type
+        if: env.REFERENCE_CATEGORY == 'all' || env.REFERENCE_CATEGORY == 'accessibilityMedium'
         run: |
           set -euo pipefail
           xcrun simctl ui "$REFERENCE_SIMULATOR" content_size accessibility-medium
@@ -79,10 +90,12 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/chief-reference-accessibility.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-accessibility-build.log"
       - name: Capture remaining ten actual system text categories
+        if: env.REFERENCE_CATEGORY == 'all' || env.REFERENCE_CATEGORY == 'accessibilityExtraExtraExtraLarge'
         run: |
           set -euo pipefail
           xcrun simctl help ui
           while read -r category test_name; do
+            if [ "$REFERENCE_CATEGORY" != all ] && [ "$category" != accessibility-extra-extra-extra-large ]; then continue; fi
             xcrun simctl ui "$REFERENCE_SIMULATOR" content_size "$category"
             xcrun simctl ui "$REFERENCE_SIMULATOR" content_size
             xcodebuild test -project "$RUNNER_TEMP/chief-reference/CmuxChiefReference.xcodeproj" \
@@ -107,16 +120,15 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          for mode in standard accessibility; do
-            if [ ! -d "$RUNNER_TEMP/chief-reference-$mode.xcresult" ]; then exit 1; fi
-            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/chief-reference-$mode.xcresult" --output-path "$RUNNER_TEMP/chief-reference-exported/$mode"
-          done
-          for result in "$RUNNER_TEMP"/chief-reference-type-*.xcresult; do
+          for result in "$RUNNER_TEMP"/chief-reference-*.xcresult; do
             if [ ! -d "$result" ]; then exit 1; fi
             mode="$(basename "$result" .xcresult)"
             xcrun xcresulttool export attachments --path "$result" --output-path "$RUNNER_TEMP/chief-reference-exported/$mode"
           done
-          python3 cmux-app/scripts/verify-ios-chief-polls.py --exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-polls" --project-commit "$GITHUB_SHA" --require-lifecycle
+          verify_args=(--exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-polls" --project-commit "$GITHUB_SHA")
+          if [ "$REFERENCE_CATEGORY" != all ]; then verify_args+=(--category "$REFERENCE_CATEGORY"); fi
+          if [ "$REFERENCE_CATEGORY" = all ] || [ "$REFERENCE_CATEGORY" = large ]; then verify_args+=(--require-lifecycle); fi
+          python3 cmux-app/scripts/verify-ios-chief-polls.py "${verify_args[@]}"
       - name: Preserve reference evidence and diagnostics
         if: always()
         uses: actions/upload-artifact@v4

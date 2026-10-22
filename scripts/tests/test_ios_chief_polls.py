@@ -58,16 +58,18 @@ class PollExportGuards(unittest.TestCase):
             value['typeMetrics'] = dict(schema=1, records=records, currentName=scene['category'], actualCategory=current['category'],
                 actualBodyPointSize=current['bodyPointSize'], actualBodyLineHeight=current['bodyLineHeight'],
                 actualFooterPointSize=current['footerPointSize'], actualFooterLineHeight=current['footerLineHeight'], boldText=False)
-            if scene['model'] == 'pending':
-                value['labels'].append(dict(text='0 Votes', frame=[16, 140, 200, 20], fontSize=current['footerPointSize'], lineHeight=current['footerLineHeight'], insidePollTable=True))
+            if scene['model'].startswith('pending'):
+                if poll['options']:
+                    value['labels'].append(dict(text='0 Votes', frame=[16, 140, 200, 20], fontSize=current['footerPointSize'], lineHeight=current['footerLineHeight'], insidePollTable=True))
                 if scene['scroll'] == 'bottom':
                     value['table']['contentOffset'] = [0, 400]
+                if scene['scroll'] == 'bottom' or not poll['options']:
                     value['labels'] += [dict(text=t, frame=[16, 180 + i * 70, 200, 64], fontSize=current['bodyPointSize'], insidePollTable=True)
                         for i, t in enumerate(['No Votes', 'Chief', 'You'])]
             (self.export / (name + '.json')).write_text(json.dumps(value))
 
-    def verify(self, require_lifecycle=False):
-        with redirect_stdout(io.StringIO()): V.verify(self.export, self.output, self.commit, require_lifecycle)
+    def verify(self, require_lifecycle=False, category=None):
+        with redirect_stdout(io.StringIO()): V.verify(self.export, self.output, self.commit, require_lifecycle, category)
 
     def rejects(self, mutate, message, scene=None):
         path = self.export / ((scene or self.names[0]) + '.json')
@@ -232,5 +234,27 @@ class PollExportGuards(unittest.TestCase):
         self.rejects(lambda v: v['table'].__setitem__('contentOffset', [0, 0]), 'did not scroll', scene)
         self.rejects(lambda v: v['labels'][-1].__setitem__('insidePollTable', False), 'Missing visible pending bottom', scene)
         self.rejects(lambda v: v['labels'][-1].__setitem__('fontSize', 17), 'bottom font', scene)
+
+    def test_empty_options_requires_visible_non_voter_content(self):
+        self.rejects(lambda v: v['labels'][-1].__setitem__('insidePollTable', False), 'Missing visible pending bottom', 'poll-empty-options-dark')
+
+    def test_explicit_category_subset_cannot_pass_as_full_inventory(self):
+        fixture = json.loads((ROOT / 'tests/ios-chief-reference/PollReferences.json').read_text())
+        selected = [s['id'] for s in fixture['scenes'] if s['category'] == 'large']
+        for name in self.names:
+            if name not in selected:
+                (self.export / (name + '.json')).unlink(); (self.export / (name + '.png')).unlink()
+        with self.assertRaisesRegex(ValueError, 'Missing/unexpected'): self.verify()
+        self.verify(category='large')
+        receipt = json.loads((self.output / 'receipt.json').read_text())
+        self.assertEqual(receipt['scenes'], selected)
+        self.assertEqual(receipt['categoryScope'], 'large')
+        self.assertEqual(receipt['declaredSceneCount'], len(self.names))
+        self.assertEqual(receipt['capturedSceneCount'], len(selected))
+
+    def test_category_scope_rejects_unknown_extra_scenes_and_incompatible_lifecycle(self):
+        with self.assertRaisesRegex(ValueError, 'Unknown poll category scope'): self.verify(category='invented')
+        with self.assertRaisesRegex(ValueError, 'Missing/unexpected'): self.verify(category='large')
+        with self.assertRaisesRegex(ValueError, 'Lifecycle requires standard'): self.verify(require_lifecycle=True, category='accessibilityMedium')
 
 if __name__ == '__main__': unittest.main()

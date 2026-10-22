@@ -85,6 +85,49 @@
           "isMe": false
         }
       ]
+    },
+    "pending-empty": {
+      "question": "Run deploy?",
+      "options": [],
+      "votes": [],
+      "participants": [
+        {
+          "id": "chief",
+          "name": "Chief",
+          "isMe": false
+        },
+        {
+          "id": "me",
+          "name": "You",
+          "isMe": true
+        }
+      ]
+    },
+    "pending-no-prompt": {
+      "question": "",
+      "options": [
+        {
+          "id": "allow",
+          "text": "allow"
+        },
+        {
+          "id": "deny",
+          "text": "deny"
+        }
+      ],
+      "votes": [],
+      "participants": [
+        {
+          "id": "chief",
+          "name": "Chief",
+          "isMe": false
+        },
+        {
+          "id": "me",
+          "name": "You",
+          "isMe": true
+        }
+      ]
     }
   },
   "scenes": [
@@ -249,6 +292,24 @@
       "orientation": "portrait",
       "direction": "ltr",
       "scroll": "bottom"
+    },
+    {
+      "id": "poll-empty-options-dark",
+      "model": "pending-empty",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-no-prompt-dark",
+      "model": "pending-no-prompt",
+      "category": "large",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
     }
   ]
 }

@@ -71,10 +71,12 @@ def validate_type_metrics(value, specification):
             require(label.get('lineHeight') == current['footerLineHeight'], 'Visible source footer line height differs from actual application font')
         if label.get('text') == 'No votes yet':
             require(label.get('fontSize') == current['bodyPointSize'], 'Visible source row does not use captured body font')
-    if specification['model'] == 'pending':
-        require(any(x.get('text') in footers for x in labels), 'Missing visible actual source footer font')
+    if specification['model'].startswith('pending'):
+        if footers:
+            require(any(x.get('text') in footers for x in labels), 'Missing visible actual source footer font')
         if specification['scroll'] == 'bottom':
             require(value['table'].get('contentOffset', [0, 0])[1] > 0, 'Pending bottom reference did not scroll')
+        if specification['scroll'] == 'bottom' or not footers:
             require({'No Votes', 'Chief', 'You'} <= {x.get('text') for x in labels}, 'Missing visible pending bottom content')
             require(all(x.get('fontSize') == current['bodyPointSize'] for x in labels if x.get('text') in {'No Votes', 'Chief', 'You'}),
                 'Visible pending bottom font differs from actual body')
@@ -144,12 +146,15 @@ def validate_lifecycle(value, scenes, fixture, commit, images, template, manifes
     return paired
 
 
-def verify(exported, output, commit, require_lifecycle=False):
+def verify(exported, output, commit, require_lifecycle=False, category=None):
     require(len(commit) == 40 and all(x in '0123456789abcdef' for x in commit), 'Exact project commit required')
     template = ROOT / 'tests/ios-chief-reference'
     fixture = json.loads((template / 'PollReferences.json').read_text())
     manifest = json.loads((ROOT / 'third_party/cmux-chief/manifest.json').read_text())
-    scenes = {s['id']: s for s in fixture['scenes']}; values = {}; images = {}; lifecycles = {}
+    require(category is None or category in {s['category'] for s in fixture['scenes']}, 'Unknown poll category scope')
+    require(not require_lifecycle or category in (None, 'large'), 'Lifecycle requires standard category scope')
+    scenes = {s['id']: s for s in fixture['scenes'] if category is None or s['category'] == category}
+    values = {}; images = {}; lifecycles = {}
     for path in exported.rglob('*'):
         if not path.is_file() or path.stat().st_size > 32 * 1024 * 1024: continue
         data = path.read_bytes()
@@ -164,6 +169,7 @@ def verify(exported, output, commit, require_lifecycle=False):
                 name = value['pollLifecycle']; require(name not in lifecycles, 'Duplicate poll lifecycle')
                 lifecycles[name] = value
     require(set(values) == set(scenes), 'Missing/unexpected poll scenes')
+    require(category in (None, 'large') or not lifecycles, 'Lifecycle outside category scope')
     paired = []
     for name, specification in scenes.items():
         value = values[name]; source = value['provenance']; poll = fixture['polls'][specification['model']]
@@ -183,9 +189,11 @@ def verify(exported, output, commit, require_lifecycle=False):
         (output / ('poll-lifecycle-' + name + '.json')).write_text(json.dumps(value, indent=2) + '\n')
     receipt = dict(projectCommit=commit, verifierSha256=digest(Path(__file__)), revision=manifest['revision'],
         packageTree=manifest['referencePackage']['tree'], scenes=list(scenes), lifecycle=list(lifecycles),
+        categoryScope=category or 'all', declaredSceneCount=len(fixture['scenes']), capturedSceneCount=len(scenes),
         lifecycleImageGeometry={name: g for name, image, g in lifecycle_paired},
         imageGeometry={name: g for name, value, image, g in paired},
-        scope='Actual pinned UIKit Poll Details controls, visible cells, source data-source sections and compositor frames with controlled pending/generic poll data. Offscreen cell text, live changes/votes, Chief RPC, Android/device/VoiceOver and full parity remain unverified.')
+        scope=('Category-limited reference, not the complete declared scene inventory. ' if category else '') +
+            'Actual pinned UIKit Poll Details controls, visible cells, source data-source sections and compositor frames with controlled pending/generic poll data. Offscreen cell text, live changes/votes, Chief RPC, Android/device/VoiceOver and full parity remain unverified.')
     (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt, indent=2))
 
@@ -193,5 +201,7 @@ def verify(exported, output, commit, require_lifecycle=False):
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--exported', type=Path, required=True); p.add_argument('--output', type=Path, required=True)
-    p.add_argument('--project-commit', required=True); p.add_argument('--require-lifecycle', action='store_true'); args = p.parse_args()
-    verify(args.exported, args.output, args.project_commit, args.require_lifecycle)
+    p.add_argument('--project-commit', required=True); p.add_argument('--require-lifecycle', action='store_true')
+    p.add_argument('--category', help='Verify only this declared system category; default requires the full scene inventory')
+    args = p.parse_args()
+    verify(args.exported, args.output, args.project_commit, args.require_lifecycle, args.category)
