@@ -14,7 +14,7 @@ def git(root, *args):
     return subprocess.check_output(['git', '-C', str(root), *args])
 
 
-def prepare(upstream, output):
+def prepare(upstream, output, with_translation_ui=False):
     root = Path(__file__).resolve().parents[1]
     manifest = json.loads((root / 'third_party/cmux-chief/manifest.json').read_text())
     revision = manifest['revision']; package = manifest['referencePackage']
@@ -37,6 +37,10 @@ def prepare(upstream, output):
     templates = root / 'tests/ios-chief-reference'
     for name in ('ReferenceApp.swift', 'ReferenceTests.swift', 'Scenes.json', 'Interactions.json', 'Actions.json'):
         shutil.copyfile(templates / name, output / name)
+    if with_translation_ui:
+        shutil.copyfile(templates / 'TranslationReferenceApp.swift', output / 'ReferenceApp.swift')
+        for name in ('TranslationUITests.swift', 'TranslationReferences.json'):
+            shutil.copyfile(templates / name, output / name)
     avatar = next(p for p in manifest['behaviorFiles'] if p.endswith('/ChiefAvatar.png'))
     pixels = git(upstream, 'show', revision + ':' + avatar)
     if hashlib.sha256(pixels).hexdigest() != manifest['behaviorFiles'][avatar]: raise ValueError('Unreviewed reference avatar')
@@ -45,11 +49,14 @@ def prepare(upstream, output):
                   'projectSourceCommit': git(root, 'rev-parse', 'HEAD').decode().strip(),
                   'projectSourceDirty': bool(git(root, 'status', '--porcelain', '--untracked-files=normal')),
                   'referenceTestsSha256': hashlib.sha256((templates / 'ReferenceTests.swift').read_bytes()).hexdigest(),
-                  'referenceAppSha256': hashlib.sha256((templates / 'ReferenceApp.swift').read_bytes()).hexdigest(),
+                  'referenceAppSha256': hashlib.sha256((output / 'ReferenceApp.swift').read_bytes()).hexdigest(),
                   'scenesSha256': hashlib.sha256((templates / 'Scenes.json').read_bytes()).hexdigest(),
                   'interactionsSha256': hashlib.sha256((templates / 'Interactions.json').read_bytes()).hexdigest(),
                   'actionsSha256': hashlib.sha256((templates / 'Actions.json').read_bytes()).hexdigest(),
                   'scope': 'Offline UIKit reference host; no account, pairing, network transport or production backend'}
+    if with_translation_ui:
+        provenance.update(translationUiTestsSha256=hashlib.sha256((templates / 'TranslationUITests.swift').read_bytes()).hexdigest(),
+                          translationFixtureSha256=hashlib.sha256((templates / 'TranslationReferences.json').read_bytes()).hexdigest())
     (output / 'Provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
 
     def uid(name): return hashlib.sha256(name.encode()).hexdigest()[:24].upper()
@@ -60,11 +67,13 @@ def prepare(upstream, output):
         return uid(name)
     refs = {}
     for filename, kind in [('ReferenceApp.swift', 'sourcecode.swift'), ('ReferenceTests.swift', 'sourcecode.swift'),
-                           ('Scenes.json', 'text.json'), ('Interactions.json', 'text.json'), ('Actions.json', 'text.json'), ('Provenance.json', 'text.json'), ('ChiefAvatar.png', 'image.png')]:
+                           ('Scenes.json', 'text.json'), ('Interactions.json', 'text.json'), ('Actions.json', 'text.json'), ('Provenance.json', 'text.json'), ('ChiefAvatar.png', 'image.png')] + (
+                               [('TranslationUITests.swift', 'sourcecode.swift'), ('TranslationReferences.json', 'text.json')] if with_translation_ui else []):
         refs[filename] = obj(filename, 'PBXFileReference', f'lastKnownFileType = {q(kind)}; path = {q(filename)}; sourceTree = "<group>";')
     app_product = obj('app-product', 'PBXFileReference', 'explicitFileType = wrapper.application; path = CmuxChiefReferenceHost.app; sourceTree = BUILT_PRODUCTS_DIR;')
     test_product = obj('test-product', 'PBXFileReference', 'explicitFileType = wrapper.cfbundle; path = CmuxChiefReferenceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
-    products = obj('products', 'PBXGroup', f'children = ({app_product}, {test_product},); name = Products; sourceTree = "<group>";')
+    ui_product = obj('ui-product', 'PBXFileReference', 'explicitFileType = wrapper.cfbundle; path = CmuxChiefTranslationUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;') if with_translation_ui else None
+    products = obj('products', 'PBXGroup', f'children = ({app_product}, {test_product},' + (f'{ui_product},' if with_translation_ui else '') + '); name = Products; sourceTree = "<group>";')
     group = obj('main-group', 'PBXGroup', f'children = ({", ".join(refs.values())}, {products},); sourceTree = "<group>";')
     package_ref = obj('package', 'XCLocalSwiftPackageReference', 'relativePath = UpstreamPackage;')
     frameworks = []
@@ -94,9 +103,24 @@ def prepare(upstream, output):
     test_configs = configurations('test', 'PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = io.github.docmorphic.cmuxapp.reference.ios.tests; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 1; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CmuxChiefReferenceHost.app/CmuxChiefReferenceHost"; BUNDLE_LOADER = "$(TEST_HOST)"; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks",);')
     proxy = obj('host-proxy', 'PBXContainerItemProxy', f'containerPortal = {uid("project")}; proxyType = 1; remoteGlobalIDString = {uid("app")}; remoteInfo = CmuxChiefReferenceHost;')
     dependency = obj('host-dependency', 'PBXTargetDependency', f'target = {uid("app")}; targetProxy = {proxy};')
-    app = obj('app', 'PBXNativeTarget', f'buildConfigurationList = {app_configs}; buildPhases = ({app_sources},); buildRules = (); dependencies = (); name = CmuxChiefReferenceHost; productName = CmuxChiefReferenceHost; productReference = {app_product}; productType = "com.apple.product-type.application";')
+    app_extra = ''; app_products = ''
+    if with_translation_ui:
+        app_frameworks = [obj(product + '-app-build', 'PBXBuildFile', f'productRef = {uid(product)};') for product in ('CmuxConversationCore', 'CmuxConversationUI')]
+        app_framework_phase = obj('app-frameworks', 'PBXFrameworksBuildPhase', f'buildActionMask = 2147483647; files = ({", ".join(app_frameworks)},); runOnlyForDeploymentPostprocessing = 0;')
+        app_resources = [obj(name + '-app-build', 'PBXBuildFile', f'fileRef = {refs[name]};') for name in ('TranslationReferences.json', 'Provenance.json', 'ChiefAvatar.png')]
+        app_resource_phase = obj('app-resources', 'PBXResourcesBuildPhase', f'buildActionMask = 2147483647; files = ({", ".join(app_resources)},); runOnlyForDeploymentPostprocessing = 0;')
+        app_extra = f'{app_framework_phase}, {app_resource_phase},'
+        app_products = f'packageProductDependencies = ({", ".join(package_products)},);'
+        ui_configs = configurations('ui', 'PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = io.github.docmorphic.cmuxapp.reference.ios.uitests; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 1; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TEST_TARGET_NAME = CmuxChiefReferenceHost;')
+        ui_source = obj('ui-source', 'PBXBuildFile', f'fileRef = {refs["TranslationUITests.swift"]};')
+        ui_sources = obj('ui-sources', 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = ({ui_source},); runOnlyForDeploymentPostprocessing = 0;')
+        ui_resource = obj('ui-resource', 'PBXBuildFile', f'fileRef = {refs["TranslationReferences.json"]};')
+        ui_resources = obj('ui-resources', 'PBXResourcesBuildPhase', f'buildActionMask = 2147483647; files = ({ui_resource},); runOnlyForDeploymentPostprocessing = 0;')
+        ui_test = obj('ui-test', 'PBXNativeTarget', f'buildConfigurationList = {ui_configs}; buildPhases = ({ui_sources}, {ui_resources},); buildRules = (); dependencies = ({dependency},); name = CmuxChiefTranslationUITests; productName = CmuxChiefTranslationUITests; productReference = {ui_product}; productType = "com.apple.product-type.bundle.ui-testing";')
+    app = obj('app', 'PBXNativeTarget', f'buildConfigurationList = {app_configs}; buildPhases = ({app_sources}, {app_extra}); buildRules = (); dependencies = (); {app_products} name = CmuxChiefReferenceHost; productName = CmuxChiefReferenceHost; productReference = {app_product}; productType = "com.apple.product-type.application";')
     test = obj('test', 'PBXNativeTarget', f'buildConfigurationList = {test_configs}; buildPhases = ({test_sources}, {test_frameworks}, {resources},); buildRules = (); dependencies = ({dependency},); name = CmuxChiefReferenceTests; packageProductDependencies = ({", ".join(package_products)},); productName = CmuxChiefReferenceTests; productReference = {test_product}; productType = "com.apple.product-type.bundle.unit-test";')
-    obj('project', 'PBXProject', f'attributes = {{ LastUpgradeCheck = 2600; }}; buildConfigurationList = {project_configs}; compatibilityVersion = "Xcode 15.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = {group}; packageReferences = ({package_ref},); productRefGroup = {products}; projectDirPath = ""; projectRoot = ""; targets = ({app}, {test},);')
+    target_attributes = f'TargetAttributes = {{ {ui_test} = {{ TestTargetID = {app}; }}; }};' if with_translation_ui else ''
+    obj('project', 'PBXProject', f'attributes = {{ LastUpgradeCheck = 2600; {target_attributes} }}; buildConfigurationList = {project_configs}; compatibilityVersion = "Xcode 15.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = {group}; packageReferences = ({package_ref},); productRefGroup = {products}; projectDirPath = ""; projectRoot = ""; targets = ({app}, {test},' + (f'{ui_test},' if with_translation_ui else '') + ');')
     project = output / 'CmuxChiefReference.xcodeproj'; project.mkdir()
     (project / 'project.pbxproj').write_text('// !$*UTF8*$!\n{ archiveVersion = 1; classes = {}; objectVersion = 60; objects = {\n' + '\n'.join(objects) + f'\n}}; rootObject = {uid("project")}; }}\n')
     def buildable(target, product, identifier):
@@ -116,6 +140,9 @@ def prepare(upstream, output):
 '''
     schemes = project / 'xcshareddata/xcschemes'; schemes.mkdir(parents=True)
     (schemes / 'CmuxChiefReference.xcscheme').write_text(scheme)
+    if with_translation_ui:
+        ui_buildable = buildable('CmuxChiefTranslationUITests', 'CmuxChiefTranslationUITests.xctest', ui_test)
+        (schemes / 'CmuxChiefTranslation.xcscheme').write_text(scheme.replace(tests, ui_buildable))
     print(json.dumps({'output': str(output), **provenance}, indent=2))
 
 
@@ -123,5 +150,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--upstream', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--with-translation-ui', action='store_true')
     args = parser.parse_args()
-    prepare(args.upstream.resolve(), args.output.resolve())
+    prepare(args.upstream.resolve(), args.output.resolve(), args.with_translation_ui)
