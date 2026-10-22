@@ -1,3 +1,57 @@
+## Poll footer fonts and twelve-category native references — 2026-10-22
+
+Implementation `2a417c34` replaces the two-point linear footer estimate with
+all twelve measured preferred-body/footnote pairs (body 14–53, footnote 12–44),
+interpolation between categories and boundary clamps. It consumes measured
+line height/ascender values while retaining taller Android fallback glyphs.
+The sheet resolves platform scaling separately from its production layout,
+so exact font-point component inputs and the actual Android scaling path can
+be verified independently. Android supplies its own glyphs.
+
+The full unit suite passes 3,109 tests, with four opt-in skips (3,113 total,
+422 XML reports, no failures/errors). Final owned-emulator `poll-footer-v10`
+passes nine typography/behavior/lifecycle cases in 34.916 s and five existing
+source-relative row-geometry capture cases. Twelve exact resolved descriptor
+frames and seven stock nonlinear Android scale frames have unclipped footer
+text; every checked strong foreground pixel matches the current window raster
+in the screen capture. Exact descriptor cases use the production layout with
+explicit resolved points; stock cases use the production environment-to-sheet
+path. Neither is system-settings/live-font-change or physical accessibility
+acceptance. Source/APK/unit/evidence hashes revalidate, both tested APKs are
+archived, crash buffer is empty and the owned emulator is stopped. Earlier
+visibility/focus, live-density replacement and converter/custom-density
+attempts were rejected; their limitations are retained in the checkpoint.
+
+Native run `39838940985` at `3945ef6f` succeeded with actual system categories:
+17 scenes across all 12 sizes plus retained-controller/table rotation. Artifact
+`12453532431` (9,507,456 bytes, SHA-256
+`e7fe24e508308db094b0626572ff7ebd3e862da14a97f9bd2e4e43472c6b8be7`)
+was downloaded, independently reverified, and all 39 canonical files are
+byte-identical to the CI export. All twelve visible footer font/line-height
+measurements corroborate the imported profiles. Smallest/largest native and
+Android captures were visually spot-reviewed. Evidence:
+`captures/recovery-20261022/chief-poll-native-all-types-checkpoint.json` and
+`captures/recovery-20261022/poll-footer-checkpoint.json`.
+
+The expanded comparison proves remaining spacing gaps, not full sheet parity.
+At the largest category, the first Android header is 42.67 points too short
+and its footer area 23 points too short; smaller categories have other measured
+row/header/footer differences. See `poll-all-types-geometry-gaps.json` in the
+same recovery folder. Next, capture the largest native pending poll at the
+bottom so the No Votes header is actually visible, then use measured geometry
+for the table spacing. Do not accept its offscreen estimated frame. Native
+check glyph/materials, locales/accessibility, system font changes and every
+broader device/release/backend gate remain open.
+
+The user's confirmation of the protected Mac pairing controls is recorded in
+`df28cd12` and `mac-pairing-menu-live-recheck.json`. No pairing offer or phone
+operation occurred. Pixel remains released at signed 712; local 713 is
+unpublished and no 714 has been built. Bounded a84 source applicability reads
+are in `upstream-a84-reconciliation/bounded-applicability.json`: seven selected
+UI/model/transport/RPC package trees are byte-identical, while host shim,
+restoration, deployed backend and adoption checks remain open. No source pin
+was adopted. Full app parity remains active and unproven.
+
 ## Dialog window appearance and live Mac menu recheck — 2026-10-22
 
 Implementation `79a69f1e2c8fd7280faaccadef04134b224501c5` gives custom dialogs, alerts and bottom sheets
