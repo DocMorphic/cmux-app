@@ -229,7 +229,7 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
             error = failure.message ?: "Could not load the message"
         }
     }
-    ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    NativeModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = NativeAppColors.page, contentColor = NativeAppColors.text) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("AgentFeedFullTextSheet")) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

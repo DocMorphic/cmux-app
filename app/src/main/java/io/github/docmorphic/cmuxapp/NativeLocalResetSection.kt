@@ -5,13 +5,11 @@ import androidx.compose.ui.res.stringResource
 import android.app.ActivityManager
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -42,7 +40,7 @@ internal fun NativeLocalResetSection(requestErase: (() -> Boolean)? = null) {
             Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { liveRegion = LiveRegionMode.Polite },
             color = destructive, fontSize = 13.sp)
     }
-    if (confirming) AlertDialog(
+    if (confirming) NativeAlertDialog(
         onDismissRequest = { confirming = false },
         title = { Text(stringResource(R.string.cmux_ui_mobile_settings_resetlocaldata_confirm_title_91046c47)) },
         text = { Text("You will be signed out and all data stored by this app will be erased. " +

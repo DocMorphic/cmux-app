@@ -17,7 +17,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
@@ -57,7 +56,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
     val actions = ui.snapshot?.actions.orEmpty().associateBy { it.kind }
     val filter = NativeWorkspaceFilter(ui.query.workspaceUnread, ui.query.machines)
     LaunchedEffect(ui.query.notifications, ui.query.computer) { filters = false; showOrder = false; readAll = null }
-    readAll?.let { target -> AlertDialog(onDismissRequest = { readAll = null },
+    readAll?.let { target -> NativeAlertDialog(onDismissRequest = { readAll = null },
         title = { Text("Mark all notifications as read?") },
         text = { Text("This marks all notifications for ${target.computer} as read, including those hidden by search. Offline computers keep their unread notifications.") },
         confirmButton = { TextButton(onClick = {

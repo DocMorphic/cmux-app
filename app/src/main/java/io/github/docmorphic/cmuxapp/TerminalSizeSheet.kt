@@ -54,7 +54,7 @@ internal fun TerminalSizeSheet(presentation: TerminalSizingPresentation, enabled
         }
     }
     val editable = enabled && !busy
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    NativeModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(horizontal = 20.dp).testTag("terminal-size-sheet")) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).semantics { heading() }) {
@@ -101,7 +101,7 @@ internal fun TerminalSizeSheet(presentation: TerminalSizingPresentation, enabled
             Spacer(Modifier.height(16.dp))
         }
     }
-    confirmOthers?.let { ids -> AlertDialog(onDismissRequest = { confirmOthers = null },
+    confirmOthers?.let { ids -> NativeAlertDialog(onDismissRequest = { confirmOthers = null },
         title = { Text("Disconnect other devices?") },
         text = { Text("Disconnect ${ids.size} other ${if (ids.size == 1) "device" else "devices"} from this terminal. They can reattach later.") },
         dismissButton = { TextButton(onClick = { confirmOthers = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } },

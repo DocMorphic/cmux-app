@@ -37,10 +37,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -60,7 +58,7 @@ internal fun NativeChiefPollSheet(content: NativeChiefPollContents, onClose: () 
         LayoutDirection.Rtl else LayoutDirection.Ltr
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) { keyboard?.hide() }
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    NativeDialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect { window?.setDimAmount(0f) }
         CompositionLocalProvider(LocalDensity provides inheritedDensity, LocalLayoutDirection provides direction) {
@@ -71,11 +69,6 @@ internal fun NativeChiefPollSheet(content: NativeChiefPollContents, onClose: () 
             val footerPoints = (13f + 10f * ((bodyPoints - 17f) / 11f)).coerceAtLeast(11f)
             val rowHeight = 53f + 35f / 3f * progress
             val dark = MaterialTheme.colorScheme.background.luminance() < .5f
-            val view = LocalView.current
-            SideEffect { window?.let {
-                WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = !dark
-                WindowCompat.getInsetsController(it, view).isAppearanceLightNavigationBars = !dark
-            } }
             val background = if (dark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
             val cell = if (dark) Color(0xFF2C2C2E) else Color.White
             val ink = if (dark) Color.White else Color.Black

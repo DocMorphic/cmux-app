@@ -87,14 +87,14 @@ internal fun FileExportHost(content: @Composable () -> Unit) {
         }
     }
     CompositionLocalProvider(LocalFileExports provides model) { content() }
-    if (state.phase == FileExportPhase.READY && state.needsConfirmation) AlertDialog(onDismissRequest = controller::clear,
+    if (state.phase == FileExportPhase.READY && state.needsConfirmation) NativeAlertDialog(onDismissRequest = controller::clear,
         title = { Text("Continue file action?") }, text = { Text(state.title) },
         confirmButton = { TextButton(onClick = { controller.continueRestored(state) }) { Text("Continue") } },
         dismissButton = { TextButton(onClick = controller::clear) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
-    if (state.phase == FileExportPhase.PREPARING) AlertDialog(onDismissRequest = controller::clear,
+    if (state.phase == FileExportPhase.PREPARING) NativeAlertDialog(onDismissRequest = controller::clear,
         title = { Text("Preparing file…") }, text = { Column { Text(state.title); LinearProgressIndicator() } },
         confirmButton = {}, dismissButton = { TextButton(onClick = controller::clear) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
-    state.failure?.let { message -> AlertDialog(onDismissRequest = controller::clear,
+    state.failure?.let { message -> NativeAlertDialog(onDismissRequest = controller::clear,
         title = { Text("Couldn't prepare file") }, text = { Text(message) },
         confirmButton = { TextButton(onClick = controller::clear) { Text(stringResource(R.string.cmux_ui_chat_artifact_ok_fa3d181e)) } }) }
 }

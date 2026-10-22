@@ -20,7 +20,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -66,9 +65,9 @@ internal fun AccountPlanSettings(controller: AccountPlanController, openExternal
         Text(state.plan?.name ?: if (state.loading) "Loading…" else "View plan")
         Text(" ›", Modifier.padding(start = 8.dp))
     }
-    if (expanded) Dialog(onDismissRequest = { expanded = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-            Column(Modifier.fillMaxSize()) {
+    if (expanded) NativeDialog(onDismissRequest = { expanded = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Surface(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Plans", Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                     TextButton(onClick = { controller.refresh() }, enabled = !state.loading) { Text("Refresh") }

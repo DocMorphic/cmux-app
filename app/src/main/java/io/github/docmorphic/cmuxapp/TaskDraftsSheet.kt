@@ -9,12 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -25,18 +20,7 @@ internal fun TaskDraftsSheet(
     drafts: List<TaskDraft>, busy: Boolean, error: String?, onDismiss: () -> Unit, onNew: () -> Unit,
     onResume: (TaskDraft) -> Unit, onDelete: (TaskDraft) -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = NativeAppColors.panel) {
-        val view = LocalView.current
-        SideEffect {
-            // Material 3 1.3 uses the system light theme for this separate dialog
-            // window, while cmux's mobile surface stays dark in either theme.
-            (view.parent as? DialogWindowProvider)?.window?.let { window ->
-                WindowCompat.getInsetsController(window, window.decorView).apply {
-                    isAppearanceLightStatusBars = false
-                    isAppearanceLightNavigationBars = false
-                }
-            }
-        }
+    NativeModalBottomSheet(onDismissRequest = onDismiss, containerColor = NativeAppColors.panel) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
             TextButton(onClick = onNew, enabled = !busy) { Text("＋ New Draft") }
             Text("Drafts", Modifier.weight(1f).padding(12.dp), style = MaterialTheme.typography.titleMedium)

@@ -10,18 +10,13 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
 
 /** Settings presents setup as a reference, without identifying an active connection gate. */
 @Composable
@@ -53,22 +48,8 @@ internal fun NativeSetupHelp(policy: NativeMacCompatibilityPolicy, highlight: Na
         runCatching { uri.openUri(target) }.onSuccess { linkError = null }
             .onFailure { linkError = "Could not open the download page. Try again." }
     }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false,
+    NativeDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false,
         decorFitsSystemWindows = false)) {
-        val view = LocalView.current
-        val lightBars = MaterialTheme.colorScheme.surface.luminance() >= .5f
-        DisposableEffect(view, lightBars) {
-            val window = (view.parent as? DialogWindowProvider)?.window
-            val controller = window?.let { WindowCompat.getInsetsController(it, view) }
-            val oldStatus = controller?.isAppearanceLightStatusBars
-            val oldNavigation = controller?.isAppearanceLightNavigationBars
-            controller?.isAppearanceLightStatusBars = lightBars
-            controller?.isAppearanceLightNavigationBars = lightBars
-            onDispose {
-                oldStatus?.let { controller?.isAppearanceLightStatusBars = it }
-                oldNavigation?.let { controller?.isAppearanceLightNavigationBars = it }
-            }
-        }
         // A Dialog has its own AndroidComposeView; retain the host's text scaling.
         CompositionLocalProvider(LocalDensity provides density) {
             Surface(Modifier.fillMaxSize().testTag("setup.help")) {

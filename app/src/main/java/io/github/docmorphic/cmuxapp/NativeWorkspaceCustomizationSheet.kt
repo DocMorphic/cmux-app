@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -48,10 +47,10 @@ internal fun NativeWorkspaceCustomizationSheet(workspaceId: String, initial: Wor
     val scope = rememberCoroutineScope()
     val validation = runCatching { draft.normalized().validate(baseline) }.exceptionOrNull()?.message
     val canSave = !busy && validation == null && draft.normalized() != baseline
-    Dialog(onDismissRequest = { if (!busy) onDismiss() }, properties = DialogProperties(
-        dismissOnBackPress = !busy, dismissOnClickOutside = !busy, usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
-            Column {
+    NativeDialog(onDismissRequest = { if (!busy) onDismiss() }, properties = DialogProperties(
+        dismissOnBackPress = !busy, dismissOnClickOutside = !busy, usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Surface(Modifier.fillMaxSize()) {
+            Column(Modifier.statusBarsPadding().navigationBarsPadding().imePadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
                     Text("Customize Workspace", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
@@ -109,7 +108,7 @@ internal fun NativeWorkspaceCustomizationSheet(workspaceId: String, initial: Wor
                 }
             }
         }
-        failure?.let { message -> AlertDialog(onDismissRequest = { failure = null },
+        failure?.let { message -> NativeAlertDialog(onDismissRequest = { failure = null },
             title = { Text("Couldn't save workspace") }, text = { Text(message) },
             confirmButton = { TextButton(onClick = { failure = null }) { Text(stringResource(R.string.cmux_ui_chat_artifact_ok_fa3d181e)) } }) }
     }

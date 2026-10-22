@@ -34,7 +34,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 internal class TerminalToolbarStore(private val preferences: SharedPreferences) {
@@ -135,9 +134,9 @@ internal fun TerminalToolbarSettings(store: TerminalToolbarStore, onDismiss: () 
     LaunchedEffect(editingId, editing, store.error) {
         if (editingId != null && editing == null && store.error == null) editingId = null
     }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-            Column {
+    NativeDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Surface(Modifier.fillMaxSize()) {
+            Column(Modifier.safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Terminal Shortcuts", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
@@ -236,7 +235,7 @@ private fun TerminalToolbarActionEditor(existing: TerminalToolbarAction?, canSav
     val id = rememberSaveable(existing?.id) { existing?.id ?: java.util.UUID.randomUUID().toString() }
     val action = TerminalToolbarAction(id, title.trim(), text + if (run) "\n" else "")
     val valid = canSave && text.isNotEmpty() && runCatching { action.validate() }.isSuccess
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Add Action" else "Edit Action") },
+    NativeAlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Add Action" else "Edit Action") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(title, { title = it }, label = { Text("Button label") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),

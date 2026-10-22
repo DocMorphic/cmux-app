@@ -3,12 +3,10 @@ package io.github.docmorphic.cmuxapp
 import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -21,7 +19,7 @@ internal fun NativeAccountDeletionButton(login: String?, receipt: NativeAccountD
         modifier = Modifier.padding(horizontal = 14.dp)) {
         Text(if (pending) "Deleting Account…" else "Delete Account", color = destructive)
     }
-    if (confirming && login != null) AlertDialog(onDismissRequest = { confirming = false },
+    if (confirming && login != null) NativeAlertDialog(onDismissRequest = { confirming = false },
         title = { Text("Delete Account?") },
         text = { Text("This permanently deletes your cmux account and cmux data. You will be signed out on this device.") },
         confirmButton = { TextButton(onClick = { confirming = false; begin(login) }) { Text("Delete Account", color = destructive) } },
@@ -42,7 +40,7 @@ internal fun NativeAccountDeletionAlerts(receipt: NativeAccountDeletionReceipt?,
         val acknowledge = {
             localFailure = !(if (receipt.result.signsOut) onSignOut(receipt.login) else onAcknowledge(receipt))
         }
-        AlertDialog(onDismissRequest = acknowledge,
+        NativeAlertDialog(onDismissRequest = acknowledge,
             title = { Text(if (receipt.result == NativeAccountDeletionResult.COMPLETED) "Account Deleted" else receipt.result.title) },
             text = { Text((if (receipt.result == NativeAccountDeletionResult.COMPLETED) "Your account was deleted." else receipt.result.message) +
                 if (localFailure) " Could not update local account state. Try again." else "") },

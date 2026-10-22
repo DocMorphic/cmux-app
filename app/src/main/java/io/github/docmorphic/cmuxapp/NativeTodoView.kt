@@ -96,7 +96,7 @@ internal fun NativeTodoView(authoritative: TodoSnapshot, enabled: Boolean,
     LaunchedEffect(model.failure) {
         if (model.failure) haptics.perform(NativeHaptic.ERROR)
     }
-    if (model.failure) AlertDialog(onDismissRequest = model::dismissFailure,
+    if (model.failure) NativeAlertDialog(onDismissRequest = model::dismissFailure,
         title = { Text("Couldn’t Update Checklist") },
         text = { Text("The change could not be confirmed. Check the refreshed checklist before trying again.") },
         confirmButton = { TextButton(onClick = model::dismissFailure) { Text(stringResource(R.string.cmux_ui_chat_artifact_ok_fa3d181e)) } })

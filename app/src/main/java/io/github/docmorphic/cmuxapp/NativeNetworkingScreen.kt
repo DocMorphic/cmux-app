@@ -15,7 +15,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -34,7 +33,7 @@ internal fun NativeNetworkingSettings(runtime: NativeIrohRuntime?, state: Native
     key(runtime, team) {
         var open by remember { mutableStateOf(false) }
         TextButton(onClick = { open = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Networking  ›") }
-        if (open) Dialog(onDismissRequest = { open = false },
+        if (open) NativeDialog(onDismissRequest = { open = false },
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
             NativeNetworkingScreen(load = { refresh -> runtime.networking(team, refresh) }, onBack = { open = false },
                 reset = { runtime.privatePaths(team) { it.reset() }; Unit })
@@ -173,7 +172,7 @@ private fun NativeNetworkingResetButton(reset: suspend () -> Unit, enabled: Bool
     val scope = rememberCoroutineScope()
     TextButton(enabled = enabled && !pending, onClick = { error = false; confirm = true },
         modifier = Modifier.semantics { contentDescription = "Reset Networking Settings" }) { Text("Reset") }
-    if (confirm) AlertDialog(onDismissRequest = { if (!pending) confirm = false },
+    if (confirm) NativeAlertDialog(onDismissRequest = { if (!pending) confirm = false },
         title = { Text(stringResource(R.string.cmux_ui_mobile_iroh_reset_title_9115ca3c)) },
         text = { Column {
             Text("Disable all private addresses in this team. Saved addresses will remain so you can enable them again.")

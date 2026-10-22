@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
@@ -24,7 +23,7 @@ internal fun NativeComputerForgetSection(name: String, buildTag: String, flow: N
             Text(if (state.remoteConfirmed) "Finish forgetting this computer" else "Forget This Computer", color = NativeAppColors.error)
         }
     }
-    if (showing) AlertDialog(
+    if (showing) NativeAlertDialog(
         onDismissRequest = { if (!state.busy) showing = false },
         properties = DialogProperties(dismissOnBackPress = !state.busy, dismissOnClickOutside = !state.busy),
         title = { Text(if (state.remoteConfirmed) "Finish removing $name?" else "Forget $name?") },

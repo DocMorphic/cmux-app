@@ -88,7 +88,7 @@ fun CmuxTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable (
     NativeSystemBarAppearance(darkTheme)
     NativeHapticsProvider {
         MaterialTheme(colorScheme = if (darkTheme) cmuxDarkColorScheme() else cmuxLightColorScheme()) {
-            FileSaveHost(content)
+            CompositionLocalProvider(LocalNativeBarAppearance provides NativeBarAppearance(darkTheme)) { FileSaveHost(content) }
         }
     }
 }

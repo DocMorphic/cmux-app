@@ -112,7 +112,7 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
                         CloudMachineLifecycle.FAILED -> "Failed"
                         else -> machine.status
                     }, color = when (machine.lifecycle) {
-                        CloudMachineLifecycle.RUNNING -> Color(0xFF70D59B)
+                        CloudMachineLifecycle.RUNNING -> NativeAppColors.success
                         CloudMachineLifecycle.FAILED -> MaterialTheme.colorScheme.error
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }, fontSize = 13.sp)

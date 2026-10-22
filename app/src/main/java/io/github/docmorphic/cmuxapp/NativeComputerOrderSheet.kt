@@ -65,7 +65,7 @@ internal fun NativeComputerOrderSheet(computers: List<NativeSortComputer>, onDis
             if (speed != 0f) { list.scrollBy(speed * edge * 8 * dt); locate() }
         }
     }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    NativeModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().heightIn(max = 560.dp).navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Computer Order", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)

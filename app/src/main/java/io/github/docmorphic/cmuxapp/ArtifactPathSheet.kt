@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.ensureActive
 
@@ -16,7 +14,7 @@ internal fun ArtifactPathSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization
     retainedPreview: ArtifactPreviewController? = null, retainedFolder: ArtifactFolderController? = null, connection: NativeFeedAvailability = NativeFeedAvailability.CONNECTED,
     onDismiss: () -> Unit) {
     val detail = navigation ?: remember(terminal, path) { ArtifactNavigationState() }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    NativeDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(Modifier.fillMaxSize(), color = NativeAppColors.page, contentColor = NativeAppColors.text) {
             Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
                 key(terminal, path) { ArtifactPathContent(rpc, terminal, path, onDismiss, detail, retainedPreview, retainedFolder, connection) }

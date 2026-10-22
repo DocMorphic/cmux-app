@@ -13,14 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 /** Setup copy reads the same policy as admission. It never changes a connection method or enables a listener. */
@@ -33,22 +29,8 @@ internal fun NativePairingHelp(policy: NativeMacCompatibilityPolicy, signedIn: B
     onDismiss: () -> Unit, onFindMac: () -> Unit, onTailscalePairing: () -> Unit) {
     val uri = LocalUriHandler.current
     var linkError by remember { mutableStateOf<String?>(null) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false,
+    NativeDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false,
         decorFitsSystemWindows = false)) {
-        val view = LocalView.current
-        val lightBars = MaterialTheme.colorScheme.surface.luminance() >= .5f
-        DisposableEffect(view, lightBars) {
-            val window = (view.parent as? DialogWindowProvider)?.window
-            val controller = window?.let { WindowCompat.getInsetsController(it, view) }
-            val oldStatus = controller?.isAppearanceLightStatusBars
-            val oldNavigation = controller?.isAppearanceLightNavigationBars
-            controller?.isAppearanceLightStatusBars = lightBars
-            controller?.isAppearanceLightNavigationBars = lightBars
-            onDispose {
-                oldStatus?.let { controller?.isAppearanceLightStatusBars = it }
-                oldNavigation?.let { controller?.isAppearanceLightNavigationBars = it }
-            }
-        }
         Surface(Modifier.fillMaxSize().testTag("pairing.help")) {
             Column(Modifier.safeDrawingPadding().imePadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),

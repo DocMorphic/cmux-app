@@ -72,7 +72,7 @@ internal fun NativeFeedbackHost(owner: String?, email: String? = null,
 internal fun NativeFeedbackComposer(state: NativeFeedbackState, stamp: NativeFeedbackStamp,
     onEmail: (String) -> Unit, onMessage: (String) -> Unit, onSend: () -> Unit, onCancel: () -> Unit) {
     val email = state.email; val message = state.message; val busy = state.sending; val failure = state.error
-    ModalBottomSheet(onDismissRequest = onCancel, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    NativeModalBottomSheet(onDismissRequest = onCancel, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onCancel) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }

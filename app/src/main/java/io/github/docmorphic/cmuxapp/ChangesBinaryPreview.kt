@@ -62,7 +62,7 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
         failure = null; menu = false
         actions.perform(action)
     }
-    if (fontDialog && viewer != null) AlertDialog(onDismissRequest = { fontDialog = false }, title = { Text("Text size") },
+    if (fontDialog && viewer != null) NativeAlertDialog(onDismissRequest = { fontDialog = false }, title = { Text("Text size") },
         text = { Column {
             Text("${viewer.fontSize.toInt()} pt")
             Slider(viewer.fontSize, viewer::setFont, valueRange = 8f..28f, steps = 19, modifier = Modifier.semantics { contentDescription = "Text size" })

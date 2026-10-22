@@ -15,7 +15,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -77,7 +76,7 @@ internal fun ComposerAttachmentPreview(identity: ComposerAttachmentPreviewIdenti
     DisposableEffect(controller, identity, activity) {
         onDispose { if (activity?.isChangingConfigurations != true) model.dismiss(identity) }
     }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(
+    NativeDialog(onDismissRequest = onDismiss, properties = DialogProperties(
         usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {

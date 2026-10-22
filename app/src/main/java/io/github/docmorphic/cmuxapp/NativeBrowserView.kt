@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -294,7 +293,7 @@ private fun BrowserDialog(value: JSONObject, client: BrowserStreamClient, panel:
             } finally { if (id == currentId) busy = false }
         }
     }
-    AlertDialog(onDismissRequest = { buttons.firstOrNull { it.optString("role") == "cancel" }?.let(::respond) },
+    NativeAlertDialog(onDismissRequest = { buttons.firstOrNull { it.optString("role") == "cancel" }?.let(::respond) },
         title = { Text(value.optString("title").ifBlank { value.optString("host", "Browser") }) },
         text = { Column {
             Text(value.optString("message"))

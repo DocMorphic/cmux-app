@@ -45,7 +45,7 @@ internal val agentFeedViewportSaver = listSaver<MarkdownViewportState, Any>(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AgentFeedWaitingSheet(onDismiss: () -> Unit, onRefresh: () -> Unit, reader: Boolean = false) {
-    ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    NativeModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Waiting for this Mac’s Feed", fontWeight = FontWeight.SemiBold)
             Text(if (reader) "This message will reopen when this computer reconnects and the message is available."
@@ -111,7 +111,7 @@ internal fun AgentFeedReplySheet(entry: AgentFeedUiEntry, modal: AgentFeedModal,
             currentCoroutineContext().ensureActive(); failed = true
         }
     }
-    ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    NativeModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = NativeAppColors.page, contentColor = NativeAppColors.text) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).imePadding().testTag("AgentFeedReplySheet")) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween,

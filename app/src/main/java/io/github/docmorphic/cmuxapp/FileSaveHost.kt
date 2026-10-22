@@ -294,7 +294,7 @@ internal fun FileSaveHost(content: @Composable () -> Unit) {
         }
     }
     CompositionLocalProvider(LocalFileSaves provides model) { FileExportHost(content) }
-    if (pending?.phase in setOf(FileSavePhase.PREPARING, FileSavePhase.WRITING) && model.failure == null) AlertDialog(
+    if (pending?.phase in setOf(FileSavePhase.PREPARING, FileSavePhase.WRITING) && model.failure == null) NativeAlertDialog(
         onDismissRequest = {}, title = { Text(if (pending?.phase == FileSavePhase.PREPARING) "Preparing file…" else "Saving file…") },
         text = {
             androidx.compose.foundation.layout.Column {
@@ -305,7 +305,7 @@ internal fun FileSaveHost(content: @Composable () -> Unit) {
                 else LinearProgressIndicator()
             }
         }, confirmButton = {}, dismissButton = { TextButton(onClick = model::discard) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
-    model.failure?.let { message -> AlertDialog(onDismissRequest = model::discard,
+    model.failure?.let { message -> NativeAlertDialog(onDismissRequest = model::discard,
         title = { Text("Couldn't save file") }, text = { Text(message) },
         confirmButton = { TextButton(onClick = if (model.canRetry) model::retry else model::discard) {
             Text(if (model.canRetry) "Try again" else "OK")

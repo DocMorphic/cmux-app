@@ -369,7 +369,7 @@ private fun PdfPageTextDialog(pdf: ChangesPdfDocument, index: Int, point: Offset
         } } catch (error: Exception) { currentCoroutineContext().ensureActive(); failure = true }
     }
     val text = content?.first
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (content?.second == true) "Selected text" else "Page ${index + 1} text") },
+    NativeAlertDialog(onDismissRequest = onDismiss, title = { Text(if (content?.second == true) "Selected text" else "Page ${index + 1} text") },
         text = { Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
             when {
                 failure -> Text("Text couldn't be read. Reopen the document and try again.")

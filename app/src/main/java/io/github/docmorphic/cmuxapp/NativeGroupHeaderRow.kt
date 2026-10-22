@@ -105,7 +105,7 @@ internal fun NativeGroupHeaderRow(
         }
     }
     }
-    if (renaming && canEdit) AlertDialog(
+    if (renaming && canEdit) NativeAlertDialog(
         onDismissRequest = { renaming = false },
         title = { Text("Rename Group") },
         text = { OutlinedTextField(name, { name = it }, singleLine = true) },
@@ -115,7 +115,7 @@ internal fun NativeGroupHeaderRow(
         dismissButton = { TextButton(onClick = { renaming = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }
     )
     val action = destructive?.takeIf { canEdit && (it != "ungroup" || !group.isPinned) }
-    if (action != null) AlertDialog(
+    if (action != null) NativeAlertDialog(
         onDismissRequest = { destructive = null },
         title = { Text(if (action == "ungroup") "Ungroup Group?" else "Delete Group?") },
         text = { Text(if (action == "ungroup") "This will dissolve the group on your Mac and keep its workspaces."

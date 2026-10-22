@@ -32,7 +32,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.drop
@@ -59,7 +58,7 @@ internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
     LaunchedEffect(store) {
         snapshotFlow { latestSignal }.drop(1).collect { if (showingSession) store.refreshLive() }
     }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    NativeDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(Modifier.fillMaxSize(), color = NativeAppColors.page, contentColor = NativeAppColors.text) {
             Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
                 // collectAsState can retain its previous flow's value until its collector

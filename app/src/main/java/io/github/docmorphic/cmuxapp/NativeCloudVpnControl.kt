@@ -57,7 +57,7 @@ import androidx.compose.ui.unit.dp
         if (!busy && (failure != null || state.phase == CloudSystemVpnPhase.FAILED || state.pendingCleanup > 0))
             TextButton(onClick = { error = null; runtime.retry() }, modifier = Modifier.testTag("cloud.vpn.retry")) { Text("Retry cleanup") }
     }
-    confirming?.let { expected -> AlertDialog(onDismissRequest = { confirming = null },
+    confirming?.let { expected -> NativeAlertDialog(onDismissRequest = { confirming = null },
         title = { Text("Enable Cloud VPN?") },
         text = { Text("Android can run one system VPN at a time. This connects private Cloud services and replaces any active VPN, including Tailscale. Cloud terminals can connect without enabling this setting.") },
         confirmButton = { TextButton(onClick = {

@@ -59,7 +59,7 @@ internal fun SshPromptHost(session: NativeSshSession) {
                 else session.answerInstallTrust(checkNotNull(installPrompt).id, trust) }
                 .onFailure { error = "Could not save this decision. Try again." }
         }
-        AlertDialog(onDismissRequest = { answer(false) }, modifier = Modifier.testTag("ssh.trust"),
+        NativeAlertDialog(onDismissRequest = { answer(false) }, modifier = Modifier.testTag("ssh.trust"),
             title = { Text(if (changed) "SSH host key changed" else "Verify SSH computer") },
             text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("${question.endpoint.host}:${question.endpoint.port}")
@@ -113,6 +113,6 @@ private fun SshBiometricPrompt(request: SshBiometricRequest, answer: (java.secur
             signal.cancel()
         }
     }
-    if (Build.VERSION.SDK_INT < 28) AlertDialog(onDismissRequest = { answer(null) }, title = { Text("Use SSH Key") },
+    if (Build.VERSION.SDK_INT < 28) NativeAlertDialog(onDismissRequest = { answer(null) }, title = { Text("Use SSH Key") },
         text = { Text(message) }, confirmButton = {}, dismissButton = { TextButton(onClick = { answer(null) }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }

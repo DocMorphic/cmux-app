@@ -58,7 +58,7 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
                 .onFailure { error = it.message ?: "Could not save Cloud introduction progress. Try again." }
         }, onBack = onBack, vpnControl = vpnControl)
     }
-    if (replay) ModalBottomSheet(onDismissRequest = { replay = false },
+    if (replay) NativeModalBottomSheet(onDismissRequest = { replay = false },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         NativeCloudIntroduction(true, null, onComplete = { replay = false }, onBack = { replay = false },
             modifier = Modifier.fillMaxWidth().weight(1f, fill = false), vpnControl = vpnControl)

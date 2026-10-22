@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -120,7 +119,7 @@ internal fun NativeMacConnectionSection(target: NativeComputerTarget, state: Nat
         if (!editor) error?.let { Text(it, color = NativeAppColors.error, modifier = Modifier.padding(top = 10.dp)) }
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 10.dp))
     }
-    if (editor) AlertDialog(onDismissRequest = { if (!busy) editor = false },
+    if (editor) NativeAlertDialog(onDismissRequest = { if (!busy) editor = false },
         properties = DialogProperties(dismissOnBackPress = !busy, dismissOnClickOutside = !busy),
         title = { Text(if (editing == null) "Add Direct Address" else "Edit Direct Address") },
         text = { Column {

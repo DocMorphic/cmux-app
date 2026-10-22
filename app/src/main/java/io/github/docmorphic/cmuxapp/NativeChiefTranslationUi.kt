@@ -121,7 +121,7 @@ internal fun NativeChiefTranslationDownloadHost(host: NativeChiefTranslationPlat
             host.download.settingsFailed(pending.id)
     }
     val pending = request?.takeUnless { it.settingsOpen } ?: return
-    AlertDialog(onDismissRequest = { host.download.decline(pending.id) }, modifier = Modifier.testTag("ChiefTranslationDownload"),
+    NativeAlertDialog(onDismissRequest = { host.download.decline(pending.id) }, modifier = Modifier.testTag("ChiefTranslationDownload"),
         title = { Text(stringResource(R.string.chief_translation_indicator_download, chiefTranslationLanguageName(pending.source, locale))) },
         text = { Text(stringResource(R.string.chief_translation_download_explanation,
             chiefTranslationLanguageName(pending.source, locale), chiefTranslationLanguageName(pending.target, locale))) },

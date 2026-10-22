@@ -115,6 +115,17 @@ class NativeAdaptivePanelsTest {
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Appearance machine").fetchSemanticsNodes().isNotEmpty() }
         eachAppearance { name ->
             capture("adaptive-cloud-$name", "Appearance machine")
+            val expected = if (dark) 0xFF69CE8D.toInt() else 0xFF237A3B.toInt()
+            val background = if (dark) 0xFF191B1F.toInt() else android.graphics.Color.WHITE
+            val status = compose.onNodeWithText("Running").captureToImage().asAndroidBitmap()
+            var pixels = 0
+            for (y in 0 until status.height) for (x in 0 until status.width) if (status.getPixel(x,y) == expected) pixels++
+            assertTrue("Running must use readable semantic green in $name", pixels >= 5)
+            val contrast = androidx.core.graphics.ColorUtils.calculateContrast(expected,background)
+            assertTrue("Running contrast: $contrast", contrast >= 4.5)
+            File(compose.activity.getExternalFilesDir(null), "screenshots/adaptive-cloud-status-$name.json")
+                .writeText(JSONObject().put("foregroundArgb",expected).put("backgroundArgb",background).put("contrast",contrast).put("inkPixels",pixels).toString(2))
+            status.recycle()
             compose.onNode(hasText("Cloud") and isSelected()).assertIsDisplayed()
         }
     }

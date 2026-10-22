@@ -29,7 +29,7 @@ internal data class WorkspaceCloseConfirmation(val title: String, val message: S
 @Composable
 internal fun WorkspaceCloseDialog(confirmation: WorkspaceCloseConfirmation, enabled: Boolean = true,
     onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(confirmation.title) }, text = { Text(confirmation.message) },
+    NativeAlertDialog(onDismissRequest = onDismiss, title = { Text(confirmation.title) }, text = { Text(confirmation.message) },
         confirmButton = {
             TextButton(onClick = onConfirm, enabled = enabled, modifier = Modifier.testTag("workspace.close.confirm"),
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(confirmation.actionTitle) }

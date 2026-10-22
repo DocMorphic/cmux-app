@@ -15,7 +15,7 @@ internal fun NativeMacUpdateGuidance(identity: NativeMacIdentity?) {
     var show by remember(identity, warning) { mutableStateOf(false) }
     val uri = LocalUriHandler.current
     TextButton(onClick = { show = true }) { Text("Mac update required", color = MaterialTheme.colorScheme.error) }
-    if (show) AlertDialog(onDismissRequest = { show = false }, title = { Text("Update cmux on your Mac") },
+    if (show) NativeAlertDialog(onDismissRequest = { show = false }, title = { Text("Update cmux on your Mac") },
         text = { Text(warning.message) }, confirmButton = {
             TextButton(onClick = { runCatching { uri.openUri(warning.downloadUrl) } }) { Text("View Mac release") }
         }, dismissButton = { TextButton(onClick = { show = false }) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) } })

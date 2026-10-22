@@ -188,7 +188,7 @@ private fun ArtifactLineDialog(state: ArtifactViewerState) {
         state.document?.let { state.jumpTo(it.offset(target)) }
         keyboard?.hide(); state.goToLineOpen = false
     }
-    AlertDialog(onDismissRequest = { state.goToLineOpen = false }, title = { Text(stringResource(R.string.cmux_ui_chat_artifact_line_goto_a188158f)) }, text = {
+    NativeAlertDialog(onDismissRequest = { state.goToLineOpen = false }, title = { Text(stringResource(R.string.cmux_ui_chat_artifact_line_goto_a188158f)) }, text = {
         OutlinedTextField(line, { line = it.filter(Char::isDigit) }, Modifier.focusRequester(focus), label = { Text(stringResource(R.string.cmux_ui_chat_artifact_line_placeholder_7869f4e5)) }, singleLine = true,
             supportingText = { Text("1–${state.document?.lineCount ?: 1}") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
             keyboardActions = KeyboardActions(onGo = { go() }))

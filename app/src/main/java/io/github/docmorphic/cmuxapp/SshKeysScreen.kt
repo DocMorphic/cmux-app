@@ -145,7 +145,7 @@ internal fun SshKeysScreen(vault: SshKeyVault, permits: () -> Boolean, onBack: (
         }
     }
     deleteId?.let { raw ->
-        AlertDialog(onDismissRequest = { if (!busy) deleteId = null }, title = { Text("Delete this key?") },
+        NativeAlertDialog(onDismissRequest = { if (!busy) deleteId = null }, title = { Text("Delete this key?") },
             text = { Column {
                 Text("Computers that use this key will need another key to log in. This can't be undone.")
                 failure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -155,7 +155,7 @@ internal fun SshKeysScreen(vault: SshKeyVault, permits: () -> Boolean, onBack: (
             }) { Text("Delete") } }, dismissButton = { TextButton(enabled = !busy, onClick = { deleteId = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
     }
     renameId?.let { raw ->
-        AlertDialog(onDismissRequest = { if (!busy) renameId = null }, title = { Text("Rename Key") },
+        NativeAlertDialog(onDismissRequest = { if (!busy) renameId = null }, title = { Text("Rename Key") },
             text = { Column { OutlinedTextField(renameLabel, { if (it.length <= 256) renameLabel = it }, label = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb)) },
                 singleLine = true, keyboardOptions = KeyboardOptions(autoCorrectEnabled = false), modifier = Modifier.testTag("ssh.keys.rename.label"))
                 failure?.let { Text(it, color = MaterialTheme.colorScheme.error) }

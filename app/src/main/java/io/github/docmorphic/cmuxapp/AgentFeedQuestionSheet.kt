@@ -54,7 +54,7 @@ internal fun AgentFeedQuestionSheet(entry: AgentFeedUiEntry, modal: AgentFeedMod
         val next = reduce(drafts)
         if (next != drafts) { drafts = next; onChange(modal.copy(draft = next.encode())) }
     }
-    ModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    NativeModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = NativeAppColors.page, contentColor = NativeAppColors.text) {
         val focus = LocalFocusManager.current
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).imePadding().testTag("AgentFeedQuestionSheet")) {

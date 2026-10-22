@@ -11,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
@@ -76,7 +75,7 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
         TextButton(onClick = onRefresh, enabled = !busy) { Text("Refresh account") }
         TextButton(onClick = { name = ""; creating = true }, enabled = !busy && canManage) { Text("Create Team") }
     }
-    if (creating) AlertDialog(
+    if (creating) NativeAlertDialog(
         onDismissRequest = { if (!busy) creating = false },
         title = { Text("Create Team") },
         text = { Column {

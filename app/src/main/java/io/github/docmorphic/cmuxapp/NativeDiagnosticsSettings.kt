@@ -69,7 +69,7 @@ internal fun NativeDiagnosticsSettings(recorder: DiagnosticRecorder? = MobileDia
         if (recorder == null || storageFailed) Text("Diagnostic storage is unavailable. Check available storage and try again.", color = MaterialTheme.colorScheme.error)
         message?.let { Text(it, Modifier.testTag("diagnostics.message").semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodySmall) }
     }
-    if (confirming) AlertDialog(onDismissRequest = { confirming = false }, title = { Text(stringResource(R.string.cmux_ui_mobile_iroh_diagnostics_clear_confirm_f1b8b9cb)) },
+    if (confirming) NativeAlertDialog(onDismissRequest = { confirming = false }, title = { Text(stringResource(R.string.cmux_ui_mobile_iroh_diagnostics_clear_confirm_f1b8b9cb)) },
         text = { Text("This permanently removes the diagnostic logs and cached log exports stored on this device.") },
         confirmButton = { TextButton(modifier = Modifier.testTag("diagnostics.confirm-clear"), onClick = {
             confirming = false

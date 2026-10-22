@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -72,7 +71,7 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
         TextButton(onClick = { openEditor(null) }, enabled = !busy && enabled && routes != null) { Text("Add Tailscale Connection") }
         if (!editor && removing == null) error?.let { Text(it, color = NativeAppColors.error) }
     }
-    if (editor) AlertDialog(onDismissRequest = { if (!busy) editor = false },
+    if (editor) NativeAlertDialog(onDismissRequest = { if (!busy) editor = false },
         properties = DialogProperties(dismissOnBackPress = !busy, dismissOnClickOutside = !busy),
         title = { Text(if (replacing == null) "Add Tailscale Connection" else "Edit Tailscale Connection") },
         text = { Column {
@@ -115,7 +114,7 @@ internal fun NativeTailscaleSection(target: NativeComputerTarget, method: Native
             val keyboard = LocalSoftwareKeyboardController.current
             TextButton(onClick = { keyboard?.hide(); editor = false }, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) }
         })
-    removing?.let { route -> AlertDialog(onDismissRequest = { if (!busy) removing = null },
+    removing?.let { route -> NativeAlertDialog(onDismissRequest = { if (!busy) removing = null },
         properties = DialogProperties(dismissOnBackPress = !busy, dismissOnClickOutside = !busy),
         title = { Text("Remove Tailscale connection?") },
         text = { Column {

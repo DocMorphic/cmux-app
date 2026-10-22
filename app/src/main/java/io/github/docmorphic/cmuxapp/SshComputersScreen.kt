@@ -249,7 +249,7 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit,
         }
     }
     hosts.hosts.firstOrNull { it.id.toString() == deleting }?.let { host ->
-        AlertDialog(onDismissRequest = { if (!busy) deleting = null }, title = { Text("Delete ${host.name}?") },
+        NativeAlertDialog(onDismissRequest = { if (!busy) deleting = null }, title = { Text("Delete ${host.name}?") },
             text = { Text("This removes the saved computer and disconnects its SSH sessions. Computers using it as a jump host will lose that route.") },
             confirmButton = { TextButton(onClick = { mutate({ session.hosts.delete(host.id) }) { deleting = null } }, enabled = !busy) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { deleting = null }, enabled = !busy) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })

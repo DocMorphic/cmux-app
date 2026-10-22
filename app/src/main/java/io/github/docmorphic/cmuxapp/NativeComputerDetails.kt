@@ -8,7 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -16,7 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 internal data class NativeComputerTarget(val deviceId: String, val buildTag: String, val name: String) {
@@ -182,7 +180,7 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
         val displayedConnection = if (capturedForeground != null && !capturedForeground.current())
             connection.copy(availability = NativeFeedAvailability.OFFLINE, foreground = false, keepAwake = null, transport = null)
             else connection
-        Dialog(onDismissRequest = { if (!forgetting) onDismiss() },
+        NativeDialog(onDismissRequest = { if (!forgetting) onDismiss() },
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false,
                 dismissOnBackPress = !forgetting, dismissOnClickOutside = !forgetting)) {
             NativeComputerDetailsScreen(target, available = foreground != null || (state.account == team && state.computers.any { target.matches(it) }),

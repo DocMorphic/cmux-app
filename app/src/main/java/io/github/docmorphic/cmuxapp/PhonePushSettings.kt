@@ -104,7 +104,7 @@ internal fun PhonePushSettings(team: NativeTeamScope?, permits: (NativeTeamScope
             PhoneHelperEnrollments.cancel(context, owner, checkNotNull(mac.attempt)) { currentPermits(owner) }
         }
     })
-    if (consent) AlertDialog(onDismissRequest = { if (!busy) consent = false },
+    if (consent) NativeAlertDialog(onDismissRequest = { if (!busy) consent = false },
         title = { Text("Allow push alerts on this phone?") },
         text = { Text("Your Mac’s notification helper will send encrypted alerts through Google’s push service. Your phone registers with that service. You can turn push alerts off here at any time.") },
         confirmButton = { TextButton(enabled = !busy && model?.canEnable == true, modifier = Modifier.testTag("push.consent"), onClick = {
@@ -117,7 +117,7 @@ internal fun PhonePushSettings(team: NativeTeamScope?, permits: (NativeTeamScope
         val inspected = review
         var time by remember(inspected) { mutableLongStateOf(System.currentTimeMillis()) }
         LaunchedEffect(inspected) { if (inspected != null) while (true) { time = System.currentTimeMillis(); delay(1000) } }
-        AlertDialog(onDismissRequest = { if (!busy) closeOffer() },
+        NativeAlertDialog(onDismissRequest = { if (!busy) closeOffer() },
             properties = DialogProperties(securePolicy = SecureFlagPolicy.SecureOn),
             title = { Text(if (inspected == null) "Pair notification helper" else "Confirm notification helper") },
             text = {

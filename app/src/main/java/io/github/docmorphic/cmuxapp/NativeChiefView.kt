@@ -640,7 +640,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             try { session.updateDetails(muted, receipts) }
             catch (error: IllegalStateException) { detailsOpen = false; actionError = error.message ?: "Chief action unavailable" }
         })
-    if (displayedFailure != null) ModalBottomSheet(onDismissRequest = { failedMessage = null },
+    if (displayedFailure != null) NativeModalBottomSheet(onDismissRequest = { failedMessage = null },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         modifier = Modifier.testTag("ChiefFailedSendDialog")) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()
@@ -677,7 +677,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     }
     if (pollDetails != null && !state.retired) NativeChiefPollDetails(pollDetails!!, state, session)
     val doomed = confirmedDelete
-    if (doomed != null && doomed.isNotEmpty() && !state.retired) ModalBottomSheet(onDismissRequest = { confirmedDelete = null },
+    if (doomed != null && doomed.isNotEmpty() && !state.retired) NativeModalBottomSheet(onDismissRequest = { confirmedDelete = null },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), modifier = Modifier.testTag("ChiefDeleteConfirmation")) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(20.dp)) {
             TextButton(onClick = {
@@ -833,7 +833,7 @@ private fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boolea
         }, json.getString("other"))
     }.getOrNull() }) }
     var form by rememberSaveable(question, stateSaver = saver) { mutableStateOf(NativeChiefQuestionForm(question)) }
-    ModalBottomSheet(onDismissRequest = { if (!busy) onDismiss() },
+    NativeModalBottomSheet(onDismissRequest = { if (!busy) onDismiss() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !busy || it != SheetValue.Hidden }),
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !busy),
         modifier = Modifier.testTag("ChiefQuestionSheet")) {

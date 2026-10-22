@@ -499,14 +499,14 @@ internal fun NativeTaskComposerView(
             })
         return
     }
-    if (confirmStartAgain) AlertDialog(onDismissRequest = { confirmStartAgain = false },
+    if (confirmStartAgain) NativeAlertDialog(onDismissRequest = { confirmStartAgain = false },
         title = { Text("Start this task again?") },
         text = { Text("Only continue if the task is not present. Starting again may create a duplicate.") },
         confirmButton = { TextButton(enabled = canEdit && recoveryApplies && recoveryReady, onClick = {
             confirmStartAgain = false; launchTask(startAgain = true)
         }) { Text("Start Again", color = NativeAppColors.error) } },
         dismissButton = { TextButton(onClick = { confirmStartAgain = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
-    if (confirmLeave) AlertDialog(onDismissRequest = { if (!busy) confirmLeave = false },
+    if (confirmLeave) NativeAlertDialog(onDismissRequest = { if (!busy) confirmLeave = false },
         title = { Text("Save this draft?") },
         text = { Text("Keep this task to continue later, or delete it.") },
         confirmButton = { TextButton(enabled = canEdit, onClick = { saveThen { confirmLeave = false; onBack() } }) { Text("Save Draft") } },

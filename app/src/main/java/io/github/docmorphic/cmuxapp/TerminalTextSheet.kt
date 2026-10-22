@@ -20,7 +20,6 @@ import androidx.core.text.PrecomputedTextCompat
 import androidx.core.widget.TextViewCompat
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 private fun terminalSnapshotTextView(context: android.content.Context) = TextView(context).apply {
@@ -80,7 +79,7 @@ private fun TerminalTextSheetContent(snapshot: TerminalTextSnapshot?, failure: S
     val foreground = NativeAppColors.text.toArgb()
     var copied by remember(snapshot) { mutableStateOf(false) }
     var copyError by remember(snapshot) { mutableStateOf<String?>(null) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    NativeDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(Modifier.fillMaxSize(), color = NativeAppColors.page, contentColor = NativeAppColors.text) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {

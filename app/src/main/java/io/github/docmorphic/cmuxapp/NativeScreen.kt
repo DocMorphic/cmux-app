@@ -914,7 +914,7 @@ internal fun NativeScreen(
                     } finally { changingNotifications -= entry.id }
                 }
             }
-            if (confirmReadAll) AlertDialog(onDismissRequest = { confirmReadAll = false },
+            if (confirmReadAll) NativeAlertDialog(onDismissRequest = { confirmReadAll = false },
                 title = { Text("Mark all notifications as read?") },
                 text = { Text("This marks all notifications for $pendingReadAllComputer as read, including those hidden by search. Offline computers keep their unread notifications.") },
                 confirmButton = { TextButton(onClick = {
@@ -1107,8 +1107,8 @@ internal fun NativeScreen(
                     if (retainedFiles.navigation.path == null) feedSession.dismissFiles(retainedFiles)
                 }
             } else if (artifactsReady && (showTerminalFiles || terminalArtifactPath != null)) {
-                androidx.compose.ui.window.Dialog(onDismissRequest = { filesState.closeGallery(); filesState.closePath() },
-                    properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+                NativeDialog(onDismissRequest = { filesState.closeGallery(); filesState.closePath() },
+                    properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
                     Surface(Modifier.fillMaxSize()) {
                         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                             FilesHeader("Files", null, { filesState.closeGallery(); filesState.closePath() })
@@ -2469,7 +2469,7 @@ internal fun NativeScreen(
 
                 if (showLicenses) OpenSourceLicensesDialog { showLicenses = false }
 
-                if (pairingLookup != null) AlertDialog(onDismissRequest = { handlePairing(pairingLookup) },
+                if (pairingLookup != null) NativeAlertDialog(onDismissRequest = { handlePairing(pairingLookup) },
                     title = { Text("Finding this Mac…") },
                     text = { Text("Checking your account and selected team's computers.") },
                     confirmButton = {}, dismissButton = { TextButton(onClick = { handlePairing(pairingLookup) }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
@@ -4287,7 +4287,7 @@ internal fun NativeWorkspaceRow(
             }
     }
     }
-    if (rename) AlertDialog(
+    if (rename) NativeAlertDialog(
         onDismissRequest = { rename = false },
         title = { Text("Rename workspace") },
         text = { OutlinedTextField(title, { title = it }, singleLine = true) },
@@ -4556,7 +4556,7 @@ internal fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>
 private fun NativePairingConfirmation(code: String?, onDismiss: () -> Unit, onConnect: (String) -> Unit) {
     if (code == null) return
     val proposed = PairingCodeParser.parse(code).getOrNull() as? PairingCode.Tailscale ?: return
-    AlertDialog(onDismissRequest = onDismiss,
+    NativeAlertDialog(onDismissRequest = onDismiss,
         title = { Text("Connect to this Mac?") },
         text = { Column {
             Text("cmux will send your account session to this Mac over Tailscale.")

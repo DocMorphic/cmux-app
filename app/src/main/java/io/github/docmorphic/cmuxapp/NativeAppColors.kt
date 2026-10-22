@@ -3,16 +3,21 @@ package io.github.docmorphic.cmuxapp
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.view.ViewTreeObserver
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.compose.ui.window.DialogWindowProvider
 
 /** Shell colors follow system appearance; terminal and streamed pixels retain their own colors. */
 internal fun cmuxDarkColorScheme() = darkColorScheme(
@@ -75,13 +80,21 @@ private fun Context.activity(): Activity? {
 }
 
 @Composable
-internal fun NativeSystemBarAppearance(dark: Boolean) {
+internal fun NativeSystemBarAppearance(dark: Boolean, darkNavigation: Boolean = dark) {
     val view = LocalView.current
-    val activity = LocalContext.current.activity()
-    SideEffect { activity?.window?.let { window ->
-        WindowCompat.getInsetsController(window, view).apply {
-            isAppearanceLightStatusBars = !dark
-            isAppearanceLightNavigationBars = !dark
+    val window = (view.parent as? DialogWindowProvider)?.window ?: LocalContext.current.activity()?.window
+    val latest by rememberUpdatedState(NativeBarAppearance(dark, darkNavigation))
+    fun apply() { window?.let {
+        WindowCompat.getInsetsController(it, view).apply {
+            isAppearanceLightStatusBars = !latest.darkStatus
+            isAppearanceLightNavigationBars = !latest.darkNavigation
         }
     } }
+    SideEffect { apply() }
+    DisposableEffect(view, window) {
+        // Child dialogs/media can take focus without recomposing their parent window.
+        val listener = ViewTreeObserver.OnWindowFocusChangeListener { focused -> if (focused) apply() }
+        view.viewTreeObserver.addOnWindowFocusChangeListener(listener)
+        onDispose { view.viewTreeObserver.takeIf { it.isAlive }?.removeOnWindowFocusChangeListener(listener) }
+    }
 }

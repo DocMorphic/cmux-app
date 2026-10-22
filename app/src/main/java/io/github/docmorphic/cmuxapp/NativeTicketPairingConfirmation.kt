@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 internal fun NativeTicketPairingConfirmation(proposal: NativeTicketPairing.Proposal, onDismiss: () -> Unit,
                                              onConnect: (NativeTicketPairingRoutes.Choice) -> Unit) {
     var selected by remember(proposal.id) { mutableIntStateOf(0) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Connect to this Mac?") },
+    NativeAlertDialog(onDismissRequest = onDismiss, title = { Text("Connect to this Mac?") },
         text = { Column(Modifier.verticalScroll(rememberScrollState())) {
             Text(proposal.ticket.displayName?.takeIf { it.isNotBlank() } ?: "cmux")
             Spacer(Modifier.height(12.dp))

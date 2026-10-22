@@ -51,7 +51,7 @@ internal fun SshKeyInstallSection(key: SshKeyRecord, enabled: Boolean, installin
 internal fun SshInstallPasswordDialog(target: SshHostRecord, onDismiss: () -> Unit, onInstall: (ByteArray) -> Unit) {
     // Deliberately not saveable: rotation, dismissal and submit discard the field.
     var password by remember { mutableStateOf("") }
-    AlertDialog(onDismissRequest = { password = ""; onDismiss() },
+    NativeAlertDialog(onDismissRequest = { password = ""; onDismiss() },
         properties = DialogProperties(securePolicy = SecureFlagPolicy.SecureOn),
         title = { Text("Install Key with Password") }, text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Enter the password for ${target.endpoint.username}@${target.endpoint.host} one time. " +

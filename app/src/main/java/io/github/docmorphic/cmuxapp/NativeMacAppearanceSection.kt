@@ -134,7 +134,7 @@ private fun NativeAppearanceColorDialog(current: String?, dismiss: () -> Unit, s
     var hex by remember { mutableStateOf(current?.takeIf { it.startsWith("#") } ?: "#0A84FF") }
     val valid = Regex("#[0-9A-Fa-f]{6}").matches(hex)
     val rgb = hex.drop(1).toIntOrNull(16)?.takeIf { valid } ?: 0x0A84FF
-    AlertDialog(onDismissRequest = dismiss, title = { Text("Custom color") }, text = {
+    NativeAlertDialog(onDismissRequest = dismiss, title = { Text("Custom color") }, text = {
         Column {
             Box(Modifier.fillMaxWidth().height(36.dp).background(Color(0xFF000000 or rgb.toLong())))
             OutlinedTextField(hex, { hex = it.take(7).uppercase() }, label = { Text("Hex color") },

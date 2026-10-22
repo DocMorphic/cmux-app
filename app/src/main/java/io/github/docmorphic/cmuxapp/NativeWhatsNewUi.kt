@@ -26,7 +26,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import androidx.lifecycle.Lifecycle
@@ -46,7 +45,7 @@ internal fun NativeWhatsNewArchive(pages: List<WhatsNewPage>, policy: NativeMacC
         else if (selected != null) { webArchive?.dismiss(); selectedKey = null }
         else onDismiss()
     }
-    Dialog(onDismissRequest = ::back, properties = DialogProperties(usePlatformDefaultWidth = false,
+    NativeDialog(onDismissRequest = ::back, properties = DialogProperties(usePlatformDefaultWidth = false,
         decorFitsSystemWindows = false)) {
         Surface(Modifier.fillMaxSize().testTag("whatsnew.archive")) {
             Column(Modifier.safeDrawingPadding()) {
@@ -84,7 +83,7 @@ internal fun NativeWhatsNewLaunchSheet(presentation: WhatsNewPresentation, polic
     error: String?, onAppeared: () -> Unit, onPage: (Int) -> Unit, onDismiss: () -> Unit,
     webPage: (WhatsNewPage) -> NativeNoticeRenderer? = { null },
     webContent: (@Composable (WhatsNewPage) -> Unit)? = null) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false,
+    NativeDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false,
         decorFitsSystemWindows = false)) {
         var laidOut by remember { mutableStateOf(false) }
         val focused = LocalWindowInfo.current.isWindowFocused

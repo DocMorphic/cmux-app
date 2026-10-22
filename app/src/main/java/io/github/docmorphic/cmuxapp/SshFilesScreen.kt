@@ -30,7 +30,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +42,7 @@ import java.text.DateFormat
 
 @Composable
 internal fun SshFilesSheet(session: NativeSshSession, hostId: UUID, terminal: SshTerminal, onDone: () -> Unit) {
-    Dialog(onDismissRequest = onDone, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    NativeDialog(onDismissRequest = onDone, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
                 SshFilesScreen(session, hostId, terminal, onDone)
@@ -233,7 +232,7 @@ internal fun SshFilesScreen(session: NativeSshSession, hostId: UUID, terminal: S
         }
         if (busy && directory == null) LinearProgressIndicator(Modifier.fillMaxWidth())
     }
-    if (newFolder || naming != null) AlertDialog(onDismissRequest = { newFolder = false; naming = null },
+    if (newFolder || naming != null) NativeAlertDialog(onDismissRequest = { newFolder = false; naming = null },
         title = { Text(if (newFolder) "New Folder" else "Rename") },
         text = { OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_sort_name_0fec0ffb)) }, modifier = Modifier.testTag("ssh.files.name")) },
         confirmButton = { TextButton(enabled = SshFilePaths.validName(name.trim()) && (newFolder || name.trim() != naming?.name), onClick = {
@@ -242,7 +241,7 @@ internal fun SshFilesScreen(session: NativeSshSession, hostId: UUID, terminal: S
                 refresh = { directory?.let { load(it) } }) }
         }) { Text(if (newFolder) "Create" else "Rename") } },
         dismissButton = { TextButton(onClick = { newFolder = false; naming = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
-    deleting?.let { entry -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text("Delete “${entry.name}”?") },
+    deleting?.let { entry -> NativeAlertDialog(onDismissRequest = { deleting = null }, title = { Text("Delete “${entry.name}”?") },
         text = { Text("This deletes it from the computer. You can't undo this.") },
         confirmButton = { TextButton(onClick = { deleting = null; act { sshFileMutationAndRefresh(action = { remote.delete(checkNotNull(directory), entry) }, refresh = { directory?.let { load(it) } }) } }) { Text("Delete") } },
         dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }) }

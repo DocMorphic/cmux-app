@@ -32,7 +32,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.viewinterop.AndroidView
@@ -390,7 +389,7 @@ internal fun ChangesMediaPreview(file: File) {
     }
     if (state.fullscreen) {
         Box(Modifier.fillMaxSize())
-        Dialog(onDismissRequest = { fullscreen(false) }, properties = DialogProperties(
+        NativeDialog(onDismissRequest = { fullscreen(false) }, darkSystemBars = true, properties = DialogProperties(
             usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
             val view = LocalView.current
             val window = (view.parent as? DialogWindowProvider)?.window

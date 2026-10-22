@@ -9,7 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.semantics.semantics
@@ -89,11 +88,11 @@ internal fun NativePrivatePathsSection(computers: List<IrohV2Computer>,
                 onSave = { value -> apply { it.upsert(value) } })
         }
     }
-    removing?.let { path -> AlertDialog(onDismissRequest = { if (!pending) removing = null },
+    removing?.let { path -> NativeAlertDialog(onDismissRequest = { if (!pending) removing = null },
         title = { Text("Remove Private Addresses?") }, text = { Column { Text("Remove saved addresses for ${path.name} from this device?"); error?.let { Text(it, color = NativeAppColors.warning) } } },
         confirmButton = { TextButton(enabled = !pending, onClick = { apply { it.remove(path.deviceId, path.buildTag) } }) { Text(stringResource(R.string.cmux_ui_mobile_common_remove_8640ef68)) } },
         dismissButton = { TextButton(enabled = !pending, onClick = { removing = null }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } }) }
-    if (resetting) AlertDialog(onDismissRequest = { if (!pending) resetting = false },
+    if (resetting) NativeAlertDialog(onDismissRequest = { if (!pending) resetting = false },
         title = { Text("Reset Private Addresses?") }, text = { Column { Text("Disable all private addresses in this team. Saved addresses are kept so you can enable them again."); error?.let { Text(it, color = NativeAppColors.warning) } } },
         confirmButton = { TextButton(enabled = !pending, onClick = { apply { it.reset() } }) { Text("Reset") } },
         dismissButton = { TextButton(enabled = !pending, onClick = { resetting = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
@@ -105,7 +104,7 @@ private fun NativePrivatePathEditor(path: NativePrivatePath, pending: Boolean, e
     var text by remember { mutableStateOf(path.addresses.joinToString("\n")) }
     var enabled by remember { mutableStateOf(path.enabled) }
     val parsed = remember(text) { runCatching { NativePrivateAddress.lines(text) }.getOrNull() }
-    AlertDialog(onDismissRequest = onDismiss,
+    NativeAlertDialog(onDismissRequest = onDismiss,
         title = { Text(if (path.addresses.isEmpty()) "Add Private Addresses" else "Edit Private Addresses") },
         text = { Column(Modifier.verticalScroll(rememberScrollState())) {
             Text(path.name + " (${path.buildTag})")

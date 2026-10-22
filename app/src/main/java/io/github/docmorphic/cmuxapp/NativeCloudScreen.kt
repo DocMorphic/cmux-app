@@ -122,7 +122,7 @@ private val cloudMuted: Color @Composable get() = NativeAppColors.muted
         }
         if (createSheet && controller != null) CloudCreateSheet(controller, state, onPlans) { createSheet = false }
         val deleting = state.catalog.machines.singleOrNull { it.id == deleteId }
-        if (deleting != null && controller != null) AlertDialog(onDismissRequest = { deleteId = null },
+        if (deleting != null && controller != null) NativeAlertDialog(onDismissRequest = { deleteId = null },
             title = { Text("Delete ${deleting.preferredName}?") },
             text = { Text("This permanently deletes the machine and its disk, including its terminals and files.") },
             confirmButton = { TextButton(onClick = { controller.act(deleting.id, CloudMachineAction.DELETE); deleteId = null },
@@ -160,7 +160,7 @@ private val cloudMuted: Color @Composable get() = NativeAppColors.muted
     }
     fun openPlans(plan: String?) { plansOpened = true; onPlans(plan) }
     LaunchedEffect(presentation.sizes) { if (memory !in presentation.sizes) memory = presentation.defaultMemory }
-    ModalBottomSheet(onDismissRequest = { if (!state.creating) dismiss() },
+    NativeModalBottomSheet(onDismissRequest = { if (!state.creating) dismiss() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false,
             confirmValueChange = { !state.creating || it != SheetValue.Hidden }), containerColor = cloudPanel) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(bottom = 32.dp),

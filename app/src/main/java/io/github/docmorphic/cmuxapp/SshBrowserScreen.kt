@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.json.JSONArray
 import org.json.JSONObject
@@ -79,9 +78,11 @@ internal fun SshBrowserSheet(presentation: SshBrowserPresentation, onRoute: ((Na
             presentation.network.navigation.leave(close = true); onDone()
         }
     }
-    Dialog(onDismissRequest = onDone, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-            SshBrowserScreen(presentation.network, workspace, presentation.linkedPanel, presentation.initialUrl, onRoute, onDone, liveMenu?.sshPicker, onSshCommand, ::menu, presentation.sidebarSelection)
+    NativeDialog(onDismissRequest = onDone, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Surface(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                SshBrowserScreen(presentation.network, workspace, presentation.linkedPanel, presentation.initialUrl, onRoute, onDone, liveMenu?.sshPicker, onSshCommand, ::menu, presentation.sidebarSelection)
+            }
         }
     }
 }
