@@ -19,8 +19,9 @@ Refresh full AX and click the menu item in the same CUA call to avoid a stale
 menu index. The instructions, Release app selector, New Pairing Code, disabled
 Copy and Close are in the actual accessibility tree. A blank screenshot is
 consistent with the verified source's `window.sharingType = .none`; the main
-window captures normally. Preserve that protection. An async human visual
-check is pending, so do not claim the actual visible pairing content is proved.
+window captures normally. Preserve that protection. On 2026-10-22 the user
+confirmed the instructions, selector and New Pairing Code are visibly rendered.
+This closes the protected-window visual check without generating a credential.
 See `captures/recovery-20261022/mac-pairing-menu-live-recheck.json`. Fresh phone
 reply/ACK/delivery remains open; the phone stays released at signed 712 and
 local 713 remains unpublished.
