@@ -76,11 +76,35 @@ public struct PhonePushEncryptedPayload: Decodable, Equatable, Sendable { public
     cases = ['auth-missing', 'token-fail', 'service-missing', 'http-401', 'http-403',
              'http-429', 'http-503', 'non-http', 'malformed-json', 'plaintext-rejected',
              'transport-timeout', 'transport-cancelled', 'empty', 'encrypted',
-             'ack-empty', 'ack-success', 'ack-http-403', 'ack-transport-timeout']
+             'ack-empty', 'ack-success', 'ack-http-403', 'ack-transport-timeout', 'stable-empty', 'ack-stable-success']
+    contracts = {'empty', 'ack-success', 'stable-empty', 'ack-stable-success'}
     for case in cases:
-        print(run(case, [str(binary), case], timeout=15).strip())
+        arguments = [str(binary), case] + ([str(output / (case + '.request.json'))] if case in contracts else [])
+        print(run(case, arguments, timeout=15).strip())
+    worker_path = 'workers/presence/src/replies.ts'
+    worker = subprocess.check_output(['git', '-C', str(args.upstream.resolve()), 'show', patch.REF + ':' + worker_path])
+    (output / 'WorkerReplies.ts').write_bytes(worker)
+    (output / 'worker-contract.mjs').write_text('''import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {parsePhoneReplyTarget, parsePhoneReplyAck} from './WorkerReplies.ts';
+const load = name => JSON.parse(readFileSync(new URL(name + '.request.json', import.meta.url)));
+assert.equal(parsePhoneReplyTarget({macDeviceId:'fixture-mac'}), null);
+const oldAck = parsePhoneReplyAck({replyIds:['fixture-reply']});
+assert.equal(oldAck.ok, true); assert.equal(oldAck.target, undefined); // E2E route rejects missing target.
+for (const [fetchName, ackName] of [['empty','ack-success'],['stable-empty','ack-stable-success']]) {
+  const target = parsePhoneReplyTarget(load(fetchName).query);
+  assert.ok(target); assert.equal(target.macDeviceId, 'fixture-mac'); assert.ok(target.macBuildID);
+  const ack = parsePhoneReplyAck(load(ackName).body);
+  assert.equal(ack.ok, true); assert.deepEqual(ack.target, target);
+  assert.deepEqual(ack.replyIds, ['fixture-reply']);
+  assert.equal(target.macInstanceTag, fetchName.startsWith('stable') ? null : 'fixture-instance');
+}
+console.log('PASS actual worker parser rejects old targetless requests; accepts exact Swift fetch/ack targets for tagged and stable builds');
+''')
+    print(run('worker-contract', ['node', '--experimental-strip-types', str(output / 'worker-contract.mjs')], timeout=15).strip())
     receipt = {'upstream': patch.REF, 'patchedClientSha256': hashlib.sha256(source).hexdigest(),
         'fixtureSha256': hashlib.sha256(fixture.read_bytes()).hexdigest(), 'cases': cases,
+        'workerSource': worker_path, 'workerSha256': hashlib.sha256(worker).hexdigest(),
         'scope': 'Exact patched client typechecked/executed with inert auth/service/URLProtocol/crypto DTO boundaries; not real Mac account/server retrieval or terminal reply acceptance.'}
     (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
 

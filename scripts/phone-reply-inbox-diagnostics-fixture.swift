@@ -14,7 +14,10 @@ private final class Observation: @unchecked Sendable {
 private let observation = Observation()
 func cmuxDebugLog(_ value: @autoclosure () -> String) { observation.log(value()) }
 
-enum MobileHostIdentity { static func deviceID() -> String { "fixture-mac" } }
+enum MobileHostIdentity {
+    static func deviceID() -> String { "fixture-mac" }
+    static func instanceTag() -> String? { CommandLine.arguments[1].contains("stable") ? nil : "fixture-instance" }
+}
 @MainActor enum PresenceHeartbeatClient {
     static var serviceURL: URL? = URL(string: "https://fixture.invalid")
     static func resolvedServiceURL() -> URL? { serviceURL }
@@ -26,6 +29,22 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         observation.request(request)
+        if CommandLine.arguments.count == 3 {
+            let query = Dictionary(uniqueKeysWithValues: (URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []).map {
+                ($0.name, $0.value.map { $0 as Any } ?? NSNull())
+            })
+            var bytes = request.httpBody ?? Data()
+            if bytes.isEmpty, let stream = request.httpBodyStream {
+                stream.open(); defer { stream.close() }
+                var buffer = [UInt8](repeating: 0, count: 4096)
+                while true { let count = stream.read(&buffer, maxLength: buffer.count)
+                    precondition(count >= 0); if count == 0 { break }; bytes.append(contentsOf: buffer.prefix(count)) }
+            }
+            let body: Any = bytes.isEmpty ? NSNull() : try! JSONSerialization.jsonObject(with: bytes)
+            let record: [String: Any] = ["query": query, "body": body]
+            try! JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+                .write(to: URL(fileURLWithPath: CommandLine.arguments[2]))
+        }
         if Self.scenario.contains("transport-") {
             let code: URLError.Code = Self.scenario.hasSuffix("cancelled") ? .cancelled : .timedOut
             client?.urlProtocol(self, didFailWithError: URLError(code,
@@ -71,10 +90,10 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
         let isAck = scenario.hasPrefix("ack-")
         if isAck {
             let accepted = await client.acknowledge(replyIds: scenario == "ack-empty" ? [] : ["fixture-reply"])
-            precondition(accepted == (scenario == "ack-empty" || scenario == "ack-success"))
+            precondition(accepted == (scenario == "ack-empty" || scenario == "ack-success" || scenario == "ack-stable-success"))
         } else {
             let replies = await client.fetchPending()
-            if scenario == "empty" { precondition(replies == []) }
+            if scenario == "empty" || scenario == "stable-empty" { precondition(replies == []) }
             else if scenario == "encrypted" { precondition(replies?.count == 1 && replies?.first?.encryptedPayload != nil) }
             else { precondition(replies == nil) }
         }
@@ -110,8 +129,10 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
                 precondition(request.value(forHTTPHeaderField: "content-type") == "application/json")
             } else {
                 precondition(request.httpMethod == "GET" && request.url?.path == "/v1/replies/e2e")
-                precondition(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ==
-                    [URLQueryItem(name: "macDeviceId", value: "fixture-mac")])
+                var expected = [URLQueryItem(name: "macDeviceId", value: "fixture-mac")]
+                if let tag = MobileHostIdentity.instanceTag() { expected.append(URLQueryItem(name: "macInstanceTag", value: tag)) }
+                expected.append(URLQueryItem(name: "macBuildID", value: Bundle.main.bundleIdentifier ?? "cmux"))
+                precondition(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems == expected)
             }
         }
         print("PASS \(scenario): outcome, coarse event, request contract and privacy")

@@ -1,5 +1,48 @@
 # Custom Mac notification build
 
+## Restored Mac and scoped reply request correction — 2026-10-22
+
+Full diagnostic run 39757002747 succeeds at
+472942366c4e012c2e5c29901e3436af784d0056. Artifact 12420689501 is 194,195,319
+bytes (service digest 4f60e08172dddaa77663b3ea01183fb241c90651e0cf76039d79c7331544c4b6).
+Independent verification regenerates all 15 original pins and 34 patched files;
+inner archive SHA256 is 80c29f178f85be98c03eee6c35647ce3aec8305b5b2e2af6e22d2eeff643763e.
+All 30 archive symlinks, ARM64, production routes and strict signatures pass.
+
+Before launch, private tagged preferences, session/scrollback, saved-session
+export and a consistent registration DB snapshot were saved. An ordinary quit
+request was issued to the verified old bundle/PID; its wait reported pending,
+and a subsequent OS query confirmed the old process absent. No force kill was
+used. The verified new bundle launched through the filtered private-owner
+launcher. Current observed app/helper PIDs are 328/466. The same non-null account
+and selected-team hashes, signed-in/team-ready state, and all three workspace
+UUIDs/order/selection are preserved. The official app and physical Pixel 712
+were untouched. Evidence: `captures/recovery-20261022/mac-reply-runtime-checkpoint.json`.
+
+Actual new inbox telemetry reports fetch HTTP 400. The pinned worker's GET
+route parses macDeviceId, macInstanceTag and required macBuildID; the original
+Mac client sent only device ID. Its E2E acknowledgement route also requires a
+parsed target, while the original client sent only reply IDs. This source
+mismatch explains a concrete rejected-request path; the old historical coarse
+logs alone did not identify it.
+
+The client patch now supplies the current Mac device/tag/build on GET and ACK,
+with omitted nullable tag in query and JSON null on stable-build ACK. Twenty
+isolated actual-client cases pass, including nullable stable tags. Captured real
+Swift request bytes are also fed to the exact pinned TypeScript worker parser:
+old targetless requests fail the E2E target contract, while corrected tagged/
+stable fetch and acknowledgement targets agree and are accepted. Auth, crypto
+and retry behavior retain their original paths. Hook parsing/compiled auth,
+payload, receipt/private-pipe checks and installer/packager/cache tests (5/5/8)
+pass. The earlier isolated harness had not checked this worker contract; that
+cross-language guard is now mandatory in the full-build workflow.
+
+The running diagnostic app still has the old request shape. The corrected
+request needs a fresh full build, independent artifact verification and live
+fetch/ACK observation. Background terminal reply E and all physical notification,
+Doze/revocation/accessibility and broader app/backend/release gates remain open.
+The user can use/disconnect the phone. Full app parity stays active.
+
 ## Active Mac reply diagnostic build — 2026-10-22
 
 Full native run [39757002747](https://github.com/DocMorphic/cmux-app/actions/runs/39757002747)

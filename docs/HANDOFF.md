@@ -1,3 +1,34 @@
+## Live Mac restored; missing reply target fields corrected — 2026-10-22
+
+Verified Mac diagnostic build 39757002747 is running with account/team identity
+hashes and all three workspace UUIDs/order/selection preserved; helper node is
+alive. Private session/preferences/scrollback/registry backups are saved, and the
+old app exited after an ordinary quit request. Current bundle/receipt:
+`captures/recovery-20261022/mac-reply-39757002747-app/verification.json` and
+`mac-reply-runtime-checkpoint.json`. Pixel 712 and official cmux are unchanged.
+
+Live telemetry identifies fetch HTTP 400. The pinned worker requires scoped
+Mac device/tag/build fields that the original fetch/ACK client omitted. The
+source correction passes 20 isolated client cases and a new actual-worker-parser
+check of captured Swift requests for tagged and stable builds. Hooks and 5/5/8
+installer/packager/cache tests pass. The running diagnostic build predates this
+fix: continue a full corrected build and real fetch/ACK/terminal verification.
+See MAC_NOTIFICATION_BUILD.md. Phone availability must be coordinated again
+before further physical tests; the user is currently free to use/disconnect it.
+
+Android Poll Details grouped-sheet work is local/uncommitted while validation
+continues. Its first 9-regression/5-scene run passed measured relative row
+geometry, but the added very-large fallback-script case exposed test scrolling
+issues. A synthetic performScrollTo run timed out; captured main thread was idle
+while instrumentation waited in Espresso. Hardware swipes did not advance the
+virtual-clock surface. The current focused test now drives the StandardTestDispatcher
+clock explicitly and checks accessibility ScrollBy plus Compose touch events.
+Do not treat this unresolved case or later installer timeouts as a pass. Source
+and diagnostics are under chief-poll-sheet-v1/v2/v3 and chief-poll-stress-v1/v2/v3;
+owned AVDs are stopped between attempts. Finish this check, all five matched
+captures and review before committing the Android UI candidate. Full parity and
+all broader gates remain active.
+
 ## Poll Details reference and identity snapshot checkpoint — 2026-10-22
 
 Native capture 39762098177 succeeded at 266b6a61, supplying seven compositor

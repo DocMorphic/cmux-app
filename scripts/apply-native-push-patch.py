@@ -135,7 +135,7 @@ HELPERS = '''    /// Used by the native auth owner before its first transition a
 
 
 def reply_inbox_diagnostics(source):
-    # Preserve upstream request/crypto/retry behavior. Only fixed categories and
+    # Preserve auth/crypto/retry behavior. Only fixed categories and
     # numeric protocol codes may reach either logger; never error descriptions,
     # URLs, response bytes, credentials, identities or reply contents.
     source = once(source, "    private let retryAfterGate = CmxRetryAfterGate()\n", '''    private let retryAfterGate = CmxRetryAfterGate()
@@ -216,6 +216,23 @@ def reply_inbox_diagnostics(source):
             recordFailure(operation, .invalidURL)
             return nil
         }''')
+    # The pinned worker requires the complete Mac target on both endpoints.
+    # The upstream client omitted build/tag on fetch and all target fields on
+    # ack, so the authenticated E2E routes reject those requests with HTTP 400.
+    source = once(source, '''            queryItems: [URLQueryItem(
+                name: "macDeviceId",
+                value: MobileHostIdentity.deviceID()
+            )]''', '''            queryItems: [
+                URLQueryItem(name: "macDeviceId", value: MobileHostIdentity.deviceID()),
+                URLQueryItem(name: "macInstanceTag", value: MobileHostIdentity.instanceTag()),
+                URLQueryItem(name: "macBuildID", value: Bundle.main.bundleIdentifier ?? "cmux"),
+            ].filter { $0.value != nil }''')
+    source = once(source, '            withJSONObject: ["replyIds": replyIds],', '''            withJSONObject: [
+                "replyIds": replyIds,
+                "macDeviceId": MobileHostIdentity.deviceID(),
+                "macInstanceTag": MobileHostIdentity.instanceTag().map { $0 as Any } ?? NSNull(),
+                "macBuildID": Bundle.main.bundleIdentifier ?? "cmux",
+            ],''')
     return source
 
 
