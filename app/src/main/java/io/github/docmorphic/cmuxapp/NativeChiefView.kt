@@ -235,10 +235,12 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     var selectedRows by remember(session) { mutableStateOf<Set<String>?>(null) }
     var confirmedDelete by remember(session) { mutableStateOf<Set<String>?>(null) }
     var selectText by remember(session) { mutableStateOf<NativeChiefSelectedText?>(null) }
-    var pollDetails by remember(session) { mutableStateOf<String?>(null) }
+    val pollDetails by session.pollDetails.collectAsState()
+    val pollYou = stringResource(R.string.chief_poll_you)
+    val pollAnswerQuestions = stringResource(R.string.chief_reply_answer_questions)
     val selecting = selectedRows != null && !state.retired
     SideEffect { if (state.retired) {
-        menu.dismiss(); selectedRows = null; confirmedDelete = null; selectText = null; pollDetails = null
+        menu.dismiss(); selectedRows = null; confirmedDelete = null; selectText = null
     } }
     var actionError by remember { mutableStateOf<String?>(null) }
     val translationUi = remember(session, translationModel, preferredTranslationLocale) { translationModel?.let {
@@ -545,7 +547,10 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 }
                 NativeChiefMenuAction.MORE -> { selectedRows = setOf(current.key); menu.dismiss() }
                 NativeChiefMenuAction.SELECT -> { selectText = menu.selection(frozen); menu.dismiss() }
-                NativeChiefMenuAction.POLL -> { pollDetails = current.message?.id; menu.dismiss() }
+                NativeChiefMenuAction.POLL -> {
+                    current.message?.id?.let { session.openPollDetails(it, pollYou, pollAnswerQuestions) }
+                    menu.dismiss()
+                }
                 NativeChiefMenuAction.TRANSLATE -> {
                     val locate = menu.translationAnchor(frozen)
                     menu.dismiss(); translationUi?.showChoice(current.key) { locate?.invoke() }
@@ -670,7 +675,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         val id = answerMessage ?: return@NativeChiefQuestionSheet
         act { if (session.answer(id, form)) answerMessage = null }
     }
-    if (pollDetails != null && !state.retired) NativeChiefPollDetails(pollDetails!!, state) { pollDetails = null }
+    if (pollDetails != null && !state.retired) NativeChiefPollDetails(pollDetails!!, state, session)
     val doomed = confirmedDelete
     if (doomed != null && doomed.isNotEmpty() && !state.retired) ModalBottomSheet(onDismissRequest = { confirmedDelete = null },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), modifier = Modifier.testTag("ChiefDeleteConfirmation")) {

@@ -9,6 +9,51 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefSessionTest {
+    @Test fun pollDetailsRetainsItsReadOnlySnapshotDuringPauseAndRejectsAnOldDismissal() = runTest {
+        val api = Api(); var current = true
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { current })
+        try {
+            api.reads.send(Result.success(page(message(1, parts = listOf(approval())))))
+            session.start(); runCurrent()
+            session.openPollDetails("m1", "You", "Answer questions")
+            val original = session.pollDetails.value!!
+            session.pause()
+            assertSame(original, session.pollDetails.value)
+            api.reads.send(Result.success(page(message(1, parts = listOf(approval(options = listOf("new", "deny")))))))
+            session.start(); runCurrent()
+            session.refreshPollDetails(original.generation, "You", "Answer questions")
+            assertEquals(listOf("new", "deny"), session.pollDetails.value!!.contents.options)
+            session.openPollDetails("m1", "You", "Answer questions")
+            val reopened = session.pollDetails.value!!
+            assertTrue(reopened.generation > original.generation)
+            session.dismissPollDetails(original.generation)
+            assertSame(reopened, session.pollDetails.value)
+            api.waits.send(Result.success(page(message(1, parts = listOf(approval(decided = "allow")))))); runCurrent()
+            session.refreshPollDetails(reopened.generation, "You", "Answer questions")
+            assertSame(reopened, session.pollDetails.value)
+            session.endVisit(); assertNull(session.pollDetails.value)
+            session.openPollDetails("m1", "You", "Answer questions")
+            assertNull(session.pollDetails.value) // An answered receipt cannot create a new sheet.
+            assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+        } finally { session.close() }
+    }
+
+    @Test fun pollDetailsCannotOutliveItsComputerAuthority() = runTest {
+        val api = Api(); var current = true
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { current })
+        try {
+            api.reads.send(Result.success(page(message(1, parts = listOf(approval())))))
+            session.start(); runCurrent()
+            session.openPollDetails("m1", "You", "Answer questions")
+            val generation = session.pollDetails.value!!.generation
+            current = false
+            session.refreshPollDetails(generation, "You", "Answer questions")
+            assertNull(session.pollDetails.value); assertTrue(session.state.value.retired)
+            assertThrows(IllegalStateException::class.java) { session.openPollDetails("m1", "You", "Answer questions") }
+            assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+        } finally { session.close() }
+    }
+
     @Test fun translationFollowsTheRetainedTimelineWithoutChangingWireTextAndRetiresWithItsOwner() = runTest {
         val api = Api(); var current = true
         val session = NativeChiefTranscriptSession(this, api, "chief-main", { current }, newId = { "translation-send" })

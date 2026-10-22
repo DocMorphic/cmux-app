@@ -1,3 +1,34 @@
+## Poll Details retained-owner lifecycle verified — 2026-10-22
+
+Poll Details now belongs to its retained conversation session. Recreating the
+Compose view no longer discards the sheet or its last answered-poll snapshot.
+Content stays only in memory; it is not serialized into Activity saved state.
+A presentation generation prevents an old dismissal callback from closing a
+newer sheet. Leaving the conversation or retiring its Mac/account owner clears
+the presentation; pausing reads for configuration/background retains it.
+
+`captures/recovery-20261022/chief-poll-lifecycle-v1` passes twelve UI checks in
+41.059 s, a separate clean participant capture, and all five matched pending
+layout captures. Actual ActivityScenario.recreate keeps the same transcript,
+complete answered snapshot and real scroll offset (600 physical pixels before
+and after); live device rotation keeps the dialog and uses the actual landscape
+viewport. Revocation followed by recreation removes the sheet. All 66 session
+unit tests pass, including stale-dismissal, answered-receipt admission, visit-end
+and owner-retirement cases. Source/APK/image/fixture hashes and native metrics
+are independently checked; crash buffer is empty and owned emulator stopped.
+Screenshots were reviewed. Checkpoint:
+`captures/recovery-20261022/chief-poll-lifecycle-checkpoint.json`.
+
+This uses the production Chief view and an injected retained production owner
+inside a debug-only Activity with controlled read-only API. It does not prove
+full routed NativeScreen/process restoration, actual RPC/live delivery, a matched
+native live-rotation capture or physical Pixel/TalkBack behavior. The existing
+font/material/motion/type/locale and broader parity gates remain open. Pixel
+stays on preserved signed 712 and is available to the user. Corrected Mac build
+39796614645 at 4f896154 remains in full compilation; follow that run and verify
+its artifact/runtime before requesting another physical reply test. Full parity
+remains active.
+
 ## Live Mac restored; missing reply target fields corrected — 2026-10-22
 
 Verified Mac diagnostic build 39757002747 is running with account/team identity

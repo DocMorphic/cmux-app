@@ -158,43 +158,12 @@ internal fun NativeChiefTextSelection(frozen: NativeChiefSelectedText, permitted
     }
 }
 
-internal data class NativeChiefPollParticipant(val id: String, val name: String)
-internal data class NativeChiefPollContents(val question: String, val options: List<String>,
-    val participants: List<NativeChiefPollParticipant>)
-private fun pollContents(message: NativeChiefMessage, messages: List<NativeChiefMessage>,
-    humanID: String, you: String, answerQuestions: String): NativeChiefPollContents? {
-    val part = NativeChiefPresentation.pendingPart(message) ?: return null
-    // ChiefConversationBackend.info selects one human identity, preserves
-    // first-seen author order, and supplies only missing fallback identities.
-    // Another human author keeps their name rather than also becoming "You".
-    val authors = messages.distinctBy { it.authorId }
-    val participants = authors.map { author -> NativeChiefPollParticipant(author.authorId,
-        if (author.authorId == humanID) you else author.author.ifEmpty { author.authorId }) }.toMutableList()
-    if (authors.none { it.authorId == humanID }) participants += NativeChiefPollParticipant(humanID, you)
-    val chiefID = messages.firstOrNull { it.authorKind == "chief" }?.authorId ?: "agent_chief"
-    if (authors.none { it.authorId == chiefID } && chiefID != humanID)
-        participants += NativeChiefPollParticipant(chiefID, "Chief")
-    part.approval?.let { return NativeChiefPollContents(it.prompt,
-        it.options.filterNot { choice -> choice.startsWith("always:") }, participants) }
-    val question = part.question ?: return null
-    val compact = NativeChiefPresentation.compactQuestion(question)
-    return NativeChiefPollContents(compact?.prompt ?: NativeChiefPresentation.summary(question),
-        compact?.options?.map { it.label } ?: listOf(answerQuestions), participants)
-}
-
 @Composable
-internal fun NativeChiefPollDetails(id: String, state: NativeChiefTranscriptState, onClose: () -> Unit) {
+internal fun NativeChiefPollDetails(presentation: NativeChiefPollPresentation,
+    state: NativeChiefTranscriptState, session: NativeChiefTranscriptSession) {
     val you = stringResource(R.string.chief_poll_you)
     val answerQuestions = stringResource(R.string.chief_reply_answer_questions)
-    var retainedHumanID by remember(id) { mutableStateOf("me") }
-    val humanID = state.messages.firstOrNull { it.authorKind == "human" }?.authorId ?: retainedHumanID
-    val updated = state.messages.firstOrNull { it.id == id }?.let {
-        pollContents(it, state.messages, humanID, you, answerQuestions)
-    }
-    var content by remember(id) { mutableStateOf(updated) }
-    // Native reload returns without changing any sections once a pending card
-    // becomes a receipt/disappears. Keep participants and options atomically.
-    SideEffect { if (updated != null) { content = updated; retainedHumanID = humanID } }
-    val shown = content ?: return
-    NativeChiefPollSheet(shown, onClose)
+    val shown = presentation.refreshed(state, you, answerQuestions)
+    SideEffect { session.refreshPollDetails(presentation.generation, you, answerQuestions) }
+    NativeChiefPollSheet(shown.contents) { session.dismissPollDetails(presentation.generation) }
 }

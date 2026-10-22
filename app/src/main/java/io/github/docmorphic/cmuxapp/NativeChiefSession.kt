@@ -105,6 +105,27 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private val scope = CoroutineScope(parent.coroutineContext + job)
     private val mutableState = MutableStateFlow(NativeChiefTranscriptState())
     private var replyGeneration = 0L
+    private var pollGeneration = 0L
+    private val mutablePollDetails = MutableStateFlow<NativeChiefPollPresentation?>(null)
+    val pollDetails = mutablePollDetails.asStateFlow()
+
+    fun openPollDetails(messageID: String, you: String, answerQuestions: String) {
+        checkOwner()
+        val snapshot = state.value
+        val human = snapshot.messages.firstOrNull { it.authorKind == "human" }?.authorId ?: "me"
+        val contents = snapshot.messages.firstOrNull { it.id == messageID }?.let {
+            nativeChiefPollContents(it, snapshot.messages, human, you, answerQuestions)
+        } ?: return
+        mutablePollDetails.value = NativeChiefPollPresentation(++pollGeneration, messageID, human, contents)
+    }
+    fun refreshPollDetails(generation: Long, you: String, answerQuestions: String) {
+        if (!job.isActive || !permits()) { close(); return }
+        val shown = mutablePollDetails.value?.takeIf { it.generation == generation } ?: return
+        mutablePollDetails.value = shown.refreshed(state.value, you, answerQuestions)
+    }
+    fun dismissPollDetails(generation: Long) {
+        if (mutablePollDetails.value?.generation == generation) mutablePollDetails.value = null
+    }
     private var listStateGeneration = 0L
     val state = mutableState.asStateFlow()
     private var monitor: Job? = null
@@ -274,7 +295,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         checkOwner(); reading = reading.viewing(value)
         if (!value || monitor?.isActive == true) refreshReading() else publishReading()
     }
-    fun endVisit() { checkOwner(); reading = reading.endVisit(); publishReading() }
+    fun endVisit() { checkOwner(); mutablePollDetails.value = null; reading = reading.endVisit(); publishReading() }
     fun dismissCatchUp() { checkOwner(); reading = reading.dismiss(); publishReading() }
     fun catchUpTarget() = reading.target(state.value.messages, !state.value.hasMore)
     fun observeVisible(messageIds: Set<String>, localSendVisible: Boolean) {
@@ -675,6 +696,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         job.cancel(); monitor = null; sendTail = null; olderTask = null; olderWanted = false; historyOperation = null; deletedClientIds.clear(); deletedMessageIds.clear()
         translationOwner.value?.close(); translationOwner.value = null
         translationHost?.close(); translationHost = null
+        mutablePollDetails.value = null
         reading = NativeChiefReading(); mutableState.value = NativeChiefTranscriptState(loading = false, draftRevision = clearedDraftRevision, retired = true)
     }
 }
