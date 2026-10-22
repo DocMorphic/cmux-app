@@ -23,8 +23,7 @@ pairing/setup guidance, native text selection/copy, durable drafts, push consent
 account confirmation and poll rotation/retained snapshots. It uses controlled
 services/owned emulator data; no real account/Cloud operation or phone test.
 Earlier green frame captures were rejected as stale, v4 lost its ADB session,
-and an intermediate return-frame test could focus the closing child. The final
-test fixes all three acceptance gaps. Source and complete receipt:
+and an intermediate return-frame test could focus the closing child. The final run verifies frame/focus requirements and has complete results. Source and complete receipt:
 `captures/recovery-20261022/dialog-bars-checkpoint.json`. This is not a matched
 native font/material/type/locale or full accessibility/device sign-off.
 
