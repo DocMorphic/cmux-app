@@ -35,11 +35,11 @@ and exact changed sources are archived. Crash buffers are empty, settings
 restore commands succeeded and the owned emulator stopped. Checkpoint:
 `captures/recovery-20261023/dialog-environment-checkpoint.json`.
 
-Earlier v1 is excluded as a whole: Markdown's initial programmatic zoom ran
-before a committed native frame. Its fixture now waits for that frame and
+Earlier v1 is excluded as a whole: Markdown's initial programmatic zoom timed
+out without an initial visual-frame readiness check. Its fixture now waits for that frame and
 records the actual 3 to 3.9 scale change, retaining its original threshold.
-The first v2 narrow run is excluded: the fixture tapped an offscreen offers
-button and observed the previous callback. It now scrolls, verifies visibility
+The first v2 narrow run is excluded: the fixture tapped offers without first
+scrolling or verifying visibility and observed the previous callback. It now scrolls, verifies visibility
 and taps the actual control; exact fixed-URL checks pass. Instrumentation-only
 compile errors are retained as diagnostics. No production Markdown/controller
 or billing transport behavior was changed to satisfy these fixture issues.
