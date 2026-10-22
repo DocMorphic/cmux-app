@@ -122,6 +122,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private var historyOperation: Deferred<NativeChiefRead>? = null
     private val translationOwner = MutableStateFlow<NativeChiefTranslations?>(null)
     val translations = translationOwner.asStateFlow()
+    var translationHost: NativeChiefTranslationPlatformHost? = null; private set
     private val deletedClientIds = mutableSetOf<String>()
     private val deletedMessageIds = mutableSetOf<String>()
     private fun checkOwner() { if (!job.isActive || !permits()) { close(); error("Chief computer or account changed") } }
@@ -425,13 +426,15 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
 
     /** Transfers one engine to the retained owner; all original RPC data stays untouched. */
     fun installTranslations(engine: NativeChiefTranslating, target: NativeChiefTranslationLanguage,
-        preferences: NativeChiefTranslationPreferences? = null): NativeChiefTranslations {
+        preferences: NativeChiefTranslationPreferences? = null,
+        host: NativeChiefTranslationPlatformHost? = null): NativeChiefTranslations {
         checkOwner()
         check(translationOwner.value == null) { "Chief translation is already installed" }
         val model = NativeChiefTranslations(scope, engine, target, {
             try { checkOwner(); true } catch (_: IllegalStateException) { false }
         }, preferences)
         model.updateRows(NativeChiefTimeline.items(state.value).map { it.translationRow() })
+        translationHost = host
         translationOwner.value = model
         scope.launch {
             state.map { snapshot -> NativeChiefTimeline.items(snapshot).map { it.translationRow() } }
@@ -671,6 +674,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         val clearedDraftRevision = state.value.draftRevision + 1
         job.cancel(); monitor = null; sendTail = null; olderTask = null; olderWanted = false; historyOperation = null; deletedClientIds.clear(); deletedMessageIds.clear()
         translationOwner.value?.close(); translationOwner.value = null
+        translationHost?.close(); translationHost = null
         reading = NativeChiefReading(); mutableState.value = NativeChiefTranscriptState(loading = false, draftRevision = clearedDraftRevision, retired = true)
     }
 }

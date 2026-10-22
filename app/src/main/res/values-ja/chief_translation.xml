@@ -1,0 +1,21 @@
+<resources>
+    <string name="chief_translation_menu_show_original">オリジナルを表示</string>
+    <string name="chief_translation_menu_show_translation">翻訳を表示</string>
+    <string name="chief_translation_menu_translate">翻訳</string>
+    <string name="chief_translation_cancel">キャンセル</string>
+    <string name="chief_translation_caption_not_downloaded">言語がダウンロードされていません</string>
+    <string name="chief_translation_caption_show_original">オリジナルを表示</string>
+    <string name="chief_translation_caption_translating">翻訳中</string>
+    <string name="chief_translation_caption_unsupported">このデバイスでは%1$sの翻訳には対応していません</string>
+    <string name="chief_translation_caption_view_translation">翻訳を表示</string>
+    <string name="chief_translation_conversation">チャットを翻訳</string>
+    <string name="chief_translation_from">翻訳元</string>
+    <string name="chief_translation_indicator_download">%1$sをダウンロード</string>
+    <string name="chief_translation_indicator_stop">翻訳を停止</string>
+    <string name="chief_translation_indicator_translating">%1$sを翻訳中</string>
+    <string name="chief_translation_indicator_waiting">言語がダウンロードされると翻訳が開始されます</string>
+    <string name="chief_translation_message">このメッセージを翻訳</string>
+    <string name="chief_translation_prompt">このメッセージを翻訳しますか? それとも、このチャット全体を自動翻訳しますか?</string>
+    <string name="chief_translation_open_settings">言語設定を開く</string>
+    <string name="chief_translation_download_explanation">Androidの言語設定で%1$sと%2$sをダウンロードしてから、cmuxに戻ってください。</string>
+</resources>

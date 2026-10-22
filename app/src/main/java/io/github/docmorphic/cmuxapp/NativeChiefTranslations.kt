@@ -271,6 +271,15 @@ internal class NativeChiefTranslations(parent: CoroutineScope, private val trans
             yield()
             previous?.join()
             if (!owns()) return@launch
+            // A queued batch may reach the engine after the preceding download
+            // was declined. Keep the conversation waiting instead of immediately
+            // presenting another Android consent dialog for its remaining rows.
+            if (waitsForDownload) {
+                keys.forEach { key ->
+                    if (entries[key]?.let { it.automatic && it.phase == Phase.Translating } == true) entries.remove(key)
+                }
+                publish()
+            }
             val batches = keys.distinct().mapNotNull { key -> entries[key]?.takeIf { it.phase == Phase.Translating }?.let { key to it } }
                 .groupBy { it.second.source }
             for ((source, batch) in batches) {

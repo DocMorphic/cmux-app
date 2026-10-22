@@ -762,3 +762,10 @@ answer modes and release quote-bubble defaults in `AgentFeedQuestionControls.kt`
 `f4b1509054949eaad5d695569ad443c4c18ed68d`. Copyright Manaflow, Inc.;
 GPL-3.0-or-later. Android adds saved-draft content identity checks and scroll
 viewport handling for its modal window and keyboard.
+
+### Android translation glyph
+
+The Translate glyph is adapted from Google Material Icons (Google LLC),
+Apache License 2.0: https://github.com/google/material-design-icons/blob/master/src/action/translate/materialicons/24px.svg.
+The full Apache 2.0 license is bundled with the app. This Android glyph does
+not reproduce Apple's platform-only SF Symbols artwork.

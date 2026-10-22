@@ -1,0 +1,56 @@
+{
+  "cases": [
+    {
+      "accessibilityCopy": "es: Hola, mundo",
+      "id": "none",
+      "mentions": [
+        "mention"
+      ],
+      "menuCopy": "es: Hola, mundo",
+      "messageText": "es: Hola, mundo",
+      "original": "es: Hola, mundo",
+      "pollQuestion": "Keep the poll question",
+      "supplied": null,
+      "textRuns": [
+        "format"
+      ]
+    },
+    {
+      "accessibilityCopy": "Hello, world",
+      "id": "translated",
+      "mentions": [],
+      "menuCopy": "Hello, world",
+      "messageText": "Hello, world",
+      "original": "es: Hola, mundo",
+      "pollQuestion": "Keep the poll question",
+      "supplied": "Hello, world",
+      "textRuns": []
+    },
+    {
+      "accessibilityCopy": "es: Hola, mundo",
+      "id": "show-original",
+      "mentions": [],
+      "menuCopy": "es: Hola, mundo",
+      "messageText": "es: Hola, mundo",
+      "original": "es: Hola, mundo",
+      "pollQuestion": "Keep the poll question",
+      "supplied": "es: Hola, mundo",
+      "textRuns": []
+    },
+    {
+      "accessibilityCopy": "es: Hola, mundo",
+      "id": "not-downloaded",
+      "mentions": [],
+      "menuCopy": "es: Hola, mundo",
+      "messageText": "es: Hola, mundo",
+      "original": "es: Hola, mundo",
+      "pollQuestion": "Keep the poll question",
+      "supplied": "es: Hola, mundo",
+      "textRuns": []
+    }
+  ],
+  "projectionSha256": "b434a1b4d40b9b5c1643f13d5dacd466b2447fbbbf61472b0209970846a6e5b5",
+  "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "schema": 1,
+  "scope": "Executed pinned row substitution and Copy statements with an inert pasteboard; not UIKit or translation inference"
+}

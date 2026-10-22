@@ -45,6 +45,7 @@ private fun chiefMenuTrace(event: String) { if (BuildConfig.DEBUG) android.util.
 
 /** One composition's live row. Coordinates/recordings never survive disposal. */
 internal class NativeChiefMenuSource(val owner: NativeChiefMenuController, var row: NativeChiefTimelineRow) {
+    var displayedText: String? = null
     var root: LayoutCoordinates? = null
     var body: LayoutCoordinates? = null
     var quote: LayoutCoordinates? = null
@@ -62,7 +63,8 @@ internal class NativeChiefMenuSource(val owner: NativeChiefMenuController, var r
 }
 
 internal data class NativeChiefMenuSnapshot(val row: NativeChiefTimelineRow, val image: ImageBitmap,
-    val crop: Rect, val windowFrame: Rect, val textFrame: Rect?, val text: String)
+    val crop: Rect, val windowFrame: Rect, val textFrame: Rect?, val text: String,
+    val translationAction: NativeChiefMenuAction? = null)
 
 /** All delayed captures/actions are fenced by this composition and retained owner. */
 internal class NativeChiefMenuController(private val session: NativeChiefTranscriptSession,
@@ -75,9 +77,14 @@ internal class NativeChiefMenuController(private val session: NativeChiefTranscr
     private var wantedOpen = false
     private var capture: Job? = null
     fun current(rowKey: String) = try { session.actionItem(rowKey) } catch (_: IllegalStateException) { null }
+    fun translationMenuAction(rowKey: String): NativeChiefMenuAction? {
+        val model = session.translations.value ?: return null
+        return if (!model.canTranslate(rowKey)) null else if (!model.hasTranslation(rowKey)) NativeChiefMenuAction.TRANSLATE
+        else if (model.isShowingTranslation(rowKey)) NativeChiefMenuAction.SHOW_ORIGINAL else NativeChiefMenuAction.SHOW_TRANSLATION
+    }
     fun takeAction(frozen: NativeChiefMenuSnapshot, action: NativeChiefMenuAction): Boolean {
         if (snapshot !== frozen || !opened || acting) return false
-        // Native Copy closes over message.text when presenting the menu. It
+        // Native Copy closes over the rendered model's message.text. It
         // does not depend on that row remaining in the retained history window.
         val admitted = if (action == NativeChiefMenuAction.COPY) try {
             session.admitCapturedAction(); true
@@ -93,7 +100,7 @@ internal class NativeChiefMenuController(private val session: NativeChiefTranscr
         val text = live.text?.takeIf { it.isAttached } ?: return null
         val frame = Rect(text.positionInWindow(), androidx.compose.ui.geometry.Size(text.size.width.toFloat(), text.size.height.toFloat()))
         val body = live.row.item.message?.let { NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it) } ?: live.row.item.outgoing!!.text
-        return NativeChiefSelectedText(live.row.item.key, frame, body, live.row.item.fromMe)
+        return NativeChiefSelectedText(live.row.item.key, frame, live.displayedText ?: body, live.row.item.fromMe)
     }
     fun begin(next: NativeChiefMenuSource, open: Boolean = false) {
         if (current(next.row.item.key) == null) { chiefMenuTrace("admission rejected"); return }
@@ -140,13 +147,14 @@ internal fun Modifier.chiefMenuSource(source: NativeChiefMenuSource?): Modifier 
                 val textFrame = source.text?.takeIf { it.isAttached }?.let {
                     Rect(it.positionInWindow(), androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat()))
                 }
-                val text = row.item.message?.let { NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it) }
+                val text = source.displayedText ?: row.item.message?.let { NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it) }
                     ?: row.item.outgoing!!.text
+                val translationAction = source.owner.translationMenuAction(row.item.key)
                 val frame = area.translate(origin)
                 chiefMenuTrace("snapshot pixels begin")
                 val image = layer.toImageBitmap()
                 chiefMenuTrace("snapshot pixels ready")
-                NativeChiefMenuSnapshot(row, image, area, frame, textFrame, text)
+                NativeChiefMenuSnapshot(row, image, area, frame, textFrame, text, translationAction)
             }
         }
         onDispose { chiefMenuTrace("source disposed"); source.capture = null; source.root = null; source.body = null; source.quote = null; source.text = null; source.owner.cancelPress(source) }
@@ -202,13 +210,17 @@ internal fun Modifier.chiefMenuSource(source: NativeChiefMenuSource?): Modifier 
 internal enum class NativeChiefMenuAction(val label: Int, val icon: Int) {
     REPLY(R.string.chief_menu_reply, R.drawable.ic_chief_reply), COPY(R.string.chief_menu_copy, R.drawable.ic_chief_menu_copy),
     SELECT(R.string.chief_menu_select, R.drawable.ic_chief_menu_select), RETRY(R.string.chief_retry_try_again, R.drawable.ic_chief_menu_retry),
-    POLL(R.string.chief_menu_poll_details, R.drawable.ic_chief_menu_poll), MORE(R.string.chief_menu_more, R.drawable.ic_chief_menu_more)
+    POLL(R.string.chief_menu_poll_details, R.drawable.ic_chief_menu_poll), MORE(R.string.chief_menu_more, R.drawable.ic_chief_menu_more),
+    TRANSLATE(R.string.chief_translation_menu_translate, R.drawable.ic_chief_translate),
+    SHOW_ORIGINAL(R.string.chief_translation_menu_show_original, R.drawable.ic_chief_translate),
+    SHOW_TRANSLATION(R.string.chief_translation_menu_show_translation, R.drawable.ic_chief_translate)
 }
 
 internal fun NativeChiefMenuSnapshot.actions(): List<NativeChiefMenuAction> = buildList {
     add(NativeChiefMenuAction.REPLY)
     if (row.item.failed) add(NativeChiefMenuAction.RETRY)
     add(NativeChiefMenuAction.COPY)
+    translationAction?.let(::add)
     if (textFrame != null && text.isNotEmpty()) add(NativeChiefMenuAction.SELECT)
     if (row.item.message?.let(NativeChiefPresentation::pendingPart) != null) add(NativeChiefMenuAction.POLL)
     add(NativeChiefMenuAction.MORE)
@@ -234,7 +246,7 @@ internal fun NativeChiefActionMenu(controller: NativeChiefMenuController, header
         val source = snapshot.windowFrame.translate(-origin)
         val area = NativeChiefMenuGeometry.Rect(source.left / density.toDouble(), source.top / density.toDouble(),
             source.width / density.toDouble(), source.height / density.toDouble())
-        val actions = snapshot.actions()
+        val actions = remember(snapshot) { snapshot.actions() }
         val pose = NativeChiefMenuGeometry.layout(maxWidth.value.toDouble(), maxHeight.value.toDouble(), 0.0, 0.0,
             headerHeight.value.toDouble(), if (maxWidth >= 440.dp) 20.0 else 16.0, area, snapshot.row.item.fromMe, actions.size)
         val scale = 1 + (NativeChiefMessagePressTiming.pressScale(area.width, area.height) - 1) * grow

@@ -1,3 +1,57 @@
+## Translation UI mounted with scoped preferences — 2026-10-22
+
+Production Chief now supplies an account/team/Mac-installation preference scope
+and can install the native engine in its retained transcript. Translate choices,
+source-language selection, captions, original/translation toggles, automatic
+translation indicator and foreground download admission are mounted. The store
+persists only source/target tags per conversation; translated text stays in the
+retained owner. Navigation retains the model, while retirement clears it.
+This supersedes the unmounted-foundation status below; signed 712/Pixel 703 do
+not yet contain this checkpoint.
+
+The full pinned ConversationRows -> rendered MessageRowModel -> menu/accessibility
+trace corrected an earlier assumption: Copy uses the rendered message text,
+including the translation while shown. Menu Copy freezes that text at capture;
+Select uses live displayed text. Store/RPC originals and drafts remain unchanged.
+Poll question/options remain original, as in pinned PollRowModel. Four executable
+Swift row-substitution/Copy cases with an inert pasteboard and actual Android
+clipboard/range checks establish these distinct paths. The earlier Copy-original
+translation tests are excluded from acceptance.
+
+The download controller belongs to the retained owner, rejects stale request
+IDs, and waits for a real foreground departure/return rather than an immediate
+activity-result callback. Declining automatic model admission also defers batches
+already queued, fixing an independently reproduced immediate second prompt.
+Removed messages dismiss their stale language picker without translating text.
+
+Final combined API 36 runtime: 17 passes, no skips/failures, 63.989 seconds,
+empty crash buffer, 14 diagnostic captures. Checks cover the mounted flows,
+actual production IntentSender settings handoff, Copy/Select/Reply, queued
+consent, 32+6-point indicator geometry, long-tail reflow/history intent and
+existing menu/More regressions. Translation outputs in these UI tests are
+explicit controlled fixtures; actual native inference is not proved.
+Full JVM suite: 3100 cases, 3096 passes/four opt-in skips, zero failures/errors,
+418 archived reports. Production/JVM source inputs match that run; later changes
+were instrumentation waits only. All 109 Python guards pass; repeated execution
+matches 324 language pairs, four row/Copy vectors and 34 source strings (English
+and Japanese). Twelve translation source files are pinned; global revision is
+unchanged. Receipt: `captures/recovery-20261022/chief-translation-ui-checkpoint.json`.
+
+Next: native iOS/Android visual comparisons and refinement of sheets/captions/
+indicator/glyph/material/motion; locale/RTL/large-text/rotation/IME and real
+preference persistence/recreation checks; native model installation/output and
+cancellation on the Pixel. In particular, review physical RTL caption alignment
+and icon ordering against the source. Captures can include transient Android
+clipboard overlays and are not clean compositor parity references. Generic
+emulator model-download failure remains separately recorded; it establishes no
+all-Android exception. Every broader physical/account/terminal/notification/
+backend/release gate below remains open. No ML Kit dependency was added.
+
+The owned emulator was restored/stopped; account, pairing, signing and workspace
+data, installed Pixel 703 and signed 712 are unchanged. Mac app/helper remain
+running. Full parity stays active; no additional Mac action or repeated phone
+request is needed for this checkpoint.
+
 ## Native translation settings verified; emulator download failure recorded — 2026-10-22
 
 A foreground ActivityScenario host now launches the actual TranslationManager

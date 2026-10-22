@@ -77,7 +77,7 @@ internal fun NativeChiefView(computer: NativeChiefComputerSession, active: Boole
         val pages = rememberSaveableStateHolder()
         pages.SaveableStateProvider(selected?.id?.let { "conversation:$it" } ?: "home") {
         if (selected != null && transcript != null) key(selected.id) {
-            NativeChiefTranscriptView(selected, transcript, computer::back, modifier)
+            NativeChiefTranscriptView(selected, transcript, computer::back, modifier, computer.translationConfiguration)
         } else NativeChiefHomeView(computer, modifier)
         }
     }
@@ -212,9 +212,21 @@ private fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier: 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, session: NativeChiefTranscriptSession,
-    onBack: () -> Unit, modifier: Modifier) {
+    onBack: () -> Unit, modifier: Modifier, translationConfiguration: NativeChiefTranslationConfiguration?) {
     val state by session.state.collectAsState()
     val scope = rememberCoroutineScope()
+    val translationContext = LocalContext.current.applicationContext
+    val preferredTranslationLocale = LocalConfiguration.current.locales[0]
+    LaunchedEffect(session, translationConfiguration) {
+        if (translationConfiguration != null) try {
+            installNativeChiefTranslation(session, translationContext, translationConfiguration, preferredTranslationLocale)
+        } catch (error: Exception) { currentCoroutineContext().ensureActive() }
+    }
+    val translationModel by session.translations.collectAsState()
+    val translationState by (translationModel?.state ?: remember(session) {
+        kotlinx.coroutines.flow.MutableStateFlow(NativeChiefTranslationState())
+    }).collectAsState()
+    val translationReserve = if (translationState.indicator != null) 38.dp else 0.dp
     val composerFocus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val copyCapturedText = rememberChiefCopy(session)
@@ -229,6 +241,11 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         menu.dismiss(); selectedRows = null; confirmedDelete = null; selectText = null; pollDetails = null
     } }
     var actionError by remember { mutableStateOf<String?>(null) }
+    val translationUi = remember(session, translationModel, preferredTranslationLocale) { translationModel?.let {
+        NativeChiefTranslationUi(session, it, scope, preferredTranslationLocale) { error -> actionError = error }
+    } }
+    DisposableEffect(translationUi) { onDispose { translationUi?.close() } }
+    SideEffect { if (state.retired) translationUi?.dismiss() }
     fun act(action: suspend () -> Unit) { scope.launch {
         actionError = null
         try { action() } catch (error: Exception) {
@@ -266,7 +283,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         return try { action() } finally { pinned = nearNewest(); readerScrolling = false }
     }
     val viewport = list.layoutInfo.viewportSize.height
-    val historyGeometry = remember(timeline, state.hasMore, state.committed, state.actionErrors,
+    val historyGeometry = remember(timeline, translationState, state.hasMore, state.committed, state.actionErrors,
         LocalDensity.current.density, LocalDensity.current.fontScale, list.layoutInfo.viewportSize.width) {
         mutableStateOf<NativeChiefHistoryGeometry?>(null)
     }
@@ -287,7 +304,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     // A font reflow can push the last row entirely outside the lazy viewport,
     // where the overflow collector below can no longer observe it. Reposition
     // a following transcript explicitly, while preserving history-reading intent.
-    LaunchedEffect(timeline, state.working, state.loading, state.hasMore, state.localSendRevision, viewport, fontScale) {
+    LaunchedEffect(timeline, translationState, state.working, state.loading, state.hasMore, state.localSendRevision, viewport, fontScale) {
         val sent = state.localSendRevision != seenSend
         seenSend = state.localSendRevision
         if (sent) { pinned = true; readerScrolling = false }
@@ -434,11 +451,11 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
     val lastMessage = last?.item?.message
     val trailingEmoji = lastMessage?.let { NativeChiefPresentation.pendingPart(it) == null &&
         NativeChiefEmojiPolicy.isEmojiOnly(NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it)) } == true
-    val trailingOverhang = if (!state.working && last?.lastInRun == true && lastMessage != null && !trailingEmoji) bubbleMetrics.drop else 0.dp
+    val trailingOverhang = if (!state.working && last?.lastInRun == true && lastMessage != null && !trailingEmoji && translationState.presentations[last.item.key] == null) bubbleMetrics.drop else 0.dp
     NativeChiefTranscriptFrame(modifier.fillMaxSize().then(if (detailsOpen && !state.retired) Modifier.blur(16.dp) else Modifier)
         .background(if (darkTranscript) Color.Black else Color.White).imePadding().testTag("ChiefTranscript")
         .onPreviewKeyEvent { if (session.state.value.reply != null && it.key == Key.Escape && it.type == KeyEventType.KeyDown) { closeReply(); true } else false },
-        compactHeader, darkTranscript, trailingOverhang, header = {
+        compactHeader, darkTranscript, trailingOverhang, translationReserve, header = {
         Box(Modifier.then(if (menu.opened) Modifier.clearAndSetSemantics {} else Modifier)) {
         NativeChiefHeader(conversation, "stop" in state.deciding, onBack,
             { if (state.hasLoadedInfo && !state.retired) {
@@ -491,6 +508,11 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             .size(48.dp).testTag("ChiefCatchUp")) {
             Icon(painterResource(R.drawable.ic_chief_catch_up), stringResource(R.string.chief_catch_up_label))
         }
+        if (translationModel != null && translationState.indicator != null && !state.retired) {
+            NativeChiefTranslationIndicator(translationState, translationModel!!,
+                Modifier.align(Alignment.BottomCenter).padding(bottom = composerHeight + 6.dp)
+                    .then(if (menu.opened) Modifier.clearAndSetSemantics {} else Modifier))
+        }
         if (selecting) NativeChiefSelectionToolbar(!selectedRows.isNullOrEmpty(), darkTranscript,
             Modifier.align(Alignment.BottomStart).padding(bottom = (composerHeight / 2 - 20.dp).coerceAtLeast(0.dp))) {
             confirmedDelete = selectedRows?.toSet()
@@ -523,6 +545,8 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 NativeChiefMenuAction.MORE -> { selectedRows = setOf(current.key); menu.dismiss() }
                 NativeChiefMenuAction.SELECT -> { selectText = menu.selection(frozen); menu.dismiss() }
                 NativeChiefMenuAction.POLL -> { pollDetails = current.message?.id; menu.dismiss() }
+                NativeChiefMenuAction.TRANSLATE -> { menu.dismiss(); translationUi?.showChoice(current.key) }
+                NativeChiefMenuAction.SHOW_ORIGINAL, NativeChiefMenuAction.SHOW_TRANSLATION -> { menu.dismiss(); translationUi?.toggle(current.key) }
             }
         }
         }
@@ -564,6 +588,9 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                     onQuestion = { answerMessage = it }, onFailure = { failedMessage = it }, onQuote = ::openThread, onReply = ::replyTo,
                     onSwipeReply = if (reply == null && !selecting && !state.retired) ::swipeReply else null,
                     onCopy = copyCapturedText,
+                    translation = translationState.presentations[row.item.key],
+                    previousTranslation = timeline.getOrNull(index - 1)?.item?.key?.let(translationState.presentations::get),
+                    onTranslation = { translationUi?.toggle(row.item.key) },
                     bodyAlpha = if (row.item.key in (replyMotion?.hiddenKeys ?: emptySet())) 0f
                         else if (row.item.fromMe) 1f - .3f * (replyMotion?.veil ?: 0f) else 1f,
                     menu = if (reply == null && !selecting && !state.retired) menu else null,
@@ -576,20 +603,28 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         if (state.hasMore) NativeChiefHistoryProbe(timeline.size + 1, viewport,
             Modifier.fillMaxWidth().padding(horizontal = 16.dp), onGeometry = { historyGeometry.value = it }) { index ->
             if (index == 0) ChiefOlderRow(state) {}
-            else ChiefTranscriptRow(timeline[index - 1], timeline.getOrNull(index - 2), state, bubbleMetrics, { _, _ -> }, { _, _ -> }, {}, {})
+            else ChiefTranscriptRow(timeline[index - 1], timeline.getOrNull(index - 2), state, bubbleMetrics, { _, _ -> }, { _, _ -> }, {}, {},
+                translation = translationState.presentations[timeline[index - 1].item.key],
+                previousTranslation = timeline.getOrNull(index - 2)?.item?.key?.let(translationState.presentations::get))
         }
         if (presentation != null && !state.retired) key(presentation.reply.generation) {
-            NativeChiefReplyOverlay(presentation.reply, presentation.motion, headerHeight, composerHeight,
+            NativeChiefReplyOverlay(presentation.reply, presentation.motion, headerHeight, composerHeight + translationReserve,
                 bubbleMetrics, darkTranscript, ::closeReply, ::replyTo,
                 onCopy = { text ->
                     !presentation.motion.closing && session.state.value.reply?.generation == presentation.reply.generation && copyCapturedText(text)
-                }, onFinished = {
+                }, translations = translationState.presentations,
+                onTranslation = { if (!presentation.motion.closing && session.state.value.reply?.generation == presentation.reply.generation) translationUi?.toggle(it) }, onFinished = {
                     // A previous generation's completion can never retire a reopened thread.
                     if (shownReply === presentation) shownReply = null
                 })
         }
         }
 
+    }
+    if (!state.retired) {
+        translationUi?.let { NativeChiefTranslationSheets(it) }
+        val host = session.translationHost
+        if (host != null && translationModel != null) NativeChiefTranslationDownloadHost(host, translationModel!!)
     }
     if (detailsOpen && !state.retired && state.hasLoadedInfo) NativeChiefDetails(conversation, state.listState,
         onClose = { detailsOpen = false }, onChange = { muted, receipts ->
@@ -664,9 +699,11 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     onQuestion: (String) -> Unit, onFailure: (String) -> Unit, onQuote: (String) -> Unit = {},
     onReply: ((String) -> Boolean)? = null, onSwipeReply: ((String, Float) -> Boolean)? = null, bodyAlpha: Float = 1f,
     origins: NativeChiefReplyOrigins? = null, menu: NativeChiefMenuController? = null,
-    selected: Boolean? = null, onCopy: ((String) -> Boolean)? = null, onToggleSelection: () -> Unit = {}) {
+    selected: Boolean? = null, onCopy: ((String) -> Boolean)? = null, onToggleSelection: () -> Unit = {},
+    translation: NativeChiefTranslationPresentation? = null, previousTranslation: NativeChiefTranslationPresentation? = null,
+    onTranslation: () -> Unit = {}) {
     val menuSource = remember(menu, row.item.key) { menu?.let { NativeChiefMenuSource(it, row) } }
-    SideEffect { menuSource?.row = row }
+    SideEffect { menuSource?.row = row; menuSource?.displayedText = translation?.text }
     DisposableEffect(origins, row.item.key, row.timestamp) { onDispose {
         origins?.bubbles?.remove(row.item.messageID); origins?.cells?.remove(row.item.messageID)
         origins?.timestamps?.remove(row.item.key)
@@ -679,9 +716,9 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
         previousMessage?.let { message -> NativeChiefPresentation.pendingPart(message) == null &&
             NativeChiefEmojiPolicy.isEmojiOnly(NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)) } == true
     }
-    val previousOverhang = if (previous?.lastInRun == true && previousMessage != null && !previousEmoji) metrics.drop else 0.dp
+    val previousOverhang = if (previous?.lastInRun == true && previousMessage != null && !previousEmoji && previousTranslation == null) metrics.drop else 0.dp
     val gap = if (row.timestamp) 0.dp else (baseGap - previousOverhang).coerceAtLeast(0.dp)
-    val capturedText = row.item.message?.let { NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it) }
+    val capturedText = translation?.text ?: row.item.message?.let { NativeChiefPresentation.receipt(it) ?: NativeChiefPresentation.displayText(it) }
         ?: row.item.outgoing!!.text
     val accessibility = chiefMessageAccessibility(capturedText, onReply?.let { { it(row.item.messageID) } }, onCopy)
     val replyAction = if (onReply != null) Modifier.testTag("ChiefReplyActions:${row.item.messageID}").semantics {
@@ -690,6 +727,11 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
     } else Modifier
     val selectionModifier = Modifier.chiefSelecting(selected, row.item.fromMe, capturedText,
         accessibility.copy, accessibility.copiedState, onToggleSelection)
+    val captionVisible = bodyAlpha > 0 && menu?.snapshot?.row?.item?.key != row.item.key
+    val captionModifier = Modifier.graphicsLayer {
+        alpha = if (captionVisible) bodyAlpha else 0f
+        translationX = if (selected != null && !row.item.fromMe) 42.dp.toPx() else 0f
+    }.then(if (captionVisible) Modifier else Modifier.clearAndSetSemantics {})
     Column(Modifier.fillMaxWidth().testTag("ChiefRow:${row.item.key}").padding(top = gap)) {
         if (row.timestamp) {
             ChiefTimestamp(row.item.at, "ChiefTimestamp:${row.item.key}", Modifier.onGloballyPositioned { origins?.timestamps?.set(row.item.key, it) })
@@ -701,7 +743,7 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
         if (message != null) {
             val part = NativeChiefPresentation.pendingPart(message)
             val actionable = message.id !in state.deciding && message.id !in state.committed
-            val body = NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)
+            val body = translation?.text ?: capturedText
             val emojiSize = remember(body, part) { if (part == null) NativeChiefEmojiPolicy.fontSize(body) else null }
             NativeChiefBalloonRow(row.quote, message.authorKind == "human", row.lastInRun,
                 message.id, expanded = part != null, text = body.takeIf { part == null }, metrics = metrics, emojiSize = emojiSize,
@@ -733,18 +775,25 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
                 if (message.id in state.committed) Text("Answer sent. Waiting for your Mac…", color = chiefMuted)
                 state.actionErrors[message.id]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
+            translation?.let { NativeChiefTranslationCaption(it, row.item.fromMe,
+                if (row.lastInRun && emojiSize == null) metrics.drop else 0.dp, "ChiefTranslationCaption:${row.item.key}",
+                modifier = captionModifier, enabled = selected == null && captionVisible, onClick = onTranslation) }
         } else {
             val outgoing = checkNotNull(row.item.outgoing)
-            val emojiSize = remember(outgoing.text) { NativeChiefEmojiPolicy.fontSize(outgoing.text) }
+            val body = translation?.text ?: outgoing.text
+            val emojiSize = remember(body) { NativeChiefEmojiPolicy.fontSize(body) }
             Column(Modifier.fillMaxWidth().then(cellPosition), horizontalAlignment = androidx.compose.ui.AbsoluteAlignment.Right) {
-                NativeChiefBalloonRow(row.quote, true, row.lastInRun, outgoing.clientMessageId, false, outgoing.text, metrics,
+                NativeChiefBalloonRow(row.quote, true, row.lastInRun, outgoing.clientMessageId, false, body, metrics,
                     emojiSize = emojiSize, modifier = Modifier.alpha(bodyAlpha).then(replyAction).then(selectionModifier), pending = true,
                     onQuote = row.quote?.let { { onQuote(it.id) } },
                     menuSource = menuSource,
                     onBubblePositioned = { origins?.bubbles?.set(row.item.messageID, NativeChiefReplyOrigins.Bubble(row.item.key, it)) }) {
-                    if (menuSource != null) NativeChiefText(outgoing.text, Modifier.onGloballyPositioned { if (emojiSize == null) menuSource.text = it })
-                    else SelectionContainer { NativeChiefText(outgoing.text) }
+                    if (menuSource != null) NativeChiefText(body, Modifier.onGloballyPositioned { if (emojiSize == null) menuSource.text = it })
+                    else SelectionContainer { NativeChiefText(body) }
                 }
+                translation?.let { NativeChiefTranslationCaption(it, true,
+                    if (row.lastInRun && emojiSize == null) metrics.drop else 0.dp, "ChiefTranslationCaption:${row.item.key}",
+                    modifier = captionModifier, enabled = selected == null && captionVisible, onClick = onTranslation) }
                 Text(when (outgoing.delivery) {
                     NativeChiefDelivery.SENDING -> "Sending…"
                     NativeChiefDelivery.QUEUED -> "Queued"

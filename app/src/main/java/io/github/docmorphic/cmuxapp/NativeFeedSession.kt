@@ -270,7 +270,8 @@ internal class NativeFeedSession(
         foregroundChiefAccess?.takeIf { it.second === client && NativeComputerMenuPairing.isCurrent(mac, listOf(it.first)) }
             ?.let { return it.third }
         foregroundChiefAccess?.third?.close()
-        return NativeChiefComputerSession(scope, NativeChiefClient(client, ::live), ::live).also {
+        return NativeChiefComputerSession(scope, NativeChiefClient(client, ::live),
+            NativeChiefTranslationConfiguration(NativeChiefTranslationPreferenceOwner.from(mac, store.taskSession())), ::live).also {
             foregroundChiefAccess = Triple(mac, client, it)
         }
     }

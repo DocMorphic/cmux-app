@@ -48,6 +48,31 @@ internal class ChiefTranslationTestEngine : NativeChiefTranslating {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefTranslationsTest {
+    @Test fun modelPresentationsMatchTheExecutedSourceRowSubstitution() = runTest {
+        val fixture = JSONObject(javaClass.getResourceAsStream("/parity/chief-translation-presentation.json")!!.bufferedReader().use { it.readText() })
+        val cases = fixture.getJSONArray("cases")
+        for (index in 0 until cases.length()) {
+            val value = cases.getJSONObject(index)
+            val original = value.getString("original")
+            val engine = ChiefTranslationTestEngine().apply { response = mapOf("row" to "Hello, world") }
+            val model = NativeChiefTranslations(this, engine, translationLanguage("en"), { true })
+            val row = NativeChiefTranslationRow("row", original, false)
+            try {
+                model.updateRows(listOf(row))
+                if (value.getString("id") != "none") {
+                    if (value.getString("id") == "not-downloaded") engine.failure = NativeChiefTranslationFailure.NOT_DOWNLOADED
+                    model.translateMessage("row", translationLanguage("es")); runCurrent()
+                    if (value.getString("id") == "show-original") model.toggleOriginal("row")
+                }
+                val shown = model.state.value.presentations["row"]?.text ?: original
+                assertEquals(value.getString("id"), value.getString("messageText"), shown)
+                assertEquals(value.getString("menuCopy"), shown)
+                assertEquals(value.getString("accessibilityCopy"), shown)
+                assertEquals(original, row.text)
+            } finally { model.close() }
+        }
+    }
+
     @Test fun providerDiscoveryRecoversBeforeReportingUnavailable() = runTest {
         var calls = 0
         val pairs = discoverNativeChiefTranslationCapabilities { if (++calls < 3) emptyList() else listOf("fr-en") }
@@ -181,6 +206,24 @@ class NativeChiefTranslationsTest {
         model.refreshAvailability(); runCurrent()
         assertTrue(model.isShowingTranslation("spanish")); assertTrue(model.isShowingTranslation("later"))
         assertEquals(NativeChiefTranslationIndicator.TRANSLATING, model.state.value.indicator)
+    }
+
+    @Test fun decliningAnAutomaticDownloadAlsoDefersAlreadyQueuedAutomaticRows() = checkModel { model, engine ->
+        model.updateRows(rows + NativeChiefTranslationRow("second-spanish", "es: dos", false))
+        val gate = CompletableDeferred<Unit>()
+        engine.translationGate = gate
+        engine.availabilityResult = NativeChiefTranslationAvailability.DOWNLOADABLE
+        engine.failure = NativeChiefTranslationFailure.NOT_DOWNLOADED
+        model.translateConversation("spanish"); runCurrent()
+        assertEquals(1, engine.calls.size)
+        gate.complete(Unit); runCurrent()
+        assertEquals("Declining the active prompt must not immediately prompt for the queued rows", 1, engine.calls.size)
+        assertEquals(NativeChiefTranslationIndicator.WAITING_FOR_DOWNLOAD, model.state.value.indicator)
+        assertNull(model.state.value.presentations["second-spanish"])
+        engine.failure = null
+        model.translateMessage("japanese"); runCurrent()
+        assertTrue(model.isShowingTranslation("japanese"))
+        assertEquals(2, engine.calls.size)
     }
 
     @Test fun automaticDownloadCanBeRequestedAgainExplicitly() = checkModel { model, engine ->

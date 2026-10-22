@@ -46,7 +46,8 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChiefReplyMotionState, headerHeight: Dp, composerHeight: Dp,
     metrics: NativeChiefBubbleMetrics, dark: Boolean, onClose: () -> Unit, onReply: (String) -> Boolean,
-    onCopy: (String) -> Boolean, onFinished: () -> Unit) {
+    onCopy: (String) -> Boolean, translations: Map<String, NativeChiefTranslationPresentation> = emptyMap(),
+    onTranslation: (String) -> Unit = {}, onFinished: () -> Unit) {
     val transcriptLabel = stringResource(R.string.chief_reply_transcript)
     val density = LocalDensity.current
     val view = LocalView.current
@@ -97,7 +98,9 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChie
                                 Modifier.fillMaxWidth().padding(start = 14.dp).graphicsLayer { alpha = if (item.messageID == reply.targetID) motion.anchorChromeAlpha else 1f })
                             Spacer(Modifier.height((senderGeometry.bubbleOffset - senderGeometry.height).toFloat().dp))
                         }
-                        val text = NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)
+                        val original = NativeChiefPresentation.receipt(message) ?: NativeChiefPresentation.displayText(message)
+                        val translation = translations[item.key]
+                        val text = translation?.text ?: original
                         val part = NativeChiefPresentation.pendingPart(message)
                         val emoji = NativeChiefEmojiPolicy.fontSize(text).takeIf { part == null }
                         val accessibility = chiefMessageAccessibility(text,
@@ -129,6 +132,9 @@ internal fun NativeChiefReplyOverlay(reply: NativeChiefReply, motion: NativeChie
                                 }
                             } }
                         }
+                        translation?.let { NativeChiefTranslationCaption(it, item.fromMe,
+                            if (emoji == null) metrics.drop else 0.dp, "ChiefThreadTranslationCaption:${item.key}",
+                            enabled = !motion.closing) { onTranslation(item.key) } }
                         if (item.outgoing?.delivery?.isFailed == true) Text(stringResource(R.string.chief_retry_title),
                             color = Color(0xFFFF453A), style = senderStyle, modifier = Modifier.align(AbsoluteAlignment.Right))
                     }

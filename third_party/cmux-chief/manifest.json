@@ -188,6 +188,36 @@
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+Translate.swift": "8e3f4ca65998937c4acf653bdf1ff913a3f89bc93381ee96eb80e12a0493e3a0",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationTranslation/ConversationTranslationEngine.swift": "a99d25a01a8ce6816db7606a6a83730b737604f3246cd22ed62580b686542d8c",
     "Packages/iOS/CmuxConversation/Tests/CmuxConversationCoreTests/ConversationTranslationTests.swift": "95e22eda68d8952e7a8964e964ad26ccbaa9b8a42dfcf6c9c930334e95301c80",
-    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift": "bc7e624230704182753a7ec42ac5d0db4b27c4e403f9d299c25b26acfadd8f61"
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift": "bc7e624230704182753a7ec42ac5d0db4b27c4e403f9d299c25b26acfadd8f61",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationRows.swift": "267c73afadabad297998eda77cf32750032bd34939d5b55c7f01b1b70aaae43b",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationCells.swift": "b7db01bd0f01c53b35638957d945c9c37814f2720c1740ca2533e0a61db78b86",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/MessageCellLayout.swift": "95ae1cc47cb17e25c0b8ae739e105029d5f65b109faa5b516c93897abdeb36bc",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/MessageActionOverlay.swift": "dc0bf26c9d5d472d0a93d25efd5cdcd7bcfd8d54662331a28d4fe49a192a6904",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationAccessibility.swift": "a48b43212af55da6c08bce8c9c50690319fc89d720f478f4e7a8926c992be8bf",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationPolls.swift": "a135484b0370274d675732914e93e52d65160c16a7b7d3d6a92bb47342205f58"
+  },
+  "translationStrings": {
+    "path": "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/Resources/Localizable.xcstrings",
+    "sha256": "7d43f79f76c3ddbd63c5cab6ac66ea966cdf33a495dbf635cdf10bc4de088b93",
+    "deviceVariation": "other",
+    "keys": {
+      "conversation.menu.showOriginal": "chief_translation_menu_show_original",
+      "conversation.menu.showTranslation": "chief_translation_menu_show_translation",
+      "conversation.menu.translate": "chief_translation_menu_translate",
+      "conversation.translate.cancel": "chief_translation_cancel",
+      "conversation.translate.caption.notDownloaded": "chief_translation_caption_not_downloaded",
+      "conversation.translate.caption.showOriginal": "chief_translation_caption_show_original",
+      "conversation.translate.caption.translating": "chief_translation_caption_translating",
+      "conversation.translate.caption.unsupported": "chief_translation_caption_unsupported",
+      "conversation.translate.caption.viewTranslation": "chief_translation_caption_view_translation",
+      "conversation.translate.conversation": "chief_translation_conversation",
+      "conversation.translate.from": "chief_translation_from",
+      "conversation.translate.indicator.download": "chief_translation_indicator_download",
+      "conversation.translate.indicator.stop": "chief_translation_indicator_stop",
+      "conversation.translate.indicator.translating": "chief_translation_indicator_translating",
+      "conversation.translate.indicator.waiting": "chief_translation_indicator_waiting",
+      "conversation.translate.message": "chief_translation_message",
+      "conversation.translate.prompt": "chief_translation_prompt"
+    }
   }
 }

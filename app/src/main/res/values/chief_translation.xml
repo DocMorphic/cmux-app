@@ -1,0 +1,21 @@
+<resources>
+    <string name="chief_translation_menu_show_original">Show Original</string>
+    <string name="chief_translation_menu_show_translation">Show Translation</string>
+    <string name="chief_translation_menu_translate">Translate</string>
+    <string name="chief_translation_cancel">Cancel</string>
+    <string name="chief_translation_caption_not_downloaded">Language not downloaded</string>
+    <string name="chief_translation_caption_show_original">Show Original</string>
+    <string name="chief_translation_caption_translating">Translating</string>
+    <string name="chief_translation_caption_unsupported">%1$s translation is not supported on this device</string>
+    <string name="chief_translation_caption_view_translation">View Translation</string>
+    <string name="chief_translation_conversation">Translate Conversation</string>
+    <string name="chief_translation_from">Translate From</string>
+    <string name="chief_translation_indicator_download">Download %1$s</string>
+    <string name="chief_translation_indicator_stop">Stop Translation</string>
+    <string name="chief_translation_indicator_translating">Translating %1$s</string>
+    <string name="chief_translation_indicator_waiting">Translation will begin when language is downloaded</string>
+    <string name="chief_translation_message">Translate This Message</string>
+    <string name="chief_translation_prompt">Translate this message or automatically translate this conversation?</string>
+    <string name="chief_translation_open_settings">Open Language Settings</string>
+    <string name="chief_translation_download_explanation">Download %1$s and %2$s in Android’s language settings, then return to cmux.</string>
+</resources>

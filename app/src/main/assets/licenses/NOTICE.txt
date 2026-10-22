@@ -457,3 +457,9 @@ AgentFeedView.swift and MobileRelativeActivity.swift at
 186cec79781256867ad4516f0802118738bd2393. Copyright Manaflow, Inc.; GPL-3.0-or-later.
 Native inline Markdown uses commonmark-java and the GFM strikethrough extension
 0.30.0, licensed under BSD-2-Clause. See CommonMark.txt.
+
+Google Material Icons — Translate glyph
+Copyright Google LLC, licensed under the Apache License, Version 2.0.
+Source: https://github.com/google/material-design-icons/blob/master/src/action/translate/materialicons/24px.svg
+The glyph was converted from SVG to Android VectorDrawable.
+The full license is included in Apache-2.0.txt.

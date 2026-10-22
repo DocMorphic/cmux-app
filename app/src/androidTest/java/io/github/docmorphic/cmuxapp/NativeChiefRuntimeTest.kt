@@ -2834,6 +2834,346 @@ class NativeChiefRuntimeTest {
         assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
     }
 
+    /** Controlled output is explicitly UI evidence, never accepted as native model inference. */
+    private inner class TranslationEngine : NativeChiefTranslating {
+        var missing = false
+        var download: NativeChiefTranslationDownload? = null
+        var closed = 0
+        var transform: (String) -> String = { "[UI translation] $it" }
+        val calls = mutableListOf<Pair<Map<String, String>, String>>()
+        override suspend fun availability(source: NativeChiefTranslationLanguage, target: NativeChiefTranslationLanguage) =
+            if (missing) NativeChiefTranslationAvailability.DOWNLOADABLE else NativeChiefTranslationAvailability.INSTALLED
+        override suspend fun supportedLanguages() = listOf("es", "en", "fr").map { NativeChiefTranslationLanguages.fromTag(it)!! }
+        override suspend fun detectLanguage(text: String) = if (text == "unknown") null else NativeChiefTranslationLanguages.fromTag("es")
+        override suspend fun translate(texts: Map<String, String>, source: NativeChiefTranslationLanguage,
+            target: NativeChiefTranslationLanguage): Map<String, String> {
+            calls += texts.toMap() to source.code
+            if (missing) {
+                download?.request(source, target)
+                if (missing) throw NativeChiefTranslationException(NativeChiefTranslationFailure.NOT_DOWNLOADED)
+            }
+            return texts.mapValues { transform(it.value) }
+        }
+        override fun close() { closed++ }
+    }
+    private fun installUiTranslator(engine: TranslationEngine = TranslationEngine()): TranslationEngine {
+        compose.runOnUiThread { computer.transcript()!!.installTranslations(engine, NativeChiefTranslationLanguages.fromTag("en")!!) }
+        compose.waitForIdle()
+        return engine
+    }
+    private fun openTranslationMenu(id: String) {
+        compose.onNodeWithTag("ChiefReplyActions:$id").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefActionMenu").fetchSemanticsNodes().isNotEmpty() }
+    }
+    private fun awaitTranslationCaption(tag: String, text: String) {
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().any { node ->
+            node.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)?.any { it.text == text } == true
+        } }
+    }
+    private fun beginTranslationChoice(id: String) {
+        openTranslationMenu(id)
+        compose.onNodeWithTag("ChiefMenu:TRANSLATE").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationChoice").fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test fun translationChoiceCaptionsAndMenuTogglesKeepTheOriginalDraft() {
+        openReferenceScene("quote-dark")
+        val engine = installUiTranslator()
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep the untranslated draft")
+        beginTranslationChoice("parent")
+        saveScreenshot("chief-translation-choice-mounted")
+        compose.onNodeWithTag("ChiefTranslateMessage").performClick()
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.isShowingTranslation("s:parent") }
+        compose.onNodeWithText("[UI translation] The original message from your Mac.").assertIsDisplayed()
+        compose.onNodeWithTag("ChiefTranslationCaption:s:parent").assertIsDisplayed()
+        saveScreenshot("chief-translation-message-mounted")
+        compose.onNodeWithTag("ChiefTranslationCaption:s:parent").performClick()
+        compose.waitUntil(10_000) { !computer.transcript()!!.translations.value!!.isShowingTranslation("s:parent") }
+        awaitTranslationCaption("ChiefTranslationCaption:s:parent", "View Translation")
+        compose.onNodeWithTag("ChiefTranslationCaption:s:parent").assertTextContains("View Translation")
+        openTranslationMenu("parent")
+        compose.onNodeWithTag("ChiefMenu:SHOW_TRANSLATION").performClick()
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.isShowingTranslation("s:parent") }
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Keep the untranslated draft")
+        assertEquals(1, engine.calls.size)
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun translatedMenuSelectAndAccessibilityCopyUseDisplayedTextWithoutChangingWireOriginals() {
+        openReferenceScene("quote-dark")
+        installUiTranslator()
+        compose.runOnUiThread { owner.launch { computer.transcript()!!.translations.value!!.translateMessage("s:parent") } }
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.isShowingTranslation("s:parent") }
+        awaitTranslationCaption("ChiefTranslationCaption:s:parent", "Show Original")
+        compose.onNodeWithText("[UI translation] The original message from your Mac.").assertIsDisplayed()
+        openTranslationMenu("parent")
+        // Menu Copy closes over the rendered model at capture, even if the
+        // backing row switches to its original while the frozen menu is open.
+        compose.runOnUiThread { computer.transcript()!!.translations.value!!.toggleOriginal("s:parent") }
+        compose.onNodeWithTag("ChiefMenu:COPY").performClick()
+        compose.runOnUiThread {
+            val clipboard = compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+            assertEquals("[UI translation] The original message from your Mac.", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        }
+        compose.runOnUiThread { computer.transcript()!!.translations.value!!.toggleOriginal("s:parent") }
+        awaitTranslationCaption("ChiefTranslationCaption:s:parent", "Show Original")
+        openTranslationMenu("parent")
+        compose.onNodeWithTag("ChiefMenu:SELECT").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTextSelection").fetchSemanticsNodes().isNotEmpty() }
+        fun find(view: android.view.View): android.widget.TextView? {
+            if (view is android.widget.TextView && view.isTextSelectable) return view
+            if (view is android.view.ViewGroup) for (index in 0 until view.childCount) find(view.getChildAt(index))?.let { return it }
+            return null
+        }
+        compose.runOnUiThread {
+            val selected = checkNotNull(find(compose.activity.window.decorView))
+            assertEquals("[UI translation] The original message from your Mac.", selected.text.toString())
+            assertTrue(selected.onTextContextMenuItem(android.R.id.copy))
+            val clipboard = compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+            assertEquals(selected.text.toString(), clipboard.primaryClip!!.getItemAt(0).text.toString())
+            android.text.Selection.setSelection(selected.text as android.text.Spannable, 0)
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTextSelection").fetchSemanticsNodes().isEmpty() }
+        val copy = compose.onNodeWithTag("ChiefReplyActions:parent").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Copy" }
+        compose.runOnUiThread {
+            assertTrue(copy.action())
+            assertEquals("[UI translation] The original message from your Mac.", compose.activity.getSystemService(android.content.ClipboardManager::class.java).primaryClip!!.getItemAt(0).text.toString())
+            assertEquals("The original message from your Mac.", computer.transcript()!!.state.value.messages.first { it.id == "parent" }.text)
+        }
+        saveScreenshot("chief-translation-rendered-copy-mounted")
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun uncertainTranslationUsesTheSourcePickerAndRejectsCapturedOldChoices() {
+        compose.runOnUiThread { api.rows = listOf(message("hello", 1uL, "unknown")) }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:hello").fetchSemanticsNodes().isNotEmpty() }
+        val engine = installUiTranslator()
+        beginTranslationChoice("hello")
+        compose.onNodeWithTag("ChiefTranslateMessage").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationFrom").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefTranslateFrom:en").assertDoesNotExist()
+        val french = compose.onNodeWithTag("ChiefTranslateFrom:fr").fetchSemanticsNode()
+        val spanish = compose.onNodeWithTag("ChiefTranslateFrom:es").fetchSemanticsNode()
+        assertTrue(french.boundsInRoot.top < spanish.boundsInRoot.top)
+        val stale = checkNotNull(spanish.config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        saveScreenshot("chief-translation-from-mounted")
+        compose.onNodeWithTag("ChiefTranslateFrom:fr").performClick()
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.isShowingTranslation("s:hello") }
+        compose.runOnUiThread { stale(); assertEquals(listOf("fr"), engine.calls.map { it.second }) }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun removingTheMessageDismissesItsSourcePickerWithoutTranslatingStaleText() {
+        compose.runOnUiThread { api.rows = listOf(message("hello", 1uL, "unknown")) }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:hello").fetchSemanticsNodes().isNotEmpty() }
+        val engine = installUiTranslator()
+        beginTranslationChoice("hello")
+        compose.onNodeWithTag("ChiefTranslateMessage").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationFrom").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnUiThread { computer.transcript()!!.deleteLocally(setOf("s:hello")) }
+        compose.onNodeWithTag("ChiefTranslateFrom:fr").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationFrom").fetchSemanticsNodes().isEmpty() }
+        compose.runOnUiThread { assertTrue(engine.calls.isEmpty()) }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun automaticTranslationWaitsForModelsRetriesAndStopsWithSourceIndicatorRoom() {
+        openReferenceScene("quote-dark")
+        val engine = installUiTranslator(TranslationEngine().apply { missing = true })
+        compose.onNodeWithTag("ChiefComposer").performTextInput("Keep the automatic translation draft")
+        beginTranslationChoice("parent")
+        compose.onNodeWithTag("ChiefTranslateConversation").performClick()
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.state.value.indicator == NativeChiefTranslationIndicator.WAITING_FOR_DOWNLOAD }
+        compose.onNodeWithTag("ChiefTranslationIndicator").assertIsDisplayed()
+        val indicator = compose.onNodeWithTag("ChiefTranslationIndicator").fetchSemanticsNode().boundsInRoot
+        val composer = compose.onNodeWithTag("ChiefComposerBar").fetchSemanticsNode().boundsInRoot
+        val density = compose.activity.resources.displayMetrics.density
+        assertEquals(32f, indicator.height / density, .7f)
+        assertEquals(6f, (composer.top - indicator.bottom) / density, .7f)
+        saveScreenshot("chief-translation-waiting-mounted")
+        val attempts = engine.calls.size
+        compose.runOnUiThread {
+            api.rows = api.rows + message("arrival", 4uL, "Another automatic message")
+            api.transcriptChanges.trySend(api.snapshot())
+        }
+        compose.waitUntil(10_000) { computer.transcript()!!.state.value.messages.any { it.id == "arrival" } }
+        compose.runOnUiThread { assertEquals(attempts, engine.calls.size); engine.missing = false }
+        compose.onNodeWithTag("ChiefTranslationIndicator").performClick()
+        compose.onNodeWithTag("ChiefTranslationRetryAutomatic").performClick()
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.isShowingTranslation("s:arrival") }
+        compose.onNodeWithTag("ChiefTranslationIndicator").performClick()
+        compose.onNodeWithTag("ChiefTranslationStop").performClick()
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.state.value.indicator == null }
+        compose.onNodeWithTag("ChiefTranslationIndicator").assertDoesNotExist()
+        compose.runOnUiThread { assertTrue(computer.transcript()!!.translations.value!!.state.value.presentations.isEmpty()) }
+        compose.onNodeWithTag("ChiefComposer").assertTextEquals("Keep the automatic translation draft")
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun translatedConversationRetainsItsModelAcrossNavigationAndRetiresWithTheComputer() {
+        openReferenceScene("quote-dark")
+        val engine = installUiTranslator()
+        compose.runOnUiThread { owner.launch { computer.transcript()!!.translations.value!!.translateMessage("s:parent") } }
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.isShowingTranslation("s:parent") }
+        val retained = computer.transcript()!!.translations.value!!
+        compose.onNodeWithTag("ChiefBack").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPinnedConversation").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationCaption:s:parent").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnUiThread {
+            assertSame(retained, computer.transcript()!!.translations.value); assertEquals(0, engine.closed)
+            computer.close()
+            assertTrue(retained.state.value.retired); assertTrue(retained.state.value.presentations.isEmpty())
+            assertEquals(1, engine.closed)
+        }
+        assertEquals(1, engine.calls.size)
+    }
+
+    @Test fun replyCopiesUseDisplayedTextForCopyAndRejectClosedCaptionActions() {
+        openReferenceScene("quote-dark")
+        installUiTranslator()
+        compose.runOnUiThread { owner.launch {
+            val model = computer.transcript()!!.translations.value!!
+            model.translateMessage("s:parent"); model.translateMessage("s:reply")
+        } }
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.isShowingTranslation("s:reply") }
+        compose.onNodeWithTag("ChiefQuote:reply").performClick()
+        waitForReplyThread()
+        compose.onNodeWithText("[UI translation] The original message from your Mac.").assertIsDisplayed()
+        val copy = compose.onNodeWithTag("ChiefThreadMessage:parent").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Copy" }
+        compose.runOnUiThread {
+            assertTrue(copy.action())
+            assertEquals("[UI translation] The original message from your Mac.", compose.activity.getSystemService(android.content.ClipboardManager::class.java).primaryClip!!.getItemAt(0).text.toString())
+        }
+        val caption = compose.onNodeWithTag("ChiefThreadTranslationCaption:s:parent")
+        val stale = checkNotNull(caption.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        caption.performClick()
+        compose.waitUntil(10_000) { !computer.transcript()!!.translations.value!!.isShowingTranslation("s:parent") }
+        saveScreenshot("chief-translation-reply-copies-mounted")
+        compose.onNodeWithTag("ChiefReplyClose").performClick()
+        compose.runOnUiThread { stale(); assertFalse(computer.transcript()!!.translations.value!!.isShowingTranslation("s:parent")) }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun translationKeepsThePinnedPollQuestionAndOptionsWhileCopyUsesItsPresentedMessageText() {
+        compose.runOnUiThread { api.rows = listOf(message("hello", 1uL, "original wire payload", parts = listOf(
+            NativeChiefPart("approval", null, NativeChiefApproval("request", "Review before running", listOf("allow", "deny"), null), null)))) }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:hello").fetchSemanticsNodes().isNotEmpty() }
+        val engine = installUiTranslator()
+        compose.runOnUiThread { owner.launch { computer.transcript()!!.translations.value!!.translateMessage("s:hello") } }
+        awaitTranslationCaption("ChiefTranslationCaption:s:hello", "Show Original")
+        compose.onNodeWithText("Review before running").assertIsDisplayed()
+        compose.onNodeWithText("allow").assertIsDisplayed()
+        compose.onNodeWithText("deny").assertIsDisplayed()
+        compose.onNodeWithText("[UI translation] original wire payload").assertDoesNotExist()
+        openTranslationMenu("hello")
+        compose.onNodeWithTag("ChiefMenu:COPY").performClick()
+        compose.runOnUiThread {
+            assertEquals("[UI translation] original wire payload", compose.activity.getSystemService(android.content.ClipboardManager::class.java).primaryClip!!.getItemAt(0).text.toString())
+            assertEquals("original wire payload", engine.calls.single().first.values.single())
+            assertEquals("original wire payload", computer.transcript()!!.state.value.messages.single().text)
+        }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun decliningAutomaticDownloadDefersQueuedRowsWithoutAnotherConsentDialog() {
+        openReferenceScene("quote-dark")
+        val session = computer.transcript()!!
+        val download = NativeChiefTranslationDownload { current && !session.state.value.retired }
+        val engine = TranslationEngine().apply { missing = true; this.download = download }
+        compose.runOnUiThread { session.installTranslations(engine, NativeChiefTranslationLanguages.fromTag("en")!!,
+            host = NativeChiefTranslationPlatformHost(download) { error("A declined offer must not launch settings") }) }
+        beginTranslationChoice("parent")
+        compose.onNodeWithTag("ChiefTranslateConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationDownload").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Cancel").performClick()
+        compose.waitUntil(10_000) { session.translations.value!!.state.value.indicator == NativeChiefTranslationIndicator.WAITING_FOR_DOWNLOAD }
+        compose.mainClock.advanceTimeBy(1_000); compose.waitForIdle()
+        compose.onNodeWithTag("ChiefTranslationDownload").assertDoesNotExist()
+        compose.runOnUiThread { assertEquals(1, engine.calls.size); assertNull(download.state.value) }
+        compose.onNodeWithTag("ChiefTranslationIndicator").assertIsDisplayed()
+        assertTrue(api.sends.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun productionTranslationDownloadHostDeclinesAndWaitsForARealSettingsReturn() {
+        openReferenceScene("quote-dark")
+        val session = computer.transcript()!!
+        val download = NativeChiefTranslationDownload { current && !session.state.value.retired }
+        val engine = TranslationEngine().apply { missing = true; this.download = download }
+        var settingsLaunches = 0
+        compose.runOnUiThread {
+            session.installTranslations(engine, NativeChiefTranslationLanguages.fromTag("en")!!, host = NativeChiefTranslationPlatformHost(download) {
+                settingsLaunches++
+                compose.activity.getSystemService(android.view.translation.TranslationManager::class.java).onDeviceTranslationSettingsActivityIntent
+            })
+        }
+        beginTranslationChoice("parent")
+        compose.onNodeWithTag("ChiefTranslateMessage").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationDownload").fetchSemanticsNodes().isNotEmpty() }
+        saveScreenshot("chief-translation-download-admission")
+        compose.onNodeWithText("Cancel").performClick()
+        compose.waitUntil(10_000) { session.translations.value!!.state.value.presentations["s:parent"]?.caption == NativeChiefTranslationCaption.NOT_DOWNLOADED }
+        assertEquals(0, settingsLaunches)
+        awaitTranslationCaption("ChiefTranslationCaption:s:parent", "Language not downloaded")
+        compose.onNodeWithTag("ChiefTranslationCaption:s:parent").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTranslationOpenSettings").fetchSemanticsNodes().isNotEmpty() }
+        val confirm = checkNotNull(compose.onNodeWithTag("ChiefTranslationOpenSettings").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        compose.runOnUiThread { assertTrue(confirm()) }
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val device = androidx.test.uiautomator.UiDevice.getInstance(instrumentation)
+        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.pkg("com.google.android.as").depth(0)), 10_000))
+        instrumentation.runOnMainSync {
+            assertEquals(1, settingsLaunches)
+            assertTrue(download.state.value!!.settingsOpen)
+            assertTrue(download.externalDeparted)
+        }
+        val directory = File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        assertTrue(device.takeScreenshot(File(directory, "chief-translation-production-settings.png")))
+        device.pressBack()
+        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.pkg(instrumentation.targetContext.packageName).depth(0)), 10_000))
+        compose.waitUntil(10_000) { session.translations.value!!.state.value.presentations["s:parent"]?.caption == NativeChiefTranslationCaption.NOT_DOWNLOADED }
+        compose.runOnUiThread { assertNull(download.state.value); assertNull(download.externalRequest) }
+        awaitTranslationCaption("ChiefTranslationCaption:s:parent", "Language not downloaded")
+        compose.onNodeWithTag("ChiefTranslationCaption:s:parent").assertTextContains("Language not downloaded")
+        saveScreenshot("chief-translation-download-returned")
+        assertEquals(2, engine.calls.size)
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun longTranslatedTailReflowFollowsNewestAndKeepsHistoryReadingIntent() {
+        compose.runOnUiThread { api.rows = (1..40).map { message("m$it", it.toULong(), "Original message $it") }; api.readMarker = 40uL }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:m40").fetchSemanticsNodes().isNotEmpty() }
+        val engine = installUiTranslator(TranslationEngine().apply { transform = { "[UI translation] A long translated message for reflow. ".repeat(80) } })
+        compose.runOnUiThread { owner.launch { computer.transcript()!!.translations.value!!.translateMessage("s:m40") } }
+        compose.waitUntil(10_000) { computer.transcript()!!.translations.value!!.isShowingTranslation("s:m40") }
+        compose.waitUntil(10_000) {
+            val caption = compose.onAllNodesWithTag("ChiefTranslationCaption:s:m40").fetchSemanticsNodes().singleOrNull()?.boundsInRoot
+            val composer = compose.onNodeWithTag("ChiefComposerBar").fetchSemanticsNode().boundsInRoot
+            caption != null && caption.height > 0 && caption.bottom <= composer.top
+        }
+        saveScreenshot("chief-translation-long-tail-mounted")
+        compose.runOnUiThread { computer.transcript()!!.translations.value!!.toggleOriginal("s:m40"); engine.transform = { "[UI translation] $it" } }
+        compose.waitForIdle()
+        swipeMessagesDown()
+        val viewport = usableMessagesBounds()
+        val nodes = compose.onAllNodes(SemanticsMatcher("message row") {
+            it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("ChiefMessage:m") == true
+        }).fetchSemanticsNodes()
+        val anchor = nodes.filter { it.boundsInRoot.height > 0 && it.boundsInRoot.top >= viewport.top && it.boundsInRoot.bottom <= viewport.bottom }.minBy { it.boundsInRoot.top }
+        val tag = anchor.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag]
+        compose.runOnUiThread { owner.launch { computer.transcript()!!.translations.value!!.translateMessage("s:m40") } }
+        compose.waitForIdle()
+        assertEquals(anchor.boundsInRoot.top, compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.top, 1f)
+        assertTrue(api.sends.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
     private fun saveScreenshot(name: String) {
         compose.waitForIdle()
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()

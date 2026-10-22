@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 
 /** Retained by NativeFeedSession, never by a View or Activity. */
 internal class NativeChiefComputerSession(parent: CoroutineScope, client: NativeChiefApi,
+    val translationConfiguration: NativeChiefTranslationConfiguration? = null,
     private val permits: () -> Boolean) : AutoCloseable {
     val home = NativeChiefHomeSession(parent, client, ::current)
     private val transcripts = mutableMapOf<String, NativeChiefTranscriptSession>()
