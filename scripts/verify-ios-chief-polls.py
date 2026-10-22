@@ -68,6 +68,7 @@ def validate_type_metrics(value, specification):
     for label in labels:
         if label.get('text') in footers:
             require(label.get('fontSize') == current['footerPointSize'], 'Visible source footer does not use captured footnote font')
+            require(label.get('lineHeight') == current['footerLineHeight'], 'Visible source footer line height differs from actual application font')
         if label.get('text') == 'No votes yet':
             require(label.get('fontSize') == current['bodyPointSize'], 'Visible source row does not use captured body font')
     if specification['model'] == 'pending':

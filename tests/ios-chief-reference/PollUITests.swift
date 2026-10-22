@@ -5,6 +5,16 @@ import CryptoKit
 final class CmuxChiefPollUITests: XCTestCase {
     @MainActor func testCaptureStandardChiefPollReferences() throws { try capture(category: "large") }
     @MainActor func testCaptureAccessibilityChiefPollReferences() throws { try capture(category: "accessibilityMedium") }
+    @MainActor func testCaptureExtraSmallPollReferences() throws { try capture(category: "extraSmall") }
+    @MainActor func testCaptureSmallPollReferences() throws { try capture(category: "small") }
+    @MainActor func testCaptureMediumPollReferences() throws { try capture(category: "medium") }
+    @MainActor func testCaptureExtraLargePollReferences() throws { try capture(category: "extraLarge") }
+    @MainActor func testCaptureExtraExtraLargePollReferences() throws { try capture(category: "extraExtraLarge") }
+    @MainActor func testCaptureExtraExtraExtraLargePollReferences() throws { try capture(category: "extraExtraExtraLarge") }
+    @MainActor func testCaptureAccessibilityLargePollReferences() throws { try capture(category: "accessibilityLarge") }
+    @MainActor func testCaptureAccessibilityExtraLargePollReferences() throws { try capture(category: "accessibilityExtraLarge") }
+    @MainActor func testCaptureAccessibilityExtraExtraLargePollReferences() throws { try capture(category: "accessibilityExtraExtraLarge") }
+    @MainActor func testCaptureAccessibilityExtraExtraExtraLargePollReferences() throws { try capture(category: "accessibilityExtraExtraExtraLarge") }
 
     @MainActor func testPollDetailsSurvivesLiveRotation() throws {
         continueAfterFailure = false
@@ -99,6 +109,7 @@ final class CmuxChiefPollUITests: XCTestCase {
         let input = try Data(contentsOf: url)
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: input) as? [String: Any])
         let scenes = try XCTUnwrap(fixture["scenes"] as? [[String: String]])
+        XCTAssertTrue(scenes.contains { $0["category"] == category }, "Missing category fixture: " + category)
         for specification in scenes where specification["category"] == category {
             let name = try XCTUnwrap(specification["id"])
             let app = XCUIApplication()

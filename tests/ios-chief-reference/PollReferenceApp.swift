@@ -137,13 +137,14 @@ private final class PollBackend: ConversationBackend, @unchecked Sendable {
         value.resolvedColor(with: traits).getRed(&r, green: &g, blue: &b, alpha: &a)
         return [r, g, b, a]
     }
+    private let categories: [(String, UIContentSizeCategory)] = [
+        ("extraSmall", .extraSmall), ("small", .small), ("medium", .medium), ("large", .large),
+        ("extraLarge", .extraLarge), ("extraExtraLarge", .extraExtraLarge), ("extraExtraExtraLarge", .extraExtraExtraLarge),
+        ("accessibilityMedium", .accessibilityMedium), ("accessibilityLarge", .accessibilityLarge),
+        ("accessibilityExtraLarge", .accessibilityExtraLarge), ("accessibilityExtraExtraLarge", .accessibilityExtraExtraLarge),
+        ("accessibilityExtraExtraExtraLarge", .accessibilityExtraExtraExtraLarge)]
+
     private func typeMetrics() -> [String: Any] {
-        let categories: [(String, UIContentSizeCategory)] = [
-            ("extraSmall", .extraSmall), ("small", .small), ("medium", .medium), ("large", .large),
-            ("extraLarge", .extraLarge), ("extraExtraLarge", .extraExtraLarge), ("extraExtraExtraLarge", .extraExtraExtraLarge),
-            ("accessibilityMedium", .accessibilityMedium), ("accessibilityLarge", .accessibilityLarge),
-            ("accessibilityExtraLarge", .accessibilityExtraLarge), ("accessibilityExtraExtraLarge", .accessibilityExtraExtraLarge),
-            ("accessibilityExtraExtraExtraLarge", .accessibilityExtraExtraExtraLarge)]
         let records: [[String: Any]] = categories.map { name, category in
             let traits = UITraitCollection(preferredContentSizeCategory: category)
             let body = UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits)
@@ -209,7 +210,7 @@ private final class PollBackend: ConversationBackend, @unchecked Sendable {
             "provenance": try! JSONSerialization.jsonObject(with: resource("Provenance.json")),
             "viewport": [window.bounds.width, window.bounds.height], "scale": window.screen.scale,
             "runtime": ["systemVersion": UIDevice.current.systemVersion, "operatingSystemVersion": ProcessInfo.processInfo.operatingSystemVersionString],
-            "categoryMatches": UIApplication.shared.preferredContentSizeCategory == (fixture.category == "accessibilityMedium" ? .accessibilityMedium : .large),
+            "categoryMatches": UIApplication.shared.preferredContentSizeCategory == categories.first(where: { $0.0 == fixture.category })?.1,
             "style": controller.traitCollection.userInterfaceStyle == .dark ? "dark" : "light",
             "direction": controller.view.effectiveUserInterfaceLayoutDirection == .rightToLeft ? "rtl" : "ltr",
             "labels": labels, "table": tableInfo, "presented": navigation != nil, "typeMetrics": typeMetrics(),

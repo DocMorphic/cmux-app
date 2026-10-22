@@ -78,6 +78,31 @@ jobs:
             -only-testing:CmuxChiefPollUITests/CmuxChiefPollUITests/testCaptureAccessibilityChiefPollReferences \
             -resultBundlePath "$RUNNER_TEMP/chief-reference-accessibility.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-accessibility-build.log"
+      - name: Capture remaining ten actual system text categories
+        run: |
+          set -euo pipefail
+          xcrun simctl help ui
+          while read -r category test_name; do
+            xcrun simctl ui "$REFERENCE_SIMULATOR" content_size "$category"
+            xcrun simctl ui "$REFERENCE_SIMULATOR" content_size
+            xcodebuild test -project "$RUNNER_TEMP/chief-reference/CmuxChiefReference.xcodeproj" \
+              -scheme CmuxChiefPoll -destination "platform=iOS Simulator,id=$REFERENCE_SIMULATOR" \
+              -destination-timeout 90 -parallel-testing-enabled NO \
+              -only-testing:"CmuxChiefPollUITests/CmuxChiefPollUITests/testCapture${test_name}PollReferences" \
+              -resultBundlePath "$RUNNER_TEMP/chief-reference-type-$category.xcresult" \
+              CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-reference-type-$category-build.log"
+          done <<'CATEGORIES'
+          extra-small ExtraSmall
+          small Small
+          medium Medium
+          extra-large ExtraLarge
+          extra-extra-large ExtraExtraLarge
+          extra-extra-extra-large ExtraExtraExtraLarge
+          accessibility-large AccessibilityLarge
+          accessibility-extra-large AccessibilityExtraLarge
+          accessibility-extra-extra-large AccessibilityExtraExtraLarge
+          accessibility-extra-extra-extra-large AccessibilityExtraExtraExtraLarge
+          CATEGORIES
       - name: Export and verify scene payloads
         if: always()
         run: |
@@ -85,6 +110,11 @@ jobs:
           for mode in standard accessibility; do
             if [ ! -d "$RUNNER_TEMP/chief-reference-$mode.xcresult" ]; then exit 1; fi
             xcrun xcresulttool export attachments --path "$RUNNER_TEMP/chief-reference-$mode.xcresult" --output-path "$RUNNER_TEMP/chief-reference-exported/$mode"
+          done
+          for result in "$RUNNER_TEMP"/chief-reference-type-*.xcresult; do
+            if [ ! -d "$result" ]; then exit 1; fi
+            mode="$(basename "$result" .xcresult)"
+            xcrun xcresulttool export attachments --path "$result" --output-path "$RUNNER_TEMP/chief-reference-exported/$mode"
           done
           python3 cmux-app/scripts/verify-ios-chief-polls.py --exported "$RUNNER_TEMP/chief-reference-exported" --output "$RUNNER_TEMP/chief-reference-polls" --project-commit "$GITHUB_SHA" --require-lifecycle
       - name: Preserve reference evidence and diagnostics
@@ -100,5 +130,7 @@ jobs:
             ${{ runner.temp }}/chief-reference-accessibility.xcresult
             ${{ runner.temp }}/chief-reference-standard-build.log
             ${{ runner.temp }}/chief-reference-accessibility-build.log
+            ${{ runner.temp }}/chief-reference-type-*.xcresult
+            ${{ runner.temp }}/chief-reference-type-*-build.log
             ${{ runner.temp }}/chief-reference/Provenance.json
             ${{ runner.temp }}/selected-simulator.json

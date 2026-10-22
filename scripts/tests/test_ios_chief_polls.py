@@ -59,7 +59,7 @@ class PollExportGuards(unittest.TestCase):
                 actualBodyPointSize=current['bodyPointSize'], actualBodyLineHeight=current['bodyLineHeight'],
                 actualFooterPointSize=current['footerPointSize'], actualFooterLineHeight=current['footerLineHeight'], boldText=False)
             if scene['model'] == 'pending':
-                value['labels'].append(dict(text='0 Votes', frame=[16, 140, 200, 20], fontSize=current['footerPointSize'], insidePollTable=True))
+                value['labels'].append(dict(text='0 Votes', frame=[16, 140, 200, 20], fontSize=current['footerPointSize'], lineHeight=current['footerLineHeight'], insidePollTable=True))
             (self.export / (name + '.json')).write_text(json.dumps(value))
 
     def verify(self, require_lifecycle=False):
@@ -73,9 +73,9 @@ class PollExportGuards(unittest.TestCase):
             self.assertFalse(self.output.exists())
         finally: path.write_text(raw)
 
-    def test_complete_payload_binds_all_seven_images_and_sources(self):
+    def test_complete_payload_binds_all_declared_images_and_sources(self):
         self.verify()
-        self.assertEqual(len(list(self.output.glob('*.png'))), 7)
+        self.assertEqual(len(list(self.output.glob('*.png'))), len(self.names))
         self.assertEqual(json.loads((self.output / 'receipt.json').read_text())['scenes'], self.names)
 
     def test_missing_and_duplicate_scene_rejected(self):
@@ -155,7 +155,7 @@ class PollExportGuards(unittest.TestCase):
         receipt = json.loads((self.output / 'receipt.json').read_text())
         self.assertEqual(receipt['lifecycle'], ['pending-roundtrip'])
         self.assertEqual(len(receipt['lifecycleImageGeometry']), 3)
-        self.assertEqual(len(list(self.output.glob('*.png'))), 10)
+        self.assertEqual(len(list(self.output.glob('*.png'))), len(self.names) + 3)
         self.assertTrue((self.output / 'poll-lifecycle-pending-roundtrip.json').is_file())
 
     def test_duplicate_or_unexpected_lifecycle_rejected(self):
@@ -218,5 +218,9 @@ class PollExportGuards(unittest.TestCase):
         value['labels'].append(dict(text='0 Votes', frame=[16, 100, 200, 44], fontSize=99, insidePollTable=False))
         path.write_text(json.dumps(value)); self.verify()
 
+
+
+    def test_visible_footer_line_height_must_match_actual_application_footnote(self):
+        self.rejects(lambda v: v['labels'][-1].__setitem__('lineHeight', 99), 'footer line height')
 
 if __name__ == '__main__': unittest.main()

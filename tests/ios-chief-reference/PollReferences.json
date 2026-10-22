@@ -150,6 +150,96 @@
       "orientation": "portrait",
       "direction": "ltr",
       "scroll": "bottom"
+    },
+    {
+      "id": "poll-type-extraSmall",
+      "model": "pending",
+      "category": "extraSmall",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-type-small",
+      "model": "pending",
+      "category": "small",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-type-medium",
+      "model": "pending",
+      "category": "medium",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-type-extraLarge",
+      "model": "pending",
+      "category": "extraLarge",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-type-extraExtraLarge",
+      "model": "pending",
+      "category": "extraExtraLarge",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-type-extraExtraExtraLarge",
+      "model": "pending",
+      "category": "extraExtraExtraLarge",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-type-accessibilityLarge",
+      "model": "pending",
+      "category": "accessibilityLarge",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-type-accessibilityExtraLarge",
+      "model": "pending",
+      "category": "accessibilityExtraLarge",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-type-accessibilityExtraExtraLarge",
+      "model": "pending",
+      "category": "accessibilityExtraExtraLarge",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
+    },
+    {
+      "id": "poll-type-accessibilityExtraExtraExtraLarge",
+      "model": "pending",
+      "category": "accessibilityExtraExtraExtraLarge",
+      "style": "dark",
+      "orientation": "portrait",
+      "direction": "ltr",
+      "scroll": "top"
     }
   ]
 }
