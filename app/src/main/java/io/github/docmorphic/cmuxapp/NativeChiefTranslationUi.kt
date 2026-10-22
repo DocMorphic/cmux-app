@@ -152,25 +152,10 @@ internal fun NativeChiefTranslationCaption(presentation: NativeChiefTranslationP
     val color = if (tappable) { if (dark) Color(0xFF0091FF) else Color(0xFF0088FF) }
         else if (dark) Color(0x99EBEBF5) else Color(0x993C3C43)
     val font = nativeChiefCaptionFont()
-    val density = LocalDensity.current
-    val style = nativeChiefTextStyle(11).copy(fontSize = with(density) { font.pointSize.toFloat().dp.toSp() })
-    // Source y = primary body bottom + 4; its tail has already been reserved by the balloon.
-    Layout(modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp).testTag("$tag:Frame"), content = {
-        Row(Modifier.fillMaxWidth().testTag(tag).semantics(mergeDescendants = true) {}
-            .then(if (tappable && enabled) Modifier.clickable(role = Role.Button) { if (active) action() } else Modifier),
-            // Pinned UIKit uses physical .right/.left paragraph alignment. Its
-            // English attachment/text sequence also keeps its order in RTL UI.
-            horizontalArrangement = if (outgoing) Arrangement.Absolute.Right else Arrangement.Absolute.Left, verticalAlignment = Alignment.CenterVertically) {
-            Icon(painterResource(R.drawable.ic_chief_translate), null, Modifier.size(font.pointSize.toFloat().dp).testTag("$tag:Glyph"), tint = color)
-            Spacer(Modifier.width(3.dp))
-            Text(label, Modifier.testTag("$tag:Text"), style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }) { children, constraints ->
-        val child = children.single().measure(constraints.copy(minHeight = 0))
-        val y = with(density) { (4.dp - tailOverhang).roundToPx() }
-        val h = maxOf(child.height, (NativeChiefBubbleGeometry.ceilToPixel(font.lineHeight, density.density.toDouble()) * density.density).roundToInt())
-        layout(constraints.maxWidth, (h + y).coerceAtLeast(0)) { child.place(0, y + (h - child.height) / 2) }
-    }
+    NativeChiefTranslationCaptionLabel(label, outgoing, font, NativeChiefTranslationFonts.attachment(font.pointSize),
+        tailOverhang, color, tag, modifier,
+        actionModifier = if (tappable && enabled) Modifier.clickable(role = Role.Button) { if (active) action() } else Modifier)
+
 }
 
 @Composable

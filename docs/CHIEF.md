@@ -1,3 +1,41 @@
+## Translation font and caption checkpoint — 2026-10-22
+
+Native run 39747401479 at b7ca4c87817cb6838cb065ba399c0a3f68877595
+adds actual UIFont advances/baselines and numeric UIImage attachment canvas
+measurements to the same 17 compositor scenes. All 35 canonical files match the
+uploaded artifact independently; all 138 Python reference guards pass. Twelve
+intrinsic Caption 2 profiles are API measurements, not rendered acceptance of
+every category or Bold Text. The upstream pin is unchanged.
+
+Android now measures its actual runtime font against source Latin probes,
+calibrates horizontal advance while preserving type size, and uses the measured
+caption attachment canvas, attachment-plus-space advance and baseline. The
+caption row applies the source's asymmetric message-side inset and physical
+sender-edge alignment in RTL. Its translation artwork is an original Android
+vector. Choice popups retain their measured width rather than expanding for a
+platform-font rounding difference; fitting preserves type size. Pane titles use
+localized resources.
+
+Final emulator run `chief-translation-fonts-v4` passes 19 regressions in 69.742 s
+and 17 fresh matched captures with no crash-buffer events. All eight popup body
+sizes match the native measurements within one physical pixel. The large choice
+is now 366x313 1/3 with three header lines, replacing the previous 373x347 1/3
+four-line result. Normal choice is 240x246 1/3; source picker is 240x180 1/3
+normal and 240x245 1/3 large. Normal/large caption line boxes, attachment slots
+and baselines were inspected alongside source captures. Capture/source/APK
+hashes, retained failed attempts and actual deltas are recorded in
+`captures/recovery-20261022/chief-translation-fonts-checkpoint.json`.
+
+This closes those measured sizing differences, not full typography or visual
+parity. Android glyph outlines, per-word wrapping (including the large prompt),
+original caption artwork and glass/material/motion still differ. Other locales,
+Bold Text, unrendered categories, source transcript positions, open-popup
+rotation/recreation, live inference/downloads, TalkBack and all broader gates
+remain open. Light captures still override only the component theme. The owned
+emulator is stopped. This work is unshipped to the Pixel: its preserved signed
+712 installation predates it. The user can use/disconnect the phone. Full app
+parity remains active.
+
 ## Anchored translation popups mounted and compared — 2026-10-22
 
 The provisional Material bottom sheets are replaced by focusable, anchored

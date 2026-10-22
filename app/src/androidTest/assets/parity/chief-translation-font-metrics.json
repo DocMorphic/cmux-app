@@ -1,0 +1,221 @@
+{
+  "run": 39747401479,
+  "projectCommit": "b7ca4c87817cb6838cb065ba399c0a3f68877595",
+  "artifact": 12413886279,
+  "artifactSha256": "0b908eacfe47824c9b224f86952c156aedd11cf5f70b586301f5b74e5f038f85",
+  "profiles": [
+    {
+      "ascender": 10.4736328125,
+      "bodyPointSize": 14,
+      "capHeight": 7.75048828125,
+      "category": "UICTContentSizeCategoryXS",
+      "descender": -2.6533203125,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        19.666666666666664,
+        13.666666666666666
+      ],
+      "lineHeight": 13.126953125,
+      "pointSize": 11,
+      "spaceAdvance": 3.158203125
+    },
+    {
+      "ascender": 10.4736328125,
+      "bodyPointSize": 15,
+      "capHeight": 7.75048828125,
+      "category": "UICTContentSizeCategoryS",
+      "descender": -2.6533203125,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        19.666666666666664,
+        13.666666666666666
+      ],
+      "lineHeight": 13.126953125,
+      "pointSize": 11,
+      "spaceAdvance": 3.158203125
+    },
+    {
+      "ascender": 10.4736328125,
+      "bodyPointSize": 16,
+      "capHeight": 7.75048828125,
+      "category": "UICTContentSizeCategoryM",
+      "descender": -2.6533203125,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        19.666666666666664,
+        13.666666666666666
+      ],
+      "lineHeight": 13.126953125,
+      "pointSize": 11,
+      "spaceAdvance": 3.158203125
+    },
+    {
+      "ascender": 10.4736328125,
+      "bodyPointSize": 17,
+      "capHeight": 7.75048828125,
+      "category": "UICTContentSizeCategoryL",
+      "descender": -2.6533203125,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        19.666666666666664,
+        13.666666666666666
+      ],
+      "lineHeight": 13.126953125,
+      "pointSize": 11,
+      "spaceAdvance": 3.158203125
+    },
+    {
+      "ascender": 12.3779296875,
+      "bodyPointSize": 19,
+      "capHeight": 9.15966796875,
+      "category": "UICTContentSizeCategoryXL",
+      "descender": -3.1357421875,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        23.333333333333332,
+        16.666666666666664
+      ],
+      "lineHeight": 15.513671875,
+      "pointSize": 13,
+      "spaceAdvance": 3.580078125
+    },
+    {
+      "ascender": 14.2822265625,
+      "bodyPointSize": 21,
+      "capHeight": 10.56884765625,
+      "category": "UICTContentSizeCategoryXXL",
+      "descender": -3.6181640625,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        27.333333333333332,
+        19
+      ],
+      "lineHeight": 17.900390625,
+      "pointSize": 15,
+      "spaceAdvance": 3.984375
+    },
+    {
+      "ascender": 16.1865234375,
+      "bodyPointSize": 23,
+      "capHeight": 11.97802734375,
+      "category": "UICTContentSizeCategoryXXXL",
+      "descender": -4.1005859375,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        30.333333333333332,
+        21
+      ],
+      "lineHeight": 20.287109375,
+      "pointSize": 17,
+      "spaceAdvance": 4.349609375
+    },
+    {
+      "ascender": 19.04296875,
+      "bodyPointSize": 28,
+      "capHeight": 14.091796875,
+      "category": "UICTContentSizeCategoryAccessibilityM",
+      "descender": -4.82421875,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        35.66666666666667,
+        25.333333333333332
+      ],
+      "lineHeight": 23.8671875,
+      "pointSize": 20,
+      "spaceAdvance": 4.8157501220703125
+    },
+    {
+      "ascender": 22.8515625,
+      "bodyPointSize": 33,
+      "capHeight": 16.91015625,
+      "category": "UICTContentSizeCategoryAccessibilityL",
+      "descender": -5.7890625,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        43,
+        30.333333333333332
+      ],
+      "lineHeight": 28.640625,
+      "pointSize": 24,
+      "spaceAdvance": 5.324584007263184
+    },
+    {
+      "ascender": 27.6123046875,
+      "bodyPointSize": 40,
+      "capHeight": 20.43310546875,
+      "category": "UICTContentSizeCategoryAccessibilityXL",
+      "descender": -6.9951171875,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        52,
+        36.666666666666664
+      ],
+      "lineHeight": 34.607421875,
+      "pointSize": 29,
+      "spaceAdvance": 6.32958984375
+    },
+    {
+      "ascender": 32.373046875,
+      "bodyPointSize": 47,
+      "capHeight": 23.9560546875,
+      "category": "UICTContentSizeCategoryAccessibilityXXL",
+      "descender": -8.201171875,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        61,
+        42.666666666666664
+      ],
+      "lineHeight": 40.57421875,
+      "pointSize": 34,
+      "spaceAdvance": 7.3544921875
+    },
+    {
+      "ascender": 38.0859375,
+      "bodyPointSize": 53,
+      "capHeight": 28.18359375,
+      "category": "UICTContentSizeCategoryAccessibilityXXXL",
+      "descender": -9.6484375,
+      "fontName": ".SFUI-Regular",
+      "imageSize": [
+        71.66666666666667,
+        50.333333333333336
+      ],
+      "lineHeight": 47.734375,
+      "pointSize": 40,
+      "spaceAdvance": 8.57421875
+    }
+  ],
+  "probes": {
+    "CAPTION": [
+      [
+        11,
+        72.30029296875
+      ],
+      [
+        20,
+        120.87921142578125
+      ]
+    ],
+    "PROMPT": [
+      [
+        17,
+        512.755859375
+      ],
+      [
+        28,
+        806.99609375
+      ]
+    ],
+    "ACTION": [
+      [
+        17,
+        183.80308258533478
+      ],
+      [
+        28,
+        292.08515310287476
+      ]
+    ]
+  },
+  "scope": "Native intrinsic/font advances and actual visible run widths. Not rendered acceptance for every category or locale; no SF Symbol artwork or font file exported."
+}

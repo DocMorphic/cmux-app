@@ -98,14 +98,20 @@ internal fun NativeChiefTranslationPopup(ui: NativeChiefTranslationUi, backdropR
     val promptGap=18+progress/3
     val labelHeight=ceil(points*1.193359375*density.density).toFloat()/density.density
     val buttonHeight=maxOf(48f,labelHeight+74f/3)
-    val style=nativeChiefTextStyle(17).copy(lineHeight=with(density) { advance.dp.toSp() },
+    val rawStyle=nativeChiefTextStyle(17).copy(lineHeight=with(density) { advance.dp.toSp() },
         lineHeightStyle=LineHeightStyle(LineHeightStyle.Alignment.Center,LineHeightStyle.Trim.Both))
+    val style=nativeChiefTranslationFont(rawStyle,points.toDouble(),NativeChiefTranslationFonts.Probe.PROMPT)
+    val actionStyle=nativeChiefTranslationFont(rawStyle.copy(fontWeight=FontWeight.Medium),points.toDouble(),NativeChiefTranslationFonts.Probe.ACTION)
+    val windowTitle=if(request is NativeChiefTranslationSheet.From)stringResource(R.string.chief_translation_from)else stringResource(R.string.chief_translation_menu_translate)
     val titles=if(request is NativeChiefTranslationSheet.Choice)listOf(stringResource(R.string.chief_translation_message),stringResource(R.string.chief_translation_conversation))
         else (request as NativeChiefTranslationSheet.From).languages.map { chiefTranslationLanguageName(it,locale) }
     val measurer=rememberTextMeasurer()
-    val widest=titles.maxOfOrNull { measurer.measure(it,style.copy(fontWeight=FontWeight.Medium),maxLines=1,softWrap=false).size.width/density.density } ?: 0f
+    val widest=titles.maxOfOrNull { measurer.measure(it,actionStyle,maxLines=1,softWrap=false).multiParagraph.intrinsics.maxIntrinsicWidth/density.density } ?: 0f
     val minimum=if(request is NativeChiefTranslationSheet.Choice)240+126*progress else 240f
-    val width=maxOf(minimum,widest+32+2*(12+9*progress)).toInt().toFloat()
+    // Preserve the measured choice platter size. Platform-font differences
+    // belong in label advance fitting, rather than widening the native panel.
+    val preferred=if(request is NativeChiefTranslationSheet.Choice)minimum else maxOf(minimum,widest+32+2*(12+9*progress))
+    val width=preferred.toInt().toFloat()
         .coerceAtMost((configuration.screenWidthDp-26).coerceAtLeast(1).toFloat()).dp
     val maxHeight=(configuration.screenHeightDp-60).coerceAtLeast(1).dp
     var origin by remember { mutableStateOf(Offset.Zero) }
@@ -156,7 +162,7 @@ internal fun NativeChiefTranslationPopup(ui: NativeChiefTranslationUi, backdropR
                 val shape=remember(ui,request,placed) { TranslationPopoverShape(placed?.side ?: NativeChiefTranslationPopoverGeometry.Side.BELOW,placed?.arrow ?: 120.0) }
                 val tint=if(dark)Color(0xA61A201E)else Color(0xC9FAFAFA)
                 Box(Modifier.width(width+26.dp).clip(shape).testTag(if(request is NativeChiefTranslationSheet.From)"ChiefTranslationFrom" else "ChiefTranslationChoice")
-                    .semantics { paneTitle=if(request is NativeChiefTranslationSheet.From)"Translate From" else "Translate";isTraversalGroup=true
+                    .semantics { paneTitle=windowTitle;isTraversalGroup=true
                         if(BuildConfig.DEBUG)this[ChiefTranslationPopupProbe]={
                             val p=pose;val scale=density.density
                             NativeChiefTranslationPopupProbe(source,p?.body?.let { Rect((it.x*scale).toFloat(),(it.y*scale).toFloat(),(it.right*scale).toFloat(),(it.bottom*scale).toFloat()) },p?.side?.name,backdrop!=null)
@@ -199,7 +205,7 @@ internal fun NativeChiefTranslationPopup(ui: NativeChiefTranslationUi, backdropR
                         @Composable fun Action(title: String,tag: String,click: () -> Unit) {
                             Box(Modifier.fillMaxWidth().height(buttonHeight.dp).clip(RoundedCornerShape(50)).background(if(dark)Color.White.copy(alpha=.11f)else Color.Black.copy(alpha=.06f),RoundedCornerShape(50))
                                 .testTag(tag).clickable(role=Role.Button,onClick=click).padding(horizontal=(12+9*progress).dp),contentAlignment=Alignment.Center) {
-                                TranslationPopoverLabel(title,points,advance,style.copy(fontWeight=FontWeight.Medium),ink,false,
+                                TranslationPopoverLabel(title,points,advance,actionStyle,ink,false,
                                     Modifier.testTag("$tag:Label"),fill=false,center=true)
                             }
                         }
@@ -231,7 +237,13 @@ private fun TranslationPopoverLabel(text: String,points: Float,advance: Float,st
     val measurer=rememberTextMeasurer()
     BoxWithConstraints(modifier) {
         val raw=measurer.measure(text,style,maxLines=if(wrap)Int.MAX_VALUE else 1,softWrap=wrap)
-        val fitted=if(!wrap && raw.size.width>constraints.maxWidth)style.copy(fontSize=style.fontSize*(constraints.maxWidth.toFloat()/raw.size.width))else style
+        val naturalWidth=raw.multiParagraph.intrinsics.maxIntrinsicWidth
+        // Keep the chosen type size/baseline. A subpixel intrinsic overflow must
+        // not reduce Dynamic Type; fit only the horizontal glyph advance.
+        val fitted=if(!wrap && naturalWidth>constraints.maxWidth && naturalWidth>0)style.copy(
+            textGeometricTransform=androidx.compose.ui.text.style.TextGeometricTransform(
+                scaleX=(style.textGeometricTransform?.scaleX ?: 1f)*constraints.maxWidth/naturalWidth,
+                skewX=style.textGeometricTransform?.skewX ?: 0f))else style
         Layout(content={ Text(text,Modifier.testTag("ChiefTranslationLabelText"),style=fitted,color=color,
             maxLines=if(wrap)Int.MAX_VALUE else 1,softWrap=wrap,textAlign=if(center)TextAlign.Center else TextAlign.Left) }) { children,limits ->
             val metrics=measurer.measure(text,fitted,maxLines=if(wrap)Int.MAX_VALUE else 1,softWrap=wrap,constraints=Constraints(maxWidth=limits.maxWidth))

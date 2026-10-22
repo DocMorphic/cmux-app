@@ -1,3 +1,24 @@
+## Latest translation measurements and phone availability — 2026-10-22
+
+The measured popup sizing gap is closed: final emulator v4 passes 19 regressions
+and 17 fresh captures, with all eight body sizes within one physical pixel of
+native references. Large choice is 366x313 1/3 with three lines. Source numeric
+font advances, caption attachment spacing and baselines now guide the Android
+layout; fonts/artwork, some word wrapping, materials and remaining adaptation/
+inference/device gates are still open. Native run 39747401479 provides 17 scenes
+and 12 intrinsic caption profiles; 35 canonical files match independently and
+138 Python guards pass. See CHIEF.md and
+`captures/recovery-20261022/chief-translation-fonts-checkpoint.json` for scope.
+
+The Pixel is free for the user to use/disconnect; signed 712 and all data are
+preserved. Current translation code is not installed on it. Background reply E
+remains unaccepted. Historical Mac `sweepFetchFailed` entries lack individual
+timestamps; no fresh event appeared in the bounded follow-up observation, and
+current Mac auth reports signed in/team ready. Neither historical events nor
+unauthenticated HTTP 403 proves the cause. Continue coarse authenticated failure
+diagnostics and all remaining feature/UI/backend/release gates. Full app parity
+remains active.
+
 ## Pixel 712 upgrade and live Mac checks — 2026-10-22
 
 The user made the unlocked Pixel 6a available. Stable-signed candidate 712 from

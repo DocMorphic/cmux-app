@@ -3006,7 +3006,11 @@ class NativeChiefRuntimeTest {
                 val layout=results.single();val text=layout.layoutInput.text.text
                 val actualPoints=with(layout.layoutInput.density) { layout.layoutInput.style.fontSize.toDp().value }
                 labelLayouts.put(JSONObject().put("text",text).put("pointSize",actualPoints).put("lines",layout.lineCount)
-                    .put("pixelHeight",layout.size.height))
+                    .put("pixelHeight",layout.size.height)
+                    .put("intrinsicAdvance",layout.multiParagraph.intrinsics.maxIntrinsicWidth/layout.layoutInput.density.density)
+                    .put("horizontalScale",layout.layoutInput.style.textGeometricTransform?.scaleX ?: 1f))
+                if(mode=="choice" && text==compose.activity.getString(R.string.chief_translation_prompt))
+                    assertEquals("Measured native prompt line count",if(spec.getString("category")=="accessibilityMedium")3 else 4,layout.lineCount)
                 // A popup's AndroidComposeView must retain the parent's font scale.
                 // The From heading may shrink to fit; its language actions may not.
                 if(text!=compose.activity.getString(R.string.chief_translation_from))assertEquals(expectedPoints,actualPoints,.05f)
@@ -3019,10 +3023,24 @@ class NativeChiefRuntimeTest {
         val png = File(directory,captureName+".png")
         fun rect(value: androidx.compose.ui.geometry.Rect) = org.json.JSONArray(listOf(value.left,value.top,value.width,value.height))
         val geometry = JSONObject()
-        for (tag in listOf("ChiefTranslationPrompt","ChiefTranslateMessage","ChiefTranslateConversation","ChiefTranslateFrom:fr","ChiefTranslateFrom:es","ChiefTranslationIndicator",
+        for (tag in listOf("ChiefTranslationCaption:s:target","ChiefTranslationCaption:s:target:Glyph",
+            "ChiefTranslationCaption:s:mine","ChiefTranslationCaption:s:mine:Glyph","ChiefTranslationCaption:s:later","ChiefTranslationCaption:s:later:Glyph",
+            "ChiefTranslationPrompt","ChiefTranslateMessage","ChiefTranslateConversation","ChiefTranslateFrom:fr","ChiefTranslateFrom:es","ChiefTranslationIndicator",
             "ChiefTranslationCaption:s:target:Text","ChiefTranslationCaption:s:mine:Text","ChiefTranslationCaption:s:later:Text")) {
             val node = compose.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().singleOrNull() ?: continue
             geometry.put(tag,JSONObject().put("boundsInRoot",rect(node.boundsInRoot)).put("boundsInWindow",rect(node.boundsInWindow)))
+        }
+        val captionLayouts=org.json.JSONArray()
+        for(id in listOf("target","mine","later")) {
+            val tag="ChiefTranslationCaption:s:$id"
+            val node=compose.onAllNodesWithTag("$tag:Text",useUnmergedTree=true).fetchSemanticsNodes().singleOrNull() ?: continue
+            val layouts=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            assertTrue(checkNotNull(node.config[androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult].action).invoke(layouts))
+            val layout=layouts.single();val scale=layout.layoutInput.density.density
+            captionLayouts.put(JSONObject().put("row",id).put("firstBaselineInWindow",node.boundsInWindow.top+layout.firstBaseline)
+                .put("pointSize",with(layout.layoutInput.density) { layout.layoutInput.style.fontSize.toDp().value })
+                .put("intrinsicAdvance",layout.multiParagraph.intrinsics.maxIntrinsicWidth/scale)
+                .put("horizontalScale",layout.layoutInput.style.textGeometricTransform?.scaleX ?: 1f))
         }
         val device=androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         assertEquals(spec.getString("orientation")=="landscape",device.displayWidth>device.displayHeight)
@@ -3032,7 +3050,7 @@ class NativeChiefRuntimeTest {
             .put("imageSha256",MessageDigest.getInstance("SHA-256").digest(png.readBytes()).joinToString("") { "%02x".format(it) })
             .put("density",compose.activity.resources.displayMetrics.density).put("fontScale",testFontScale)
             .put("bodyPointSize",with(Density(compose.activity.resources.displayMetrics.density,testFontScale)) { 17.sp.toDp().value }).put("geometry",geometry)
-            .put("labelLayouts",labelLayouts).put("translationCalls",engine.calls.size).put("activation","registeredBubbleAccessibilityActionAndActualPopupTaps")
+            .put("captionLayouts",captionLayouts).put("labelLayouts",labelLayouts).put("translationCalls",engine.calls.size).put("activation","registeredBubbleAccessibilityActionAndActualPopupTaps")
             .put("scope","Controlled component style/detection/output with exact pinned corpus; production UI/PixelCopy/OS screenshot. Not global app theme, real inference, physical gesture or device acceptance.")
         if (popupTag != null) {
             val probe = compose.onNodeWithTag(popupTag).fetchSemanticsNode().config[ChiefTranslationPopupProbe]()
