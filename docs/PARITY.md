@@ -1,3 +1,61 @@
+## Localized read-only Plan UI and retained window — 2026-10-23
+
+Implementation `5afe6886` localizes the existing read-only Plan screen and
+Settings row. Eighteen exact native labels (162 values across nine languages)
+come from the a5911a1f iOS app catalog; seven Android browser/recovery labels
+are separately project-authored. Resource generation/checking remains separate
+from the older general-label dictionary. Known plan names, billing sources,
+loading, legal links and semantic error states use the caller's current locale;
+retained failures no longer store English presentation strings. Header actions
+have explicit 48 dp bounds. Measured label/value widths select horizontal or
+stacked layout, avoiding the large German word-fragmentation found in review.
+
+The pinned official BOM selects Compose UI 1.9.1. Its source remembers a dialog
+wrapper by view/density but keys show() to Unit; actual controlled density
+replacement left the new Plan window unshown, even after a five-second wait.
+Official 1.9.2–1.9.4 sources retain that logic. The Plan call now restarts on
+inherited-density changes, with its presentation/account/error owner and real
+scroll state above the replacement. No global dependency/dialog change was made.
+The exact source/BOM artifacts and hashes are in
+`captures/recovery-20261022/compose-dialog-1.9.1/root-cause.json`.
+
+Final owned-emulator `account-plan-locales-v8` passes all six cases in 23.558 s
+on a 260 dp viewport: 18 loading and 18 loaded locale/scale profiles, existing
+web/Apple/team actions and simulated browser return, localized retained load/
+browser recovery, and actual positive scroll across density/window replacement.
+All nine large profiles report actual layout scale 2 and larger rendered line
+heights; header targets/order and current label/value layouts pass. German
+current labels remain one line at both scales. The window case retains the
+same plan object and two account reads; its 798 px offset clamps to the new
+680 px maximum rather than resetting. Twenty-six compositor frames are retained;
+final enlarged German/Arabic captures were reviewed. Full JVM suite: 3,112 passes,
+four opt-in skips, zero failures/errors (3,116 total, 423 XML reports). Eight
+existing localization guards and generated-resource checks pass. Tested sources
+and both APKs are archived, hashes revalidate, crash buffer is empty, restore
+commands succeeded and the owned emulator stopped. Earlier fixture/window/
+target failures and the green-but-visually-rejected v7 are excluded from final
+UI acceptance. Checkpoint: `account-plan-locales-checkpoint.json` in that folder.
+
+The 14-file Billing package delta from 186cec79 to a5911a1f is now reviewed:
+monthly/yearly selection and fallback, yearly equivalent prices, account-matched
+Apple entitlements/refund targets, product-unavailable/retained-offer recovery,
+and purchase/product/refund reporting. These still depend on actual store and
+server integration; the new period capability header belongs to the Apple route,
+not Android's existing personal-plan GET. Android products/publisher/server
+verification, purchase/restore/refund and accepted analytics remain unresolved,
+not waived platform differences. A project-identification question is pending;
+no backend/purchase/analytics request or enablement occurred. Receipt:
+`billing-a591-detail-reconciliation/receipt.json`. No global source pin advanced.
+
+This is production-component evidence with controlled local contexts/density,
+not actual OS locale/font changes, authenticated MainActivity, process restoration,
+matched native paywall, physical account/browser or full accessibility acceptance.
+Other dialogs and broader release/backend/source gates remain open. Full parity
+stays active. Pixel remains released at last verified signed 712; the phone
+availability question is pending. Local signed 714 remains unpublished and
+predates this Plan change and its notice update; no newer signed build exists.
+Do not operate the phone on the strength of old availability replies.
+
 ## Signed candidate 714 ready for coordinated Pixel checks — 2026-10-22
 
 Candidate 714 is built from clean committed `c540ae6f6ad4a128bf1356140e77e19ee3a76d6e`

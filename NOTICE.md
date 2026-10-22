@@ -47,6 +47,13 @@ GPL-3.0-or-later. `third_party/cmux-localization/strings.json` records each sour
 catalog/key and catalog hash; its LICENSE preserves the upstream notice. Android
 uses its own static UI migration and resource-generation implementation.
 
+Eighteen Plan labels in `third_party/cmux-localization/billing-strings.json`
+come from `ios/cmux/Resources/Localizable.xcstrings` at cmux revision
+`a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`. Copyright Manaflow, Inc.;
+GPL-3.0-or-later. The JSON retains all nine language values and the catalog hash.
+The seven labels in `billing-android-strings.json` are separately attributed
+project-authored translations of Android controls and recovery states.
+
 Video-preview rendering and lifetime comparison follows
 `Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMediaView.swift`
 at cmux `f4b1509054949eaad5d695569ad443c4c18ed68d`
