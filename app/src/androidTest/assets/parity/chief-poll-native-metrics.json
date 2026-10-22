@@ -1,0 +1,580 @@
+{
+  "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "projectCommit": "266b6a61bd0784f1e031027baaf3ddbd4896e822",
+  "captureRun": 39762098177,
+  "artifactSha256": "f3dcb3e7f46c0a047be2b2f6c90916ba810b23ecdd54c4285c286df8da5a97b3",
+  "fixtureSha256": "cca08b2e0f3679c272a1089c5c17dc289fbd90aefcfbddfc18c171ee01501232",
+  "scope": "Native pending-poll component geometry; OS safe-area origins differ between iPhone and Android and are recorded separately. Generic-voter, actual RPC, broad locale, unrendered type and physical gates remain open.",
+  "cases": {
+    "poll-pending-dark": {
+      "nativeSheetTop": 62,
+      "navigationFrame": [
+        0,
+        78,
+        402,
+        88
+      ],
+      "sections": [
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            274.33333079020184,
+            402,
+            30
+          ],
+          "headerFrame": [
+            0,
+            166,
+            402,
+            55.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                221.33333206176758,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "allow"
+        },
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            402.6666628519694,
+            402,
+            30
+          ],
+          "headerFrame": [
+            0,
+            304.33333015441895,
+            402,
+            45.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                349.6666622161865,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "deny"
+        },
+        {
+          "footer": "",
+          "footerFrame": [
+            0,
+            576.6666628519695,
+            402,
+            17.333333333333258
+          ],
+          "headerFrame": [
+            0,
+            432.6666622161865,
+            402,
+            38
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                470.6666622161865,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "Chief",
+              "visible": true
+            },
+            {
+              "frame": [
+                20,
+                523.6666622161865,
+                362,
+                53
+              ],
+              "row": 1,
+              "selectionStyle": 0,
+              "text": "You",
+              "visible": true
+            }
+          ],
+          "title": "No Votes"
+        }
+      ],
+      "imageSha256": "b309e631137822e5d2c9783de34892a147f164170fa8faf69ac8f26d57173a1f"
+    },
+    "poll-pending-light": {
+      "nativeSheetTop": 62,
+      "navigationFrame": [
+        0,
+        78,
+        402,
+        88
+      ],
+      "sections": [
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            274.33333079020184,
+            402,
+            30
+          ],
+          "headerFrame": [
+            0,
+            166,
+            402,
+            55.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                221.33333206176758,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "allow"
+        },
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            402.6666628519694,
+            402,
+            30
+          ],
+          "headerFrame": [
+            0,
+            304.33333015441895,
+            402,
+            45.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                349.6666622161865,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "deny"
+        },
+        {
+          "footer": "",
+          "footerFrame": [
+            0,
+            576.6666628519695,
+            402,
+            17.333333333333258
+          ],
+          "headerFrame": [
+            0,
+            432.6666622161865,
+            402,
+            38
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                470.6666622161865,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "Chief",
+              "visible": true
+            },
+            {
+              "frame": [
+                20,
+                523.6666622161865,
+                362,
+                53
+              ],
+              "row": 1,
+              "selectionStyle": 0,
+              "text": "You",
+              "visible": true
+            }
+          ],
+          "title": "No Votes"
+        }
+      ],
+      "imageSha256": "679ea6949e8e6f75876826691d3f941416ec4362015c75df4abbbb8842a8c8cc"
+    },
+    "poll-pending-rtl": {
+      "nativeSheetTop": 62,
+      "navigationFrame": [
+        0,
+        78,
+        402,
+        88
+      ],
+      "sections": [
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            274.33333079020184,
+            402,
+            30
+          ],
+          "headerFrame": [
+            0,
+            166,
+            402,
+            55.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                221.33333206176758,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "allow"
+        },
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            402.6666628519694,
+            402,
+            30
+          ],
+          "headerFrame": [
+            0,
+            304.33333015441895,
+            402,
+            45.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                349.6666622161865,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "deny"
+        },
+        {
+          "footer": "",
+          "footerFrame": [
+            0,
+            576.6666628519695,
+            402,
+            17.333333333333258
+          ],
+          "headerFrame": [
+            0,
+            432.6666622161865,
+            402,
+            38
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                470.6666622161865,
+                362,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "Chief",
+              "visible": true
+            },
+            {
+              "frame": [
+                20,
+                523.6666622161865,
+                362,
+                53
+              ],
+              "row": 1,
+              "selectionStyle": 0,
+              "text": "You",
+              "visible": true
+            }
+          ],
+          "title": "No Votes"
+        }
+      ],
+      "imageSha256": "3b35602a4e49d12c62a9ef5cf259d5e6eb4c73d5144e9244d35280fddbd3effa"
+    },
+    "poll-pending-landscape": {
+      "nativeSheetTop": 0,
+      "navigationFrame": [
+        0,
+        24,
+        874,
+        88
+      ],
+      "sections": [
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            220.33333079020184,
+            874,
+            30
+          ],
+          "headerFrame": [
+            0,
+            112,
+            874,
+            55.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                82,
+                167.33333206176758,
+                710,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "allow"
+        },
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            348.6666628519694,
+            874,
+            30
+          ],
+          "headerFrame": [
+            0,
+            250.33333015441895,
+            874,
+            45.33333206176758
+          ],
+          "rows": [
+            {
+              "frame": [
+                82,
+                295.6666622161865,
+                710,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "deny"
+        },
+        {
+          "footer": "",
+          "footerFrame": [
+            0,
+            522.6666628519695,
+            874,
+            17.333333333333258
+          ],
+          "headerFrame": [
+            0,
+            378.6666622161865,
+            874,
+            38
+          ],
+          "rows": [
+            {
+              "frame": [
+                82,
+                416.6666622161865,
+                710,
+                53
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "Chief",
+              "visible": false
+            },
+            {
+              "frame": [
+                82,
+                469.6666622161865,
+                710,
+                53
+              ],
+              "row": 1,
+              "selectionStyle": 0,
+              "text": "You",
+              "visible": false
+            }
+          ],
+          "title": "No Votes"
+        }
+      ],
+      "imageSha256": "ac712fba06922b924162ae4ef9cb3a5577dd0e7457d3b85e4ce39a348fc4e7f6"
+    },
+    "poll-pending-large": {
+      "nativeSheetTop": 62,
+      "navigationFrame": [
+        0,
+        78,
+        402,
+        88
+      ],
+      "sections": [
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            316.000005086263,
+            402,
+            50.66666793823242
+          ],
+          "headerFrame": [
+            0,
+            166,
+            402,
+            85.33333587646484
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                251.33333587646484,
+                362,
+                64.66666412353516
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "allow"
+        },
+        {
+          "footer": "0 Votes",
+          "footerFrame": [
+            0,
+            506.6666793823242,
+            402,
+            50.66666793823242
+          ],
+          "headerFrame": [
+            0,
+            366.66667429606116,
+            402,
+            75.33333587646484
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                442.000010172526,
+                362,
+                64.66666412353516
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "No votes yet",
+              "visible": true
+            }
+          ],
+          "title": "deny"
+        },
+        {
+          "footer": "",
+          "footerFrame": [
+            0,
+            754.6666844685872,
+            402,
+            17.33333333333337
+          ],
+          "headerFrame": [
+            0,
+            557.3333485921223,
+            402,
+            68
+          ],
+          "rows": [
+            {
+              "frame": [
+                20,
+                625.3333485921223,
+                362,
+                64.66666412353516
+              ],
+              "row": 0,
+              "selectionStyle": 0,
+              "text": "Chief",
+              "visible": true
+            },
+            {
+              "frame": [
+                20,
+                690.0000127156575,
+                362,
+                64.66666412353516
+              ],
+              "row": 1,
+              "selectionStyle": 0,
+              "text": "You",
+              "visible": true
+            }
+          ],
+          "title": "No Votes"
+        }
+      ],
+      "imageSha256": "15a2b9a5acb2d55a3918dfe7aca1b5aa1c881662986dcd9e2eadbe0ea4c66be6"
+    }
+  }
+}

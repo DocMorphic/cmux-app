@@ -48,6 +48,7 @@ class NativeChiefRuntimeTest {
     @Before fun start() {
         check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk")) { "Use the disposable emulator" }
         val reference=InstrumentationRegistry.getArguments().getString("chiefTranslationReferenceCase")
+            ?: InstrumentationRegistry.getArguments().getString("chiefPollReferenceCase")
         if(reference!=null) {
             val device=androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
             if(reference.contains("landscape"))device.setOrientationLeft() else device.setOrientationNatural()
@@ -74,7 +75,8 @@ class NativeChiefRuntimeTest {
     }
     @After fun stop() {
         if (::owner.isInitialized) compose.runOnUiThread { computer.close(); owner.cancel() }
-        if(InstrumentationRegistry.getArguments().getString("chiefTranslationReferenceCase")!=null)
+        if(InstrumentationRegistry.getArguments().getString("chiefTranslationReferenceCase")!=null ||
+            InstrumentationRegistry.getArguments().getString("chiefPollReferenceCase")!=null)
             androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).unfreezeRotation()
     }
 
@@ -2825,7 +2827,7 @@ class NativeChiefRuntimeTest {
         }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("No votes yet").fetchSemanticsNodes().size == 3 }
         saveScreenshot("chief-poll-details-mounted")
-        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithContentDescription("Done").performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPollDetails").fetchSemanticsNodes().isEmpty() }
         assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
     }
@@ -2872,7 +2874,7 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefPollParticipant:user").assertIsDisplayed()
         compose.onNodeWithTag("ChiefPollParticipant:alex").assertIsDisplayed()
         saveScreenshot("chief-poll-participant-snapshot")
-        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Done").performClick()
         assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
     }
 
@@ -2889,7 +2891,142 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefPollParticipant:agent_chief").assertTextEquals("Agent alias")
         compose.onNodeWithTag("ChiefPollParticipant:me").assertTextEquals("You")
         compose.onNode(hasText("Chief") and hasAnyAncestor(hasTestTag("ChiefPollDetails"))).assertDoesNotExist()
-        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithContentDescription("Done").performClick()
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun pollDetailsDoneBackAndHeaderDragDismissWithoutMutations() {
+        compose.runOnUiThread {
+            api.rows = listOf(message("approval", 1uL, "", parts = listOf(NativeChiefPart("approval", null,
+                NativeChiefApproval("request", "Run deploy?", listOf("allow", "deny"), null), null))))
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        fun open() {
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:approval").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("ChiefReplyActions:approval").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+            compose.onNodeWithTag("ChiefMenu:POLL").performClick()
+            compose.onNodeWithTag("ChiefPollSheet").assertIsDisplayed()
+        }
+        open(); compose.onNodeWithContentDescription("Done").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPollDetails").fetchSemanticsNodes().isEmpty() }
+        open(); androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).pressBack()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPollDetails").fetchSemanticsNodes().isEmpty() }
+        open(); compose.onNodeWithTag("ChiefPollHeader").performTouchInput {
+            swipe(androidx.compose.ui.geometry.Offset(center.x, height / 2f),
+                androidx.compose.ui.geometry.Offset(center.x, height + 300f), 400)
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPollDetails").fetchSemanticsNodes().isEmpty() }
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun pollDetailsKeepsLargeFallbackScriptLabelsInsideTheirRows() {
+        compose.runOnUiThread {
+            testFontScale = 3f
+            api.rows = listOf(message("approval", 1uL, "", parts = listOf(NativeChiefPart("approval", null,
+                NativeChiefApproval("request", "Run deploy?", listOf("السماح بالتنفيذ", "कार्रवाई की समीक्षा करें"), null), null)))
+                .copy(author = "प्रतिभागी की समीक्षा\nمراجعة المشارك"))
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:approval").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefReplyActions:approval").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.onNodeWithTag("ChiefMenu:POLL").performClick()
+        val participant = compose.onNodeWithTag("ChiefPollParticipant:chief")
+        // Verify the accessibility scroll action, then inject touch events with
+        // Compose's input clock. UiDevice swipes did not move the virtual-clock
+        // test surface; those diagnostics remain separate from accepted runs.
+        val table = compose.onNodeWithTag("ChiefPollTable")
+        table.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { assertTrue(it(0f, 300f)) }
+        // This rule uses StandardTestDispatcher as its effect context. Kick
+        // queued scroll coroutines explicitly before waiting for idle.
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+        val accessibilityOffset = table.fetchSemanticsNode().config[ChiefPollScrollProbe].invoke().offset
+        assertTrue("Accessibility scroll advances the real viewport", accessibilityOffset > 0)
+        repeat(3) {
+            table.performTouchInput { swipeUp() }
+            compose.mainClock.advanceTimeBy(1_000)
+            compose.waitForIdle()
+        }
+        saveScreenshot("chief-poll-large-script")
+        val probe = compose.onNodeWithTag("ChiefPollTable").fetchSemanticsNode().config[ChiefPollScrollProbe].invoke()
+        val diagnostic = JSONObject().put("offset", probe.offset).put("maximum", probe.maximum).put("drag", probe.drag)
+        for (tag in listOf("ChiefPollSheet", "ChiefPollTable", "ChiefPollParticipant:chief", "ChiefPollParticipant:me")) {
+            val box = compose.onNodeWithTag(tag).getUnclippedBoundsInRoot()
+            diagnostic.put(tag, org.json.JSONArray(listOf(box.left.value, box.top.value, box.right.value, box.bottom.value)))
+        }
+        saveChiefGeometry("chief-poll-large-script", diagnostic)
+        participant.assertIsDisplayed()
+        val cell = participant.getUnclippedBoundsInRoot()
+        val label = compose.onNode(hasTestTag("ChiefPollLabel") and hasAnyAncestor(hasTestTag("ChiefPollParticipant:chief")), useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+        assertTrue("Fallback ascent fits row", label.top.value >= cell.top.value - .5f)
+        assertTrue("Fallback descent fits row", label.bottom.value <= cell.bottom.value + .5f)
+        compose.onNodeWithContentDescription("Done").assertIsDisplayed().performClick()
+        assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
+    }
+
+    @Test fun capturePinnedPollDetailsReference() {
+        val name = InstrumentationRegistry.getArguments().getString("chiefPollReferenceCase")
+        org.junit.Assume.assumeTrue("Opt-in matched source capture", name != null)
+        val bytes = InstrumentationRegistry.getInstrumentation().context.assets.open("parity/chief-poll-scenes.json").use { it.readBytes() }
+        val input = JSONObject(bytes.toString(Charsets.UTF_8)); val scenes = input.getJSONArray("scenes")
+        val spec = (0 until scenes.length()).map(scenes::getJSONObject).single { it.getString("id") == name }
+        assertEquals("Pending Chief projection only", "pending", spec.getString("model"))
+        val poll = input.getJSONObject("polls").getJSONObject("pending")
+        val options = poll.getJSONArray("options")
+        compose.runOnUiThread {
+            testFontScale = if (spec.getString("category") == "accessibilityMedium") {
+                var low = 1f; var high = 3f
+                repeat(30) { val middle = (low + high) / 2
+                    if (with(Density(compose.activity.resources.displayMetrics.density, middle)) { 17.sp.toDp().value } < 28f) low = middle else high = middle }
+                high
+            } else 1f
+            testLight = spec.getString("style") == "light"
+            testLayoutDirection = if (spec.getString("direction") == "rtl") androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr
+            api.homeUnread = 0
+            api.rows = listOf(message("poll", 1uL, "", parts = listOf(NativeChiefPart("approval", null,
+                NativeChiefApproval("request", poll.getString("question"), (0 until options.length()).map { options.getJSONObject(it).getString("text") }, null), null))))
+            computer.home.refresh()
+        }
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefReplyActions:poll").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefReplyActions:poll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.onNodeWithTag("ChiefMenu:POLL").performClick()
+        compose.onNodeWithTag("ChiefPollSheet").assertIsDisplayed()
+        compose.waitForIdle()
+        val reference = JSONObject(InstrumentationRegistry.getInstrumentation().context.assets.open("parity/chief-poll-native-metrics.json")
+            .use { it.readBytes().toString(Charsets.UTF_8) }).getJSONObject("cases").getJSONObject(name!!)
+        val scale = compose.activity.resources.displayMetrics.density
+        val sheet = compose.onNodeWithTag("ChiefPollSheet").fetchSemanticsNode().boundsInWindow
+        val tags = listOf("ChiefPollSheet", "ChiefPollHeader", "ChiefPollPrompt", "ChiefPollTitle", "ChiefPollDone", "ChiefPollTable",
+            "ChiefPollOption:0", "ChiefPollOption:1", "ChiefPollNonVoters", "ChiefPollParticipant:chief", "ChiefPollParticipant:me")
+        val geometry = JSONObject()
+        tags.forEach { tag ->
+            val box = compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInWindow
+            geometry.put(tag, org.json.JSONArray(listOf(box.left / scale, box.top / scale, box.width / scale, box.height / scale)))
+        }
+        val sections = reference.getJSONArray("sections")
+        for (index in 0..1) {
+            val native = sections.getJSONObject(index).getJSONArray("rows").getJSONObject(0).getJSONArray("frame")
+            val actual = compose.onNodeWithTag("ChiefPollOption:$index").fetchSemanticsNode().boundsInWindow
+            assertEquals("Row height", native.getDouble(3), (actual.height / scale).toDouble(), 1.01 / scale)
+            assertEquals("Row top relative to sheet safe origin", native.getDouble(1) - reference.getDouble("nativeSheetTop"),
+                ((actual.top - sheet.top) / scale).toDouble(), 1.01 / scale)
+            assertEquals("Grouped rows keep the native centered alignment", native.getDouble(0) + native.getDouble(2) / 2 - reference.getJSONArray("navigationFrame").getDouble(2) / 2,
+                ((actual.center.x - sheet.center.x) / scale).toDouble(), 1.01 / scale)
+        }
+        val output = JSONObject().put("scene", name).put("fixture", spec).put("geometry", geometry)
+            .put("fixtureSha256", MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) })
+            .put("density", scale).put("fontScale", testFontScale)
+            .put("bodyPointSize", with(Density(scale, testFontScale)) { 17.sp.toDp().value })
+            .put("scope", "Production pending-poll UI with controlled Chief API and component style. Row geometry is compared relative to each platform safe origin. Not generic voters, true RPC, physical gestures/device, all type/locale or full visual parity.")
+        saveScreenshot("chief-reference-$name")
+        val png = File(compose.activity.getExternalFilesDir(null), "screenshots/chief-reference-$name.png")
+        val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        output.put("imageSha256", MessageDigest.getInstance("SHA-256").digest(png.readBytes()).joinToString("") { "%02x".format(it) })
+            .put("displayPixels", org.json.JSONArray(listOf(device.displayWidth, device.displayHeight)))
+        saveChiefGeometry("chief-reference-$name", output)
+        compose.onNodeWithContentDescription("Done").performClick()
         assertTrue(api.sends.isEmpty()); assertTrue(api.approvals.isEmpty()); assertTrue(api.answers.isEmpty())
     }
 

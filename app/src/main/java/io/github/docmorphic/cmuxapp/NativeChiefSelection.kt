@@ -158,8 +158,8 @@ internal fun NativeChiefTextSelection(frozen: NativeChiefSelectedText, permitted
     }
 }
 
-private data class NativeChiefPollParticipant(val id: String, val name: String)
-private data class NativeChiefPollContents(val question: String, val options: List<String>,
+internal data class NativeChiefPollParticipant(val id: String, val name: String)
+internal data class NativeChiefPollContents(val question: String, val options: List<String>,
     val participants: List<NativeChiefPollParticipant>)
 private fun pollContents(message: NativeChiefMessage, messages: List<NativeChiefMessage>,
     humanID: String, you: String, answerQuestions: String): NativeChiefPollContents? {
@@ -182,7 +182,6 @@ private fun pollContents(message: NativeChiefMessage, messages: List<NativeChief
         compact?.options?.map { it.label } ?: listOf(answerQuestions), participants)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NativeChiefPollDetails(id: String, state: NativeChiefTranscriptState, onClose: () -> Unit) {
     val you = stringResource(R.string.chief_poll_you)
@@ -197,23 +196,5 @@ internal fun NativeChiefPollDetails(id: String, state: NativeChiefTranscriptStat
     // becomes a receipt/disappears. Keep participants and options atomically.
     SideEffect { if (updated != null) { content = updated; retainedHumanID = humanID } }
     val shown = content ?: return
-    ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        modifier = Modifier.testTag("ChiefPollDetails")) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(20.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.chief_menu_poll_details), Modifier.weight(1f).semantics { heading() })
-                TextButton(onClick = onClose) { Text(stringResource(R.string.cmux_ui_terminal_artifact_gallery_done_ca8c7883)) }
-            }
-            Text(shown.question, Modifier.padding(vertical = 12.dp))
-            shown.options.forEach { option ->
-                Text(option, Modifier.padding(top = 16.dp).semantics { heading() })
-                Text(stringResource(R.string.chief_poll_no_votes_yet), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(stringResource(R.string.chief_poll_votes, 0), style = MaterialTheme.typography.labelSmall)
-            }
-            Text(stringResource(R.string.chief_poll_no_votes), Modifier.padding(top = 16.dp).semantics { heading() })
-            shown.participants.forEach { participant ->
-                Text(participant.name, Modifier.testTag("ChiefPollParticipant:${participant.id}"))
-            }
-        }
-    }
+    NativeChiefPollSheet(shown, onClose)
 }

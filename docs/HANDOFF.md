@@ -12,22 +12,35 @@ Mac device/tag/build fields that the original fetch/ACK client omitted. The
 source correction passes 20 isolated client cases and a new actual-worker-parser
 check of captured Swift requests for tagged and stable builds. Hooks and 5/5/8
 installer/packager/cache tests pass. The running diagnostic build predates this
-fix: continue a full corrected build and real fetch/ACK/terminal verification.
+fix: corrected full Mac build [39796614645](https://github.com/DocMorphic/cmux-app/actions/runs/39796614645)
+is compiling at exact source 4f89615457f1549c23a05a6da06ca6b70d373db5;
+its native integration checks passed and compatible compiler results restored. Follow
+that run, independently verify its artifact and test real fetch/ACK/terminal delivery.
 See MAC_NOTIFICATION_BUILD.md. Phone availability must be coordinated again
 before further physical tests; the user is currently free to use/disconnect it.
 
-Android Poll Details grouped-sheet work is local/uncommitted while validation
-continues. Its first 9-regression/5-scene run passed measured relative row
-geometry, but the added very-large fallback-script case exposed test scrolling
-issues. A synthetic performScrollTo run timed out; captured main thread was idle
-while instrumentation waited in Espresso. Hardware swipes did not advance the
-virtual-clock surface. The current focused test now drives the StandardTestDispatcher
-clock explicitly and checks accessibility ScrollBy plus Compose touch events.
-Do not treat this unresolved case or later installer timeouts as a pass. Source
-and diagnostics are under chief-poll-sheet-v1/v2/v3 and chief-poll-stress-v1/v2/v3;
-owned AVDs are stopped between attempts. Finish this check, all five matched
-captures and review before committing the Android UI candidate. Full parity and
-all broader gates remain active.
+Android Poll Details now uses a source-measured grouped table and navigation
+prompt/title/Done layout, replacing the provisional Material sheet. Final
+`captures/recovery-20261022/chief-poll-sheet-v4` passes all ten regressions in
+31.701 s, a separate clean participant capture in 5.007 s, and five matched
+pending-poll captures (dark/light/root RTL override/landscape/accessibility).
+The final fallback-script case advances both accessibility ScrollBy and Compose
+touch scrolling after explicitly advancing this test rule's virtual clock;
+Arabic/Devanagari participant label bounds fit their expanded row. Done, Back
+and header drag dismiss without API writes. Source/APK/image/fixture hashes,
+zero crash buffer and owned-emulator termination are independently checked.
+
+Relative row tops/heights and centered alignment agree with the native captures
+within 1.01 physical pixels. Raw OS safe origins differ (portrait Android 48 vs
+iOS 62 points); centered landscape rows are 738 vs 710 points wide because their
+safe insets differ. These observations do not waive full visual parity. All five
+screens and the script stress screen were reviewed; Done glyph/tint/glass/glow,
+actual font shapes/advances, continuous corners/motion, unrendered type/real RTL
+locales/recreation and physical TalkBack remain open. Earlier failed/hung cases
+are retained separately; they are not accepted evidence. Checkpoint:
+`captures/recovery-20261022/chief-poll-sheet-checkpoint.json`. See CHIEF.md.
+The Pixel remains on signed 712 with its data preserved and is free for the user.
+Full app parity and the broader backend/release/device gates remain active.
 
 ## Poll Details reference and identity snapshot checkpoint — 2026-10-22
 

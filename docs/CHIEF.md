@@ -1,3 +1,41 @@
+## Grouped Poll Details candidate verified — 2026-10-22
+
+Poll Details now renders its source-measured grouped table, prompt above the
+centered title, circular Done control and read-only participant rows in a separate
+full-width dialog. Normal and rendered accessibility reference row heights,
+section/footer spacing and label baselines follow native run 39762098177. Actual
+Android safe areas protect system bars/cutouts; landscape rows use equal side
+insets and remain centered. Body labels expand for taller fallback-script glyphs.
+Done, Android Back, header drag and pull at the top dismiss; transition timing,
+interactive motion and native glass remain provisional.
+
+Final `captures/recovery-20261022/chief-poll-sheet-v4` passes ten regressions in
+31.701 s, a separate clean participant capture in 5.007 s, and all five matched
+pending scenes. The very-large Arabic/Devanagari test checks real viewport
+advancement for accessibility ScrollBy and Compose touch scrolling, then label
+bounds inside the visible participant row. StandardTestDispatcher requires an
+explicit virtual-clock advance for its scroll coroutines; earlier timeouts and
+failed hardware-injection observations remain diagnostics, not app-freeze or
+accepted accessibility evidence. All tests assert no Chief write calls.
+
+The final source/APK/image/fixture hashes, original native metrics and artifact
+hash were independently checked. Row height, top relative to each sheet's safe
+origin, and horizontal centering match within 1.01 physical pixels. All five
+captures and script stress screen were visually inspected. The crash buffer is
+empty and the owned Android 16/API 36 emulator is stopped. Checkpoint:
+`captures/recovery-20261022/chief-poll-sheet-checkpoint.json`.
+
+Raw portrait sheet top is Android 48 vs iOS 62 points. Landscape centered row
+width is 738 vs 710 because actual OS safe insets differ; these differences are
+recorded, not accepted as full visual parity. Android glyph shapes/advances,
+Done check shape/tint/glass/glow, continuous corners, gesture motion, other type
+categories/Bold Text, actual Arabic/Hebrew locales, open-sheet recreation and
+physical TalkBack remain open. Component light style does not prove a global
+app light theme. Controlled Chief API cases do not prove real RPC, retained votes
+or live updates; generic populated native voter scenes remain a separate source
+applicability gate. The Pixel stays on preserved signed 712. Full parity remains
+active.
+
 ## Poll Details reference verified and participant behavior corrected — 2026-10-22
 
 Native run 39762098177 at 266b6a61bd0784f1e031027baaf3ddbd4896e822
