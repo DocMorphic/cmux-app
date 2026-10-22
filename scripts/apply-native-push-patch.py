@@ -17,6 +17,7 @@ PINS = {
     "Sources/Mobile/MobileHostService.swift": "981e2a4c8d963337904793066b6cca4539627873b0d76ce2bcc51655cd7ded14",
     "Sources/Mobile/MobileHostService+PhonePushKeyExchange.swift": "09a9804a0176f1dc31f64fb7944fb99473ed1470542a519cd8ac3b14df5062cf",
     "Sources/Cloud/PhonePushClient.swift": "e895f51016156d18f11d4aa7d8b721252ff6759a80552b277ae3a7b45596c3df",
+    "Sources/Cloud/PhoneReplyInboxClient.swift": "52f21c5af4eb53165914e4a8912c9300d92cde3258e04bc7ff12fdfcbd5ca191",
     "Sources/Auth/MacAuthComposition.swift": "4bb78b100be946c8970ab3001024ccbccea6de2140f09a545c2721c708a3e79a",
     "cmux.xcodeproj/project.pbxproj": "4c8bd5b04194579af34fbdf5cf2090723c2546d59029f92d444aaf54a99779bf",
     "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TeamScopes.swift": "55c26389f160344ad666a0eeea48d1d1b37ac63c3e2e50f97602bed26f38a0fe",
@@ -133,11 +134,98 @@ HELPERS = '''    /// Used by the native auth owner before its first transition a
 '''
 
 
+def reply_inbox_diagnostics(source):
+    # Preserve upstream request/crypto/retry behavior. Only fixed categories and
+    # numeric protocol codes may reach either logger; never error descriptions,
+    # URLs, response bytes, credentials, identities or reply contents.
+    source = once(source, "    private let retryAfterGate = CmxRetryAfterGate()\n", '''    private let retryAfterGate = CmxRetryAfterGate()
+
+    private enum Operation: String { case fetch, ack }
+    private enum Failure: String {
+        case authUnavailable, serviceUnavailable, invalidURL, cancelled
+        case nonHTTP, http, decoding, transport, unexpected
+    }
+
+    private func recordFailure(_ operation: Operation, _ cause: Failure, code: Int = 0) {
+        if cause == .authUnavailable || cause == .cancelled {
+            phoneReplyLog.debug("reply request unavailable operation=\\(operation.rawValue, privacy: .public) cause=\\(cause.rawValue, privacy: .public) code=\\(code, privacy: .public)")
+        } else {
+            phoneReplyLog.error("reply request failed operation=\\(operation.rawValue, privacy: .public) cause=\\(cause.rawValue, privacy: .public) code=\\(code, privacy: .public)")
+        }
+        #if DEBUG
+        cmuxDebugLog("phoneReply.requestFailed operation=\\(operation.rawValue) cause=\\(cause.rawValue) code=\\(code)")
+        #endif
+    }
+''')
+    source = once(source, '            path: "/v1/replies/e2e",\n', '            operation: .fetch, path: "/v1/replies/e2e",\n')
+    source = once(source, 'await authorizedRequest(path: "/v1/replies/e2e/ack")',
+                  'await authorizedRequest(operation: .ack, path: "/v1/replies/e2e/ack")')
+    for operation, result in [('fetch', 'nil'), ('ack', 'false')]:
+        source = once(source, f'        guard (try? await retryAfterGate.wait()) != nil else {{ return {result} }}',
+                      f'        guard (try? await retryAfterGate.wait()) != nil else {{\n'
+                      f'            recordFailure(.{operation}, .cancelled)\n            return {result}\n        }}')
+        source = once(source, f'            guard let http = response as? HTTPURLResponse else {{ return {result} }}',
+                      f'            guard let http = response as? HTTPURLResponse else {{\n'
+                      f'                recordFailure(.{operation}, .nonHTTP)\n                return {result}\n            }}')
+        source = once(source, f'                await recordRetryAfter(http)\n                return {result}',
+                      f'                await recordRetryAfter(http)\n'
+                      f'                recordFailure(.{operation}, .http, code: http.statusCode)\n                return {result}')
+        source = once(source, f'            guard (200...299).contains(http.statusCode) else {{ return {result} }}',
+                      f'            guard (200...299).contains(http.statusCode) else {{\n'
+                      f'                recordFailure(.{operation}, .http, code: http.statusCode)\n                return {result}\n            }}')
+        source = once(source, f'''        }} catch {{
+            phoneReplyLog.error("reply {operation} failed: \\(String(describing: error), privacy: .private)")
+            return {result}
+        }}''', f'''        }} catch is DecodingError {{
+            recordFailure(.{operation}, .decoding)
+            return {result}
+        }} catch let error as URLError {{
+            recordFailure(.{operation}, error.code == .cancelled ? .cancelled : .transport, code: error.code.rawValue)
+            return {result}
+        }} catch is CancellationError {{
+            recordFailure(.{operation}, .cancelled)
+            return {result}
+        }} catch {{
+            recordFailure(.{operation}, .unexpected)
+            return {result}
+        }}''')
+    source = once(source, '    private func authorizedRequest(\n        path: String,',
+                  '    private func authorizedRequest(\n        operation: Operation, path: String,')
+    source = once(source, '''        guard let auth,
+              let baseURL = PresenceHeartbeatClient.resolvedServiceURL() else { return nil }''', '''        guard let auth else {
+            recordFailure(operation, .authUnavailable)
+            return nil
+        }
+        guard let baseURL = PresenceHeartbeatClient.resolvedServiceURL() else {
+            recordFailure(operation, .serviceUnavailable)
+            return nil
+        }''')
+    source = once(source, '''        } catch {
+            return nil // signed out; the reply waits out its server TTL
+        }''', '''        } catch {
+            recordFailure(operation, .authUnavailable)
+            return nil // signed out; the reply waits out its server TTL
+        }''')
+    source = once(source, '''        guard var comps = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }''', '''        guard var comps = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            recordFailure(operation, .invalidURL)
+            return nil
+        }''')
+    source = once(source, '        guard let url = comps.url else { return nil }', '''        guard let url = comps.url else {
+            recordFailure(operation, .invalidURL)
+            return nil
+        }''')
+    return source
+
+
 def patched_sources(original):
     for path, expected in PINS.items():
         if hashlib.sha256(original[path]).hexdigest() != expected:
             raise ValueError(f"Source mismatch: {path}; expected audited cmux {REF}")
     result = {}
+    path = "Sources/Cloud/PhoneReplyInboxClient.swift"
+    result[path] = reply_inbox_diagnostics(original[path].decode()).encode()
     path = "CLI/CMUXCLI+CommandSuggestions.swift"
     source = original[path].decode()
     # This pinned upstream revision left its Set initializer as an uncalled

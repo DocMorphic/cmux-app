@@ -1,5 +1,34 @@
 # Custom Mac notification build
 
+## Reply inbox failure diagnostics — 2026-10-22
+
+The native patch now also guards the exact upstream PhoneReplyInboxClient.swift
+(SHA256 52f21c5af4eb53165914e4a8912c9300d92cde3258e04bc7ff12fdfcbd5ca191).
+Fetch and acknowledgement failures emit one coarse category and numeric HTTP/
+transport code through the existing dev.cmux/phone-reply-inbox logger and DEBUG
+process log. No URL, request/response body, identity, reply content, token or
+error description is included. Existing request, auth, retry and decoder behavior
+is preserved. Missing auth and cancellation are debug-level events.
+
+The exact patched client executes against inert URLProtocol/auth/service/DTO
+boundaries in 18 cases: missing auth/token/service, HTTP 401/403/429/503, non-HTTP,
+malformed JSON/plaintext rejection, timeout/cancellation, empty/encrypted inbox,
+and empty/successful/failed acknowledgement. Outcome, event count/category,
+request contract and log privacy checks pass. The harness uses the actual pinned
+app's Swift 5 language mode; an initial Swift 6 harness build rejected upstream's
+existing retry helper actor crossing and is retained as diagnostic evidence.
+Native hook parsing/typechecking and compiled auth/payload/receipt/private-pipe
+checks pass, as do five installer, five packager and eight cache tests. The full
+hosted Mac build now requires this additional inbox check. Local receipt:
+`captures/recovery-20261022/reply-inbox-diagnostics-v2/receipt.json`.
+
+These are isolated client checks, not real authenticated server or terminal
+reply acceptance. The current running Mac is unchanged. Background reply E is
+still unaccepted; a verified full build and runtime log observation are needed
+to classify its retrieval failure. Historical sweep errors have no individual
+timestamp and the bounded latest observation emitted none; no cause is proven.
+The phone remains available to the user. Full app parity stays active.
+
 ## Chief-capable host candidate — 2026-10-20
 
 The build recipe now targets exact upstream

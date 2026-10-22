@@ -1,3 +1,16 @@
+## Background reply diagnostic candidate — 2026-10-22
+
+The exact pinned Mac inbox client now classifies fetch/ack failures with fixed
+categories and numeric codes, without credentials or content. Eighteen isolated
+client cases and existing hook/auth/payload/receipt checks pass; installer,
+packager and compiler-cache tests pass (5/5/8). The hosted full Mac build requires
+the new check. See MAC_NOTIFICATION_BUILD.md and the ignored
+`reply-inbox-diagnostics-v2/receipt.json` for evidence and scope. Live Mac runtime
+and background terminal reply remain unverified; the running app and phone are
+unchanged. Do not infer the cause from historical logs or unauthenticated 403s.
+Continue the full build, verified artifact/runtime observation and every broader
+parity gate. Full app parity remains active.
+
 ## Latest translation measurements and phone availability — 2026-10-22
 
 The measured popup sizing gap is closed: final emulator v4 passes 19 regressions
