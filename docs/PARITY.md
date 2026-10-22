@@ -1,3 +1,40 @@
+## Native translation settings verified; emulator download failure recorded — 2026-10-22
+
+A foreground ActivityScenario host now launches the actual TranslationManager
+settings PendingIntent through startIntentSenderForResult. The probe verifies
+cmux is visible before launch and Android System Intelligence is visible after
+it, then captures the OS screenshot and accessibility hierarchy. Its Live
+Translate screen exposes Add a language and Google's model-download consent.
+The earlier Activity launch before instrumentation was not a valid foreground
+host: instrumentation restarted the app, and that pending-intent send was
+blocked. It is excluded from foreground acceptance.
+
+The admitted French-to-English download fails inside this generic emulator's
+provider UI. The provider logs “There is no package supporting language pair”
+while its capabilities continue to report DOWNLOADABLE. The opt-in real-output
+probe correctly fails its INSTALLED precondition and submits no message text.
+Actual model download/inference remains an open gate; this result establishes
+neither Pixel behavior nor an unavoidable Android limitation. ML Kit was
+reviewed in primary docs only and was not added; future use would require its
+Google attribution and explicit model admission.
+
+Final combined provider run: three passes, no skips/failures, 8.164 seconds,
+empty crash buffer: capability/detection/324 language-pair checks, absent-model
+deferral and the real foreground settings launch. The failed download/output
+probe is separately retained as a diagnostic. Production sources and app APK
+are unchanged from the foundation's successful 3089-case JVM run. Receipt:
+`captures/recovery-20261022/chief-translation-provider-checkpoint.json`.
+Display/animation/accessibility settings were restored and the owned emulator
+stopped. French selection/related provider test assets remain confined to the
+disposable AVD. Real account, pairing, signing and workspace data, Pixel 703
+and signed 712 remain unchanged.
+
+Continue mounting translation choices/source picker/captions/indicator, scoped
+preferences and the foreground download host. Controlled translator fixtures
+can establish UI behavior, as in upstream's explicit lab translator; real
+Pixel installation/output is still required. Full parity remains active, and
+no additional Mac action or repeated phone-availability question is requested.
+
 ## Translation foundation and Android provider checks — 2026-10-22
 
 Chief translation now has a retained, owner-scoped model for single messages,
