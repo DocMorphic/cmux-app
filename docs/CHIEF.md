@@ -1,3 +1,16 @@
+## Signed candidate 713 and active native checks — 2026-10-22
+
+Candidate 713 from clean 438e29fa is signed and verified with the stable signer,
+22 native libraries, 21 viewer assets and all 15 debug components excluded.
+The full unit suite has 3,100 passes/four opt-in skips and zero failures/errors.
+Two fresh-emulator release starts visibly reach sign-in with no crashes; its
+owned AVD is removed. This does not prove authenticated/device/full parity.
+Pixel stays on preserved signed 712; candidate 713 is local and unpublished.
+Native rotation capture 39801868525 and corrected Mac build 39796614645 remain
+active. Follow their exact handles and verify artifacts/runtime before physical
+work; CUA currently reports the Mac locked. See HANDOFF.md for hashes, immutable
+inputs, evidence paths and all remaining scope. Full parity remains active.
+
 ## Live Poll Details rotation reference candidate — 2026-10-22
 
 The native reference host now opens the real source Poll Details menu, captures

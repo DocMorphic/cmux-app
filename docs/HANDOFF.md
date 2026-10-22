@@ -1,3 +1,45 @@
+## Signed candidate 713 verified; native rotation capture running — 2026-10-22
+
+Signed candidate 713 is ready from clean source
+`438e29fa8f983447432209f70fe7a0258c931ea3`, including the implemented message
+menus/translation and grouped Poll Details with retained-owner recreation.
+APK: `captures/runtime/parity-candidate-713/app-release.apk` (277,998,069 bytes),
+SHA256 `d7bf5fe254888192653b743bdfe689d6cf94062cc0982636d50967c544932890`.
+The stable signer is unchanged. All 22 native libraries/alignment, 21 viewer
+assets, 15 excluded debug components, SDK/package/version and selected private
+Firebase resources verify. All 3,104 unit cases complete: 3,100 pass, four opt-in
+skips, zero failures/errors. The 419 XML reports are archived with SHA256
+`1d9c736ac2b08cb5fc993ce6975f22d1d573e3107bf29abcde0e96e79a12a0de`.
+Candidate checkpoint: `captures/recovery-20261022/parity-candidate-713-checkpoint.json`.
+
+Two actual signed-release launches on a newly created Android 16/API 36 AVD
+reach the empty sign-in screen with submission disabled and no crash-buffer
+entries. The second follows force-stop of only this disposable release package.
+Both screenshots/trees were hash-checked and visually inspected; the owned
+emulator is stopped and only its newly created AVD removed. Evidence:
+`captures/recovery-20261022/release-713-cold-v1/receipt.json`. No account action,
+physical upgrade or publication occurred. Pixel remains on preserved signed 712.
+This is release startup/inventory acceptance, not authenticated feature parity
+or proof that every packaged native engine has executed.
+
+Native Poll Details live-rotation run
+[39801868525](https://github.com/DocMorphic/cmux-app/actions/runs/39801868525)
+is active at the exact candidate source. The workflow requires real bubble/menu
+activation, portrait/landscape/portrait compositor images, retained weakly
+observed controller/table and observer-lifetime identity, and native Done.
+Fourteen adversarial export guards pass. Immutable prepared source/checkpoint:
+`captures/recovery-20261022/chief-poll-native-lifecycle-prepared-checkpoint.json`
+and `poll-lifecycle-source-438e29fa`. Execution/artifact acceptance remains pending.
+
+Corrected Mac reply build 39796614645 at 4f896154 remains in full compilation.
+Its immutable verification inputs are saved at `mac-reply-source-4f896154`.
+Follow the existing run; independently verify and preserve current runtime
+state before replacement, then verify live fetch/ACK/terminal delivery. The
+running diagnostic app predates the request correction. CUA currently reports
+Mac locked; no UI state was observed or unlock attempted. Coordinate Mac/phone
+availability only when the corrected artifact and concrete live test are ready.
+Full app parity and all broader completion gates remain active.
+
 ## Poll Details retained-owner lifecycle verified — 2026-10-22
 
 Poll Details now belongs to its retained conversation session. Recreating the
