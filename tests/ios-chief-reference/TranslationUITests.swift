@@ -21,6 +21,12 @@ final class CmuxChiefTranslationUITests: XCTestCase {
         }
         let diagnostic = XCTAttachment(string: app.debugDescription)
         diagnostic.name = "translation-timeout-" + description; diagnostic.lifetime = .keepAlways; add(diagnostic)
+        let screen = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screen.name = "translation-timeout-screen-" + description; screen.lifetime = .keepAlways; add(screen)
+        if let value = observation(app), let data = try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys]) {
+            let state = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+            state.name = "translation-timeout-state-" + description; state.lifetime = .keepAlways; add(state)
+        }
         XCTFail("Timed out waiting for actual source " + description)
         throw NSError(domain: "ChiefTranslationReference", code: 1)
     }
@@ -87,10 +93,6 @@ final class CmuxChiefTranslationUITests: XCTestCase {
                 return stable >= 3
             }
             var value = try XCTUnwrap(observation(app))
-            XCTAssertEqual(value["backendWriteAttempts"] as? Int, 0)
-            XCTAssertEqual(value["translator"] as? String, "controlled")
-            XCTAssertEqual(value["style"] as? String, specification["style"])
-            XCTAssertEqual(value["direction"] as? String, specification["direction"])
             let png = XCUIScreen.main.screenshot().pngRepresentation
             value["translationScene"] = name; value["fixture"] = specification
             value["fixtureSha256"] = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
@@ -102,6 +104,10 @@ final class CmuxChiefTranslationUITests: XCTestCase {
             screenshot.name = name + ".png"; screenshot.lifetime = .keepAlways; add(screenshot)
             let metadata = XCTAttachment(data: try JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys]), uniformTypeIdentifier: "public.json")
             metadata.name = name + ".json"; metadata.lifetime = .keepAlways; add(metadata)
+            XCTAssertEqual(value["backendWriteAttempts"] as? Int, 0)
+            XCTAssertEqual(value["translator"] as? String, "controlled")
+            XCTAssertEqual(value["style"] as? String, specification["style"])
+            XCTAssertEqual(value["direction"] as? String, specification["direction"])
             app.terminate()
         }
         XCUIDevice.shared.orientation = .portrait

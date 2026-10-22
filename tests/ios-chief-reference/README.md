@@ -1,3 +1,26 @@
+The translation-specific `ios-chief-translation.yml` workflow prepares an
+optional `--with-translation-ui` host and a separate CmuxChiefTranslation UI-test
+scheme. Eleven fixtures cover the source action sheets, message translation,
+original toggle, translated long-press menu, automatic indicator, outgoing/light,
+RTL, landscape and real system accessibility type. XCTest physically presses
+bubbles and taps the source controls; `XCUIScreen.main.screenshot` supplies OS
+compositor PNGs. The unmodified pinned Core/UI package is linked into the host;
+only the translator is controlled. Original messages and backend writes are
+checked independently. A transparent 1-point AX observation node transports
+UIKit geometry/traits to the test process, so this is not VoiceOver acceptance.
+The older default unit-test reference host and its evidence contract are retained.
+
+Project/scheme/resource validation, Swift syntax parsing, sixteen adversarial
+translation export checks and the full 125 Python checks pass locally. Run
+39726179590 at eda15a07d37f35586c1e6f50d1895df3d1a96cd9 compiled and physically
+opened the source translation choice, then correctly rejected its actual light
+trait for the requested dark scene. SwiftUI overrides the representable
+controller appearance; the host now supplies preferredColorScheme as well.
+Diagnostic PNG/JSON attachments precede final assertions, and timeouts preserve
+state/screens. A new hosted run, complete native frames and independent artifact
+verification remain required. The failed run is diagnostic only. This is not accepted native translation UI evidence yet, and
+controlled translated strings never prove model inference or Android parity.
+
 Action run 39695701927 at f817f0a08b569feaac68698e985937421300f092 passed
 both UIKit invocations and all export guards. Artifact 12391636822 was
 independently verified locally for fifteen existing plus five action scenes;
