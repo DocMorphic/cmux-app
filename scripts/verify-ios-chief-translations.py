@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Verify complete pinned UIKit translation UI references; synthetic guard tests never establish native evidence."""
-import argparse, hashlib, json, math, shutil, struct
+import argparse, binascii, hashlib, json, math, shutil, struct
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -9,6 +9,51 @@ def require(value, message):
     if not value: raise ValueError(message)
 def rect(value):
     return isinstance(value,list) and len(value)==4 and all(type(v) in (int,float) and math.isfinite(v) for v in value) and min(value[2:])>0
+
+def exif_orientation(data):
+    # PNG eXIf contains a TIFF header. Only the unmirrored orientations emitted
+    # by XCUIScreen are supported; an absent orientation means upright.
+    require(len(data)>=8 and data[:2] in (b'II',b'MM'),'Invalid compositor EXIF header')
+    endian='<' if data[:2]==b'II' else '>'
+    require(struct.unpack(endian+'H',data[2:4])[0]==42,'Invalid compositor TIFF marker')
+    offset=struct.unpack(endian+'I',data[4:8])[0]
+    require(offset>=8 and offset+2<=len(data),'Invalid compositor EXIF directory')
+    count=struct.unpack(endian+'H',data[offset:offset+2])[0]
+    require(offset+2+12*count+4<=len(data),'Truncated compositor EXIF directory')
+    orientation=None
+    for index in range(count):
+        entry=data[offset+2+12*index:offset+14+12*index]
+        tag,kind,items=struct.unpack(endian+'HHI',entry[:8])
+        if tag!=274: continue
+        require(orientation is None and kind==3 and items==1,'Invalid/duplicate compositor orientation')
+        orientation=struct.unpack(endian+'H',entry[8:10])[0]
+        require(orientation in (1,3,6,8),'Unsupported mirrored compositor orientation')
+    return orientation or 1
+
+def png_geometry(data):
+    require(data.startswith(b'\x89PNG\r\n\x1a\n'),'Invalid compositor PNG signature')
+    offset=8;size=None;orientation=1;has_exif=False;has_pixels=False;ended=False
+    while offset<len(data):
+        require(offset+12<=len(data),'Truncated compositor PNG chunk')
+        length=struct.unpack('>I',data[offset:offset+4])[0]
+        require(offset+length+12<=len(data),'Truncated compositor PNG payload')
+        kind=data[offset+4:offset+8];payload=data[offset+8:offset+8+length]
+        crc=struct.unpack('>I',data[offset+8+length:offset+12+length])[0]
+        require(binascii.crc32(kind+payload)&0xffffffff==crc,'Changed compositor PNG chunk checksum')
+        if kind==b'IHDR':
+            require(offset==8 and length==13 and size is None,'Invalid compositor image header')
+            size=list(struct.unpack('>II',payload[:8]));require(min(size)>0,'Invalid compositor image size')
+        elif kind==b'eXIf':
+            require(not has_exif,'Duplicate compositor EXIF chunk')
+            has_exif=True;orientation=exif_orientation(payload)
+        elif kind==b'IDAT':
+            has_pixels=has_pixels or bool(payload)
+        elif kind==b'IEND':
+            require(length==0 and offset+12==len(data),'Invalid compositor PNG end')
+            ended=True;break
+        offset+=length+12
+    require(size is not None and has_pixels and ended,'Incomplete compositor PNG')
+    return dict(encodedSize=size,exifOrientation=orientation,displaySize=size[::-1] if orientation in (6,8) else size)
 
 def verify(exported, output, commit):
     require(len(commit)==40 and all(c in '0123456789abcdef' for c in commit), 'Exact project commit required')
@@ -67,13 +112,13 @@ def verify(exported, output, commit):
             indicator=next((x for x in controls if x.get('identifier')=='conversation.translation.indicator'),None)
             require(indicator is not None and abs(indicator['frame'][3]-32)<.1,'Wrong source indicator')
         image=images.get(v['imageSha256']);require(image is not None,'Missing/changed compositor screenshot')
-        pixels=image.read_bytes()
-        require(len(pixels)>=33 and pixels[12:16]==b'IHDR' and struct.unpack('>II',pixels[16:24])==tuple(round(x*scale) for x in size),'Wrong compositor image dimensions')
-        paired.append((name,path,image,v))
+        geometry=png_geometry(image.read_bytes())
+        require(geometry['displaySize']==[round(x*scale) for x in size],'Wrong compositor image dimensions')
+        paired.append((name,path,image,v,geometry))
     output.mkdir(parents=True,exist_ok=True)
-    for name,path,image,value in paired:
+    for name,path,image,value,geometry in paired:
         shutil.copyfile(image,output/(name+'.png'));(output/(name+'.json')).write_text(json.dumps(value,indent=2)+'\n')
-    receipt=dict(projectCommit=commit,revision=manifest['revision'],packageTree=manifest['referencePackage']['tree'],scenes=list(scenes),captureMethod='XCUIScreen.main.screenshot',translator='controlled',scope='Pinned UIKit translation UI, physical gestures/source actions, actual traits/frames and compositor images. Not model inference, Android comparison, physical-device or VoiceOver acceptance.')
+    receipt=dict(projectCommit=commit,verifierSha256=digest(Path(__file__)),revision=manifest['revision'],packageTree=manifest['referencePackage']['tree'],scenes=list(scenes),captureMethod='XCUIScreen.main.screenshot',translator='controlled',imageGeometry={name:geometry for name,path,image,value,geometry in paired},scope='Pinned UIKit translation UI, physical gestures/source actions, actual traits/frames and compositor images. Original PNG bytes and EXIF retained; display dimensions include validated orientation. Not model inference, Android comparison, physical-device or VoiceOver acceptance.')
     (output/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps(receipt,indent=2))
 
 if __name__=='__main__':

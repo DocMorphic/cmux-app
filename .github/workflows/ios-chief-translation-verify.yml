@@ -1,0 +1,72 @@
+name: Verify existing iOS Chief translation captures
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run:
+        description: Completed translation capture run with both native UI test steps passing
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Require successful native capture tests and exact source commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REFERENCE_RUN: ${{ inputs.source_run }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+          run_id = os.environ['REFERENCE_RUN']
+          if not re.fullmatch('[0-9]+', run_id): raise ValueError('Numeric capture run required')
+          repo = os.environ['GITHUB_REPOSITORY']
+          def api(path): return json.loads(subprocess.check_output(['gh', 'api', 'repos/' + repo + path]))
+          run = api('/actions/runs/' + run_id)
+          if run['status'] != 'completed' or run['path'] != '.github/workflows/ios-chief-translation.yml':
+              raise ValueError('Completed native translation capture workflow required')
+          commit = run['head_sha']
+          if not re.fullmatch('[a-f0-9]{40}', commit): raise ValueError('Exact capture source commit required')
+          jobs = api('/actions/runs/' + run_id + '/jobs?per_page=100')['jobs']
+          captures = [job for job in jobs if job['name'] == 'capture']
+          if len(captures) != 1: raise ValueError('Unique capture job required')
+          steps = {step['name']: step['conclusion'] for step in captures[0]['steps']}
+          for name in ['Capture standard translation UI through actual source controls',
+                       'Capture translation UI with actual system accessibility type']:
+              if steps.get(name) != 'success': raise ValueError('Both actual UIKit test steps must pass')
+          Path('source-capture-run.json').write_text(json.dumps(dict(run=run_id, sourceCommit=commit,
+              originalRunConclusion=run['conclusion'], nativeCaptureSteps=steps,
+              verificationCommit=os.environ['GITHUB_SHA']), indent=2) + '\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as f: f.write('REFERENCE_COMMIT=' + commit + '\n')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-chief-translation
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+          path: reference-capture
+      - name: Check reference integrity guards
+        run: python3 -m unittest discover -s scripts/tests -p 'test_ios_chief*.py'
+      - name: Verify all unchanged native images and presentation states
+        run: |
+          python3 scripts/verify-ios-chief-translations.py \
+            --exported reference-capture/chief-reference-exported \
+            --output verified-translations --project-commit "$REFERENCE_COMMIT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-chief-translation-verified-${{ inputs.source_run }}
+          if-no-files-found: error
+          path: |
+            source-capture-run.json
+            verified-translations

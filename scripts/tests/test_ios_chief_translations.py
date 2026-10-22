@@ -1,11 +1,20 @@
 """Adversarial export guards; synthetic images are never native UI evidence."""
 from contextlib import redirect_stdout
-import copy, hashlib, importlib.util, io, json, tempfile, unittest
+import binascii, copy, hashlib, importlib.util, io, json, struct, tempfile, unittest
 from pathlib import Path
 from test_ios_chief_reference import png
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('translation_verifier', ROOT/'scripts/verify-ios-chief-translations.py')
 V = importlib.util.module_from_spec(spec); spec.loader.exec_module(V)
+
+def exif_png(pixels, orientation, endian='>'):
+    payload=(b'MM' if endian=='>' else b'II')+struct.pack(endian+'HI',42,8)
+    payload+=struct.pack(endian+'HHHIH',1,274,3,1,orientation)+b'\x00\x00'+struct.pack(endian+'I',0)
+    return exif_payload_png(pixels,payload)
+
+def exif_payload_png(pixels,payload):
+    chunk=struct.pack('>I',len(payload))+b'eXIf'+payload+struct.pack('>I',binascii.crc32(b'eXIf'+payload)&0xffffffff)
+    return pixels[:-12]+chunk+pixels[-12:]
 
 class TranslationExportGuards(unittest.TestCase):
     def setUp(self):
@@ -102,5 +111,45 @@ class TranslationExportGuards(unittest.TestCase):
     def test_nonfinite_viewport_is_rejected(self):
         self.mutate(lambda v:v.update(scale=float('inf')))
         with self.assertRaisesRegex(ValueError,'viewport'): self.verify()
+
+    def test_real_oriented_landscape_encoding_is_preserved(self):
+        pixels=exif_png(png(200,402,874),6)
+        name='translation-landscape-dark'
+        (self.export/(name+'.png')).write_bytes(pixels)
+        self.mutate(lambda v:v.update(imageSha256=hashlib.sha256(pixels).hexdigest()),name)
+        self.verify()
+        self.assertEqual(pixels,(self.output/(name+'.png')).read_bytes())
+        geometry=json.loads((self.output/'receipt.json').read_text())['imageGeometry'][name]
+        self.assertEqual(dict(encodedSize=[402,874],displaySize=[874,402],exifOrientation=6),geometry)
+
+    def test_swapped_axes_without_orientation_still_fail(self):
+        pixels=png(200,402,874);name='translation-landscape-dark'
+        (self.export/(name+'.png')).write_bytes(pixels)
+        self.mutate(lambda v:v.update(imageSha256=hashlib.sha256(pixels).hexdigest()),name)
+        with self.assertRaisesRegex(ValueError,'image dimensions'):self.verify()
+
+    def test_both_tiff_byte_orders_and_unmirrored_rotations(self):
+        for endian in ('>','<'):
+            for orientation in (1,3,6,8):
+                with self.subTest(endian=endian,orientation=orientation):
+                    geometry=V.png_geometry(exif_png(png(20,2,3),orientation,endian))
+                    self.assertEqual([3,2] if orientation in (6,8) else [2,3],geometry['displaySize'])
+                    self.assertEqual(orientation,geometry['exifOrientation'])
+
+    def test_mirrored_and_invalid_orientation_is_rejected(self):
+        for orientation in (0,2,4,5,7,9):
+            with self.subTest(orientation=orientation),self.assertRaisesRegex(ValueError,'orientation'):
+                V.png_geometry(exif_png(png(20),orientation))
+
+    def test_duplicate_or_truncated_exif_is_rejected(self):
+        with self.assertRaisesRegex(ValueError,'Duplicate compositor EXIF'):
+            V.png_geometry(exif_png(exif_png(png(20),1),1))
+        with self.assertRaisesRegex(ValueError,'EXIF directory'):
+            V.png_geometry(exif_payload_png(png(20),b'MM'+struct.pack('>HI',42,1000)))
+
+    def test_png_checksums_and_complete_pixels_are_required(self):
+        pixels=bytearray(png(20));pixels[29]^=1
+        with self.assertRaisesRegex(ValueError,'checksum'):V.png_geometry(bytes(pixels))
+        with self.assertRaisesRegex(ValueError,'Incomplete'):V.png_geometry(png(20)[:-12])
 
 if __name__=='__main__': unittest.main()

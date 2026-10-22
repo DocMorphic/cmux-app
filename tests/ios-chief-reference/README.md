@@ -1,3 +1,20 @@
+Run 39728880829 at edfdf666f475fee875c8f1028c9f8041cfd4f45e passed
+both native UI-test invocations and captured all eleven scenes. Its export step
+rejected the landscape PNG because XCUIScreen encodes 1206x2622 pixels with EXIF
+orientation 6; the logical image is 2622x1206, matching the actual 874x402 window.
+The corrected verifier validates PNG chunk CRCs and the TIFF orientation,
+rejects unsupported mirrored/malformed metadata and unmarked swapped axes, and
+retains the original PNG bytes. Six new orientation/integrity guards bring the
+reference checks to 68 and the full Python suite to 131. Independent local
+validation passes the full scene/state/source/trait/image contract. The original
+run's export failure is retained; this is not described as a green capture job.
+The separate ios-chief-translation-verify.yml workflow can revalidate its immutable
+artifact without recapturing: it requires both native test steps to have passed,
+checks the exact captured commit and current fixture/template hashes, and records
+both capture and verification source commits. This accepts only the scoped
+controlled translation UI reference, not Android/physical/inference/VoiceOver
+or full app parity. Native screenshots remain unmodified and keep EXIF rotation.
+
 Run 39727396812 at baae106135efb42717c590c4cea60eda1c4fbbd4 compiled,
 physically exercised choices/source picker and the normal translation flows,
 and retained eight compositor/JSON pairs before rejecting the RTL scene's actual
