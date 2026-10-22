@@ -16,13 +16,16 @@ private func resource(_ name: String) -> Data {
 }
 
 @main struct CmuxChiefTranslationReferenceApp: App {
-    private var colorScheme: ColorScheme {
+    private var referenceScene: TranslationScene {
         let all = try! JSONDecoder().decode(TranslationReferences.self, from: resource("TranslationReferences.json"))
-        let scene = all.scenes.first { $0.id == ProcessInfo.processInfo.environment["CMUX_TRANSLATION_REFERENCE"] }!
-        return scene.style == "dark" ? .dark : .light
+        return all.scenes.first { $0.id == ProcessInfo.processInfo.environment["CMUX_TRANSLATION_REFERENCE"] }!
     }
     var body: some Scene {
-        WindowGroup { TranslationHost().ignoresSafeArea().preferredColorScheme(colorScheme) }
+        WindowGroup {
+            TranslationHost().ignoresSafeArea()
+                .preferredColorScheme(referenceScene.style == "dark" ? .dark : .light)
+                .environment(\.layoutDirection, referenceScene.direction == "rtl" ? .rightToLeft : .leftToRight)
+        }
     }
 }
 

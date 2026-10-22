@@ -1,3 +1,11 @@
+Run 39727396812 at baae106135efb42717c590c4cea60eda1c4fbbd4 compiled,
+physically exercised choices/source picker and the normal translation flows,
+and retained eight compositor/JSON pairs before rejecting the RTL scene's actual
+LTR direction. SwiftUI also owns the representable layout-direction environment;
+the host now applies the fixture direction there, as with color scheme. No
+complete translation reference set is accepted yet; failed artifacts stay
+available for diagnostics and a complete hosted rerun is required.
+
 The translation-specific `ios-chief-translation.yml` workflow prepares an
 optional `--with-translation-ui` host and a separate CmuxChiefTranslation UI-test
 scheme. Eleven fixtures cover the source action sheets, message translation,
