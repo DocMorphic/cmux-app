@@ -1,3 +1,57 @@
+## Poll table spacing, no-question header and live font recreation — 2026-10-22
+
+Implementation `927c43f1` replaces the normal/accessibility-medium
+spacing estimate with all twelve measured native row, section, footer, title
+and non-voter metrics. It adds the measured table tail, uses Android's actual
+navigation inset, and preserves growth for wrapping or taller fallback glyphs.
+The no-question navigation area now matches its separate 54-point native
+measurement (70 including the top gap). This supersedes the spacing gaps and
+next-step instructions in the historical footer section below.
+
+Native run `39844879900` at `ef5fa865` captured 18 scenes across all twelve
+sizes plus rotation; its 41 canonical files independently match CI. The largest
+No Votes label was visibly captured at the actual scroll bottom: 138-point
+header, 59⅓-point label inset. The final native scoped run `39853547366` at
+`7b528b1f` captured six large-category scenes plus rotation, including the
+no-question poll; its 17 canonical files independently match CI. It is a
+six-of-nineteen subset, not a complete inventory. Run `39849267702` is rejected:
+the initial normal-poll center press hit a choice, producing an offline vote
+error before the new case. A physical press in the top padding corrected it.
+Source app projection excludes empty/always-only options; that unreachable
+case was removed rather than accepted as rendered UI. Capture guards: 21 pass.
+
+Final owned-emulator `poll-table-v6` passes 10 behavior/typography/lifecycle
+tests and six source-relative geometry captures, including no-question. All
+12 exact resolved descriptor inputs and seven stock Android local scales
+check actual row/header/footer/non-voter geometry, label insets, title sizes,
+and visible bottom spacing. The 38 top/bottom frames match the current label
+raster at every checked strong pixel. Android's nearest accessibility-medium
+descriptor is 28.056341, not exactly 28; source comparisons interpolate the
+independent twelve-point fixture at the actual descriptor, with the original
+pixel tolerance. Exact 28 is separately covered by production component input.
+
+A real Android system font-scale change from 1 to 1.3 recreated the test
+Activity while retaining the production transcript, poll snapshot and 300-pixel
+scroll offset; setting restoration also retained the snapshot. This component
+host proof does not establish MainActivity account/pairing restoration. The
+full unit suite has 3,112 passes, four opt-in skips, zero failures/errors
+(3,116 total, 423 XML reports). Tested APKs and exact sources are archived,
+hashes revalidate, crash buffer is empty, settings restore commands succeeded
+and the owned emulator stopped. Checkpoints in `captures/recovery-20261022`:
+`poll-table-checkpoint.json`, `chief-poll-native-bottom-checkpoint.json`,
+`chief-poll-native-standard-checkpoint.json`. Earlier failed/partial attempts
+are explicitly excluded. Native/Android no-question captures were visually
+reviewed; native check glyph/material and translucent header remain different.
+
+Full app parity remains active. Remaining work includes those visual gaps,
+locales/accessibility, physical lifecycle/IME/navigation/notification/terminal
+checks, release and deployed backend gates. Pixel remains released at signed
+712; local 713 is unpublished and no 714 has been built. Do not operate the
+physical phone without coordinating availability. The Mac pairing controls
+were confirmed by the user; no new offer or enrollment was needed. No source
+pin was adopted: bounded a84 host/platform and shell-shim applicability reads
+remain evidence of source review, not tested deployment or artifact adoption.
+
 ## Poll footer fonts and twelve-category native references — 2026-10-22
 
 Implementation `2a417c34` replaces the two-point linear footer estimate with
