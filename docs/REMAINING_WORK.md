@@ -1,3 +1,14 @@
+## Active Mac reply diagnostic build — 2026-10-22
+
+Full native run [39757002747](https://github.com/DocMorphic/cmux-app/actions/runs/39757002747)
+is dispatched at exact source 472942366c4e012c2e5c29901e3436af784d0056.
+Poll this run; do not redispatch while active. Download/independently verify its
+artifact against that immutable commit before replacing the running tagged app.
+Preserve account/pairing/workspaces with the established backup and graceful
+quit/filtered-launch procedure, then inspect coarse authenticated inbox events.
+The current running Mac and Pixel 712 are unchanged; the user has the phone.
+Full parity and background reply acceptance remain open.
+
 ## Background reply diagnostic candidate — 2026-10-22
 
 The exact pinned Mac inbox client now classifies fetch/ack failures with fixed
