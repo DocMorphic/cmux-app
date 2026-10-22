@@ -151,9 +151,17 @@ private final class TranslationBackend: ConversationBackend, @unchecked Sendable
             let attributes = attributed.flatMap { $0.length > 0 ? $0.attributes(at: 0, effectiveRange: nil) : nil } ?? [:]
             let font = attributes[.font] as? UIFont ?? label.font!
             let alignment = (attributes[.paragraphStyle] as? NSParagraphStyle)?.alignment ?? label.textAlignment
-            return ["identifier": label.accessibilityIdentifier ?? "", "class": String(describing: type(of: label)), "text": text,
+            var record: [String: Any] = ["identifier": label.accessibilityIdentifier ?? "", "class": String(describing: type(of: label)), "text": text,
                 "frame": rect(label, window: window), "fontSize": font.pointSize, "lineHeight": font.lineHeight,
                 "alignment": alignment.rawValue]
+            let color = (attributes[.foregroundColor] as? UIColor ?? label.textColor ?? .label).resolvedColor(with: label.traitCollection)
+            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+            if color.getRed(&red, green: &green, blue: &blue, alpha: &alpha) { record["colorRGBA"] = [red, green, blue, alpha] }
+            if let attachment = attributes[.attachment] as? NSTextAttachment, let image = attachment.image {
+                record["attachment"] = ["imageSize": [image.size.width, image.size.height],
+                    "bounds": [attachment.bounds.minX, attachment.bounds.minY, attachment.bounds.width, attachment.bounds.height]]
+            }
+            return record
         }
         let controls = views.compactMap { view -> [String: Any]? in
             guard let control = view as? UIControl else { return nil }
@@ -166,8 +174,27 @@ private final class TranslationBackend: ConversationBackend, @unchecked Sendable
                 "caption": p.map { String(describing: $0.caption) } ?? "none"]
         }
         let alert = controller.presentedViewController as? UIAlertController
+        var alertGeometry: [String: Any] = [:]
+        if let alert {
+            alertGeometry["presentedFrame"] = rect(alert.view, window: window)
+            alertGeometry["modalStyle"] = alert.modalPresentationStyle.rawValue
+            if let popover = alert.popoverPresentationController, let source = popover.sourceView {
+                let anchor = source.convert(popover.sourceRect, to: window)
+                alertGeometry["sourceRect"] = [anchor.minX, anchor.minY, anchor.width, anchor.height]
+                if let container = popover.containerView {
+                    let box = container.convert(popover.frameOfPresentedViewInContainerView, to: window)
+                    alertGeometry["popoverFrame"] = [box.minX, box.minY, box.width, box.height]
+                }
+            }
+        }
         let payload: [String: Any] = ["schema": 1, "scene": fixture.id, "ready": store.hasLoadedNewest && store.isViewing,
             "provenance": try! JSONSerialization.jsonObject(with: resource("Provenance.json")), "translator": "controlled",
+            "runtime": ["systemVersion": UIDevice.current.systemVersion,
+                "operatingSystemVersion": ProcessInfo.processInfo.operatingSystemVersionString,
+                "idiom": controller.traitCollection.userInterfaceIdiom.rawValue,
+                "horizontalSizeClass": controller.traitCollection.horizontalSizeClass.rawValue,
+                "verticalSizeClass": controller.traitCollection.verticalSizeClass.rawValue],
+            "alertGeometry": alertGeometry,
             "viewport": [window.bounds.width, window.bounds.height], "scale": window.screen.scale,
             "controllerFrame": rect(controller.view, window: window),
             "safeArea": [window.safeAreaInsets.top, window.safeAreaInsets.left, window.safeAreaInsets.bottom, window.safeAreaInsets.right],

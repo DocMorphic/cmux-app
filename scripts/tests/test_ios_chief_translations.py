@@ -23,6 +23,7 @@ class TranslationExportGuards(unittest.TestCase):
         self.commit = 'a'*40
         template = ROOT/'tests/ios-chief-reference'
         fixture = json.loads((template/'TranslationReferences.json').read_text())
+        self.scene_count = len(fixture['scenes'])
         manifest = json.loads((ROOT/'third_party/cmux-chief/manifest.json').read_text())
         provenance = dict(projectSourceCommit=self.commit, projectSourceDirty=False,
             upstreamRevision=manifest['revision'], packageTree=manifest['referencePackage']['tree'],
@@ -36,7 +37,8 @@ class TranslationExportGuards(unittest.TestCase):
             labels[0]['class'] = labels[0].pop('class_')
             controls = []
             if translated:
-                labels.append(dict(identifier='conversation.message.translation',frame=[16,164,250,20],fontSize=12))
+                labels.append(dict(identifier='conversation.message.translation',frame=[16,164,250,20],fontSize=12,
+                    colorRGBA=[0,.56,1,1],attachment=dict(imageSize=[17,13],bounds=[0,0,0,0])))
             if mode=='menu': controls.append(dict(identifier='conversation.menu.translate',label='Show Original',frame=[16,200,250,42]))
             if mode=='conversation': controls.append(dict(identifier='conversation.translation.indicator',frame=[60,300,250,32]))
             presentations = []
@@ -54,6 +56,10 @@ class TranslationExportGuards(unittest.TestCase):
                 labels=labels,controls=controls,presentations=presentations,translationCalls=int(translated),
                 automatic=mode=='conversation',alertActions=(['Translate This Message','Translate Conversation','Cancel'] if mode=='choice' else ['French','Spanish','Cancel'] if mode=='from' else []),
                 alertTitle='Translate From' if mode=='from' else '',imageSha256=hashlib.sha256(image).hexdigest())
+            value['runtime']=dict(systemVersion='26.6',operatingSystemVersion='Synthetic verifier fixture only',idiom=0,horizontalSizeClass=1,verticalSizeClass=1 if scene['orientation']=='landscape' else 2)
+            if mode in ('choice','from'):
+                value['alertGeometry']=dict(presentedFrame=[16,200,240,248],sourceRect=[16,90,250,70],popoverFrame=[16,200,240,248])
+                value['presentedButtons']=[dict(title=title,exists=title!='Cancel',hittable=title!='Cancel',frame=[32,240+i*56,208,48]) for i,title in enumerate(value['alertActions'])]
             (self.export/(name+'.png')).write_bytes(image)
             (self.export/(name+'.json')).write_text(json.dumps(value))
     def verify(self):
@@ -61,7 +67,7 @@ class TranslationExportGuards(unittest.TestCase):
     def mutate(self, change, name='translation-incoming-dark'):
         path=self.export/(name+'.json'); value=json.loads(path.read_text());change(value);path.write_text(json.dumps(value))
     def test_complete_set_and_missing_scene(self):
-        self.verify(); self.assertEqual(11,len(list(self.output.glob('*.png'))))
+        self.verify(); self.assertEqual(self.scene_count,len(list(self.output.glob('*.png'))))
         (self.export/'translation-choice-dark.json').unlink()
         with self.assertRaisesRegex(ValueError,'Missing/unexpected'): self.verify()
     def test_duplicate_attachment_is_rejected(self):
@@ -81,6 +87,22 @@ class TranslationExportGuards(unittest.TestCase):
     def test_actual_traits_are_required(self):
         self.mutate(lambda v:v.update(categoryMatches=False))
         with self.assertRaisesRegex(ValueError,'actual translation traits'): self.verify()
+
+    def test_actual_runtime_and_size_class_are_required(self):
+        self.mutate(lambda v:v['runtime'].update(verticalSizeClass=0))
+        with self.assertRaisesRegex(ValueError,'size classes/idiom'):self.verify()
+
+    def test_missing_caption_attachment_is_rejected(self):
+        self.mutate(lambda v:v['labels'][-1].pop('attachment'))
+        with self.assertRaisesRegex(ValueError,'attachment metrics'):self.verify()
+
+    def test_non_hittable_popup_action_is_rejected(self):
+        self.mutate(lambda v:v['presentedButtons'][0].update(hittable=False),'translation-choice-dark')
+        with self.assertRaisesRegex(ValueError,'actually hittable'):self.verify()
+
+    def test_missing_popup_source_rect_is_rejected(self):
+        self.mutate(lambda v:v['alertGeometry'].pop('sourceRect'),'translation-from-dark')
+        with self.assertRaisesRegex(ValueError,'popup/anchor'):self.verify()
     def test_non_fullscreen_controller_is_rejected(self):
         self.mutate(lambda v:v.update(controllerFrame=[0,59,402,781]))
         with self.assertRaisesRegex(ValueError,'fill capture viewport'): self.verify()

@@ -76,6 +76,9 @@ def verify(exported, output, commit):
         require(v.get('fixture')==spec and v.get('scene')==name,'Wrong translation fixture')
         require(v.get('captureMethod')=='XCUIScreen.main.screenshot' and v.get('activation')=='physicalPressAndSourceControls','Missing compositor/physical source activation')
         require(v.get('ready') is True and v.get('categoryMatches') is True and v.get('style')==spec['style'] and v.get('direction')==spec['direction'],'Wrong actual translation traits')
+        runtime=v.get('runtime',{})
+        require(isinstance(runtime.get('systemVersion'),str) and runtime['systemVersion'] and isinstance(runtime.get('operatingSystemVersion'),str) and runtime['operatingSystemVersion'],'Missing actual runtime version')
+        require(runtime.get('idiom')==0 and runtime.get('horizontalSizeClass') in (1,2) and runtime.get('verticalSizeClass')==(1 if spec['orientation']=='landscape' else 2),'Wrong actual UIKit size classes/idiom')
         require(v.get('translator')=='controlled' and v.get('backendWriteAttempts')==0,'Unproven translator/backend scope')
         require(p.get('projectSourceCommit')==commit and p.get('projectSourceDirty') is False,'Wrong/dirty translation source')
         require(p.get('upstreamRevision')==manifest['revision'] and p.get('packageTree')==manifest['referencePackage']['tree'],'Unreviewed translation package')
@@ -87,6 +90,11 @@ def verify(exported, output, commit):
         require(rect(v.get('controllerFrame')) and all(abs(a-b)<.1 for a,b in zip(v['controllerFrame'],[0,0,*size])),'Source controller does not fill capture viewport')
         labels=v.get('labels',[]);controls=v.get('controls',[])
         require(labels and all(rect(x.get('frame')) and x.get('fontSize',0)>0 for x in labels) and all(rect(x.get('frame')) for x in controls),'Missing translation geometry')
+        for label in labels:
+            if label.get('identifier')!='conversation.message.translation': continue
+            color=label.get('colorRGBA');attachment=label.get('attachment',{});glyph=attachment.get('imageSize')
+            require(isinstance(color,list) and len(color)==4 and all(type(x) in (int,float) and math.isfinite(x) and 0<=x<=1 for x in color),'Missing source caption color')
+            require(isinstance(glyph,list) and len(glyph)==2 and all(type(x) in (int,float) and math.isfinite(x) and x>0 for x in glyph),'Missing source attachment metrics')
         if spec['category']=='accessibilityMedium':
             body=[x for x in labels if x.get('class')=='ConversationEffectLabel'];require(body and all(x['fontSize']>=28 for x in body),'Actual accessibility body type missing')
         presentations={x['id']:x for x in v['presentations']};require(set(presentations)==set(rows),'Wrong source transcript')
@@ -98,6 +106,12 @@ def verify(exported, output, commit):
             require(v['translationCalls']==0 and current['caption']=='none','Translation ran before admission')
             expected=['Translate This Message','Translate Conversation','Cancel'] if mode=='choice' else ['French','Spanish','Cancel']
             require(v['alertActions']==expected,'Wrong native translation action sheet')
+            alert=v.get('alertGeometry',{})
+            require(rect(alert.get('presentedFrame')) and rect(alert.get('sourceRect')) and rect(alert.get('popoverFrame')),'Missing native popup/anchor geometry')
+            buttons=v.get('presentedButtons',[])
+            require([x.get('title') for x in buttons]==expected,'Wrong native popup button inventory')
+            require(all(x.get('exists') is True and x.get('hittable') is True and rect(x.get('frame')) for x in buttons[:-1]),'Native popup actions are not actually hittable')
+            require(type(buttons[-1].get('exists')) is bool and type(buttons[-1].get('hittable')) is bool,'Missing actual cancellation visibility')
             if mode=='from': require(v['alertTitle']=='Translate From','Missing source chooser title')
         else:
             require(v['translationCalls']>=1,'No controlled translation executed')

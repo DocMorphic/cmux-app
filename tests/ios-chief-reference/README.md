@@ -1,3 +1,13 @@
+The next translation batch expands to seventeen scenes with choice/source-picker
+landscape and actual accessibility type, plus outgoing/light and RTL choices.
+The observer now records actual OS version/idiom/size classes, public alert/source/
+popover frames, caption resolved colors and attachment image dimensions (no
+artwork export). XCTest records the actual existence, hit testing and frames of
+presented actions, including Cancel visibility. Seventy-two reference guards and
+Swift syntax parsing pass locally; hosted UIKit execution remains required.
+The prior eleven-scene evidence remains accepted only under its exact EDF capture
+and F3C verifier commits; this expanded contract is not accepted yet.
+
 Run 39728880829 at edfdf666f475fee875c8f1028c9f8041cfd4f45e passed
 both native UI-test invocations and captured all eleven scenes. Its export step
 rejected the landscape PNG because XCUIScreen encodes 1206x2622 pixels with EXIF

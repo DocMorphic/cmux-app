@@ -93,6 +93,16 @@ final class CmuxChiefTranslationUITests: XCTestCase {
                 return stable >= 3
             }
             var value = try XCTUnwrap(observation(app))
+            if mode == "choice" || mode == "from" {
+                let titles = mode == "choice" ? ["Translate This Message", "Translate Conversation", "Cancel"] : ["French", "Spanish", "Cancel"]
+                value["presentedButtons"] = titles.map { title -> [String: Any] in
+                    let button = app.buttons[title].firstMatch
+                    guard button.exists else { return ["title": title, "exists": false, "hittable": false] }
+                    let box = button.frame
+                    return ["title": title, "exists": true, "hittable": button.isHittable,
+                        "frame": [box.minX, box.minY, box.width, box.height]]
+                }
+            }
             let png = XCUIScreen.main.screenshot().pngRepresentation
             value["translationScene"] = name; value["fixture"] = specification
             value["fixtureSha256"] = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
