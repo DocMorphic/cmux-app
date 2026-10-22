@@ -1,3 +1,22 @@
+## Live Poll Details rotation reference candidate — 2026-10-22
+
+The native reference host now opens the real source Poll Details menu, captures
+portrait, rotates the already-open sheet to landscape and back, and dismisses
+through the native Done control. Weak public UIKit identity observations plus
+one observer-lifetime UUID detect table/controller replacement or reference-host
+recreation without retaining or modifying the source controllers. Each step
+includes settled actual geometry, exact source/fixture provenance, zero write
+attempts and a hash-bound XCUIScreen compositor image.
+
+The hosted Poll workflow requires this roundtrip in addition to the seven
+existing scenes. `verify-ios-chief-polls.py --require-lifecycle` rejects missing
+or reordered phases, recreated observation/table/controller identities, changed
+source/sections, wrong actual orientation, missing images and failed dismissal.
+Fourteen adversarial guard tests, Swift syntax and workflow YAML parsing pass.
+No native execution or lifecycle acceptance is claimed until that hosted run
+and its independently verified artifact complete. The Android recreation result
+and original seven-scene native checkpoint remain scoped as recorded below.
+
 ## Poll Details reference verified and participant behavior corrected — 2026-10-22
 
 Native run 39762098177 at 266b6a61bd0784f1e031027baaf3ddbd4896e822

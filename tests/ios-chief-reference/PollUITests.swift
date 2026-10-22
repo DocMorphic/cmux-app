@@ -6,6 +6,70 @@ final class CmuxChiefPollUITests: XCTestCase {
     @MainActor func testCaptureStandardChiefPollReferences() throws { try capture(category: "large") }
     @MainActor func testCaptureAccessibilityChiefPollReferences() throws { try capture(category: "accessibilityMedium") }
 
+    @MainActor func testPollDetailsSurvivesLiveRotation() throws {
+        continueAfterFailure = false
+        let input = try Data(contentsOf: XCTUnwrap(Bundle(for: Self.self).url(forResource: "PollReferences.json", withExtension: nil)))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: input) as? [String: Any])
+        let scenes = try XCTUnwrap(fixture["scenes"] as? [[String: String]])
+        let specification = try XCTUnwrap(scenes.first { $0["id"] == "poll-pending-dark" })
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchEnvironment["CMUX_POLL_REFERENCE"] = "poll-pending-dark"
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+        _ = try wait("lifecycle-ready", app: app) { $0["ready"] as? Bool == true && $0["categoryMatches"] as? Bool == true }
+        let bubble = app.descendants(matching: .any).matching(identifier: "conversation.bubble.poll").firstMatch
+        XCTAssertTrue(bubble.waitForExistence(timeout: 10)); XCTAssertTrue(bubble.isHittable)
+        bubble.press(forDuration: 0.9)
+        let details = app.buttons["conversation.menu.chart.bar.doc.horizontal"]
+        XCTAssertTrue(details.waitForExistence(timeout: 10)); XCTAssertTrue(details.isHittable)
+        XCTAssertEqual(details.label, "Poll Details"); details.tap()
+        XCTAssertTrue(app.tables["conversation.poll.details"].waitForExistence(timeout: 10))
+        var steps: [[String: Any]] = []
+        var presentation: Int?; var table: Int?; var observationOwner: String?
+        for (phase, orientation) in [("portrait-before", UIDeviceOrientation.portrait),
+                                      ("landscape-open", .landscapeRight), ("portrait-returned", .portrait)] {
+            XCUIDevice.shared.orientation = orientation
+            var previous = Data(); var stable = 0
+            let observed = try wait("lifecycle-" + phase, app: app) { value in
+                guard value["presented"] as? Bool == true,
+                      let viewport = value["viewport"] as? [Double], viewport.count == 2,
+                      (viewport[0] > viewport[1]) == (orientation == .landscapeRight),
+                      let current = value["table"] as? [String: Any], current["sections"] is [[String: Any]] else { return false }
+                let signature: [String: Any] = ["table": current, "labels": value["labels"] ?? []]
+                let bytes = try! JSONSerialization.data(withJSONObject: signature, options: [.sortedKeys])
+                stable = bytes == previous ? stable + 1 : 0; previous = bytes
+                return stable >= 3
+            }
+            let owner = try XCTUnwrap(observed["observationOwner"] as? String)
+            if let observationOwner { XCTAssertEqual(owner, observationOwner) } else { observationOwner = owner }
+            let currentPresentation = try XCTUnwrap(observed["presentationGeneration"] as? Int)
+            let currentTable = try XCTUnwrap(observed["tableGeneration"] as? Int)
+            XCTAssertGreaterThan(currentPresentation, 0); XCTAssertGreaterThan(currentTable, 0)
+            if let presentation { XCTAssertEqual(currentPresentation, presentation) } else { presentation = currentPresentation }
+            if let table { XCTAssertEqual(currentTable, table) } else { table = currentTable }
+            XCTAssertEqual(observed["backendWriteAttempts"] as? Int, 0)
+            let image = XCUIScreen.main.screenshot().pngRepresentation
+            var value = observed
+            value["fixture"] = specification
+            value["fixtureSha256"] = SHA256.hash(data: input).map { String(format: "%02x", $0) }.joined()
+            value["imageSha256"] = SHA256.hash(data: image).map { String(format: "%02x", $0) }.joined()
+            value["captureMethod"] = "XCUIScreen.main.screenshot"
+            value["activation"] = "physicalPressAndSourcePollDetails"
+            steps.append(["phase": phase, "state": value])
+            let screenshot = XCTAttachment(data: image, uniformTypeIdentifier: "public.png")
+            screenshot.name = "poll-lifecycle-" + phase + ".png"; screenshot.lifetime = .keepAlways; add(screenshot)
+        }
+        let done = app.buttons["Done"].firstMatch
+        XCTAssertTrue(done.exists); XCTAssertTrue(done.isHittable); done.tap()
+        _ = try wait("lifecycle-dismissed", app: app) { $0["presented"] as? Bool == false }
+        let payload: [String: Any] = ["schema": 1, "pollLifecycle": "pending-roundtrip", "steps": steps, "doneDismissed": true,
+            "scope": "Actual source sheet/menu, same observed controller/table through live rotation and compositor captures with controlled pending data. Not process/Activity restoration, actual Chief RPC, votes, physical device or VoiceOver."]
+        let metadata = XCTAttachment(data: try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]), uniformTypeIdentifier: "public.json")
+        metadata.name = "poll-lifecycle-pending-roundtrip.json"; metadata.lifetime = .keepAlways; add(metadata)
+    }
+
     @MainActor private func observation(_ app: XCUIApplication) -> [String: Any]? {
         let node = app.descendants(matching: .any).matching(identifier: "reference.poll.observation").firstMatch
         guard node.exists, let bytes = node.label.data(using: .utf8) else { return nil }

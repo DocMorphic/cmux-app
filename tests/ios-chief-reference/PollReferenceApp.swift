@@ -89,6 +89,11 @@ private final class PollBackend: ConversationBackend, @unchecked Sendable {
     let fixture: PollScene
     let observation = UIView(frame: CGRect(x: 1, y: 1, width: 1, height: 1))
     private var task: Task<Void, Never>?
+    private weak var previousPresentation: UIViewController?
+    private weak var previousTable: UITableView?
+    private let observationOwner = UUID().uuidString
+    private var presentationGeneration = 0
+    private var tableGeneration = 0
     init() {
         let (all, scene) = selected(); fixture = scene
         if let bundle = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: bundle) }
@@ -167,6 +172,12 @@ private final class PollBackend: ConversationBackend, @unchecked Sendable {
             }
         }
         let navigation = controller.presentedViewController as? UINavigationController
+        // Weak identity observation neither retains nor changes the source UI.
+        // Temporary visibility changes during rotation do not create a generation.
+        if let presented = navigation?.topViewController, presented !== previousPresentation {
+            presentationGeneration += 1; previousPresentation = presented
+        }
+        if let table, table !== previousTable { tableGeneration += 1; previousTable = table }
         let payload: [String: Any] = ["schema": 1, "scene": fixture.id, "ready": !store.messages.isEmpty,
             "provenance": try! JSONSerialization.jsonObject(with: resource("Provenance.json")),
             "viewport": [window.bounds.width, window.bounds.height], "scale": window.screen.scale,
@@ -175,6 +186,7 @@ private final class PollBackend: ConversationBackend, @unchecked Sendable {
             "style": controller.traitCollection.userInterfaceStyle == .dark ? "dark" : "light",
             "direction": controller.view.effectiveUserInterfaceLayoutDirection == .rightToLeft ? "rtl" : "ltr",
             "labels": labels, "table": tableInfo, "presented": navigation != nil,
+            "observationOwner": observationOwner, "presentationGeneration": presentationGeneration, "tableGeneration": tableGeneration,
             "navigationFrame": navigation.map { frame($0.navigationBar, window) } ?? [],
             "navigationPrompt": navigation?.topViewController?.navigationItem.prompt ?? "",
             "backendWriteAttempts": backend.writeAttempts]
