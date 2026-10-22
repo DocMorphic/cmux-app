@@ -4,6 +4,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.time.Instant
 import java.util.UUID
 
@@ -118,6 +120,8 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private var olderGeneration = 0L
     private var readsPaused = false
     private var historyOperation: Deferred<NativeChiefRead>? = null
+    private val translationOwner = MutableStateFlow<NativeChiefTranslations?>(null)
+    val translations = translationOwner.asStateFlow()
     private val deletedClientIds = mutableSetOf<String>()
     private val deletedMessageIds = mutableSetOf<String>()
     private fun checkOwner() { if (!job.isActive || !permits()) { close(); error("Chief computer or account changed") } }
@@ -133,6 +137,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
 
     fun start() {
         checkOwner()
+        translationOwner.value?.refreshAvailability()
         if (monitor?.isActive == true) return
         readsPaused = false
         mutableState.value = state.value.copy(readsActive = true)
@@ -418,6 +423,26 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
 
     fun closeReplyThread() { checkOwner(); mutableState.value = state.value.copy(reply = null) }
 
+    /** Transfers one engine to the retained owner; all original RPC data stays untouched. */
+    fun installTranslations(engine: NativeChiefTranslating, target: NativeChiefTranslationLanguage,
+        preferences: NativeChiefTranslationPreferences? = null): NativeChiefTranslations {
+        checkOwner()
+        check(translationOwner.value == null) { "Chief translation is already installed" }
+        val model = NativeChiefTranslations(scope, engine, target, {
+            try { checkOwner(); true } catch (_: IllegalStateException) { false }
+        }, preferences)
+        model.updateRows(NativeChiefTimeline.items(state.value).map { it.translationRow() })
+        translationOwner.value = model
+        scope.launch {
+            state.map { snapshot -> NativeChiefTimeline.items(snapshot).map { it.translationRow() } }
+                .distinctUntilChanged().collect { rows ->
+                    try { model.updateRows(rows) }
+                    catch (_: IllegalStateException) { currentCoroutineContext().ensureActive() }
+                }
+        }
+        return model
+    }
+
     /** Captured message text remains usable after retention, within its original owner. */
     fun admitCapturedAction() { checkOwner() }
 
@@ -645,6 +670,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     override fun close() {
         val clearedDraftRevision = state.value.draftRevision + 1
         job.cancel(); monitor = null; sendTail = null; olderTask = null; olderWanted = false; historyOperation = null; deletedClientIds.clear(); deletedMessageIds.clear()
+        translationOwner.value?.close(); translationOwner.value = null
         reading = NativeChiefReading(); mutableState.value = NativeChiefTranscriptState(loading = false, draftRevision = clearedDraftRevision, retired = true)
     }
 }

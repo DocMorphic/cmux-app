@@ -1,3 +1,42 @@
+## Translation foundation and Android provider checks — 2026-10-22
+
+Chief translation now has a retained, owner-scoped model for single messages,
+automatic conversation translation, original/translated toggles, edit
+invalidation, serial batches and missing-model wait/retry. Stable pending-send
+keys survive acknowledgement. Retirement clears translated text and rejects
+late work; the retained transcript supplies original receipt/display text and
+keeps RPC payloads and drafts unchanged. A preferences interface stores only a
+source/target pair; its scoped Android storage adapter is still to implement.
+The production UI does not install this engine yet.
+
+The native Android adapter queries actual TranslationManager capabilities,
+uses system language detection, defers absent models to a foreground host,
+and owns cancellable translator sessions. A real provider probe caught empty
+capabilities that recovered after one second; bounded cancellable retries now
+handle that initialization window. Native checks also exposed deprecated-code
+canonicalization differences (iw/he, in/id); the factory preserves the pinned
+Foundation language-matching behavior for the reference tags.
+
+Final API 36 emulator run: two passes, no skips/failures, 5.173 seconds, empty
+crash buffer. Android System Intelligence reports 240 downloadable pairs;
+French and Spanish detection succeed. The real adapter verifies French-to-English
+missing-model deferral and all 324 matching pairs from 18 independently executed
+Swift/Foundation language vectors. It does not download models or prove actual
+translated output. Full JVM suite: 3089 cases, 3085 passes/four opt-in skips,
+zero failures/errors, 416 archived reports. All 109 Python guards pass; repeated
+source generation matches. Six translation source hashes are pinned without
+advancing the global upstream revision. Exact inputs and excluded diagnostics:
+`captures/recovery-20261022/chief-translation-foundation-checkpoint.json`.
+
+Next mount Translate choices/source picker/captions/indicator, add scoped
+preferences and the admitted download host, then verify actual model inference,
+native reference UI and lifecycle/cancellation. Full locale/script/OEM coverage,
+physical Pixel checks and every broader gate below remain open. No Android
+platform exception or full translation/parity acceptance is claimed. Signed 712
+and installed Pixel 703 remain unchanged; the owned emulator was restored/stopped.
+The Mac app/helper remain running with saved pairing intact. No new Mac action
+or repeated phone request is needed; the full parity goal remains active.
+
 ## Accessibility Copy and Android feedback verified — 2026-10-22
 
 Nonempty Chief messages now expose Copy as an accessibility custom action in

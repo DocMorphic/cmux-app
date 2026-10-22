@@ -1,0 +1,181 @@
+{
+  "languages": [
+    {
+      "input": "en",
+      "language": "en",
+      "matches": [
+        "en",
+        "en-US"
+      ],
+      "minimal": "en",
+      "script": "Latn"
+    },
+    {
+      "input": "en-US",
+      "language": "en",
+      "matches": [
+        "en",
+        "en-US"
+      ],
+      "minimal": "en",
+      "script": "Latn"
+    },
+    {
+      "input": "es-MX",
+      "language": "es",
+      "matches": [
+        "es-MX"
+      ],
+      "minimal": "es-MX",
+      "script": "Latn"
+    },
+    {
+      "input": "zh",
+      "language": "zh",
+      "matches": [
+        "zh",
+        "zh-CN",
+        "zh-Hans"
+      ],
+      "minimal": "zh",
+      "script": "Hans"
+    },
+    {
+      "input": "zh-CN",
+      "language": "zh",
+      "matches": [
+        "zh",
+        "zh-CN",
+        "zh-Hans"
+      ],
+      "minimal": "zh",
+      "script": "Hans"
+    },
+    {
+      "input": "zh-TW",
+      "language": "zh",
+      "matches": [
+        "zh-TW",
+        "zh-Hant"
+      ],
+      "minimal": "zh-TW",
+      "script": "Hant"
+    },
+    {
+      "input": "zh-Hans",
+      "language": "zh",
+      "matches": [
+        "zh",
+        "zh-CN",
+        "zh-Hans"
+      ],
+      "minimal": "zh",
+      "script": "Hans"
+    },
+    {
+      "input": "zh-Hant",
+      "language": "zh",
+      "matches": [
+        "zh-TW",
+        "zh-Hant"
+      ],
+      "minimal": "zh-TW",
+      "script": "Hant"
+    },
+    {
+      "input": "sr",
+      "language": "sr",
+      "matches": [
+        "sr",
+        "sr-Cyrl"
+      ],
+      "minimal": "sr",
+      "script": "Cyrl"
+    },
+    {
+      "input": "sr-Latn",
+      "language": "sr",
+      "matches": [
+        "sr-Latn"
+      ],
+      "minimal": "sr-Latn",
+      "script": "Latn"
+    },
+    {
+      "input": "sr-Cyrl",
+      "language": "sr",
+      "matches": [
+        "sr",
+        "sr-Cyrl"
+      ],
+      "minimal": "sr",
+      "script": "Cyrl"
+    },
+    {
+      "input": "az",
+      "language": "az",
+      "matches": [
+        "az"
+      ],
+      "minimal": "az",
+      "script": "Latn"
+    },
+    {
+      "input": "az-Arab",
+      "language": "az",
+      "matches": [
+        "az-Arab"
+      ],
+      "minimal": "az-IR",
+      "script": "Arab"
+    },
+    {
+      "input": "iw",
+      "language": "iw",
+      "matches": [
+        "iw"
+      ],
+      "minimal": "he",
+      "script": "Hebr"
+    },
+    {
+      "input": "he",
+      "language": "he",
+      "matches": [
+        "he"
+      ],
+      "minimal": "he",
+      "script": "Hebr"
+    },
+    {
+      "input": "in",
+      "language": "in",
+      "matches": [
+        "in"
+      ],
+      "minimal": "id",
+      "script": "Latn"
+    },
+    {
+      "input": "id",
+      "language": "id",
+      "matches": [
+        "id"
+      ],
+      "minimal": "id",
+      "script": "Latn"
+    },
+    {
+      "input": "xx",
+      "language": "xx",
+      "matches": [
+        "xx"
+      ],
+      "minimal": "xx",
+      "script": ""
+    }
+  ],
+  "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "schema": 1,
+  "sourceSha256": "68fbe0af567068caebb9db46027c9fc2ace3a3396fb9a48c7f5918b806676372"
+}

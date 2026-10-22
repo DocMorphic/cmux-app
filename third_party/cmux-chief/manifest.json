@@ -181,5 +181,13 @@
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationAccessibility.swift": "a48b43212af55da6c08bce8c9c50690319fc89d720f478f4e7a8926c992be8bf",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+TextSelection.swift": "7e3dcca18b015399c051993fec9052cf48e2cf30c0ede3874ef4e099e1ca4182",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationStore.swift": "172895cb7b0c811b7765ea46c6261c6703d13ccd7a2f5cd87a8c61c83651a293"
+  },
+  "translationFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationTranslation.swift": "68fbe0af567068caebb9db46027c9fc2ace3a3396fb9a48c7f5918b806676372",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationModel.swift": "825f264946e57e16a5ff3affc32badaa59d85208807f3eebb313dc517da53df6",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+Translate.swift": "8e3f4ca65998937c4acf653bdf1ff913a3f89bc93381ee96eb80e12a0493e3a0",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationTranslation/ConversationTranslationEngine.swift": "a99d25a01a8ce6816db7606a6a83730b737604f3246cd22ed62580b686542d8c",
+    "Packages/iOS/CmuxConversation/Tests/CmuxConversationCoreTests/ConversationTranslationTests.swift": "95e22eda68d8952e7a8964e964ad26ccbaa9b8a42dfcf6c9c930334e95301c80",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift": "bc7e624230704182753a7ec42ac5d0db4b27c4e403f9d299c25b26acfadd8f61"
   }
 }

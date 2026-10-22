@@ -9,6 +9,38 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefSessionTest {
+    @Test fun translationFollowsTheRetainedTimelineWithoutChangingWireTextAndRetiresWithItsOwner() = runTest {
+        val api = Api(); var current = true
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { current }, newId = { "translation-send" })
+        val engine = ChiefTranslationTestEngine()
+        try {
+            api.reads.send(Result.success(page(message(1, text = "es: hola"))))
+            session.start(); runCurrent()
+            val model = session.installTranslations(engine, translationLanguage("en"))
+            model.translateMessage("s:m1"); runCurrent()
+            assertEquals("[en] es: hola", model.state.value.presentations["s:m1"]!!.text)
+            assertEquals("es: hola", session.state.value.messages.single().text)
+            session.editDraft("es: original draft")
+            val echo = message(2, id = "sent", text = "es: original draft", human = true, clientId = "translation-send")
+            // A successful send owns its acknowledgement read before releasing
+            // the queue; supply that real protocol response, not only the send ack.
+            api.reads.send(Result.success(page(message(1, text = "es: hola"), echo)))
+            session.send(); runCurrent()
+            assertEquals("es: original draft", api.sends.single().first)
+            api.waits.send(Result.success(page(message(1, text = "es: hola, amigos"), echo)))
+            runCurrent()
+            assertEquals("[en] es: hola, amigos", model.state.value.presentations["s:m1"]!!.text)
+            assertEquals("es: hola, amigos", session.state.value.messages.first { it.id == "m1" }.text)
+            session.pause()
+            assertSame(model, session.translations.value)
+            current = false
+            assertThrows(IllegalStateException::class.java) { model.toggleOriginal("s:m1") }
+            assertTrue(model.state.value.retired); assertTrue(model.state.value.presentations.isEmpty())
+            assertTrue(session.state.value.retired); assertTrue(session.state.value.messages.isEmpty())
+            assertNull(session.translations.value); assertEquals(1, engine.closeCount)
+        } finally { session.close() }
+    }
+
     @Test fun sourceFoundationTrimsApplyToHomeWorkAndOtherAnswerAdmission() {
         // These are independently emitted by the pinned Swift trim implementation,
         // including U+0085/U+200B (trimmed) and U+001C (retained).
