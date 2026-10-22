@@ -1,3 +1,14 @@
+## Active native reference jobs — 2026-10-22
+
+Poll compositor capture [39762098177](https://github.com/DocMorphic/cmux-app/actions/runs/39762098177)
+is in progress at 266b6a61bd0784f1e031027baaf3ddbd4896e822. Full Mac diagnostic
+build [39757002747](https://github.com/DocMorphic/cmux-app/actions/runs/39757002747)
+is compiling at 472942366c4e012c2e5c29901e3436af784d0056. Inspect these exact
+handles; do not restart active jobs. Independently verify resulting artifacts
+against their immutable source commits before accepting captures or launching
+a replacement Mac app. The current Mac and Pixel 712 are unchanged, and the
+user can use/disconnect the phone. No new full-parity acceptance is claimed.
+
 ## Poll Details native reference preparation — 2026-10-22
 
 Seven controlled Poll Details compositor scenes and a separate native UI-test
