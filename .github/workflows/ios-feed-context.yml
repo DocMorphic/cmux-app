@@ -1,0 +1,115 @@
+name: Pinned original app Feed navigation context
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-feed-context
+  cancel-in-progress: false
+
+jobs:
+  original-app:
+    runs-on: macos-26
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          path: upstream
+          submodules: recursive
+          persist-credentials: false
+      - name: Record unchanged original application inputs
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/feed-context"
+          git rev-parse HEAD > "$RUNNER_TEMP/feed-context/upstream-revision.txt"
+          test "$(git rev-parse HEAD)" = a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          git ls-files -s > "$RUNNER_TEMP/feed-context/source-index.txt"
+          git submodule status --recursive > "$RUNNER_TEMP/feed-context/submodules.txt"
+          git status --porcelain --untracked-files=no --ignore-submodules=all > "$RUNNER_TEMP/feed-context/source-status-before.txt"
+          test ! -s "$RUNNER_TEMP/feed-context/source-status-before.txt"
+          printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/feed-context/driver-revision.txt"
+          df -h "$RUNNER_TEMP"
+      - name: Select the pinned Xcode family and native dependency tooling
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
+          xcodebuild -version | tee "$RUNNER_TEMP/feed-context/xcode-version.txt"
+          ./scripts/install-zig-ci.sh
+      - name: Provision the original checked native framework
+        working-directory: upstream
+        env:
+          CMUX_GHOSTTYKIT_CACHE_DIR: ${{ runner.temp }}/ghosttykit-cache
+        run: |
+          set -euo pipefail
+          ./scripts/ensure-ghosttykit.sh 2>&1 | tee "$RUNNER_TEMP/feed-context/ghosttykit.log"
+      - name: Select a disposable original-app simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/feed-context/simulators.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          devices = [d for group in json.loads(Path(os.environ['RUNNER_TEMP'] + '/feed-context/simulators.json').read_text())['devices'].values() for d in group if d.get('isAvailable') and d['name'].startswith('iPhone')]
+          if not devices: raise RuntimeError('No installed iPhone simulator')
+          device = sorted(devices, key=lambda d: (d['name'] != 'iPhone 17 Pro', d['name']))[0]
+          Path(os.environ['RUNNER_TEMP'] + '/feed-context/selected-simulator.json').write_text(json.dumps(device, indent=2) + '\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as file: file.write('CONTEXT_SIMULATOR=' + device['udid'] + '\n')
+          PY
+          CONTEXT_SIMULATOR="$(python3 -c 'import json, os; print(json.load(open(os.environ["RUNNER_TEMP"] + "/feed-context/selected-simulator.json"))["udid"])')"
+          xcrun simctl boot "$CONTEXT_SIMULATOR" || true
+          xcrun simctl bootstatus "$CONTEXT_SIMULATOR" -b
+          xcrun simctl ui "$CONTEXT_SIMULATOR" appearance dark
+          xcrun simctl ui "$CONTEXT_SIMULATOR" content_size large
+      - name: Compile and exercise unchanged original Feed entry, retry and navigation
+        timeout-minutes: 55
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          xcodebuild test -workspace ios/cmux.xcworkspace -scheme cmux-ios -configuration Debug \
+            -testPlan cmux-ui -destination "platform=iOS Simulator,id=$CONTEXT_SIMULATOR" \
+            -destination-timeout 90 -parallel-testing-enabled NO \
+            -derivedDataPath "$RUNNER_TEMP/feed-context-derived" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/feed-context-packages" \
+            -only-testing:cmuxUITests/cmuxUITests/testFeedStartsBelowToolbar \
+            -only-testing:cmuxUITests/cmuxUITests/testFeedRowTapOpensItsDestination \
+            -only-testing:cmuxUITests/cmuxUITests/testFeedFullTextReadingAndRetry \
+            -resultBundlePath "$RUNNER_TEMP/feed-context.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/feed-context/test.log"
+      - name: Export original compositor attachments and verify selected execution
+        if: always()
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          git status --porcelain --untracked-files=no --ignore-submodules=all > "$RUNNER_TEMP/feed-context/source-status-after.txt"
+          if [ -d "$RUNNER_TEMP/feed-context.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/feed-context.xcresult" --output-path "$RUNNER_TEMP/feed-context/exported"
+          fi
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'feed-context'
+          text = (root / 'test.log').read_text() if (root / 'test.log').exists() else ''
+          methods = ['testFeedStartsBelowToolbar', 'testFeedRowTapOpensItsDestination', 'testFeedFullTextReadingAndRetry']
+          passed = {name: bool(re.search(r'Test Case .*\b' + name + r'\b.* passed', text)) for name in methods}
+          unchanged = not (root / 'source-status-after.txt').read_text().strip()
+          result = dict(upstream='a5911a1f92f3eeb11c4d7f3e2ef89204718c5009', driver=os.environ['GITHUB_SHA'], selectedOriginalMethods=passed, trackedSourceUnchanged=unchanged, testSucceeded='** TEST SUCCEEDED **' in text, scope='Whole pinned original application and original UI tests with their official offline Feed preview. Real caller/navigation/root environment, not a real account/transport, Android or physical-device/full parity acceptance. Images still require independent local attribution and review.')
+          (root / 'execution.json').write_text(json.dumps(result, indent=2) + '\n')
+          if not (all(passed.values()) and unchanged and result['testSucceeded']): raise SystemExit('Original app context is not accepted; inspect retained diagnostics')
+          PY
+      - name: Preserve original app context evidence and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-feed-context
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/feed-context
+            ${{ runner.temp }}/feed-context.xcresult
