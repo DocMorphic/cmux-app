@@ -245,19 +245,8 @@ internal fun AgentFeedFullText(load: suspend () -> String, onRead: () -> Unit, o
     AgentFeedFullTextTheme {
         AgentFeedFullTextPresentation(onDismiss) {
             AgentFeedFullTextHeader(onDismiss)
-            when {
-                failed -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_unavailable_b62af026))
-                    TextButton(onClick = { attempt++ }) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) }
-                }
-                text == null -> Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CircularProgressIndicator(Modifier.size(24.dp).testTag("AgentFeedFullTextProgress"))
-                    Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_loading_fa5e4486), color = agentFeedMuted)
-                }
-                else -> NativeMarkdownReader(text!!, formattedPosition)
-            }
+            if (text == null) AgentFeedFullTextStatus(failed) { attempt++ }
+            else NativeMarkdownReader(text!!, formattedPosition)
         }
     }
 }

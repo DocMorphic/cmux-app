@@ -33,6 +33,35 @@ class AgentFeedFullTextTest {
         }
     }
 
+    private fun captureStatus(name: String) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "feed-reader").apply { mkdirs() }
+        fun windows() = org.json.JSONArray().apply {
+            compose.runOnUiThread {
+                WindowInspector.getGlobalWindowViews().filter { it.isShown }.forEach {
+                    put(org.json.JSONObject().put("class", it.javaClass.name).put("focus", it.hasWindowFocus())
+                        .put("appearanceFlags", it.windowInsetsController?.systemBarsAppearance))
+                }
+            }
+        }
+        fun screenshot(suffix: String) {
+            val image = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+            File(directory, name + suffix + ".png").outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; image.recycle()
+        }
+        val before = windows(); screenshot("")
+        compose.waitForIdle()
+        androidx.test.uiautomator.UiDevice.getInstance(instrumentation).waitForIdle(2_000)
+        val drawn = java.util.concurrent.CountDownLatch(1)
+        compose.runOnUiThread {
+            WindowInspector.getGlobalWindowViews().first { it.isShown && it.hasWindowFocus() }
+                .postOnAnimation { compose.activity.window.decorView.postOnAnimation { drawn.countDown() } }
+        }
+        assertTrue(drawn.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        instrumentation.waitForIdleSync()
+        val after = windows(); screenshot("-settled")
+        File(directory, name + "-windows.json").writeText(org.json.JSONObject().put("initial", before).put("settled", after).toString(2))
+    }
+
     @Test fun originalControlsCenterTheTitleAndPlaceLoadingAboveItsLabel() {
         val result = CompletableDeferred<String>(); var dismissed = false
         compose.setContent { CmuxTheme { AgentFeedFullText({ result.await() }, {}, { dismissed = true }) } }
@@ -57,12 +86,10 @@ class AgentFeedFullTextTest {
                 maxOf(panel.top, safeTop), drag.top, 1f)
             assertEquals("Ordinary portrait drag area matches the original 16 points", 16f, drag.height / compose.density.density, .5f)
         }
-        val indicator = compose.onNodeWithTag("AgentFeedFullTextProgress").fetchSemanticsNode().boundsInRoot
-        val label = compose.onNodeWithText("Loading full text…").fetchSemanticsNode().boundsInRoot
+        val indicator = compose.onNodeWithTag("AgentFeedFullTextProgress", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val label = compose.onNodeWithTag("AgentFeedFullTextLoadingLabel", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         assertTrue(indicator.bottom <= label.top)
-        val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "feed-reader").apply { mkdirs() }
-        val image = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        File(directory, "original-controls-loading.png").outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; image.recycle()
+        captureStatus("original-controls-loading")
         result.complete("# Original reader\n\nNative **body**"); awaitReader()
         compose.onNodeWithText("Source").assertDoesNotExist(); compose.onNodeWithText("Formatted").assertDoesNotExist()
         compose.onNodeWithText("Close").performClick(); compose.runOnIdle { assertTrue(dismissed) }
@@ -86,10 +113,7 @@ class AgentFeedFullTextTest {
         val unavailable = InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.cmux_ui_mobile_agentfeed_fulltext_unavailable_b62af026)
         compose.onNodeWithText(unavailable).assertIsDisplayed()
         compose.onNodeWithText("Reconnect and try again").assertDoesNotExist()
-        val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "feed-reader").apply { mkdirs() }
-        val image = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        File(directory, "retry-original-generic-error.png").outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-        image.recycle()
+        captureStatus("retry-original-generic-error")
         compose.runOnIdle { assertEquals(0, reads) }
         compose.onNodeWithText("Try again").performClick()
         awaitReader()

@@ -1,5 +1,52 @@
 # Agent Feed companion
 
+## Reader loading/error layout and accessible retry scrolling verified — 2026-10-23
+
+Original AgentFeedFullTextView at a5911a1f uses a top-padded ScrollView, intrinsic
+leading-aligned error/retry stack centered in the viewport, and labeled native
+activity progress. The Android reader now follows that allocation, with17sp body
+roles,16dp content/error-action spacing, a compact plain retry label with native
+minimum touch expansion, translucent secondary loading text and measured retry
+tints. A20sp eight-spoke activity indicator replaces the Material ring. It has
+one merged indeterminate label. Source loader/read/cancellation ownership remains
+intact; only short localized status text is measured to hug its wrapped lines.
+
+Final owned API36 cohort passes six cases in26.649s:21 controlled language/body/
+theme/short-viewport profiles and21 real retry taps; visible motion under enabled
+platform animation and a200ms Compose-clock advance changes1,116 pixels; original
+loading/Close, retry/read/cancellation/retired callback checks; and loaded palette/
+selection regression. Large German/Arabic51dp text exceeds the deliberately short
+160dp viewport: final retry lines are explicitly scroll-reachable and visible
+button input works. These checks do not require the whole oversized label to fit
+at once. Scoped progress semantics are checked; actual TalkBack remains open.
+
+Production APK4d828dbd8aa1ac2340482d8fe1394b04976d160bd6a779722808ce4a42bf52d9;
+final test APK263f3ca8354abe49a7ee483e06dce011764506efe5e55e99ec22735eaffac568.
+Current source hashes and installed APKs are bound in the final receipt. Earlier
+passing v4 is separate: six cases31.23s on the same production APK with older test
+sources. Read-only original/v4 optical comparison finds exact dark/light retry
+RGB0/145/255 and0/136/255; retry glyph width differs0.333pt, height is equal.
+Full/default light/Arabic/narrow frames reviewed. A dark navigation indicator in
+one earlier error capture led to final initial/settled focused-window observations:
+flags0 in both states, with reviewed contrasting settled bars. No production bar
+change; the earlier timing/cause and all transition variants remain unproven.
+Final crash buffer empty, no preflight System UI ANR, settings/window overrides
+restored, owned emulator exits0. All five runtime attempts used identical app
+source/APK; earlier test setup/API, clock, nonlinear-font and clipped-bound
+failures remain retained and are excluded from acceptance.
+
+Exact enlarged UIKit metrics are still open: the requested controlled scale1.647
+produces25.118dp Android body/28.333dp spinner versus source28pt/body and~31pt
+spinner. We preserve native nonlinear scaling and record that discrepancy rather
+than treating it as an unavoidable exception. Actual OS locale/type variants,
+dynamic glass/tablet materials, landscape horizontal policy, broader source/
+transport, physical Pixel/Mac and TalkBack/full app acceptance remain open.
+Evidence under captures/recovery-20261023/: native-feed-reader-status-checkpoint.json,
+native-feed-reader-status-runtime-v5/, native-feed-reader-status-color-comparison.json,
+ios-feed-reader-status-rendered-colors.json and feed-reader-loading-error-next-audit.json.
+No new signed artifact, source-pin or account/pairing change, or phone/Mac action.
+Candidate722/physical712 unchanged; goal remains active.
+
 ## Native document color roles match measured phone rendering — 2026-10-23
 
 The reader now gives quotes/list markers/code captions their original translucent

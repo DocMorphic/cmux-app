@@ -1,3 +1,22 @@
+## Reader loading/error allocation and retry reachability advanced — 2026-10-23
+
+The reader now uses the source scroll/intrinsic error-group allocation,17sp body
+roles, compact retry action, measured loading/retry colors and eight-spoke labeled
+activity indicator. Final six-case API36 cohort passes26.649s:21 controlled
+language/type/theme/short-window profiles and21 actual retry taps, final-line
+scrolling for oversized labels, visible animation, retry/cancellation/retired-read
+and loaded palette/selection regressions. Exact source/APK bindings, reviewed
+frames and retained earlier test failures: AGENT_FEED.md and recovery-20261023/
+native-feed-reader-status-checkpoint.json. Settled loading/error window flags0
+and contrasting bars verified; one earlier dark-indicator frame's cause/timing
+remains unproven. Crash buffer empty, settings/window restored, emulator exit0.
+
+Exact enlarged UIKit control/font metrics, actual OS locale/type variants, dynamic
+materials/tablet, landscape horizontal policy, all transitions/transport/source,
+physical Pixel/Mac and TalkBack/full parity remain open. No new signed candidate,
+phone/Mac or account/pairing action. Candidate722/physical712 and global pins
+unchanged; goal active.
+
 ## Reader document color roles verified against original phone pixels — 2026-10-23
 
 Quotes/list markers/code captions now use the original translucent secondary
