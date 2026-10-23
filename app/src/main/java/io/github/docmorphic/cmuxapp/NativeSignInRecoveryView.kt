@@ -26,7 +26,7 @@ internal fun NativeSignInRecoveryView(form: NativeSignInState, session: NativeSi
             // The original coordinator maps recovery HTTP429 to AuthError.serverError,
             // whose presentation is the same safe generic message as unavailable.
             NativeSignInRecoveryError.RATE_LIMIT, NativeSignInRecoveryError.UNAVAILABLE -> stringResource(R.string.cmux_signin_recovery_unavailable)
-            null -> form.error
+            null -> form.error?.let { stringResource(it.resource) }
         }
         error?.let { Text(it, Modifier.semantics { liveRegion = LiveRegionMode.Polite }.testTag("signin.recovery.error"),
             textAlign = TextAlign.Center, color = NativeAppColors.onErrorContainer) }

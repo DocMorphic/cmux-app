@@ -43,7 +43,7 @@ class NativeSignInSessionTest {
         try {
             model.editEmail("retry@example.test"); model.requestCode(); runCurrent(); model.editCode("a1b2c3")
             model.submitCode(); runCurrent()
-            assertEquals("Fixture unavailable", model.state.value.error); assertEquals("", model.state.value.code)
+            assertEquals(NativeSignInError.NETWORK_ERROR, model.state.value.error); assertEquals("", model.state.value.code)
             assertTrue(model.state.value.codeSent); assertFalse(model.state.value.busy)
             model.submitCode(); runCurrent(); assertEquals("An empty code cannot replay the failed request", 1, calls)
             model.editCode("d4e5f6"); model.submitCode(); runCurrent()

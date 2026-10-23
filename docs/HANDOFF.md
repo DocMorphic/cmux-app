@@ -1,3 +1,20 @@
+## Original sign-in error handling advanced — 2026-10-24
+
+The form now stores source display roles instead of provider text, renders the
+original localized errors, keeps cancellation silent and maps local missing-code
+validation correctly. Twenty original keys supply180 exact translations across
+nine locales; OFFLINE explicitly retains its English source default because the
+iOS main catalog lacks that key. All27 focused JVM and20 localization checks
+pass; four owned API36 cases pass16.234s, including18 controlled locale/type
+profiles with one request/no raw provider text/no overflow, invalid-OTP display
+and recovery/code Activity retention. Frames reviewed, crash empty, settings/
+window restored, emulator exit0. Exact scope, APK/source bindings and remaining
+gates: [SIGN_IN.md](SIGN_IN.md), recovery-20261023/native-signin-error-checkpoint.json.
+Next: source uppercase/six-character automatic verification and original entry
+states; full scaffold/methods, OS variants/backoff/connectivity/deadline/real
+backend/Pixel/Mac/TalkBack/full-app gates remain. No new signed delivery or
+account/pairing/signing change;722/physical712/global pins unchanged. Goal active.
+
 ## Native email-verification recovery implemented — 2026-10-24
 
 Android now preserves typed unverified-email refusals, requests verification and

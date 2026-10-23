@@ -1,0 +1,373 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "sources": {
+    "catalog": {
+      "path": "ios/cmux/Resources/Localizable.xcstrings",
+      "sha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd"
+    },
+    "source_default": {
+      "path": "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthError.swift",
+      "sha256": "d354ed3803800f3d9bb6e1d23ac45ab8f308f256d618a79176b57b704c0da790"
+    }
+  },
+  "strings": [
+    {
+      "role": "INVALID_EMAIL",
+      "key": "auth.error.invalid_email",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_invalid_email",
+      "translations": {
+        "en": "Please enter a valid email address.",
+        "ar": "يرجى إدخال عنوان بريد إلكتروني صالح.",
+        "de": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+        "es": "Por favor, introduce una dirección de correo electrónico válida.",
+        "fr": "S'il vous plaît, mettez une adresse email valide.",
+        "ja": "有効なメールアドレスを入力してください。",
+        "ko": "유효한 이메일 주소를 입력하세요.",
+        "zh-Hans": "请输入有效的电子邮件地址。",
+        "zh-Hant": "請輸入有效的電子郵件地址。"
+      }
+    },
+    {
+      "role": "EMAIL_REQUIRES_VERIFICATION",
+      "key": "auth.error.email_requires_verification",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_email_requires_verification",
+      "translations": {
+        "en": "Verify this email before requesting a sign-in code.",
+        "ar": "تحقق من هذا البريد الإلكتروني قبل طلب رمز تسجيل الدخول.",
+        "de": "Überprüfen Sie diese E-Mail, bevor Sie einen Anmeldecode anfordern.",
+        "es": "Verifique este correo electrónico antes de solicitar un código de inicio de sesión.",
+        "fr": "Vérifiez cet e-mail avant de demander un code de connexion.",
+        "ja": "サインインコードをリクエストする前に、このメールアドレスを確認してください。",
+        "ko": "로그인 코드를 요청하기 전에 이 이메일을 확인하세요.",
+        "zh-Hans": "在请求登录代码之前请验证此电子邮件。",
+        "zh-Hant": "在請求登入代碼之前請驗證此電子郵件。"
+      }
+    },
+    {
+      "role": "EMAIL_EXISTS",
+      "key": "auth.error.email_exists",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_email_exists",
+      "translations": {
+        "en": "An account with this email already exists. Try signing in instead.",
+        "ar": "يوجد حساب بهذا البريد الإلكتروني بالفعل. حاول تسجيل الدخول بدلاً من ذلك.",
+        "de": "Es existiert bereits ein Konto mit dieser E-Mail. Versuchen Sie stattdessen, sich anzumelden.",
+        "es": "Ya existe una cuenta con este correo electrónico. Intenta iniciar sesión en su lugar.",
+        "fr": "Un compte avec cette adresse email existe déjà. Essayez plutôt de vous connecter.",
+        "ja": "このメールのアカウントはすでに存在します。サインインを試してください。",
+        "ko": "이 이메일을 사용하는 계정이 이미 존재합니다. 대신 로그인해 보세요.",
+        "zh-Hans": "使用此电子邮件的帐户已存在。请尝试登录。",
+        "zh-Hant": "使用此电子邮件的帐户已存在。請嘗試登入。"
+      }
+    },
+    {
+      "role": "INVALID_CODE",
+      "key": "auth.error.invalid_code",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_invalid_code",
+      "translations": {
+        "en": "Invalid code. Please check and try again.",
+        "ar": "رمز غير صالح. يرجى التحقق والمحاولة مرة أخرى.",
+        "de": "Ungültiger Code. Bitte überprüfen Sie es und versuchen Sie es erneut.",
+        "es": "Código no válido. Por favor verifique e intente nuevamente.",
+        "fr": "Code invalide. Veuillez vérifier et réessayer.",
+        "ja": "コードが無効です。確認してもう一度お試しください。",
+        "ko": "코드가 잘못되었습니다. 확인하신 후 다시 시도해 주세요.",
+        "zh-Hans": "代码无效。请检查并重试。",
+        "zh-Hant": "代碼無效。請檢查並重試。"
+      }
+    },
+    {
+      "role": "CODE_EXPIRED",
+      "key": "auth.error.code_expired",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_code_expired",
+      "translations": {
+        "en": "Code expired. Please request a new one.",
+        "ar": "انتهت صلاحية الرمز. يرجى طلب واحدة جديدة.",
+        "de": "Code abgelaufen. Bitte fordern Sie ein neues an.",
+        "es": "El código expiró. Por favor solicite uno nuevo.",
+        "fr": "Code expiré. Veuillez en demander un nouveau.",
+        "ja": "コードの有効期限が切れました。新しいコードをリクエストしてください。",
+        "ko": "코드가 만료되었습니다. 새로운 것을 요청하세요.",
+        "zh-Hans": "代码已过期。请索取一份新的。",
+        "zh-Hant": "代碼已過期。請索取一份新的。"
+      }
+    },
+    {
+      "role": "RATE_LIMIT",
+      "key": "auth.error.rate_limit",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_rate_limit",
+      "translations": {
+        "en": "Too many attempts. Please wait a moment and try again.",
+        "ar": "محاولات كثيرة جدًا. الرجاء الانتظار لحظة وحاول مرة أخرى.",
+        "de": "Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+        "es": "Demasiados intentos. Espere un momento e inténtelo de nuevo.",
+        "fr": "Trop de tentatives. Veuillez patienter un moment et réessayer.",
+        "ja": "試行回数が多すぎます。少し待ってからもう一度お試しください。",
+        "ko": "시도 횟수가 너무 많습니다. 잠시 후에 다시 시도해 주세요.",
+        "zh-Hans": "尝试次数太多。请稍等片刻，然后重试。",
+        "zh-Hant": "嘗試次數太多。請稍等片刻，然後重試。"
+      }
+    },
+    {
+      "role": "WRONG_PASSWORD",
+      "key": "auth.error.wrong_password",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_wrong_password",
+      "translations": {
+        "en": "Incorrect email or password.",
+        "ar": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+        "de": "Falsche E-Mail-Adresse oder falsches Passwort.",
+        "es": "Correo electrónico o contraseña incorrectos.",
+        "fr": "Email ou mot de passe incorrect.",
+        "ja": "メールまたはパスワードが正しくありません。",
+        "ko": "이메일이나 비밀번호가 잘못되었습니다.",
+        "zh-Hans": "电子邮件或密码不正确。",
+        "zh-Hant": "電子郵件或密碼不正確。"
+      }
+    },
+    {
+      "role": "USER_NOT_FOUND",
+      "key": "auth.error.user_not_found",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_user_not_found",
+      "translations": {
+        "en": "No account found with this email.",
+        "ar": "لم يتم العثور على حساب مع هذا البريد الإلكتروني.",
+        "de": "Mit dieser E-Mail wurde kein Konto gefunden.",
+        "es": "No se encontró ninguna cuenta con este correo electrónico.",
+        "fr": "Aucun compte trouvé avec cet email.",
+        "ja": "このメールのアカウントは見つかりません。",
+        "ko": "이 이메일에는 계정이 없습니다.",
+        "zh-Hans": "未找到此电子邮件的帐户。",
+        "zh-Hant": "未找到此電子郵件的帳號。"
+      }
+    },
+    {
+      "role": "PASSKEY_FAILED",
+      "key": "auth.error.passkey_failed",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_passkey_failed",
+      "translations": {
+        "en": "Passkey authentication failed. Please try again.",
+        "ar": "فشلت مصادقة مفتاح المرور. يرجى المحاولة مرة أخرى.",
+        "de": "Die Passkey-Authentifizierung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        "es": "Error de autenticación de clave de acceso. Por favor inténtalo de nuevo.",
+        "fr": "L'authentification par mot de passe a échoué. Veuillez réessayer.",
+        "ja": "パスキー認証に失敗しました。もう一度お試しください。",
+        "ko": "패스키 인증에 실패했습니다. 다시 시도해 주세요.",
+        "zh-Hans": "密钥验证失败。请再试一次。",
+        "zh-Hant": "密鑰驗證失敗。請再試一次。"
+      }
+    },
+    {
+      "role": "INVALID_MFA",
+      "key": "auth.error.invalid_mfa",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_invalid_mfa",
+      "translations": {
+        "en": "Incorrect verification code. Please try again.",
+        "ar": "رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى.",
+        "de": "Falscher Bestätigungscode. Bitte versuchen Sie es erneut.",
+        "es": "Código de verificación incorrecto. Por favor inténtalo de nuevo.",
+        "fr": "Code de vérification incorrect. Veuillez réessayer.",
+        "ja": "確認コードが正しくありません。もう一度お試しください。",
+        "ko": "잘못된 인증 코드입니다. 다시 시도해 주세요.",
+        "zh-Hans": "验证码不正确。请再试一次。",
+        "zh-Hant": "驗證碼不正確。請再試一次。"
+      }
+    },
+    {
+      "role": "CONFIG",
+      "key": "auth.error.config",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_config",
+      "translations": {
+        "en": "Sign in is temporarily unavailable. Please try again later.",
+        "ar": "تسجيل الدخول غير متاح مؤقتا. يرجى المحاولة مرة أخرى في وقت لاحق.",
+        "de": "Die Anmeldung ist vorübergehend nicht möglich. Bitte versuchen Sie es später noch einmal.",
+        "es": "El inicio de sesión no está disponible temporalmente. Inténtelo de nuevo más tarde.",
+        "fr": "La connexion est temporairement indisponible. Veuillez réessayer plus tard.",
+        "ja": "サインインは一時的に利用できません。しばらくしてからもう一度お試しください。",
+        "ko": "일시적으로 로그인을 사용할 수 없습니다. 나중에 다시 시도해 주세요.",
+        "zh-Hans": "暂时无法登录。请稍后重试。",
+        "zh-Hant": "暫時無法登入。請稍後重試。"
+      }
+    },
+    {
+      "role": "OAUTH_LINKED",
+      "key": "auth.error.oauth_linked",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_oauth_linked",
+      "translations": {
+        "en": "This account is already linked to another sign-in method.",
+        "ar": "هذا الحساب مرتبط بالفعل بطريقة تسجيل دخول أخرى.",
+        "de": "Dieses Konto ist bereits mit einer anderen Anmeldemethode verknüpft.",
+        "es": "Esta cuenta ya está vinculada a otro método de inicio de sesión.",
+        "fr": "Ce compte est déjà lié à une autre méthode de connexion.",
+        "ja": "このアカウントは別のサインイン方法にすでにリンクされています。",
+        "ko": "이 계정은 이미 다른 로그인 방법에 연결되어 있습니다.",
+        "zh-Hans": "该帐户已链接到其他登录方法。",
+        "zh-Hant": "該帳戶已連結至其他登入方法。"
+      }
+    },
+    {
+      "role": "APPLE_CONFIG",
+      "key": "auth.error.apple_config",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_apple_config",
+      "translations": {
+        "en": "Apple Sign In is not available yet. Please use another sign-in method.",
+        "ar": "تسجيل الدخول إلى Apple غير متاح بعد. الرجاء استخدام طريقة تسجيل دخول أخرى.",
+        "de": "Die Apple-Anmeldung ist noch nicht verfügbar. Bitte verwenden Sie eine andere Anmeldemethode.",
+        "es": "El inicio de sesión de Apple aún no está disponible. Utilice otro método de inicio de sesión.",
+        "fr": "La connexion Apple n’est pas encore disponible. Veuillez utiliser une autre méthode de connexion.",
+        "ja": "Apple でのサインインはまだ利用できません。別のサインイン方法を使用してください。",
+        "ko": "아직 Apple 로그인을 사용할 수 없습니다. 다른 로그인 방법을 사용해 주세요.",
+        "zh-Hans": "Apple 登录尚不可用。请使用其他登录方式。",
+        "zh-Hant": "Apple 登入尚不可用。請使用其他登入方式。"
+      }
+    },
+    {
+      "role": "BROWSER_SIGN_IN_FAILED",
+      "key": "auth.error.browser_sign_in_failed",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_browser_sign_in_failed",
+      "translations": {
+        "en": "Could not complete browser sign-in. Try again or open sign-in in your browser.",
+        "ar": "تعذر إكمال تسجيل الدخول إلى المتصفح. حاول مرة أخرى أو افتح تسجيل الدخول في متصفحك.",
+        "de": "Die Browseranmeldung konnte nicht abgeschlossen werden. Versuchen Sie es erneut oder öffnen Sie die Anmeldung in Ihrem Browser.",
+        "es": "No se pudo completar el inicio de sesión en el navegador. Inténtalo de nuevo o abre el inicio de sesión en tu navegador.",
+        "fr": "Impossible de terminer la connexion au navigateur. Réessayez ou ouvrez la connexion dans votre navigateur.",
+        "ja": "ブラウザでのサインインを完了できませんでした。もう一度試すか、ブラウザでサインインを開いてください。",
+        "ko": "브라우저 로그인을 완료할 수 없습니다. 다시 시도하거나 브라우저에서 로그인을 열어보세요.",
+        "zh-Hans": "无法完成浏览器登录。请重试或在浏览器中打开登录。",
+        "zh-Hant": "無法完成瀏覽器登入。請重試或在瀏覽器中開啟登入。"
+      }
+    },
+    {
+      "role": "NETWORK_ERROR",
+      "key": "auth.error.network_error",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_network_error",
+      "translations": {
+        "en": "Network error. Please check your connection.",
+        "ar": "خطأ في الشبكة. يرجى التحقق من الاتصال الخاص بك.",
+        "de": "Netzwerkfehler. Bitte überprüfen Sie Ihre Verbindung.",
+        "es": "Error de red. Por favor verifique su conexión.",
+        "fr": "Erreur réseau. Veuillez vérifier votre connexion.",
+        "ja": "ネットワークエラーです。接続を確認してください。",
+        "ko": "네트워크 오류입니다. 연결을 확인해주세요.",
+        "zh-Hans": "网络错误。请检查您的连接。",
+        "zh-Hant": "網路錯誤。請檢查您的連線。"
+      }
+    },
+    {
+      "role": "SERVER_ERROR",
+      "key": "auth.error.server_error",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_server_error",
+      "translations": {
+        "en": "Something went wrong. Please try again.",
+        "ar": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+        "de": "Etwas ist schief gelaufen. Bitte versuchen Sie es erneut.",
+        "es": "Algo salió mal. Por favor inténtalo de nuevo.",
+        "fr": "Quelque chose s'est mal passé. Veuillez réessayer.",
+        "ja": "問題が発生しました。もう一度お試しください。",
+        "ko": "문제가 발생했습니다. 다시 시도해 주세요.",
+        "zh-Hans": "出了点问题。请再试一次。",
+        "zh-Hant": "出了點問題。請再試一次。"
+      }
+    },
+    {
+      "role": "OFFLINE",
+      "key": "auth.error.offline",
+      "origin": "source_default",
+      "resource": "cmux_signin_error_offline",
+      "translations": {
+        "en": "No internet connection. Connect to Wi-Fi or cellular and try again.",
+        "ar": "No internet connection. Connect to Wi-Fi or cellular and try again.",
+        "de": "No internet connection. Connect to Wi-Fi or cellular and try again.",
+        "es": "No internet connection. Connect to Wi-Fi or cellular and try again.",
+        "fr": "No internet connection. Connect to Wi-Fi or cellular and try again.",
+        "ja": "No internet connection. Connect to Wi-Fi or cellular and try again.",
+        "ko": "No internet connection. Connect to Wi-Fi or cellular and try again.",
+        "zh-Hans": "No internet connection. Connect to Wi-Fi or cellular and try again.",
+        "zh-Hant": "No internet connection. Connect to Wi-Fi or cellular and try again."
+      }
+    },
+    {
+      "role": "TIMED_OUT",
+      "key": "auth.error.timed_out",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_timed_out",
+      "translations": {
+        "en": "Sign-in timed out. Check your connection and try again.",
+        "ar": "انتهت مهلة تسجيل الدخول. تحقق من اتصالك وحاول مرة أخرى.",
+        "de": "Zeitüberschreitung bei der Anmeldung. Überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "es": "Se agotó el tiempo de inicio de sesión. Comprueba tu conexión y vuelve a intentarlo.",
+        "fr": "Le délai de connexion a expiré. Vérifiez votre connexion et réessayez.",
+        "ja": "サインインがタイムアウトしました。接続を確認してもう一度お試しください。",
+        "ko": "로그인 시간이 초과되었습니다. 연결을 확인하고 다시 시도하세요.",
+        "zh-Hans": "登录超时。检查您的连接并重试。",
+        "zh-Hant": "登入超時。檢查您的連線並重試。"
+      }
+    },
+    {
+      "role": "INVALID_CODE_SHORT",
+      "key": "auth.error.invalid_code_short",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_invalid_code_short",
+      "translations": {
+        "en": "Invalid code. Please try again.",
+        "ar": "رمز غير صالح. يرجى المحاولة مرة أخرى.",
+        "de": "Ungültiger Code. Bitte versuchen Sie es erneut.",
+        "es": "Código no válido. Por favor inténtalo de nuevo.",
+        "fr": "Code invalide. Veuillez réessayer.",
+        "ja": "コードが無効です。もう一度お試しください。",
+        "ko": "코드가 잘못되었습니다. 다시 시도해 주세요.",
+        "zh-Hans": "代码无效。请再试一次。",
+        "zh-Hant": "代碼無效。請再試一次。"
+      }
+    },
+    {
+      "role": "INVALID_CALLBACK",
+      "key": "auth.error.invalid_callback",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_invalid_callback",
+      "translations": {
+        "en": "The sign-in callback was invalid. Try signing in again.",
+        "ar": "رد الاتصال بتسجيل الدخول كان غير صالح. حاول تسجيل الدخول مرة أخرى.",
+        "de": "Der Anmelderückruf war ungültig. Versuchen Sie erneut, sich anzumelden.",
+        "es": "La devolución de llamada de inicio de sesión no fue válida. Intente iniciar sesión nuevamente.",
+        "fr": "Le rappel de connexion n’était pas valide. Essayez de vous connecter à nouveau.",
+        "ja": "サインインコールバックが無効です。もう一度サインインしてください。",
+        "ko": "로그인 콜백이 잘못되었습니다. 다시 로그인해 보세요.",
+        "zh-Hans": "登录回调无效。尝试重新登录。",
+        "zh-Hant": "登入回調無效。嘗試重新登入。"
+      }
+    },
+    {
+      "role": "UNAUTHORIZED",
+      "key": "auth.error.unauthorized",
+      "origin": "catalog",
+      "resource": "cmux_signin_error_unauthorized",
+      "translations": {
+        "en": "Session expired. Please sign in again.",
+        "ar": "انتهت صلاحية الجلسة. الرجاء تسجيل الدخول مرة أخرى.",
+        "de": "Sitzung abgelaufen. Bitte melden Sie sich erneut an.",
+        "es": "La sesión expiró. Por favor inicia sesión nuevamente.",
+        "fr": "Session expirée. Veuillez vous reconnecter.",
+        "ja": "セッションの有効期限が切れました。もう一度サインインしてください。",
+        "ko": "세션이 만료되었습니다. 다시 로그인해 주세요.",
+        "zh-Hans": "会话已过期。请重新登录。",
+        "zh-Hant": "會話已過期。請重新登入。"
+      }
+    }
+  ]
+}

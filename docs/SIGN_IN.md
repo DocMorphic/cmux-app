@@ -1,5 +1,53 @@
 # Native sign-in recovery
 
+## Original sign-in error roles and copy applied — 2026-10-24
+
+The form now retains a display role rather than arbitrary provider/exception
+text. The original SignInErrorPresentation/AuthError display-safe mapping covers
+29 specific provider codes (case-normalized), unverified-email distinction,
+unauthorized, network, unknown, local-validation and phase-timeout roles.
+Cancellation stays silent and preserves an entered code; failed authentication
+still clears it. Ordinary and verification-recovery views resolve their role
+through resources, with a polite live-region semantic on ordinary errors.
+Missing nonce/local invalid code use the original short invalid-code role.
+This changes error presentation, not account/pairing storage or recovery requests.
+
+Twenty original main-catalog keys provide180 exact translations across nine
+locales. The additional OFFLINE role keeps the exact English AuthError.swift
+default: the pinned iOS main catalog lacks that key. Its source-default origin
+is explicit, rather than attributing Mac translations to iOS. Role/key/resource,
+source hashes, locale completeness and this fallback are guarded;20 localization
+checks pass. The data is sign-in-error-strings.json and the common generator
+writes/checks cmux_signin_error_strings.xml in all nine folders.
+
+All27 focused JVM tests pass (the previous21 plus six mapping/privacy/domain/
+cancellation tests). Final owned API36 cohort passes four cases in16.234s.
+One retained error remains complete through18 controlled locale/font profiles,
+with one request total, no provider marker and no text overflow. Arabic/German
+large-text frames with the actual keyboard visible were reviewed. A known invalid
+OTP displays the original localized message in the existing recovery flow; its
+four Activity recreations and existing pending-code/authentication checks retain.
+Crash empty, preflight no ANR, settings/window restored, emulator exit0.
+
+Exact source/data/APK/semantic/runtime bindings:
+recovery-20261023/native-signin-error-checkpoint.json and-runtime-v1/;
+original source/value comparison: native-signin-error-source-comparison.json.
+App SHA256:d50678f1253de5fcf59914d6c5ca9dc7c34e325bd66c77bd9d320720a7b8585e.
+Test SHA256:e44c98f453366ff232919d0f38633c89f70b87c87412ba341e9a702134b1aa83.
+These are controlled composition locales/scales and fixture/local-HTTP callbacks;
+not actual OS-language/font transitions, real account/backend, Pixel/Mac,
+TalkBack or full original sign-in UI/method/phase-orchestration acceptance.
+Automatic-backoff orchestration and its separate retrying state remain open.
+Real connectivity preflight/deadline behavior is not proven by mapped roles.
+
+Next source behavior: original CmuxMobileWorkspace/SignInCodeInputPolicy keeps
+ASCII letters/digits, uppercases and caps at six; SignInView automatically verifies
+complete normalized input. Android currently preserves case and waits for its
+manual submit button. Port those event/focus/busy semantics and original entry
+states alongside the remaining scaffold/method/keyboard/localization gates.
+No new signed build or real-device action;722/physical712/global pins and stored
+account/pairing/signing unchanged. Full goal remains active.
+
 ## Unverified-email recovery — 2026-10-24
 
 Android now preserves the typed refusal needed by the original native iOS

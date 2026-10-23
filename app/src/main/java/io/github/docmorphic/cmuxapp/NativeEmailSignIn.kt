@@ -18,7 +18,7 @@ internal class NativeEmailSignIn(
 
     suspend fun sendCode(email: String) {
         val normalized = email.trim()
-        require(normalized.contains('@') && normalized.length <= 254) { "Enter a valid email address" }
+        if (!normalized.contains('@') || normalized.length > 254) throw NativeSignInFailure(NativeSignInError.INVALID_EMAIL)
         val attempt = synchronized(lock) { nonce = null; ++generation }
         val result = request("/auth/otp/send-sign-in-code", JSONObject()
             .put("email", normalized).put("callback_url", "https://cmux.com/auth/callback"))
@@ -33,9 +33,9 @@ internal class NativeEmailSignIn(
 
     suspend fun signIn(code: String) {
         val prefix = code.trim().lowercase(Locale.ROOT)
-        require(prefix.matches(Regex("[a-z0-9]{6}"))) { "Enter the six-character code from your email" }
+        if (!prefix.matches(Regex("[a-z0-9]{6}"))) throw NativeSignInFailure(NativeSignInError.INVALID_CODE_SHORT)
         val (attempt, challenge) = synchronized(lock) {
-            generation to checkNotNull(nonce) { "Request a new email code before signing in." }
+            generation to (nonce ?: throw NativeSignInFailure(NativeSignInError.INVALID_CODE_SHORT))
         }
         val result = request("/auth/otp/sign-in", JSONObject().put("code", prefix + challenge))
         currentCoroutineContext().ensureActive()

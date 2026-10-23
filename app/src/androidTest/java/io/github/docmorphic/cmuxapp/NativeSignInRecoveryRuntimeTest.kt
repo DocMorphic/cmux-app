@@ -86,6 +86,7 @@ class NativeSignInRecoveryRuntimeTest {
             compose.onNodeWithTag("signin.code").performScrollTo().performTextInput("BAD123")
             tap("signin.submit"); compose.waitForIdle()
             compose.onNodeWithTag("signin.code").assert(hasText(""))
+            compose.onNodeWithTag("signin.error").assertTextEquals(compose.activity.getString(R.string.cmux_signin_error_invalid_code))
             compose.onNodeWithTag("signin.submit").assertIsNotEnabled()
             assertEquals(0, publications.get())
             compose.onNodeWithTag("signin.code").performScrollTo().performTextInput("ABC123"); tap("signin.submit")

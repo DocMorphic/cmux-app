@@ -194,5 +194,46 @@ Text("Cancel")
             with self.assertRaises(ValueError): UI.load_signin_recovery_rows(path)
 
 
+    def test_signin_error_vocabulary_has_exact_roles_and_attributes_the_missing_offline_translation(self):
+        rows = UI.load_signin_error_rows()
+        self.assertEqual(21, len(rows)); self.assertEqual(20, sum(r['origin']=='catalog' for r in rows))
+        for language in UI.LANGUAGES:
+            xml = ET.fromstring(UI.resource_xml(rows, language))
+            self.assertEqual(21, len(xml.findall('string')))
+            self.assertTrue(all(e.attrib['formatted']=='false' for e in xml.findall('string')))
+        offline = next(r for r in rows if r['role']=='OFFLINE')
+        self.assertEqual('source_default', offline['origin'])
+        self.assertEqual(1, len(set(offline['translations'].values())))
+
+    def test_signin_errors_reject_wrong_role_resources_and_missing_locales(self):
+        data = json.loads(UI.SIGNIN_ERROR_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'labels.json'
+            for field, value in [('role','SERVER_ERROR'),('resource','cmux_signin_error_server_error')]:
+                changed = copy.deepcopy(data); changed['strings'][0][field] = value; path.write_text(json.dumps(changed))
+                with self.assertRaises(ValueError): UI.load_signin_error_rows(path)
+            changed = copy.deepcopy(data); del changed['strings'][0]['translations']['ar']; path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_error_rows(path)
+
+    def test_signin_errors_reject_false_fallback_attribution_or_changed_source_default(self):
+        data = json.loads(UI.SIGNIN_ERROR_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'labels.json'
+            changed = copy.deepcopy(data); changed['strings'][0]['origin']='source_default'; path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_error_rows(path)
+            changed = copy.deepcopy(data); next(r for r in changed['strings'] if r['role']=='OFFLINE')['translations']['ar']='Invented translation'
+            path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_error_rows(path)
+
+    def test_signin_errors_reject_wrong_source_and_missing_roles(self):
+        data = json.loads(UI.SIGNIN_ERROR_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'labels.json'
+            changed = copy.deepcopy(data); changed['sources']['catalog']['sha256']='0'*64; path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_error_rows(path)
+            changed = copy.deepcopy(data); changed['strings'].pop(); path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_error_rows(path)
+
+
 if __name__ == '__main__':
     unittest.main()

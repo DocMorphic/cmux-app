@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal data class NativeSignInState(val email: String = "", val code: String = "", val codeSent: Boolean = false,
-    val busy: Boolean = false, val error: String? = null, val completion: Long? = null,
+    val busy: Boolean = false, val error: NativeSignInError? = null, val completion: Long? = null,
     val verificationRequired: Boolean = false, val recoveryError: NativeSignInRecoveryError? = null,
     val billingRecoveryAccepted: Boolean = false)
 
@@ -61,12 +61,14 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
                         currentCoroutineContext().ensureActive()
                         if (generation == admitted) recoveryFailure(recoveryIssue)
                     }
-                } else mutable.value = mutable.value.copy(
+                } else {
+                    val display = nativeSignInError(failure) ?: return@launch
+                    mutable.value = mutable.value.copy(
                     // Original SignInView.verifyCode clears the submitted code
                     // after failure; retry requires explicit input again.
                     code = if (signingIn) "" else mutable.value.code,
-                    error = failure.message
-                        ?: if (signingIn) "Could not sign in. Please try again." else "Could not send the code. Please try again.")
+                    error = display)
+                }
             } finally {
                 if (job.isActive && generation == admitted) mutable.value = mutable.value.copy(busy = false)
             }

@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
@@ -4522,7 +4523,9 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
         Button(onClick = { session.requestCode() }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth().testTag("signin.request")) {
             Text(if (busy && !codeSent) "Sending code…" else if (codeSent) "Send a new code" else "Email me a sign-in code")
         }
-        signInError?.let { Text(it, Modifier.fillMaxWidth().padding(vertical = 12.dp), color = NativeAppColors.onErrorContainer) }
+        signInError?.let { Text(stringResource(it.resource), Modifier.fillMaxWidth().padding(vertical = 12.dp)
+            .testTag("signin.error").semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+            color = NativeAppColors.onErrorContainer) }
         if (codeSent) {
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(otp, session::editCode,

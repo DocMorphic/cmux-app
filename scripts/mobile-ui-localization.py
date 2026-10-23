@@ -17,6 +17,7 @@ CLOUD_ONBOARDING_DATA = ROOT / 'third_party/cmux-localization/cloud-onboarding-s
 CLOUD_ONBOARDING_ANDROID_DATA = ROOT / 'third_party/cmux-localization/cloud-onboarding-android-strings.json'
 MARKDOWN_DATA = ROOT / 'third_party/cmux-localization/markdown-strings.json'
 SIGNIN_RECOVERY_DATA = ROOT / 'third_party/cmux-localization/sign-in-recovery-strings.json'
+SIGNIN_ERROR_DATA = ROOT / 'third_party/cmux-localization/sign-in-error-strings.json'
 LANGUAGES = ('en', 'ar', 'de', 'es', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant')
 FOLDERS = {'en': 'values', 'zh-Hans': 'values-b+zh+Hans', 'zh-Hant': 'values-b+zh+Hant'}
 NAME = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
@@ -316,6 +317,36 @@ def load_signin_recovery_rows(path=SIGNIN_RECOVERY_DATA):
     return rows
 
 
+def load_signin_error_rows(path=SIGNIN_ERROR_DATA):
+    data = json.loads(path.read_text())
+    sources = {'catalog': {'path': 'ios/cmux/Resources/Localizable.xcstrings',
+        'sha256': '9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd'},
+        'source_default': {'path': 'Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthError.swift',
+        'sha256': 'd354ed3803800f3d9bb6e1d23ac45ab8f308f256d618a79176b57b704c0da790'}}
+    if data['version'] != 1 or data['upstream'] != 'a5911a1f92f3eeb11c4d7f3e2ef89204718c5009' or data['sources'] != sources:
+        raise ValueError('Unreviewed native sign-in error sources')
+    expected = {'invalid_email', 'email_requires_verification', 'email_exists', 'invalid_code', 'code_expired',
+        'rate_limit', 'wrong_password', 'user_not_found', 'passkey_failed', 'invalid_mfa', 'config', 'oauth_linked',
+        'apple_config', 'browser_sign_in_failed', 'network_error', 'server_error', 'offline', 'timed_out',
+        'invalid_code_short', 'invalid_callback', 'unauthorized'}
+    if {row['key'] for row in data['strings']} != {'auth.error.'+name for name in expected} or len(data['strings']) != len(expected):
+        raise ValueError('Incomplete native sign-in error vocabulary')
+    for row in data['strings']:
+        suffix = row['key'].removeprefix('auth.error.')
+        if row['resource'] != 'cmux_signin_error_'+suffix or row['role'] != suffix.upper() or set(row['translations']) != set(LANGUAGES):
+            raise ValueError('Unbound native sign-in error role/resource/locale')
+        if row['origin'] != ('source_default' if suffix == 'offline' else 'catalog'):
+            raise ValueError('Wrong native sign-in error origin')
+        for value in row['translations'].values():
+            if not isinstance(value, str) or not value or '%' in value: raise ValueError('Invalid native sign-in error text')
+            # The pinned iOS main catalog lacks this key; preserve the shared
+            # AuthError's actual English default, rather than label Mac values
+            # as iOS translations or invent missing translations.
+            if suffix == 'offline' and value != 'No internet connection. Connect to Wi-Fi or cellular and try again.':
+                raise ValueError('Changed original offline source fallback')
+    return data['strings']
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--migrate', action='store_true')
@@ -328,6 +359,7 @@ def main():
     cloud_onboarding_rows = load_cloud_onboarding_rows()
     markdown_rows = load_markdown_rows()
     signin_rows = load_signin_recovery_rows()
+    signin_error_rows = load_signin_error_rows()
     if args.migrate:
         if args.check: parser.error('--migrate and --check are exclusive')
         changes = 0
@@ -384,7 +416,13 @@ def main():
             if not signin_path.is_file() or signin_path.read_bytes() != encoded: raise ValueError(f'Generated sign-in recovery resources differ: {folder}')
         else:
             signin_path.write_bytes(encoded)
-    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog, {len(cloud_lifecycle_rows)} Cloud lifecycle, {len(cloud_onboarding_rows)} Cloud onboarding, {len(markdown_rows)} Markdown and {len(signin_rows)} sign-in recovery labels / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
+        error_path = path.with_name('cmux_signin_error_strings.xml')
+        encoded = resource_xml(signin_error_rows, language, 'from pinned original sign-in error vocabulary; offline retains its attributed English source default')
+        if args.check:
+            if not error_path.is_file() or error_path.read_bytes() != encoded: raise ValueError(f'Generated native sign-in error resources differ: {folder}')
+        else:
+            error_path.write_bytes(encoded)
+    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog, {len(cloud_lifecycle_rows)} Cloud lifecycle, {len(cloud_onboarding_rows)} Cloud onboarding, {len(markdown_rows)} Markdown, {len(signin_rows)} sign-in recovery and {len(signin_error_rows)} sign-in error roles / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
 
 
 if __name__ == '__main__':

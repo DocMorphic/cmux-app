@@ -77,3 +77,11 @@ values across nine locales) to the main iOS and MobileShellUI catalogs at
 checked; only the email format argument maps `%@` to Android `%1$s`. The common
 generator writes/checks `cmux_signin_recovery_strings.xml` in all nine folders.
 Source-to-value comparison and runtime scope are documented in docs/SIGN_IN.md.
+
+`sign-in-error-strings.json` binds21 native error roles to20 original iOS main
+catalog keys (180 exact translations) and the shared AuthError.swift English
+OFFLINE default, absent from that iOS catalog. The fallback's origin is explicit
+for every locale; it is not a translated value from the Mac catalog. Source
+hashes, exact role/key/resource bindings and all nine locale folders are checked.
+The common generator writes/checks cmux_signin_error_strings.xml. Behavior,
+source-to-value proof and runtime limitations are in docs/SIGN_IN.md.
