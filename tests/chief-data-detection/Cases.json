@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "referenceEpochMillis": 1792749600000,
+  "timeZone": "Europe/Berlin",
+  "scope": "Shared synthetic inputs, not expected detector outputs. Android can inject reference time; NSDataDetector uses the captured current clock. No action is opened.",
+  "samples": [
+    {
+      "id": "english-address-date",
+      "language": "en",
+      "locale": "en-US",
+      "text": "Meet me tomorrow at 8am at 1600 Amphitheatre Parkway, Mountain View, CA 94043."
+    },
+    {
+      "id": "english-absolute-url",
+      "language": "en",
+      "locale": "en-US",
+      "text": "The meeting is October 25, 2026 at 8am. Email test@example.com or visit https://example.com/2026/10/25."
+    },
+    {
+      "id": "german-address-date",
+      "language": "de",
+      "locale": "de-DE",
+      "text": "Wir treffen uns morgen um 8 Uhr in der Invalidenstraße 116, 10115 Berlin."
+    },
+    {
+      "id": "english-emoji-date",
+      "language": "en",
+      "locale": "en-US",
+      "text": "😀 Friday at 5:30pm, 350 Third Street, Cambridge MA 02142."
+    },
+    {
+      "id": "spanish-time",
+      "language": "es",
+      "locale": "es-ES",
+      "text": "🙂 Nos vemos mañana a las 8:00."
+    },
+    {
+      "id": "french-time",
+      "language": "fr",
+      "locale": "fr-FR",
+      "text": "🙂 Rendez-vous demain à 8 h."
+    },
+    {
+      "id": "arabic-time",
+      "language": "ar",
+      "locale": "ar",
+      "text": "🙂 نلتقي غدًا الساعة 8 صباحًا."
+    },
+    {
+      "id": "japanese-time",
+      "language": "ja",
+      "locale": "ja-JP",
+      "text": "🙂 明日の午前8時に会いましょう。"
+    },
+    {
+      "id": "korean-time",
+      "language": "ko",
+      "locale": "ko-KR",
+      "text": "🙂 내일 오전 8시에 만나요."
+    },
+    {
+      "id": "chinese-hans-time",
+      "language": "zh",
+      "locale": "zh-CN",
+      "text": "🙂 明天上午8点见。"
+    },
+    {
+      "id": "chinese-hant-time",
+      "language": "zh",
+      "locale": "zh-TW",
+      "text": "🙂 明天上午8點見。"
+    }
+  ]
+}

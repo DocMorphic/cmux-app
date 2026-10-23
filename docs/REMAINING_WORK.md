@@ -1,3 +1,22 @@
+## Date/address engine evaluated; actual iOS comparison prepared — 2026-10-23
+
+The isolated opt-in detector-spike evaluates eleven shared synthetic inputs
+across all nine app locales. Accepted cold/warm online/offline phases have 44
+successful observations with identical outputs, no active offline network and
+no crashes; network settings restore and owned AVDs are removed. Language/date
+ambiguities, partial/missing matches and a date inside a URL prevent treating
+this as source equivalence. Invalid early probe inputs and zero-byte-cache
+failures are retained/excluded, with cause of the latter unestablished.
+
+No SDK enters the normal companion dependency graph and signed 715 is unchanged;
+no phone/account or actual Calendar/Maps action was operated. A dedicated pinned
+iOS detector/actionURL capture and shared fixture are prepared for nine actual
+language contexts. Local guards/syntax/project checks pass; native execution is
+not yet accepted. Existing default/Translation/Poll hosts are byte-identical.
+See [CHIEF_DATA_DETECTION.md](CHIEF_DATA_DETECTION.md) for precise outputs,
+source/clock limits, evidence paths and remaining integration requirements.
+Full parity, physical availability and the backend/store requirements stay open.
+
 ## Signed 715 ready; physical upgrade remains pending — 2026-10-23
 
 Local/unpublished candidate 715 includes the recent localized Plan UI, shared

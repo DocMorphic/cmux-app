@@ -14,10 +14,12 @@ def git(root, *args):
     return subprocess.check_output(['git', '-C', str(root), *args])
 
 
-def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False):
+def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False, with_data_detection=False):
     if with_translation_ui and with_poll_ui:
         raise ValueError('Select one UI reference host')
     with_ui = with_translation_ui or with_poll_ui
+    if with_ui and with_data_detection:
+        raise ValueError('Select one reference mode')
     ui_kind = 'Poll' if with_poll_ui else 'Translation'
     ui_tests = ui_kind + 'UITests.swift'
     ui_fixture = ui_kind + 'References.json'
@@ -43,6 +45,9 @@ def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False):
     templates = root / 'tests/ios-chief-reference'
     for name in ('ReferenceApp.swift', 'ReferenceTests.swift', 'Scenes.json', 'Interactions.json', 'Actions.json'):
         shutil.copyfile(templates / name, output / name)
+    if with_data_detection:
+        shutil.copyfile(templates / 'DataDetectionTests.swift', output / 'DataDetectionTests.swift')
+        shutil.copyfile(root / 'tests/chief-data-detection/Cases.json', output / 'DataDetectionCases.json')
     if with_ui:
         shutil.copyfile(templates / (ui_kind + 'ReferenceApp.swift'), output / 'ReferenceApp.swift')
         for name in (ui_tests, ui_fixture):
@@ -66,6 +71,9 @@ def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False):
     if with_poll_ui:
         provenance.update(pollUiTestsSha256=hashlib.sha256((templates / ui_tests).read_bytes()).hexdigest(),
                           pollFixtureSha256=hashlib.sha256((templates / ui_fixture).read_bytes()).hexdigest())
+    if with_data_detection:
+        provenance.update(dataDetectionTestsSha256=hashlib.sha256((output / 'DataDetectionTests.swift').read_bytes()).hexdigest(),
+                          dataDetectionCasesSha256=hashlib.sha256((output / 'DataDetectionCases.json').read_bytes()).hexdigest())
     (output / 'Provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
 
     def uid(name): return hashlib.sha256(name.encode()).hexdigest()[:24].upper()
@@ -77,7 +85,8 @@ def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False):
     refs = {}
     for filename, kind in [('ReferenceApp.swift', 'sourcecode.swift'), ('ReferenceTests.swift', 'sourcecode.swift'),
                            ('Scenes.json', 'text.json'), ('Interactions.json', 'text.json'), ('Actions.json', 'text.json'), ('Provenance.json', 'text.json'), ('ChiefAvatar.png', 'image.png')] + (
-                               [(ui_tests, 'sourcecode.swift'), (ui_fixture, 'text.json')] if with_ui else []):
+                               [(ui_tests, 'sourcecode.swift'), (ui_fixture, 'text.json')] if with_ui else []) + (
+                               [('DataDetectionTests.swift', 'sourcecode.swift'), ('DataDetectionCases.json', 'text.json')] if with_data_detection else []):
         refs[filename] = obj(filename, 'PBXFileReference', f'lastKnownFileType = {q(kind)}; path = {q(filename)}; sourceTree = "<group>";')
     app_product = obj('app-product', 'PBXFileReference', 'explicitFileType = wrapper.application; path = CmuxChiefReferenceHost.app; sourceTree = BUILT_PRODUCTS_DIR;')
     test_product = obj('test-product', 'PBXFileReference', 'explicitFileType = wrapper.cfbundle; path = CmuxChiefReferenceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
@@ -92,11 +101,11 @@ def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False):
         package_products.append(reference)
         frameworks.append(obj(product + '-build', 'PBXBuildFile', f'productRef = {reference};'))
     source_builds = {}
-    for name in ('ReferenceApp.swift', 'ReferenceTests.swift'):
+    for name in ('ReferenceApp.swift', 'ReferenceTests.swift') + (('DataDetectionTests.swift',) if with_data_detection else ()):
         source_builds[name] = obj(name + '-build', 'PBXBuildFile', f'fileRef = {refs[name]};')
-    resource_builds = [obj(name + '-build', 'PBXBuildFile', f'fileRef = {refs[name]};') for name in ('Scenes.json', 'Interactions.json', 'Actions.json', 'Provenance.json', 'ChiefAvatar.png')]
+    resource_builds = [obj(name + '-build', 'PBXBuildFile', f'fileRef = {refs[name]};') for name in ('Scenes.json', 'Interactions.json', 'Actions.json', 'Provenance.json', 'ChiefAvatar.png') + (('DataDetectionCases.json',) if with_data_detection else ())]
     app_sources = obj('app-sources', 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = ({source_builds["ReferenceApp.swift"]},); runOnlyForDeploymentPostprocessing = 0;')
-    test_sources = obj('test-sources', 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = ({source_builds["ReferenceTests.swift"]},); runOnlyForDeploymentPostprocessing = 0;')
+    test_sources = obj('test-sources', 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = ({source_builds["ReferenceTests.swift"]},' + (f' {source_builds["DataDetectionTests.swift"]},' if with_data_detection else '') + '); runOnlyForDeploymentPostprocessing = 0;')
     test_frameworks = obj('test-frameworks', 'PBXFrameworksBuildPhase', f'buildActionMask = 2147483647; files = ({", ".join(frameworks)},); runOnlyForDeploymentPostprocessing = 0;')
     resources = obj('test-resources', 'PBXResourcesBuildPhase', f'buildActionMask = 2147483647; files = ({", ".join(resource_builds)},); runOnlyForDeploymentPostprocessing = 0;')
     # Match SwiftPM's Debug products to the selected simulator architecture.
@@ -162,5 +171,6 @@ if __name__ == '__main__':
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--with-translation-ui', action='store_true')
     mode.add_argument('--with-poll-ui', action='store_true')
+    mode.add_argument('--with-data-detection', action='store_true')
     args = parser.parse_args()
-    prepare(args.upstream.resolve(), args.output.resolve(), args.with_translation_ui, args.with_poll_ui)
+    prepare(args.upstream.resolve(), args.output.resolve(), args.with_translation_ui, args.with_poll_ui, args.with_data_detection)

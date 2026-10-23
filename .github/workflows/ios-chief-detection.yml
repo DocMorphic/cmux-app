@@ -1,0 +1,89 @@
+name: Pinned iOS Chief data detection
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-chief-detection
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cmux-app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          path: upstream
+          sparse-checkout: |
+            Packages/iOS/CmuxConversation
+            scripts
+          persist-credentials: false
+      - name: Select pinned SDK family and prepare immutable host
+        run: |
+          set -euo pipefail
+          cd upstream
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
+          cd ..
+          python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_detection.py
+          python3 cmux-app/scripts/prepare-ios-chief-reference.py --upstream upstream --output "$RUNNER_TEMP/chief-detection" --with-data-detection
+          xcodebuild -version
+      - name: Select disposable runner simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/detection-simulators.json"
+          python3 - <<'PY'
+          import json, os
+          candidates = [d for devices in json.load(open(os.environ['RUNNER_TEMP'] + '/detection-simulators.json'))['devices'].values() for d in devices if d.get('isAvailable') and d['name'].startswith('iPhone')]
+          if not candidates: raise RuntimeError('No installed iPhone simulator')
+          selected = sorted(candidates, key=lambda d: (d['name'] != 'iPhone 17 Pro', d['name']))[0]
+          with open(os.environ['GITHUB_ENV'], 'a') as f: f.write('DETECTION_SIMULATOR=' + selected['udid'] + '\n')
+          print(selected)
+          PY
+      - name: Observe source detector in all nine app language contexts
+        run: |
+          set -euo pipefail
+          xcrun simctl boot "$DETECTION_SIMULATOR" || xcrun simctl bootstatus "$DETECTION_SIMULATOR" -b
+          xcrun simctl bootstatus "$DETECTION_SIMULATOR" -b
+          mode=test
+          for language in en de es fr ar ja ko zh-Hans zh-Hant; do
+            xcodebuild "$mode" -project "$RUNNER_TEMP/chief-detection/CmuxChiefReference.xcodeproj" \
+              -scheme CmuxChiefReference -destination "platform=iOS Simulator,id=$DETECTION_SIMULATOR" \
+              -derivedDataPath "$RUNNER_TEMP/detection-derived" -destination-timeout 90 \
+              -parallel-testing-enabled NO -testLanguage "$language" -testRegion DE \
+              -only-testing:CmuxChiefReferenceTests/CmuxChiefDataDetectionTests/testCaptureSourceDataDetection \
+              -resultBundlePath "$RUNNER_TEMP/chief-detection-$language.xcresult" \
+              CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/chief-detection-$language.log"
+            mode=test-without-building
+          done
+      - name: Export and bind actual source observations
+        if: always()
+        run: |
+          set -euo pipefail
+          for language in en de es fr ar ja ko zh-Hans zh-Hant; do
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/chief-detection-$language.xcresult" --output-path "$RUNNER_TEMP/chief-detection-exported/$language"
+          done
+          python3 cmux-app/scripts/verify-ios-chief-detection.py --exported "$RUNNER_TEMP/chief-detection-exported" --output "$RUNNER_TEMP/chief-detection-canonical" --project-commit "$GITHUB_SHA"
+      - name: Preserve observations and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-chief-detection
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/chief-detection-canonical
+            ${{ runner.temp }}/chief-detection-exported
+            ${{ runner.temp }}/chief-detection-*.xcresult
+            ${{ runner.temp }}/chief-detection-*.log
+            ${{ runner.temp }}/chief-detection/Provenance.json
+            ${{ runner.temp }}/detection-simulators.json

@@ -22,3 +22,5 @@ include(":ghostty")
 include(":legacy-biometric")
 // Opt-in transport research APK; never a dependency of the delivered app.
 if (providers.gradleProperty("sshSpike").isPresent) include(":ssh-spike")
+// Opt-in synthetic detector evaluation; never part of the companion APK.
+if (providers.gradleProperty("entityDetectionSpike").isPresent) include(":detector-spike")

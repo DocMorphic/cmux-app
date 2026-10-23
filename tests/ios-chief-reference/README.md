@@ -1,3 +1,19 @@
+## Data detection reference candidate — 2026-10-23
+
+The optional `--with-data-detection` mode observes actual NSDataDetector using
+the pinned source type mask and actionURL mapping for the shared eleven inputs
+in `tests/chief-data-detection/Cases.json`. The manual ios-chief-detection
+workflow requests nine process language contexts. No URL is opened and no
+backend/account exists in this test. Reference clock bounds are observed;
+Android's injected reference time is explicitly separate.
+
+Seven adversarial export guards, all 103 Chief reference guards, Swift syntax/
+Foundation API and generated-project checks pass locally. Default/Translation/
+Poll preparation remains byte-identical (237/240/240 files). Native execution,
+artifact verification and comparison are required before source equivalence;
+this does not prove rendered bubbles, taps or full app parity. See
+`docs/CHIEF_DATA_DETECTION.md` and `scripts/verify-ios-chief-detection.py`.
+
 ## Native Poll Details rotation independently verified — 2026-10-22
 
 Run 39801868525 succeeds at exact source
