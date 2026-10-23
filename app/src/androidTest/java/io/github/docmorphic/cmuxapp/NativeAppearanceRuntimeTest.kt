@@ -139,4 +139,57 @@ class NativeAppearanceRuntimeTest {
         File(folder, "signin-retained-result.json").writeText(JSONObject().put("sendCalls", sends.get()).put("signInCalls", signs.get())
             .put("completionCalls", completions.get()).put("codeAbsentFromSavedState", true).put("formPurgedAfterSuccess", true).toString(2))
     }
+
+    @Test fun verificationAndBillingRecoverySurviveRecreationWithoutRepeatingRequests() {
+        val verificationGate = CompletableDeferred<Unit>(); val billingGate = CompletableDeferred<Unit>()
+        val sends = AtomicInteger(); val verifications = AtomicInteger(); val billings = AtomicInteger()
+        val completions = AtomicInteger(); val cleared = AtomicInteger()
+        instrumentation.runOnMainSync {
+            owner = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            model = NativeSignInSession(owner!!, { sends.incrementAndGet()
+                throw NativeAccountRequestFailure("USER_EMAIL_ALREADY_EXISTS", true, "Fixture refusal") },
+                { error("Recovery must not exchange credentials") }, { cleared.incrementAndGet() },
+                { verifications.incrementAndGet(); verificationGate.await() },
+                { billings.incrementAndGet(); billingGate.await() })
+            NativeSignInLifecycleTestActivity.session = model
+            NativeSignInLifecycleTestActivity.completed = { completions.incrementAndGet() }
+        }
+        var recreations = 0
+        fun recreate() {
+            var old: NativeSignInLifecycleTestActivity? = null
+            form!!.onActivity { old = it }; form!!.recreate()
+            form!!.onActivity { assertNotSame(old, it); assertTrue(old!!.isDestroyed) }; recreations++
+        }
+        form = ActivityScenario.launch(NativeSignInLifecycleTestActivity::class.java)
+        val email = "recovery-lifecycle@example.test"
+        compose.onNodeWithTag("signin.email").performTextInput(email)
+        compose.onNodeWithTag("signin.request").performScrollTo().performClick()
+        compose.waitUntil(5_000) { verifications.get() == 1 }; recreate()
+        compose.onNodeWithTag("signin.emailVerification").assertExists()
+        compose.onNodeWithTag("signin.emailVerificationContinue").assertIsNotEnabled()
+        compose.onNodeWithTag("signin.emailVerificationResend").assertIsNotEnabled()
+        assertEquals(1, sends.get()); assertEquals(1, verifications.get())
+        verificationGate.complete(Unit); compose.waitUntil(5_000) { !model!!.state.value.busy }
+        compose.onNodeWithTag("signin.billingRecovery").performScrollTo().performClick()
+        compose.waitUntil(5_000) { billings.get() == 1 }; recreate()
+        compose.onNodeWithTag("signin.billingRecovery").assertIsNotEnabled()
+        billingGate.complete(Unit); compose.waitUntil(5_000) { model!!.state.value.billingRecoveryAccepted }; recreate()
+        compose.onNodeWithTag("signin.billingRecoveryMessage").assertExists()
+        assertEquals(1, billings.get()); assertEquals(0, completions.get())
+        val parcel = Parcel.obtain()
+        val bytes = try { parcel.writeBundle(checkNotNull(NativeSignInLifecycleTestActivity.saved)); parcel.marshall() }
+            finally { parcel.recycle() }
+        fun contains(pattern: ByteArray) = (0..bytes.size-pattern.size).any { start -> pattern.indices.all { bytes[start+it] == pattern[it] } }
+        assertFalse(contains(email.toByteArray()) || contains(email.toByteArray(Charsets.UTF_16LE)))
+        val before = cleared.get()
+        compose.onNodeWithTag("signin.useDifferentEmail").performScrollTo().performClick(); recreate()
+        compose.onNodeWithTag("signin.email").assertTextContains(email)
+        compose.onNodeWithTag("signin.emailVerification").assertDoesNotExist()
+        assertTrue(cleared.get() > before); assertEquals(1, sends.get()); assertEquals(1, verifications.get()); assertEquals(1, billings.get())
+        val folder = File(instrumentation.targetContext.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        File(folder, "signin-recovery-retained-result.json").writeText(JSONObject().put("sendCalls", sends.get())
+            .put("verificationCalls", verifications.get()).put("billingCalls", billings.get()).put("completions", completions.get())
+            .put("actualActivityRecreations", recreations).put("savedStateBytes", bytes.size).put("emailAbsentFromSavedState", true)
+            .put("scope", "Production retained sign-in owner and UI with gated fixture callbacks; no real account, physical device or TalkBack acceptance.").toString(2))
+    }
 }

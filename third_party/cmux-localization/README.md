@@ -70,3 +70,10 @@ The generator owns nine `cmux_markdown_strings.xml` files. `{url}` remains exact
 one literal shell substitution, not an Android printf argument. The labels are
 spliced into the unchanged shell as JSON. This does not localize all viewer or
 application status/error text or establish complete RTL/accessibility parity.
+
+`sign-in-recovery-strings.json` binds ten original native recovery keys (90 exact
+values across nine locales) to the main iOS and MobileShellUI catalogs at
+ a5911a1f. Per-key catalog/resource association and both whole catalog hashes are
+checked; only the email format argument maps `%@` to Android `%1$s`. The common
+generator writes/checks `cmux_signin_recovery_strings.xml` in all nine folders.
+Source-to-value comparison and runtime scope are documented in docs/SIGN_IN.md.

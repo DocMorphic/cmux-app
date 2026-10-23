@@ -291,6 +291,10 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
 
     suspend fun signIn(code: String): Unit = withContext(Dispatchers.IO) { emailSignIn.signIn(code) }
 
+    private val emailRecovery = NativeEmailRecoveryClient()
+    suspend fun requestEmailVerification(email: String) = emailRecovery.verification(email)
+    suspend fun requestBillingRecovery(email: String) = emailRecovery.billing(email)
+
     internal fun cancelPendingSignIn() = emailSignIn.clear()
 
     suspend fun accessToken(forceRefresh: Boolean = false): String? = refreshMutex.withLock {
@@ -433,12 +437,12 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
             connection.setRequestProperty("x-stack-random-nonce", UUID.randomUUID().toString())
             connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val httpStatus = connection.responseCode
-            val status = connection.getHeaderField("x-stack-actual-status")?.toIntOrNull() ?: httpStatus
+            val status = (connection.getHeaderField("x-hexclave-actual-status")
+                ?: connection.getHeaderField("x-stack-actual-status"))?.toIntOrNull() ?: httpStatus
             // Stack can carry an application error in an HTTP 200 response.
             val stream = if (httpStatus in 200..299) connection.inputStream else connection.errorStream
-            val result = JSONObject(stream?.bufferedReader()?.use { it.readText() }.orEmpty().ifBlank { "{}" })
-            if (status !in 200..299) error(result.optString("message").ifBlank { "Account request failed: HTTP $status" })
-            return result
+            return nativeAccountResponse(status, connection.getHeaderField("x-hexclave-known-error")
+                ?: connection.getHeaderField("x-stack-known-error"), stream?.bufferedReader()?.use { it.readText() }.orEmpty())
         } finally {
             connection.disconnect()
         }

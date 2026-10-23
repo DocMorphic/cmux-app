@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalogs": {
+    "ios/cmux/Resources/Localizable.xcstrings": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings": "e942c581def4193ffa841537b70774fa9b91f98688fef40e4c5001ef864183a7"
+  },
+  "strings": [
+    {
+      "key": "mobile.signIn.verificationTitle",
+      "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_title",
+      "translations": {
+        "en": "Verify your email",
+        "ar": "تحقق من بريدك الإلكتروني",
+        "de": "Bestätigen Sie Ihre E-Mail",
+        "es": "Verifica tu correo electrónico",
+        "fr": "Vérifiez votre email",
+        "ja": "メールアドレスを確認",
+        "ko": "이메일을 확인하세요",
+        "zh-Hans": "验证您的电子邮件",
+        "zh-Hant": "驗證您的電子郵件"
+      }
+    },
+    {
+      "key": "mobile.signIn.verificationBodyFormat",
+      "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_body",
+      "translations": {
+        "en": "We sent a verification link to %@. Open it, then return here.",
+        "ar": "لقد أرسلنا رابط التحقق إلى %@. افتحه، ثم ارجع إلى هنا.",
+        "de": "Wir haben einen Bestätigungslink an %@ gesendet. Öffnen Sie es und kehren Sie dann hierher zurück.",
+        "es": "Enviamos un enlace de verificación a %@. Ábrelo y luego regresa aquí.",
+        "fr": "Nous avons envoyé un lien de vérification à %@. Ouvrez-le, puis revenez ici.",
+        "ja": "%@ に確認リンクを送信しました。リンクを開いてから、ここに戻ってください。",
+        "ko": "%@로 확인 링크를 보냈습니다. 그것을 열고 여기로 돌아오세요.",
+        "zh-Hans": "我们向 %@ 发送了验证链接。打开它，然后返回这里。",
+        "zh-Hant": "我們向 %@ 發送了驗證連結。打開它，然後返回這裡。"
+      }
+    },
+    {
+      "key": "mobile.signIn.verificationContinue",
+      "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_continue",
+      "translations": {
+        "en": "I verified my email",
+        "ar": "لقد قمت بالتحقق من بريدي الإلكتروني",
+        "de": "Ich habe meine E-Mail bestätigt",
+        "es": "Verifiqué mi correo electrónico",
+        "fr": "J'ai vérifié mon email",
+        "ja": "メールを確認しました",
+        "ko": "이메일을 확인했습니다",
+        "zh-Hans": "我验证了我的电子邮件",
+        "zh-Hant": "我驗證了我的電子郵件"
+      }
+    },
+    {
+      "key": "mobile.signIn.verificationPending",
+      "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_pending",
+      "translations": {
+        "en": "That email is not verified yet. Open the verification link, then try again.",
+        "ar": "لم يتم التحقق من هذا البريد الإلكتروني بعد. افتح رابط التحقق، ثم حاول مرة أخرى.",
+        "de": "Diese E-Mail ist noch nicht bestätigt. Öffnen Sie den Bestätigungslink und versuchen Sie es erneut.",
+        "es": "Ese correo electrónico aún no está verificado. Abra el enlace de verificación y vuelva a intentarlo.",
+        "fr": "Cet e-mail n'est pas encore vérifié. Ouvrez le lien de vérification, puis réessayez.",
+        "ja": "このメールアドレスはまだ確認されていません。確認リンクを開いてから、もう一度お試しください。",
+        "ko": "해당 이메일은 아직 확인되지 않았습니다. 확인 링크를 연 후 다시 시도하세요.",
+        "zh-Hans": "该电子邮件尚未验证。打开验证链接，然后重试。",
+        "zh-Hant": "該電子郵件尚未驗證。打開驗證鏈接，然後重試。"
+      }
+    },
+    {
+      "key": "mobile.signIn.verificationResend",
+      "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_resend",
+      "translations": {
+        "en": "Resend verification email",
+        "ar": "إعادة إرسال البريد الإلكتروني للتحقق",
+        "de": "Bestätigungs-E-Mail erneut senden",
+        "es": "Reenviar correo electrónico de verificación",
+        "fr": "Renvoyer l'e-mail de vérification",
+        "ja": "確認メールを再送信",
+        "ko": "확인 이메일 다시 보내기",
+        "zh-Hans": "重新发送验证邮件",
+        "zh-Hant": "重新發送驗證郵件"
+      }
+    },
+    {
+      "key": "mobile.signIn.billingRecovery",
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_billing",
+      "translations": {
+        "en": "Already paid? Recover your account",
+        "ar": "دفعت بالفعل؟ استرداد حسابك",
+        "de": "Bereits bezahlt? Stellen Sie Ihr Konto wieder her",
+        "es": "¿Ya pagó? Recupera tu cuenta",
+        "fr": "Déjà payé ? Récupérez votre compte",
+        "ja": "お支払い済みですか？アカウントを復旧する",
+        "ko": "이미 지불하셨나요? 계정을 복구하세요",
+        "zh-Hans": "已经付款了？恢复您的帐户",
+        "zh-Hant": "已经付款了？恢復您的帳戶"
+      }
+    },
+    {
+      "key": "mobile.signIn.billingRecoverySent",
+      "catalog": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_accepted",
+      "translations": {
+        "en": "Request accepted. If you do not receive an email, try again later.",
+        "ar": "تم قبول الطلب. إذا لم تتلق بريدًا إلكترونيًا، حاول مرة أخرى لاحقًا.",
+        "de": "Anfrage angenommen. Wenn Sie keine E-Mail erhalten, versuchen Sie es später erneut.",
+        "es": "Solicitud aceptada. Si no recibe un correo electrónico, vuelva a intentarlo más tarde.",
+        "fr": "Demande acceptée. Si vous ne recevez pas d'e-mail, réessayez plus tard.",
+        "ja": "リクエストを受け付けました。メールが届かない場合は、しばらくしてからもう一度お試しください。",
+        "ko": "요청이 승인되었습니다. 이메일을 받지 못한 경우 나중에 다시 시도하세요.",
+        "zh-Hans": "请求已接受。如果您没有收到电子邮件，请稍后重试。",
+        "zh-Hant": "請求已接受。如果您沒有收到電子郵件，請稍後重試。"
+      }
+    },
+    {
+      "key": "mobile.signIn.useDifferentEmail",
+      "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_different",
+      "translations": {
+        "en": "Use a different email",
+        "ar": "استخدم بريدًا إلكترونيًا مختلفًا",
+        "de": "Verwenden Sie eine andere E-Mail",
+        "es": "Utilice un correo electrónico diferente",
+        "fr": "Utiliser une autre adresse e-mail",
+        "ja": "別のメールを使用",
+        "ko": "다른 이메일을 사용하세요",
+        "zh-Hans": "使用不同的电子邮件",
+        "zh-Hant": "使用不同的電子郵件"
+      }
+    },
+    {
+      "key": "auth.error.rate_limit",
+      "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_rate_limit",
+      "translations": {
+        "en": "Too many attempts. Please wait a moment and try again.",
+        "ar": "محاولات كثيرة جدًا. الرجاء الانتظار لحظة وحاول مرة أخرى.",
+        "de": "Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+        "es": "Demasiados intentos. Espere un momento e inténtelo de nuevo.",
+        "fr": "Trop de tentatives. Veuillez patienter un moment et réessayer.",
+        "ja": "試行回数が多すぎます。少し待ってからもう一度お試しください。",
+        "ko": "시도 횟수가 너무 많습니다. 잠시 후에 다시 시도해 주세요.",
+        "zh-Hans": "尝试次数太多。请稍等片刻，然后重试。",
+        "zh-Hant": "嘗試次數太多。請稍等片刻，然後重試。"
+      }
+    },
+    {
+      "key": "auth.error.server_error",
+      "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+      "resource": "cmux_signin_recovery_unavailable",
+      "translations": {
+        "en": "Something went wrong. Please try again.",
+        "ar": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+        "de": "Etwas ist schief gelaufen. Bitte versuchen Sie es erneut.",
+        "es": "Algo salió mal. Por favor inténtalo de nuevo.",
+        "fr": "Quelque chose s'est mal passé. Veuillez réessayer.",
+        "ja": "問題が発生しました。もう一度お試しください。",
+        "ko": "문제가 발생했습니다. 다시 시도해 주세요.",
+        "zh-Hans": "出了点问题。请再试一次。",
+        "zh-Hant": "出了點問題。請再試一次。"
+      }
+    }
+  ]
+}

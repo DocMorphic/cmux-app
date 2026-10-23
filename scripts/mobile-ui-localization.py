@@ -16,6 +16,7 @@ CLOUD_LIFECYCLE_DATA = ROOT / 'third_party/cmux-localization/cloud-lifecycle-str
 CLOUD_ONBOARDING_DATA = ROOT / 'third_party/cmux-localization/cloud-onboarding-strings.json'
 CLOUD_ONBOARDING_ANDROID_DATA = ROOT / 'third_party/cmux-localization/cloud-onboarding-android-strings.json'
 MARKDOWN_DATA = ROOT / 'third_party/cmux-localization/markdown-strings.json'
+SIGNIN_RECOVERY_DATA = ROOT / 'third_party/cmux-localization/sign-in-recovery-strings.json'
 LANGUAGES = ('en', 'ar', 'de', 'es', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant')
 FOLDERS = {'en': 'values', 'zh-Hans': 'values-b+zh+Hans', 'zh-Hant': 'values-b+zh+Hant'}
 NAME = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
@@ -283,6 +284,38 @@ def load_markdown_rows(path=MARKDOWN_DATA):
     return data['strings']
 
 
+def load_signin_recovery_rows(path=SIGNIN_RECOVERY_DATA):
+    data = json.loads(path.read_text())
+    expected_catalogs = {'ios/cmux/Resources/Localizable.xcstrings': '9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd',
+        'Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings': 'e942c581def4193ffa841537b70774fa9b91f98688fef40e4c5001ef864183a7'}
+    if data['version'] != 1 or data['upstream'] != 'a5911a1f92f3eeb11c4d7f3e2ef89204718c5009' or data['catalogs'] != expected_catalogs:
+        raise ValueError('Unreviewed sign-in recovery catalogs')
+    expected = ['verificationTitle', 'verificationBodyFormat', 'verificationContinue', 'verificationPending',
+        'verificationResend', 'billingRecovery', 'billingRecoverySent', 'useDifferentEmail']
+    keys = ['mobile.signIn.'+key for key in expected] + ['auth.error.rate_limit', 'auth.error.server_error']
+    expected = dict(zip(keys, ['cmux_signin_recovery_'+name for name in
+        ['title', 'body', 'continue', 'pending', 'resend', 'billing', 'accepted', 'different', 'rate_limit', 'unavailable']]))
+    if {row['key'] for row in data['strings']} != set(expected) or len(data['strings']) != len(expected):
+        raise ValueError('Incomplete sign-in recovery labels')
+    rows = []; names = set()
+    for original in data['strings']:
+        row = dict(original)
+        catalog = 'Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings' if row['key'] in {'mobile.signIn.billingRecovery', 'mobile.signIn.billingRecoverySent'} else 'ios/cmux/Resources/Localizable.xcstrings'
+        if row['catalog'] != catalog or row['resource'] != expected[row['key']] or row['resource'] in names or set(row['translations']) != set(LANGUAGES):
+            raise ValueError('Invalid sign-in recovery label')
+        formatted = row['key'] == 'mobile.signIn.verificationBodyFormat'
+        translated = {}
+        for language, value in row['translations'].items():
+            if not isinstance(value, str) or not value: raise ValueError('Empty sign-in recovery translation')
+            if formatted:
+                if value.count('%@') != 1 or '%' in value.replace('%@', ''): raise ValueError('Invalid sign-in email format')
+                value = value.replace('%@', '%1$s')
+            elif '%' in value: raise ValueError('Unexpected sign-in recovery format')
+            translated[language] = value
+        row.update(translations=translated, formatted=formatted); rows.append(row); names.add(row['resource'])
+    return rows
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--migrate', action='store_true')
@@ -294,6 +327,7 @@ def main():
     cloud_lifecycle_rows = load_cloud_lifecycle_rows()
     cloud_onboarding_rows = load_cloud_onboarding_rows()
     markdown_rows = load_markdown_rows()
+    signin_rows = load_signin_recovery_rows()
     if args.migrate:
         if args.check: parser.error('--migrate and --check are exclusive')
         changes = 0
@@ -344,7 +378,13 @@ def main():
                 raise ValueError(f'Generated Markdown resources differ: {folder}')
         else:
             markdown_path.write_bytes(encoded)
-    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog, {len(cloud_lifecycle_rows)} Cloud lifecycle, {len(cloud_onboarding_rows)} Cloud onboarding and {len(markdown_rows)} Markdown labels / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
+        signin_path = path.with_name('cmux_signin_recovery_strings.xml')
+        encoded = resource_xml(signin_rows, language, 'from pinned original native sign-in recovery catalogs; %@ maps to %1$s')
+        if args.check:
+            if not signin_path.is_file() or signin_path.read_bytes() != encoded: raise ValueError(f'Generated sign-in recovery resources differ: {folder}')
+        else:
+            signin_path.write_bytes(encoded)
+    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog, {len(cloud_lifecycle_rows)} Cloud lifecycle, {len(cloud_onboarding_rows)} Cloud onboarding, {len(markdown_rows)} Markdown and {len(signin_rows)} sign-in recovery labels / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
 
 
 if __name__ == '__main__':

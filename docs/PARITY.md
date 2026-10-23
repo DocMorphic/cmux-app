@@ -1,3 +1,32 @@
+## Native email-verification recovery implemented — 2026-10-24
+
+Android now preserves typed unverified-email refusals, requests verification and
+keeps resend/verified-retry/paid-recovery/different-email controls reachable after
+provider failure. The existing HTTPS endpoints accept only normalized email;
+neutral recovery never publishes credentials. Retained and fallback owners are
+wired, cancellation/retirement fenced, and failed codes clear. Ten original keys
+supply90 exact values across nine locales. All21 focused JVM and16 localization
+checks pass; final three-case owned API36 cohort passes9.581s, including four
+actual recovery Activity recreations without repeated requests and a916-byte
+saved state omitting email. Existing code stays out of saved state. Final frames
+reviewed, crash empty, settings/window restored, emulator exit0. Exact bindings,
+superseded host-frame scope and remaining gates: [SIGN_IN.md](SIGN_IN.md) and
+recovery-20261023/native-signin-recovery-checkpoint.json. Real backend/account,
+full original sign-in UI/methods/variants, Pixel/Mac/TalkBack and every full-app
+gate remain open. No real email or new signed delivery;722/physical712/global
+pins/account/pairing/signing unchanged. Goal active.
+
+## Original reader metrics accepted after strict reassociation — 2026-10-23
+
+Capture40025958696's three actual UIKit methods passed; its initial export guard
+rejected observed hidden/empty manager style-1. The corrected57 guards and strict
+retained-artifact association40028897537 atd1f0b37c pass; local/CI receipts are
+identical across52 frames/22 whole source files/13 loading dismissals. No captures
+or collector edited and no repeated UI run implied. Exact bindings and reviewed
+frames: recovery-20261023/ios-feed-reader-bar-metrics-checkpoint.json. Bar margins
+are measured but differ from Close AX/paint; no generalized Android edge rule or
+full app acceptance follows. Original run's export failure remains documented.
+
 ## Original navigation/status measurements recovered locally — 2026-10-23
 
 Original capture40025958696 at cleana3a68956 passes all three UIKit/XCUITest

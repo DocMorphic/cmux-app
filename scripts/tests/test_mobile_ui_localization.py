@@ -156,5 +156,43 @@ Text("Cancel")
             with self.assertRaises(ValueError): UI.load_cloud_onboarding_rows(path)
 
 
+    def test_signin_recovery_keeps_the_email_format_and_all_nine_locales(self):
+        rows = UI.load_signin_recovery_rows()
+        self.assertEqual(10, len(rows))
+        for language in UI.LANGUAGES:
+            xml = ET.fromstring(UI.resource_xml(rows, language))
+            formats = [e for e in xml.findall('string') if e.attrib['formatted'] == 'true']
+            self.assertEqual(1, len(formats)); self.assertEqual(1, formats[0].text.count('%1$s'))
+            self.assertNotIn('%@', formats[0].text)
+
+    def test_signin_recovery_rejects_missing_locale_and_unbound_email_format(self):
+        data = json.loads(UI.SIGNIN_RECOVERY_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'labels.json'
+            for value in ['No email', '%@ %@', '%d', '%@ %s']:
+                changed = copy.deepcopy(data)
+                next(r for r in changed['strings'] if r['key'].endswith('BodyFormat'))['translations']['ar'] = value
+                path.write_text(json.dumps(changed))
+                with self.assertRaises(ValueError): UI.load_signin_recovery_rows(path)
+            changed = copy.deepcopy(data); del changed['strings'][0]['translations']['ar']; path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_recovery_rows(path)
+
+    def test_signin_recovery_rejects_wrong_source_and_incomplete_actions(self):
+        data = json.loads(UI.SIGNIN_RECOVERY_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'labels.json'
+            changed = copy.deepcopy(data); changed['catalogs']['ios/cmux/Resources/Localizable.xcstrings'] = '0'*64
+            path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_recovery_rows(path)
+            changed = copy.deepcopy(data); changed['strings'].pop(); path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_recovery_rows(path)
+            changed = copy.deepcopy(data); changed['strings'][0]['resource'] = changed['strings'][1]['resource']
+            path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_recovery_rows(path)
+            changed = copy.deepcopy(data); changed['strings'][0]['catalog'] = 'Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings'
+            path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError): UI.load_signin_recovery_rows(path)
+
+
 if __name__ == '__main__':
     unittest.main()

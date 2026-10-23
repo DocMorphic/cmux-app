@@ -1,5 +1,16 @@
 # Agent Feed companion
 
+## Original reader metrics accepted after strict reassociation — 2026-10-23
+
+Capture40025958696's three actual UIKit methods passed; its initial export guard
+rejected observed hidden/empty manager style-1. The corrected57 guards and strict
+retained-artifact association40028897537 atd1f0b37c pass; local/CI receipts are
+identical across52 frames/22 whole source files/13 loading dismissals. No captures
+or collector edited and no repeated UI run implied. Exact bindings and reviewed
+frames: recovery-20261023/ios-feed-reader-bar-metrics-checkpoint.json. Bar margins
+are measured but differ from Close AX/paint; no generalized Android edge rule or
+full app acceptance follows. Original run's export failure remains documented.
+
 ## Original navigation/status measurements recovered locally — 2026-10-23
 
 Original capture40025958696 at cleana3a68956 passes all three UIKit/XCUITest

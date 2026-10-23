@@ -44,7 +44,8 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         validateForegroundRoute = compatibility.gate::verifyComputerRoute)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val signIn = NativeSignInSession(CoroutineScope(scope.coroutineContext + Dispatchers.Main.immediate),
-        account::sendCode, account::signIn, account::cancelPendingSignIn)
+        account::sendCode, account::signIn, account::cancelPendingSignIn,
+        account::requestEmailVerification, account::requestBillingRecovery)
     val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
         NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()

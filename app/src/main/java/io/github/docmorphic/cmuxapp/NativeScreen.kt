@@ -4037,7 +4037,9 @@ internal fun NativeScreen(
                     when {
                         !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
                             onLicenses = { showLicenses = true }, macPolicy = displayPolicy, onSignedIn = { signedIn = true; error = null },
-                            retained = sharedConnections?.signIn)
+                            retained = sharedConnections?.signIn,
+                            requestEmailVerification = account::requestEmailVerification, requestBillingRecovery = account::requestBillingRecovery,
+                            clearChallenge = account::cancelPendingSignIn)
                         showOnboarding -> onboardingContent()
                         showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
                         showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
@@ -4481,12 +4483,19 @@ internal fun NativeComputerPicker(
 internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (String) -> Unit,
                          onUseHelper: () -> Unit, onLicenses: () -> Unit,
                          macPolicy: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked,
-                         onSignedIn: () -> Unit, retained: NativeSignInSession? = null) {
+                         onSignedIn: () -> Unit, retained: NativeSignInSession? = null,
+                         requestEmailVerification: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
+                         requestBillingRecovery: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
+                         clearChallenge: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val send by rememberUpdatedState(sendCode)
     val authenticate by rememberUpdatedState(signIn)
+    val verification by rememberUpdatedState(requestEmailVerification)
+    val recovery by rememberUpdatedState(requestBillingRecovery)
+    val clearCurrentChallenge by rememberUpdatedState(clearChallenge)
     val completed by rememberUpdatedState(onSignedIn)
-    val local = remember(retained) { if (retained == null) NativeSignInSession(scope, { send(it) }, { authenticate(it) }) else null }
+    val local = remember(retained) { if (retained == null) NativeSignInSession(scope, { send(it) }, { authenticate(it) }, { clearCurrentChallenge() },
+        requestVerification = { verification(it) }, requestBilling = { recovery(it) }) else null }
     val session = retained ?: checkNotNull(local)
     DisposableEffect(local) { onDispose { local?.close() } }
     val form by session.state.collectAsState()
@@ -4505,6 +4514,7 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
             Text("Set up cmux on your Mac")
         }
         Spacer(Modifier.height(24.dp))
+        if (form.verificationRequired) NativeSignInRecoveryView(form, session) else {
         OutlinedTextField(email, session::editEmail,
             Modifier.fillMaxWidth().testTag("signin.email"), label = { Text("Email") }, singleLine = true, enabled = !busy,
             keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email))
@@ -4519,6 +4529,7 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
                 Modifier.fillMaxWidth().testTag("signin.code"), label = { Text("Six-character code") }, singleLine = true, enabled = !busy,
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
             Button(onClick = { session.submitCode() }, enabled = !busy && otp.length == 6, modifier = Modifier.fillMaxWidth().testTag("signin.submit")) { Text(if (busy) "Signing in…" else "Sign in") }
+        }
         }
         TextButton(onClick = { session.clear(); onUseHelper() }) { Text("Use existing helper connection") }
         TextButton(onClick = onLicenses) { Text("Open-source licenses") }
