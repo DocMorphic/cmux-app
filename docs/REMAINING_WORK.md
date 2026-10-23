@@ -1,15 +1,18 @@
 ## Current reader follow-through — 2026-10-23
 
-Title allocation, compact chrome and wide panel behavior now have nine scoped
-passing emulator invocations on one production APK; see AGENT_FEED.md and the
-presentation checkpoint. Keep their scope distinct from full visual acceptance.
-Next: finish/reverify original typography run 39969462359 (8c3d0817), reconcile
-actual toolbar fonts, capsule/material colors, loading and error allocation;
-verify compact landscape width and adaptive class-transition retention. Use the
-newly located official full-text preview/root/test for production Feed caller
-context rather than substituting the offline presenter for whole app evidence.
-Physical Pixel/Mac, real transport, TalkBack and all other completion gates below
-remain open. Physical 712/candidate 721 unchanged; no new pairing step is needed.
+Original typography run39969462359 is complete and verified:52 frames,39 title
+UIFont-to-AX associations and25 integrity guards. Android title17sp/max21dp and
+wide spacing now use those measurements. A native deep-restore placeholder race
+is repaired; the final nine-case cohort plus two wide profiles all pass. Evidence:
+AGENT_FEED.md and captures/recovery-20261023/native-feed-reader-title-role-checkpoint.json.
+Do not reuse earlier failed setup outputs or describe fixtures as full parity.
+
+Next: reconcile Close UIFont/capsule/material palette, loading/error allocation;
+verify compact landscape width and adaptive class-transition retention. Build and
+capture the located official full-text preview/root/test for production Feed caller
+context. Physical Pixel/Mac, real transport, TalkBack and every other completion
+gate below remain open. Physical712/candidate721 unchanged; no new pairing step
+is needed. Full goal/global source-pin audit remain active.
 
 ## Original 52-frame reader reference verified; source differences now measured — 2026-10-23
 

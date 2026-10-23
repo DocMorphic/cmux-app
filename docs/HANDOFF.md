@@ -1,20 +1,26 @@
-## Reader title/chrome and centered wide panel pass scoped checks — 2026-10-23
+## Measured title role and native restoration pass eleven checks — 2026-10-23
 
-Cancellation-side title allocation replaces forced symmetric centering. Compact
-chrome is reduced; wide readers use a centered 580 × 650 dp panel within actual
-system/cutout insets. Nine invocations pass against one production APK: seven
-compact/lifecycle/process checks plus portrait/landscape outside-tap/Back cases.
-Evidence, exact hashes, retained test-assumption failures and scope are in
-AGENT_FEED.md and the presentation checkpoint under captures/recovery-20261023/.
+Original typography run39969462359 at8c3d0817 is complete/successful. All52 frames
+verify;25 integrity guards bind title UIFont/frame to independent AX on39
+presented pages. Title17/21, body17/28 points; bar54; wide drag10/inset14. Close
+UIFont remains unobserved. The Android title role and wide spacing now follow
+those measured values. Restored native rows stay attached until precomputation
+finishes, then receive the saved deep offset/character.
 
-Original typography run 39969462359, job 120467965578, source 8c3d0817 remains
-live: poll that handle, verify exports, inspect measured fonts before changing
-role scaling. The actual official Feed full-text preview/root/test entry is now
-located; caller compilation/capture remains open. Fonts/colors/materials/error/
-spinner, compact landscape and adaptive-transition details, real transport,
-physical Pixel/Mac and TalkBack are not accepted. No new signed artifact or
-phone/Mac/pairing operation; physical 712 and candidate 721 remain unchanged.
-Full goal and global source pins remain open.
+Final owned cohort: nine native/control/header/Activity/process cases pass in
+108.875s, plus wide landscape4.057s and portrait3.798s. Exact installed APK/source
+binding, actual selected text/anchors,14k-line painted tail, two process restores,
+retained failures/setup interference and cleanup are recorded in AGENT_FEED.md
+and captures/recovery-20261023/native-feed-reader-title-role-checkpoint.json.
+Preflight had no System UI ANR; settings/wm restored, crash buffer empty, emulator
+exit0. No live test or original-reference job remains. Do not repeat failed setup
+captures as new results; all successful data is bound to the final APK hashes.
+
+Next: Close/capsule/palette, spinner/error allocation, compact landscape width,
+adaptive class-transition retention and official Feed preview/root context.
+Actual caller/transport, Pixel/Mac, TalkBack and all other gates stay open.
+Physical712 and candidate721 unchanged; these edits are not on the phone. No
+Mac/account/pairing action; the pairing popup can stay closed. Full goal active.
 
 ## Original 52-frame reader reference verified; source differences now measured — 2026-10-23
 

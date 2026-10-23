@@ -83,6 +83,13 @@ class AgentFeedFullTextHeaderTest {
                         (0 until layout.lineCount).none { layout.isLineEllipsized(it) }
                 })
             }
+            val titleLayouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            title.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(titleLayouts) }
+            for (layout in titleLayouts) with(layout.layoutInput.density) {
+                val expected = minOf(17 * p.scale, 21f)
+                assertEquals("Title role follows the measured source cap without shrinking the body scale", expected,
+                    layout.layoutInput.style.fontSize.toDp().value, .05f)
+            }
             assertTrue(c.left >= root.left && c.right <= root.right && t.left >= root.left && t.right <= root.right)
             if ((p.language == "en" && p.scale == 1f) || (p.language == "ar" && p.scale == 2f && !p.narrow) || (p.language == "de" && p.narrow)) {
                 compose.onNodeWithTag("AgentFeedFullTextHeader").captureToImage()

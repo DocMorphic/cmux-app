@@ -20,9 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -261,7 +264,7 @@ private fun AgentFeedFullTextPresentation(onDismiss: () -> Unit, content: @Compo
                 .testTag("AgentFeedFullTextPanel"), shape = RoundedCornerShape(32.dp),
                 color = NativeAppColors.page, contentColor = NativeAppColors.text) {
                 Column {
-                    AgentFeedFullTextDragIndicator()
+                    AgentFeedFullTextDragIndicator(wide = true)
                     Column(Modifier.fillMaxWidth().weight(1f).testTag("AgentFeedFullTextSheet"), content = content)
                 }
             }
@@ -276,8 +279,8 @@ private fun AgentFeedFullTextPresentation(onDismiss: () -> Unit, content: @Compo
 }
 
 @Composable
-private fun AgentFeedFullTextDragIndicator() {
-    Box(Modifier.fillMaxWidth().height(16.dp), contentAlignment = Alignment.Center) {
+private fun AgentFeedFullTextDragIndicator(wide: Boolean = false) {
+    Box(Modifier.fillMaxWidth().height(if (wide) 10.dp else 16.dp), contentAlignment = Alignment.Center) {
         Box(Modifier.size(36.dp, 5.dp).background(NativeAppColors.text.copy(alpha = .3f), RoundedCornerShape(50)))
     }
 }
@@ -285,12 +288,24 @@ private fun AgentFeedFullTextDragIndicator() {
 /** Center when space permits, then shift away from Close as the original bar does. */
 @Composable
 internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
-    androidx.compose.ui.layout.Layout(modifier = Modifier.fillMaxWidth().testTag("AgentFeedFullTextHeader").padding(horizontal = 20.dp, vertical = 3.dp), content = {
+    val configuration = LocalConfiguration.current
+    val wide = configuration.screenWidthDp >= 600 && configuration.screenHeightDp >= 600
+    val titleStyle = with(LocalDensity.current) {
+        // Source UIKit measurements: 17pt at ordinary text, capped at 21pt
+        // while the body reaches 28pt. Convert through the actual Android font
+        // scaler so nonlinear accessibility scaling cannot exceed that role cap.
+        val size = minOf(17.sp.toDp(), 21.dp)
+        TextStyle(fontSize = size.toSp(), lineHeight = (size * 1.2f).toSp(), letterSpacing = 0.sp,
+            platformStyle = PlatformTextStyle(includeFontPadding = false))
+    }
+    androidx.compose.ui.layout.Layout(modifier = Modifier.fillMaxWidth().testTag("AgentFeedFullTextHeader")
+        .padding(horizontal = if (wide) 14.dp else 20.dp, vertical = 3.dp), content = {
         TextButton(onClick = onDismiss) {
             Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619),
                 maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
         }
         Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_title_257807f0), Modifier.testTag("AgentFeedFullTextTitle"), fontWeight = FontWeight.SemiBold,
+            style = titleStyle,
             maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }) { children, constraints ->

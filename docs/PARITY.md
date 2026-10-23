@@ -1,15 +1,15 @@
-## Native reader title allocation and wide presentation advanced — 2026-10-23
+## Measured reader title and native restoration advanced — 2026-10-23
 
-Scoped partial progress: source-measured cancellation-side title allocation,
-smaller compact chrome and a centered bounded wide panel. Nine emulator test
-invocations pass on identical production APK, including real window inset
-geometry, outside-tap/Back dismissal, translated layouts and routed lifecycle/
-process recovery. See AGENT_FEED.md and the presentation checkpoint. This is
-not full reader appearance or whole app parity. Fonts, materials, spinner,
-error allocation, compact landscape widths, adaptive transitions, actual caller,
-real Pixel/Mac/transport and TalkBack remain open. Original typography run
-39969462359 is live at 8c3d0817; verify its exports before accepting font values.
-No signed release, device install, pairing action or global pin advance.
+Eleven final owned emulator invocations pass: source-based title role cap and
+wide spacing, native blocks/links/code, long painted text and selected anchors,
+actual Activity rotation/type/recreation, two process/task restores and wide
+platform dismissals. Original run39969462359 verifies52 frames plus39 title-font
+associations;25 evidence guards pass. Source17/21-point title and wide10-point
+drag/14-point inset guide the port. See AGENT_FEED.md and the title-role checkpoint.
+This accepts the recorded component/lifecycle scope only. Close typography,
+materials/colors/spinner/error allocation, compact landscape/adaptive transitions,
+actual caller/account/transport, real Pixel/Mac/TalkBack and full app parity remain
+open. No signed release, physical upgrade, pairing action or source-pin advance.
 
 ## Original 52-frame reader reference verified; source differences now measured — 2026-10-23
 

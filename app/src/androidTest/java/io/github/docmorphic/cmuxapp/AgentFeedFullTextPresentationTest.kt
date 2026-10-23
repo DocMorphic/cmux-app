@@ -69,7 +69,7 @@ class AgentFeedFullTextPresentationTest {
         assertEquals("Source panel width is 580 points; use dp on Android", 580f, bounds.width() / density, 1f)
         assertEquals("Native body centers between the actual system bars and camera cutout", usable.exactCenterX(), bounds.exactCenterX(), 2f)
         assertTrue("A centered panel leaves space below it", bounds.bottom < device.displayHeight - 100 * density)
-        val panelTop = bounds.top - 70 * density // 16dp drag area + 54dp toolbar at ordinary text.
+        val panelTop = bounds.top - 64 * density // Source wide panel: 10dp drag area + 54dp toolbar.
         assertEquals("Panel centers inside the platform's usable area", usable.exactCenterY(),
             (panelTop + bounds.bottom) / 2, 2f)
         assertTrue(device.click(usable.left + 8, usable.centerY()))

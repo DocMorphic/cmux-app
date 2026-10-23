@@ -1,5 +1,42 @@
 # Agent Feed companion
 
+## Measured title role and native restoration verified — 2026-10-23
+
+The original title UIFont is now observed directly: 17 points at ordinary text,
+21 at accessibility medium versus body17/28. Android's title starts at17sp and
+caps the role at21dp through the actual font scaler, without capping body text.
+The measured wide bar starts10 points below its panel top; Android now uses that
+10dp drag area and14dp horizontal bar inset. Original capture run39969462359
+succeeds at8c3d0817: all52 images verify, original CI/local receipts match, and
+stronger local guards bind all39 presented title fonts/frames to independent AX.
+All25 synthetic integrity guards pass. Close UIFont is not among those observed
+labels; its typography and the native material remain open.
+
+A restored deep offset could scroll a one-line placeholder away before its large
+paragraph finished precomputation. The native list now stages the target row at
+zero offset, then applies the saved character/offset when real metrics exist.
+Eleven invocations pass on the final candidate: nine native/controls/header/
+Activity/process cases in108.875s, wide landscape4.057s and portrait3.798s. This
+includes21 controlled header profiles, actual links/horizontal code,14k-line
+painted tail/selection/body-free save, actual system rotation/type and recreation,
+and two real process/task restorations. Final saved bundles10024/10028 bytes;
+process viewports match at two successive positions. App/test installed hashes
+match the captured APKs; preflight found no System UI ANR and took no Wait action.
+Crash buffer empty, settings and wm read back restored, owned emulator exits0.
+Reviewed Arabic, narrow German and wide frames. No new JVM-suite claim.
+
+Evidence: captures/recovery-20261023/native-feed-reader-title-role-checkpoint.json
+and ios-feed-reader-typography-checkpoint.json. Retain earlier Activity failures,
+installation/boot observation timeouts and System UI ANR interference; old output
+pulled by failed setup attempts is excluded. A timed-out APK installation later
+proved complete by exact hashes, so the same recovered emulator resumed without
+redundant installation. Observational timeouts are not app test outcomes.
+
+Close/capsule/palette, loading/error layout, compact landscape widths, adaptive
+class transitions, whole production caller, real transport/Pixel/Mac and TalkBack
+remain open. Candidate721 and physical712 are unchanged; no signed release or
+phone/Mac/pairing operation. The full goal and source-pin audit remain active.
+
 ## Title allocation and adaptive reader presentation verified — 2026-10-23
 
 The title now stays centered while space permits, then moves away from Close
@@ -26,9 +63,15 @@ readback matches, owned emulators exit 0. Reviewed compact/wide images.
 Evidence: captures/recovery-20261023/native-feed-reader-presentation-checkpoint.json.
 No new JVM claim is made for these UI-only changes.
 
-Typography observation run 39969462359 at 8c3d0817 is still running on its original
-handle. It measures public original navigation UILabel fonts/frames; no new font
-values are accepted yet. Poll and verify the same run. Whole original Feed preview
+Typography run 39969462359 at 8c3d0817 succeeds: all 52 images and original CI/local
+receipts match. Stronger local verification binds the title UIFont/frame to its
+independent AX target on all 39 presented pages; all 25 synthetic guards pass.
+Title sizes are 17/21 points versus body 17/28; the bar is 54 points, tablet drag
+area 10 points. Close UIFont remains unobserved. See the typography checkpoint.
+The Android title-role/tablet-spacing candidate and staged large-row restoration
+fix are under a new 11-invocation runtime audit. Its prior attempt had two Activity
+selection waits fail; retain those failures and do not extend the earlier nine
+passing results to this pending candidate. Whole original Feed preview
 entry/root and original testFeedFullTextReadingAndRetry are now source-audited in
 ios-feed-reader-production-preview-audit.json. This is not a compiled caller capture.
 

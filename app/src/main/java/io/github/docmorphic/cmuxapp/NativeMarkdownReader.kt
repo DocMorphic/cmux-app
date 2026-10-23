@@ -93,7 +93,11 @@ internal class NativeMarkdownList(context: Context, val blocks: List<NativeMarkd
             }
         })
         position.capture = capture
-        post { pending?.let { setSelectionFromTop(it.block.coerceIn(0, (blocks.size - 1).coerceAtLeast(0)), dp(it.offset)) } }
+        // Keep the target row attached while its text is precomputed. Applying
+        // a deep negative saved offset to a one-line placeholder can recycle it
+        // before it becomes ready, cancelling the very work needed to restore.
+        // rowLaidOut applies the saved character/offset once real metrics exist.
+        post { pending?.let { setSelectionFromTop(it.block.coerceIn(0, (blocks.size - 1).coerceAtLeast(0)), 0) } }
     }
 
     override fun dispatchSaveInstanceState(container: SparseArray<Parcelable>) = Unit
