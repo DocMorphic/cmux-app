@@ -476,3 +476,13 @@ Copyright Google LLC, licensed under the Apache License, Version 2.0.
 Source: https://github.com/google/material-design-icons/blob/master/src/action/translate/materialicons/24px.svg
 The glyph was converted from SVG to Android VectorDrawable.
 The full license is included in Apache-2.0.txt.
+
+The Feed full-text native Markdown block/parser/reader adapts
+ChatArtifactMarkdownDocument, ChatArtifactMarkdownBlock, ChatProseSegmenter,
+ChatTextBlockParser and ChatArtifactMarkdownNativeView at cmux
+a5911a1f92f3eeb11c4d7f3e2ef89204718c5009.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android adds lazy native rows, background inline preparation and coordinate-only
+reading/selection restoration. References and exact source hashes are in
+tests/native-markdown-reference/References.json. Native inline image labels
+follow the executed Foundation method while retaining Android URL restrictions.

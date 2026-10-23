@@ -1,3 +1,21 @@
+## Native Feed full-text rendering choice mounted — 2026-10-23
+
+Feed Formatted mode now uses the pinned source native block reader; ordinary
+artifact/terminal Markdown retains the web renderer. See `AGENT_FEED.md` for the
+full contract, 32 document / 20 original Foundation cases, final nine Android
+executions across normal/enlarged profiles, painted long-paragraph tails and
+3,144 JVM passes/four skips. Scrolling invalidates clipped native text display
+lists, fixing a real large-type Source stale-paint failure. Header controls fit
+intact. Final settings are calibrated/read back and owned emulators exit 0.
+Checkpoint: `captures/recovery-20261023/native-markdown-reader-checkpoint.json`.
+
+The rendering-choice source gap identified below is now implemented within
+these scopes. Original iOS UI, real Activity/process lifecycle, selection gestures,
+TalkBack, broad RTL/type/reflow, older APIs, full link routing and supporting
+Mac/Pixel remain open. Source fixtures/emulated save state do not establish them.
+720 excludes the newer native reader and earlier approval port. Physical712 stays
+released, availability/backend questions pending; full parity remains active.
+
 ## Native Markdown approval and current shared shell — 2026-10-23
 
 The scoped web Markdown port now uses twelve unchanged shared assets from

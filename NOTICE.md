@@ -833,3 +833,13 @@ explanations are separately authored in `cloud-onboarding-android-strings.json`.
 The original Swift colony method bodies are executed in an isolated value-type
 host to generate eight math vectors; only its mutating method declarations are
 adapted for non-`@State` storage. This is not native UI or full parity evidence.
+
+The Feed full-text native Markdown block/parser/reader adapts
+ChatArtifactMarkdownDocument, ChatArtifactMarkdownBlock, ChatProseSegmenter,
+ChatTextBlockParser and ChatArtifactMarkdownNativeView at cmux
+a5911a1f92f3eeb11c4d7f3e2ef89204718c5009.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android adds lazy native rows, background inline preparation and coordinate-only
+reading/selection restoration. References and exact source hashes are in
+tests/native-markdown-reference/References.json. Native inline image labels
+follow the executed Foundation method while retaining Android URL restrictions.

@@ -1,3 +1,33 @@
+## Feed native Markdown port and paint fix verified — 2026-10-23
+
+Formatted Feed full text now uses native lazy selectable blocks (all eight source
+kinds), with horizontal code/tables and coordinate-only saved state. Original
+source execution gives 32 document / 20 Foundation inline cases; ten focused JVM
+checks and the final full suite pass 3,144/four opt-in skips (3,148 cases, 428 XML).
+Normal cohort: six pass / 38.812 s; actual font scale 2 cohort: three pass / 43.513 s. Long
+formatted paragraph reaches 2,856,204px and the wrapped tail is actually painted;
+anchor/selection/mode/code-offset restoration and existing read/cancel/retry
+checks pass. Scope is local synthetic loads and StateRestorationTester, not
+real authenticated transport/Activity/process death. Frames reviewed, crash
+buffers empty, setting restores read back and owned emulators exit 0.
+
+Visual/runtime QA fixed a split Source header word and a real stale native Source
+paint after long scrolls. Both readers now invalidate clipped text display lists.
+The runner explicitly calibrates actual font profiles and waits for asynchronous
+settings persistence; later cold boots see restored 1.0. Failed runs/predicate
+assumptions remain recorded. Source/hash/case harness:
+`tests/native-markdown-reference/`. Details: `AGENT_FEED.md`; checkpoint:
+`captures/recovery-20261023/native-markdown-reader-checkpoint.json`.
+
+Next verification: matched original native reader UI/traits and Android appearance/
+reflow/selection/TalkBack/lifecycle, alongside broader source reconciliation and
+all real Mac/Pixel gates. Do not advance global source pins or treat the remaining
+920-path inventory as reconciled. Existing Android URL restrictions remain; the
+source's full URL routing needs comparison. API 26/27 font guard is implemented,
+not runtime-verified. No new signed artifact/publication or account/pairing/Mac/
+phone operation. Signed 720 excludes both latest Markdown ports; physical 712 stays
+released. Fresh availability/backend replies remain pending. Full goal active.
+
 ## Markdown native approval port verified; Feed native reader next — 2026-10-23
 
 The current source shell/sanitizer, native exact-URL image approval/open callbacks

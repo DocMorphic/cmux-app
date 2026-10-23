@@ -1,5 +1,81 @@
 # Agent Feed companion
 
+## Native formatted full-text reader — 2026-10-23
+
+The a5911a1f source rendering choice is now mounted: Feed Formatted mode uses
+native block rows rather than the web viewer. Artifact/terminal Markdown still
+uses its source-selected web route. `NativeMarkdownDocument` follows the five
+original block/segment/parser files: headings, paragraphs, indented bullets and
+ordered markers, quotes, rules, fenced code and raw monospaced table rows. Code
+and table rows scroll horizontally. Font roles, spacing, quote bar, code caption/
+card and indentation follow the original native leaf, mapped to Android fonts.
+This is not matched UIKit/SwiftUI font/material/layout acceptance.
+
+Local CLT execution compiles five whole unchanged source files and the original
+`renderedInline` method body (without its SwiftUI view). All 32 document and 20
+Foundation inline cases match, within the existing Android representable-URL
+policy. Unicode numeric graphemes, Foundation whitespace, Swift CRLF Character
+splitting, code-fence edges and table boundaries are preserved. Source comparison
+caught image-label style differences: inner alt formatting is flattened while
+outer styles/links remain, now also fixed in the shared inline renderer. Images
+and HTML remain native text with no image/network execution. Relative/file/other
+URL routing still needs comparison; raw original URL attributes remain in the
+fixture rather than being erased to claim full equivalence.
+
+The reader uses lazy native rows to avoid Compose's packed height limit for a
+single large paragraph. Block parsing and inline/precomputed-text preparation run
+off the UI thread, with owner/recycled-row cancellation and late-result guards.
+The full-message path has no 8 KiB timeline cap or full-body preview cache. The
+structural JVM cases preserve near-8-MiB paragraphs and unclosed code; that is not
+8-MiB physical-device performance acceptance. Only block/character anchors, line
+fractions, selection and horizontal coordinates are saveable. Native hierarchy
+saving is disabled; loaded messages/spans never enter the Bundle. Existing modal
+account/Mac/event fences, authorized load/read and cancellation remain in place.
+
+Source/Formatted/Close controls now use natural widths with complete one-line
+labels, fixing the enlarged Source word split. A strict generic Compose overflow
+flag initially rejected an intact label: its glyph intrinsic width 109.5 fits the
+measured 110 px slot. The final guard checks complete text, one line, height and
+actual intrinsic glyph width with a one-physical-pixel quantization fence.
+
+The final owned API 36 cohorts pass **six normal-size cases in 38.812 s and three
+enlarged-size cases in 43.513 s** (nine executions/six distinct methods). The
+formatted 14,000-line paragraph is 826,059 px tall at font scale 1 and 2,856,204 px at
+actual system font scale 2. Anchor/selection survive StateRestorationTester saved-state
+emulation and mode switches; read/load counts stay correct, hierarchy contains
+no message, a real link tap is intercepted correctly and code scroll restores
+900 px. The tail wraps onto two large-type lines and actual screenshot ink
+matches 20,751/20,988 reference pixels; normal tail matches 6,788/6,835. Native
+rows have no WebView. Four existing Source/load/retry/late-close cases pass in
+the normal cohort, with the long Source case repeated at large type.
+
+The enlarged test exposed a real legacy Source paint bug: position reported the
+end while old text stayed painted after a long jump. Parent scrolling now
+invalidates clipped TextView display lists in both readers; the large Source
+case passes with its actual final-line pixels. The emulator initially retained
+font scale 2 over cold boot after an asynchronous settings write; final runners set and
+assert each actual Activity font profile, delay/read back/sync restoration and
+subsequent boots observe the restored 1.0. Earlier failures and frames are retained.
+These are owned-emulator settings only, not the phone's settings.
+
+The final full JVM suite passes **3,144 with four opt-in skips, zero failures or
+errors** (3,148 cases/428 reports). Ten focused Markdown cases pass. All 22 debug
+viewer assets and exact packaged NOTICE verify; native engine inputs are
+unchanged. Normal/enlarged code and tail frames are reviewed; crash buffers are
+empty and owned emulators exit 0. Evidence:
+`captures/recovery-20261023/native-markdown-reader-checkpoint.json`, final
+`native-markdown-reader-runtime-v5/` and `native-markdown-reader-large-v2/`.
+Reference/hash/case files: `tests/native-markdown-reference/`.
+
+This closes the known web-versus-native rendering-choice gap only. Matched
+original iOS UI, light/dark/RTL and broader type/reflow, real Activity/process
+recreation, native selection gestures, TalkBack, older API 26/27 runtime (font
+fallback implemented), URL routing, supporting Mac and physical Pixel acceptance
+remain open. No new signed build, publication, account/pairing/Mac/phone action
+occurs. 720 excludes this and the prior approval port; physical 712 stays released.
+Global source pins and the full-parity goal remain unchanged/active.
+
+
 ## Source and scope
 
 This port is scoped to official iOS source at

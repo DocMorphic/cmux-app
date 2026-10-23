@@ -1,3 +1,22 @@
+## Native Feed reader verified within scoped gates — 2026-10-23
+
+The known source native rendering choice is implemented: full Feed text uses
+native selectable lazy blocks without the 8-KiB timeline cap, with retained
+reading/selection/code scroll and no body in saved state. Thirty-two document and
+20 original Foundation cases match within Android's URL policy. Final Android
+cohorts pass six normal and three enlarged executions, including actual painted
+14,000-line tails, restored state and Source/load/cancellation regressions. A
+Source stale-paint bug and enlarged header wrapping are fixed. Final full JVM:
+3,144 pass/four opt-in skips. See `AGENT_FEED.md` and the native-reader checkpoint.
+
+This implements the rendering choice, not full source/UI/device acceptance.
+Matched native traits/UI, broad appearance/RTL/reflow, real Activity/process
+recreation, native selection/TalkBack, older APIs and full source URL routing
+remain. Continue original-UI verification/broader source audit and all completion
+gates below. No new signed build/phone/account/Mac action; 720 excludes both new
+Markdown ports and physical 712 stays released. Availability/backend questions
+remain pending. Global pins unchanged; full parity goal remains active.
+
 ## Markdown native image approval verified; native Feed reader open — 2026-10-23
 
 The current shell/sanitizer and native exact-URL approval/open/navigation port
@@ -3708,7 +3727,7 @@ unchanged until reconciliation. See the latest HANDOFF.md and PARITY.md entries.
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
 | Chief conversations | Finish the initial capability-gated Android Home/transcript/question port from the Oct 20 audit candidate; CHIEF.md records its source, session/race and Android fixture evidence. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
-| Agent Feed | Verify the revised reply editor/full-text sheet and broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
+| Agent Feed | Verify the revised reply editor and new native full-text reader, including original UI/traits, URL routing and broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
 | Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |

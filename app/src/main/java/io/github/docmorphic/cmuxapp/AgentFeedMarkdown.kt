@@ -107,30 +107,31 @@ internal object AgentFeedMarkdown {
         val plain = AgentMarkdownStyle()
         append(source.take(start), plain)
         if (end > start) {
-            val stack = ArrayDeque<Pair<Node, AgentMarkdownStyle>>()
+            val stack = ArrayDeque<Triple<Node, AgentMarkdownStyle, Boolean>>()
             val body = source.substring(start, end)
             // A single synthetic block bootstraps the public inline-parser API. Feeding
             // body through the document parser would split it at blank lines.
             // A punctuation marker avoids CommonMark's letter-start paragraph fast path.
-            stack.addLast(parser(body).parse("#") to plain)
+            stack.addLast(Triple(parser(body).parse("#"), plain, false))
             while (stack.isNotEmpty()) {
-                val (node, inherited) = stack.removeLast()
-                val style = when (node) {
+                val (node, inherited, imageLabel) = stack.removeLast()
+                // Foundation flattens an image's label, retaining styles/links
+                // from outside the image but none authored inside its alt text.
+                val style = if (imageLabel) inherited else when (node) {
                     is StrongEmphasis -> inherited.copy(bold = true)
                     is Emphasis -> inherited.copy(italic = true)
                     is Strikethrough -> inherited.copy(strike = true)
                     is Link -> inherited.copy(link = node.destination.takeIf(MarkdownPreviewPolicy::external))
-                    is Image -> inherited.copy(link = null)
                     else -> inherited
                 }
                 when (node) {
                     is org.commonmark.node.Text -> append(node.literal, style)
-                    is Code -> append(node.literal, style.copy(code = true))
+                    is Code -> append(node.literal, if (imageLabel) style else style.copy(code = true))
                     is SoftLineBreak, is HardLineBreak -> append("\n", style)
                     is HtmlInline -> append(node.literal, style)
                     else -> {
                         var child = node.lastChild
-                        while (child != null) { stack.addLast(child to style); child = child.previous }
+                        while (child != null) { stack.addLast(Triple(child, style, imageLabel || node is Image)); child = child.previous }
                     }
                 }
             }

@@ -1,0 +1,1217 @@
+{
+  "documents": [
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "HEADING",
+          "level": 1,
+          "text": "Guide"
+        },
+        {
+          "index": 1,
+          "kind": "PARAGRAPH",
+          "text": "Intro with **bold** text."
+        },
+        {
+          "indent": 0,
+          "index": 2,
+          "kind": "BULLET",
+          "text": "one"
+        },
+        {
+          "indent": 0,
+          "index": 3,
+          "kind": "ORDERED",
+          "marker": "2.",
+          "text": "two"
+        },
+        {
+          "index": 4,
+          "kind": "CODE",
+          "language": "swift",
+          "text": "print(\"hi\")"
+        },
+        {
+          "header": true,
+          "index": 5,
+          "kind": "TABLE_ROW",
+          "text": "kind │ file"
+        },
+        {
+          "header": false,
+          "index": 6,
+          "kind": "TABLE_ROW",
+          "text": "log │ build.log"
+        },
+        {
+          "header": false,
+          "index": 7,
+          "kind": "TABLE_ROW",
+          "text": "data │ data.csv"
+        }
+      ],
+      "input": "# Guide\n\nIntro with **bold** text.\n\n- one\n2. two\n\n```swift\nprint(\"hi\")\n```\n\n| kind | file |\n| --- | --- |\n| log | build.log |\n| data | data.csv |"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "HEADING",
+          "level": 1,
+          "text": "Title"
+        },
+        {
+          "index": 1,
+          "kind": "HEADING",
+          "level": 2,
+          "text": "Sub"
+        },
+        {
+          "index": 2,
+          "kind": "HEADING",
+          "level": 3,
+          "text": "Small"
+        },
+        {
+          "index": 3,
+          "kind": "HEADING",
+          "level": 4,
+          "text": "Detail"
+        },
+        {
+          "index": 4,
+          "kind": "HEADING",
+          "level": 5,
+          "text": "Five"
+        },
+        {
+          "index": 5,
+          "kind": "HEADING",
+          "level": 6,
+          "text": "Six"
+        }
+      ],
+      "input": "# Title\n## Sub\n### Small\n#### Detail\n##### Five\n###### Six"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "#hashtag\n####### not heading\n# \n##"
+        }
+      ],
+      "input": "#hashtag\n####### not heading\n# \n##  "
+    },
+    {
+      "blocks": [
+        {
+          "indent": 0,
+          "index": 0,
+          "kind": "BULLET",
+          "text": "first"
+        },
+        {
+          "indent": 0,
+          "index": 1,
+          "kind": "BULLET",
+          "text": "second"
+        },
+        {
+          "indent": 0,
+          "index": 2,
+          "kind": "BULLET",
+          "text": "third"
+        },
+        {
+          "indent": 0,
+          "index": 3,
+          "kind": "ORDERED",
+          "marker": "1.",
+          "text": "one"
+        },
+        {
+          "indent": 0,
+          "index": 4,
+          "kind": "ORDERED",
+          "marker": "2)",
+          "text": "two"
+        },
+        {
+          "indent": 1,
+          "index": 5,
+          "kind": "BULLET",
+          "text": "nested"
+        },
+        {
+          "indent": 5,
+          "index": 6,
+          "kind": "ORDERED",
+          "marker": "12.",
+          "text": "deep"
+        },
+        {
+          "indent": 0,
+          "index": 7,
+          "kind": "BULLET",
+          "text": "tab"
+        }
+      ],
+      "input": "- first\n* second\n+ third\n1. one\n2) two\n  - nested\n          12. deep\n\t- tab"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "QUOTE",
+          "text": "quoted"
+        },
+        {
+          "index": 1,
+          "kind": "QUOTE",
+          "text": "> nested marker"
+        },
+        {
+          "index": 2,
+          "kind": "QUOTE",
+          "text": ""
+        },
+        {
+          "index": 3,
+          "kind": "QUOTE",
+          "text": "**bold**"
+        }
+      ],
+      "input": "> quoted\n>> nested marker\n>\n> **bold**"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "line one\nline two"
+        },
+        {
+          "index": 1,
+          "kind": "PARAGRAPH",
+          "text": "second para"
+        }
+      ],
+      "input": "line one\nline two\n\nsecond para"
+    },
+    {
+      "blocks": [],
+      "input": "  \n\n"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "RULE",
+          "text": ""
+        },
+        {
+          "index": 1,
+          "kind": "RULE",
+          "text": ""
+        },
+        {
+          "index": 2,
+          "kind": "RULE",
+          "text": ""
+        },
+        {
+          "index": 3,
+          "kind": "RULE",
+          "text": ""
+        },
+        {
+          "index": 4,
+          "kind": "RULE",
+          "text": ""
+        }
+      ],
+      "input": "---\n* * *\n___\n- - -\n-----"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "before"
+        },
+        {
+          "index": 1,
+          "kind": "RULE",
+          "text": ""
+        },
+        {
+          "index": 2,
+          "kind": "PARAGRAPH",
+          "text": "after"
+        }
+      ],
+      "input": "before\n---\nafter"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "-- not rule\n-rf\n1.5 release"
+        }
+      ],
+      "input": "-- not rule\n-rf\n1.5 release"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "CODE",
+          "language": null,
+          "text": ""
+        }
+      ],
+      "input": "```\n```"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "CODE",
+          "language": "rust",
+          "text": "fn main() {}"
+        }
+      ],
+      "input": "```rust\nfn main() {}"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "CODE",
+          "language": null,
+          "text": ""
+        }
+      ],
+      "input": "```\n\n```"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "before"
+        },
+        {
+          "index": 1,
+          "kind": "CODE",
+          "language": "python",
+          "text": "# not heading\n- not bullet"
+        },
+        {
+          "index": 2,
+          "kind": "PARAGRAPH",
+          "text": "after"
+        }
+      ],
+      "input": "before\n```python\n# not heading\n- not bullet\n```\nafter"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "CODE",
+          "language": "`lang",
+          "text": "a"
+        },
+        {
+          "index": 1,
+          "kind": "PARAGRAPH",
+          "text": "after"
+        }
+      ],
+      "input": "````lang\na\n```ignored\nafter"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "~~~swift\ncode\n~~~"
+        }
+      ],
+      "input": "~~~swift\ncode\n~~~"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "CODE",
+          "language": "swift",
+          "text": "  a  \n\n b"
+        }
+      ],
+      "input": "  ```  swift  \n  a  \n\n b\n ```"
+    },
+    {
+      "blocks": [
+        {
+          "header": true,
+          "index": 0,
+          "kind": "TABLE_ROW",
+          "text": "a │ b"
+        },
+        {
+          "header": false,
+          "index": 1,
+          "kind": "TABLE_ROW",
+          "text": "**bold** │ `raw`"
+        },
+        {
+          "index": 2,
+          "kind": "PARAGRAPH",
+          "text": "after"
+        }
+      ],
+      "input": "| a | b |\n| :--- | ---: |\n| **bold** | `raw` |\nafter"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "intro"
+        },
+        {
+          "header": true,
+          "index": 1,
+          "kind": "TABLE_ROW",
+          "text": "a │ b"
+        },
+        {
+          "header": false,
+          "index": 2,
+          "kind": "TABLE_ROW",
+          "text": "x │ y"
+        },
+        {
+          "index": 3,
+          "kind": "PARAGRAPH",
+          "text": "plain\nmore"
+        }
+      ],
+      "input": "intro\n| a | b |\n| --- | --- |\n| x | y |\nplain\nmore"
+    },
+    {
+      "blocks": [
+        {
+          "header": true,
+          "index": 0,
+          "kind": "TABLE_ROW",
+          "text": "a │ b"
+        },
+        {
+          "header": false,
+          "index": 1,
+          "kind": "TABLE_ROW",
+          "text": "x │ y"
+        }
+      ],
+      "input": "| a || b |\n| --- || --- |\n| x || y |"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "| a | |\n| --- | --- |\n| x | y |"
+        }
+      ],
+      "input": "| a | |\n| --- | --- |\n| x | y |"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "a|b\n--|---\nx|y"
+        }
+      ],
+      "input": "a|b\n--|---\nx|y"
+    },
+    {
+      "blocks": [
+        {
+          "header": true,
+          "index": 0,
+          "kind": "TABLE_ROW",
+          "text": "a │ b"
+        },
+        {
+          "header": false,
+          "index": 1,
+          "kind": "TABLE_ROW",
+          "text": "x │ y"
+        },
+        {
+          "index": 2,
+          "kind": "PARAGRAPH",
+          "text": "heading"
+        },
+        {
+          "index": 3,
+          "kind": "HEADING",
+          "level": 1,
+          "text": "A"
+        }
+      ],
+      "input": "a|b\n---|---\nx|y\n\nheading\n# A"
+    },
+    {
+      "blocks": [
+        {
+          "indent": 0,
+          "index": 0,
+          "kind": "ORDERED",
+          "marker": "١.",
+          "text": "العربية"
+        },
+        {
+          "indent": 0,
+          "index": 1,
+          "kind": "ORDERED",
+          "marker": "１２)",
+          "text": "日本語"
+        },
+        {
+          "indent": 0,
+          "index": 2,
+          "kind": "ORDERED",
+          "marker": "².",
+          "text": "super"
+        },
+        {
+          "indent": 0,
+          "index": 3,
+          "kind": "ORDERED",
+          "marker": "Ⅳ)",
+          "text": "roman"
+        },
+        {
+          "indent": 0,
+          "index": 4,
+          "kind": "ORDERED",
+          "marker": "五.",
+          "text": "chinese"
+        },
+        {
+          "indent": 0,
+          "index": 5,
+          "kind": "ORDERED",
+          "marker": "𝟙.",
+          "text": "math"
+        },
+        {
+          "indent": 0,
+          "index": 6,
+          "kind": "ORDERED",
+          "marker": "1️⃣.",
+          "text": "keycap"
+        },
+        {
+          "index": 7,
+          "kind": "PARAGRAPH",
+          "text": "A. not ordered"
+        }
+      ],
+      "input": "١. العربية\n１２) 日本語\n². super\nⅣ) roman\n五. chinese\n𝟙. math\n1️⃣. keycap\nA. not ordered"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "HEADING",
+          "level": 1,
+          "text": "Trimmed"
+        },
+        {
+          "indent": 0,
+          "index": 1,
+          "kind": "BULLET",
+          "text": "nonbreak"
+        },
+        {
+          "index": 2,
+          "kind": "PARAGRAPH",
+          "text": "- not bullet\n-\tno space\n#\tno space"
+        }
+      ],
+      "input": "​# Trimmed​\n - nonbreak\n- not bullet\n-\tno space\n#\tno space"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "HEADING",
+          "level": 1,
+          "text": "Heading\r\n\r\n- literal within one Swift character-line"
+        }
+      ],
+      "input": "# Heading\r\n\r\n- literal within one Swift character-line"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "one\r\ntwo"
+        }
+      ],
+      "input": "one\r\ntwo"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "CODE",
+          "language": "swift\r\nbody\r\n```",
+          "text": ""
+        }
+      ],
+      "input": "```swift\r\nbody\r\n```"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "RULE",
+          "text": ""
+        }
+      ],
+      "input": "***"
+    },
+    {
+      "blocks": [
+        {
+          "indent": 0,
+          "index": 0,
+          "kind": "BULLET",
+          "text": "- -"
+        }
+      ],
+      "input": "- ​- -"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "<b>HTML</b> ![image](https://example.com/a.png)"
+        },
+        {
+          "index": 1,
+          "kind": "PARAGRAPH",
+          "text": "尾部 😀"
+        }
+      ],
+      "input": "<b>HTML</b> ![image](https://example.com/a.png)\n\n尾部 😀"
+    },
+    {
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "PARAGRAPH",
+          "text": "paragraph  \n  next"
+        },
+        {
+          "index": 1,
+          "kind": "PARAGRAPH",
+          "text": "tail"
+        }
+      ],
+      "input": "  paragraph  \n  next  \n\n  tail  "
+    }
+  ],
+  "inline": [
+    {
+      "input": "  # Heading\n\n**bold** and *italic* plus `code`\n  tail  ",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "  # Heading\n\n"
+        },
+        {
+          "bold": true,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "bold"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " and "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": true,
+          "link": null,
+          "strike": false,
+          "text": "italic"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " plus "
+        },
+        {
+          "bold": false,
+          "code": true,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "code"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "\n  tail  "
+        }
+      ]
+    },
+    {
+      "input": "***both*** &amp; \\*literal\\* `**raw**`",
+      "runs": [
+        {
+          "bold": true,
+          "code": false,
+          "italic": true,
+          "link": null,
+          "strike": false,
+          "text": "both"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " & *literal* "
+        },
+        {
+          "bold": false,
+          "code": true,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "**raw**"
+        }
+      ]
+    },
+    {
+      "input": "~~gone~~ [site](https://cmux.com) ![alt](https://example.com/a.png)",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": true,
+          "text": "gone"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": "https://cmux.com",
+          "strike": false,
+          "text": "site"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "alt"
+        }
+      ]
+    },
+    {
+      "input": "**unfinished _and_ `text",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "**unfinished "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": true,
+          "link": null,
+          "strike": false,
+          "text": "and"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " `text"
+        }
+      ]
+    },
+    {
+      "input": "before  \n\t after",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "before  \n\t after"
+        }
+      ]
+    },
+    {
+      "input": "**bold\n\n  still bold**",
+      "runs": [
+        {
+          "bold": true,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "bold\n\n  still bold"
+        }
+      ]
+    },
+    {
+      "input": "<b>literal HTML</b> &lt;tag&gt;",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "<b>"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "literal HTML"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "</b>"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " <tag>"
+        }
+      ]
+    },
+    {
+      "input": "[unsafe](javascript:alert) [file](file:///x) [relative](next.md)",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": "javascript:alert",
+          "strike": false,
+          "text": "unsafe"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": "file:///x",
+          "strike": false,
+          "text": "file"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": "next.md",
+          "strike": false,
+          "text": "relative"
+        }
+      ]
+    },
+    {
+      "input": "`a\nb` and `` a  b ``",
+      "runs": [
+        {
+          "bold": false,
+          "code": true,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "a b"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " and "
+        },
+        {
+          "bold": false,
+          "code": true,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "a  b"
+        }
+      ]
+    },
+    {
+      "input": "😀 **你好** العربية *مرحبا*",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "😀 "
+        },
+        {
+          "bold": true,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "你好"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " العربية "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": true,
+          "link": null,
+          "strike": false,
+          "text": "مرحبا"
+        }
+      ]
+    },
+    {
+      "input": "a\\\nb  \nc",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "a"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "\n"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "b  \nc"
+        }
+      ]
+    },
+    {
+      "input": "![**alt**](https://example.com/a.png)",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "alt"
+        }
+      ]
+    },
+    {
+      "input": "\\_literal\\_ &nbsp; text",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "_literal_   text"
+        }
+      ]
+    },
+    {
+      "input": "   ",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "   "
+        }
+      ]
+    },
+    {
+      "input": "**a** *b* ~~c~~ `d` [e](mailto:hello@example.com)",
+      "runs": [
+        {
+          "bold": true,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "a"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": true,
+          "link": null,
+          "strike": false,
+          "text": "b"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": true,
+          "text": "c"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " "
+        },
+        {
+          "bold": false,
+          "code": true,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "d"
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " "
+        },
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": "mailto:hello@example.com",
+          "strike": false,
+          "text": "e"
+        }
+      ]
+    },
+    {
+      "input": "**![alt](https://example.com/a.png)**",
+      "runs": [
+        {
+          "bold": true,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "alt"
+        }
+      ]
+    },
+    {
+      "input": "**before ![alt](https://example.com/a.png) after**",
+      "runs": [
+        {
+          "bold": true,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "before "
+        },
+        {
+          "bold": true,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "alt"
+        },
+        {
+          "bold": true,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": " after"
+        }
+      ]
+    },
+    {
+      "input": "![*italic* ~~strike~~ `code` [link](https://cmux.com)](https://example.com/a.png)",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "italic strike code link"
+        }
+      ]
+    },
+    {
+      "input": "[![alt](https://example.com/a.png)](https://cmux.com)",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": "https://cmux.com",
+          "strike": false,
+          "text": "alt"
+        }
+      ]
+    },
+    {
+      "input": "![a &amp; b](https://example.com/a.png)",
+      "runs": [
+        {
+          "bold": false,
+          "code": false,
+          "italic": false,
+          "link": null,
+          "strike": false,
+          "text": "a & b"
+        }
+      ]
+    }
+  ],
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "sourceFiles": {
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMarkdownBlock.swift": "d5bed7d0a519b28c8ce12d52ebb1456de559db027b7a48dd279bf6f9c9a98839",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMarkdownDocument.swift": "5274a1d7107453b87b450630703e7fa1f686b14f53946c86694c499ae280b3ba",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/ChatProseSegment.swift": "ed46c1b264a3d7f47e790ac26e4f42eeb735f82443f5064d9a310085c39ebdc5",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/ChatProseSegmenter.swift": "5242ac8c21ac49be6bf2586f88238d67f38917bb62539ca1f9a408e4c7dca0f6",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/ChatTextBlock.swift": "9bd0a8d9dbda54c113ac33d6339bd037afe1406504ab10757e678ba722ee3589"
+  },
+  "inlineSource": {
+    "path": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMarkdownView.swift",
+    "sha256": "796545ff8cca1c92955237a3446ff96c1668eaf83c6173650095b3a881d2a11e"
+  },
+  "inlineMethodSha256": "a4ce5fa9a703ea534e586c71e9bde571805b0b4aeb6be96d57ace8d5490b7dec",
+  "scope": "Five whole unchanged pure source files and the unchanged renderedInline method body, executed without SwiftUI/UIKit or a network call."
+}

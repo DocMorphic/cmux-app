@@ -212,7 +212,7 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
     load: suspend () -> String, onRead: () -> Unit, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf<String?>(null) }; var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
-    val viewport = rememberSaveable(saver = agentFeedViewportSaver) { MarkdownViewportState() }
+    val formattedPosition = rememberSaveable(saver = NativeMarkdownPosition.Saver) { NativeMarkdownPosition() }
     val sourcePosition = rememberSaveable(saver = AgentFeedSourcePosition.Saver) { AgentFeedSourcePosition() }
     LaunchedEffect(attempt) {
         error = null
@@ -233,11 +233,12 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
         containerColor = NativeAppColors.page, contentColor = NativeAppColors.text) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("AgentFeedFullTextSheet")) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onDismiss, modifier = Modifier.width(96.dp)) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619), maxLines = 1, softWrap = false) }
                 Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_title_257807f0), Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                TextButton(onClick = { onChange(modal.copy(raw = !modal.raw)) }, enabled = text != null,
-                    modifier = Modifier.width(96.dp)) { Text(if (modal.raw) "Formatted" else "Source") }
+                TextButton(onClick = { onChange(modal.copy(raw = !modal.raw)) }, enabled = text != null) {
+                    Text(if (modal.raw) "Formatted" else "Source", maxLines = 1, softWrap = false)
+                }
             }
             when {
                 error != null -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -251,7 +252,7 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
                     CircularProgressIndicator(Modifier.size(24.dp)); Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_loading_fa5e4486))
                 }
                 modal.raw -> AgentFeedSourceReader(text!!, sourcePosition)
-                else -> MarkdownWebPreview(text!!, viewport, onFailure = { onChange(modal.copy(raw = true)) })
+                else -> NativeMarkdownReader(text!!, formattedPosition)
             }
         }
     }

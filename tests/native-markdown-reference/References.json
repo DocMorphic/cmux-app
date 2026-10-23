@@ -1,0 +1,15 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "files": {
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMarkdownBlock.swift": "d5bed7d0a519b28c8ce12d52ebb1456de559db027b7a48dd279bf6f9c9a98839",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMarkdownDocument.swift": "5274a1d7107453b87b450630703e7fa1f686b14f53946c86694c499ae280b3ba",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/ChatProseSegment.swift": "ed46c1b264a3d7f47e790ac26e4f42eeb735f82443f5064d9a310085c39ebdc5",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/ChatProseSegmenter.swift": "5242ac8c21ac49be6bf2586f88238d67f38917bb62539ca1f9a408e4c7dca0f6",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/ChatTextBlock.swift": "9bd0a8d9dbda54c113ac33d6339bd037afe1406504ab10757e678ba722ee3589"
+  },
+  "inlineSource": {
+    "path": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMarkdownView.swift",
+    "sha256": "796545ff8cca1c92955237a3446ff96c1668eaf83c6173650095b3a881d2a11e"
+  },
+  "scope": "Five whole unchanged pure source files and the unchanged renderedInline method body, executed without SwiftUI/UIKit or a network call."
+}

@@ -1,3 +1,19 @@
+## Feed native full-text rendering checkpoint — 2026-10-23
+
+The current source native rendering choice is mounted in Android: all eight block
+kinds, native selection/links, horizontal code/tables and lazy long paragraphs,
+with coordinate-only retained state. Thirty-two original document and 20 original
+Foundation inline cases are compared; Android URL policy is explicit. Final
+normal/enlarged cohorts pass nine executions across six methods, proving painted
+long-message tails and fixing native stale paint/header wrapping. Full JVM:
+3,144 pass/four opt-in skips, no failures/errors. [AGENT_FEED.md](AGENT_FEED.md)
+records source hashes, failed attempts and exact runtime/restore scope.
+
+Original native UI/traits, broader appearance/reflow/selection/TalkBack, actual
+Activity/process death, full URL routing and real Mac/Pixel remain open. Global
+pins/full-parity status do not advance. No new signed build or phone operation;
+720 excludes both new Markdown ports and physical 712 remains released.
+
 ## Scoped Markdown approval and sanitizer port — 2026-10-23
 
 Android now loads the current source shell/allowlist sanitizer and enforces

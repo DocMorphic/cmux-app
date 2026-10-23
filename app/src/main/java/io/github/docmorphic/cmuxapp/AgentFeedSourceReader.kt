@@ -91,6 +91,9 @@ internal class AgentFeedSourceScroll(context: Context, private val position: Age
 
     override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
         super.onScrollChanged(l, t, oldl, oldt)
+        // TextView records only the clipped lines in its display list. A parent
+        // scroll must rerecord those lines, especially after a large jump.
+        body.invalidate()
         capturePosition()
     }
 
