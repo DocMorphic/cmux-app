@@ -13,6 +13,25 @@ ROWS = {'Cancel': {'resource': 'cmux_ui_cancel'}, 'Done': {'resource': 'cmux_ui_
 
 
 class MobileUiLocalization(unittest.TestCase):
+    def test_markdown_url_placeholder_and_locale_inventory_are_preserved(self):
+        rows = UI.load_markdown_rows()
+        self.assertEqual(10, len(rows))
+        for language in UI.LANGUAGES:
+            xml = ET.fromstring(UI.resource_xml(rows, language))
+            self.assertEqual(10, len(xml.findall('string')))
+            self.assertTrue(all(e.get('formatted') == 'false' for e in xml.findall('string')))
+            self.assertEqual(1, sum((e.text or '').count('{url}') for e in xml.findall('string')))
+        data = json.loads(UI.MARKDOWN_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'labels.json'
+            for value in ['URL without argument', '{url} and {url}', '%s', '{URL}']:
+                altered = copy.deepcopy(data)
+                next(r for r in altered['strings'] if r['key'] == 'markdown.web.remoteImageURL')['translations']['en'] = value
+                path.write_text(json.dumps(altered))
+                with self.subTest(value=value), self.assertRaises(ValueError): UI.load_markdown_rows(path)
+            altered = copy.deepcopy(data); del altered['strings'][0]['translations']['ar']; path.write_text(json.dumps(altered))
+            with self.assertRaises(ValueError): UI.load_markdown_rows(path)
+
     def test_comments_embedded_programs_and_protocol_payloads_are_not_ui(self):
         source = HEADER + '''
 // Text("Cancel")

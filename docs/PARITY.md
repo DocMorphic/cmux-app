@@ -1,3 +1,20 @@
+## Scoped Markdown approval and sanitizer port — 2026-10-23
+
+Android now loads the current source shell/allowlist sanitizer and enforces
+per-shell native exact-URL image approval before fetch, source Open callbacks,
+and scoped navigation decisions. It matches 30 outcomes from five unchanged
+executed Swift source files. The final ten-case Android cohort passes, including
+18 locale/type profiles, painted approved synthetic bytes, rejection/retirement,
+link routing and existing renderer/reading/recreation checks. All 90 imported
+label values and 22 packaged viewer assets match immutable source. Details and
+remaining Android/WebKit classification, real network/Pixel/accessibility gates:
+[CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md).
+
+The newly identified source native Markdown selection for Agent Feed full text
+is still open; Android's Formatted branch remains a web renderer. Global pins and
+full-parity status do not advance. Signed 720 excludes this newer source batch;
+physical 712 stays released with availability pending. Full goal stays active.
+
 ## Cloud onboarding behavior checkpoint — 2026-10-23
 
 The scoped a5911a1f introduction/backdrop port adds centered copy, topic cards,

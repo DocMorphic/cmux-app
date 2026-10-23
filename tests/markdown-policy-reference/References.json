@@ -1,0 +1,11 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "files": {
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownRemoteImageApprovals.swift": "39ad2a25c9fc953b12ab3a649d0e034a5074be71630e76aeb7fbc351a9296d92",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownViewerNavigationPolicy.swift": "4f1b63f4ed59e7ae54aa6e72e135b1db78aa7130ac345520d254fdf8b11c4b94",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownRemoteImageLoader.swift": "efc8774a5823da1909c6efa268e333e3753ffcb584bcdc47cca44fdddc8cb0a8",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownWebViewerScheme.swift": "181eabd1b38ad72c42b67462a9b2a79cd41628777980c5e29cb4d9190e3fc8ad",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownImageLoadDeadline.swift": "858e63db507adbe7b2fae5bd4addefc6b47d1e2b093494ea1763b7669932f024"
+  },
+  "scope": "Unmodified native policy/URL source executed by a no-network CLI harness; not UIKit/WebView/provider acceptance."
+}

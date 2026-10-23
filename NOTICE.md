@@ -354,13 +354,17 @@ terminal authorization when a classification refusal opens the error viewer.
 
 The Markdown viewer bundles the unmodified cmux shell, navigation code, marked,
 highlight.js, GitHub CSS, Mermaid, Vega, Vega-Lite and Vega-Embed assets from
-cmux commit 4c5272e9153eca2033c9f40ac749f0c3a5bcb291. Exact source hashes are in
+cmux commit a5911a1f92f3eeb11c4d7f3e2ef89204718c5009, including its shared
+allowlist sanitizer. Exact source hashes are in
 app/src/main/assets/markdown-viewer/manifest.json. Third-party versions, copyright
 notices and MIT/BSD license text are in app/src/main/assets/licenses/Markdown.txt.
 The cmux renderer, rendering threshold, mobile link behavior and remote-image
 policy are copyright (c) 2024-present Manaflow, Inc., GPL-3.0-or-later.
 Android additions include WebView lifecycle integration, a restricted local bridge,
-and DNS-validated HTTPS image transport using OkHttp 4.12.0 and Okio 3.6.0
+a per-shell native exact-URL approval record, navigation policy and placeholder
+callbacks adapted from MarkdownRemoteImageApprovals, MarkdownViewerNavigationPolicy
+and MarkdownWebContentView at that revision, and DNS-validated HTTPS image
+transport using OkHttp 4.12.0 and Okio 3.6.0
 (Square and contributors, Apache-2.0; full license bundled in Apache-2.0.txt).
 
 The artifact text viewer adapts ChatArtifactViewerActionsMenu, ChatArtifactSearchModel,

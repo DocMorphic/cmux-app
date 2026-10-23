@@ -10,6 +10,13 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import android.content.res.Configuration
+import java.util.Locale
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -34,10 +41,60 @@ class NativeMarkdownPreviewTest {
             Box(Modifier.fillMaxSize().safeDrawingPadding()) { FilePreviewContent(LocalFilePreview(file, size, "text/markdown", ChangesPreviewRoute.TEXT)) }
         } } }
     }
+
+    @Test fun sourceConsentLabelsRemainReachableInNineLocalesAndLargeText() {
+        check(android.os.Build.MODEL.contains("sdk") || android.os.Build.FINGERPRINT.contains("generic"))
+        var language by mutableStateOf("en"); var scale by mutableFloatStateOf(1f)
+        val raw = "https://[::2]/blocked.png"
+        compose.setContent { CmuxTheme(darkTheme = false) {
+            val base = LocalContext.current; val density = LocalDensity.current
+            val config = remember(language, scale) { Configuration(base.resources.configuration).apply {
+                setLocale(Locale.forLanguageTag(language)); fontScale = scale
+            } }
+            val localized = remember(config) { base.createConfigurationContext(config) }
+            CompositionLocalProvider(LocalContext provides localized, LocalConfiguration provides config,
+                LocalDensity provides Density(density.density, scale)) {
+                Surface(Modifier.fillMaxSize()) { Box(Modifier.fillMaxSize().safeDrawingPadding()) { key(language, scale) {
+                    MarkdownWebPreview("# Consent $language $scale\n\n<img src=\"$raw\" alt=\"Blocked\">", remember { MarkdownViewportState() }) { error(it) }
+                } } }
+            }
+        } }
+        val records = JSONArray()
+        val output = File(compose.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        for (lang in listOf("en", "ar", "de", "es", "fr", "ja", "ko", "zh-Hans", "zh-Hant")) for (font in listOf(1f, 2f)) {
+            compose.runOnIdle { language = lang; scale = font }
+            val config = Configuration(compose.activity.resources.configuration).apply { setLocale(Locale.forLanguageTag(lang)) }
+            val resources = compose.activity.createConfigurationContext(config).resources
+            waitJs("document.querySelector('h1')?.textContent === ${JSONObject.quote("Consent $lang $font")}")
+            val title = resources.getString(R.string.cmux_markdown_remote_image_blocked)
+            val message = resources.getString(R.string.cmux_markdown_remote_image_consent_message)
+            val url = resources.getString(R.string.cmux_markdown_remote_image_url).replace("{url}", raw)
+            val labels = listOf(R.string.cmux_markdown_remote_image_load_image, R.string.cmux_markdown_remote_image_copy_url,
+                R.string.cmux_markdown_remote_image_open_url).map(resources::getString)
+            assertEquals("true", js("document.querySelector('.cmux-remote-image-placeholder strong').textContent === ${JSONObject.quote(title)}"))
+            assertEquals("true", js("document.querySelector('.cmux-remote-image-placeholder').textContent.includes(${JSONObject.quote(message)})"))
+            assertEquals("true", js("document.querySelector('.cmux-remote-image-url').textContent === ${JSONObject.quote(url)}"))
+            for ((index, label) in labels.withIndex()) {
+                assertEquals("true", js("document.querySelectorAll('.cmux-remote-image-placeholder button')[$index].textContent === ${JSONObject.quote(label)}"))
+                js("window.consentScrolled=false;document.querySelectorAll('.cmux-remote-image-placeholder button')[$index].scrollIntoView({behavior:'instant',block:'center'});requestAnimationFrame(()=>requestAnimationFrame(()=>window.consentScrolled=true));true")
+                waitJs("window.consentScrolled")
+                assertEquals("Button clipped for $lang/$font/$index", "true", js("(() => {const b=document.querySelectorAll('.cmux-remote-image-placeholder button')[$index],r=b.getBoundingClientRect();return !b.disabled && r.width>24 && r.height>24 && r.left>=-1 && r.right<=innerWidth+1 && r.top>=-1 && r.bottom<=innerHeight+1;})()"))
+            }
+            assertEquals("true", js("document.documentElement.scrollWidth <= innerWidth+1"))
+            var textZoom = 0
+            compose.runOnUiThread { textZoom = findWeb(compose.activity.window.decorView)!!.settings.textZoom }
+            assertEquals((font * 100).toInt(), textZoom)
+            val frame = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            File(output, "markdown-consent-$lang-$font.png").outputStream().use { frame.compress(Bitmap.CompressFormat.PNG, 100, it) }; frame.recycle()
+            records.put(JSONObject().put("locale", lang).put("fontScale", font).put("textZoom", textZoom)
+                .put("sourceTitle", title).put("sourceButtons", JSONArray(labels)).put("allActionsReachable", true))
+        }
+        File(output, "markdown-consent-locales.json").writeText(records.toString(2))
+    }
     @Test fun appearanceChangesKeepTheDocumentAlive() {
         // The upstream JS offers consent for ::2; the Android address policy rejects this
         // unspecified-prefix literal before DNS/socket access. This exercises the real consent
-        // closure without fetching an external resource or relaxing the production policy.
+        // rejection callback without fetching a resource or relaxing the production policy.
         // Raw HTML keeps the IPv6 brackets intact; pinned marked percent-encodes them in image syntax.
         assertNull(MarkdownImagePolicy.url("https://[::2]/approved.png"))
         val dark = androidx.compose.runtime.mutableStateOf(false)
@@ -83,6 +140,9 @@ class NativeMarkdownPreviewTest {
             if (!load || !heading) return JSON.stringify({missingLoad:!load,missingHeading:!heading,html:document.getElementById('content').innerHTML.slice(0,2500)});
             window.cmuxAppearanceDocument = {};
             window.approvedAttempts = 0; window.unapprovedAttempts = 0;
+            window.rejectedAttempts = 0;
+            const reject = window.__cmuxRemoteImageRejected;
+            window.__cmuxRemoteImageRejected = href => { window.rejectedAttempts++; reject(href); };
             new MutationObserver(records => records.forEach(record => {
                 if (record.attributeName !== 'src') return;
                 const value = record.target.getAttribute('src') || record.oldValue || '';
@@ -93,7 +153,7 @@ class NativeMarkdownPreviewTest {
             load.click(); return true;
             } catch (e) { return String(e.stack || e); } })()
         """.trimIndent()))
-        waitJs("window.approvedAttempts > 0 && window.unapprovedAttempts === 0 && !document.querySelector('img[data-cmux-remote-loading]')")
+        waitJs("window.rejectedAttempts === 1 && window.approvedAttempts === 0 && window.unapprovedAttempts === 0 && !document.querySelector('img[data-cmux-remote-loading]')")
         // The shell enables smooth scrolling. Measure only after the explicit setup jump and
         // image-error layout have settled, rather than capturing an in-flight animation frame.
         assertEquals("true", js("""
@@ -113,7 +173,7 @@ class NativeMarkdownPreviewTest {
                 assertSame(original, findWeb(compose.activity.window.decorView))
                 assertEquals("Theme change reset reader zoom", readingScale, original!!.scale, .02f)
             }
-            waitJs("window.approvedAttempts > $attempts && window.unapprovedAttempts === 0")
+            waitJs("window.rejectedAttempts === 1 && window.approvedAttempts === 0 && window.unapprovedAttempts === 0")
             attempts = js("window.approvedAttempts")!!.toInt()
             waitJs("Math.abs((document.getElementById('section-8').getBoundingClientRect().top - (window.visualViewport?.offsetTop || 0)) - $before) < 2")
             retention.put(JSONObject().put("dark", next).put("anchorTop", js("(document.getElementById('section-8').getBoundingClientRect().top - (window.visualViewport?.offsetTop || 0))")!!.toDouble())

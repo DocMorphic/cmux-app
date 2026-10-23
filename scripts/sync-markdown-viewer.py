@@ -10,8 +10,8 @@ from pathlib import Path
 import subprocess
 import sys
 
-PIN = "4c5272e9153eca2033c9f40ac749f0c3a5bcb291"
-NAMES = ["shell.html", "viewer-navigation.js", "github-markdown.css", "highlight-github.css",
+PIN = "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009"
+NAMES = ["shell.html", "viewer-navigation.js", "markdown-sanitizer.js", "github-markdown.css", "highlight-github.css",
          "highlight-github-dark.css", "marked.min.js", "highlight.min.js", "mermaid.min.js",
          "vega.min.js", "vega-lite.min.js", "vega-embed.min.js"]
 

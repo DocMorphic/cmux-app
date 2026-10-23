@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalog": "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings",
+  "catalogSha256": "9b9aa8bc6572b760cb8df0709948473fb717f6af15a665e4a57c961b212d5719",
+  "strings": [
+    {
+      "key": "markdown.web.remoteImageBlocked",
+      "resource": "cmux_markdown_remote_image_blocked",
+      "translations": {
+        "en": "Remote image blocked",
+        "ar": "تم حظر الصورة عن بعد",
+        "de": "Remote-Bild blockiert",
+        "es": "Imagen remota bloqueada",
+        "fr": "Image distante bloquée",
+        "ja": "リモート画像をブロックしました",
+        "ko": "원격 이미지가 차단됨",
+        "zh-Hans": "远程图像被屏蔽",
+        "zh-Hant": "遠端影像被屏蔽"
+      }
+    },
+    {
+      "key": "markdown.web.remoteImageConsentMessage",
+      "resource": "cmux_markdown_remote_image_consent_message",
+      "translations": {
+        "en": "cmux will not contact this image URL until you load this image.",
+        "ar": "لن يتصل cmux بعنوان URL للصورة حتى تقوم بتحميل هذه الصورة.",
+        "de": "cmux kontaktiert diese Bild-URL erst, wenn Sie dieses Bild laden.",
+        "es": "cmux no se comunicará con la URL de esta imagen hasta que la cargue.",
+        "fr": "cmux ne contactera pas l'URL de cette image tant que vous n'aurez pas chargé cette image.",
+        "ja": "この画像を読み込むまで、cmux はこの画像 URL に接続しません。",
+        "ko": "cmux는 이 이미지를 로드할 때까지 이 이미지 URL에 접속하지 않습니다.",
+        "zh-Hans": "在您加载此图像之前，cmux 不会联系此图像 URL。",
+        "zh-Hant": "在您載入此圖像之前，cmux 不會聯絡此圖像 URL。"
+      }
+    },
+    {
+      "key": "markdown.web.remoteImageCopied",
+      "resource": "cmux_markdown_remote_image_copied",
+      "translations": {
+        "en": "Copied",
+        "ar": "تم النسخ",
+        "de": "Kopiert",
+        "es": "Copiado",
+        "fr": "Copié",
+        "ja": "コピーしました",
+        "ko": "복사됨",
+        "zh-Hans": "已复制",
+        "zh-Hant": "已複製"
+      }
+    },
+    {
+      "key": "markdown.web.remoteImageCopyURL",
+      "resource": "cmux_markdown_remote_image_copy_url",
+      "translations": {
+        "en": "Copy image URL",
+        "ar": "انسخ عنوان URL للصورة",
+        "de": "Bild-URL kopieren",
+        "es": "Copiar URL de imagen",
+        "fr": "Copier l'URL de l'image",
+        "ja": "画像 URL をコピー",
+        "ko": "이미지 URL 복사",
+        "zh-Hans": "复制图片网址",
+        "zh-Hant": "複製圖片網址"
+      }
+    },
+    {
+      "key": "markdown.web.remoteImageHTTPSOnly",
+      "resource": "cmux_markdown_remote_image_https_only",
+      "translations": {
+        "en": "Only HTTPS remote images can be loaded in the viewer.",
+        "ar": "يمكن فقط تحميل صور HTTPS البعيدة في العارض.",
+        "de": "Im Viewer können nur HTTPS-Remotebilder geladen werden.",
+        "es": "Sólo se pueden cargar imágenes remotas HTTPS en el visor.",
+        "fr": "Seules les images distantes HTTPS peuvent être chargées dans la visionneuse.",
+        "ja": "ビューアー内で読み込めるのは HTTPS のリモート画像のみです。",
+        "ko": "뷰어에서는 HTTPS 원격 이미지만 불러올 수 있습니다.",
+        "zh-Hans": "查看器中只能加载 HTTPS 远程图像。",
+        "zh-Hant": "檢視器中只能載入 HTTPS 遠端映像。"
+      }
+    },
+    {
+      "key": "markdown.web.remoteImageLoadImage",
+      "resource": "cmux_markdown_remote_image_load_image",
+      "translations": {
+        "en": "Load this image",
+        "ar": "تحميل هذه الصورة",
+        "de": "Laden Sie dieses Bild",
+        "es": "Cargar esta imagen",
+        "fr": "Charger cette image",
+        "ja": "この画像を読み込む",
+        "ko": "이 이미지 로드",
+        "zh-Hans": "加载此图像",
+        "zh-Hant": "載入此圖像"
+      }
+    },
+    {
+      "key": "markdown.web.remoteImageLoading",
+      "resource": "cmux_markdown_remote_image_loading",
+      "translations": {
+        "en": "Loading",
+        "ar": "تحميل",
+        "de": "Laden",
+        "es": "Cargando",
+        "fr": "Chargement",
+        "ja": "読み込み中",
+        "ko": "로드 중",
+        "zh-Hans": "加载中",
+        "zh-Hant": "載入中"
+      }
+    },
+    {
+      "key": "markdown.web.remoteImageNotAllowed",
+      "resource": "cmux_markdown_remote_image_not_allowed",
+      "translations": {
+        "en": "This remote image URL cannot be loaded in the viewer.",
+        "ar": "لا يمكن تحميل عنوان URL للصورة البعيدة في العارض.",
+        "de": "Diese Remote-Bild-URL kann nicht in den Viewer geladen werden.",
+        "es": "Esta URL de imagen remota no se puede cargar en el visor.",
+        "fr": "Cette URL d'image distante ne peut pas être chargée dans la visionneuse.",
+        "ja": "このリモート画像 URL はビューアー内で読み込めません。",
+        "ko": "이 원격 이미지 URL은 뷰어에 로드될 수 없습니다.",
+        "zh-Hans": "无法在查看器中加载此远程图像 URL。",
+        "zh-Hant": "無法在檢視器中載入此遠端圖像 URL。"
+      }
+    },
+    {
+      "key": "markdown.web.remoteImageOpenURL",
+      "resource": "cmux_markdown_remote_image_open_url",
+      "translations": {
+        "en": "Open image URL",
+        "ar": "افتح عنوان URL للصورة",
+        "de": "Bild-URL öffnen",
+        "es": "Abrir URL de la imagen",
+        "fr": "Ouvrir l'URL de l'image",
+        "ja": "画像 URL を開く",
+        "ko": "이미지 URL 열기",
+        "zh-Hans": "打开图片网址",
+        "zh-Hant": "開啟圖片網址"
+      }
+    },
+    {
+      "key": "markdown.web.remoteImageURL",
+      "resource": "cmux_markdown_remote_image_url",
+      "translations": {
+        "en": "Image URL: {url}",
+        "ar": "عنوان URL للصورة: {url}",
+        "de": "Bild-URL: {url}",
+        "es": "URL de la imagen: {url}",
+        "fr": "URL de l'image : {url}",
+        "ja": "画像 URL: {url}",
+        "ko": "이미지 URL: {url}",
+        "zh-Hans": "图片网址：{url}",
+        "zh-Hant": "圖片網址：{url}"
+      }
+    }
+  ]
+}

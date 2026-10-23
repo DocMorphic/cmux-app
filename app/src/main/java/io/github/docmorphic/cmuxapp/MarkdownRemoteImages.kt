@@ -58,7 +58,11 @@ internal object MarkdownImagePolicy {
     }
 }
 
-internal class MarkdownRemoteImages : AutoCloseable {
+internal interface MarkdownImageLoader : AutoCloseable {
+    fun fetch(raw: String): MarkdownRemoteImages.Image?
+}
+
+internal class MarkdownRemoteImages : MarkdownImageLoader {
     data class Image(val bytes: ByteArray, val mime: String)
     private val calls = ConcurrentHashMap.newKeySet<Call>()
     @Volatile private var closed = false
@@ -71,7 +75,7 @@ internal class MarkdownRemoteImages : AutoCloseable {
                 return addresses
             }
         }).build()
-    fun fetch(raw: String): Image? {
+    override fun fetch(raw: String): Image? {
         val initial = MarkdownImagePolicy.url(raw) ?: return null
         var url = initial
         for (depth in 0..3) {

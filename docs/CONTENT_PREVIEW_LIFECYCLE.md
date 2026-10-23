@@ -1,3 +1,70 @@
+## Native Markdown approval and current shared shell — 2026-10-23
+
+The scoped web Markdown port now uses twelve unchanged shared assets from
+`a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`, including its allowlist sanitizer.
+Ten existing library/style/navigation assets are byte-identical to the earlier
+pin; the shell changes and the sanitizer is new. The script/asset manifest and
+both notices retain the new attribution. Android splices ten source labels in
+all nine app locales (90 original catalog values), retaining literal `{url}`.
+Other viewer/error/app localization remains separate.
+
+`MarkdownWebController` now owns a synchronized native exact-URL image approval
+record. The explicit shell callback approves a policy-valid URL and acknowledges
+it to the shell; custom-scheme requests consult that record **before** entering
+the image loader. Unapproved paths/hosts/query variants are rejected. Theme and
+Markdown rerenders retain the same shell's approvals; replacement/close clears
+the record, cancels work and closes its loader. Placeholder Open uses the source
+plain HTTP(S), host and no-credentials rule. Existing public-address/DNS-pinning,
+TLS/MIME/byte-limit/redirect restrictions continue to apply to actual downloads.
+
+Navigation uses the pinned main-frame-fragment/activated-link/explicit-shell
+ordering. Extra data navigations and non-activated subframe fragments are denied.
+Android's adapter uses `WebResourceRequest.hasGesture`/frame flags, which are not
+proof of identical WebKit classification for every gesture/script/form/reload
+case. Initial Android `loadDataWithBaseURL` data/about resource handling remains
+platform-specific. Do not infer complete native browser-navigation equivalence.
+
+The local CLT reference compiles **five whole, unchanged Swift source files**
+with a no-network caller. Android matches its 30 outcomes; the caller is not the
+upstream Testing suite or UIKit/WebKit. Nine policy JVM cases plus the seven
+existing URL/loader and two theme cases pass. The final full JVM suite passes **3,140 with four opt-in skips, zero failures/
+errors** (3,144 cases, 427 reports); XML is archived in the checkpoint. Thirteen localization guards pass. Exact source files and native
+results: `tests/markdown-policy-reference/` and
+`app/src/test/resources/parity/markdown-viewer-policy.json`.
+
+The final owned API 36 runtime cohort passes **10 cases in 43.328 s**. Actual
+Chromium denies a deliberately forged unapproved scheme request before the
+recording loader, paints the explicitly approved synthetic PNG, rejects another
+path/query variant, retains approval through theme changes, and denies it in a
+fresh shell/retired client. A real link tap opens only through the intercepted
+host action; script navigation/popup, fragments and placeholder/invalid Open
+callbacks are exercised. No external URL or image is actually contacted.
+All 18 locale/type profiles check original visible labels, 100/200% native text
+zoom, reachable buttons and no horizontal overflow. Rendered tables/code/Mermaid/
+Vega pixels, Raw/Rendered switching, reading/zoom recreation and two renderer
+recoveries then source fallback pass. Arabic/German 2× and dark diagram frames
+are reviewed. Crash buffer is empty, saved setting-restore commands succeed and
+the existing emulator exits 0. Evidence/checkpoint:
+`captures/recovery-20261023/markdown-consent-checkpoint.json` and
+`markdown-consent-runtime-v2/`. Earlier nine-case v1 passes before localization;
+it is retained with its separate source/APK hashes.
+
+The actual debug APK independently verifies all **22** viewer assets, its exact
+packaged NOTICE and all 90 translations against immutable source Git objects.
+No physical phone/account/Mac/provider operation, new signed build or publication
+occurs. Signed 720 excludes this batch. Physical 712 remains released, with the
+existing availability/backend questions pending. Full parity and its real-device/
+accessibility/renderer-classification/provider gates remain open.
+
+The remaining third `CmuxAgentChatUI` delta has a concrete caller:
+`AgentFeedFullTextView` requests `ChatArtifactEmbeddedMarkdown(rendering: .native)`.
+Android `AgentFeedFullText` still mounts `MarkdownWebPreview` for Formatted mode.
+Port the complete native block reader without the timeline's 8-KiB truncation,
+retaining owner/read/cancellation/reading-state behavior. The existing Source
+reader/reply editor are separate. Source review:
+`captures/recovery-20261023/agent-feed-native-markdown-source-gap.json`.
+This batch does not close that rendering choice or all broad source omissions.
+
 ## Wide/tall image restoration and current-source review — 2026-10-23
 
 The production viewer now has a complementary tall-image runtime check. A

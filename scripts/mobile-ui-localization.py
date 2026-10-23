@@ -15,6 +15,7 @@ BROWSER_DIALOG_DATA = ROOT / 'third_party/cmux-localization/browser-dialog-strin
 CLOUD_LIFECYCLE_DATA = ROOT / 'third_party/cmux-localization/cloud-lifecycle-strings.json'
 CLOUD_ONBOARDING_DATA = ROOT / 'third_party/cmux-localization/cloud-onboarding-strings.json'
 CLOUD_ONBOARDING_ANDROID_DATA = ROOT / 'third_party/cmux-localization/cloud-onboarding-android-strings.json'
+MARKDOWN_DATA = ROOT / 'third_party/cmux-localization/markdown-strings.json'
 LANGUAGES = ('en', 'ar', 'de', 'es', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant')
 FOLDERS = {'en': 'values', 'zh-Hans': 'values-b+zh+Hans', 'zh-Hant': 'values-b+zh+Hant'}
 NAME = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
@@ -258,6 +259,30 @@ def load_cloud_onboarding_rows(path=CLOUD_ONBOARDING_DATA, android_path=CLOUD_ON
     return rows
 
 
+def load_markdown_rows(path=MARKDOWN_DATA):
+    data = json.loads(path.read_text())
+    if (data['version'] != 1 or data['upstream'] != 'a5911a1f92f3eeb11c4d7f3e2ef89204718c5009'
+            or data['catalog'] != 'Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings'
+            or data['catalogSha256'] != '9b9aa8bc6572b760cb8df0709948473fb717f6af15a665e4a57c961b212d5719'):
+        raise ValueError('Unreviewed Markdown localization source')
+    expected = {'markdown.web.remoteImage' + suffix for suffix in ('Blocked', 'ConsentMessage', 'Copied', 'CopyURL',
+        'HTTPSOnly', 'LoadImage', 'Loading', 'NotAllowed', 'OpenURL', 'URL')}
+    if {r['key'] for r in data['strings']} != expected or len(data['strings']) != len(expected):
+        raise ValueError('Incomplete Markdown image labels')
+    names = set()
+    for row in data['strings']:
+        if (not re.fullmatch(r'cmux_markdown_[a-z_]+', row['resource']) or row['resource'] in names
+                or set(row['translations']) != set(LANGUAGES)):
+            raise ValueError('Invalid Markdown localization row')
+        for value in row['translations'].values():
+            if not isinstance(value, str) or not value or '%' in value:
+                raise ValueError('Invalid Markdown translation')
+            if value.count('{url}') != (1 if row['key'] == 'markdown.web.remoteImageURL' else 0):
+                raise ValueError('Markdown URL label must preserve exactly its literal {url} argument')
+        names.add(row['resource'])
+    return data['strings']
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--migrate', action='store_true')
@@ -268,6 +293,7 @@ def main():
     browser_dialog_rows = load_browser_dialog_rows()
     cloud_lifecycle_rows = load_cloud_lifecycle_rows()
     cloud_onboarding_rows = load_cloud_onboarding_rows()
+    markdown_rows = load_markdown_rows()
     if args.migrate:
         if args.check: parser.error('--migrate and --check are exclusive')
         changes = 0
@@ -311,7 +337,14 @@ def main():
                 raise ValueError(f'Generated Cloud onboarding resources differ: {folder}')
         else:
             onboarding_path.write_bytes(encoded)
-    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog, {len(cloud_lifecycle_rows)} Cloud lifecycle and {len(cloud_onboarding_rows)} Cloud onboarding labels / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
+        markdown_path = path.with_name('cmux_markdown_strings.xml')
+        encoded = resource_xml(markdown_rows, language, 'from pinned Markdown image labels; {url} remains a shell substitution')
+        if args.check:
+            if not markdown_path.is_file() or markdown_path.read_bytes() != encoded:
+                raise ValueError(f'Generated Markdown resources differ: {folder}')
+        else:
+            markdown_path.write_bytes(encoded)
+    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog, {len(cloud_lifecycle_rows)} Cloud lifecycle, {len(cloud_onboarding_rows)} Cloud onboarding and {len(markdown_rows)} Markdown labels / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
 
 
 if __name__ == '__main__':

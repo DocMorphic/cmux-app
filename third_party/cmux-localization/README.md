@@ -61,3 +61,12 @@ values and owns nine `cmux_cloud_onboarding_strings.xml` files. It does not add
 these strings to general English-label migration. Other VPN warnings, permission
 and cleanup errors, complete Cloud localization and real TalkBack acceptance
 remain separate work.
+
+`markdown-strings.json` imports ten remote-image consent/loading/copy/open labels
+from `Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings`
+at a5911a1f (90 original values, catalog SHA256
+`9b9aa8bc6572b760cb8df0709948473fb717f6af15a665e4a57c961b212d5719`).
+The generator owns nine `cmux_markdown_strings.xml` files. `{url}` remains exactly
+one literal shell substitution, not an Android printf argument. The labels are
+spliced into the unchanged shell as JSON. This does not localize all viewer or
+application status/error text or establish complete RTL/accessibility parity.

@@ -59,11 +59,23 @@ internal object MarkdownAssets {
     fun shell(context: Context): String {
         var html = read(context, "shell.html")
         mapOf("githubMarkdownCSS" to "github-markdown.css", "highlightLightCSS" to "highlight-github.css", "highlightDarkCSS" to "highlight-github-dark.css",
-            "markedJS" to "marked.min.js", "highlightJS" to "highlight.min.js", "viewerNavigationJS" to "viewer-navigation.js").forEach { (key, file) ->
+            "markedJS" to "marked.min.js", "highlightJS" to "highlight.min.js", "viewerNavigationJS" to "viewer-navigation.js",
+            "markdownSanitizerJS" to "markdown-sanitizer.js").forEach { (key, file) ->
             html = html.replace("{{$key}}", read(context, file))
         }
-        // Empty translations use the original shell's English fallback strings.
-        html = html.replace("{{localizedStringsJSON}}", "{}")
+        val strings = JSONObject()
+        mapOf("remoteImageBlocked" to R.string.cmux_markdown_remote_image_blocked,
+            "remoteImageConsentMessage" to R.string.cmux_markdown_remote_image_consent_message,
+            "remoteImageCopied" to R.string.cmux_markdown_remote_image_copied,
+            "remoteImageCopyURL" to R.string.cmux_markdown_remote_image_copy_url,
+            "remoteImageHTTPSOnly" to R.string.cmux_markdown_remote_image_https_only,
+            "remoteImageLoadImage" to R.string.cmux_markdown_remote_image_load_image,
+            "remoteImageLoading" to R.string.cmux_markdown_remote_image_loading,
+            "remoteImageNotAllowed" to R.string.cmux_markdown_remote_image_not_allowed,
+            "remoteImageOpenURL" to R.string.cmux_markdown_remote_image_open_url,
+            "remoteImageURL" to R.string.cmux_markdown_remote_image_url).forEach { (key, resource) -> strings.put(key, context.getString(resource)) }
+        html = html.replace("{{localizedStringsJSON}}", strings.toString().replace("<", "\\u003c")
+            .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"))
         val host = """
             <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob: cmux-remote-image:; connect-src 'none'; base-uri 'none'; form-action 'none'">
             <script>window.webkit={messageHandlers:{cmuxLib:{postMessage:function(value){CmuxMarkdownBridge.postMessage(JSON.stringify(value));}}}};</script>
@@ -99,14 +111,16 @@ internal fun MarkdownWebPreview(markdown: String, viewport: MarkdownViewportStat
 /** Loads only the bundled shell; activated links leave the viewer and images use the consent route. */
 internal class MarkdownWebController(private val context: Context, private val shell: String, private var markdown: String,
     private var zoom: Float, private val onCrash: () -> Unit, private val onFailure: (String) -> Unit,
-    private val viewport: MarkdownViewportState = MarkdownViewportState(), private var appearance: MarkdownWebTheme = MarkdownWebTheme.resolve(true, 0xff0b0c0e.toInt())) : AutoCloseable {
+    private val viewport: MarkdownViewportState = MarkdownViewportState(), private var appearance: MarkdownWebTheme = MarkdownWebTheme.resolve(true, 0xff0b0c0e.toInt()),
+    private val images: MarkdownImageLoader = MarkdownRemoteImages()) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val images = MarkdownRemoteImages()
+    private val imageApprovals = MarkdownImageApprovals()
     private val requested = mutableSetOf<String>()
     private var view: WebView? = null
     private var viewportBinding: MarkdownViewportBinding? = null
     @Volatile private var loaded = false
     @Volatile private var closed = false
+    private var awaitingShellNavigation = false
     private fun configuration() = Configuration(context.resources.configuration).apply {
         uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
             if (appearance.dark) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
@@ -116,6 +130,9 @@ internal class MarkdownWebController(private val context: Context, private val s
     private val webContext = MutableContextWrapper(themedContext())
     @SuppressLint("SetJavaScriptEnabled")
     fun create(): WebView = MarkdownViewportWebView(webContext).also { web ->
+        check(!closed)
+        imageApprovals.revokeAll()
+        awaitingShellNavigation = true
         view = web
         NativeViewHaptics(web)
         viewportBinding = MarkdownViewportBinding(web, viewport)
@@ -138,16 +155,24 @@ internal class MarkdownWebController(private val context: Context, private val s
         web.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String) {
                 if (closed || loaded) return
+                awaitingShellNavigation = false
                 loaded = true; push()
             }
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                if (closed) return true
                 val raw = request.url.toString()
-                if (!loaded && request.isForMainFrame && request.url.scheme in setOf("data", "about")) return false
-                if (MarkdownPreviewPolicy.inPage(raw)) return false
-                if (request.isForMainFrame && request.hasGesture() && MarkdownPreviewPolicy.external(raw)) {
-                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, request.url)) }
+                val shellLoad = if (request.isForMainFrame && awaitingShellNavigation) {
+                    awaitingShellNavigation = false
+                    MarkdownNavigationPolicy.shellDocument(raw)
+                } else false
+                return when (MarkdownNavigationPolicy.decide(raw, request.hasGesture(), request.isForMainFrame, shellLoad)) {
+                    MarkdownNavigationDecision.ALLOW -> false
+                    MarkdownNavigationDecision.CANCEL -> true
+                    MarkdownNavigationDecision.OPEN_EXTERNALLY -> {
+                        if (MarkdownPreviewPolicy.external(raw)) runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, request.url)) }
+                        true
+                    }
                 }
-                return true
             }
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 val uri = request.url
@@ -155,7 +180,7 @@ internal class MarkdownWebController(private val context: Context, private val s
                 if (!closed && (uri.scheme == "data" && !request.isForMainFrame ||
                     !loaded && request.isForMainFrame && uri.scheme in setOf("data", "about"))) return null
                 val result = if (!closed && uri.scheme == "cmux-remote-image" && uri.host == "image")
-                    uri.getQueryParameter("url")?.let(images::fetch) else null
+                    uri.getQueryParameter("url")?.takeIf(imageApprovals::approved)?.let(images::fetch) else null
                 return if (result != null) WebResourceResponse(result.mime, null, ByteArrayInputStream(result.bytes))
                     else WebResourceResponse("text/plain", "UTF-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
             }
@@ -191,6 +216,20 @@ internal class MarkdownWebController(private val context: Context, private val s
         if (closed) return
         if (message.optString("action") == "markdownRendered") { viewportBinding?.rendered(); return }
         if (message.optString("action") == "markdownViewport") { viewportBinding?.geometry(message); return }
+        if (message.optString("action") == "approveRemoteImage") {
+            val raw = message.opt("url") as? String ?: return
+            val callback = if (imageApprovals.approve(raw) != null) "__cmuxRemoteImageApproved" else "__cmuxRemoteImageRejected"
+            val literal = JSONObject.quote(raw).replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+            view?.evaluateJavascript("window.$callback && window.$callback($literal);", null)
+            return
+        }
+        if (message.optString("action") == "openRemoteImage") {
+            val raw = message.opt("url") as? String ?: return
+            if (MarkdownImageApprovals.openable(raw)) runCatching {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(raw)))
+            }
+            return
+        }
         val lib = message.optString("lib")
         val specs = MarkdownAssets.libraries[lib]
         if (specs != null && requested.add(lib)) {
@@ -207,7 +246,7 @@ internal class MarkdownWebController(private val context: Context, private val s
     override fun close() {
         if (closed) return
         viewportBinding?.close(); viewportBinding = null
-        closed = true; images.close(); scope.cancel()
+        closed = true; awaitingShellNavigation = false; imageApprovals.revokeAll(); images.close(); scope.cancel()
         view?.let { it.stopLoading(); it.removeJavascriptInterface("CmuxMarkdownBridge"); it.destroy() }
         view = null
     }

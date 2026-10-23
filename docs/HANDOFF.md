@@ -1,3 +1,29 @@
+## Markdown native approval port verified; Feed native reader next — 2026-10-23
+
+The current source shell/sanitizer, native exact-URL image approval/open callbacks
+and scoped navigation rules are ported. All 30 actual unchanged Swift policy
+outcomes match Android. Eighteen focused JVM checks and 13 localization guards
+pass; the final full JVM suite passes 3,140 with four opt-in skips and no
+failures/errors (427 reports). Ten source labels retain 90 original values across
+nine locales. The final
+API 36 cohort passes 10 cases in 43.328 s, including 18 normal/enlarged locale
+profiles, real painted synthetic image bytes, approval retirement and existing
+diagram/reading/zoom/recreation/renderer-recovery checks. Reviewed frames and empty
+crash buffer; saved settings restore and existing owned emulator exits 0.
+See `CONTENT_PREVIEW_LIFECYCLE.md` and `markdown-consent-checkpoint.json` under
+`captures/recovery-20261023/`. All 22 packaged viewer assets match immutable source.
+No live external fetch/URL, phone/account/Mac mutation or publication occurred.
+Android hasGesture/frame mapping is not full WebKit navigation equivalence.
+
+Next concrete source gap is the formatted Feed full-text reader: current iOS
+explicitly chooses native Markdown; Android still uses the web viewer. Compare/
+port all native blocks without the 8-KiB timeline parser limit and preserve
+owner/read/cancellation/reading-state behavior. Review hashes/caller:
+`agent-feed-native-markdown-source-gap.json` in the same folder. Do not mark the
+third AgentChatUI delta or all 920-path reconciliation complete.
+Signed 720 excludes this newer port; physical 712 stays released, phone/backend
+questions pending. Full parity remains active and all broader gates remain.
+
 ## Image restoration evidence; Markdown consent delta next — 2026-10-23
 
 Both wide/tall production-image runtime cases pass in 22.914 s. The new test

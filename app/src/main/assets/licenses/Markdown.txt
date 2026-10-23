@@ -1,7 +1,10 @@
 ## Markdown Viewer Web Assets
 
 cmux bundles these files under `Resources/markdown-viewer/` so the markdown
-viewer has no runtime CDN dependency.
+viewer has no runtime CDN dependency. The unchanged shell and shared allowlist
+sanitizer are from cmux a5911a1f92f3eeb11c4d7f3e2ef89204718c5009,
+copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later. The third-party
+library bytes and versions below are unchanged from the earlier asset pin.
 
 ### marked
 
