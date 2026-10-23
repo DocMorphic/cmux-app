@@ -41,7 +41,20 @@ final class FeedFullTextUITests: XCTestCase {
             XCUIDevice.shared.orientation = scene["orientation"] == "landscape" ? .landscapeRight : .portrait
             var pages: [[String: Any]] = []
             func snapshot(_ stage: String, target: XCUIElement, probe: String = "sheet") throws {
-                XCTAssertTrue(target.waitForExistence(timeout: 10)); XCTAssertTrue(target.isHittable)
+                let exists = target.waitForExistence(timeout: 10)
+                // ProgressView's static label is visibly drawn but not a tap
+                // target in UIKit AX. Preserve its actual hittability; prove
+                // existence/frame plus compositor visibility instead.
+                let frame = target.frame
+                let inViewport = frame.width > 0 && frame.height > 0 && frame.minY >= app.frame.minY && frame.maxY <= app.frame.maxY
+                if !exists || !inViewport || (stage != "loading" && !target.isHittable) {
+                    let diagnostic = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                    diagnostic.name = "feed-reader-" + id + "-" + stage + "-failure"; diagnostic.lifetime = .keepAlways; add(diagnostic)
+                    let tree = XCTAttachment(string: app.debugDescription)
+                    tree.name = "feed-reader-" + id + "-" + stage + "-accessibility"; tree.lifetime = .keepAlways; add(tree)
+                }
+                XCTAssertTrue(exists); XCTAssertTrue(inViewport)
+                if stage != "loading" { XCTAssertTrue(target.isHittable) }
                 var record = try wait(app, scene: id, probe: probe)
                 let close = app.buttons["MobileAgentFeedFullTextClose"]
                 if probe == "sheet" {

@@ -55,8 +55,8 @@ def traits(page, scene, commit, provenance, probe):
     return size, scale
 
 
-def visible(value, label, size):
-    require(value.get('exists') is True and value.get('hittable') is True and value.get('label') == label and
+def visible(value, label, size, require_hit=True):
+    require(value.get('exists') is True and type(value.get('hittable')) is bool and (not require_hit or value['hittable'] is True) and value.get('label') == label and
         geometry.rect(value.get('frame')), 'Missing visible original sheet control/content')
     x, y, w, h = value['frame']
     require(y >= 0 and y+h <= size[1] and x < size[0] and x+w > 0, 'Original sheet target outside viewport')
@@ -92,7 +92,7 @@ def verify(exported, output, commit):
             require(page.get('mode') == ('loading' if stage == 'loading' else 'retry') and
                 page.get('loadAttempts') == (1 if stage in ('loading', 'error') else 2), 'Wrong original load/retry sequence')
             expected = 'Open reference sheet' if closed else fixture['probes']['top'] if stage == 'loaded' else fixture['uiStrings'][stage if stage == 'loading' else 'unavailable'][scene['language']]
-            visible(page.get('target', {}), expected, size)
+            visible(page.get('target', {}), expected, size, require_hit=stage != 'loading')
             if closed:
                 require(page.get('dismissed') is True and page.get('close', {}).get('exists') is False, 'Original dismissal unproven')
             else:

@@ -75,3 +75,8 @@ class FeedSheetExportGuards(unittest.TestCase):
     def test_changed_image_rejected(self): self.rejects(lambda d:d['pages'][0].update(imageSha256='f'*64),'Missing/changed')
     def test_wrong_dimensions_rejected(self): self.rejects(lambda d:d['pages'][0].update(scale=2),'dimensions')
     def test_offscreen_content_rejected(self): self.rejects(lambda d:d['pages'][0]['target'].update(frame=[16,155,90,20]),'outside viewport')
+
+    def test_loading_static_label_can_be_visible_without_being_tappable(self):
+        p=self.export/'en-dark.json'; d=json.loads(p.read_text()); d['pages'][0]['target']['hittable']=False
+        p.write_text(json.dumps(d)); self.verify()
+    def test_close_must_remain_tappable(self): self.rejects(lambda d:d['pages'][0]['close'].update(hittable=False),'visible original')

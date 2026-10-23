@@ -86,7 +86,8 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
                 "sourceSessionCreated": false, "interceptedURLs": state.interceptedURLs,
                 "ready": UIApplication.shared.applicationState == .active && !window.isHidden && matches && ((window.bounds.width > window.bounds.height) == (scene.orientation == "landscape"))
             ]
-            label.accessibilityLabel = String(data: try! JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]), encoding: .utf8)
+            let payload = String(data: try! JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]), encoding: .utf8)
+            if label.accessibilityLabel != payload { label.accessibilityLabel = payload }
         }
     }
     static func dismantleUIView(_ view: UILabel, coordinator: Observer) { coordinator.stop() }
