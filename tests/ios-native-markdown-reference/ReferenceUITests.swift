@@ -21,7 +21,10 @@ final class NativeMarkdownUITests: XCTestCase {
     @MainActor private func visible(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
         guard element.exists else { return false }
         let r = element.frame, screen = app.frame
-        return element.isHittable && r.width > 0 && r.height > 0 && r.minY >= screen.minY + 30 && r.maxY < screen.maxY - 30
+        // The original leaf has 16-pt padding. A landscape window can have
+        // zero top safe area; an invented 30-pt exclusion would reject its
+        // fully visible first heading and scroll that heading offscreen.
+        return element.isHittable && r.width > 0 && r.height > 0 && r.minY >= screen.minY && r.maxY <= screen.maxY
     }
     @MainActor private func expose(_ element: XCUIElement, in app: XCUIApplication) throws {
         for _ in 0..<16 {

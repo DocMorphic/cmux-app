@@ -66,7 +66,7 @@ def validate(page, scene, stage, fixture, commit, provenance):
         geometry.rect(target.get('frame')), 'Missing visible original native Markdown target')
     x, y, w, h = target['frame']
     # Wide source code text has an intentionally wider accessibility envelope.
-    require(y >= 30 and y + h < size[1] - 30 and x < size[0] and x + w > 0, 'Native Markdown target outside viewport')
+    require(y >= 0 and y + h <= size[1] and x < size[0] and x + w > 0, 'Native Markdown target outside viewport')
     require(page.get('captureMethod') == 'XCUIScreen.main.screenshot', 'Missing actual native Markdown compositor capture')
     return size, scale
 

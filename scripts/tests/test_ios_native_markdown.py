@@ -86,7 +86,12 @@ class NativeMarkdownExportGuards(unittest.TestCase):
         self.rejects(lambda v: v['pages'].pop(), 'Missing/reordered')
 
     def test_offscreen_target_is_rejected(self):
-        self.rejects(lambda v: v['pages'][0]['target'].update(frame=[16, 140, 90, 20]), 'outside viewport')
+        self.rejects(lambda v: v['pages'][0]['target'].update(frame=[16, 150, 90, 20]), 'outside viewport')
+
+    def test_visible_landscape_edge_is_not_rejected_by_invented_insets(self):
+        path = self.export / 'en-landscape.json'
+        value = json.loads(path.read_text()); value['pages'][0]['target']['frame'] = [16, 16, 90, 20]
+        path.write_text(json.dumps(value)); self.verify()
 
     def test_wrong_actual_large_text_is_rejected(self):
         self.rejects(lambda v: v['pages'][0]['fonts']['body'].update(pointSize=17), 'actual native Markdown body size', 'de-accessibility')
