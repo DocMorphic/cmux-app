@@ -1,3 +1,33 @@
+## Signed 717 ready; Cloud Restart verified within scoped gates — 2026-10-23
+
+Local/unpublished candidate 717 adds the Cloud Restart/deadline port to 716.
+Clean source: `002d7e15c996eb8c2a5c8c3bd2ae4ce0840b190e`. APK:
+`captures/runtime/parity-candidate-717/app-release.apk`, 278,096,529 bytes,
+SHA256 `6c4618af8df8c93b1e9d374f0326cae8b365a4925ba3990702046e26356d0166`.
+Stable signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+Package verification passes 22 native libraries, 21 viewer assets, all 16 fixture
+component exclusions and matching private Firebase configuration. The final clean
+committed JVM suite passes 3,124 cases with four opt-in skips, zero failures/errors
+(3,128 cases, 425 reports). The actual signed APK passes two fresh owned API 36
+Pixel 6a emulator launches; both sign-in frames are visually reviewed, crash
+buffers are empty, emulator exit is 0 and only that new AVD is deleted.
+Checkpoint: `captures/recovery-20261023/parity-candidate-717-checkpoint.json`.
+
+Cloud behavior/UI fixtures pass all 17 cases, including 18 narrow locale/scale
+profiles. The pinned native source reference passes 45 tests with independent
+verification of both complete package trees and all 306 source file hashes.
+[CLOUD_COMPANION.md](CLOUD_COMPANION.md) records exact source/action/owner and
+runtime scope. No real Cloud VM, phone, account or pairing mutation was used.
+Actual provider, native UI/accessibility, onboarding graphics and centered wide
+copy, create-sheet billing behavior and broader full-parity gates remain open.
+
+Pixel remains released at last verified signed 712. Fresh availability and backend/
+store questions remain pending. `captures/recovery-20261023/pixel-717-test-plan.json`
+supersedes 716/715/714 for the same 15-minute upgrade/terminal/background-reply/
+cold-tap session, preserving account, enrollment and Mac workspace IDs/order.
+No physical command was issued; no old availability answer is reused. The full
+feature/UI parity goal remains active and unverified.
+
 ## Cloud Restart port verified; actual provider and full parity open — 2026-10-23
 
 Android now implements a5911a1f's explicit restart capability, 60-second control-

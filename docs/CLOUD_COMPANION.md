@@ -35,7 +35,7 @@ Nine exact source hashes and the narrow scope are recorded in
 Thirty-two focused JVM cases pass, including real loopback HTTP headers/deadlines,
 strict capability parsing, per-machine admission, failed/late operations and
 actual `CloudMachineConnections`/workspace replacement with another link retained.
-Before the final label-padding adjustment, the full JVM suite passes 3,124 cases with four opt-in skips, no failures/errors
+The final clean committed build for signed 717 passes 3,124 JVM cases with four opt-in skips, no failures/errors
 (3,128 cases, 425 reports). Ten localization guards pass. The first owned API 36
 emulator cohort passes 17 cases in 33.883 seconds, including 18 controlled
 locale/scale profiles at 260 dp width and existing workspace/terminal recovery.
@@ -50,7 +50,10 @@ is open. Final main/Arabic/German frames are reviewed, crash buffer is empty,
 restoration commands succeed and the owned emulator exits 0. Exact APKs, inputs
 and evidence are bound in `captures/recovery-20261023/cloud-restart-checkpoint.json`.
 Earlier cohorts and compile/fixture failures remain retained and excluded from
-complete-pass claims. The signed build will repeat the final clean JVM suite.
+complete-pass claims. Signed 717 repeats that final clean suite and passes strict package/signature/
+Firebase verification and two visually reviewed fresh emulator launches. It is
+local/unpublished and has not upgraded a physical account or exercised an actual
+provider. Its checkpoint is `parity-candidate-717-checkpoint.json` in that folder.
 
 The local command `swift test --package-path
 captures/source-audit-20261020/upstream/Packages/iOS/CmuxMobileCloud --scratch-path
@@ -70,7 +73,7 @@ These are macOS source/core tests with generated services, not iOS UI or an
 Android-provider equivalence claim.
 
 No real VM was created/restarted/paused/deleted or connected, and no phone,
-account, credential or pairing data was changed. Signed 716 excludes this port.
+account, credential or pairing data was changed. Signed 717 includes this port; signed 716 is the earlier candidate.
 Real Cloud/provider, Pixel, system-locale/TalkBack, source typography/material
 and broader Cloud transport/UI acceptance remain open. The newer onboarding
 illustrations and create-sheet billing-policy changes are separate unfinished
