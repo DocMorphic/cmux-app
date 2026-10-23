@@ -1,3 +1,16 @@
+## Failed sign-in code now clears as in original iOS — 2026-10-23
+
+Original SignInView.verifyCode clears the submitted code in its failure path.
+Android's retained form now does the same while keeping its email/challenge and
+error available. An empty-code submit cannot replay the failed request; explicit
+fresh input permits retry. Generation/cancellation and completion-once fencing
+remain. All13 focused JVM checks pass (4 form-owner,9 challenge/nonce/session),
+build24s. Exact source/whole-original bindings, test reports and limitations:
+recovery-20261023/native-sign-in-failure-code-checkpoint.json. Full verification/
+recovery UI, typed errors and actual authentication/runtime accessibility remain
+open. No new signed package, external email/account request or phone/Mac action;
+candidate722/physical712/signing/pairing/global pins unchanged.
+
 ## Routed enlarged portrait return verified — 2026-10-23
 
 One owned API36 routed reader case passes23.196s through actual portrait→landscape,

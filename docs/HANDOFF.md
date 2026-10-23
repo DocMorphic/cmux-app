@@ -1,3 +1,30 @@
+## Failed sign-in code now clears as in original iOS — 2026-10-23
+
+Original SignInView.verifyCode clears the submitted code in its failure path.
+Android's retained form now does the same while keeping its email/challenge and
+error available. An empty-code submit cannot replay the failed request; explicit
+fresh input permits retry. Generation/cancellation and completion-once fencing
+remain. All13 focused JVM checks pass (4 form-owner,9 challenge/nonce/session),
+build24s. Exact source/whole-original bindings, test reports and limitations:
+recovery-20261023/native-sign-in-failure-code-checkpoint.json. Full verification/
+recovery UI, typed errors and actual authentication/runtime accessibility remain
+open. No new signed package, external email/account request or phone/Mac action;
+candidate722/physical712/signing/pairing/global pins unchanged.
+
+## Sign-in verification recovery source gap identified — 2026-10-23
+
+The original native iOS sign-in handles `USER_EMAIL_ALREADY_EXISTS` with
+`would_work_if_email_was_verified` by requesting verification, entering the
+verification screen even if the request fails, and keeping resend/retry/billing
+recovery controls reachable. Android currently reduces Stack errors to messages
+and exposes only email/code states; this applicable behavior is incomplete.
+Eight whole original policy/view/coordinator/client/config files are hash-bound and identical at
+latest79d982f9 in recovery-20261023/signin-verification-source-audit/review.json.
+Next implement the original typed refusal, verification/retry/recovery endpoint
+contracts, complete native UI and cancellation/account fencing, then verify
+runtime behavior/accessibility. Hosted web's new password fallback is a separate
+flow; no external email/account request or state change occurred during review.
+
 Latest complete candidate→detected201-path inventory and the two iOS cache-fallback changes are reviewed in [UPSTREAM_REFRESH_2026_10_23.md](UPSTREAM_REFRESH_2026_10_23.md); global pins/full audit remain open.
 
 ## Routed enlarged portrait return verified — 2026-10-23

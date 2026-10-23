@@ -37,15 +37,17 @@ class NativeSignInSessionTest {
             assertEquals(NativeSignInState(), model.state.value)
         } finally { model.close() }
     }
-    @Test fun failedAuthenticationKeepsTheCodeForExplicitRetryAndClosePurgesIt() = runTest {
+    @Test fun failedAuthenticationClearsTheCodeAndRequiresExplicitInputBeforeRetry() = runTest {
         var calls = 0
         val model = NativeSignInSession(this, {}, { if (++calls == 1) throw java.io.IOException("Fixture unavailable") })
         try {
             model.editEmail("retry@example.test"); model.requestCode(); runCurrent(); model.editCode("a1b2c3")
             model.submitCode(); runCurrent()
-            assertEquals("Fixture unavailable", model.state.value.error); assertEquals("a1b2c3", model.state.value.code)
+            assertEquals("Fixture unavailable", model.state.value.error); assertEquals("", model.state.value.code)
             assertTrue(model.state.value.codeSent); assertFalse(model.state.value.busy)
-            model.submitCode(); runCurrent(); assertEquals(2, calls); assertNotNull(model.state.value.completion)
+            model.submitCode(); runCurrent(); assertEquals("An empty code cannot replay the failed request", 1, calls)
+            model.editCode("d4e5f6"); model.submitCode(); runCurrent()
+            assertEquals(2, calls); assertNotNull(model.state.value.completion)
             model.close(); assertEquals(NativeSignInState(), model.state.value)
             model.editEmail("late@example.test"); model.requestCode(); model.submitCode(); runCurrent()
             assertEquals(NativeSignInState(), model.state.value); assertEquals(2, calls)

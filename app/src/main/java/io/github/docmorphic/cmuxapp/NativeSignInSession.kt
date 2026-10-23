@@ -45,8 +45,12 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
                     else mutable.value.copy(codeSent = true)
             } catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
-                if (generation == admitted) mutable.value = mutable.value.copy(error = failure.message
-                    ?: if (signingIn) "Could not sign in. Please try again." else "Could not send the code. Please try again.")
+                if (generation == admitted) mutable.value = mutable.value.copy(
+                    // Original SignInView.verifyCode clears the submitted code
+                    // after failure; retry requires explicit input again.
+                    code = if (signingIn) "" else mutable.value.code,
+                    error = failure.message
+                        ?: if (signingIn) "Could not sign in. Please try again." else "Could not send the code. Please try again.")
             } finally {
                 if (job.isActive && generation == admitted) mutable.value = mutable.value.copy(busy = false)
             }
