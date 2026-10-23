@@ -1,0 +1,16 @@
+{
+  "upstream": "https://github.com/manaflow-ai/cmux",
+  "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "scope": "Unchanged onboarding/backdrop/environment leaf files built with the unchanged Cloud/Core/Support packages in an isolated UI reference module. This excludes the full CloudUI package and its terminal/billing dependencies.",
+  "files": {
+    "Packages/iOS/CmuxMobileCloudUI/Sources/CmuxMobileCloudUI/CloudOnboardingView.swift": "489bc414b0ee531f77e8f28c17a001683684a9ea2eb6a01ed20899961fe661ac",
+    "Packages/iOS/CmuxMobileCloudUI/Sources/CmuxMobileCloudUI/CloudOnboardingBackdrop.swift": "c0d7ee3894f2953a2708509d11eb0126edca1783558cd3be67f52d5c304f0293",
+    "Packages/iOS/CmuxMobileCloudUI/Sources/CmuxMobileCloudUI/CloudSessionControllerEnvironment.swift": "b53474ac052e25774cc8029ed117cd3a18a8ed74755cc22eb607b054f7274d51",
+    "ios/cmux/Resources/Localizable.xcstrings": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd"
+  },
+  "packageTrees": {
+    "Packages/iOS/CmuxMobileCloud": "ac29df7902f26dabbbd4632ed6fa263f9ce84261",
+    "Packages/iOS/CmuxMobileSupport": "2ae9ec3865c593fa81b5f17aa45b73d9da15f3a1",
+    "Packages/Shared/CMUXMobileCore": "15186d054362d2ea639647d78978ac9e3bccc87a"
+  }
+}

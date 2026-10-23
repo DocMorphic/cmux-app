@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "scenes": [
+    {
+      "id": "phone-en-light",
+      "language": "en",
+      "style": "light",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-en-dark",
+      "language": "en",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-ar-dark",
+      "language": "ar",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-de-enlarged",
+      "language": "de",
+      "style": "dark",
+      "category": "accessibilityMedium",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-en-landscape",
+      "language": "en",
+      "style": "dark",
+      "category": "large",
+      "orientation": "landscape",
+      "device": "phone"
+    },
+    {
+      "id": "tablet-en-dark",
+      "language": "en",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "tablet"
+    },
+    {
+      "id": "phone-de-dark",
+      "language": "de",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-es-dark",
+      "language": "es",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-fr-dark",
+      "language": "fr",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-ja-dark",
+      "language": "ja",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-ko-dark",
+      "language": "ko",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-zh-Hans-dark",
+      "language": "zh-Hans",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-zh-Hant-dark",
+      "language": "zh-Hant",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    }
+  ],
+  "labels": {
+    "en": {
+      "mobile.cloud.onboarding.workspace.title": "Your workspace lives in the Cloud",
+      "mobile.cloud.onboarding.workspace.message": "Workspaces keep their terminals, browsers, and coding agents running on a Cloud machine.",
+      "mobile.cloud.vpn.title": "System VPN",
+      "mobile.cloud.onboarding.vpn.message": "Turn it on when Safari or another app needs to reach a private service on a Cloud machine.",
+      "mobile.cloud.onboarding.key.title": "A private key keeps it private",
+      "mobile.cloud.onboarding.key.message": "cmux keeps this phone's private key in the Keychain. It never leaves the phone.",
+      "mobile.cloud.onboarding.continue": "Continue",
+      "mobile.cloud.onboarding.done": "Get started",
+      "mobile.cloud.onboarding.back": "Back",
+      "mobile.cloud.onboarding.skip": "Skip"
+    },
+    "ar": {
+      "mobile.cloud.onboarding.workspace.title": "مساحة عملك موجودة في السحابة",
+      "mobile.cloud.onboarding.workspace.message": "تُبقي مساحات العمل الطرفيات والمتصفحات ووكلاء البرمجة قيد التشغيل على جهاز Cloud.",
+      "mobile.cloud.vpn.title": "VPN النظام",
+      "mobile.cloud.onboarding.vpn.message": "شغّله عندما يحتاج Safari أو تطبيق آخر إلى الوصول إلى خدمة خاصة على جهاز Cloud.",
+      "mobile.cloud.onboarding.key.title": "مفتاح خاص يحمي الاتصال",
+      "mobile.cloud.onboarding.key.message": "يحتفظ cmux بالمفتاح الخاص بهذا الهاتف في سلسلة المفاتيح. لا يغادر الهاتف أبدًا.",
+      "mobile.cloud.onboarding.continue": "متابعة",
+      "mobile.cloud.onboarding.done": "ابدأ",
+      "mobile.cloud.onboarding.back": "رجوع",
+      "mobile.cloud.onboarding.skip": "تخطي"
+    },
+    "de": {
+      "mobile.cloud.onboarding.workspace.title": "Dein Arbeitsbereich liegt in der Cloud",
+      "mobile.cloud.onboarding.workspace.message": "Arbeitsbereiche lassen ihre Terminals, Browser und Programmierassistenten auf einer Cloud-Maschine weiterlaufen.",
+      "mobile.cloud.vpn.title": "System-VPN",
+      "mobile.cloud.onboarding.vpn.message": "Schalte es ein, wenn Safari oder eine andere App einen privaten Dienst auf einer Cloud-Maschine erreichen muss.",
+      "mobile.cloud.onboarding.key.title": "Ein privater Schlüssel schützt den Zugang",
+      "mobile.cloud.onboarding.key.message": "cmux bewahrt den privaten Schlüssel dieses Geräts im Schlüsselbund auf. Er verlässt das Gerät nie.",
+      "mobile.cloud.onboarding.continue": "Weiter",
+      "mobile.cloud.onboarding.done": "Loslegen",
+      "mobile.cloud.onboarding.back": "Zurück",
+      "mobile.cloud.onboarding.skip": "Überspringen"
+    },
+    "es": {
+      "mobile.cloud.onboarding.workspace.title": "Tu espacio de trabajo está en Cloud",
+      "mobile.cloud.onboarding.workspace.message": "Los espacios de trabajo mantienen sus terminales, navegadores y agentes de programación en una máquina Cloud.",
+      "mobile.cloud.vpn.title": "VPN del sistema",
+      "mobile.cloud.onboarding.vpn.message": "Actívalo cuando Safari u otra app necesite acceder a un servicio privado en una máquina Cloud.",
+      "mobile.cloud.onboarding.key.title": "Una clave privada protege el acceso",
+      "mobile.cloud.onboarding.key.message": "cmux guarda la clave privada de este teléfono en el llavero. Nunca sale del teléfono.",
+      "mobile.cloud.onboarding.continue": "Continuar",
+      "mobile.cloud.onboarding.done": "Empezar",
+      "mobile.cloud.onboarding.back": "Atrás",
+      "mobile.cloud.onboarding.skip": "Omitir"
+    },
+    "fr": {
+      "mobile.cloud.onboarding.workspace.title": "Votre espace de travail est dans le Cloud",
+      "mobile.cloud.onboarding.workspace.message": "Vos espaces de travail gardent leurs terminaux, navigateurs et agents de programmation actifs sur une machine Cloud.",
+      "mobile.cloud.vpn.title": "VPN système",
+      "mobile.cloud.onboarding.vpn.message": "Activez-le lorsque Safari ou une autre app doit accéder à un service privé sur une machine Cloud.",
+      "mobile.cloud.onboarding.key.title": "Une clé privée protège l’accès",
+      "mobile.cloud.onboarding.key.message": "cmux conserve la clé privée de cet appareil dans le trousseau. Elle ne quitte jamais l’appareil.",
+      "mobile.cloud.onboarding.continue": "Continuer",
+      "mobile.cloud.onboarding.done": "Commencer",
+      "mobile.cloud.onboarding.back": "Retour",
+      "mobile.cloud.onboarding.skip": "Passer"
+    },
+    "ja": {
+      "mobile.cloud.onboarding.workspace.title": "ワークスペースはCloud上にあります",
+      "mobile.cloud.onboarding.workspace.message": "ワークスペースでは、ターミナル、ブラウザ、コーディングエージェントがCloudマシン上で動き続けます。",
+      "mobile.cloud.vpn.title": "システムVPN",
+      "mobile.cloud.onboarding.vpn.message": "SafariやほかのアプリからCloudマシン上のプライベートサービスにアクセスするときにオンにします。",
+      "mobile.cloud.onboarding.key.title": "秘密鍵でプライバシーを守る",
+      "mobile.cloud.onboarding.key.message": "cmuxはこの端末の秘密鍵をキーチェーンに保存します。秘密鍵が端末の外に送られることはありません。",
+      "mobile.cloud.onboarding.continue": "続ける",
+      "mobile.cloud.onboarding.done": "はじめる",
+      "mobile.cloud.onboarding.back": "戻る",
+      "mobile.cloud.onboarding.skip": "スキップ"
+    },
+    "ko": {
+      "mobile.cloud.onboarding.workspace.title": "작업 공간은 Cloud에 있습니다",
+      "mobile.cloud.onboarding.workspace.message": "워크스페이스는 터미널, 브라우저, 코딩 에이전트를 Cloud 머신에서 계속 실행합니다.",
+      "mobile.cloud.vpn.title": "시스템 VPN",
+      "mobile.cloud.onboarding.vpn.message": "Safari 또는 다른 앱이 Cloud 머신의 비공개 서비스에 접속해야 할 때 켜세요.",
+      "mobile.cloud.onboarding.key.title": "개인 키로 접근을 보호합니다",
+      "mobile.cloud.onboarding.key.message": "cmux는 이 휴대폰의 개인 키를 키체인에 보관합니다. 개인 키는 휴대폰 밖으로 나가지 않습니다.",
+      "mobile.cloud.onboarding.continue": "계속",
+      "mobile.cloud.onboarding.done": "시작하기",
+      "mobile.cloud.onboarding.back": "뒤로",
+      "mobile.cloud.onboarding.skip": "건너뛰기"
+    },
+    "zh-Hans": {
+      "mobile.cloud.onboarding.workspace.title": "你的工作区位于 Cloud",
+      "mobile.cloud.onboarding.workspace.message": "工作区会让终端、浏览器和编程代理继续在 Cloud 主机上运行。",
+      "mobile.cloud.vpn.title": "系统 VPN",
+      "mobile.cloud.onboarding.vpn.message": "当 Safari 或其他 App 需要访问 Cloud 主机上的私有服务时，请开启它。",
+      "mobile.cloud.onboarding.key.title": "私钥保护访问",
+      "mobile.cloud.onboarding.key.message": "cmux 会将这部手机的私钥存储在钥匙串中。私钥不会离开手机。",
+      "mobile.cloud.onboarding.continue": "继续",
+      "mobile.cloud.onboarding.done": "开始使用",
+      "mobile.cloud.onboarding.back": "返回",
+      "mobile.cloud.onboarding.skip": "跳过"
+    },
+    "zh-Hant": {
+      "mobile.cloud.onboarding.workspace.title": "你的工作區位於 Cloud",
+      "mobile.cloud.onboarding.workspace.message": "工作區會讓終端機、瀏覽器和程式設計代理持續在 Cloud 主機上執行。",
+      "mobile.cloud.vpn.title": "系統 VPN",
+      "mobile.cloud.onboarding.vpn.message": "當 Safari 或其他 App 需要連到 Cloud 主機上的私人服務時，請開啟它。",
+      "mobile.cloud.onboarding.key.title": "私密金鑰保護存取",
+      "mobile.cloud.onboarding.key.message": "cmux 將這支手機的私密金鑰儲存在鑰匙圈中。金鑰不會離開手機。",
+      "mobile.cloud.onboarding.continue": "繼續",
+      "mobile.cloud.onboarding.done": "開始使用",
+      "mobile.cloud.onboarding.back": "返回",
+      "mobile.cloud.onboarding.skip": "略過"
+    }
+  }
+}
