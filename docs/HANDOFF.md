@@ -1,3 +1,21 @@
+## Close control and toolbar source measurements applied — 2026-10-23
+
+Original36pt AX bounds sit inside44pt painted bounds (4pt outset), verified across
+13 loaded profiles. The reader now has44dp capsule paint/48dp touch bounds, a54dp
+bar with22dp control centers, bounded Close text and complete RTL/translated
+layouts. Four optical glyph comparisons are within1pt; actual iOS Close UIFont
+remains unobserved. Fourteen emulator invocations pass, then a test-only capture-
+order cleanup passes one header case with21 edge taps and Enter on the same
+production APK. Selected default dark/light/wide/enlarged/RTL/narrow frames reviewed;
+crash buffers empty, settings/window restored and both owned emulator runs exit0.
+See AGENT_FEED.md and recovery-20261023/native-feed-reader-capsule-checkpoint.json
+for exact source/APK/run scope. These changes are not in signed candidate722 or
+on physical712. Account/pairing/global pins unchanged; no Mac/phone action.
+
+Dynamic glass/tablet materials, remaining rendered colors, loading/error,
+landscape horizontal policy, real transport/physical/TalkBack and all global
+feature/source gates remain open. The goal remains active.
+
 ## Reader primary colors matched; original controls/colors verified — 2026-10-23
 
 The presented reader now scopes measured background/primary-label roles: dark
@@ -14,8 +32,9 @@ Original collector run40003411274/job120585108804 at5140226d completes successfu
 all three actual methods pass, CI/local receipts identical for52 pages/22 whole
 original files,31 guards pass. Selected dark/light/enlarged/tablet frames reviewed.
 Its39 presented pages expose title labels but no public buttons or Close UIFont.
-Next use measured visual capsule36pt/bar54pt/control center22pt and glyph bounds
-to port the native Close role and fix Android's~27dp center/enlarged bar growth.
+The earlier36pt visual-capsule interpretation is corrected above: AX36pt inside
+paint44pt. Source bar54pt/control center22pt and glyph bounds guide the port.
+That checkpoint preceded the corrected Android Close/vertical allocation above.
 Raw semantic link differs from rendered blue; consult the rendered-color audit
 before remaining color roles. See AGENT_FEED.md, ios-feed-reader-controls-checkpoint.json
 and native-feed-reader-close-layout-audit.json. No live job/emulator remains.

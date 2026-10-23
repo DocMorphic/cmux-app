@@ -1,3 +1,21 @@
+## Close control and toolbar source measurements applied — 2026-10-23
+
+Original36pt AX bounds sit inside44pt painted bounds (4pt outset), verified across
+13 loaded profiles. The reader now has44dp capsule paint/48dp touch bounds, a54dp
+bar with22dp control centers, bounded Close text and complete RTL/translated
+layouts. Four optical glyph comparisons are within1pt; actual iOS Close UIFont
+remains unobserved. Fourteen emulator invocations pass, then a test-only capture-
+order cleanup passes one header case with21 edge taps and Enter on the same
+production APK. Selected default dark/light/wide/enlarged/RTL/narrow frames reviewed;
+crash buffers empty, settings/window restored and both owned emulator runs exit0.
+See AGENT_FEED.md and recovery-20261023/native-feed-reader-capsule-checkpoint.json
+for exact source/APK/run scope. These changes are not in signed candidate722 or
+on physical712. Account/pairing/global pins unchanged; no Mac/phone action.
+
+Dynamic glass/tablet materials, remaining rendered colors, loading/error,
+landscape horizontal policy, real transport/physical/TalkBack and all global
+feature/source gates remain open. The goal remains active.
+
 ## Reader background/primary labels matched within measured profiles — 2026-10-23
 
 The reader uses original presented-sheet background/primary labels, scoped to its

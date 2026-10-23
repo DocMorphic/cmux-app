@@ -9,6 +9,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
@@ -42,6 +43,10 @@ class AgentFeedFullTextTest {
         val header = compose.onNodeWithTag("AgentFeedFullTextHeader").fetchSemanticsNode().boundsInRoot
         assertEquals("Ordinary reader toolbar matches the measured 54-point source component", 54f,
             header.height / compose.density.density, .5f)
+        assertEquals("Title shares the original 22pt control center", 22f,
+            (title.center.y - header.top) / compose.density.density, .5f)
+        val close = compose.onNodeWithTag("AgentFeedFullTextCloseCapsule")
+        close.assertHeightIsEqualTo(44.dp).assertTouchHeightIsEqualTo(48.dp)
         val configuration = compose.activity.resources.configuration
         if (configuration.screenWidthDp < 600 && configuration.screenWidthDp < configuration.screenHeightDp) {
             val panel = compose.onNodeWithTag("AgentFeedFullTextCompactPanel").fetchSemanticsNode().boundsInRoot

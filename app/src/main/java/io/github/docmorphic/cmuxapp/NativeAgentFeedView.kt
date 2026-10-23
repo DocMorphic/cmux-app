@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp
 import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,11 +23,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
@@ -258,7 +263,7 @@ internal fun AgentFeedFullText(load: suspend () -> String, onRead: () -> Unit, o
 }
 
 @Composable
-private fun AgentFeedFullTextTheme(content: @Composable () -> Unit) {
+internal fun AgentFeedFullTextTheme(content: @Composable () -> Unit) {
     // Measured in the original presented reader's UIKit traits and compositor:
     // elevated dark system background 28/28/30 with white labels; light is white/black.
     val dark = NativeAppColors.dark
@@ -327,11 +332,26 @@ internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
         TextStyle(fontSize = size.toSp(), lineHeight = (size * 1.2f).toSp(), letterSpacing = 0.sp,
             platformStyle = PlatformTextStyle(includeFontPadding = false))
     }
+    // The original Close UIFont is not exposed. This Android role follows its
+    // measured glyph size/growth while retaining the fixed 44dp painted capsule.
+    val closeStyle = with(LocalDensity.current) {
+        val size = minOf(17.sp.toDp(), 21.dp)
+        TextStyle(fontSize = size.toSp(), lineHeight = (size * 1.2f).toSp(), letterSpacing = 0.sp,
+            fontWeight = FontWeight.Normal, platformStyle = PlatformTextStyle(includeFontPadding = false))
+    }
+    val dark = NativeAppColors.dark
     androidx.compose.ui.layout.Layout(modifier = Modifier.fillMaxWidth().testTag("AgentFeedFullTextHeader")
-        .padding(horizontal = if (wide) 14.dp else 20.dp, vertical = 3.dp), content = {
-        TextButton(onClick = onDismiss) {
-            Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619),
-                maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+        .padding(horizontal = if (wide) 10.dp else 16.dp), content = {
+        Surface(onClick = onDismiss, modifier = Modifier.height(44.dp).testTag("AgentFeedFullTextCloseCapsule")
+            .semantics { role = Role.Button }, shape = CircleShape,
+            color = if (dark) Color(0xFF222225) else Color.White, contentColor = NativeAppColors.text,
+            border = BorderStroke(1.dp, if (dark) Color(0xFF424248) else Color.White),
+            shadowElevation = if (dark) 2.dp else 10.dp) {
+            Box(Modifier.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619),
+                    Modifier.testTag("AgentFeedFullTextCloseLabel"), style = closeStyle,
+                    maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+            }
         }
         Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_title_257807f0), Modifier.testTag("AgentFeedFullTextTitle"), fontWeight = FontWeight.SemiBold,
             style = titleStyle,
@@ -340,27 +360,30 @@ internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
     }) { children, constraints ->
         val close = children[0].measure(constraints.copy(minWidth = 0, minHeight = 0))
         val titleWidth = children[1].maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity)
-        val gap = 16.dp.roundToPx()
+        // Glass paints 4pt outside the original 36pt AX frame on each edge.
+        // Its 12pt visual gap therefore preserves the measured 16pt AX gap.
+        val gap = 12.dp.roundToPx()
+        val trailing = 4.dp.roundToPx()
         // The original bar reserves space only on the cancellation side. A
         // symmetric reservation needlessly wraps translated titles. Retain a
         // second row only for Android windows where the complete pair cannot fit.
-        val stacked = close.width.toLong() + gap + titleWidth > constraints.maxWidth
+        val stacked = close.width.toLong() + gap + titleWidth + trailing > constraints.maxWidth
         if (stacked) {
             val rowGap = 8.dp.roundToPx()
             val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
-                maxHeight = (constraints.maxHeight - close.height - rowGap).coerceAtLeast(0)))
-            layout(constraints.maxWidth, close.height + rowGap + title.height) {
+                maxHeight = (constraints.maxHeight - close.height - rowGap - 10.dp.roundToPx()).coerceAtLeast(0)))
+            layout(constraints.maxWidth, close.height + rowGap + title.height + 10.dp.roundToPx()) {
                 close.placeRelative(0, 0)
                 title.place((constraints.maxWidth - title.width) / 2, close.height + rowGap)
             }
         } else {
             val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
-                maxWidth = (constraints.maxWidth - close.width - gap).coerceAtLeast(0)))
-            val height = maxOf(close.height, title.height)
+                maxWidth = (constraints.maxWidth - close.width - gap - trailing).coerceAtLeast(0)))
+            val rowHeight = 44.dp.roundToPx()
             val titleStart = maxOf((constraints.maxWidth - title.width) / 2, close.width + gap)
-            layout(constraints.maxWidth, height) {
-                close.placeRelative(0, (height - close.height) / 2)
-                title.placeRelative(titleStart, (height - title.height) / 2)
+            layout(constraints.maxWidth, 54.dp.roundToPx()) {
+                close.placeRelative(0, (rowHeight - close.height) / 2)
+                title.placeRelative(titleStart, (rowHeight - title.height) / 2)
             }
         }
     }

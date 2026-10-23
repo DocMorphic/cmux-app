@@ -1,3 +1,21 @@
+## Close control and toolbar source measurements applied — 2026-10-23
+
+Original36pt AX bounds sit inside44pt painted bounds (4pt outset), verified across
+13 loaded profiles. The reader now has44dp capsule paint/48dp touch bounds, a54dp
+bar with22dp control centers, bounded Close text and complete RTL/translated
+layouts. Four optical glyph comparisons are within1pt; actual iOS Close UIFont
+remains unobserved. Fourteen emulator invocations pass, then a test-only capture-
+order cleanup passes one header case with21 edge taps and Enter on the same
+production APK. Selected default dark/light/wide/enlarged/RTL/narrow frames reviewed;
+crash buffers empty, settings/window restored and both owned emulator runs exit0.
+See AGENT_FEED.md and recovery-20261023/native-feed-reader-capsule-checkpoint.json
+for exact source/APK/run scope. These changes are not in signed candidate722 or
+on physical712. Account/pairing/global pins unchanged; no Mac/phone action.
+
+Dynamic glass/tablet materials, remaining rendered colors, loading/error,
+landscape horizontal policy, real transport/physical/TalkBack and all global
+feature/source gates remain open. The goal remains active.
+
 ## Current reader colors and original control capture — 2026-10-23
 
 Measured reader background and primary-label roles now match original source
@@ -8,10 +26,10 @@ physical/TalkBack gates remain open. Candidate722/physical712/pairing unchanged.
 
 Original run40003411274/job120585108804 succeeds at5140226d: all three methods,
 identical52-page CI/local receipts,22 whole original files and31 evidence guards.
-No public Close UIFont emerges. Next port its measured36pt capsule/54pt bar and
-22pt control-center allocation, bounded native text using glyph/AX measurements,
-and remaining rendered colors/material/loading/error behavior. Android currently
-centers~27dp and enlarges its bar under large text. Raw semantic link values
+No public Close UIFont emerges. Its36pt AX frame is inside44pt paint, as corrected
+above. The54pt bar,22pt control-center allocation and measured glyph/AX bounds
+guide the native port. Remaining rendered colors/material/loading/error stay open.
+The~27dp center/enlarged bar behavior was the earlier Android state. Raw link values
 differ from rendered blue; use the rendered-color and close-layout audits.
 No live reference job or emulator remains. Do not claim a measured Close UIFont.
 No phone, Mac app or pairing action needed for this work. Goal remains active.

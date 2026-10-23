@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import org.json.JSONObject
@@ -57,6 +58,14 @@ class AgentFeedFullTextPresentationTest {
         }
         awaitReader()
         compose.onNodeWithTag("AgentFeedFullTextPanel").assertIsDisplayed()
+        val header = compose.onNodeWithTag("AgentFeedFullTextHeader").fetchSemanticsNode().boundsInRoot
+        val close = compose.onNodeWithTag("AgentFeedFullTextCloseCapsule")
+        close.assertHeightIsEqualTo(44.dp).assertTouchHeightIsEqualTo(48.dp)
+        val capsule = close.fetchSemanticsNode().boundsInRoot
+        assertEquals("Original wide painted capsule starts10pt from the panel edge", 10f,
+            (capsule.left - header.left) / compose.density.density, .5f)
+        assertEquals("Wide controls center22pt below the bar top", 22f,
+            (capsule.center.y - header.top) / compose.density.density, .5f)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
         val density = compose.activity.resources.displayMetrics.density

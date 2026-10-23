@@ -1,5 +1,41 @@
 # Agent Feed companion
 
+## Measured Close capsule and toolbar allocation verified — 2026-10-23
+
+Correction to the earlier control audit: the original36pt AX frame is inset4pt
+inside a44pt painted capsule. Read-only raster segmentation verifies all13 loaded
+profiles, excluding shadow. Compact painted leading inset is16pt; wide10pt.
+The native Android control now paints44dp, keeps a48dp expanded touch target and
+Button semantics, and aligns Close/title22dp below the54dp toolbar top. Its
+normal optical role is17sp capped at21dp. Four default-state glyph comparisons
+(English, German normal/enlarged, Arabic) differ by at most1pt in each dimension;
+this does not establish the unexposed actual iOS Close UIFont. All source-sized
+profiles remain one row under enlarged text; very narrow Android windows retain
+a complete translated fallback row. Static native fill/border/shadow follows the
+observed default capsule; dynamic glass/backdrop/tablet material remains open.
+
+The installed production APK e6087a8cdbc5c3eaf4234c86a947153a0f3a6a6a6d7cbd94595518c8dc1ae7cf
+passes ten native/control/header/Activity/process cases125.524s, compact dark/light
+5.472s/5.815s, and wide landscape/portrait4.937s/4.737s (14 invocations). These
+include long painted text, links/code/selection, cancellation/retry, adaptive
+recreation and two real process/task restores within the emulator scope. A
+subsequent test-only capture-order adjustment keeps keyboard focus after default
+screenshots; its one header case passes11.255s on the same production APK, with
+21 actual edge taps and one Enter activation. Full cohort test APK6cb7f189…;
+final header test APKf0f1d055…. Exact hashes/source bindings are retained separately.
+Both runs have empty crash buffers, no preflight System UI ANR, restored settings/
+window overrides and owned-emulator exit0. Selected dark/light/wide/enlarged/RTL/
+narrow frames reviewed. Initial missing-opt-in compile failure and earlier focused
+captures remain retained. No physical device, real account/transport, TalkBack or
+full material acceptance is implied by these tests.
+
+Evidence under captures/recovery-20261023/: native-feed-reader-capsule-checkpoint.json,
+native-feed-reader-capsule-paint-audit.json, native-feed-reader-capsule-glyph-comparison.json,
+and native-feed-reader-capsule-runtime-v1/ and-v2/. Next: rendered secondary/link/
+code roles, loading/error allocation, landscape-specific horizontal policy and
+remaining full-source/device gates. Candidate722/physical712/account/pairing/global
+pins unchanged; no new signed package or Mac/phone action. Goal remains active.
+
 ## Original control/color collection verified; next layout differences measured — 2026-10-23
 
 Run40003411274/job120585108804 succeeds at5140226d. Actual original capture
@@ -13,8 +49,9 @@ account/transport, the full application, Android or physical/full parity.
 
 All39 presented observations expose only the title UILabel; zero public buttons
 and zero Close label candidates. Close UIFont remains unobserved. Source AX and
-glyphs nevertheless measure its visual geometry:36pt capsule,54pt bar, title and
-Close center22pt below bar top in all13 loaded profiles. Current unchanged Android
+glyphs measure a36pt AX frame within44pt paint (corrected by the paint audit
+below),54pt bar, title and
+Close center22pt below bar top in all13 loaded profiles. At that checkpoint Android
 header centers at about27dp and grows under enlarged text (e.g. German59.333dp,
 narrow German91.667dp stacked). Original German accessibility stays54pt/one row.
 Close glyph ink is73×13pt ordinary German and87.667×15.667pt enlarged; these are

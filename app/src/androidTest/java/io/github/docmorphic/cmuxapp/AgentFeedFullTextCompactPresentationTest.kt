@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import org.json.JSONObject
@@ -99,6 +100,12 @@ class AgentFeedFullTextCompactPresentationTest {
         assertEquals("Original compact landscape drag area is 24 points", 24f, drag.height / density, .5f)
         val header = compose.onNodeWithTag("AgentFeedFullTextHeader").fetchSemanticsNode().boundsInRoot
         assertEquals("Ordinary source toolbar is 54 points", 54f, header.height / density, .5f)
+        val close = compose.onNodeWithTag("AgentFeedFullTextCloseCapsule")
+        close.assertHeightIsEqualTo(44.dp).assertTouchHeightIsEqualTo(48.dp)
+        assertEquals("Painted Close shares the source control row center", 22f,
+            (close.fetchSemanticsNode().boundsInRoot.center.y - header.top) / density, .5f)
+        assertEquals("Title shares the source control row center", 22f,
+            (compose.onNodeWithTag("AgentFeedFullTextTitle").fetchSemanticsNode().boundsInRoot.center.y - header.top) / density, .5f)
         val bounds = Rect()
         compose.runOnUiThread {
             val location = IntArray(2)
