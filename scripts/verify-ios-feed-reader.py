@@ -92,7 +92,12 @@ def verify(exported, output, commit):
             require(page.get('mode') == ('loading' if stage == 'loading' else 'retry') and
                 page.get('loadAttempts') == (1 if stage in ('loading', 'error') else 2), 'Wrong original load/retry sequence')
             expected = 'Open reference sheet' if closed else fixture['probes']['top'] if stage == 'loaded' else fixture['uiStrings'][stage if stage == 'loading' else 'unavailable'][scene['language']]
-            visible(page.get('target', {}), expected, size, require_hit=stage != 'loading')
+            if stage == 'loading':
+                require(page.get('loadingActivityIndicator') is True and expected in page.get('target', {}).get('label', ''), 'Missing native loading Activity Indicator')
+                # UIKit prepends its localized in-progress accessibility phrase.
+                visible(page['target'], page['target']['label'], size, require_hit=False)
+            else:
+                visible(page.get('target', {}), expected, size)
             if closed:
                 require(page.get('dismissed') is True and page.get('close', {}).get('exists') is False, 'Original dismissal unproven')
             else:

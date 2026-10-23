@@ -64,7 +64,7 @@ final class FeedFullTextUITests: XCTestCase {
                 let image = XCUIScreen.main.screenshot()
                 let attachment = XCTAttachment(screenshot: image)
                 attachment.name = "feed-reader-" + id + "-" + stage; attachment.lifetime = .keepAlways; add(attachment)
-                record["stage"] = stage; record["target"] = element(target); record["close"] = element(close)
+                record["stage"] = stage; record["loadingActivityIndicator"] = stage == "loading" && target.elementType == .activityIndicator; record["target"] = element(target); record["close"] = element(close)
                 record["unexpectedSourceControl"] = app.buttons["Source"].exists || app.buttons["Formatted"].exists
                 record["title"] = element(app.navigationBars.staticTexts[strings["title"]![language]!].firstMatch)
                 record["captureMethod"] = "XCUIScreen.main.screenshot"
@@ -73,7 +73,7 @@ final class FeedFullTextUITests: XCTestCase {
             }
             app.launchEnvironment["CMUX_FEED_READER_MODE"] = "loading"; app.launch()
             _ = try wait(app, scene: id) { $0["loadAttempts"] as? Int == 1 }
-            try snapshot("loading", target: app.staticTexts[strings["loading"]![language]!])
+            try snapshot("loading", target: app.activityIndicators.matching(NSPredicate(format: "label CONTAINS %@", strings["loading"]![language]!)).firstMatch)
             app.buttons["MobileAgentFeedFullTextClose"].tap()
             let loadingDismissal = try wait(app, scene: id, probe: "root") {
                 $0["dismissed"] as? Bool == true && $0["loadCancellations"] as? Int == 1

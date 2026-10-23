@@ -39,7 +39,7 @@ class FeedSheetExportGuards(unittest.TestCase):
                     bodyPointSize=17 if scene['category']=='large' else 28, shellLocalizations=[language], preferredLanguages=[language],
                     viewport=size, scale=1, safeArea=[0,0,0,0], colors={k:[0,0,0,1] for k in ['background','label','secondaryLabel','separator']},
                     loadAttempts=1 if stage in ['loading','error'] else 2, dismissed=closed, loadCancellations=0,
-                    target=control(expected), close=dict(exists=False) if closed else control(self.fixture['uiStrings']['close'][language]),
+                    target=control('In progress, '+expected if stage=='loading' else expected), loadingActivityIndicator=stage=='loading', close=dict(exists=False) if closed else control(self.fixture['uiStrings']['close'][language]),
                     title=control(self.fixture['uiStrings']['title'][language]), unexpectedSourceControl=False,
                     captureMethod='XCUIScreen.main.screenshot', imageSha256=hashlib.sha256(raw).hexdigest()))
             dismissal=deepcopy(pages[0]); dismissal.update(probe='root', dismissed=True, loadCancellations=1)
@@ -80,3 +80,6 @@ class FeedSheetExportGuards(unittest.TestCase):
         p=self.export/'en-dark.json'; d=json.loads(p.read_text()); d['pages'][0]['target']['hittable']=False
         p.write_text(json.dumps(d)); self.verify()
     def test_close_must_remain_tappable(self): self.rejects(lambda d:d['pages'][0]['close'].update(hittable=False),'visible original')
+
+    def test_zero_frame_nested_loading_label_rejected(self): self.rejects(lambda d:d['pages'][0]['target'].update(frame=[0,0,0,0]),'visible original')
+    def test_wrong_loading_role_rejected(self): self.rejects(lambda d:d['pages'][0].update(loadingActivityIndicator=False),'Activity Indicator')
