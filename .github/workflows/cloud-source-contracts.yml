@@ -1,0 +1,71 @@
+name: Pinned Cloud source contracts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-source-contracts
+  cancel-in-progress: false
+
+jobs:
+  reference:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: cmux-app
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          path: upstream
+          persist-credentials: false
+          sparse-checkout: |
+            Packages/iOS/CmuxMobileCloud
+            Packages/Shared/CMUXMobileCore
+            scripts
+      - name: Select full Xcode toolchain and bind unmodified packages
+        run: |
+          set -euo pipefail
+          cd upstream
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          pin = 'a5911a1f92f3eeb11c4d7f3e2ef89204718c5009'
+          git = lambda *args: subprocess.check_output(['git', *args], text=True).strip()
+          assert git('rev-parse', 'HEAD') == pin
+          assert not git('status', '--porcelain')
+          packages = ['Packages/iOS/CmuxMobileCloud', 'Packages/Shared/CMUXMobileCore']
+          files = {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
+              for package in packages for p in pathlib.Path(package).rglob('*') if p.is_file()}
+          receipt = dict(upstreamRevision=pin, projectSourceCommit=os.environ['GITHUB_SHA'],
+              sourceDirty=False, packageTrees={p: git('rev-parse', pin + ':' + p) for p in packages},
+              files=files, scope='Unmodified Swift Cloud package/model/request/controller tests on a disposable macOS runner. Generated service/transport fixtures only; no production Cloud account, provisioning, physical device or iOS/Android UI parity acceptance.')
+          pathlib.Path(os.environ['RUNNER_TEMP'], 'cloud-source-provenance.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
+      - name: Execute pinned lifecycle and API tests
+        run: |
+          set -euo pipefail
+          xcodebuild -version | tee "$RUNNER_TEMP/cloud-source-toolchain.log"
+          xcrun swift --version | tee -a "$RUNNER_TEMP/cloud-source-toolchain.log"
+          swift test --package-path upstream/Packages/iOS/CmuxMobileCloud \
+            --scratch-path "$RUNNER_TEMP/cloud-source-build" --jobs 2 \
+            --filter 'CloudMachineLifecycleTests|CloudAPITests' \
+            2>&1 | tee "$RUNNER_TEMP/cloud-source-tests.log"
+          test -z "$(git -C upstream status --porcelain)"
+      - name: Preserve source tests and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-source-contracts
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/cloud-source-provenance.json
+            ${{ runner.temp }}/cloud-source-toolchain.log
+            ${{ runner.temp }}/cloud-source-tests.log
