@@ -213,12 +213,12 @@ internal fun AgentFeedTimeline(
 @Composable
 internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal) -> Unit,
     load: suspend () -> String, onRead: () -> Unit, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf<String?>(null) }; var error by remember { mutableStateOf<String?>(null) }
+    var text by remember { mutableStateOf<String?>(null) }; var failed by remember { mutableStateOf(false) }
     var attempt by remember { mutableIntStateOf(0) }
     val formattedPosition = rememberSaveable(saver = NativeMarkdownPosition.Saver) { NativeMarkdownPosition() }
     val sourcePosition = rememberSaveable(saver = AgentFeedSourcePosition.Saver) { AgentFeedSourcePosition() }
     LaunchedEffect(attempt) {
-        error = null
+        failed = false
         try {
             val loaded = load()
             // A transport callback may finish after dismissal even when its
@@ -229,7 +229,7 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
         catch (failure: Exception) {
             if (failure is CancellationException) throw failure
             currentCoroutineContext().ensureActive()
-            error = failure.message ?: "Could not load the message"
+            failed = true
         }
     }
     NativeModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -244,10 +244,9 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
                 }
             }
             when {
-                error != null -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
+                failed -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_unavailable_b62af026))
-                    Text(error!!, color = agentFeedMuted)
                     TextButton(onClick = { attempt++ }) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) }
                 }
                 text == null -> Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically,

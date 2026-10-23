@@ -1,5 +1,42 @@
 # Agent Feed companion
 
+## Full-sheet source capture in progress; failure copy aligned — 2026-10-23
+
+The new reference compiles **22 whole unchanged upstream files** at `a5911a1f`,
+including original `AgentFeedFullTextView`, real model, embedded/native/web
+renderer dependencies and both full localization catalogs. An explicitly authored
+offline presenter/loader and public entry-point adapter host the original sheet.
+No original model substitutes, extracted view bodies or disabled source branches
+are used. The capture declares 13 profiles × loading/error/loaded/closed states,
+plus loading cancellation and retry checks. It measures actual sheet traits and
+interface level without inventing elevated-level requirements for compact height.
+See `tests/ios-feed-reader-reference/README.md` for exact context and limitations.
+
+Seventeen synthetic export/input guards pass; preparation/source hashes and PBX
+lint pass. Local real model/shared-helper/macOS renderer builds pass, but their
+conditional macOS compilation does **not** prove UIKit/iOS sheet behavior. Actual
+capture run `39955557256` at `d1866fb4` is in progress. Its outputs are unaccepted
+until the declared captures, controls, provenance, traits and images are verified
+and reviewed. Keep polling that run; do not restart from an observation timeout.
+
+One source-proven failure UI difference is fixed independently: Android now shows
+only the existing localized generic unavailable message and Try again, matching
+the original view, without the extra exception-message line. The focused actual
+component test passes / 5.186 s: generic message visible, raw injected exception
+text absent, retry acknowledges a successful read once and dismiss cancels a
+pending read without another acknowledgment. Its error frame is reviewed; crash
+buffer empty, settings restored/read back and emulator exits 0. Full JVM suite:
+3,148 passed/four skipped, no failures/errors (3,152 cases, 429 XML). Evidence:
+`captures/recovery-20261023/native-feed-reader-error-checkpoint.json` and its
+runtime/full-JVM archives. Signed 721 excludes this newer copy change.
+
+This closes that failure-copy difference, not sheet appearance or full parity.
+Source/Formatted controls, title/loading layout/palette and full-sheet/elevated
+comparison remain open along with real accounts/transport/Mac/Pixel, accessibility
+and broader app gates. Phone availability remains pending; physical 712 stays
+released, the pairing popup can stay closed, and no phone/cmux Mac/account/pairing
+operation occurred. Global source pins and full goal remain open.
+
 ## Actual system configuration and process restoration — 2026-10-23
 
 The routed native reader now has real Android-system evidence beyond manual

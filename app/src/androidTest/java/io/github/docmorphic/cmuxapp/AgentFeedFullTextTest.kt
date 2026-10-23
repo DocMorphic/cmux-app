@@ -171,7 +171,13 @@ class AgentFeedFullTextTest {
                 "Complete response"
             }, { reads++ }, { shown = false }) }
         } }
-        compose.onNodeWithText("Reconnect and try again").assertIsDisplayed()
+        val unavailable = InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.cmux_ui_mobile_agentfeed_fulltext_unavailable_b62af026)
+        compose.onNodeWithText(unavailable).assertIsDisplayed()
+        compose.onNodeWithText("Reconnect and try again").assertDoesNotExist()
+        val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "feed-reader").apply { mkdirs() }
+        val image = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        File(directory, "retry-original-generic-error.png").outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        image.recycle()
         compose.runOnIdle { assertEquals(0, reads) }
         compose.onNodeWithText("Try again").performClick()
         awaitReader()

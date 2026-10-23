@@ -1,3 +1,22 @@
+## Whole-source sheet reference running; generic failure copy matched — 2026-10-23
+
+Original full-sheet capture run `39955557256` binds commit `d1866fb4`: 22 whole
+upstream view/model/renderer/catalog files, authored offline presenter/loader,
+13 declared profiles and four UI states. All 17 synthetic evidence guards and
+local dependency builds pass; actual iOS images/traits are not accepted yet.
+Poll this specific live run and review its exports before appearance changes.
+Details and reproducible reference: `AGENT_FEED.md` and
+`tests/ios-feed-reader-reference/README.md`.
+
+Android's extra transport-error line is removed to match the original localized
+unavailable message/Retry state. Focused runtime retry/read/cancellation passes
+(5.186 s), reviewed frame, empty crash buffer and restored settings/emulator exit
+0. Full JVM: 3,148 pass/four skips, no failures/errors. This bounded copy correction
+does not accept full chrome, Source/Formatted controls, loading/title/palette,
+real devices or full parity. Signed 721 excludes the new copy change; physical
+712 stays released. No phone/Mac/pairing action or new availability request. Full
+goal and global source pins remain open.
+
 ## Native reader system/process recovery verified within scope — 2026-10-23
 
 Actual rotation/system text-size changes and the ordinary recreation regression
