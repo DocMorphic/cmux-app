@@ -1,3 +1,22 @@
+## Native layout profiles and actual Copy gesture pass — 2026-10-23
+
+Android renders the identical original-reference document across 21 controlled
+native-context/composition profiles (nine languages, font 1/2, dark/light, narrow
+English/Arabic): one test / 15.074 s, 63 images and native trait/frame records.
+An additional actual long-press/Copy-menu/clipboard test passes / 5.499 s, copying
+the rendered bold word exactly. Representative layout frames and the actual menu
+were reviewed. Both owned emulator runs restore settings with read-back checks,
+exit 0 and have empty crash buffers. The 15 export/input guards pass. No production
+app source changed in this verification batch; the previous full JVM result
+remains the latest. No new signed artifact or phone/Mac/account/pairing operation.
+
+The original iOS capture is running at source `18c66db5`, workflow run
+`39914921101`; no matched rendered comparison is accepted until it succeeds and
+its exported frames are reviewed. Source/Android context differences are explicit;
+real system changes, Activity/process death, TalkBack and physical gates remain.
+Details: `AGENT_FEED.md`; checkpoint:
+`captures/recovery-20261023/native-markdown-ui-checkpoint.json`. Full goal active.
+
 ## Original native Markdown UI reference prepared — 2026-10-23
 
 `ios-native-markdown.yml` now prepares five unchanged parser/model files and the

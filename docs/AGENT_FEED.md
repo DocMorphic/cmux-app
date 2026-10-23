@@ -1,5 +1,35 @@
 # Agent Feed companion
 
+## Native leaf layout and actual Copy gesture — 2026-10-23
+
+The same byte-identical document used by `tests/ios-native-markdown-reference/`
+now runs in `NativeMarkdownLayoutTest`: 21 controlled locale/font/theme/width
+profiles, 63 actual Android compositor images, nine locales, font scales 1/2,
+English light appearance and English/Arabic 260-dp readers. The native context's
+locale, direction, font scale, text metrics and row frames are recorded; all
+profiles pass in 15.074 seconds. Reviewed normal dark/light, large German code
+and narrow large Arabic frames remain readable. This uses configured native
+contexts/composition traits, not actual system locale/font changes, Activity
+recreation, TalkBack, original Feed sheet or physical-device acceptance. Android
+nonlinear font scaling is recorded rather than equated to an iOS Dynamic Type
+category. The original iOS Xcode capture is still pending; there is no completed
+matched source UI comparison yet.
+
+`NativeMarkdownSelectionTest` also passes in 5.499 seconds: a real stationary
+long press selects the bold rendered word, Android exposes its actual Copy menu,
+and tapping it puts exactly `copyword` in the OS clipboard. The menu screenshot
+was reviewed. This closes that bounded synthetic native gesture check, not
+TalkBack, multi-block selection, physical gestures or all selection/lifecycle
+gates. Both owned emulator runs have empty crash buffers, read-back setting
+restores and exit 0. The phone/Mac/account/pairing were not accessed.
+
+Evidence: `captures/recovery-20261023/native-markdown-layout-runtime-v1/`,
+`native-markdown-selection-runtime-v1/` and `native-markdown-ui-checkpoint.json`.
+The 15 export/input integrity guards pass. The source capture compiles the whole
+unchanged SwiftUI native declaration plus five whole pure files; its authored
+standalone base-window host excludes original Feed chrome/elevated colors,
+transport and production URL routing. Full parity and source pins remain open.
+
 ## Native formatted full-text reader — 2026-10-23
 
 The a5911a1f source rendering choice is now mounted: Feed Formatted mode uses

@@ -15,6 +15,10 @@ V = importlib.util.module_from_spec(spec); spec.loader.exec_module(V)
 
 
 class NativeMarkdownExportGuards(unittest.TestCase):
+    def test_android_comparison_uses_identical_input(self):
+        self.assertEqual((V.TEMPLATES / 'References.json').read_bytes(),
+            (ROOT / 'app/src/androidTest/assets/native-markdown/reference.json').read_bytes())
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.export = Path(self.tmp.name) / 'export'; self.export.mkdir()
