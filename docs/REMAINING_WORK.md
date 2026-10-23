@@ -1,3 +1,31 @@
+## Signed 716 ready; browser behavior verified, full parity open — 2026-10-23
+
+Local/unpublished candidate 716 adds the streamed browser dialog fixes to 715.
+Clean source: `4e8caf6857f21e55fcc3ca80aa81a8d9f24844d1`. APK:
+`captures/runtime/parity-candidate-716/app-release.apk`, 278,090,533 bytes,
+SHA256 `99da436a4aca5ee82c3af5e533fab6d4e3fbe0ce32bc161efd3d3d235cdf5176`.
+Stable signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+Package verification passes 22 native libraries, 21 viewer assets, all 16 fixture
+component exclusions and matching private Firebase configuration. The final clean
+committed build passes 3,117 JVM cases with four opt-in skips, no failures/errors
+(3,121 cases, 425 reports). The actual signed APK passes two fresh owned API 36
+Pixel 6a emulator launches; both sign-in frames were visually reviewed and crash
+buffers are empty. That new AVD was deleted only after emulator exit 0.
+Checkpoint: `captures/recovery-20261023/parity-candidate-716-checkpoint.json`.
+
+Browser generated-peer behavior passes all 16 runtime cases and 18 controlled
+locale/font-scale profiles; actual Mac/Pixel, TalkBack and matched native material/
+fonts remain open. See [BROWSER_DIALOGS.md](BROWSER_DIALOGS.md). The verified iOS
+detector capture is accepted for 99 observations only; calibrated SDK differences
+leave production date/address detection open. No global source pin is advanced.
+
+Pixel remains released at last verified signed 712. The existing fresh-availability
+question and backend/store question remain pending. The immutable
+`captures/recovery-20261023/pixel-716-test-plan.json` supersedes 715/714 for the same
+15-minute data-preserving upgrade, terminal, background-reply and cold-tap checks.
+No physical command, account/pairing change or new Mac pairing code was issued.
+Full parity remains active and unverified.
+
 ## Native detector observations verified; calibrated Android mismatch remains — 2026-10-23
 
 Pinned iOS run 39877268200 completed successfully at project c18eabae; independent

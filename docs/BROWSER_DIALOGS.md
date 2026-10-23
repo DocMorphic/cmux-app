@@ -52,9 +52,11 @@ component cases cover all nine controlled language contexts at actual font scale
 RTL ordering and source button count/grapheme layout. These are controlled
 composition contexts, not actual OS locale changes or TalkBack acceptance.
 
-Before the final hint/button styling adjustment, the full JVM suite has 3,117 passes and four opt-in skips, no failures/errors
+The final clean committed build for signed candidate 716 has 3,117 JVM passes and four opt-in skips, no failures/errors
 (3,121 cases, 425 reports). Fifteen localization/native-detector Python guards
-pass. The signed candidate will repeat build-time checks from a clean commit.
+pass. Signed 716 also passes signature/package/Firebase checks and two visually
+reviewed fresh owned-emulator launches; it remains unpublished and uninstalled
+on the physical phone. These startup checks do not exercise authenticated browser dialogs.
 Earlier excluded emulator cohorts are retained: v1 had empty-password assertions
 that also matched placeholder text; v3–v6 exposed fixture sizing/paragraph-bound
 assumptions. v8 passes all 16 cases, but visual review caught a wrapping Japanese
