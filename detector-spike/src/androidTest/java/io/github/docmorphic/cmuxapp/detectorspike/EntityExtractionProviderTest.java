@@ -42,6 +42,9 @@ public class EntityExtractionProviderTest {
         JSONObject fixture = new JSONObject(new String(fixtureBytes, StandardCharsets.UTF_8));
         assertEquals(1, fixture.getInt("schema"));
         long reference = fixture.getLong("referenceEpochMillis");
+        String referenceOverride = InstrumentationRegistry.getArguments().getString("referenceEpochMillis");
+        if (referenceOverride != null) reference = Long.parseLong(referenceOverride);
+        String localeOverride = InstrumentationRegistry.getArguments().getString("preferredLocale");
         String zone = fixture.getString("timeZone");
         JSONArray samples = fixture.getJSONArray("samples");
         File folder = new File(InstrumentationRegistry.getInstrumentation().getTargetContext().getExternalFilesDir(null), "entity-extraction-probe");
@@ -53,6 +56,8 @@ public class EntityExtractionProviderTest {
         StringBuilder digest = new StringBuilder();
         for (byte value : java.security.MessageDigest.getInstance("SHA-256").digest(fixtureBytes)) digest.append(String.format(Locale.ROOT, "%02x", value & 255));
         output.put("fixtureSha256", digest.toString());
+        output.put("referenceSource", referenceOverride == null ? "fixedFixture" : "explicitOverride")
+            .put("preferredLocaleOverride", localeOverride == null ? JSONObject.NULL : localeOverride);
         JSONArray records = new JSONArray();
         output.put("records", records);
         android.net.ConnectivityManager network = InstrumentationRegistry.getInstrumentation().getTargetContext().getSystemService(android.net.ConnectivityManager.class);
@@ -79,9 +84,11 @@ public class EntityExtractionProviderTest {
                     Tasks.await(extractor.downloadModelIfNeeded(new DownloadConditions.Builder().build()), 120, TimeUnit.SECONDS);
                     record.put("modelReadyMilliseconds", (System.nanoTime() - started) / 1_000_000.0);
                     record.put("modelDownloadedAfter", Tasks.await(extractor.isModelDownloaded(), 15, TimeUnit.SECONDS));
+                    Locale preferred = Locale.forLanguageTag(localeOverride == null ? sample[1] : localeOverride);
+                    record.put("effectivePreferredLocale", preferred.toLanguageTag());
                     EntityExtractionParams params = new EntityExtractionParams.Builder(sample[2])
                         .setEntityTypesFilter(new HashSet<>(Arrays.asList(Entity.TYPE_ADDRESS, Entity.TYPE_DATE_TIME)))
-                        .setPreferredLocale(Locale.forLanguageTag(sample[1])).setReferenceTime(reference)
+                        .setPreferredLocale(preferred).setReferenceTime(reference)
                         .setReferenceTimeZone(TimeZone.getTimeZone(zone)).build();
                     started = System.nanoTime();
                     java.util.List<EntityAnnotation> annotations = Tasks.await(extractor.annotate(params), 30, TimeUnit.SECONDS);

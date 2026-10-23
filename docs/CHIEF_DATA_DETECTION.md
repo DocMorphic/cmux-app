@@ -63,7 +63,7 @@ in the previous owned AVD, despite reported readiness; cause is not established.
 Those failures remain recorded and are excluded from successful detection
 claims. The final fresh AVD and guest-synced teardown pass the warm reboot.
 
-## Source comparison prepared
+## Actual iOS source comparison verified
 
 `prepare-ios-chief-reference.py --with-data-detection` adds a dedicated test and
 shared inputs to the immutable source host. It calls actual NSDataDetector with
@@ -80,8 +80,16 @@ provenance, observed clock bounds, source Calendar/Maps/link mapping and no
 opened action. Seven adversarial guards and all 103 existing/new Chief export
 guards pass locally. Swift syntax/Foundation API checks and generated-project
 parsing pass. Existing default/Translation/Poll hosts remain byte-identical
-(237/240/240 files). This is preparation evidence; native execution and its
-independent artifact verification are still required.
+(237/240/240 files). Native run 39877268200 completed successfully at immutable project source
+`c18eabaeaa2a0b7b5ca9d5b7ede240ce17571dad`. Its uploaded canonical output
+and an independent rerun of that exact source verifier are byte-identical in
+all ten files. The artifact ZIP is 473,467 bytes with SHA-256
+`d9907961b023cc8ad6ef075e351cae842ccd90e58889adb8b250a889919c6970`.
+The accepted scope is 99 actual detector/actionURL observations on iOS 26.4.1.
+Preferred languages vary across nine contexts; `Locale.current` remains `en_DE`.
+The process default time zone is Europe/Berlin; the simulator system zone is GMT.
+These are nine preferred-language contexts, not nine independently changed
+system locales. No action or rendered-bubble acceptance follows from this run.
 
 Compare those actual source results before selecting or changing a production
 engine. Retain whole URL/email/phone precedence, off-main bounded work, stale
@@ -91,7 +99,41 @@ Actual bubble rendering, taps, accessibility, physical/lifecycle behavior and
 all broader full-parity gates remain open; no platform difference is waived.
 
 Native run [39877268200](https://github.com/DocMorphic/cmux-app/actions/runs/39877268200)
-is now confirmed in progress at project c18eabaeaa2a0b7b5ca9d5b7ede240ce17571dad.
-Its immutable verifier/source archive is under
-`captures/recovery-20261023/native-detection-run-39877268200`. No native result is
-accepted until the terminal artifact is independently verified.
+and its independently verified immutable source/artifact are retained under
+`captures/recovery-20261023/native-detection-run-39877268200`, including the
+accepted checkpoint and all 99 observations in `source-comparison-input.json`.
+
+### Calibrated differences
+
+The SDK was rerun online and after an offline process restart at the first
+native observation's clock (`1792715252130`, 2026-10-23T00:27:32.130Z), first
+with per-case preferred locales and then with explicit `en-DE` matching native
+`Locale.current`. Both completed phases retain eleven observations each;
+clock/locale calibration does not remove these differences:
+
+| Synthetic input | Pinned iOS detector | Evaluated SDK |
+| --- | --- | --- |
+| Friday at 5:30pm, observed on Friday | Next Friday, October 30 at 17:30 | Same day, October 23 at 17:30 |
+| French demain à 8h | Whole phrase, next day 08:00 | Tomorrow only, midnight |
+| Japanese morning | Whole phrase including に in CJK preferred contexts | Omits に |
+| Korean morning | One full date/time phrase in CJK contexts | Separate date/time spans |
+| Simplified Chinese 上午 | Next day 08:00 in CJK contexts | Next day 20:00 |
+| Traditional Chinese morning | Full phrase, next day 08:00 in CJK contexts | Date only |
+| Absolute English date | Excludes the trailing period | Includes it |
+| Date within URL path | Keeps full URL only | Also emits an overlapping date |
+
+Native en/de/es/fr/ar preferred contexts find the German date/address and
+English dates/addresses; CJK contexts omit the German sample. Spanish is a full
+next-day 08:00 phrase in western contexts but only today's 08:00 time in CJK
+contexts. Arabic has no match in any captured context. These are bounded sample
+observations, not a general language support guarantee. Apple Maps component
+ordering is not stable; compare components, not raw query-string order. The SDK
+retains the reference's .130 milliseconds, whereas these native targets have
+whole-second precision; that alone is not a meaningful calendar discrepancy.
+
+Calibrated SDK evidence is in `entity-native-clock-case-locales` and
+`entity-native-clock-native-locale-v2` under `captures/recovery-20261023`.
+The first native-locale launch was rejected at preflight due to a lingering
+owned emulator ADB entry; it is excluded from SDK quality claims. The subsequent
+run starts only after the previous emulator exited and ADB was clear. No
+production engine is selected or integration accepted by this evaluation.

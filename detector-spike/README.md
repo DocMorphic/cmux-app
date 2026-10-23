@@ -31,8 +31,8 @@ The local v8/v9 cohorts record eleven observations in each of four phases:
 fresh/warm boot, online/offline, with a process restart before offline inference.
 All phases complete without SDK failures and have identical entity outputs.
 Some outputs are ambiguous/partial, the Arabic sample has no match, and the
-Simplified Chinese morning phrase resolves to 20:00. These remain observations
-awaiting the actual iOS comparison; they do not establish language equivalence.
+Simplified Chinese morning phrase resolves to 20:00. The independently verified iOS capture differs on these examples and on the
+next-Friday policy; these outputs do not establish language equivalence.
 No SDK or probe dependency is added to the ordinary companion release graph.
 
 Earlier probes using language tags directly are invalid SDK-quality evidence.
@@ -49,3 +49,13 @@ see [Google's disclosure](https://developers.google.com/ml-kit/android-data-disc
 Its native ARM64 binary has 16 KiB-aligned ELF load segments. Neither this source
 inspection nor future probe success establishes production dependency/privacy,
 locale/model-lifecycle, calendar/Maps behavior or physical-device acceptance.
+
+For calibrated comparison only, the opt-in instrumentation accepts
+`-e referenceEpochMillis <epoch>` and `-e preferredLocale <BCP-47 tag>`.
+It records whether the clock came from the shared fixture or an explicit override,
+and the effective preferred locale for each observation. Neither changes the
+synthetic fixture or the pinned iOS detector's actual captured clock. The local
+calibrated online/process-restarted offline phases match the source clock and
+then en-DE, and still expose the documented differences. Their 44 observations,
+source/APK hashes and restored network state are bound in
+`captures/recovery-20261023/entity-native-clock-checkpoint.json`.
