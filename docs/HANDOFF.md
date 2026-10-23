@@ -1,3 +1,28 @@
+## Flexible narrow visual verified — 2026-10-23
+
+The source 280-point visual cap now contracts after measuring priority copy,
+without shrinking the card/control below its complete natural height. A custom
+single-pass layout centers the full group when it fits and grows the scroll
+content only when the minimum content exceeds the viewport. Reflow restores the
+visual's extra space. Tall Android permission/cleanup controls remain reachable
+and do not move the footer.
+
+Owned API 36 passes 24 cases in 70.089 s, including the existing nine-locale/type,
+restoration/replay, motion and Cloud recovery cases. The new real-page cases
+measure 0 scroll for roomy 760-dp and contracted 600-dp roots; the copy-to-card
+gap contracts from 82 to 41 dp. A 480-dp root needs 221 physical pixels of scroll;
+returning to 760 dp restores zero scroll and the original gap. A 320-dp control
+fixture remains actionable. Two equal-native-content-width cohorts also pass,
+retaining source card-x/primary-height checks. Crash buffers are empty and owned
+emulators exit 0 after settings restoration. Contracted/tall-control frames are
+reviewed. Checkpoint: `captures/recovery-20261023/cloud-onboarding-flexible-checkpoint.json`.
+This resolves the known minimum-versus-maximum allocation error, not broader
+vertical window/font/glyph/glass/Chrome, hardware, screen-reader or full parity.
+
+719 remains the latest signed artifact until the corrected clean candidate is
+verified. Physical 712 stays untouched/released; the existing phone availability
+and backend questions remain pending. Full parity remains active.
+
 ## Signed 719 verified; full parity still active — 2026-10-23
 
 Signed local/unpublished **719** contains the source-frame content corrections at
@@ -24,11 +49,8 @@ open. 712 remains last physically verified; no phone/account/Mac operation here.
 15-minute availability question. A plan or old 711/712 availability is not a
 fresh grant; preserve user data, signing and pairing.
 
-Next independent UI issue: the source's 280-point visual is a maximum that can
-shrink after priority copy. The current Android minimum visual can add avoidable
-scrolling when copy plus a smaller complete card would fit. Check/fix that narrow
-vertical allocation with the existing source frames before claiming vertical
-parity. Broader source audit/Cloud create/billing/provider/device gates remain.
+The minimum-versus-maximum narrow allocation error is resolved in the later
+checkpoint above. Broader vertical window and native appearance parity stay open. Broader source audit/Cloud create/billing/provider/device gates remain.
 The unbounded full parity objective is active; do not mark complete from these
 fixtures, local signed starts or the scoped native gallery.
 

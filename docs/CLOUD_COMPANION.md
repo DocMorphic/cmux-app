@@ -147,10 +147,14 @@ It repeats the full 3,131-pass/four-skip JVM suite and passes strict package/
 signer/Firebase/notice checks plus two reviewed fresh release starts. Physical
 upgrade/account preservation and authenticated release onboarding remain open.
 Its checkpoint is `parity-candidate-719-checkpoint.json` in the recovery folder.
-A remaining vertical issue is the narrow visual's minimum-versus-source-maximum
-allocation: it should shrink toward its complete natural card/control height
-when priority copy uses more space. Current scrolling keeps content reachable,
-but does not establish that flexible source behavior or full vertical parity.
+The later narrow allocation correction measures priority copy first and contracts
+the capped visual toward its complete natural content before allowing overflow.
+The 24-case cohort passes in 70.089 s: roomy/contracted roots need zero scroll,
+a smaller root needs real scrolling, resize restores the gap/scroll range, and a
+tall Android control remains actionable with a stationary footer. The two native-
+content-width cohorts retain source horizontal/height checks. Exact inputs and
+frames are in `cloud-onboarding-flexible-checkpoint.json`. This fixes that source
+allocation behavior; full vertical window/font/glyph/glass/Chrome parity is open.
 
 ## Restart and request deadlines — 2026-10-23
 

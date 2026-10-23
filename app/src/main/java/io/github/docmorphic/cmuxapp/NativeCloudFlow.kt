@@ -22,6 +22,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -202,14 +205,12 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
         val visualWidth = minOf(520.dp, (innerWidth - copyWidth - spacing).coerceAtLeast(0.dp))
         val visualHeight = minOf(280.dp,
             (availableHeight - if (wide) verticalPadding * 2 else 20.dp).coerceAtLeast(0.dp))
-        val visual: @Composable (Modifier) -> Unit = { visualModifier ->
-            Box(visualModifier.widthIn(max = 520.dp).heightIn(min = visualHeight), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    CloudIntroductionGraphic(index, compact)
-                    // Android's permission warning/cleanup can exceed the
-                    // source's 280-pt visual; keep it reachable by scrolling.
-                    if (index == 1) vpnControl?.invoke()
-                }
+        val visualContent: @Composable () -> Unit = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                CloudIntroductionGraphic(index, compact)
+                // Android's permission warning/cleanup can exceed the source's
+                // capped visual; its complete natural height stays reachable.
+                if (index == 1) vpnControl?.invoke()
             }
         }
         // Preserve the source's centered page; scrolling is a fallback when
@@ -221,12 +222,32 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
                     horizontalArrangement = Arrangement.spacedBy(spacing, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.width(copyWidth)) { copy() }
-                    visual(Modifier.width(visualWidth))
-                } else Column(Modifier.widthIn(max = 620.dp).fillMaxWidth().padding(horizontal = 24.dp).padding(top = 12.dp, bottom = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Box(Modifier.widthIn(max = 560.dp)) { copy() }; visual(Modifier.fillMaxWidth())
-                }
+                    Box(Modifier.width(visualWidth).heightIn(min = visualHeight), contentAlignment = Alignment.Center) { visualContent() }
+                } else CloudIntroductionNarrowLayout(availableHeight, copy, visualContent,
+                    Modifier.widthIn(max = 620.dp).fillMaxWidth().padding(horizontal = 24.dp).padding(top = 12.dp, bottom = 8.dp))
             }
+        }
+    }
+}
+
+/** Measure priority copy first, then shrink the capped visual before adding scroll. */
+@Composable private fun CloudIntroductionNarrowLayout(availableHeight: Dp, copy: @Composable () -> Unit,
+    visual: @Composable () -> Unit, modifier: Modifier = Modifier) {
+    Layout(content = { Box { copy() }; Box { visual() } }, modifier = modifier) { children, constraints ->
+        val width = constraints.maxWidth
+        val copySize = children[0].measure(Constraints(maxWidth = minOf(width, 560.dp.roundToPx())))
+        val visualSize = children[1].measure(Constraints(maxWidth = minOf(width, 520.dp.roundToPx())))
+        val viewport = (availableHeight.roundToPx() - 20.dp.roundToPx()).coerceAtLeast(0)
+        val gap = 18.dp.roundToPx()
+        val remaining = (viewport - copySize.height - gap).coerceAtLeast(0)
+        val visualFrame = maxOf(visualSize.height, minOf(280.dp.roundToPx(), remaining))
+        val contentHeight = copySize.height + gap + visualFrame
+        val height = maxOf(viewport, contentHeight)
+        layout(width, height) {
+            val top = (height - contentHeight) / 2
+            copySize.placeRelative((width - copySize.width) / 2, top)
+            visualSize.placeRelative((width - visualSize.width) / 2,
+                top + copySize.height + gap + (visualFrame - visualSize.height) / 2)
         }
     }
 }

@@ -1,3 +1,14 @@
+## Narrow visual contraction fixed; broader gates remain — 2026-10-23
+
+The known priority-copy/280-point visual allocation error is corrected. Actual
+production pages contract without unnecessary scrolling, scroll genuine overflow,
+restore after reflow and keep tall Android controls reachable. 24 phone/sidebar
+cases and two equal-native-content-width cohorts pass, with empty crash buffers
+and restored settings. See `HANDOFF.md` and the flexible checkpoint. Package the
+clean correction next; 719 is the latest verified signed artifact and physical
+712 remains untouched. Native appearance/window geometry, real devices,
+provider/VPN, backend/Play and all completion gates below remain open.
+
 ## Signed 719 ready; physical and full native UI gates remain open — 2026-10-23
 
 Local/unpublished 719 at `26d583ff670211936fd743d296cc515d71d7c5e2` passes strict package/signing/
