@@ -1,4 +1,4 @@
-## Signed candidate 722 ready; original app context compiling — 2026-10-23
+## Signed candidate 722 ready; original app context verified — 2026-10-23
 
 Candidate 722 is built from clean source 726ccd3a with the existing certificate
 1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4.
@@ -14,14 +14,17 @@ released; fresh availability remains pending. Pixel plan722 supersedes plan721
 without creating a new question. Keep the pairing window closed unless a concrete
 invalid-registration result requires repair.
 
-Original whole-app context run39983680775, job120517222421, driver726ccd3a,
-is live in compilation/testing at last authoritative observation. Revalidate and
-poll this exact run, then attribute/review exports; no caller acceptance yet.
-The unchanged original app/three original Feed tests use the official synthetic
-preview through its real root/navigation/dependencies. Stack Auth vendor sources
-are tracked (tree381c13b5), not an absent submodule. Scope still excludes a real
-account/transport. See ios-feed-context-checkpoint.json. Do not restart from an
-observation timeout. Remaining full visual/source/device/TalkBack gates stay open.
+Original whole-app context run39983680775/job120517222421 succeeds at726ccd3a.
+All three unchanged original Feed tests pass. Local verification matches all
+22,141 indexed original paths to a5911a1f, attributes six compositor PNGs to their
+exact methods/device, and rejects ten corrupted-evidence cases. All six frames
+reviewed: entry/spacing, loaded reader/final paragraph, search and row destination.
+The latter is the original test's placeholder, not a real terminal. The complete
+original app/dependencies/root compile; source status before/after is empty.
+The official synthetic preview establishes phone dark Feed caller context only;
+it does not prove real accounts/transport, all tab visibility or Android parity.
+See AGENT_FEED.md and ios-feed-context-checkpoint.json. No live job remains.
+Remaining full visual/source/device/TalkBack gates stay open.
 
 ## Measured title role and native restoration pass eleven checks — 2026-10-23
 

@@ -6,12 +6,13 @@ upgrade/account/pairing, terminal, cold notification taps and the other real-dev
 gates remain pending fresh availability. No new phone or pairing action is needed
 for current independent work; plan722 retains the existing bounded request.
 
-Original whole-app context run39983680775/job120517222421 is live in its compile/
-test step at the last authoritative observation. Poll this exact handle, retain
-failures and verify actual selected execution, tracked source, attachment mapping
-and pixels before accepting the real Feed caller context. Stack Auth is a tracked
-vendor tree, correcting the suspected missing-submodule blocker. Source preview
-still uses synthetic items and does not prove account/transport behavior.
+Original whole-app context run39983680775/job120517222421 succeeds: three original
+methods pass, all22,141 indexed paths match the pin, and six attributed compositor
+frames are reviewed. Ten corrupted-evidence rejection guards pass. The complete
+original workspace/dependencies compile unchanged, including tracked Stack Auth.
+This accepts phone dark Feed caller context with official synthetic preview data;
+its row destination is a test placeholder and it does not prove account/transport
+or Android behavior. See AGENT_FEED.md and ios-feed-context-checkpoint.json.
 Reader Close/palette/loading/error, compact landscape/adaptive transitions,
 full source audit, physical Pixel/Mac/TalkBack and all gates below remain open.
 
@@ -25,10 +26,10 @@ AGENT_FEED.md and captures/recovery-20261023/native-feed-reader-title-role-check
 Do not reuse earlier failed setup outputs or describe fixtures as full parity.
 
 Next: reconcile Close UIFont/capsule/material palette, loading/error allocation;
-verify compact landscape width and adaptive class-transition retention. Build and
-capture the located official full-text preview/root/test for production Feed caller
-context. Physical Pixel/Mac, real transport, TalkBack and every other completion
-gate below remain open. Physical712/candidate721 unchanged; no new pairing step
+verify compact landscape width and adaptive class-transition retention using the
+accepted original full-text preview/root reference. Physical Pixel/Mac, real
+transport, TalkBack and every other completion gate below remain open.
+Physical712/candidate722 unchanged; no new pairing step
 is needed. Full goal/global source-pin audit remain active.
 
 ## Original 52-frame reader reference verified; source differences now measured — 2026-10-23

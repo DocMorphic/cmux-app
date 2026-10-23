@@ -10,13 +10,31 @@ AVD is removed after exit0. No authenticated user, upgrade or physical acceptanc
 The signed artifact and receipt live in captures/runtime/parity-candidate-722/;
 full checkpoint is captures/recovery-20261023/parity-candidate-722-checkpoint.json.
 
-Original app-context run39983680775/job120517222421 is live in compile/test at
-last observation. It builds the complete pinned workspace, checked GhosttyKit,
-tracked Stack Auth sources and unchanged original UI tests: Feed toolbar spacing,
-row navigation, and full-text/retry/reply/search. No caller capture acceptance yet;
-revalidate the same run, review exported compositor evidence and source status.
-This broadens context beyond the isolated sheet but retains official synthetic
-Feed data; it does not prove real accounts or transport. Remaining reader visual,
+Original app-context run39983680775/job120517222421 succeeds at driver726ccd3a.
+The complete original workspace/dependencies compile unchanged at a5911a1f,
+including checked GhosttyKit and tracked Stack Auth sources. Original methods
+testFeedFullTextReadingAndRetry (113.321s), testFeedRowTapOpensItsDestination
+(27.415s) and testFeedStartsBelowToolbar (16.030s) all pass. Before/after source
+statuses are empty; local verifier matches the complete22,141-entry source index.
+
+Six exported1206×2622 compositor frames are attributed to their original method,
+name and iPhone17Pro device, hashed and reviewed: Feed entry, toolbar/first row,
+loaded markdown, final paragraph, scoped search and row destination. Ten mutations
+of copied genuine evidence are rejected: wrong execution, dirty/missing source,
+failed/missing method, wrong association/device, absent PNG, failure capture and
+path traversal. Original evidence is unchanged. Verifier:
+scripts/verify-ios-feed-context.py. Artifact12516630092,59,521,045 bytes, digest
+b0166942a9f06c3c405b2780547e1fccc3616516b5ae3af9ae4f0b573e4bcb4d.
+
+This accepts the phone dark Feed caller reference beyond the isolated presenter.
+It shows the reader's capsule Close, elevated dark body and translucent toolbar
+over scrolled text in the real root. The original DEBUG preview supplies synthetic
+items/loaders and an explicit Cloud callback; its row destination is an Opened
+preview tab placeholder. No real account/transport, general tab visibility, full
+locale/profile coverage, Android or full app acceptance follows from this run.
+Evidence: captures/recovery-20261023/ios-feed-context-checkpoint.json,
+ios-feed-context-integrity-guards.json and
+ios-feed-context-39983680775/canonical-local/receipt.json. Remaining reader visual,
 source-audit, physical Pixel/Mac/TalkBack and full app gates remain open.
 
 ## Measured title role and native restoration verified — 2026-10-23

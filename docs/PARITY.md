@@ -7,10 +7,13 @@ the previously scoped reader/control/lifecycle improvements, not new physical
 account/pairing or full feature/UI acceptance. Receipt: recovery-20261023/
 parity-candidate-722-checkpoint.json; physical712 remains unchanged.
 
-Whole original-app Feed context run39983680775 is live at the last observation;
-unchanged original tests/root/full dependencies, official synthetic preview.
-No caller/UI export acceptance yet. Revalidate the same job. Full goal and every
-other completion gate remain open; no global source-pin advance or publication.
+Whole original-app Feed context run39983680775 succeeds: three unchanged tests,
+22,141 original index entries matched, six attributed/reviewed compositor frames
+and ten corrupted-evidence rejection guards. This accepts the original phone
+dark Feed caller reference with official synthetic preview data. Row navigation
+lands on its test placeholder; no real account/transport or Android acceptance.
+See AGENT_FEED.md and recovery-20261023/ios-feed-context-checkpoint.json. Full
+goal and every other gate remain open; no global source-pin advance/publication.
 
 ## Measured reader title and native restoration advanced — 2026-10-23
 
