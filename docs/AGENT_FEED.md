@@ -1,5 +1,55 @@
 # Agent Feed companion
 
+## Original native UI comparison and RTL fixes — 2026-10-23
+
+All 39 declared original SwiftUI compositor images (13 profiles) are now bound to
+source commit `a18ed616`, upstream `a5911a1f`, the unchanged native declaration,
+five whole pure files and the exact fixture/host/test hashes. Capture run
+`39916186491` passes all three UI-test methods; its tablet step times out during
+result finalization after the test passes. Its old export guard also rejects
+UIKit white's actual `1.0000001192092896` conversion. The repaired verifier accepts
+only a 1e-6 floating epsilon without rewriting observations; all 18 adversarial/
+input guards pass. Retained artifact association run `39943618331` succeeds with
+all 39 original images. This is a verification of retained source pixels, not a
+new UI execution or a claim that the original capture workflow was green.
+
+Original English/Arabic, light, landscape, accessibility and tablet frames were
+reviewed. The earlier `39914921101` run contains 30 validated portrait frames but
+fails because the authored visibility predicate invents a 30-pt inset. The
+landscape source heading is legitimately at 16 pt; the corrected predicate uses
+the actual viewport. Both failures and original exports remain preserved.
+
+Comparison exposes and fixes concrete Android native-reader differences:
+interface-leading alignment now follows RTL even for English paragraphs;
+ordered markers retain punctuation; code captions follow the interface direction;
+wide code/table views initially expose the RTL leading end, with explicit saved
+offsets retained; native inline code has no extra background, links have no extra
+underline, and rules use one physical pixel. Timeline/reply styling retains its
+existing default. An initial RTL refinement fails because TextView's separate
+horizontal-scroll mode aligns against a virtual 1,048,576-px line. The enclosing
+horizontal scroll view already measures intrinsically; disabling that TextView
+mode fixes the off-view text while retaining long horizontal code.
+
+The final cohort `native-markdown-refinement-runtime-v2` passes all eight cases:
+21 locale/font/theme/width profiles (63 images), geometry/initial RTL offset and
+inline-decoration checks, actual long-press/Copy/clipboard, native code/table/link
+and long-message restoration, plus all four existing Feed loading/Source cases.
+The 548,915-character formatted paragraph reaches 826,059 px, with 6,788 of 6,835
+expected tail ink pixels painted. Reviewed final Arabic normal/narrow code, tail
+and Copy-menu frames match those bounded behaviors. Crash buffer is empty;
+settings restore is read back and the owned emulator exits 0. The reported
+1,351.425-second duration spans repeated host sleep/dark-wake events, recorded in
+`host-power-events.log`; it is not accepted as an awake performance measurement.
+The final full JVM suite passes 3,144 with four skips and no failures/errors
+(3,148 cases, 428 XML), archived in `native-markdown-refinement-full-jvm-v2.zip`.
+
+This is a standalone base-window source leaf, not original Feed sheet chrome or
+its elevated palette. Android uses its own system font metrics/nonlinear scaling
+and app palette; these are recorded rather than called exact iOS glyph/material
+parity. Actual system locale/Activity/process changes, TalkBack, broader selection,
+real transport and Mac/Pixel remain open. No new signed artifact or physical/
+account/pairing operation occurred. Checkpoint: `native-markdown-ui-checkpoint.json`.
+
 ## Native leaf layout and actual Copy gesture — 2026-10-23
 
 The same byte-identical document used by `tests/ios-native-markdown-reference/`

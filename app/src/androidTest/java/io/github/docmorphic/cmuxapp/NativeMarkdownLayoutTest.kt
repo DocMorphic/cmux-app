@@ -95,6 +95,24 @@ class NativeMarkdownLayoutTest {
                     assertEquals("Real native context direction", if (p.language == "ar") View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR, reader.layoutDirection)
                     assertEquals(blocks[index].text, text.text.toString())
                     assertTrue(text.isTextSelectable)
+                    val firstEdge = if (p.language == "ar") text.layout.getLineRight(0) else text.layout.getLineLeft(0)
+                    val expectedEdge = if (p.language == "ar") text.width - text.totalPaddingLeft - text.totalPaddingRight else 0
+                    assertEquals("Source leading alignment for English text in ${p.language}", expectedEdge.toFloat(), firstEdge, 1f)
+                    if (stage == "code") {
+                        val scroll = (target.getChildAt(0) as android.view.ViewGroup).getChildAt(1) as android.widget.HorizontalScrollView
+                        val range = (scroll.getChildAt(0).width - scroll.width).coerceAtLeast(0)
+                        assertTrue("Wide source code", range > 0)
+                        assertEquals("Source initial horizontal leading edge", if (p.language == "ar") range else 0, scroll.scrollX)
+                        record.put("horizontalOffset", scroll.scrollX).put("horizontalRange", range)
+                    }
+                    if (stage == "top") row(1)?.body?.let { paragraph ->
+                        val styled = paragraph.text as android.text.Spanned
+                        assertEquals("Original inline code has no background", 0,
+                            styled.getSpans(0, styled.length, android.text.style.BackgroundColorSpan::class.java).size)
+                        val paint = android.text.TextPaint(paragraph.paint)
+                        styled.getSpans(0, styled.length, android.text.style.URLSpan::class.java).single().updateDrawState(paint)
+                        assertFalse("Original native links have no underline", paint.isUnderlineText)
+                    }
                     val visible = android.graphics.Rect(); assertTrue(target.getGlobalVisibleRect(visible))
                     assertTrue("Native target has visible height", visible.height() > 0)
                     record.put("nativeContextFontScale", reader.resources.configuration.fontScale)

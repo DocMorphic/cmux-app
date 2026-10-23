@@ -1,3 +1,35 @@
+## Original native reader reference accepted; RTL port refined — 2026-10-23
+
+All 39 original SwiftUI leaf frames validate at capture source `a18ed616` /
+upstream `a5911a1f`. Retained-artifact association CI `39943618331` is green.
+The original capture `39916186491` passes three UI-test methods but its tablet
+step times out after the test and its old color guard rejects UIKit rounding.
+The first capture fails an invented landscape inset. These failures, immutable
+exports and repaired verification are retained; no original workflow success is
+invented. Source context is an authored standalone base window, not Feed chrome/
+elevated palette, account, transport or full parity.
+
+Source comparison fixes reader RTL leading alignment, numeric marker punctuation,
+initial RTL horizontal offset, caption alignment and native-only inline styling/
+one-pixel rules. A failed intermediate run reveals TextView's virtual horizontal
+line; intrinsic measurement fixes its RTL code placement. Final owned cohort:
+eight passes, 21 layout profiles/63 images, actual Copy, long painted tail and all
+four existing loading/Source cases. JVM 3,144 pass/four skips, 428 XML; 18 export/
+input guards pass. Crash buffer empty, settings restored/read back, emulator exit
+0. Its 1,351.425-s duration includes documented host sleep/dark wakes and is not
+an awake performance result. See `AGENT_FEED.md` and the UI checkpoint for hashes,
+exact scope, failures and reviewed frames. Full source/physical/Activity/process/
+TalkBack/performance and app parity gates remain open; global pins unchanged.
+
+User confirms no Play developer account or billing backend. These are not needed
+for the current private companion build. Native purchase/restore remains an
+unavailable external integration; a publisher account alone cannot add Android
+verification to the cmux service. Continue other parity work without asking for
+this setup again. Phone availability remains pending. The user can close the
+Mac notification-pairing popup; no code/scan is needed during this work. No new
+signed artifact or phone/Mac/account/pairing operation; physical 712 stays released
+and signed 720 still excludes the latest Markdown ports. Full goal remains active.
+
 ## Native layout profiles and actual Copy gesture pass — 2026-10-23
 
 Android renders the identical original-reference document across 21 controlled

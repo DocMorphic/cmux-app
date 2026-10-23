@@ -1,3 +1,23 @@
+## Original native reader UI reference and RTL refinement — 2026-10-23
+
+The 39-frame original SwiftUI leaf reference is verified with immutable source/
+host/fixture/image association (CI `39943618331`). Concrete Arabic alignment,
+horizontal code origin, marker punctuation and native-only inline decoration/
+divider differences are fixed. Final Android cohort passes eight cases, including
+21 controlled layout profiles/63 images, real Copy and long-document paint/state/
+loading checks. Full JVM: 3,144 pass/four skips; 18 evidence/input guards pass.
+The runtime duration includes documented host sleep, so performance is not
+accepted from that run. `AGENT_FEED.md` records failed captures, source test passes,
+repaired export verification, intermediate RTL failure and exact bounded scope.
+
+Original Feed sheet/elevated material, exact glyphs/scaling, system locale and
+Activity/process recreation, TalkBack, broader selection, real transport and
+physical devices remain open. User confirms no Play account/billing backend;
+native purchase/restore is unavailable with the current external setup. Other
+parity work continues. Global pins and full-goal status stay unchanged. No new
+signed artifact or phone operation; 720 excludes the new ports, physical 712 stays
+released, and the notification-pairing popup can be closed until a live test needs it.
+
 ## Feed native full-text rendering checkpoint — 2026-10-23
 
 The current source native rendering choice is mounted in Android: all eight block

@@ -27,17 +27,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.viewinterop.AndroidView
 
-internal fun agentFeedSpanned(runs: List<AgentMarkdownRun>): CharSequence = SpannableStringBuilder().apply {
+internal fun agentFeedSpanned(runs: List<AgentMarkdownRun>, nativeDocument: Boolean = false): CharSequence = SpannableStringBuilder().apply {
     runs.forEach { run ->
         val start = length
         append(run.text)
         fun span(value: Any) { setSpan(value, start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
         val style = run.style
         if (style.bold || style.italic) span(StyleSpan((if (style.bold) Typeface.BOLD else 0) or (if (style.italic) Typeface.ITALIC else 0)))
-        if (style.code) { span(TypefaceSpan("monospace")); span(BackgroundColorSpan(0x222C7ABB)) }
+        if (style.code) { span(TypefaceSpan("monospace")); if (!nativeDocument) span(BackgroundColorSpan(0x222C7ABB)) }
         if (style.strike) span(StrikethroughSpan())
         style.link?.takeIf(MarkdownPreviewPolicy::external)?.let { url ->
             span(object : URLSpan(url) {
+                override fun updateDrawState(paint: android.text.TextPaint) {
+                    super.updateDrawState(paint)
+                    if (nativeDocument) paint.isUnderlineText = false
+                }
                 override fun onClick(widget: View) {
                     if (MarkdownPreviewPolicy.external(url)) runCatching {
                         widget.context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))

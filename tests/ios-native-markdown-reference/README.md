@@ -29,3 +29,15 @@ incorrect actual traits, offscreen targets and mismatched compositor dimensions.
 Synthetic export tests validate these integrity guards only; they are not
 native UI evidence. No rendered reference is accepted until the actual workflow
 and export association succeed and the resulting images are visually reviewed.
+
+The retained complete capture is run `39916186491` at source `a18ed616`: all three
+UI-test methods pass, but the tablet step times out during finalization and the
+old export guard rejects UIKit white's tiny floating conversion beyond 1.0.
+The current verifier preserves that value and permits only a 1e-6 epsilon.
+Association workflow `ios-native-markdown-associate.yml` binds the original run
+metadata/source commit and every declared frame using the repaired guards;
+run `39943618331` succeeds for all 39 images. It does not rerun the UI or convert
+the original capture workflow's conclusion to success. Tablet capture timeout is
+increased for future captures. The first run `39914921101` remains partial and
+failed: its original 30-pt visibility exclusion incorrectly rejects the source's
+16-pt landscape heading inset. Both original exports/failures remain available.

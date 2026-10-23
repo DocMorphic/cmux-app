@@ -63,7 +63,7 @@ internal class NativeMarkdownList(context: Context, val blocks: List<NativeMarkd
     private var restoring = false
     private val capture: () -> Unit = { capturePosition() }
     internal fun dp(value: Float) = (value * resources.displayMetrics.density).toInt()
-    internal fun horizontal(index: Int) = position.horizontalDp[index] ?: 0f
+    internal fun horizontal(index: Int) = position.horizontalDp[index]
     internal fun horizontal(index: Int, x: Int) { if (!released) position.horizontalDp[index] = x / resources.displayMetrics.density }
 
     init {
@@ -197,11 +197,14 @@ internal class NativeMarkdownRow(private val reader: NativeMarkdownList) : Linea
             0, if (value.index == reader.blocks.lastIndex) 0 else dp(12f))
         if (value.kind == NativeMarkdownBlock.Kind.RULE) {
             val rule = View(context).also { it.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO; bar = it }
-            addView(rule, LayoutParams(LayoutParams.MATCH_PARENT, dp(1f)).apply { topMargin = dp(4f); bottomMargin = dp(4f) })
+            addView(rule, LayoutParams(LayoutParams.MATCH_PARENT, 1).apply { topMargin = dp(4f); bottomMargin = dp(4f) })
             ready = true; applyColors(); return
         }
         val text = agentFeedQuoteTextView(context).apply {
             tag = "NativeMarkdownBody.${value.index}"; isSaveEnabled = false
+            // Source SwiftUI leading alignment follows the interface direction,
+            // independently of the paragraph's first strong character.
+            textAlignment = View.TEXT_ALIGNMENT_VIEW_START
             textSize = when (value.kind) {
                 NativeMarkdownBlock.Kind.HEADING -> when (value.level) { 1 -> 28f; 2 -> 22f; 3 -> 20f; else -> 17f }
                 else -> 17f
@@ -223,6 +226,8 @@ internal class NativeMarkdownRow(private val reader: NativeMarkdownList) : Linea
                 marker = agentFeedQuoteTextView(context).apply {
                     this.text = if (value.kind == NativeMarkdownBlock.Kind.BULLET) "•" else value.marker
                     textSize = 17f; minWidth = dp(20f); gravity = Gravity.END; isSaveEnabled = false
+                    // Numeric markers retain their authored punctuation in RTL.
+                    textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
                 }
                 row.addView(marker, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8f) })
                 row.addView(text, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)); addView(row)
@@ -239,11 +244,16 @@ internal class NativeMarkdownRow(private val reader: NativeMarkdownList) : Linea
                     wrapper.setPadding(dp(12f), dp(12f), dp(12f), dp(12f)); card = wrapper
                     value.language?.takeIf { it.isNotEmpty() }?.let { language ->
                         caption = agentFeedQuoteTextView(context).apply { this.text = language.uppercase(Locale.ROOT); textSize = 11f
+                            textAlignment = View.TEXT_ALIGNMENT_VIEW_START
                             typeface = typeface(Typeface.MONOSPACE, 600); isSaveEnabled = false }
                         wrapper.addView(caption, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(6f) })
                     }
                 } else if (value.header) wrapper.setPadding(0, dp(4f), 0, dp(4f))
-                text.setHorizontallyScrolling(true)
+                // The scroll view supplies an unconstrained measurement. Keep
+                // TextView's layout at that intrinsic width: its separate
+                // horizontally-scrolling mode uses a 1,048,576-px virtual line,
+                // which sends right-aligned RTL code outside the measured view.
+                text.setHorizontallyScrolling(false)
                 val horizontal = HorizontalScrollView(context).apply { isSaveEnabled = false
                     isHorizontalScrollBarEnabled = false; addView(text, FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)) }
                 horizontalScroller = horizontal; restoreHorizontal = true
@@ -257,7 +267,7 @@ internal class NativeMarkdownRow(private val reader: NativeMarkdownList) : Linea
         pending = reader.work.launch {
             val styled = withContext(Dispatchers.Default) {
                 val content = if (value.kind in setOf(NativeMarkdownBlock.Kind.CODE, NativeMarkdownBlock.Kind.TABLE_ROW))
-                    value.text.ifEmpty { " " } else try { agentFeedSpanned(AgentFeedMarkdown.parseFull(value.text)) }
+                    value.text.ifEmpty { " " } else try { agentFeedSpanned(AgentFeedMarkdown.parseFull(value.text), nativeDocument = true) }
                     catch (error: Exception) { currentCoroutineContext().ensureActive(); value.text }
                 PrecomputedTextCompat.create(content, params)
             }
@@ -276,7 +286,11 @@ internal class NativeMarkdownRow(private val reader: NativeMarkdownList) : Linea
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
         if (ready && restoreHorizontal) {
-            horizontalScroller?.scrollTo(dp(reader.horizontal(block!!.index)), 0)
+            horizontalScroller?.let { scroll ->
+                val saved = reader.horizontal(block!!.index)
+                val end = (scroll.getChildAt(0).width - scroll.width + scroll.paddingLeft + scroll.paddingRight).coerceAtLeast(0)
+                scroll.scrollTo(saved?.let(::dp) ?: if (layoutDirection == View.LAYOUT_DIRECTION_RTL) end else 0, 0)
+            }
             restoreHorizontal = false
         }
         reader.rowLaidOut(this)

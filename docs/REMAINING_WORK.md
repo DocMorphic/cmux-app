@@ -1,3 +1,27 @@
+## Native reader source UI/RTL verified; external billing state clarified — 2026-10-23
+
+The 39-image original SwiftUI native leaf reference is accepted through bound
+retained-artifact verification (`39943618331`); original UI methods pass despite
+capture-workflow finalization/export-guard failures. Android RTL alignment/code
+origin, markers and native inline styles/rules are corrected. The final eight-case
+cohort passes 21 controlled layout profiles/63 images, actual Copy, long painted
+text/state and existing loading/Source gates. Full JVM: 3,144 pass/four skips;
+18 evidence/input guards pass. The cohort spans host sleep; awake performance
+is still unverified. Details and failed attempts: `AGENT_FEED.md`, UI checkpoint.
+
+Do not close original Feed chrome/elevated palette, exact fonts/materials, real
+system locale/Activity/process, TalkBack, broader selection/URL routing, transport
+or physical gates from this standalone leaf. No new signed artifact/physical or
+pairing operation. Signed 720 excludes these ports; physical 712 stays released.
+The Mac notification-pairing popup can be closed during this work.
+
+User has no Play developer account or billing backend and needs neither for the
+current private build. Native Android purchase/restore remains unavailable with
+the current external service integration; a Play account alone does not enable
+cmux server-side verification. Continue other parity work; do not keep requesting
+that setup. Phone availability and other service/provider gates remain pending.
+Global pins unchanged; full goal remains active.
+
 ## Native Feed reader verified within scoped gates — 2026-10-23
 
 The known source native rendering choice is implemented: full Feed text uses
