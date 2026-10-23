@@ -41,6 +41,9 @@ class FeedSheetExportGuards(unittest.TestCase):
                     loadAttempts=1 if stage in ['loading','error'] else 2, dismissed=closed, loadCancellations=0,
                     target=control('In progress, '+expected if stage=='loading' else expected), loadingActivityIndicator=stage=='loading', close=dict(exists=False) if closed else control(self.fixture['uiStrings']['close'][language]),
                     title=control(self.fixture['uiStrings']['title'][language]), unexpectedSourceControl=False,
+                    navigationBars=[[0,30,size[0],54]], navigationLabels=[dict(text=self.fixture['uiStrings']['title'][language],
+                        pointSize=17 if scene['category']=='large' else 21, lineHeight=21 if scene['category']=='large' else 26,
+                        fontName='Synthetic integrity guard only', adjustsForContentSizeCategory=True, frame=[16,40,90,20])],
                     captureMethod='XCUIScreen.main.screenshot', imageSha256=hashlib.sha256(raw).hexdigest()))
             dismissal=deepcopy(pages[0]); dismissal.update(probe='root', dismissed=True, loadCancellations=1)
             (self.export/(scene['id']+'.json')).write_text(json.dumps(dict(schema=1, referenceKind='originalFeedFullTextScene',
@@ -83,3 +86,7 @@ class FeedSheetExportGuards(unittest.TestCase):
 
     def test_zero_frame_nested_loading_label_rejected(self): self.rejects(lambda d:d['pages'][0]['target'].update(frame=[0,0,0,0]),'visible original')
     def test_wrong_loading_role_rejected(self): self.rejects(lambda d:d['pages'][0].update(loadingActivityIndicator=False),'Activity Indicator')
+    def test_missing_title_font_rejected(self): self.rejects(lambda d:d['pages'][0].update(navigationLabels=[]),'title font observation')
+    def test_body_sized_toolbar_font_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationLabels'][0].update(pointSize=28),'title typography')
+    def test_title_font_ax_mismatch_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationLabels'][0].update(frame=[20,40,90,20]),'AX target')
+    def test_missing_navigation_bar_rejected(self): self.rejects(lambda d:d['pages'][0].update(navigationBars=[]),'navigation bar')

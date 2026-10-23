@@ -62,6 +62,24 @@ def visible(value, label, size, require_hit=True):
     require(y >= 0 and y+h <= size[1] and x < size[0] and x+w > 0, 'Original sheet target outside viewport')
 
 
+def navigation_typography(page, scene, size, scale):
+    bars, labels = page.get('navigationBars'), page.get('navigationLabels')
+    require(isinstance(bars, list) and bars and all(geometry.rect(r) for r in bars), 'Missing measured original navigation bar')
+    require(isinstance(labels, list), 'Missing original navigation labels')
+    matches = [value for value in labels if isinstance(value, dict) and value.get('text') == page['title']['label']]
+    require(len(matches) == 1, 'Missing/ambiguous original title font observation')
+    value = matches[0]
+    require(finite(value.get('pointSize')) and abs(value['pointSize'] - (17 if scene['category'] == 'large' else 21)) < .01 and
+        finite(value.get('lineHeight')) and value['pointSize'] <= value['lineHeight'] < value['pointSize']*2 and
+        isinstance(value.get('fontName'), str) and value['fontName'] and value.get('adjustsForContentSizeCategory') is True,
+        'Wrong measured original title typography')
+    require(geometry.rect(value.get('frame')) and all(abs(a-b) <= 1/scale+1e-6 for a,b in zip(value['frame'], page['title']['frame'])),
+        'Original UIKit title font is not bound to its independent AX target')
+    x,y,w,h = value['frame']
+    require(any(x >= bx-1/scale and y >= by-1/scale and x+w <= bx+bw+1/scale and y+h <= by+bh+1/scale for bx,by,bw,bh in bars),
+        'Original title font outside navigation bar')
+
+
 def verify(exported, output, commit):
     require(re.fullmatch('[0-9a-f]{40}', commit), 'Exact project commit required')
     fixture = json.loads((TEMPLATES / 'References.json').read_text()); scenes = {s['id']: s for s in fixture['scenes']}
@@ -103,6 +121,7 @@ def verify(exported, output, commit):
             else:
                 visible(page.get('close', {}), fixture['uiStrings']['close'][scene['language']], size)
                 visible(page.get('title', {}), fixture['uiStrings']['title'][scene['language']], size)
+                navigation_typography(page, scene, size, scale)
                 require(page.get('unexpectedSourceControl') is False, 'Unexpected authored Source control')
             require(page.get('captureMethod') == 'XCUIScreen.main.screenshot', 'Missing actual sheet compositor capture')
             image = images.get(page.get('imageSha256')); require(image is not None, 'Missing/changed sheet compositor image')

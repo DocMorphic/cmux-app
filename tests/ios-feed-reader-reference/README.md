@@ -41,3 +41,17 @@ This is a component reference with an authored presenter, not production app
 appearance acceptance. Actual title collision allocation, bounded toolbar
 growth, tablet placement and material/context effects must guide Android work;
 do not substitute a universal centered-title or semantic-color assumption.
+
+Typography capture [39969462359](https://github.com/DocMorphic/cmux-app/actions/runs/39969462359)
+at 8c3d0817 also succeeds, with all 52 frames verified locally. Its original
+CI/local receipts match. The later local typography guards additionally bind
+each presented title's public UILabel font/frame to the independent XCUITest
+title frame; all 39 presented pages pass. The enhanced verifier's own hash
+differs from the earlier CI receipt; image hashes and whole-source provenance
+remain identical. All 25 synthetic integrity guards pass.
+
+Actual title UIFont sizes are 17 points at ordinary text and 21 at accessibility
+medium, while body sizes are 17 and 28. The bar is 54 points high; the standard
+tablet bar starts 10 points below the panel top. These measurements do not
+establish Close's UIFont: its rendered text is not among the observed UILabels.
+Keep Close typography, native materials and production-caller context open.
