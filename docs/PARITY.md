@@ -1,3 +1,16 @@
+## Routed enlarged portrait return verified — 2026-10-23
+
+One owned API36 routed reader case passes23.196s through actual portrait→landscape,
+font1→font2, then enlarged landscape→portrait. Selection/passage and the same RPC
+client retain through three recreated Activities; status icons/default behavior
+return in portrait, landscape stays hidden/transient, navigation remains visible.
+Three10,024-byte saved bundles omit body content. Frames reviewed, crash empty,
+settings/window restored, emulator exit0; build38s. Exact source/APK/runtime scope:
+AGENT_FEED.md and recovery-20261023/native-feed-reader-roundtrip-checkpoint.json.
+This verifies the previously open reverse direction for one routed fixture case;
+real transport/Pixel/Mac/TalkBack and all broader variant/full-app gates remain.
+No production change or new signed package;722/physical712/global pins unchanged.
+
 ## Original toolbar edge-metric capture prepared — 2026-10-23
 
 Public navigation/child margins, guide/safe-area/direction/trait frames and actual

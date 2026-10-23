@@ -1,5 +1,28 @@
 # Agent Feed companion
 
+## Routed landscape-to-portrait return verified — 2026-10-23
+
+The actual routed reader now has an explicit round-trip lifecycle check. One
+owned API36 case passes in23.196s: portrait at font1, landscape at font1, actual
+system font2 in landscape, then actual enlarged portrait return. All four frames
+retain selection13641–13649 and the reading passage; the same foreground RPC
+client stays admitted through three destroyed/recreated Activities. Status icons
+and default behavior1 return in portrait; both landscape frames hide status icons
+with transient behavior2. Navigation remains visible in all four states. Three
+final saved bundles are10,024 bytes each with no body sentinel;72 text reads prove
+reloads through the routed socket. This is emulator-local fixture transport.
+
+The enlarged landscape/returned portrait compositor frames were reviewed. Crash
+buffer empty, preflight no ANR, settings/window read back restored, owned emulator
+exit0. Build succeeds38s. Source/test/APK bindings and complete captures:
+recovery-20261023/native-feed-reader-roundtrip-checkpoint.json and-runtime-v1/.
+APK8a617cbcd9a7db7f5466d5fb1be502ab86ea776a9bcbc23a60ba9168910a7c1f;
+test98186c73ad21cd3db4a2f9ff095be0126f8a02cce624efd864369e7ceb5e721c.
+No production reader source changed for this check; build metadata usesa3a68956.
+This closes the previously untested reverse-rotation direction in this specific
+routed API36 case, not all transient/focus/older-API/locale/TalkBack variants.
+Signed722/physical712, real Mac/account/pairing/signing and global pins unchanged.
+
 ## Original toolbar edge-metric collector prepared — 2026-10-23
 
 The collector now observes public UINavigationBar/immediate UIView child layout

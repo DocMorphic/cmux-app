@@ -104,7 +104,7 @@ class AgentFeedReaderActivityTest {
 
     @Test fun routedNativeReaderReloadsAndRestoresThroughActualActivityRecreation() = routedReader(false)
 
-    @Test fun actualRotationAndSystemFontChangeRetainRoutedReaderPositionSelectionAndSession() = routedReader(true)
+    @Test fun actualRotationRoundTripAndSystemFontChangeRetainRoutedReaderPositionSelectionAndSession() = routedReader(true)
 
     @Test fun actualCompactWideCompactWindowChangesRetainPositionSelectionAndSession() = routedReader(true, true)
 
@@ -114,14 +114,17 @@ class AgentFeedReaderActivityTest {
             character in body.layout.getLineStart(line) until body.layout.getLineEnd(line))
     }
 
-    private fun changeConfiguration(scenario: ActivityScenario<NativeLifecycleTestActivity>, font: Boolean) {
+    private fun changeConfiguration(scenario: ActivityScenario<NativeLifecycleTestActivity>, font: Boolean,
+        orientation: Int = Configuration.ORIENTATION_LANDSCAPE) {
         var previous: NativeLifecycleTestActivity? = null
         scenario.onActivity { previous = it }
-        if (font) device.executeShellCommand("settings put system font_scale 2.0") else device.setOrientationLeft()
+        if (font) device.executeShellCommand("settings put system font_scale 2.0")
+        else if (orientation == Configuration.ORIENTATION_PORTRAIT) device.setOrientationNatural()
+        else device.setOrientationLeft()
         compose.waitUntil(20_000) { runCatching {
             var changed = false
             scenario.onActivity { changed = it !== previous && if (font) kotlin.math.abs(it.resources.configuration.fontScale - 2f) < .001f
-                else it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
+                else it.resources.configuration.orientation == orientation }
             changed
         }.getOrDefault(false) }
         assertTrue(previous!!.isDestroyed)
@@ -288,6 +291,25 @@ class AgentFeedReaderActivityTest {
                 assertTrue(peer.requests.count { it.optString("method") == "feed.text" } > secondReads)
                 compose.onNodeWithText("Source").assertDoesNotExist(); compose.onNodeWithText("Formatted").assertDoesNotExist()
                 capture("second-native-restored")
+                if (systemChanges && !adaptiveChanges) {
+                    var enlargedAnchor = 0
+                    compose.runOnUiThread { enlargedAnchor = anchor() }
+                    val enlargedReads = peer.requests.count { it.optString("method") == "feed.text" }
+                    phase = "enlarged-portrait-return"
+                    changeConfiguration(scenario, font = false, orientation = Configuration.ORIENTATION_PORTRAIT)
+                    await { paragraph()?.selectionStart == selected && reader()!!.firstVisiblePosition == 1 }; settle()
+                    compose.runOnUiThread {
+                        val body = paragraph()!!; val row = body.parent as NativeMarkdownRow
+                        topLineContains(body, reader()!!.paddingTop - row.top - body.top, enlargedAnchor)
+                        assertTrue("Returning to portrait retains enlarged text", body.textSize > formattedPixelsBefore)
+                    }
+                    scenario.onActivity {
+                        assertSame(retainedClient, ViewModelProvider(it).get(NativeFeedSession::class.java).connectionState("").client)
+                        assertFalse(retainedClient.isClosed)
+                    }
+                    assertTrue(peer.requests.count { it.optString("method") == "feed.text" } > enlargedReads)
+                    capture("enlarged-portrait-return")
+                }
                 assertTrue("Actual saved Activity bundles", saved.size >= 2)
                 val bytes = JSONArray()
                 val registryKeys = JSONArray()
@@ -311,6 +333,7 @@ class AgentFeedReaderActivityTest {
                     .put("savedRegistryKeys", registryKeys).put("savedStateCapture", "Application.onActivityPostSaveInstanceState")
                     .put("formattedBeforeAnchor", before).put("formattedAfterAnchor", after).put("formattedSelection", selected)
                     .put("actualSystemRotationAndFontChange", systemChanges && !adaptiveChanges)
+                    .put("actualEnlargedLandscapeToPortraitReturn", systemChanges && !adaptiveChanges)
                     .put("actualCompactWideCompactWindowChanges", adaptiveChanges)
                     .put("originalWindowConfiguration", JSONObject(originalWindow))
                     .put("textReads", peer.requests.count { it.optString("method") == "feed.text" }).put("retainedRpcClient", true)
