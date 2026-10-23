@@ -1,3 +1,37 @@
+## Signed 720 verified; flexible allocation fixed — 2026-10-23
+
+Local/unpublished signed **720** includes the priority-copy/flexible-visual fix
+at clean **7619e3c5f4dfabfc918b8a15d3a319f455b15220**. APK:
+`captures/runtime/parity-candidate-720/app-release.apk`, 278,132,833 bytes,
+SHA256 `0e4b5c88a800c22779fa2de186de4155d85535e41a86578bb696532311b1b537`.
+Stable signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+Strict package/Firebase/attribution checks pass (22 native libraries, 21 viewer
+assets, all 16 fixture exclusions). Clean full JVM suite: **3,131 pass, four
+opt-in skips, zero failures/errors**, 426 reports. Actual signed APK passes two
+reviewed fresh API 36 release starts, empty crash buffer and emulator exit 0;
+only the fresh owned AVD is deleted. Authenticated release onboarding and
+signed-in upgrade/data preservation still need real-device acceptance.
+Checkpoint: `captures/recovery-20261023/parity-candidate-720-checkpoint.json`.
+`pixel-720-test-plan.json` replaces 719/718/717/716/715/714 for the same pending
+15-minute availability question. Physical 712 remains untouched/released; no
+phone/Mac/account operation occurred. Do not infer a new physical grant.
+
+The flexible checkpoint below passes 24 phone/sidebar cases plus two native-
+content-width cohorts, including contraction/necessary scroll/re-expansion and
+reachable tall Android controls. Source images remain the same accepted scoped
+39-frame gallery; no repeat native capture was needed. This closes the known
+minimum-versus-maximum layout error, not all vertical window/font/glyph/glass/
+Chrome or accessibility/device/provider gates.
+
+Source delta review: `captures/recovery-20261023/cloud-ui-delta-review.json`
+checks the exact two changed CloudUI paths from c2715 to a5911a1f. Onboarding and
+Restart are scoped ports; create-sheet nil-billing/web-purchase routing is
+reviewed but native Android purchase support remains unresolved. Do not impose
+Apple-only purchase rules as an invented Android contract or call read-only
+plans purchase parity. Pending backend/Play project question remains unanswered.
+Continue broader source/screen reconciliation and device/backend gates. Full
+parity stays active; these scoped fixtures/references are not completion.
+
 ## Flexible narrow visual verified — 2026-10-23
 
 The source 280-point visual cap now contracts after measuring priority copy,
@@ -19,8 +53,7 @@ reviewed. Checkpoint: `captures/recovery-20261023/cloud-onboarding-flexible-chec
 This resolves the known minimum-versus-maximum allocation error, not broader
 vertical window/font/glyph/glass/Chrome, hardware, screen-reader or full parity.
 
-719 remains the latest signed artifact until the corrected clean candidate is
-verified. Physical 712 stays untouched/released; the existing phone availability
+720 above is the verified signed candidate with this correction. Physical 712 stays untouched/released; the existing phone availability
 and backend questions remain pending. Full parity remains active.
 
 ## Signed 719 verified; full parity still active — 2026-10-23

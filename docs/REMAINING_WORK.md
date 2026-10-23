@@ -1,11 +1,23 @@
+## Signed 720 ready; full parity remains active — 2026-10-23
+
+720 at `7619e3c5f4dfabfc918b8a15d3a319f455b15220` packages flexible narrow allocation. Strict
+package/signing/Firebase/notice checks, 3,131 JVM passes/four skips and two reviewed
+fresh release starts pass. APK SHA256:
+`0e4b5c88a800c22779fa2de186de4155d85535e41a86578bb696532311b1b537`.
+It is local/unpublished and not installed on the phone. 24 phone/sidebar cases
+plus two native-width cohorts verify contraction, necessary scroll and reflow,
+without closing native appearance/window/IME/TalkBack/provider/real-device gates.
+The CloudUI two-file delta is reviewed; Android purchase/restore/backend contracts
+remain unresolved. Continue the broader source/screen audit and all completion
+gates below. Physical 712 remains released, with availability still pending.
+
 ## Narrow visual contraction fixed; broader gates remain — 2026-10-23
 
 The known priority-copy/280-point visual allocation error is corrected. Actual
 production pages contract without unnecessary scrolling, scroll genuine overflow,
 restore after reflow and keep tall Android controls reachable. 24 phone/sidebar
 cases and two equal-native-content-width cohorts pass, with empty crash buffers
-and restored settings. See `HANDOFF.md` and the flexible checkpoint. Package the
-clean correction next; 719 is the latest verified signed artifact and physical
+and restored settings. See `HANDOFF.md` and the flexible checkpoint. Clean signed 720 packages the correction and passes release startup; physical
 712 remains untouched. Native appearance/window geometry, real devices,
 provider/VPN, backend/Play and all completion gates below remain open.
 

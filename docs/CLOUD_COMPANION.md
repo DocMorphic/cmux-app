@@ -156,6 +156,15 @@ content-width cohorts retain source horizontal/height checks. Exact inputs and
 frames are in `cloud-onboarding-flexible-checkpoint.json`. This fixes that source
 allocation behavior; full vertical window/font/glyph/glass/Chrome parity is open.
 
+Signed 720 at clean `7619e3c5f4dfabfc918b8a15d3a319f455b15220` packages the flexible correction,
+SHA256 `0e4b5c88a800c22779fa2de186de4155d85535e41a86578bb696532311b1b537`. Strict package/Firebase/notice/signature checks, the full
+3,131-pass/four-skip suite and two reviewed fresh signed starts pass. No physical
+account upgrade or provider operation occurs; checkpoint is
+`parity-candidate-720-checkpoint.json` in the recovery folder.
+The exact CloudUI c2715-to-a591 delta has only two modified paths; its source
+review and the still-unresolved create-sheet billing behavior are recorded in
+`cloud-ui-delta-review.json`. Source review is not Android purchase parity.
+
 ## Restart and request deadlines — 2026-10-23
 
 The a5911a1f source adds provider Restart, which was absent from Android.
