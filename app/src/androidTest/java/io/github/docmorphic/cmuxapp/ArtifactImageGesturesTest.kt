@@ -19,6 +19,101 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ArtifactImageGesturesTest {
+    @Test fun tallImageKeepsVerticalFocalPointAcrossRotationAndRecreation() {
+        check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val device = UiDevice.getInstance(instrumentation)
+        val source = File(context.cacheDir, "tall-image-${System.nanoTime()}.png")
+        val bitmap = Bitmap.createBitmap(300, 400, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.RED)
+            // A small, off-center patch identifies the same image point on both axes.
+            canvas.drawRect(105f, 60f, 165f, 140f, Paint().apply { color = Color.GREEN })
+            source.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        } finally { bitmap.recycle() }
+        val output = File(context.getExternalFilesDir(null), "image-gestures-tall").apply { mkdirs() }
+        val records = org.json.JSONArray()
+        val image = By.desc("Image preview ${source.name}")
+        fun await(message: String, predicate: () -> Boolean) {
+            val deadline = SystemClock.elapsedRealtime() + 15_000
+            while (SystemClock.elapsedRealtime() < deadline) {
+                try { if (predicate()) return } catch (_: StaleObjectException) { }
+                Thread.sleep(75)
+            }
+            device.takeScreenshot(File(output, "failure.png"))
+            device.dumpWindowHierarchy(File(output, "failure.xml"))
+            fail(message)
+        }
+        fun bounds() = checkNotNull(device.wait(Until.findObject(image), 10_000)).visibleBounds
+        fun centerIs(color: Int): Boolean {
+            val rect = bounds()
+            val screen = instrumentation.uiAutomation.takeScreenshot()
+            return try {
+                // Check a neighborhood, not one potentially stale/interpolated pixel.
+                listOf(-8, 0, 8).all { dx -> listOf(-8, 0, 8).all { dy ->
+                    screen.getPixel(rect.centerX() + dx, rect.centerY() + dy) == color
+                } }
+            } finally { screen.recycle() }
+        }
+        fun capture(name: String) {
+            await("Focal patch moved in $name") { centerIs(Color.GREEN) }
+            val rect = bounds()
+            val screen = instrumentation.uiAutomation.takeScreenshot()
+            val pixels = IntArray(rect.width() * rect.height())
+            screen.getPixels(pixels, 0, rect.width(), rect.left, rect.top, rect.width(), rect.height())
+            var left = rect.width(); var right = -1; var top = rect.height(); var bottom = -1
+            // Bilinear magnification blends the edge pixels. The half-color
+            // boundary measures the patch, rather than only its smaller pure-green interior.
+            pixels.forEachIndexed { index, color -> if (Color.green(color) > Color.red(color) && Color.green(color) > Color.blue(color)) {
+                val x = index % rect.width(); val y = index / rect.width()
+                left = minOf(left, x); right = maxOf(right, x)
+                top = minOf(top, y); bottom = maxOf(bottom, y)
+            } }
+            val fit = minOf(rect.width() / 300f, rect.height() / 400f)
+            try {
+                File(output, "$name.png").outputStream().use { screen.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                assertEquals("Horizontal focal point in $name", rect.width() / 2f, (left + right) / 2f, 6f)
+                assertEquals("Vertical focal point in $name", rect.height() / 2f, (top + bottom) / 2f, 6f)
+                assertEquals("Retained horizontal scale in $name", 60 * fit * 3, (right - left + 1).toFloat(), 6f)
+                assertEquals("Retained vertical scale in $name", 80 * fit * 3, (bottom - top + 1).toFloat(), 6f)
+            } finally { screen.recycle() }
+            records.put(org.json.JSONObject().put("state", name)
+                .put("viewportWidthPx", rect.width()).put("viewportHeightPx", rect.height())
+                .put("centerPatchColor", Color.GREEN)
+                .put("patchBoundsPx", org.json.JSONArray(listOf(left, top, right, bottom)))
+                .put("expectedPatchWidthPx", 60 * fit * 3).put("expectedPatchHeightPx", 80 * fit * 3))
+        }
+        try {
+            ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
+                .putExtra("path", source.absolutePath).putExtra("route", ChangesPreviewRoute.IMAGE.name)
+                .putExtra("mime", "image/png")).use { scenario ->
+                scenario.onActivity { it.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
+                await("Initial portrait image did not settle") { device.displayHeight > device.displayWidth && centerIs(Color.RED) }
+                val rect = bounds()
+                val fit = minOf(rect.width() / 300f, rect.height() / 400f)
+                val x = (rect.centerX() + (135f - 150f) * fit).toInt()
+                val y = (rect.centerY() + (100f - 200f) * fit).toInt()
+                device.click(x, y); Thread.sleep(80); device.click(x, y)
+                capture("portrait-zoomed")
+                scenario.recreate(); capture("portrait-recreated")
+                scenario.onActivity { it.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
+                await("Tall image did not reach landscape geometry") { device.displayWidth > device.displayHeight && bounds().width() > bounds().height() }
+                capture("landscape-zoomed")
+                scenario.recreate(); capture("landscape-recreated")
+                scenario.onActivity { it.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
+                await("Tall image did not return to portrait geometry") { device.displayHeight > device.displayWidth && bounds().height() > bounds().width() }
+                capture("portrait-return")
+                val final = bounds()
+                device.click(final.centerX(), final.centerY()); Thread.sleep(80); device.click(final.centerX(), final.centerY())
+                await("Double-tap did not reset the tall image") { centerIs(Color.RED) }
+                device.takeScreenshot(File(output, "reset.png"))
+                File(output, "profiles.json").writeText(records.toString(2))
+            }
+        } finally { source.delete() }
+    }
+
     @Test fun offCenterZoomRestoresAndLongPressUsesSharedFileActions() {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
         val instrumentation = InstrumentationRegistry.getInstrumentation()

@@ -1,3 +1,44 @@
+## Wide/tall image restoration and current-source review — 2026-10-23
+
+The production viewer now has a complementary tall-image runtime check. A
+300×400 image has a small off-center patch on both axes; after double-tap, actual
+screen pixels verify its center and 3× size through portrait recreation,
+landscape, landscape recreation and portrait return. The final run passes both
+this case and the existing wide-image/context-action case in **22.914 s**.
+Maximum center error is 5 px horizontally/0.5 px vertically; maximum patch-size
+error is under 1 px, within the unchanged 6-px guard. Landscape and portrait-return
+screenshots are reviewed. Reset, Share/Save dispatch and exact Copy Image bytes
+also pass. No production change or new signed build was needed.
+
+The initial center-neighborhood run passes both cases. A stricter second run
+fails one scale assertion because measuring only pure-green pixels excludes the
+bilinearly blended boundary (712 px versus nominal 723 px). The final test uses
+the half-color boundary, retains the 6-px tolerance and saves the measured frame
+before assertions. All attempts remain recorded. Final crash buffer is empty;
+saved emulator settings restore commands succeed and the existing owned API 36
+AVD exits 0, retained. No phone or account operation occurs. Checkpoint:
+`captures/recovery-20261023/image-focal-checkpoint.json`; final evidence:
+`image-focal-runtime-v3/` in that folder.
+
+Direct Git inspection at audit candidate `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`
+finds the five image/zoom/rendering/pager/hosted-page files unchanged from the
+implemented baseline. The image view remains SHA256
+`c91a6f0afcdcb857ed0522ad98713d3f55bb67f927636262660e6032c66dd98c`.
+This narrows the synthetic wide/tall rotation/recreation gap. It does not execute
+UIKit rotation, verify native animation/material, real gallery/paging/process
+death, TalkBack or physical Pixel gestures. Signed 720 remains the candidate;
+its image production inputs match, but this runtime is the debug APK.
+
+The same source audit identifies an **open Markdown delta**: the newer native
+`MarkdownRemoteImageApprovals` exact-URL record and shell approval/open callbacks
+are absent from Android's controller, which still relies on the older shell's
+JavaScript consent map. Existing URL/public-address/TLS/MIME/size restrictions
+remain. Port the shell and native approval/navigation lifecycle together, reject
+unapproved scheme requests before fetch and clear approvals on shell replacement/
+close, preserving current viewport/renderer recovery. Source review and hashes:
+`captures/recovery-20261023/markdown-consent-source-gap.json`. No port or native
+execution is accepted yet. Global pins and full parity remain open.
+
 # Content preview lifecycle
 
 ## Native video-size ownership — 2026-10-10

@@ -1,3 +1,24 @@
+## Image restoration evidence; Markdown consent delta next — 2026-10-23
+
+Both wide/tall production-image runtime cases pass in 22.914 s. The new test
+measures the off-center patch and 3× scale through rotation/recreation, with
+reviewed frames, empty crash buffer and owned emulator exit 0. Maximum center
+error 5 px, size error under 1 px; no production change or release rebuild.
+See `CONTENT_PREVIEW_LIFECYCLE.md` and `image-focal-checkpoint.json` under
+`captures/recovery-20261023/` for exact scope and the retained measurement failure.
+Five pinned image/pager source files are unchanged; this is scoped Android
+restoration evidence, not full UIKit/device/gallery/process/accessibility parity.
+
+Next concrete source gap: native exact-URL Markdown image approvals and updated
+shell/native callbacks are missing from Android. The older JavaScript-only map
+is insufficient for the current source contract; URL/network restrictions remain.
+Inspect/port approval and navigation lifecycle with the current shell, retaining
+viewport/recovery. Hash review: `markdown-consent-source-gap.json` in the same
+folder. Do not mark that port complete from this inspection. Signed 720 remains
+latest, physical 712 stays released; phone/backend replies remain pending.
+The human confirmed the protected Mac pairing controls are visible, only. Full
+parity goal remains active, with all broader gates retained.
+
 ## Signed 720 verified; flexible allocation fixed — 2026-10-23
 
 Local/unpublished signed **720** includes the priority-copy/flexible-visual fix
