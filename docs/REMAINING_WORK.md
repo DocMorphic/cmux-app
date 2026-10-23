@@ -1,3 +1,31 @@
+## Source-frame corrections verified; signed 719 next — 2026-10-23
+
+See `HANDOFF.md` and `CLOUD_COMPANION.md`: 39 original native frames are now
+associated to immutable source with corrected stroke-inclusive bounds. Android
+corrects portrait/wide layout, colors and primary sizing; 22 phone/sidebar cases
+and two wide cohorts pass, with 66 main page records and additional equal-native-
+content-width checks. Card x and primary height match source within one physical
+pixel at standard English type in 750/1024-dp content widths. Vertical geometry,
+font/glyph/glass/chrome, screen readers, provider/VPN, real devices and all broader
+gates remain open. 718 is the latest signed artifact before final corrections;
+prepare/verify clean signed 719 next. Physical 712 stays untouched/released.
+
+## Signed 718 verified locally; physical and native acceptance remain open — 2026-10-23
+
+Signed 718 at `4c83e03056ff05d87a5ada5b681edbf91566cf90` includes the scoped
+onboarding port. APK SHA256:
+`ec69c60aac7b81d750cb573a341513e9066dd016de02ff2028f7b87af3cc8f1a`.
+Strict package/Firebase/signer/attribution checks, the clean full JVM suite
+(3,131 pass/four opt-in skips) and two reviewed cold emulator launches pass.
+It is local/unpublished and not installed on the phone. Checkpoint:
+`captures/recovery-20261023/parity-candidate-718-checkpoint.json`.
+Native source run 39894117425 passes all source UI methods; corrected local
+association accepts 39 source frames after recording the original stroke-envelope
+assumption failure. Final Android content alignment is verified in later debug
+cohorts and still needs a clean signed candidate after 718.
+The phone stays released at last physically verified 712. All broader gates below
+remain open; full parity stays active.
+
 ## Cloud onboarding port; native comparison still pending — 2026-10-23
 
 The scoped source onboarding/backdrop port now passes 22 owned phone/sidebar
@@ -6,11 +34,13 @@ Reduced Motion pixel/lifecycle checks. Seven new JVM cases include eight origina
 Swift math vectors; the full suite passes 3,131 with four opt-in skips. All nine
 locales have eighteen exact source labels plus two attributed Android browser/
 Keystore adaptations. This does not localize all Cloud/VPN error and warning text.
-The first native capture run was interrupted/excluded; optimized immutable run
-39894117425 at 059e148fff532d3cfef202f368b5a0c65cb44845 is in progress.
+The first native capture run is interrupted/excluded. Optimized immutable run
+39894117425 at 059e148fff532d3cfef202f368b5a0c65cb44845 passes source UI methods;
+its original association failure is corrected and the same 39 images reassociate
+locally. Source gallery acceptance remains bounded, not full native appearance.
 Matched native frames/font/glass, true tablet and phone hardware, provider/VPN,
 TalkBack and every broader gate below remain open. See `CLOUD_COMPANION.md` and
-`HANDOFF.md`. Signed 717 and physical 712 remain the latest verified candidates
+`HANDOFF.md`. Signed 718 and physical 712 remain the latest verified candidates
 in their respective scopes; no phone or production backend was used here.
 
 ## Signed 717 ready; Cloud Restart verified within scoped gates — 2026-10-23

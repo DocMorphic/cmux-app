@@ -1,4 +1,5 @@
-<!-- Project-authored filled shield with a lock cutout. -->
+<!-- Project-authored hierarchical shield and foreground lock. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M12,1L22,5V11C22,16.9 18,21.1 12,23C6,21.1 2,16.9 2,11V5ZM8,11V17H16V11H15V9C15,7.34 13.66,6 12,6C10.34,6 9,7.34 9,9V11ZM10.5,11H13.5V9C13.5,8.17 12.83,7.5 12,7.5C11.17,7.5 10.5,8.17 10.5,9Z" />
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.25" android:pathData="M12,1L22,5V11C22,16.9 18,21.1 12,23C6,21.1 2,16.9 2,11V5Z" />
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M8,11H9V9C9,7.34 10.34,6 12,6C13.66,6 15,7.34 15,9V11H16V18H8ZM10.5,11H13.5V9C13.5,8.17 12.83,7.5 12,7.5C11.17,7.5 10.5,8.17 10.5,9Z" />
 </vector>

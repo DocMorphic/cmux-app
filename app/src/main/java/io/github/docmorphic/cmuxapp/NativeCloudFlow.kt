@@ -4,13 +4,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -22,6 +20,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -90,7 +90,9 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
     } }
     BackHandler(enabled = replay || !LocalWorkspaceShellChrome.current.split) { if (page > 0) move(page - 1) else onBack() }
     val configuration = LocalConfiguration.current
-    val background = if (NativeAppColors.dark) Color.Black else Color.White
+    val dark = NativeAppColors.dark
+    val background = if (dark) Color.Black else Color.White
+    val accent = cloudIntroductionTint(0, dark)
     BoxWithConstraints(modifier.fillMaxSize()) {
         // Size classes refer to this actual pane. A wide device can have a
         // narrow Cloud sidebar. Compact-height controls also work at large type.
@@ -120,7 +122,7 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
                     repeat(3) { index ->
                         val width by animateDpAsState(if (index == page) 22.dp else 7.dp,
                             animationSpec = if (reducedMotion) snap() else tween(220), label = "Cloud page dot")
-                        Box(Modifier.size(width, 7.dp).background(if (index == page) MaterialTheme.colorScheme.primary
+                        Box(Modifier.size(width, 7.dp).background(if (index == page) accent
                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .24f), CircleShape))
                     }
                 }
@@ -135,14 +137,18 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                     val primary: @Composable (Modifier) -> Unit = { actionModifier ->
                         Button(onClick = { if (page < 2) move(page + 1) else onComplete() }, enabled = !pager.isScrollInProgress,
-                            shape = CircleShape, contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
-                            modifier = actionModifier.heightIn(min = 60.dp).testTag("cloud.introduction.next")) {
+                            colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.White),
+                            shape = CircleShape, contentPadding = PaddingValues(horizontal = 24.dp, vertical = 15.dp),
+                            modifier = actionModifier.heightIn(min = 50.dp).testTag("cloud.introduction.next")) {
                             Text(stringResource(if (page < 2) R.string.cmux_cloud_intro_continue else R.string.cmux_cloud_intro_done),
-                                fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                                style = TextStyle(fontSize = 17.sp, lineHeight = (20f + 1f / 3f).sp, letterSpacing = 0.sp,
+                                    platformStyle = PlatformTextStyle(includeFontPadding = false)),
+                                fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                         }
                     }
                     val secondary: @Composable (Modifier) -> Unit = { actionModifier ->
                         TextButton(onClick = { move(page - 1) }, enabled = page > 0 && !pager.isScrollInProgress,
+                            colors = ButtonDefaults.textButtonColors(contentColor = accent),
                             modifier = actionModifier.heightIn(min = 44.dp).alpha(if (page > 0) 1f else 0f)
                                 .then(if (page == 0) Modifier.clearAndSetSemantics {} else Modifier.testTag("cloud.introduction.back"))) {
                             Text(stringResource(R.string.cmux_cloud_intro_back), fontSize = 15.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
@@ -161,6 +167,7 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
 }
 
 @Composable private fun CloudIntroductionPage(index: Int, compact: Boolean, wide: Boolean, vpnControl: (@Composable () -> Unit)?) {
+    val dark = NativeAppColors.dark
     val title = stringResource(when (index) {
         0 -> R.string.cmux_cloud_intro_workspace_title
         1 -> R.string.cmux_cloud_intro_vpn_title
@@ -173,37 +180,51 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
     })
     val copy: @Composable () -> Unit = {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.semantics(mergeDescendants = true) {}.testTag("cloud.introduction.copy.$index")) {
-            Text(title, fontSize = 34.sp, lineHeight = 41.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)), modifier = Modifier.semantics { heading() })
-            Text(message, fontSize = 17.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)), textAlign = TextAlign.Center)
-        }
-    }
-    val visual: @Composable () -> Unit = {
-        Column(Modifier.widthIn(max = 520.dp), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            CloudIntroductionGraphic(index, compact)
-            // A missing controller omits the control, matching the source.
-            // The Android permission control stays accessible and interactive.
-            if (index == 1) vpnControl?.invoke()
+            modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}.testTag("cloud.introduction.copy.$index")) {
+            Text(title, fontSize = 34.sp, lineHeight = 41.sp, color = if (dark) Color.White else Color.Black,
+                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                style = TextStyle(letterSpacing = 0.sp, platformStyle = PlatformTextStyle(includeFontPadding = false)), modifier = Modifier.semantics { heading() })
+            Text(message, fontSize = 17.sp, lineHeight = 22.sp, color = if (dark) Color(0x99EBEBF5) else Color(0x993C3C43),
+                style = TextStyle(letterSpacing = 0.sp, platformStyle = PlatformTextStyle(includeFontPadding = false)), textAlign = TextAlign.Center)
         }
     }
     BoxWithConstraints(Modifier.fillMaxSize().testTag("cloud.introduction.page.$index")) {
         val availableHeight = maxHeight
+        val horizontalPadding = if (compact) 16.dp else 48.dp
+        val verticalPadding = if (compact) 4.dp else 32.dp
+        val spacing = if (compact) 16.dp else 48.dp
+        val innerWidth = (minOf(980.dp, maxWidth) - horizontalPadding * 2).coerceAtLeast(0.dp)
+        // Source copy has layout priority and takes its capped width before the
+        // flexible visual. Equal non-filling weights wrongly centered both
+        // intrinsic children together and pushed the copy far toward the card.
+        val copyWidth = minOf(if (compact) 280.dp else 390.dp,
+            (innerWidth - spacing - if (compact) 88.dp else 152.dp).coerceAtLeast(0.dp))
+        val visualWidth = minOf(520.dp, (innerWidth - copyWidth - spacing).coerceAtLeast(0.dp))
+        val visualHeight = minOf(280.dp,
+            (availableHeight - if (wide) verticalPadding * 2 else 20.dp).coerceAtLeast(0.dp))
+        val visual: @Composable (Modifier) -> Unit = { visualModifier ->
+            Box(visualModifier.widthIn(max = 520.dp).heightIn(min = visualHeight), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    CloudIntroductionGraphic(index, compact)
+                    // Android's permission warning/cleanup can exceed the
+                    // source's 280-pt visual; keep it reachable by scrolling.
+                    if (index == 1) vpnControl?.invoke()
+                }
+            }
+        }
         // Preserve the source's centered page; scrolling is a fallback when
         // Android text scaling or the permission/error card needs more height.
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Box(Modifier.fillMaxWidth().heightIn(min = availableHeight), contentAlignment = Alignment.Center) {
                 if (wide) Row(Modifier.widthIn(max = 980.dp).fillMaxWidth()
-                    .padding(horizontal = if (compact) 16.dp else 48.dp, vertical = if (compact) 4.dp else 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(if (compact) 16.dp else 48.dp, Alignment.CenterHorizontally),
+                    .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+                    horizontalArrangement = Arrangement.spacedBy(spacing, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f, fill = false).widthIn(max = if (compact) 280.dp else 390.dp)) { copy() }
-                    Box(Modifier.weight(1f, fill = false), contentAlignment = Alignment.Center) { visual() }
+                    Box(Modifier.width(copyWidth)) { copy() }
+                    visual(Modifier.width(visualWidth))
                 } else Column(Modifier.widthIn(max = 620.dp).fillMaxWidth().padding(horizontal = 24.dp).padding(top = 12.dp, bottom = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Box(Modifier.widthIn(max = 560.dp)) { copy() }; visual()
+                    Box(Modifier.widthIn(max = 560.dp)) { copy() }; visual(Modifier.fillMaxWidth())
                 }
             }
         }
@@ -211,19 +232,33 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
 }
 
 @Composable private fun CloudIntroductionGraphic(index: Int, compact: Boolean) {
-    val tint = when (index) {
-        0 -> Color(0xFF0088FF)
-        1 -> Color(0xFF34C759)
-        else -> Color(0xFFAF52DE)
-    }
-    val shape = RoundedCornerShape(if (compact) 20.dp else 30.dp)
+    val tint = cloudIntroductionTint(index, NativeAppColors.dark)
+    val corner = if (compact) 20.dp else 30.dp
+    val icon = if (compact) 32.dp else 58.dp
     Box(Modifier.size(if (compact) 88.dp else 152.dp).testTag("cloud.introduction.graphic.$index")
-        .background(tint.copy(alpha = .14f), shape).border(1.dp, tint.copy(alpha = .30f), shape)
+        .drawBehind {
+            val radius = CornerRadius(corner.toPx())
+            drawRoundRect(tint.copy(alpha = .14f), cornerRadius = radius)
+            // SwiftUI .stroke is centered on the nominal card, including its
+            // half-point outer extent; Modifier.border draws entirely inside.
+            drawRoundRect(tint.copy(alpha = .30f), cornerRadius = radius, style = Stroke(1.dp.toPx()))
+        }
         .clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
         Icon(painterResource(when (index) {
             0 -> R.drawable.ic_cloud_intro_cloud
             1 -> R.drawable.ic_cloud_intro_shield
             else -> R.drawable.ic_cloud_intro_key
-        }), null, Modifier.size(if (compact) 32.dp else 58.dp), tint = tint)
+        }), null, when (index) {
+            0 -> Modifier.size(icon * 1.3f, icon * .9f)
+            2 -> Modifier.size(icon * .75f, icon * 1.3f)
+            else -> Modifier.size(icon * 1.1f)
+        }, tint = tint)
     }
+}
+
+/** Actual iOS 26.4.1 source palette captured in run 39894117425; local to onboarding. */
+private fun cloudIntroductionTint(index: Int, dark: Boolean) = when (index) {
+    0 -> if (dark) Color(0xFF0091FF) else Color(0xFF0088FF)
+    1 -> if (dark) Color(0xFF30D158) else Color(0xFF34C759)
+    else -> if (dark) Color(0xFFDB34F2) else Color(0xFFCB30E0)
 }

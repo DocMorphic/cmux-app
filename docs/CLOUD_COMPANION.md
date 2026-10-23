@@ -74,8 +74,71 @@ artifact (12476320204, ZIP SHA256
 contains diagnostics and no finalized scene exports. The revised immutable run
 39894117425 at 059e148fff532d3cfef202f368b5a0c65cb44845 queries only required
 copy/controls, checks optional publicly exposed graphic bounds, adds a Back
-round trip and bounds capture steps so diagnostics can finish. It is in progress
-and is not yet accepted. There is no source animation or private idle override.
+round trip and bounds capture steps so diagnostics can finish. All three native
+UI methods pass: standard 385.531 s, accessibility 57.030 s, tablet 55.946 s.
+The original job then fails association because its nominal graphic check omitted
+the centered 1-pt stroke. Actual XCUI envelopes are 153/89 pt, not nominal 152/88,
+with at most one physical pixel of quantization. The corrected verifier retains
+that strict dimension fence; fourteen synthetic association guards pass and the
+same immutable artifact reassociates locally into all 13 scenes/39 original
+compositor frames. This is a local reassociation after the original CI failure,
+not a claim that the original job turned green. There is no source animation or
+private idle override.
+
+Artifact 12476349109 is 228,596,273 bytes, ZIP SHA256
+`ec8f5ce081507c02ea2acc73d4c7f90e16ef94703285148e95954fa385d8f1bd`.
+Its template/file Git objects and package trees are independently checked against
+the exact project/source pins. Complete remote package file inventories were not
+exported in this host; immutable preparation extracts the checked original trees.
+Phone runtime is iOS 26.4.1; tablet is iOS 26.2, using Xcode 26.6. Exact public
+frames, sizes, colors and type inputs are retained in
+`third_party/cmux-cloud/onboarding-reference-metrics.json`; original files and
+local association receipt/checkpoint are in
+`captures/recovery-20261023/cloud-onboarding-reference-run-39894117425`.
+Representative English, landscape, tablet and enlarged German source frames are
+reviewed. This accepts the bounded source capture inventory, not Android/full UI
+or screen-reader equivalence.
+
+Signed candidate 718 at clean `4c83e03056ff05d87a5ada5b681edbf91566cf90` packages
+this port and repeats the full JVM pass. Its APK SHA256 is
+`ec69c60aac7b81d750cb573a341513e9066dd016de02ff2028f7b87af3cc8f1a`;
+strict signing/package/Firebase checks and two reviewed fresh owned API 36
+release launches pass. Packaged attribution bytes match the committed notice.
+It is local/unpublished and has not upgraded a physical account. The actual
+onboarding page evidence remains the recorded debug cohorts; a sign-in cold
+launch does not prove authenticated release onboarding or full parity.
+
+
+### Corrections from actual source frames
+
+The first Android port's equal non-filling weights centered the intrinsic copy
+and card together in wide mode, instead of giving copy its priority/capped width
+and letting the visual take the remaining width. Its portrait visual also wrapped
+the 152-dp card, omitting the source's 280-point visual frame; copy sat about
+64 dp too low. The corrected layout fills the visual frame, takes the source
+280/390-dp copy cap first, centers the card in the remaining visual width and
+retains the scroll fallback for enlarged Android copy/permission warnings.
+
+Onboarding now uses the captured light/dark blue/green/purple palette, white/black
+primary copy and the source secondary-label compositing colors. The RGB sample
+interiors (141/141/147 on black; 138/138/142 on white) support the secondary-label
+alpha interpretation; that alpha remains an inference, not an observed UIColor
+property. Card strokes are centered with their half-point outer extent. Primary
+controls use 15-dp vertical padding, a 17-sp/20⅓-sp text line and a 50-dp minimum,
+with white text on the captured blue. The authored cloud is wider, key upright,
+and shield/lock use separate hierarchical layers; these remain project artwork,
+not identical SF Symbols or native glass.
+
+The corrected phone/sidebar cohort passes all 22 in 67.104 seconds with all 66
+page records and retained motion/lifecycle checks. Corrected wide cohorts also
+pass separately. A further pair of actual emulator viewports matches native
+safe-content widths of 750 and 1024 dp. At standard English type on all three
+pages, nominal card x matches the published source observations after removing
+only the source left safe inset and centered half-point stroke; primary height
+is within one physical pixel. Normal/enlarged English/Arabic/German paths pass.
+This horizontal geometry/height comparison does not establish matching vertical
+window geometry, fonts, chrome, glass, screen readers or physical tablet hardware.
+
 
 ## Restart and request deadlines — 2026-10-23
 

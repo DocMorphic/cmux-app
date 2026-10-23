@@ -1,4 +1,4 @@
 <!-- Project-authored filled topic symbol; not an SF Symbols asset. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF" android:pathData="M6,19C3.24,19 1,16.76 1,14C1,11.54 2.78,9.49 5.12,9.08C5.77,6.18 8.35,4 11.5,4C14.64,4 17.26,6.18 17.9,9.12C20.75,9.57 23,11.45 23,14.25C23,16.87 20.87,19 18.25,19Z" />
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="16dp" android:viewportWidth="24" android:viewportHeight="16">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M6,15C3.24,15 1,12.76 1,10C1,7.54 2.78,5.49 5.12,5.08C5.77,2.18 8.35,0 11.5,0C14.64,0 17.26,2.18 17.9,5.12C20.75,5.57 23,7.45 23,10.25C23,12.87 20.87,15 18.25,15Z" />
 </vector>

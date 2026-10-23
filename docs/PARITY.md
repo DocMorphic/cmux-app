@@ -7,9 +7,16 @@ separate wide-window cases with 36 more page records. Actual Reduced Motion
 pixels and lifecycle cancellation pass. Seven JVM cases include eight executed
 original Swift math vectors; the full suite passes 3,131 with four opt-in skips.
 Nine-language labels and separately authored Android copy are attributed.
-The optimized native source reference run 39894117425 is still in progress;
-the interrupted first run is excluded. Matched native frames/font/glass,
-connected provider/VPN, physical Pixel/Mac and full parity remain open.
+Native run 39894117425 passes all three UI groups; its original association
+fails on a nominal/stroke-inclusive bounds assumption. The corrected verifier
+associates the same immutable 39 frames locally with strict source/hash/trait
+fences. Source gallery scope is accepted; original CI failure remains recorded.
+The Android content layout/palette is then corrected from those frames and
+passes another 22-case/66-page cohort plus wide and equal-native-content-width
+cohorts. Nominal card x and primary height match native observations within one
+physical pixel at standard English type in the two matched widths. Vertical
+geometry, font/glass/chrome, connected provider/VPN, physical Pixel/Mac and full
+parity remain open.
 See [CLOUD_COMPANION.md](CLOUD_COMPANION.md).
 
 ## Cloud Restart behavior checkpoint — 2026-10-23

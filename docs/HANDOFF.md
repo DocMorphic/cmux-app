@@ -1,3 +1,65 @@
+## Native source gallery and Android content alignment verified — 2026-10-23
+
+Native source run **39894117425**, project **059e148fff532d3cfef202f368b5a0c65cb44845**,
+passes all three UI methods. Its original job then fails association because the
+nominal graphic check omitted the source centered 1-pt stroke. Corrected verifier
+**178dbd8d** retains a strict stroke-inclusive envelope/pixel fence and locally
+associates the same immutable **13 scenes/39 original compositor frames**. The
+original CI failure remains recorded. Fourteen synthetic verifier guards pass.
+Artifact **12476349109**, 228,596,273 bytes, ZIP SHA256
+`ec8f5ce081507c02ea2acc73d4c7f90e16ef94703285148e95954fa385d8f1bd`.
+Phone is iOS 26.4.1; tablet is iOS 26.2. Template/file Git objects and source
+package trees are independently checked. Remote complete package file inventories
+were not exported in this host. Accepted scope is source leaf controls/traits and
+images only, with nil session/VPN; not full CloudUI/Android/physical acceptance.
+Data: `third_party/cmux-cloud/onboarding-reference-metrics.json`, full original/
+canonical/checkpoint under `captures/recovery-20261023/cloud-onboarding-reference-run-39894117425`.
+Representative native English, landscape, tablet and enlarged German frames are
+reviewed. Do not dispatch another capture solely to reprocess unchanged images.
+
+Actual frames exposed missing 280-pt portrait visual space and incorrect equal
+non-filling wide weights. The corrected Android content takes copy's 280/390-dp
+cap first, fills remaining visual width, centers the source-height visual and
+retains overflow scrolling for Android copy/permission cards. It adopts measured
+light/dark topic colors, primary/secondary copy colors, centered card strokes,
+50-dp primary sizing/white text, and closer authored topic proportions/hierarchy.
+The glyphs remain project artwork; fonts, glass and navigation chrome are open.
+The new phone/sidebar cohort passes **22** in **67.104 s**, all **66 page records**,
+with motion/lifecycle checks retained. Corrected wide cohorts pass separately.
+An additional two real emulator content widths, **750/1024 dp**, match source
+nominal card x and primary height within one physical pixel on all three pages
+at normal English type. English/Arabic/German normal/enlarged layout paths pass.
+Vertical safe-area/window geometry, native font/glyph/glass/Chrome, real hardware,
+TalkBack, provider/VPN and every broader parity gate remain open.
+
+Signed 718 below is still the latest verified APK; it precedes these final
+source-frame corrections. Prepare signed 719 from a clean committed alignment,
+run its strict verification and fresh release smoke, and update the same pending
+15-minute phone plan. Do not use the phone before fresh availability is granted.
+The full parity goal remains active.
+
+## Signed 718 ready before final native-frame corrections — 2026-10-23
+
+Local/unpublished signed 718 contains the scoped onboarding port at clean source
+`4c83e03056ff05d87a5ada5b681edbf91566cf90`.
+APK: `captures/runtime/parity-candidate-718/app-release.apk`, 278,132,793 bytes,
+SHA256 `ec69c60aac7b81d750cb573a341513e9066dd016de02ff2028f7b87af3cc8f1a`.
+Signer stays `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+Strict package/signature/Firebase verification passes, including 22 native
+libraries, 21 viewer assets, all 16 fixture component exclusions and exact
+packaged attribution bytes. The clean candidate repeats the full 3,135-case JVM
+suite: 3,131 pass, four opt-in skips, no failures/errors, 426 reports.
+Its actual APK passes two cold launches on a fresh owned API 36 Pixel 6a AVD;
+both sign-in frames are reviewed, crash buffer is empty and emulator exits 0.
+Only that fresh AVD is deleted. No authenticated account or phone is upgraded.
+Checkpoint: `captures/recovery-20261023/parity-candidate-718-checkpoint.json`.
+`pixel-718-test-plan.json` supersedes 717/716/715/714 under the same pending
+15-minute availability question. No physical access is inferred from the plan.
+
+The completed source-gallery association and subsequent Android corrections are
+recorded above. Signed 718's release startup does not verify the later content
+alignment, an authenticated upgrade, provider/VPN, Pixel/Mac or broader parity.
+
 ## Cloud onboarding port verified in scoped Android fixtures — 2026-10-23
 
 The a5911a1f onboarding leaves/catalog and exact Cloud/Support/Core trees are
@@ -23,12 +85,14 @@ last standard language, but its interrupted xcresult has no finalized exports;
 it is not accepted source UI evidence. Diagnostic artifact 12476320204 is retained
 under `captures/recovery-20261023/cloud-onboarding-reference-run-39891391930`.
 Optimized run **39894117425**, exact source **059e148fff532d3cfef202f368b5a0c65cb44845**,
-is in progress. Do not dispatch duplicates after observation timeouts. It queries
+completes with an original stroke-bounds association failure; corrected local
+association is recorded above. Do not dispatch duplicates after observation
+timeouts. It queries
 required copy/controls only, records optional public graphic bounds, checks a Back
 round trip and preserves actual source animation. Full native-frame comparison,
 provider/VPN/Pixel/Mac/TalkBack acceptance and all broader gates remain open.
 
-717 remains the latest signed local candidate until a later candidate is verified.
+718 is the latest signed local candidate within the scope recorded above.
 712 remains the last physical build verified. The phone is released; no current
 availability reply grants this turn device use. Preserve the pending phone/backend
 questions and all account/pairing/signing state. The full parity goal stays active.

@@ -29,6 +29,7 @@ class CloudOnboardingWideLayoutTest {
 
     @Test fun realWideViewportCentersCopyAndKeepsTheCorrectGraphicAndFooterArrangement() {
         val kind = InstrumentationRegistry.getArguments().getString("onboardingViewport")
+        val sourceWidth = InstrumentationRegistry.getArguments().getString("nativeReference") == "true"
         require(kind in listOf("landscape", "tablet")) { "Owned runner must explicitly select the viewport" }
         var language by mutableStateOf("en"); var scale by mutableFloatStateOf(1f)
         var completions = 0
@@ -51,7 +52,8 @@ class CloudOnboardingWideLayoutTest {
         for (locale in listOf("en", "ar", "de")) for (fontScale in listOf(1f, 2f)) {
             compose.runOnIdle { language = locale; scale = fontScale }; compose.waitForIdle()
             val root = compose.onNodeWithTag("cloud.introduction.inline").fetchSemanticsNode().boundsInRoot
-            assertTrue(root.width / density >= 800)
+            if (sourceWidth) assertEquals(if (kind == "landscape") 750f else 1024f, root.width / density, .01f)
+            else assertTrue(root.width / density >= 800)
             assertEquals(kind == "landscape", root.height / density < 480)
             val before = completions
             for (page in 0..2) {
@@ -60,6 +62,19 @@ class CloudOnboardingWideLayoutTest {
                 val graphicNode = compose.onNodeWithTag("cloud.introduction.graphic.$page").performScrollTo().assertIsDisplayed()
                 val graphic = graphicNode.fetchSemanticsNode().boundsInRoot
                 assertEquals((if (kind == "landscape") 88 else 152) * density, graphic.width, 1f)
+                if (sourceWidth && locale == "en" && fontScale == 1f) {
+                    // Actual source run 39894117425 / artifact 12476349109,
+                    // onboarding-reference-metrics.json. Remove only the
+                    // source's centered half-point stroke and left safe inset
+                    // to compare nominal card position in equal content widths.
+                    val sourceNominalLeft = if (kind == "landscape") 540.5f + .5f - 62f else 654.5f + .5f
+                    val sourcePrimaryHeight = if (kind == "landscape") 50f + 1f / 3f else 50.5f
+                    val sourcePixel = if (kind == "landscape") 1f / 3f else .5f
+                    val pixelTolerance = maxOf(1f / density, sourcePixel) + .01f
+                    assertEquals("Source card x in equal safe-content width", sourceNominalLeft, (graphic.left - root.left) / density, pixelTolerance)
+                    assertEquals("Source primary height within one physical pixel", sourcePrimaryHeight,
+                        primary.fetchSemanticsNode().boundsInRoot.height / density, pixelTolerance)
+                }
                 val wide = kind == "landscape" || fontScale == 1f
                 if (wide) {
                     if (locale == "ar") assertTrue(graphic.right <= copy.left + 1) else assertTrue(copy.right <= graphic.left + 1)
@@ -77,7 +92,8 @@ class CloudOnboardingWideLayoutTest {
                 File(output, "$locale-$fontScale-page-$page.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }; image.recycle()
                 records.put(JSONObject().put("viewport", kind).put("locale", locale).put("scale", fontScale).put("page", page)
                     .put("wide", wide).put("widthDp", root.width / density).put("heightDp", root.height / density)
-                    .put("graphicWidthDp", graphic.width / density).put("copyLeft", copy.left).put("graphicLeft", graphic.left))
+                    .put("graphicWidthDp", graphic.width / density).put("copyLeft", copy.left).put("graphicLeft", graphic.left)
+                    .put("matchedSourceContentWidth", sourceWidth).put("nativeHorizontalGeometryChecked", sourceWidth && locale == "en" && fontScale == 1f))
                 primary.performClick()
             }
             compose.runOnIdle { assertEquals(before + 1, completions) }
