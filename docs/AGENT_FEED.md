@@ -1,5 +1,24 @@
 # Agent Feed companion
 
+## Reader changes packaged in signed candidate 722 — 2026-10-23
+
+Clean source726ccd3a produces signed722 with the existing signing identity;
+full JVM3,148 pass/four skips, package22 native/22 viewer assets/16 debug fixtures
+excluded and private Firebase identity checks pass. Two real cold starts render
+reviewed sign-in roots with empty crash buffers on a new owned API36 AVD; that
+AVD is removed after exit0. No authenticated user, upgrade or physical acceptance.
+The signed artifact and receipt live in captures/runtime/parity-candidate-722/;
+full checkpoint is captures/recovery-20261023/parity-candidate-722-checkpoint.json.
+
+Original app-context run39983680775/job120517222421 is live in compile/test at
+last observation. It builds the complete pinned workspace, checked GhosttyKit,
+tracked Stack Auth sources and unchanged original UI tests: Feed toolbar spacing,
+row navigation, and full-text/retry/reply/search. No caller capture acceptance yet;
+revalidate the same run, review exported compositor evidence and source status.
+This broadens context beyond the isolated sheet but retains official synthetic
+Feed data; it does not prove real accounts or transport. Remaining reader visual,
+source-audit, physical Pixel/Mac/TalkBack and full app gates remain open.
+
 ## Measured title role and native restoration verified — 2026-10-23
 
 The original title UIFont is now observed directly: 17 points at ordinary text,

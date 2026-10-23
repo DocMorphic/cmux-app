@@ -1,3 +1,28 @@
+## Signed candidate 722 ready; original app context compiling — 2026-10-23
+
+Candidate 722 is built from clean source 726ccd3a with the existing certificate
+1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4.
+APK: captures/runtime/parity-candidate-722/app-release.apk, 278165943 bytes,
+SHA256 717b015ade367b61fd628cade0a697cfd662b49e08fb341776eab12d074095e1.
+Full JVM suite: 3,148 pass/four skips, 429 reports; 22 native libraries/22 viewer
+assets/16 debug components excluded and private Firebase resources verified.
+Two actual cold sign-in roots pass on a newly created API36 emulator, both
+reviewed, crash buffers empty, emulator exit0. Only that fresh AVD was deleted.
+Receipt/checkpoint: parity-candidate-722-checkpoint.json under recovery-20261023.
+No physical upgrade or account/pairing-preservation claim. Physical712 remains
+released; fresh availability remains pending. Pixel plan722 supersedes plan721
+without creating a new question. Keep the pairing window closed unless a concrete
+invalid-registration result requires repair.
+
+Original whole-app context run39983680775, job120517222421, driver726ccd3a,
+is live in compilation/testing at last authoritative observation. Revalidate and
+poll this exact run, then attribute/review exports; no caller acceptance yet.
+The unchanged original app/three original Feed tests use the official synthetic
+preview through its real root/navigation/dependencies. Stack Auth vendor sources
+are tracked (tree381c13b5), not an absent submodule. Scope still excludes a real
+account/transport. See ios-feed-context-checkpoint.json. Do not restart from an
+observation timeout. Remaining full visual/source/device/TalkBack gates stay open.
+
 ## Measured title role and native restoration pass eleven checks — 2026-10-23
 
 Original typography run39969462359 at8c3d0817 is complete/successful. All52 frames

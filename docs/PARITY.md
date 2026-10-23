@@ -1,3 +1,17 @@
+## Candidate 722 package/startup verification — 2026-10-23
+
+Signed candidate722 at clean726ccd3a passes the full JVM suite (3,148 pass/four
+skips), package/signing/native/viewer/Firebase checks and two fresh owned-emulator
+cold starts with reviewed sign-in roots and empty crash buffers. This includes
+the previously scoped reader/control/lifecycle improvements, not new physical
+account/pairing or full feature/UI acceptance. Receipt: recovery-20261023/
+parity-candidate-722-checkpoint.json; physical712 remains unchanged.
+
+Whole original-app Feed context run39983680775 is live at the last observation;
+unchanged original tests/root/full dependencies, official synthetic preview.
+No caller/UI export acceptance yet. Revalidate the same job. Full goal and every
+other completion gate remain open; no global source-pin advance or publication.
+
 ## Measured reader title and native restoration advanced — 2026-10-23
 
 Eleven final owned emulator invocations pass: source-based title role cap and

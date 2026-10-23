@@ -1,3 +1,20 @@
+## Current delivery and source-context checkpoint — 2026-10-23
+
+Candidate722 is signed/verified and passes two fresh release cold starts; see
+HANDOFF.md and recovery-20261023/parity-candidate-722-checkpoint.json. Physical
+upgrade/account/pairing, terminal, cold notification taps and the other real-device
+gates remain pending fresh availability. No new phone or pairing action is needed
+for current independent work; plan722 retains the existing bounded request.
+
+Original whole-app context run39983680775/job120517222421 is live in its compile/
+test step at the last authoritative observation. Poll this exact handle, retain
+failures and verify actual selected execution, tracked source, attachment mapping
+and pixels before accepting the real Feed caller context. Stack Auth is a tracked
+vendor tree, correcting the suspected missing-submodule blocker. Source preview
+still uses synthetic items and does not prove account/transport behavior.
+Reader Close/palette/loading/error, compact landscape/adaptive transitions,
+full source audit, physical Pixel/Mac/TalkBack and all gates below remain open.
+
 ## Current reader follow-through — 2026-10-23
 
 Original typography run39969462359 is complete and verified:52 frames,39 title
