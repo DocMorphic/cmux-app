@@ -1,5 +1,18 @@
 # Agent Feed companion
 
+## Active original-reader metric capture — 2026-10-23 21:39 UTC
+
+[Run40025958696](https://github.com/DocMorphic/cmux-app/actions/runs/40025958696),
+job120662111268, is confirmed live at drivera3a68956ee5b7f0b37b8c2fcc4576c24d482e8a6.
+Original standard-phone and enlarged-text capture steps passed; tablet capture
+is in progress. Do not dispatch a duplicate or treat an observation timeout as
+terminal. Re-poll this exact job, then download/strictly verify its52-page artifact
+at this driver and compare local/CI receipts before accepting margins/status data.
+Live snapshot/watch/handle: recovery-20261023/ios-feed-reader-bar-metrics-live-status.json,
+-bar-metrics-run-watch.log, and-bar-metrics-run.json. Read-only summary script:
+recovery-20261023/analyze-ios-feed-reader-bar-metrics.py. Android edge policy is
+unchanged; source geometry and full app/physical acceptance remain unproven.
+
 ## Routed landscape-to-portrait return verified — 2026-10-23
 
 The actual routed reader now has an explicit round-trip lifecycle check. One
