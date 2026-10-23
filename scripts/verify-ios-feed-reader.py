@@ -50,9 +50,36 @@ def traits(page, scene, commit, provenance, probe):
         finite(scale) and scale > 0 and ((size[0] > size[1]) == (scene['orientation'] == 'landscape')), 'Wrong sheet viewport/orientation')
     require(isinstance(page.get('safeArea'), list) and len(page['safeArea']) == 4 and all(finite(v) and v >= 0 for v in page['safeArea']), 'Missing sheet safe area')
     colors = page.get('colors', {})
-    require(set(colors) == {'background', 'label', 'secondaryLabel', 'separator'} and all(
+    require(set(colors) == {'background', 'label', 'secondaryLabel', 'tertiaryLabel', 'link', 'separator'} and all(
         isinstance(c, list) and len(c) == 4 and all(finite(v) and -1e-6 <= v <= 1+1e-6 for v in c) for c in colors.values()), 'Invalid sheet colors')
     return size, scale
+
+
+def public_controls(page, size):
+    labels, buttons = page.get('visibleLabels'), page.get('visibleButtons')
+    require(isinstance(labels, list) and isinstance(buttons, list), 'Missing public label/button observations')
+    def frame(value):
+        require(geometry.rect(value), 'Invalid public control frame')
+        x,y,w,h = value
+        require(x < size[0] and x+w > 0 and y < size[1] and y+h > 0, 'Public control outside viewport')
+    def font(value):
+        require(isinstance(value, dict) and isinstance(value.get('text'), str) and value['text'] and
+            isinstance(value.get('fontName'), str) and value['fontName'] and
+            all(finite(value.get(key)) and value[key] > 0 for key in ('pointSize','lineHeight')), 'Invalid public control font')
+    def label(value):
+        font(value); frame(value.get('frame'))
+        require(type(value.get('adjustsForContentSizeCategory')) is bool, 'Missing public label type behavior')
+        if 'color' in value:
+            color = value['color']
+            require(isinstance(color, list) and len(color) == 4 and
+                all(finite(v) and -1e-6 <= v <= 1+1e-6 for v in color), 'Invalid public label color')
+    for value in labels: label(value)
+    for value in buttons:
+        require(isinstance(value, dict) and all(isinstance(value.get(k), str) for k in ('title','accessibilityLabel')) and
+            isinstance(value.get('attributedFonts'), list), 'Invalid public button observation')
+        frame(value.get('frame'))
+        if 'titleLabel' in value: label(value['titleLabel'])
+        for observed in value['attributedFonts']: font(observed)
 
 
 def visible(value, label, size, require_hit=True):
@@ -95,7 +122,7 @@ def verify(exported, output, commit):
             if isinstance(value, dict) and value.get('referenceKind') == 'originalFeedFullTextScene':
                 name = value.get('scene'); require(name not in values, 'Duplicate exported sheet scene'); values[name] = value
     require(set(values) == set(scenes), 'Missing/unexpected full-sheet scenes')
-    provenance = None; reviewed = reviewed_provenance(); pairs = []
+    provenance = None; reviewed = reviewed_provenance(); pairs = []; controls = {}
     for name, scene in scenes.items():
         value = values[name]
         require(value.get('schema') == 1 and isinstance(value.get('pages'), list) and
@@ -107,6 +134,7 @@ def verify(exported, output, commit):
             if provenance is None: provenance = source
             stage = page['stage']; closed = stage == 'closed'
             size, scale = traits(page, scene, commit, provenance, 'root' if closed else 'sheet')
+            public_controls(page, size)
             require(page.get('mode') == ('loading' if stage == 'loading' else 'retry') and
                 page.get('loadAttempts') == (1 if stage in ('loading', 'error') else 2), 'Wrong original load/retry sequence')
             expected = 'Open reference sheet' if closed else fixture['probes']['top'] if stage == 'loaded' else fixture['uiStrings'][stage if stage == 'loading' else 'unavailable'][scene['language']]
@@ -122,6 +150,12 @@ def verify(exported, output, commit):
                 visible(page.get('close', {}), fixture['uiStrings']['close'][scene['language']], size)
                 visible(page.get('title', {}), fixture['uiStrings']['title'][scene['language']], size)
                 navigation_typography(page, scene, size, scale)
+                cx,cy,cw,ch = page['close']['frame']
+                def inside_close(label):
+                    x,y,w,h = label['frame']; tolerance = 1/scale + 1e-6
+                    return label['text'] == page['close']['label'] and x >= cx-tolerance and y >= cy-tolerance and x+w <= cx+cw+tolerance and y+h <= cy+ch+tolerance
+                controls[name+'-'+stage] = dict(labels=len(page['visibleLabels']), buttons=len(page['visibleButtons']),
+                    closeLabelCandidates=[label for label in page['visibleLabels'] if inside_close(label)])
                 require(page.get('unexpectedSourceControl') is False, 'Unexpected authored Source control')
             require(page.get('captureMethod') == 'XCUIScreen.main.screenshot', 'Missing actual sheet compositor capture')
             image = images.get(page.get('imageSha256')); require(image is not None, 'Missing/changed sheet compositor image')
@@ -129,7 +163,8 @@ def verify(exported, output, commit):
             require(info['displaySize'] == [round(v*scale) for v in size], 'Wrong full-sheet compositor dimensions')
             pairs.append((name+'-'+stage, image, info))
         dismissal = value.get('loadingDismissal', {})
-        traits(dismissal, scene, commit, provenance, 'root')
+        dismissal_size, _ = traits(dismissal, scene, commit, provenance, 'root')
+        public_controls(dismissal, dismissal_size)
         require(dismissal.get('mode') == 'loading' and dismissal.get('dismissed') is True and
             dismissal.get('loadAttempts') == 1 and dismissal.get('loadCancellations') == 1, 'Loading cancellation/dismissal unproven')
     output.mkdir(parents=True, exist_ok=False)
@@ -137,6 +172,7 @@ def verify(exported, output, commit):
     for name, value in values.items(): (output/(name+'.json')).write_text(json.dumps(value, indent=2)+'\n')
     receipt = dict(schema=1, projectCommit=commit, provenance=provenance, verifierSha256=digest(Path(__file__)), scenes=list(scenes),
         capturedPageCount=len(pairs), imageSha256={n:digest(p) for n,p,_ in pairs}, imageGeometry={n:g for n,_,g in pairs},
+        publicControlObservations=controls,
         scope='Whole unchanged original Feed full-text view/model/renderer declarations in an authored offline sheet presenter. Actual simulator compositor, localized controls, loading/retry/cancellation and measured traits. Not original account/transport/URL router, Android, physical-device or full app parity acceptance.')
     (output/'receipt.json').write_text(json.dumps(receipt, indent=2)+'\n'); print(json.dumps(receipt, indent=2)); return receipt
 

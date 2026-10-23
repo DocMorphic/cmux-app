@@ -2,6 +2,17 @@
 
 ## Settled compact system-bar appearance verified — 2026-10-23
 
+The next original-sheet collector also walks visible public UILabel/UIButton
+observations outside UINavigationBar, including title-label and attributed-title
+UIFont metadata, and resolves link/tertiaryLabel colors in actual traits. It does
+not assume Close uses those controls or guarantee a font observation. The verifier
+validates all raw control/font/color shapes and reports Close label candidates
+only when contained in the independent AX Close frame. All31 synthetic integrity
+guards pass; Swift syntax parses locally. Actual UIKit compilation/captures and
+any new control/color acceptance remain pending the dedicated reference run.
+Whole pinned original source declarations and all13 profiles/four states remain
+unchanged; these are observer/attribution additions only.
+
 The focused diagnostic passes with forced dark6.760s and light5.949s app themes
 on an actual dark-mode API36 system. Focused reader WindowInsetsController flags
 are0/dark and24/light: status/navigation light-appearance bits both follow the

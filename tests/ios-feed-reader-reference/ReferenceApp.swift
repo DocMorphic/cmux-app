@@ -62,9 +62,9 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
         context.coordinator.record = { [scene, state, kind, mode, direction, size] label in
             guard let window = label.window else { return }
             let traits = label.traitCollection
-            func rgba(_ color: UIColor) -> [CGFloat] {
+            func rgba(_ color: UIColor, _ collection: UITraitCollection? = nil) -> [CGFloat] {
                 var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                color.resolvedColor(with: traits).getRed(&r, green: &g, blue: &b, alpha: &a); return [r,g,b,a]
+                color.resolvedColor(with: collection ?? traits).getRed(&r, green: &g, blue: &b, alpha: &a); return [r,g,b,a]
             }
             let category = UIApplication.shared.preferredContentSizeCategory
             let matches = category == (scene.category == "large" ? .large : .accessibilityMedium)
@@ -72,17 +72,47 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
             // bar. AX bounds alone cannot establish the actual toolbar font.
             var navigationLabels: [[String: Any]] = []
             var navigationBars: [[CGFloat]] = []
+            var visibleLabels: [[String: Any]] = []
+            var visibleButtons: [[String: Any]] = []
+            func labelObservation(_ text: UILabel) -> [String: Any]? {
+                let frame = text.convert(text.bounds, to: window)
+                guard !text.isHidden, text.alpha > 0, text.window === window,
+                      let content = text.text, !content.isEmpty, let font = text.font,
+                      frame.width > 0, frame.height > 0, frame.intersects(window.bounds) else { return nil }
+                var value: [String: Any] = ["text": content, "pointSize": font.pointSize,
+                    "lineHeight": font.lineHeight, "fontName": font.fontName,
+                    "adjustsForContentSizeCategory": text.adjustsFontForContentSizeCategory,
+                    "frame": [frame.minX, frame.minY, frame.width, frame.height]]
+                if let color = text.textColor { value["color"] = rgba(color, text.traitCollection) }
+                return value
+            }
             func observe(_ view: UIView, inNavigationBar: Bool = false) {
                 guard !view.isHidden, view.alpha > 0, view.window === window else { return }
                 let navigation = inNavigationBar || view is UINavigationBar
                 let frame = view.convert(view.bounds, to: window)
                 if view is UINavigationBar { navigationBars.append([frame.minX, frame.minY, frame.width, frame.height]) }
-                if navigation, let text = view as? UILabel, let content = text.text, !content.isEmpty,
-                   frame.width > 0, frame.height > 0, frame.intersects(window.bounds) {
-                    navigationLabels.append(["text": content, "pointSize": text.font.pointSize,
-                        "lineHeight": text.font.lineHeight, "fontName": text.font.fontName,
-                        "adjustsForContentSizeCategory": text.adjustsFontForContentSizeCategory,
-                        "frame": [frame.minX, frame.minY, frame.width, frame.height]])
+                if let text = view as? UILabel, let measured = labelObservation(text) {
+                    visibleLabels.append(measured)
+                    if navigation { navigationLabels.append(measured) }
+                }
+                // iOS 26 cancellation controls can live outside UINavigationBar.
+                // Record public labels/buttons without assuming Close uses either.
+                if let button = view as? UIButton, frame.width > 0, frame.height > 0, frame.intersects(window.bounds) {
+                    var measured: [String: Any] = ["title": button.currentTitle ?? button.currentAttributedTitle?.string ?? "",
+                        "accessibilityLabel": button.accessibilityLabel ?? "",
+                        "frame": [frame.minX, frame.minY, frame.width, frame.height]]
+                    if let title = button.titleLabel, let value = labelObservation(title) { measured["titleLabel"] = value }
+                    var fonts: [[String: Any]] = []
+                    if let title = button.currentAttributedTitle, title.length > 0 {
+                        title.enumerateAttribute(.font, in: NSRange(location: 0, length: title.length)) { value, range, _ in
+                            if let font = value as? UIFont {
+                                fonts.append(["text": title.attributedSubstring(from: range).string,
+                                    "pointSize": font.pointSize, "lineHeight": font.lineHeight, "fontName": font.fontName])
+                            }
+                        }
+                    }
+                    measured["attributedFonts"] = fonts
+                    visibleButtons.append(measured)
                 }
                 for child in view.subviews { observe(child, inNavigationBar: navigation) }
             }
@@ -101,7 +131,9 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
                 "style": traits.userInterfaceStyle == .dark ? "dark" : "light", "interfaceLevel": traits.userInterfaceLevel.rawValue,
                 "bodyPointSize": UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).pointSize,
                 "navigationLabels": navigationLabels, "navigationBars": navigationBars,
-                "colors": ["background": rgba(.systemBackground), "label": rgba(.label), "secondaryLabel": rgba(.secondaryLabel), "separator": rgba(.separator)],
+                "visibleLabels": visibleLabels, "visibleButtons": visibleButtons,
+                "colors": ["background": rgba(.systemBackground), "label": rgba(.label), "secondaryLabel": rgba(.secondaryLabel),
+                    "tertiaryLabel": rgba(.tertiaryLabel), "link": rgba(.link), "separator": rgba(.separator)],
                 "loadAttempts": state.attempts, "loadCancellations": state.cancellations, "dismissed": state.dismissed,
                 "sourceSessionCreated": false, "interceptedURLs": state.interceptedURLs,
                 "ready": UIApplication.shared.applicationState == .active && !window.isHidden && matches && ((window.bounds.width > window.bounds.height) == (scene.orientation == "landscape"))

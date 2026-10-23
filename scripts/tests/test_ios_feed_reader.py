@@ -37,13 +37,15 @@ class FeedSheetExportGuards(unittest.TestCase):
                     swiftUIAccessibilitySize=scene['category']!='large',
                     category='UICTContentSizeCategoryL' if scene['category']=='large' else 'UICTContentSizeCategoryAccessibilityM',
                     bodyPointSize=17 if scene['category']=='large' else 28, shellLocalizations=[language], preferredLanguages=[language],
-                    viewport=size, scale=1, safeArea=[0,0,0,0], colors={k:[0,0,0,1] for k in ['background','label','secondaryLabel','separator']},
+                    viewport=size, scale=1, safeArea=[0,0,0,0], colors={k:[0,0,0,1] for k in ['background','label','secondaryLabel','tertiaryLabel','link','separator']},
                     loadAttempts=1 if stage in ['loading','error'] else 2, dismissed=closed, loadCancellations=0,
                     target=control('In progress, '+expected if stage=='loading' else expected), loadingActivityIndicator=stage=='loading', close=dict(exists=False) if closed else control(self.fixture['uiStrings']['close'][language]),
                     title=control(self.fixture['uiStrings']['title'][language]), unexpectedSourceControl=False,
                     navigationBars=[[0,30,size[0],54]], navigationLabels=[dict(text=self.fixture['uiStrings']['title'][language],
                         pointSize=17 if scene['category']=='large' else 21, lineHeight=21 if scene['category']=='large' else 26,
                         fontName='Synthetic integrity guard only', adjustsForContentSizeCategory=True, frame=[16,40,90,20])],
+                    visibleLabels=[dict(text=self.fixture['uiStrings']['close'][language], pointSize=17, lineHeight=21,
+                        fontName='Synthetic control integrity guard only', adjustsForContentSizeCategory=True, frame=[16,40,90,20])], visibleButtons=[],
                     captureMethod='XCUIScreen.main.screenshot', imageSha256=hashlib.sha256(raw).hexdigest()))
             dismissal=deepcopy(pages[0]); dismissal.update(probe='root', dismissed=True, loadCancellations=1)
             (self.export/(scene['id']+'.json')).write_text(json.dumps(dict(schema=1, referenceKind='originalFeedFullTextScene',
@@ -90,3 +92,17 @@ class FeedSheetExportGuards(unittest.TestCase):
     def test_body_sized_toolbar_font_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationLabels'][0].update(pointSize=28),'title typography')
     def test_title_font_ax_mismatch_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationLabels'][0].update(frame=[20,40,90,20]),'AX target')
     def test_missing_navigation_bar_rejected(self): self.rejects(lambda d:d['pages'][0].update(navigationBars=[]),'navigation bar')
+    def test_missing_public_observations_rejected(self): self.rejects(lambda d:d['pages'][0].pop('visibleLabels'),'public label/button')
+    def test_invalid_public_font_rejected(self): self.rejects(lambda d:d['pages'][0]['visibleLabels'][0].update(pointSize=float('nan')),'public control font')
+    def test_offscreen_public_label_rejected(self): self.rejects(lambda d:d['pages'][0]['visibleLabels'][0].update(frame=[200,40,90,20]),'outside viewport')
+    def test_invalid_link_color_rejected(self): self.rejects(lambda d:d['pages'][0]['colors'].update(link=[0,0,0,2]),'sheet colors')
+    def test_public_button_with_title_label_and_attributed_fonts_associates(self):
+        p=self.export/'en-dark.json'; d=json.loads(p.read_text()); label=d['pages'][0]['visibleLabels'][0]
+        d['pages'][0]['visibleButtons']=[dict(title=label['text'], accessibilityLabel=label['text'], frame=label['frame'],
+            titleLabel=deepcopy(label), attributedFonts=[{key:label[key] for key in ['text','fontName','pointSize','lineHeight']}])]
+        p.write_text(json.dumps(d)); r=self.verify()
+        self.assertEqual(r['publicControlObservations']['en-dark-loading']['buttons'],1)
+        self.assertEqual(len(r['publicControlObservations']['en-dark-loading']['closeLabelCandidates']),1)
+    def test_invalid_button_font_rejected(self):
+        self.rejects(lambda d:d['pages'][0].update(visibleButtons=[dict(title='Close', accessibilityLabel='Close',frame=[16,40,90,20],
+            attributedFonts=[dict(text='Close',fontName='Synthetic invalid font',pointSize=17,lineHeight=0)])]),'public control font')
