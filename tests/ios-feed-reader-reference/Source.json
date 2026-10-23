@@ -1,0 +1,28 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "files": {
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMarkdownBlock.swift": "d5bed7d0a519b28c8ce12d52ebb1456de559db027b7a48dd279bf6f9c9a98839",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMarkdownDocument.swift": "5274a1d7107453b87b450630703e7fa1f686b14f53946c86694c499ae280b3ba",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/ChatProseSegment.swift": "ed46c1b264a3d7f47e790ac26e4f42eeb735f82443f5064d9a310085c39ebdc5",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/ChatProseSegmenter.swift": "5242ac8c21ac49be6bf2586f88238d67f38917bb62539ca1f9a408e4c7dca0f6",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/ChatTextBlock.swift": "9bd0a8d9dbda54c113ac33d6339bd037afe1406504ab10757e678ba722ee3589",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactMarkdownView.swift": "796545ff8cca1c92955237a3446ff96c1668eaf83c6173650095b3a881d2a11e",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactEmbeddedMarkdown.swift": "c92248590ae5f05fee75eccb175e855f509776675157bd10592fd33a5286adea",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/MarkdownWebContentView.swift": "2aaebcedca278e0b22a97ec63243ca8a44c5690c799caa33d20d550261ddad9c",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/MarkdownWebLinkPolicy.swift": "02115d02ba67544c2954a08cc1a3b03ba6cf8a3b71c072cdbd6667f92f324778",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/MarkdownWebTheme.swift": "58eb85c85b5be8889ec2414323043ccea38d7a3ae595d07a7326dc44d73a93b6",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/MarkdownWebViewerAssets.swift": "f15fe424c3d065e6f5eb66de8be2d593560469f9b49e2d812bb1110030dee9a6",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownImageLoadDeadline.swift": "858e63db507adbe7b2fae5bd4addefc6b47d1e2b093494ea1763b7669932f024",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownRemoteImageApprovals.swift": "39ad2a25c9fc953b12ab3a649d0e034a5074be71630e76aeb7fbc351a9296d92",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownRemoteImageLoader.swift": "efc8774a5823da1909c6efa268e333e3753ffcb584bcdc47cca44fdddc8cb0a8",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownViewerAssetCompression.swift": "3b3db4b463fd55df316e5507b36b14e26b6f3da4923a92cb0efea803ec6e41d1",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownViewerNavigationPolicy.swift": "4f1b63f4ed59e7ae54aa6e72e135b1db78aa7130ac345520d254fdf8b11c4b94",
+    "Packages/Shared/CmuxAgentChat/Sources/CmuxAgentChat/MarkdownViewer/MarkdownWebViewerScheme.swift": "181eabd1b38ad72c42b67462a9b2a79cd41628777980c5e29cb4d9190e3fc8ad",
+    "Packages/iOS/CmuxMobileShellModel/Sources/CmuxMobileShellModel/MobileAgentFeedItem.swift": "64614eb600583c6a08901275545357a4f4cd9ca11f05a011b29fa54ad5ad5ee8",
+    "Packages/iOS/CmuxMobileShellModel/Sources/CmuxMobileShellModel/MobileMacConnectionStatus.swift": "5d307760adfad8aa9d6a5506912b81b36f733bba1a8f27400645db2132d5a4bb",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/AgentFeedFullTextView.swift": "c39525f7ab862052cf491ad1fb5f892677bd93e4939b191a7c6e97fb8edc6378",
+    "Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Resources/Localizable.xcstrings": "9b9aa8bc6572b760cb8df0709948473fb717f6af15a665e4a57c961b212d5719",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings": "e942c581def4193ffa841537b70774fa9b91f98688fef40e4c5001ef864183a7"
+  },
+  "scope": "Whole unchanged Feed full-text view, model, embedded renderer and complete reachable native/web declaration dependencies. Authored offline sheet presenter and loader; no original account/transport/session/URL routing acceptance."
+}
