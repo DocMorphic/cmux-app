@@ -48,6 +48,17 @@ def validate_observation(value, scene, commit, provenance):
     return size, scale
 
 
+def validate_graphic(graphic, index, vertical_size_class, scale):
+    require(graphic.get('identifier') == 'CloudOnboardingGraphic-' + ['workspace', 'vpn', 'key'][index] and geometry.rect(graphic.get('frame')),
+        'Wrong actual source graphic')
+    # The source's 1-pt .stroke is centered on its nominal 152/88-pt card.
+    # Actual XCUI envelopes include that outer stroke: 153/89 pt, subject to
+    # one physical pixel of quantization (observed 152 2/3 at 3x accessibility).
+    dimension = (88 if vertical_size_class == 1 else 152) + 1
+    require(all(abs(dimension - v) <= 1 / scale + .001 for v in graphic['frame'][2:]),
+        'Wrong stroke-inclusive source graphic dimensions: ' + str(graphic['frame'][2:]))
+
+
 def verify(exported, output, commit):
     require(re.fullmatch('[0-9a-f]{40}', commit), 'Exact project commit required')
     template = ROOT / 'tests/ios-cloud-onboarding-reference'
@@ -98,10 +109,7 @@ def verify(exported, output, commit):
             require(any(title in e.get('label', '') and geometry.rect(e.get('frame')) for e in page.get('elements', [])), 'Missing localized onboarding copy')
             graphic = page.get('graphic')
             if graphic is not None:
-                require(graphic.get('identifier') == 'CloudOnboardingGraphic-' + ['workspace', 'vpn', 'key'][index] and geometry.rect(graphic.get('frame')),
-                    'Wrong actual source graphic')
-                dimension = 88 if page['verticalSizeClass'] == 1 else 152
-                require(all(abs(dimension - v) < .1 for v in graphic['frame'][2:]), 'Wrong source graphic dimensions')
+                validate_graphic(graphic, index, page['verticalSizeClass'], scale)
             if index > 0:
                 secondary = page.get('secondary') or {}
                 require(secondary.get('identifier') == 'CloudOnboardingSecondaryButton' and secondary.get('label') == labels['mobile.cloud.onboarding.back'] and
@@ -122,6 +130,7 @@ def verify(exported, output, commit):
         packageTrees=manifest['packageTrees'], sourceFiles=manifest['files'], scenes=list(scenes), capturedPageCount=len(paired),
         imageGeometry={name: g for name, _, g in paired},
         imageSha256={name: digest(image) for name, image, _ in paired},
+        graphicFrameScope='Public XCUI stroke-inclusive image envelope: nominal 152/88 pt plus the centered 1-pt stroke, with at most one physical pixel quantization. Not a synthesized nominal layout frame.',
         scope='Unchanged source onboarding/backdrop leaves, actual iOS simulator compositor and public controls/traits, nil session/VPN controllers. This is not full CloudUI, real VPN/service, Android, physical-device or full parity acceptance.')
     (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt, indent=2))

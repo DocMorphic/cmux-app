@@ -108,3 +108,11 @@ class OnboardingExportGuards(unittest.TestCase):
 
     def test_missing_back_round_trip_is_rejected(self):
         self.rejects(lambda v: v['pages'][2].update(backRoundTripVerified=False), 'Back round trip missing')
+
+    def test_graphic_guard_accounts_for_centered_stroke_and_one_physical_pixel(self):
+        for vertical, dimension in [(1, 89), (2, 153)]:
+            for height in [dimension, dimension - 1 / 3]:
+                V.validate_graphic(dict(identifier='CloudOnboardingGraphic-workspace', frame=[0, 0, dimension, height]), 0, vertical, 3)
+            for width, height in [(dimension - 1, dimension), (dimension + 1, dimension), (dimension, 0), (58, 58)]:
+                with self.subTest(vertical=vertical, width=width, height=height), self.assertRaises(ValueError):
+                    V.validate_graphic(dict(identifier='CloudOnboardingGraphic-workspace', frame=[0, 0, width, height]), 0, vertical, 3)

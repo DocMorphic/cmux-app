@@ -1,0 +1,447 @@
+{
+  "schema": 1,
+  "upstreamRevision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "projectSourceCommit": "059e148fff532d3cfef202f368b5a0c65cb44845",
+  "run": 39894117425,
+  "artifactId": 12476349109,
+  "artifactZipSha256": "ec8f5ce081507c02ea2acc73d4c7f90e16ef94703285148e95954fa385d8f1bd",
+  "verifierSha256": "ee131c5f84bb278b71cca1e10590466654017a12df5959677710179d007b4ba0",
+  "scenes": {
+    "phone-en-light": {
+      "runtimeVersion": "26.4.1",
+      "viewport": [
+        402,
+        874
+      ],
+      "scale": 3,
+      "safeArea": [
+        62,
+        0,
+        34,
+        0
+      ],
+      "fonts": {
+        "body": 17,
+        "largeTitle": 34,
+        "subheadline": 15
+      },
+      "colors": {
+        "background": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "blue": [
+          0,
+          0.5333333333333333,
+          1,
+          1
+        ],
+        "gray2": [
+          0.6823529411764706,
+          0.6823529411764706,
+          0.6980392156862745,
+          1
+        ],
+        "gray4": [
+          0.8196078431372549,
+          0.8196078431372549,
+          0.8392156862745098,
+          1
+        ],
+        "green": [
+          0.20392156862745098,
+          0.7803921568627451,
+          0.34901960784313724,
+          1
+        ],
+        "purple": [
+          0.796078431372549,
+          0.18823529411764706,
+          0.8784313725490196,
+          1
+        ]
+      },
+      "primary": {
+        "enabled": true,
+        "frame": [
+          24,
+          723.6666666666666,
+          354,
+          50.33333333333337
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingPrimaryButton",
+        "label": "Continue",
+        "type": 9,
+        "value": ""
+      },
+      "graphic": {
+        "enabled": true,
+        "frame": [
+          124.5,
+          436.8333333333333,
+          153,
+          152.99999999999994
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingGraphic-workspace",
+        "label": "A Cloud machine with multiple workspaces, terminals, and browsers",
+        "type": 43,
+        "value": ""
+      },
+      "horizontalSizeClass": 1,
+      "verticalSizeClass": 2
+    },
+    "phone-en-dark": {
+      "runtimeVersion": "26.4.1",
+      "viewport": [
+        402,
+        874
+      ],
+      "scale": 3,
+      "safeArea": [
+        62,
+        0,
+        34,
+        0
+      ],
+      "fonts": {
+        "body": 17,
+        "largeTitle": 34,
+        "subheadline": 15
+      },
+      "colors": {
+        "background": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "blue": [
+          0,
+          0.5686274509803921,
+          1,
+          1
+        ],
+        "gray2": [
+          0.38823529411764707,
+          0.38823529411764707,
+          0.4,
+          1
+        ],
+        "gray4": [
+          0.22745098039215686,
+          0.22745098039215686,
+          0.23529411764705882,
+          1
+        ],
+        "green": [
+          0.18823529411764706,
+          0.8196078431372549,
+          0.34509803921568627,
+          1
+        ],
+        "purple": [
+          0.8588235294117647,
+          0.20392156862745098,
+          0.9490196078431372,
+          1
+        ]
+      },
+      "primary": {
+        "enabled": true,
+        "frame": [
+          24,
+          723.6666666666666,
+          354,
+          50.33333333333337
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingPrimaryButton",
+        "label": "Continue",
+        "type": 9,
+        "value": ""
+      },
+      "graphic": {
+        "enabled": true,
+        "frame": [
+          124.5,
+          436.8333333333333,
+          153,
+          152.99999999999994
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingGraphic-workspace",
+        "label": "A Cloud machine with multiple workspaces, terminals, and browsers",
+        "type": 43,
+        "value": ""
+      },
+      "horizontalSizeClass": 1,
+      "verticalSizeClass": 2
+    },
+    "phone-en-landscape": {
+      "runtimeVersion": "26.4.1",
+      "viewport": [
+        874,
+        402
+      ],
+      "scale": 3,
+      "safeArea": [
+        0,
+        62,
+        20,
+        62
+      ],
+      "fonts": {
+        "body": 17,
+        "largeTitle": 34,
+        "subheadline": 15
+      },
+      "colors": {
+        "background": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "blue": [
+          0,
+          0.5686274509803921,
+          1,
+          1
+        ],
+        "gray2": [
+          0.38823529411764707,
+          0.38823529411764707,
+          0.4,
+          1
+        ],
+        "gray4": [
+          0.22745098039215686,
+          0.22745098039215686,
+          0.23529411764705882,
+          1
+        ],
+        "green": [
+          0.18823529411764706,
+          0.8196078431372549,
+          0.34509803921568627,
+          1
+        ],
+        "purple": [
+          0.8588235294117647,
+          0.20392156862745098,
+          0.9490196078431372,
+          1
+        ]
+      },
+      "primary": {
+        "enabled": true,
+        "frame": [
+          177,
+          323.66666666666663,
+          520,
+          50.333333333333314
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingPrimaryButton",
+        "label": "Continue",
+        "type": 9,
+        "value": ""
+      },
+      "graphic": {
+        "enabled": true,
+        "frame": [
+          540.5,
+          163.83333333333331,
+          89,
+          89.00000000000003
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingGraphic-workspace",
+        "label": "A Cloud machine with multiple workspaces, terminals, and browsers",
+        "type": 43,
+        "value": ""
+      },
+      "horizontalSizeClass": 1,
+      "verticalSizeClass": 1
+    },
+    "phone-de-enlarged": {
+      "runtimeVersion": "26.4.1",
+      "viewport": [
+        402,
+        874
+      ],
+      "scale": 3,
+      "safeArea": [
+        62,
+        0,
+        34,
+        0
+      ],
+      "fonts": {
+        "body": 28,
+        "largeTitle": 44,
+        "subheadline": 25
+      },
+      "colors": {
+        "background": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "blue": [
+          0,
+          0.5686274509803921,
+          1,
+          1
+        ],
+        "gray2": [
+          0.38823529411764707,
+          0.38823529411764707,
+          0.4,
+          1
+        ],
+        "gray4": [
+          0.22745098039215686,
+          0.22745098039215686,
+          0.23529411764705882,
+          1
+        ],
+        "green": [
+          0.18823529411764706,
+          0.8196078431372549,
+          0.34509803921568627,
+          1
+        ],
+        "purple": [
+          0.8588235294117647,
+          0.20392156862745098,
+          0.9490196078431372,
+          1
+        ]
+      },
+      "primary": {
+        "enabled": true,
+        "frame": [
+          24,
+          710.3333333333334,
+          354,
+          63.666666666666515
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingPrimaryButton",
+        "label": "Weiter",
+        "type": 9,
+        "value": ""
+      },
+      "graphic": {
+        "enabled": true,
+        "frame": [
+          124.5,
+          520.5,
+          153,
+          152.6666717529297
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingGraphic-workspace",
+        "label": "Eine Cloud-Maschine mit mehreren Arbeitsbereichen, Terminals und Browsern",
+        "type": 43,
+        "value": ""
+      },
+      "horizontalSizeClass": 1,
+      "verticalSizeClass": 2
+    },
+    "tablet-en-dark": {
+      "runtimeVersion": "26.2",
+      "viewport": [
+        1024,
+        1366
+      ],
+      "scale": 2,
+      "safeArea": [
+        32,
+        0,
+        25,
+        0
+      ],
+      "fonts": {
+        "body": 17,
+        "largeTitle": 34,
+        "subheadline": 15
+      },
+      "colors": {
+        "background": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "blue": [
+          0,
+          0.5686274509803921,
+          1,
+          1
+        ],
+        "gray2": [
+          0.38823529411764707,
+          0.38823529411764707,
+          0.4,
+          1
+        ],
+        "gray4": [
+          0.22745098039215686,
+          0.22745098039215686,
+          0.23529411764705882,
+          1
+        ],
+        "green": [
+          0.18823529411764706,
+          0.8196078431372549,
+          0.34509803921568627,
+          1
+        ],
+        "purple": [
+          0.8588235294117647,
+          0.20392156862745098,
+          0.9490196078431372,
+          1
+        ]
+      },
+      "primary": {
+        "enabled": true,
+        "frame": [
+          252,
+          1224.5,
+          520,
+          50.5
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingPrimaryButton",
+        "label": "Continue",
+        "type": 9,
+        "value": ""
+      },
+      "graphic": {
+        "enabled": true,
+        "frame": [
+          654.5,
+          582.5,
+          153,
+          153
+        ],
+        "hittable": true,
+        "identifier": "CloudOnboardingGraphic-workspace",
+        "label": "A Cloud machine with multiple workspaces, terminals, and browsers",
+        "type": 43,
+        "value": ""
+      },
+      "horizontalSizeClass": 2,
+      "verticalSizeClass": 2
+    }
+  },
+  "scope": "Actual public UIKit/SwiftUI/XCUI observations from unchanged source onboarding leaves with nil session/VPN. Graphic AX bounds include the centered 1-pt stroke; nominal layout sizes remain 152/88. This is source reference data, not Android/native UI equivalence or full parity."
+}
