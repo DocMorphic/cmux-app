@@ -1,5 +1,58 @@
 # Agent Feed companion
 
+## Native-only original reader controls and lifecycle regression pass — 2026-10-23
+
+Full text now follows the original's native-renderer choice throughout. The
+additional Source/Formatted toolbar and unused plain-source reader are removed.
+Close remains the cancellation action; the title is centered independently of
+the translated Close width, with bounded title space and ellipsis under narrow
+constraints. Loading is centered with the indicator above its secondary label;
+failure uses the original single generic localized message/Retry. Older modal
+raw flags no longer select a different reader; native saved coordinates are used
+when available. No migration from raw offsets into rendered-text offsets is
+claimed. Historical Source-mode receipts describe earlier builds, not this UI.
+
+The updated final owned-emulator cohort passes **12 tests / 113.567 s**: native
+control/vertical-loading behavior, 21 controlled header locale/type/width profiles,
+all nine native block/link/code/table checks, real saved horizontal-code position,
+14,000-line painted tail and body-free state, two ordinary Activity recreations,
+actual rotation/system-font changes, retained client/selection, two actual
+isolated-process task restorations at successive native positions, native reader
+reconnect/close reset and native/terminal/composer appearance-buffer regression.
+The removed mode's tests are replaced with supported native-reader behavior.
+
+The Activity cases reload 290,926 characters through 54 pages each, retain the
+same non-null client until finish, preserve exact normal anchors/selection and
+text identity under real reflow. Actual final provider-containing state snapshots
+are 9,976 bytes (ordinary) / 9,980 (system changes), without message bodies.
+Process restoration reloads 298,910 characters, matches the native text comparison
+viewport at both positions and uses fresh PIDs/RPCs. The explicit right 20-dp
+padding/scrollbar exclusion and lack of process-selection acceptance remain.
+Full JVM: **3,148 passed/four skipped**, no failures/errors, 429 XML. Inputs,
+removed source, archived APKs, results and image hashes:
+captures/recovery-20261023/native-feed-reader-controls-checkpoint.json.
+
+Loading, Arabic enlarged header, German narrow header and enlarged restored body
+frames were reviewed. German narrow 260-dp/font-2 labels visibly ellipsize; full
+semantic labels, centering, nonoverlap and click actions are verified, not complete
+visual/accessibility acceptance. Spinner/materials/colors/fonts and full-sheet
+comparison remain open. Crash buffers empty, original settings restored/read
+back, wall/monotonic time agrees, emulator exits 0. No new signed artifact;
+721 excludes these changes, physical 712 stays released. No phone/cmux Mac/
+account/pairing action; pending availability and full goal/source pins remain open.
+
+Original full-sheet runs 39955557256 and 39957344402 compile/launch all 22
+whole source files but fail authored loading-target checks. Genuine diagnostics
+show the nested ProgressView text has a zero AX frame; its public Activity
+Indicator has the actual positive frame and localized label. The harness now
+queries that native element, preserves role/hittability, enforces real geometry
+and retains PNG/AX diagnostics. Twenty-one synthetic evidence guards pass,
+including zero-frame/wrong-role rejection. Corrected capture 39961701278 at
+a0b825d5 is running; no complete original gallery is accepted yet. Preserve both
+failed attempts and poll the actual job. The English-dark forensic sheet is
+elevated (level 1) with resolved background 28/28/30; it does not establish the
+other profiles or production caller/account/transport/privacy-overlay context.
+
 ## Full-sheet source capture in progress; failure copy aligned — 2026-10-23
 
 The new reference compiles **22 whole unchanged upstream files** at `a5911a1f`,

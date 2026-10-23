@@ -179,16 +179,16 @@ class NativeAdaptivePanelsTest {
     @Test fun nativeTerminalAndFeedReadersRecolorWithoutReplacingTheirCapturedText() {
         var route by mutableIntStateOf(0)
         val text = (1..90).joinToString("\n") { "Captured line $it remains readable" }
-        val position = AgentFeedSourcePosition()
+        val position = NativeMarkdownPosition()
         val quotePosition = ComposerScrollPosition()
         val quote = agentFeedSpanned(AgentFeedMarkdown.parse(text))
         show { when (route) {
-            0 -> AgentFeedSourceReader(text, position)
+            0 -> NativeMarkdownReader(text, position)
             1 -> TerminalTextSheet(TerminalTextSnapshot(text, false, 90)) {}
             else -> AgentFeedComposerScroll(Modifier.fillMaxSize(), quote, false, quotePosition,
                 {}, {}, {}, {}, {}, {})
         } }
-        for ((index, tag) in listOf("AgentFeedSourceBody", "terminal-text-snapshot", "AgentFeedExpandedQuote").withIndex()) {
+        for ((index, tag) in listOf("NativeMarkdownBody.0", "terminal-text-snapshot", "AgentFeedExpandedQuote").withIndex()) {
             compose.runOnIdle { route = index }
             var body: android.widget.TextView? = null
             compose.waitUntil(5_000) {

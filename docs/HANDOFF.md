@@ -1,3 +1,27 @@
+## Original reader controls aligned; native regressions pass — 2026-10-23
+
+Full text now keeps the original native renderer and Close/title controls, with
+centered title, vertical loading presentation and generic localized failure/Retry.
+The extra plain-source mode/toolbar is removed; historical Source evidence applies
+to earlier builds. The final owned cohort passes 12 tests / 113.567 s, including
+21 controlled header profiles, long native text/links/code/state, reconnect,
+actual rotation/type changes and two actual process/task restorations. Full JVM:
+3,148 pass/four skips, zero failures/errors. Reviewed frames, source/APK/deletion
+binding and scope: AGENT_FEED.md and the controls checkpoint under
+captures/recovery-20261023/. Crash buffer empty, settings restored, emulator exits 0.
+
+Narrow enlarged German labels visibly ellipsize; full semantics/click actions and
+nonoverlap pass, while visual/accessibility acceptance remains open. Full sheet
+fonts/colors/materials and production caller/device behavior also remain open.
+Original source runs 39955557256/39957344402 fail authored loading-target checks;
+their PNG/AX data identifies the true native Activity Indicator instead of its
+zero-frame nested label. All 21 evidence guards pass. Corrected run 39961701278
+at a0b825d5 is live; poll that job, retain failures and accept no full gallery yet.
+
+No new signed artifact or phone/cmux Mac/account/pairing operation. Signed 721
+excludes these newer reader controls; physical 712 stays released. Availability
+remains pending; the pairing popup can stay closed. Full goal/pins remain open.
+
 ## Whole-source sheet reference running; generic failure copy matched — 2026-10-23
 
 Original full-sheet capture run `39955557256` binds commit `d1866fb4`: 22 whole

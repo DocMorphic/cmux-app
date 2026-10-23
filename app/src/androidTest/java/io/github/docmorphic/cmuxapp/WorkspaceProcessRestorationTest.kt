@@ -187,11 +187,10 @@ class WorkspaceProcessRestorationTest {
             checkNotNull(device.wait(Until.findObject(By.textStartsWith("Feed")), 20_000)).click()
             description("See more").click(); text("Full text")
             restorePassage("formatted", "android.widget.ListView")
-            text("Source").click()
-            restorePassage("source", "android.widget.ScrollView")
-            text("Formatted").click(); reader("android.widget.ListView")
+            assertFalse(device.hasObject(By.text("Source"))); assertFalse(device.hasObject(By.text("Formatted")))
+            restorePassage("native-second-position", "android.widget.ListView")
             File(output, "result.json").writeText(JSONObject().put("bodyCharacters", body.length).put("processRestores", measurements)
-                .put("scope", "Actual MainActivity subclass task restored by Android after isolated emulator UI process death, local socket and synthetic credentials. Pixel-identical native text comparison viewports excluding the right 20-dp native padding/scrollbar strip; full screenshots retained. No selection, real account/Iroh/Mac/Pixel, TalkBack or full parity acceptance.").toString(2))
+                .put("scope", "Actual MainActivity subclass task restored by Android after isolated emulator UI process death, local socket and synthetic credentials. Pixel-identical native text comparison viewports at two successive reading positions excluding the right 20-dp native padding/scrollbar strip; full screenshots retained. No selection, real account/Iroh/Mac/Pixel, TalkBack or full parity acceptance.").toString(2))
         } catch (error: Throwable) {
             device.takeScreenshot(File(output, "failure.png")); device.dumpWindowHierarchy(File(output, "failure.xml")); throw error
         } finally {

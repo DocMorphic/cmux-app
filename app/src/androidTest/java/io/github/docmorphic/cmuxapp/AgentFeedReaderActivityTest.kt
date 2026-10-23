@@ -46,15 +46,12 @@ class AgentFeedReaderActivityTest {
     }
     private fun paragraph() = reader()?.let { r -> (0 until r.childCount).mapNotNull { r.getChildAt(it) as? NativeMarkdownRow }
         .firstOrNull { it.ready && it.block?.index == 1 }?.body }
-    private fun source() = WindowInspector.getGlobalWindowViews().asReversed().firstNotNullOfOrNull {
-        it.findViewWithTag<AgentFeedSourceScroll>("AgentFeedSourceScroll")?.takeIf { v -> v.isAttachedToWindow && v.isShown }
-    }
     private fun await(test: () -> Boolean) {
         try { compose.waitUntil(25_000) { var ready = false; compose.runOnUiThread { ready = test() }; ready } }
         catch (error: Throwable) {
             val record = JSONObject().put("phase", phase)
             compose.runOnUiThread {
-                record.put("readerPresent", reader() != null).put("sourcePresent", source() != null)
+                record.put("readerPresent", reader() != null)
                     .put("firstVisible", reader()?.firstVisiblePosition).put("bodyLength", paragraph()?.text?.length)
                     .put("selection", paragraph()?.selectionStart).put("anchor", paragraph()?.let { anchor() })
             }
@@ -68,7 +65,7 @@ class AgentFeedReaderActivityTest {
         compose.waitForIdle()
         val latch = CountDownLatch(1)
         compose.runOnUiThread {
-            val view = reader() ?: source()!!
+            val view = reader()!!
             view.postOnAnimation { view.postOnAnimation { latch.countDown() } }
         }
         assertTrue(latch.await(5, TimeUnit.SECONDS)); instrumentation.waitForIdleSync()
@@ -81,12 +78,12 @@ class AgentFeedReaderActivityTest {
     private fun capture(name: String) {
         settle()
         compose.runOnUiThread {
-            val view = reader() ?: source()!!
-            val body = paragraph() ?: source()?.body
+            val view = reader()!!
+            val body = paragraph()
             val record = JSONObject().put("phase", phase).put("orientation", view.resources.configuration.orientation)
                 .put("fontScale", view.resources.configuration.fontScale).put("readerWidth", view.width).put("readerHeight", view.height)
                 .put("textPixels", body?.textSize).put("selectionStart", body?.selectionStart).put("selectionEnd", body?.selectionEnd)
-                .put("lineCount", body?.lineCount).put("sourceScrollY", source()?.scrollY)
+                .put("lineCount", body?.lineCount)
             paragraph()?.let { record.put("formattedAnchor", anchor()) }
             File(output, "$name-frame.json").writeText(record.toString(2))
         }
@@ -94,7 +91,7 @@ class AgentFeedReaderActivityTest {
         File(output, "$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }; image.recycle()
     }
 
-    @Test fun routedFormattedAndSourceReadersReloadAndRestoreThroughActualActivityRecreation() = routedReader(false)
+    @Test fun routedNativeReaderReloadsAndRestoresThroughActualActivityRecreation() = routedReader(false)
 
     @Test fun actualRotationAndSystemFontChangeRetainRoutedReaderPositionSelectionAndSession() = routedReader(true)
 
@@ -217,41 +214,22 @@ class AgentFeedReaderActivityTest {
                 }
                 assertTrue(peer.requests.count { it.optString("method") == "feed.text" } > reads)
                 capture("formatted-restored")
-                phase = "source-load"
-                compose.onNodeWithText("Source").performClick(); await { source()?.body?.text?.toString() == text }; settle()
-                compose.runOnUiThread { source()!!.scrollTo(0, 8_000) }
-                settle(); var sourceY = 0; var sourceSelection = 0; var sourceAnchor = 0; var sourcePixelsBefore = 0f
-                compose.runOnUiThread { source()!!.apply {
-                    sourceY = scrollY; assertTrue(sourceY > 0)
-                    sourceAnchor = body.layout.getLineStart(body.layout.getLineForVertical((scrollY - body.paddingTop).coerceAtLeast(0)))
-                    sourcePixelsBefore = body.textSize
-                    sourceSelection = body.layout.getLineStart(body.layout.getLineForVertical((scrollY - body.paddingTop).coerceAtLeast(0))) + 4
-                    Selection.setSelection(body.text as Spannable, sourceSelection, sourceSelection + 10)
-                } }
-                capture("source-before"); phase = "source-recreate"
+                phase = "second-native-recreate"
+                val secondAnchor = after
+                val secondReads = peer.requests.count { it.optString("method") == "feed.text" }
                 if (systemChanges) changeConfiguration(scenario, font = true) else scenario.recreate()
-                await { source()?.body?.selectionStart == sourceSelection }; settle()
-                compose.runOnUiThread {
-                    val view = source()!!
-                    if (systemChanges) {
-                        assertTrue("System font updates actual native text", view.body.textSize > sourcePixelsBefore)
-                        topLineContains(view.body, view.scrollY, sourceAnchor)
-                    } else assertEquals(sourceY, view.scrollY)
-                    assertEquals(text, view.body.text.toString())
-                }
-                scenario.onActivity { assertSame(retainedClient, ViewModelProvider(it).get(NativeFeedSession::class.java).connectionState("").client) }
-                capture("source-restored")
-                phase = "formatted-return"
-                compose.onNodeWithText("Formatted").performClick()
                 await { paragraph()?.selectionStart == selected }; settle()
                 compose.runOnUiThread {
+                    val body = paragraph()!!; val row = body.parent as NativeMarkdownRow
                     if (systemChanges) {
-                        val body = paragraph()!!; val row = body.parent as NativeMarkdownRow
                         assertTrue(body.textSize > formattedPixelsBefore)
-                        topLineContains(body, reader()!!.paddingTop - row.top - body.top, after)
+                        topLineContains(body, reader()!!.paddingTop - row.top - body.top, secondAnchor)
                     } else assertEquals(before, anchor())
                 }
-                capture("formatted-return")
+                scenario.onActivity { assertSame(retainedClient, ViewModelProvider(it).get(NativeFeedSession::class.java).connectionState("").client) }
+                assertTrue(peer.requests.count { it.optString("method") == "feed.text" } > secondReads)
+                compose.onNodeWithText("Source").assertDoesNotExist(); compose.onNodeWithText("Formatted").assertDoesNotExist()
+                capture("second-native-restored")
                 assertTrue("Actual saved Activity bundles", saved.size >= 2)
                 val bytes = JSONArray()
                 val registryKeys = JSONArray()
@@ -273,8 +251,8 @@ class AgentFeedReaderActivityTest {
                 }
                 File(output, "result.json").writeText(JSONObject().put("bodyCharacters", text.length).put("savedStateBytes", bytes)
                     .put("savedRegistryKeys", registryKeys).put("savedStateCapture", "Application.onActivityPostSaveInstanceState")
-                    .put("formattedBeforeAnchor", before).put("formattedAfterAnchor", after).put("formattedSelection", selected).put("sourceScrollY", sourceY)
-                    .put("actualSystemRotationAndFontChange", systemChanges).put("sourceAnchor", sourceAnchor)
+                    .put("formattedBeforeAnchor", before).put("formattedAfterAnchor", after).put("formattedSelection", selected)
+                    .put("actualSystemRotationAndFontChange", systemChanges)
                     .put("textReads", peer.requests.count { it.optString("method") == "feed.text" }).put("retainedRpcClient", true)
                     .put("scope", "Actual Activity recreation of routed production Feed using emulator-local credentials and socket RPC; system changes only when explicitly recorded; no process death, real authentication, Mac/Pixel, TalkBack or full parity acceptance.").toString(2))
             }

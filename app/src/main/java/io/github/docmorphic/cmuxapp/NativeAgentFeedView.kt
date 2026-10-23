@@ -185,7 +185,7 @@ internal fun AgentFeedTimeline(
                         check(target.matches(live)) { "This Feed item changed" }
                         return currentActions.fullText(live)
                     }
-                    if (target.mode == "read") AgentFeedFullText(target, ::update, ::load,
+                    if (target.mode == "read") AgentFeedFullText(::load,
                         { currentActions.read(entry) }, { modal = null })
                     else if (target.mode == "question") AgentFeedQuestionSheet(entry, target, ::update, { modal = null }) {
                         act(entry, it); modal = null
@@ -211,12 +211,10 @@ internal fun AgentFeedTimeline(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal) -> Unit,
-    load: suspend () -> String, onRead: () -> Unit, onDismiss: () -> Unit) {
+internal fun AgentFeedFullText(load: suspend () -> String, onRead: () -> Unit, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf<String?>(null) }; var failed by remember { mutableStateOf(false) }
     var attempt by remember { mutableIntStateOf(0) }
     val formattedPosition = rememberSaveable(saver = NativeMarkdownPosition.Saver) { NativeMarkdownPosition() }
-    val sourcePosition = rememberSaveable(saver = AgentFeedSourcePosition.Saver) { AgentFeedSourcePosition() }
     LaunchedEffect(attempt) {
         failed = false
         try {
@@ -235,27 +233,45 @@ internal fun AgentFeedFullText(modal: AgentFeedModal, onChange: (AgentFeedModal)
     NativeModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = NativeAppColors.page, contentColor = NativeAppColors.text) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("AgentFeedFullTextSheet")) {
-            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619), maxLines = 1, softWrap = false) }
-                Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_title_257807f0), Modifier.weight(1f), fontWeight = FontWeight.SemiBold,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                TextButton(onClick = { onChange(modal.copy(raw = !modal.raw)) }, enabled = text != null) {
-                    Text(if (modal.raw) "Formatted" else "Source", maxLines = 1, softWrap = false)
-                }
-            }
+            AgentFeedFullTextHeader(onDismiss)
             when {
-                failed -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                failed -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_unavailable_b62af026))
                     TextButton(onClick = { attempt++ }) { Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_retry_6fd0587a)) }
                 }
-                text == null -> Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CircularProgressIndicator(Modifier.size(24.dp)); Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_loading_fa5e4486))
+                text == null -> Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CircularProgressIndicator(Modifier.size(24.dp).testTag("AgentFeedFullTextProgress"))
+                    Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_loading_fa5e4486), color = agentFeedMuted)
                 }
-                modal.raw -> AgentFeedSourceReader(text!!, sourcePosition)
                 else -> NativeMarkdownReader(text!!, formattedPosition)
             }
+        }
+    }
+}
+
+/** Keep the title centered in the sheet, with a symmetric inset for Close. */
+@Composable
+internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
+    androidx.compose.ui.layout.Layout(modifier = Modifier.fillMaxWidth().testTag("AgentFeedFullTextHeader").padding(12.dp), content = {
+        TextButton(onClick = onDismiss) {
+            Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619),
+                maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+        }
+        Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_title_257807f0), Modifier.testTag("AgentFeedFullTextTitle"), fontWeight = FontWeight.SemiBold,
+            maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+    }) { children, constraints ->
+        // Retain readable title space even when a translated Close label grows.
+        val titleMinimum = 48.dp.roundToPx().coerceAtMost(constraints.maxWidth)
+        val close = children[0].measure(constraints.copy(minWidth = 0, minHeight = 0,
+            maxWidth = ((constraints.maxWidth - titleMinimum) / 2).coerceAtLeast(0)))
+        val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
+            maxWidth = (constraints.maxWidth - 2 * close.width).coerceAtLeast(0)))
+        val height = maxOf(close.height, title.height)
+        layout(constraints.maxWidth, height) {
+            close.placeRelative(0, (height - close.height) / 2)
+            title.place((constraints.maxWidth - title.width) / 2, (height - title.height) / 2)
         }
     }
 }

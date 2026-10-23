@@ -80,14 +80,22 @@ class AgentFeedReplySheetTest {
     }
     private fun quote(): TextView? = WindowInspector.getGlobalWindowViews()
         .firstNotNullOfOrNull { it.findViewWithTag<TextView>("AgentFeedExpandedQuote") }
-    private fun awaitReaderSource() {
-        compose.waitUntil(10_000) {
-            val ready = AtomicBoolean(false)
-            compose.runOnUiThread { ready.set(WindowInspector.getGlobalWindowViews().any {
-                it.findViewWithTag<TextView>("AgentFeedSourceBody")?.text?.endsWith("TAIL_MARKER") == true
-            }) }
-            ready.get()
+    private fun readerNative() = WindowInspector.getGlobalWindowViews().asReversed()
+        .firstNotNullOfOrNull { it.findViewWithTag<NativeMarkdownList>("AgentFeedNativeMarkdown")?.takeIf { v -> v.isShown && v.isAttachedToWindow } }
+    private fun readerParagraph() = readerNative()?.let { view ->
+        (0 until view.childCount).mapNotNull { view.getChildAt(it) as? NativeMarkdownRow }
+            .firstOrNull { it.ready && it.body?.text?.endsWith("TAIL_MARKER") == true }
+    }
+    private fun awaitReaderNative() {
+        compose.waitUntil(15_000) {
+            var ready = false; compose.runOnUiThread { ready = readerParagraph() != null }; ready
         }
+    }
+    private fun settleReaderNative() {
+        compose.waitForIdle()
+        val latch = java.util.concurrent.CountDownLatch(1)
+        compose.runOnUiThread { readerNative()!!.postOnAnimation { readerNative()!!.postOnAnimation { latch.countDown() } } }
+        assertTrue(latch.await(5, java.util.concurrent.TimeUnit.SECONDS))
     }
     private fun scroll(): NestedScrollView = WindowInspector.getGlobalWindowViews()
         .firstNotNullOf { it.findViewWithTag<NestedScrollView>("AgentFeedComposeScroll") }
@@ -337,13 +345,12 @@ class AgentFeedReplySheetTest {
             compose.runOnIdle { fixture.account = "account-b" }
             compose.onNodeWithTag("AgentFeedReplySheet").assertDoesNotExist()
             compose.onNodeWithText("See more", substring = true, useUnmergedTree = true).clickInlineMore()
-            compose.onNodeWithText("Source").performClick()
-            awaitReaderSource()
+            awaitReaderNative()
             val reads = fixture.requests.count { it.first == "feed.text" }
             restoration.emulateSavedInstanceStateRestore()
             compose.waitUntil(10_000) { fixture.requests.count { it.first == "feed.text" } > reads }
-            compose.onNodeWithText("Formatted").assertIsDisplayed()
-            awaitReaderSource()
+            compose.onNodeWithText("Source").assertDoesNotExist(); compose.onNodeWithText("Formatted").assertDoesNotExist()
+            awaitReaderNative()
             compose.runOnIdle { assertTrue(fixture.requests.none { it.first == "mobile.terminal.paste" }) }
         }
     }
@@ -426,20 +433,18 @@ class AgentFeedReplySheetTest {
         }
     }
 
-    @Test fun reconnectRestoresReaderSourceSelectionButClosingDiscardsTheReadingSession() {
+    @Test fun reconnectRestoresNativeReaderSelectionButClosingDiscardsTheReadingSession() {
         Fixture(listOf(stop)).use { fixture ->
             val restoration = StateRestorationTester(compose)
             restoration.setContent { fixture.Content() }
-            fun reader() = WindowInspector.getGlobalWindowViews()
-                .firstNotNullOfOrNull { it.findViewWithTag<AgentFeedSourceScroll>("AgentFeedSourceScroll") }
             compose.onNodeWithContentDescription("See more").performClick()
-            compose.onNodeWithText("Source").performClick()
-            awaitReaderSource()
-            var y = 0
+            awaitReaderNative(); settleReaderNative()
+            compose.runOnUiThread { readerNative()!!.setSelectionFromTop(1, -1200) }
+            settleReaderNative()
+            var top = 0
             compose.runOnUiThread {
-                val view = checkNotNull(reader())
-                view.scrollTo(0, 1200); y = view.scrollY; assertTrue(y > 0)
-                android.text.Selection.setSelection(view.body.text as android.text.Spannable, 210, 230)
+                val row = checkNotNull(readerParagraph()); top = row.top; assertTrue(top < 0)
+                android.text.Selection.setSelection(row.body!!.text as android.text.Spannable, 210, 230)
             }
             val loads = fixture.requests.count { it.first == "feed.text" }
             compose.runOnIdle { fixture.loaded = false }
@@ -449,24 +454,23 @@ class AgentFeedReplySheetTest {
             compose.runOnIdle { fixture.loaded = true }
             compose.waitUntil(15_000) {
                 val restored = AtomicBoolean(false)
-                compose.runOnUiThread { restored.set(reader()?.let {
-                    it.body.text.endsWith("TAIL_MARKER") && it.scrollY == y &&
-                        it.body.selectionStart == 210 && it.body.selectionEnd == 230
+                compose.runOnUiThread { restored.set(readerParagraph()?.let {
+                    kotlin.math.abs(it.top - top) < 3 &&
+                        it.body!!.selectionStart == 210 && it.body!!.selectionEnd == 230
                 } == true) }
                 restored.get()
             }
             assertTrue(fixture.requests.count { it.first == "feed.text" } > loads)
             compose.onNodeWithText("Close").performClick()
             compose.onNodeWithContentDescription("See more").performClick()
-            compose.onNodeWithText("Source").performClick()
-            awaitReaderSource()
+            awaitReaderNative()
             compose.runOnUiThread {
-                val view = reader()!!
-                assertEquals(0, view.scrollY)
-                // A focused selectable TextView may have a collapsed cursor at
-                // zero; either native initial state has no old selected range.
-                assertEquals(view.body.selectionStart, view.body.selectionEnd)
-                assertTrue(view.body.selectionStart <= 0)
+                val view = readerNative()!!
+                assertEquals(0, view.firstVisiblePosition)
+                val body = readerParagraph()!!.body!!
+                // A focused native TextView may start with a collapsed cursor.
+                assertEquals(body.selectionStart, body.selectionEnd)
+                assertTrue(body.selectionStart <= 0)
             }
         }
     }

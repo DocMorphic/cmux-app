@@ -33,8 +33,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class NativeMarkdownReaderTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
-    private val modal = AgentFeedModal("account", "event", "mac", "build", "turn", null,
-        AgentFeedKind.STOP, "workspace", "terminal", "read", raw = false)
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val output get() = File(compose.activity.getExternalFilesDir(null), "native-markdown").apply { mkdirs() }
     @Before fun emulatorOnly() {
@@ -60,9 +58,11 @@ class NativeMarkdownReaderTest {
         compose.runOnUiThread { list()!!.postOnAnimation { list()?.postOnAnimation { drawn.countDown() } } }
         assertTrue(drawn.await(5, TimeUnit.SECONDS)); instrumentation.waitForIdleSync()
     }
+    private lateinit var restoration: StateRestorationTester
     private fun show(body: String) {
-        compose.setContent { CmuxTheme { var raw by rememberSaveable { mutableStateOf(false) }
-            AgentFeedFullText(modal.copy(raw = raw), { raw = it.raw }, { body }, {}, {})
+        restoration = StateRestorationTester(compose)
+        restoration.setContent { CmuxTheme {
+            AgentFeedFullText({ body }, {}, {})
         } }
         await { row(0) != null }; settle()
     }
@@ -103,7 +103,7 @@ class NativeMarkdownReaderTest {
         assertTrue(unicode.all { it.kind == NativeMarkdownBlock.Kind.ORDERED })
         val code = "val message = \"" + "native_code ".repeat(70) + "\""
         show("# Guide\n\nIntro **bold** [site](https://cmux.com).\n\n- one\n  2. nested\n> quoted *text*\n---\n```kotlin\n$code\n```\n| kind | file |\n| --- | --- |\n| log | build.log |")
-        header("Close"); header("Source")
+        header("Close"); compose.onNodeWithText("Source").assertDoesNotExist(); compose.onNodeWithText("Formatted").assertDoesNotExist()
         fun hasWeb(view: View): Boolean = view is WebView || view is ViewGroup && (0 until view.childCount).any { hasWeb(view.getChildAt(it)) }
         compose.runOnUiThread {
             assertFalse(WindowInspector.getGlobalWindowViews().any(::hasWeb))
@@ -146,7 +146,7 @@ class NativeMarkdownReaderTest {
             scroll.scrollTo(900, 0); horizontal = scroll.scrollX; assertTrue(horizontal > 0)
         }
         screenshot("native-code")
-        compose.onNodeWithText("Source").performClick(); header("Formatted"); compose.onNodeWithText("Formatted").performClick()
+        restoration.emulateSavedInstanceStateRestore()
         await { row(6)?.let { r -> ((r.getChildAt(0) as ViewGroup).getChildAt(1) as android.widget.HorizontalScrollView).scrollX == horizontal } == true }
         go(7)
         compose.runOnUiThread {
@@ -162,8 +162,8 @@ class NativeMarkdownReaderTest {
         val tail = "FORMATTED_TAIL_MARKER"
         val text = "# Start\n\n" + (1..14_000).joinToString("\n") { "Formatted line $it with **bold** content." } + "\n$tail"
         val restoration = StateRestorationTester(compose); var loads = 0
-        restoration.setContent { CmuxTheme { var raw by rememberSaveable { mutableStateOf(false) }
-            AgentFeedFullText(modal.copy(raw = raw), { raw = it.raw }, { loads++; text }, {}, {})
+        restoration.setContent { CmuxTheme {
+            AgentFeedFullText({ loads++; text }, {}, {})
         } }
         await { row(1)?.body?.height?.let { it > 262143 } == true }; settle()
         var selection = 0; var top = 0
@@ -187,7 +187,6 @@ class NativeMarkdownReaderTest {
         restoration.emulateSavedInstanceStateRestore()
         await { row(1)?.let { it.body!!.selectionStart == selection && kotlin.math.abs(it.top - top) < 3 } == true }
         compose.runOnIdle { assertEquals(2, loads) }
-        compose.onNodeWithText("Source").performClick(); compose.onNodeWithText("Formatted").performClick()
         await { row(1)?.let { it.body!!.selectionStart == selection && kotlin.math.abs(it.top - top) < 3 } == true }
         compose.runOnIdle { assertEquals(2, loads) }
         compose.runOnUiThread {
