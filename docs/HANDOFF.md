@@ -1,3 +1,18 @@
+## Original native Markdown UI reference prepared — 2026-10-23
+
+`ios-native-markdown.yml` now prepares five unchanged parser/model files and the
+whole unchanged original SwiftUI native declaration at `a5911a1`. An authored
+standalone base-window host records actual system traits and public target frames;
+an independent XCUITest process captures top/code/end across 13 profiles (39
+declared images). This excludes original Feed sheet chrome/elevated palette,
+accounts, production URL routing and transport. The 14 adversarial export guards,
+local source/hash extraction, Swift syntax, PBX plist and workflow YAML checks pass.
+The actual remote Xcode build/capture and visual review are still pending; no
+native rendered evidence is claimed from preparation or synthetic guard inputs.
+Reference scope and procedure: `tests/ios-native-markdown-reference/README.md`.
+No phone/Mac or account/pairing operation; physical availability remains pending.
+Full goal remains active; signed 720 still excludes both latest Markdown ports.
+
 ## Feed native Markdown port and paint fix verified — 2026-10-23
 
 Formatted Feed full text now uses native lazy selectable blocks (all eight source

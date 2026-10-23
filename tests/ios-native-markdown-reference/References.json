@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "context": "standaloneBaseWindow",
+  "markdown": "# Native reader\n\nParagraph with **bold**, *italic*, `inline`, [link](https://example.invalid/reference) and ![image **label**](https://example.invalid/image.png).\n\n## Smaller heading\n\n- Bullet body with wrapping text for the original native block renderer.\n    - Nested bullet body.\n\n12. Ordered body.\n\n> Quoted body with **emphasis** and العربية 日本語.\n\n---\n\n```swift\nlet source = \"literal **markers** and a wide code line that scrolls horizontally to CODE_END\"\nprint(source)\n```\n\n| Column A | Column B | Column C |\n| --- | --- | --- |\n| table value | literal **markers** | TABLE_END |\n\n### Reader end\n\nFinal paragraph: العربية 日本語 한글 简体中文 繁體中文.\n",
+  "scenes": [
+    {
+      "id": "en-dark",
+      "language": "en",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "ar-dark",
+      "language": "ar",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "de-dark",
+      "language": "de",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "es-dark",
+      "language": "es",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "fr-dark",
+      "language": "fr",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "ja-dark",
+      "language": "ja",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "ko-dark",
+      "language": "ko",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "zh-Hans-dark",
+      "language": "zh-Hans",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "zh-Hant-dark",
+      "language": "zh-Hant",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "en-light",
+      "language": "en",
+      "style": "light",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "en-landscape",
+      "language": "en",
+      "style": "dark",
+      "category": "large",
+      "orientation": "landscape",
+      "device": "phone"
+    },
+    {
+      "id": "de-accessibility",
+      "language": "de",
+      "style": "dark",
+      "category": "accessibilityMedium",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "en-tablet",
+      "language": "en",
+      "style": "dark",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "tablet"
+    }
+  ],
+  "probes": {
+    "top": "Native reader",
+    "code": "let source = \"literal **markers** and a wide code line that scrolls horizontally to CODE_END\"\nprint(source)",
+    "caption": "SWIFT",
+    "end": "Reader end"
+  },
+  "stages": [
+    "top",
+    "code",
+    "end"
+  ]
+}
