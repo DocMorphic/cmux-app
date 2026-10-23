@@ -1,3 +1,22 @@
+## Signed 721 ready; fresh release startup reviewed — 2026-10-23
+
+Signed candidate 721 binds clean production source `7700152ac86bfb5cca7741a7d089a09e6f821dda`
+and includes the native Markdown/image-consent ports and restored Feed read-session
+fix. APK SHA-256: `edad246497dace10a5ab0d5a5044a3d54318b2efa8679f5c8264c1e1654f56a5`.
+The original signer is retained; strict packaged checks pass 22 native libraries,
+22 viewer assets, 16 excluded debug components and private Firebase configuration.
+Full JVM suite: 3,148 passed/four skipped, zero failures/errors (429 XML).
+
+Two actual signed-release starts pass on a fresh API-36 emulator. Both sign-in
+screens were visually reviewed; crash buffers are empty, emulator exits 0 and its
+new disposable AVD is deleted. This proves fresh startup, not authenticated
+upgrade, account/pairing preservation or full app parity. Receipt and captures:
+`captures/recovery-20261023/parity-candidate-721-checkpoint.json` and
+`release-721-cold-v1/`. The existing pending availability question is preserved in
+`pixel-721-test-plan.json`; no phone action/publication or fresh request. Physical
+712 stays released. Leave Pair Android Notifications closed and reuse existing
+enrollment in any later authorized check. Full goal/global source pins remain open.
+
 ## Routed reader Activity recreation fixed within scope — 2026-10-23
 
 The real restored-reader load race is fixed: cached rows wait for an admitted
