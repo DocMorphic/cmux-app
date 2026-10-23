@@ -25,7 +25,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -74,7 +73,10 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
     var ready by remember(client, panelId) { mutableStateOf(false) }
     var retry by remember(client, panelId) { mutableIntStateOf(0) }
     var streamGeneration by remember(client, panelId) { mutableLongStateOf(0) }
-    var dialog by remember(client, panelId) { mutableStateOf<JSONObject?>(null) }
+    val dialogs = remember(client, panelId) { BrowserDialogState(panelId) }
+    val dialogJob = remember(client, panelId) { SupervisorJob(scope.coroutineContext[Job]) }
+    val dialogScope = remember(dialogJob) { CoroutineScope(scope.coroutineContext + dialogJob) }
+    DisposableEffect(dialogs, dialogJob) { onDispose { dialogs.close(); dialogJob.cancel() } }
     var measured by remember(client, panelId) { mutableStateOf(IntSize.Zero) }
     var appliedViewport by remember(client, panelId) { mutableStateOf<Triple<Int, Int, Double>?>(null) }
     val viewport = Triple((measured.width / density.density).roundToInt().coerceIn(1, 4096),
@@ -121,10 +123,10 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
                     if (event.payload.optString("panel_id") != panelId || event.streamId != streamId) return@collect
                     when (event.topic) {
                         "browser.closed" -> { back(); return@collect }
-                        "browser.dialog" -> { dialogEvents++; dialog = event.payload }
+                        "browser.dialog" -> { dialogEvents++; dialogs.install(event.payload) }
                         "browser.dialog.resolved" -> {
                             dialogEvents++
-                            if (dialog?.optString("dialog_id") == event.payload.optString("dialog_id")) dialog = null
+                            dialogs.resolve(event.payload.optString("dialog_id"))
                         }
                         "browser.state" -> {
                             stateEvents++; page = BrowserPageState.read(event.payload)
@@ -150,7 +152,7 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
                 ensureActive()
                 // A push received during stream.start is newer than its descriptor.
                 if (stateEvents == 0) page = BrowserPageState.read(descriptor)
-                if (dialogEvents == 0) dialog = descriptor.optJSONObject("pending_dialog")
+                if (dialogEvents == 0) dialogs.install(descriptor.optJSONObject("pending_dialog"))
                 appliedViewport = initial; ready = true
                 collector.join()
             } catch (failure: Exception) {
@@ -192,9 +194,9 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
         try { client.displayed(panelId, current.sequence) }
         catch (failure: Exception) { rethrowBrowserCancellation(failure); error = failure.message }
     }
-    val inputEnabled = foreground && ready && inputError == null && dialog == null
-    if (dialog != null) BrowserDialog(checkNotNull(dialog), client, panelId,
-        onResolved = { id -> if (dialog?.optString("dialog_id") == id) dialog = null }, onError = { error = it })
+    val dialog = dialogs.pending
+    val chromeEnabled = foreground && ready && inputError == null
+    val inputEnabled = chromeEnabled && dialog == null
 
     Column(Modifier.fillMaxSize().background(NativeAppColors.page)) {
         Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -214,6 +216,28 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
             else BrowserPageSurface(current, queue, scrollMotion, streamGeneration,
                 inputEnabled && pointerReady && (client.pointerReady == null || appliedViewport == viewport),
                 onTap = { focusManager.clearFocus() }, pageDescription = client.pageDescription)
+            if (dialog != null) key(dialogs, dialog.optString("dialog_id")) {
+                NativeBrowserDialogCard(dialog) { button, responseText ->
+                    val id = dialog.optString("dialog_id")
+                    val claimed = dialogs.claim(id) ?: return@NativeBrowserDialogCard
+                    // The response belongs to this panel owner, not the card
+                    // that optimistic claiming removes from composition.
+                    dialogScope.launch {
+                        try {
+                            client.respondDialog(panelId, id, button.optString("id"), responseText)
+                            ensureActive()
+                        } catch (failure: Exception) {
+                            rethrowBrowserCancellation(failure)
+                            ensureActive()
+                            if (failure is MobileRpcException && failure.fromHostResponse && failure.code == "not_found") {
+                                dialogs.resolve(id)
+                            } else if (dialogs.restore(claimed)) {
+                                error = failure.message ?: "Could not respond to browser dialog"
+                            }
+                        }
+                    }
+                }
+            }
         }
         val visibleError = connectionError ?: error
         if (visibleError != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -228,8 +252,8 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
             shape = RoundedCornerShape(28.dp), color = NativeAppColors.panel) {
             Column {
                 Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    BrowserChromeButton("Browser Back", R.drawable.ic_browser_back, inputEnabled && (!client.reportsHistory || page.canGoBack)) { queue.offer(BrowserInput.Navigation("back")) }
-                    BrowserChromeButton("Browser Forward", R.drawable.ic_browser_forward, inputEnabled && (!client.reportsHistory || page.canGoForward)) { queue.offer(BrowserInput.Navigation("forward")) }
+                    BrowserChromeButton("Browser Back", R.drawable.ic_browser_back, chromeEnabled && (!client.reportsHistory || page.canGoBack)) { queue.offer(BrowserInput.Navigation("back")) }
+                    BrowserChromeButton("Browser Forward", R.drawable.ic_browser_forward, chromeEnabled && (!client.reportsHistory || page.canGoForward)) { queue.offer(BrowserInput.Navigation("forward")) }
                     BasicTextField(address, { address = it }, Modifier.weight(1f).heightIn(min = 44.dp)
                         .background(NativeAppColors.control, RoundedCornerShape(22.dp)).padding(horizontal = 12.dp, vertical = 12.dp)
                         .semantics { contentDescription = "Browser address" }
@@ -249,8 +273,8 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
                             if (address.isEmpty()) Text("Search or address", color = NativeAppColors.muted, fontSize = 12.sp, maxLines = 1)
                             inner()
                         })
-                    BrowserChromeButton("Reload browser", R.drawable.ic_browser_reload, inputEnabled) { queue.offer(BrowserInput.Navigation("reload")) }
-                    BrowserChromeButton(if (keyboardVisible) "Hide browser keyboard" else "Show browser keyboard", R.drawable.ic_browser_keyboard, inputEnabled) {
+                    BrowserChromeButton("Reload browser", R.drawable.ic_browser_reload, chromeEnabled) { queue.offer(BrowserInput.Navigation("reload")) }
+                    BrowserChromeButton(if (keyboardVisible) "Hide browser keyboard" else "Show browser keyboard", R.drawable.ic_browser_keyboard, chromeEnabled) {
                         scrollMotion.stop()
                         if (keyboardVisible) { policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide() }
                         else { focusManager.clearFocus(); policy = policy.show(); keyboardRequest++ }
@@ -268,41 +292,6 @@ private fun BrowserChromeButton(label: String, icon: Int, enabled: Boolean, onCl
     IconButton(onClick, Modifier.size(48.dp).semantics { contentDescription = label }, enabled = enabled) {
         Icon(androidx.compose.ui.res.painterResource(icon), null, Modifier.size(19.dp))
     }
-}
-
-@Composable
-private fun BrowserDialog(value: JSONObject, client: BrowserStreamClient, panel: String, onResolved: (String) -> Unit, onError: (String) -> Unit) {
-    val id = value.optString("dialog_id")
-    val scope = rememberCoroutineScope()
-    var text by remember(client, panel, id) { mutableStateOf(value.optJSONObject("text_field")?.optString("initial").orEmpty()) }
-    var busy by remember(client, panel, id) { mutableStateOf(false) }
-    val currentId by rememberUpdatedState(id)
-    val resolved by rememberUpdatedState(onResolved)
-    val reportError by rememberUpdatedState(onError)
-    val buttons = value.optJSONArray("buttons")?.let { array -> (0 until array.length()).mapNotNull { array.optJSONObject(it) } }.orEmpty()
-    fun respond(button: JSONObject) {
-        if (busy) return
-        busy = true
-        scope.launch {
-            try {
-                client.respondDialog(panel, id, button.optString("id"), text.takeIf { value.optJSONObject("text_field") != null })
-                ensureActive(); resolved(id)
-            } catch (failure: Exception) {
-                rethrowBrowserCancellation(failure)
-                if (id == currentId) reportError(failure.message ?: "Could not respond to browser dialog")
-            } finally { if (id == currentId) busy = false }
-        }
-    }
-    NativeAlertDialog(onDismissRequest = { buttons.firstOrNull { it.optString("role") == "cancel" }?.let(::respond) },
-        title = { Text(value.optString("title").ifBlank { value.optString("host", "Browser") }) },
-        text = { Column {
-            Text(value.optString("message"))
-            value.optJSONObject("text_field")?.let { field -> OutlinedTextField(text, { text = it }, enabled = !busy,
-                label = { Text(field.optString("placeholder", "Response")) },
-                visualTransformation = if (field.optBoolean("secure")) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None) }
-        } }, confirmButton = { Column {
-            buttons.forEach { button -> TextButton(onClick = { respond(button) }, enabled = !busy) { Text(button.optString("label")) } }
-        } })
 }
 
 internal fun decodeBrowserFrame(value: JSONObject): BrowserFrame? = runCatching {

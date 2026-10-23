@@ -1,21 +1,22 @@
-## Date/address engine evaluated; actual iOS comparison prepared — 2026-10-23
+## Native detector observations verified; calibrated Android mismatch remains — 2026-10-23
 
-The isolated opt-in detector-spike evaluates eleven shared synthetic inputs
-across all nine app locales. Accepted cold/warm online/offline phases have 44
-successful observations with identical outputs, no active offline network and
-no crashes; network settings restore and owned AVDs are removed. Language/date
-ambiguities, partial/missing matches and a date inside a URL prevent treating
-this as source equivalence. Invalid early probe inputs and zero-byte-cache
-failures are retained/excluded, with cause of the latter unestablished.
-
-No SDK enters the normal companion dependency graph and signed 715 is unchanged;
-no phone/account or actual Calendar/Maps action was operated. A dedicated pinned
-iOS detector/actionURL capture and shared fixture are prepared for nine actual
-language contexts. Local guards/syntax/project checks pass; native execution is
-not yet accepted. Existing default/Translation/Poll hosts are byte-identical.
-See [CHIEF_DATA_DETECTION.md](CHIEF_DATA_DETECTION.md) for precise outputs,
-source/clock limits, evidence paths and remaining integration requirements.
-Full parity, physical availability and the backend/store requirements stay open.
+Pinned iOS run 39877268200 completed successfully at project c18eabae; independent
+immutable-source verification matches all ten canonical files. Its 99 observations
+cover nine preferred-language contexts on iOS 26.4.1, while Locale.current remains
+en_DE. It does not verify rendered Chief bubbles or actual Calendar/Maps taps.
+Android's isolated SDK was rerun at the source clock and matching en-DE: 44
+online/process-restarted offline observations still differ on Friday policy,
+French/Chinese times and Japanese/Korean spans. Sources/APKs, no active offline
+network, restored settings and empty crash buffers are verified. The owned AVD
+is deleted. No production detector or platform waiver is accepted. See
+[CHIEF_DATA_DETECTION.md](CHIEF_DATA_DETECTION.md) and local checkpoints
+`native-detection-run-39877268200/checkpoint.json` and
+`entity-native-clock-checkpoint.json` under `captures/recovery-20261023`.
+Browser dialog fields/wire/optimistic lifecycle/navigation now pass 16 emulator
+cases, including 18 controlled locale/scale profiles; source/physical/native
+material and TalkBack gates remain open. See [BROWSER_DIALOGS.md](BROWSER_DIALOGS.md).
+715 excludes these new changes.
+Full parity remains active; Pixel availability and backend/store replies stay pending.
 
 ## Signed 715 ready; physical upgrade remains pending — 2026-10-23
 

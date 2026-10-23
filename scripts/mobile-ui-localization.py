@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'third_party/cmux-localization/strings.json'
 BILLING_DATA = ROOT / 'third_party/cmux-localization/billing-strings.json'
 BILLING_ANDROID_DATA = ROOT / 'third_party/cmux-localization/billing-android-strings.json'
+BROWSER_DIALOG_DATA = ROOT / 'third_party/cmux-localization/browser-dialog-strings.json'
 LANGUAGES = ('en', 'ar', 'de', 'es', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant')
 FOLDERS = {'en': 'values', 'zh-Hans': 'values-b+zh+Hans', 'zh-Hant': 'values-b+zh+Hant'}
 NAME = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
@@ -172,6 +173,23 @@ def load_billing_rows():
     return rows
 
 
+def load_browser_dialog_rows():
+    data = json.loads(BROWSER_DIALOG_DATA.read_text())
+    if (data['version'] != 1 or data['upstream'] != 'a5911a1f92f3eeb11c4d7f3e2ef89204718c5009'
+            or data['catalog'] != 'ios/cmux/Resources/Localizable.xcstrings'
+            or not re.fullmatch('[a-f0-9]{64}', data['catalogSha256'])):
+        raise ValueError('Unreviewed browser dialog localization source')
+    names = set()
+    for row in data['strings']:
+        if (not row['key'].startswith('mobile.browserStream.dialog.')
+                or not re.fullmatch(r'cmux_browser_dialog_[a-z0-9_]+', row['resource'])
+                or row['resource'] in names or set(row['translations']) != set(LANGUAGES)
+                or any(not text or '%' in text for text in row['translations'].values())):
+            raise ValueError('Invalid browser dialog localization row')
+        names.add(row['resource'])
+    return data['strings']
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--migrate', action='store_true')
@@ -179,6 +197,7 @@ def main():
     args = parser.parse_args()
     rows = load_rows(); by_english = {row['translations']['en']: row for row in rows}
     billing_rows = load_billing_rows()
+    browser_dialog_rows = load_browser_dialog_rows()
     if args.migrate:
         if args.check: parser.error('--migrate and --check are exclusive')
         changes = 0
@@ -201,7 +220,14 @@ def main():
                 raise ValueError(f'Generated billing resources differ: {folder}')
         else:
             billing_path.write_bytes(encoded)
-    print(f'{len(rows)} general and {len(billing_rows)} billing labels / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
+        dialog_path = path.with_name('cmux_browser_dialog_strings.xml')
+        encoded = resource_xml(browser_dialog_rows, language, 'from pinned browser dialog labels')
+        if args.check:
+            if not dialog_path.is_file() or dialog_path.read_bytes() != encoded:
+                raise ValueError(f'Generated browser dialog resources differ: {folder}')
+        else:
+            dialog_path.write_bytes(encoded)
+    print(f'{len(rows)} general, {len(billing_rows)} billing and {len(browser_dialog_rows)} browser dialog labels / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
 
 
 if __name__ == '__main__':

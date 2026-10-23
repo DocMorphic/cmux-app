@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+  "catalogSha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd",
+  "strings": [
+    {
+      "key": "mobile.browserStream.dialog.input",
+      "resource": "cmux_browser_dialog_input",
+      "translations": {
+        "en": "Enter text",
+        "ar": "أدخل النص",
+        "de": "Geben Sie Text ein",
+        "es": "Introducir texto",
+        "fr": "Saisir du texte",
+        "ja": "テキストを入力",
+        "ko": "텍스트를 입력하세요",
+        "zh-Hans": "输入文字",
+        "zh-Hant": "輸入文字"
+      }
+    },
+    {
+      "key": "mobile.browserStream.dialog.mediaDetail",
+      "resource": "cmux_browser_dialog_mediadetail",
+      "translations": {
+        "en": "This site wants to use your camera or microphone.",
+        "ar": "يريد هذا الموقع استخدام الكاميرا أو الميكروفون الخاص بك.",
+        "de": "Diese Website möchte Ihre Kamera oder Ihr Mikrofon verwenden.",
+        "es": "Este sitio quiere usar su cámara o micrófono.",
+        "fr": "Ce site souhaite utiliser votre caméra ou votre microphone.",
+        "ja": "このサイトがカメラまたはマイクを使用しようとしています。",
+        "ko": "이 사이트에서 카메라나 마이크를 사용하려고 합니다.",
+        "zh-Hans": "该网站想要使用您的相机或麦克风。",
+        "zh-Hant": "網站想要使用您的相機或麥克風。"
+      }
+    },
+    {
+      "key": "mobile.browserStream.dialog.mediaTitle",
+      "resource": "cmux_browser_dialog_mediatitle",
+      "translations": {
+        "en": "Media Access",
+        "ar": "الوصول إلى وسائل الإعلام",
+        "de": "Medienzugriff",
+        "es": "Acceso a los medios",
+        "fr": "Accès aux médias",
+        "ja": "メディアへのアクセス",
+        "ko": "미디어 액세스",
+        "zh-Hans": "媒体访问",
+        "zh-Hant": "媒體訪問"
+      }
+    },
+    {
+      "key": "mobile.browserStream.dialog.needsMac",
+      "resource": "cmux_browser_dialog_needsmac",
+      "translations": {
+        "en": "Needs Your Mac",
+        "ar": "يحتاج إلى جهاز Mac الخاص بك",
+        "de": "Benötigt Ihren Mac",
+        "es": "Necesita tu Mac",
+        "fr": "A besoin de votre Mac",
+        "ja": "Macでの操作が必要です",
+        "ko": "Mac이 필요합니다",
+        "zh-Hans": "需要你的 Mac",
+        "zh-Hant": "需要你的 Mac"
+      }
+    },
+    {
+      "key": "mobile.browserStream.dialog.needsMacDetail",
+      "resource": "cmux_browser_dialog_needsmacdetail",
+      "translations": {
+        "en": "Complete this request on your Mac, or cancel it here.",
+        "ar": "أكمل هذا الطلب على جهاز Mac الخاص بك، أو قم بإلغائه هنا.",
+        "de": "Füllen Sie diese Anfrage auf Ihrem Mac aus oder brechen Sie sie hier ab.",
+        "es": "Complete esta solicitud en su Mac o cancélela aquí.",
+        "fr": "Complétez cette demande sur votre Mac ou annulez-la ici.",
+        "ja": "Macでこのリクエストを完了するか、ここでキャンセルしてください。",
+        "ko": "Mac에서 이 요청을 완료하거나 여기에서 취소하세요.",
+        "zh-Hans": "在您的 Mac 上完成此请求，或在此处取消。",
+        "zh-Hant": "在您的 Mac 上完成此請求，或在此處取消。"
+      }
+    },
+    {
+      "key": "mobile.browserStream.dialog.password",
+      "resource": "cmux_browser_dialog_password",
+      "translations": {
+        "en": "Password",
+        "ar": "كلمة المرور",
+        "de": "Passwort",
+        "es": "Contraseña",
+        "fr": "Mot de passe",
+        "ja": "パスワード",
+        "ko": "비밀번호",
+        "zh-Hans": "密码",
+        "zh-Hant": "密碼"
+      }
+    },
+    {
+      "key": "mobile.browserStream.dialog.requestTitle",
+      "resource": "cmux_browser_dialog_requesttitle",
+      "translations": {
+        "en": "Browser Request",
+        "ar": "طلب المتصفح",
+        "de": "Browser-Anfrage",
+        "es": "Solicitud del navegador",
+        "fr": "Demande du navigateur",
+        "ja": "ブラウザからのリクエスト",
+        "ko": "브라우저 요청",
+        "zh-Hans": "浏览器请求",
+        "zh-Hant": "瀏覽器請求"
+      }
+    },
+    {
+      "key": "mobile.browserStream.dialog.username",
+      "resource": "cmux_browser_dialog_username",
+      "translations": {
+        "en": "Username",
+        "ar": "اسم المستخدم",
+        "de": "Benutzername",
+        "es": "Nombre de usuario",
+        "fr": "Nom d'utilisateur",
+        "ja": "ユーザー名",
+        "ko": "사용자 이름",
+        "zh-Hans": "用户名",
+        "zh-Hant": "使用者名稱"
+      }
+    }
+  ]
+}

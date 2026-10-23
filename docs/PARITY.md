@@ -1,3 +1,15 @@
+## Streamed browser dialog behavior checkpoint — 2026-10-23
+
+Separate HTTP username/password fields, source NUL-delimited wire, nil text for
+cancel, optimistic dismissal/failure restoration and reachable navigation are
+ported from a5911a1f. All sixteen owned-emulator cases pass, with eighteen
+controlled locale/scale profiles, no crash, and preserved exact source/APK hashes.
+This closes the generated-peer behavior gap only; actual Mac/Pixel, TalkBack,
+native font/material and broader browser/full app parity remain open. Details:
+[BROWSER_DIALOGS.md](BROWSER_DIALOGS.md). The independently verified iOS detector
+capture has 99 observations, but calibrated Android SDK differences prevent
+accepting a production date/address engine; see [CHIEF_DATA_DETECTION.md](CHIEF_DATA_DETECTION.md).
+
 ## Date/address engine evaluated; actual iOS comparison prepared — 2026-10-23
 
 The isolated opt-in detector-spike evaluates eleven shared synthetic inputs

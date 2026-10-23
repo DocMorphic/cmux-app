@@ -1,19 +1,26 @@
-## Actual iOS detector capture running — 2026-10-23
+## iOS detector comparison verified; browser dialog behavior verified — 2026-10-23
 
-Run [39877268200](https://github.com/DocMorphic/cmux-app/actions/runs/39877268200)
-is confirmed in progress at exact project source
-`c18eabaeaa2a0b7b5ca9d5b7ede240ce17571dad`. Checkout/preparation and simulator
-selection passed; the nine-language observation step is running. Source package
-remains pinned to a5911a1f. No native detector output is accepted yet.
+Native run [39877268200](https://github.com/DocMorphic/cmux-app/actions/runs/39877268200)
+completed successfully at exact project source c18eabae. The immutable verifier
+independently produces the same ten canonical files: 99 observations on iOS
+26.4.1, nine preferred-language contexts, unchanged Locale.current en_DE.
+No action, rendered bubble or Android equivalence is accepted. Android SDK
+reruns matching the native clock and en-DE still differ on Friday, French,
+Japanese/Korean and Chinese samples; no production detector was selected.
+See [CHIEF_DATA_DETECTION.md](CHIEF_DATA_DETECTION.md) and the local source/run
+checkpoint for exact boundaries. Signed 715 is unchanged and excludes the
+browser work described below.
 
-Follow that exact run, then verify its terminal artifact independently with
-`captures/recovery-20261023/native-detection-run-39877268200/source/scripts/verify-ios-chief-detection.py`
-and `--project-commit c18eabaeaa2a0b7b5ca9d5b7ede240ce17571dad`.
-The immutable source ZIP and checkpoint in that directory bind the expected
-fixture/Swift/provenance. Do not substitute newer source after a verifier edit.
-The SDK observations remain isolated: no production engine has been selected,
-715 is unchanged, Pixel remains released at last verified 712 and availability/
-backend questions stay pending. Full parity remains active.
+Browser dialog source audit identified missing separate HTTP username/password
+fields, NUL-separated source wire encoding, nil text for cancel, optimistic
+claim/restoration and navigation reachable behind the in-pane card. These now pass fourteen production-view/generated-peer behavior cases plus
+two component cases (18 controlled locale/scale profiles) in 33.635 seconds on
+an owned API 36 emulator, crash buffer empty, emulator exit 0. A visual review
+also fixed a wrapping Japanese hint. Exact sources/APKs and 150 evidence files
+are bound in `browser-dialog-checkpoint.json`; see [BROWSER_DIALOGS.md](BROWSER_DIALOGS.md).
+Native material/font, real Mac/Pixel and accessibility acceptance remain open. Pixel stays released
+at last verified 712; fresh availability and backend/store replies remain
+pending. Mac pairing controls are human-confirmed visible. Full parity is active.
 
 ## Date/address engine evaluated; actual iOS comparison prepared — 2026-10-23
 

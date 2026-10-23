@@ -12,8 +12,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.test.platform.app.InstrumentationRegistry
@@ -210,6 +212,127 @@ class NativeBrowserTest {
             compose.onNodeWithText("Accept").assertIsEnabled()
             assertEquals("first", requests("dialog.respond").single().getJSONObject("params").getString("dialog_id"))
         } finally { release.countDown() }
+    }
+
+    private fun browserDialog(id: String, kind: String = "javascript_prompt") = JSONObject()
+        .put("panel_id", panel).put("dialog_id", id).put("kind", kind).put("title", "Prompt $id")
+        .put("message", "Synthetic browser request").put("buttons", JSONArray()
+            .put(JSONObject().put("id", "cancel").put("label", "Cancel").put("role", "cancel"))
+            .put(JSONObject().put("id", "ok").put("label", "Sign in").put("role", "default")))
+
+    private fun pushDialog(value: JSONObject) {
+        peer.pushBrowserEvent("browser.dialog", value)
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("BrowserDialog").fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test fun basicAuthenticationAndCancelledPromptsSendSourceWireWithoutRetainingSecrets() {
+        show()
+        val gate = CountDownLatch(1)
+        peer.releaseNextBrowserDialog = gate
+        val value = browserDialog("auth", "http_basic_authentication")
+            .put("text_field", JSONObject().put("initial", "saved-user").put("placeholder", "Password").put("secure", true))
+        try {
+            pushDialog(value)
+            compose.onNodeWithTag("BrowserDialogUsername").assertTextEquals("saved-user")
+            compose.onNodeWithTag("BrowserDialogUsername").performTextClearance()
+            compose.onNodeWithTag("BrowserDialogUsername").performTextInput("fixture-user")
+            compose.onNodeWithTag("BrowserDialogPassword").assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+            assertTrue(compose.onNodeWithTag("BrowserDialogPassword").fetchSemanticsNode().config.contains(SemanticsProperties.Password))
+            compose.onNodeWithTag("BrowserDialogPassword").performTextInput("fixture-secret")
+            compose.onNodeWithTag("BrowserDialogPassword").performImeAction()
+            compose.waitForIdle()
+            val image = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            val output = File(compose.activity.getExternalFilesDir(null), "screenshots/browser-basic-auth.png")
+            output.parentFile!!.mkdirs(); output.outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }; image.recycle()
+            val cancel = compose.onNodeWithTag("BrowserDialogButton:cancel").fetchSemanticsNode().boundsInRoot
+            val accept = compose.onNodeWithTag("BrowserDialogButton:ok").fetchSemanticsNode().boundsInRoot
+            assertEquals(cancel.center.y, accept.center.y, 1f)
+            compose.onNodeWithTag("BrowserDialogButton:ok").performScrollTo().assertIsDisplayed().performClick()
+            compose.waitUntil(10_000) { requests("dialog.respond").isNotEmpty() }
+            compose.onNodeWithTag("BrowserDialog").assertDoesNotExist()
+            assertEquals("fixture-user\u0000fixture-secret", requests("dialog.respond").single().getJSONObject("params").getString("text"))
+            gate.countDown(); pushState("Authentication replied")
+            val cancelled = browserDialog("auth-cancel", "http_basic_authentication").put("text_field", JSONObject().put("initial", "saved-user").put("secure", true))
+            pushDialog(cancelled)
+            compose.onNodeWithTag("BrowserDialogPassword").performTextInput("do-not-send")
+            compose.onNodeWithTag("BrowserDialogButton:cancel").performScrollTo().performClick()
+            compose.waitUntil(10_000) { requests("dialog.respond").size == 2 }
+            assertFalse(requests("dialog.respond")[1].getJSONObject("params").has("text"))
+            pushDialog(browserDialog("prompt-cancel").put("text_field", JSONObject().put("secure", true)))
+            compose.onNodeWithTag("BrowserDialogText").performTextInput("do-not-send-prompt")
+            compose.onNodeWithTag("BrowserDialogButton:cancel").performScrollTo().performClick()
+            compose.waitUntil(10_000) { requests("dialog.respond").size == 3 }
+            assertFalse(requests("dialog.respond")[2].getJSONObject("params").has("text"))
+        } finally { gate.countDown() }
+    }
+
+    @Test fun failedAuthenticationRestoresThePromptWithAnEmptyPassword() {
+        show()
+        val gate = CountDownLatch(1)
+        peer.releaseNextBrowserDialog = gate
+        peer.rejectedMethods = setOf("mobile.browser.dialog.respond")
+        peer.rejectedMethodCode = "temporarily_unavailable"
+        try {
+            pushDialog(browserDialog("restore", "http_basic_authentication").put("text_field", JSONObject().put("initial", "saved-user")))
+            compose.onNodeWithTag("BrowserDialogPassword").performTextInput("do-not-retain")
+            compose.onNodeWithTag("BrowserDialogButton:ok").performScrollTo().performClick()
+            compose.waitUntil(10_000) { requests("dialog.respond").isNotEmpty() }
+            compose.onNodeWithTag("BrowserDialog").assertDoesNotExist()
+            gate.countDown()
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("BrowserDialogPassword").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("BrowserDialogPassword").assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+            compose.onNodeWithTag("BrowserDialogUsername").assertTextEquals("saved-user")
+        } finally { gate.countDown() }
+    }
+
+    @Test fun alreadyResolvedDialogIsConsumedAndAStalePushCannotReopenIt() {
+        show()
+        peer.rejectedMethods = setOf("mobile.browser.dialog.respond")
+        peer.rejectedMethodCode = "not_found"
+        val value = browserDialog("resolved")
+        pushDialog(value)
+        compose.onNodeWithTag("BrowserDialogButton:ok").performClick()
+        compose.waitUntil(10_000) { requests("dialog.respond").size == 1 }
+        pushState("Not found reply received")
+        peer.pushBrowserEvent("browser.dialog", value)
+        pushState("Stale push received")
+        compose.onNodeWithTag("BrowserDialog").assertDoesNotExist()
+        assertEquals(1, requests("dialog.respond").size)
+    }
+
+    @Test fun pendingDialogKeepsNavigationReachableAndPageInputCovered() {
+        show(); pushState("Page with dialog", editable = true)
+        peer.pushBrowserEvent("browser.frame", frame(12))
+        compose.waitUntil(10_000) { requests("frame.ack").any { it.getJSONObject("params").optInt("seq") == 12 } }
+        pushDialog(browserDialog("navigation"))
+        compose.onNodeWithContentDescription("Browser Back").assertIsEnabled()
+        compose.onNodeWithContentDescription("Reload browser").performClick()
+        compose.waitUntil(10_000) { requests("reload").size == 1 }
+        compose.onNodeWithTag("BrowserDialog").assertExists()
+        peer.pushBrowserEvent("browser.dialog.resolved", JSONObject().put("panel_id", panel).put("dialog_id", "navigation"))
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("BrowserDialog").fetchSemanticsNodes().isEmpty() }
+    }
+
+    @Test fun leavingAndReopeningThePanelFencesAnOldDialogFailure() {
+        show()
+        val gate = CountDownLatch(1)
+        peer.releaseNextBrowserDialog = gate
+        peer.rejectedMethods = setOf("mobile.browser.dialog.respond")
+        peer.rejectedMethodCode = "temporarily_unavailable"
+        try {
+            pushDialog(browserDialog("retired"))
+            compose.onNodeWithTag("BrowserDialogButton:ok").performClick()
+            compose.waitUntil(10_000) { requests("dialog.respond").size == 1 }
+            compose.onNodeWithTag("BrowserDialog").assertDoesNotExist()
+            compose.onNodeWithText("‹  Workspaces").performClick()
+            compose.waitForIdle()
+            gate.countDown()
+            compose.runOnIdle { visible = true }
+            compose.waitUntil(10_000) { requests("stream.start").size == 2 && compose.onAllNodesWithText("Browser fixture").fetchSemanticsNodes().isNotEmpty() }
+            pushState("Fresh panel owner")
+            compose.onNodeWithTag("BrowserDialog").assertDoesNotExist()
+            compose.onNodeWithText("Fixture terminal temporarily unavailable").assertDoesNotExist()
+        } finally { gate.countDown() }
     }
 
     @Test fun unansweredInputRearmsStreamWithoutReplayAndRejectsOldSubscriptionFrames() {

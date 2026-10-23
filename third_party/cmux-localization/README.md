@@ -36,3 +36,9 @@ that catalog; their provenance is separate. The same generator writes/checks
 `cmux_billing_strings.xml`. Billing labels use explicit call sites, not the
 general English-label migration dictionary. This scoped import advances no
 global source pin and implements no purchase, refund, restore, or analytics API.
+
+`browser-dialog-strings.json` imports eight browser dialog fallback/field labels
+(72 exact values across nine languages) from the same a5911a1f Localizable catalog.
+The catalog SHA-256 and original keys are retained. The generator owns the nine
+`cmux_browser_dialog_strings.xml` files; labels supplied by the host remain
+host-supplied. This scoped import advances no global source pin.

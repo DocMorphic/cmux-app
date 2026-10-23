@@ -3278,6 +3278,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var directoryErrorCode: String? = null
     @Volatile var taskGroupsSupported = false
     @Volatile var browserResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var releaseNextBrowserDialog: CountDownLatch? = null
     @Volatile var browserCreationSupported = false
     @Volatile var changesResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var agentFeedResponse: ((String, JSONObject) -> JSONObject)? = null
@@ -3355,6 +3356,12 @@ internal class NativeFixturePeer : AutoCloseable {
                             request.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("mobile.terminal.size_state") == true)
                             releaseSizingSubscription?.let { check(it.await(20, TimeUnit.SECONDS)) { "Sizing subscription was not released" } }
                         if (request.optString("method") == "mobile.host.status" && ignoreNextHostStatus.getAndSet(false)) continue
+                        if (request.optString("method") == "mobile.browser.dialog.respond") {
+                            releaseNextBrowserDialog?.let { latch ->
+                                check(latch.await(15, TimeUnit.SECONDS)) { "Browser dialog acknowledgement was not released" }
+                                releaseNextBrowserDialog = null
+                            }
+                        }
                         if (request.optString("method") == "notification.reconcile")
                             releaseReconcile?.let { check(it.await(30, TimeUnit.SECONDS)) { "Reconcile response not released" } }
                         if (request.optString("method") == "mobile.events.subscribe" &&

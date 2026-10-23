@@ -783,3 +783,15 @@ The Translate glyph is adapted from Google Material Icons (Google LLC),
 Apache License 2.0: https://github.com/google/material-design-icons/blob/master/src/action/translate/materialicons/24px.svg.
 The full Apache 2.0 license is bundled with the app. This Android glyph does
 not reproduce Apple's platform-only SF Symbols artwork.
+
+`BrowserDialogState.kt`, `NativeBrowserDialogCard.kt` and the streamed-dialog
+response/navigation changes in `NativeBrowserView.kt` adapt the dialog card,
+optimistic claim/restore and host-error handling in cmux's
+`Packages/iOS/CmuxMobileBrowserStream` and
+`Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite+BrowserStream.swift`
+at `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`. Copyright Manaflow, Inc.;
+GPL-3.0-or-later. Android adds bounded scrolling, panel-owner cancellation and
+platform input/accessibility semantics. Eight fallback/field labels retain all
+nine source translations and the exact catalog SHA-256 in
+`third_party/cmux-localization/browser-dialog-strings.json`. Android control
+materials and font metrics are platform rendering, not an accepted UIKit match.
