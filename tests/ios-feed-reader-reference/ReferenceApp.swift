@@ -68,6 +68,25 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
             }
             let category = UIApplication.shared.preferredContentSizeCategory
             let matches = category == (scene.category == "large" ? .large : .accessibilityMedium)
+            // Observe public UIKit labels in the unchanged original navigation
+            // bar. AX bounds alone cannot establish the actual toolbar font.
+            var navigationLabels: [[String: Any]] = []
+            var navigationBars: [[CGFloat]] = []
+            func observe(_ view: UIView, inNavigationBar: Bool = false) {
+                guard !view.isHidden, view.alpha > 0, view.window === window else { return }
+                let navigation = inNavigationBar || view is UINavigationBar
+                let frame = view.convert(view.bounds, to: window)
+                if view is UINavigationBar { navigationBars.append([frame.minX, frame.minY, frame.width, frame.height]) }
+                if navigation, let text = view as? UILabel, let content = text.text, !content.isEmpty,
+                   frame.width > 0, frame.height > 0, frame.intersects(window.bounds) {
+                    navigationLabels.append(["text": content, "pointSize": text.font.pointSize,
+                        "lineHeight": text.font.lineHeight, "fontName": text.font.fontName,
+                        "adjustsForContentSizeCategory": text.adjustsFontForContentSizeCategory,
+                        "frame": [frame.minX, frame.minY, frame.width, frame.height]])
+                }
+                for child in view.subviews { observe(child, inNavigationBar: navigation) }
+            }
+            for child in window.subviews { observe(child) }
             let value: [String: Any] = [
                 "schema": 1, "referenceKind": "originalFeedFullTextObservation", "context": "presentedOriginalFullTextSheet",
                 "scene": scene.id, "mode": mode, "probe": kind, "provenance": try! JSONSerialization.jsonObject(with: resource("Provenance.json")),
@@ -81,6 +100,7 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
                 "device": UIDevice.current.userInterfaceIdiom == .pad ? "tablet" : "phone",
                 "style": traits.userInterfaceStyle == .dark ? "dark" : "light", "interfaceLevel": traits.userInterfaceLevel.rawValue,
                 "bodyPointSize": UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).pointSize,
+                "navigationLabels": navigationLabels, "navigationBars": navigationBars,
                 "colors": ["background": rgba(.systemBackground), "label": rgba(.label), "secondaryLabel": rgba(.secondaryLabel), "separator": rgba(.separator)],
                 "loadAttempts": state.attempts, "loadCancellations": state.cancellations, "dismissed": state.dismissed,
                 "sourceSessionCreated": false, "interceptedURLs": state.interceptedURLs,
