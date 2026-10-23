@@ -1,3 +1,17 @@
+## Signed 719 ready; physical and full native UI gates remain open — 2026-10-23
+
+Local/unpublished 719 at `26d583ff670211936fd743d296cc515d71d7c5e2` passes strict package/signing/
+Firebase/attribution checks, 3,131 JVM cases with four opt-in skips and two reviewed
+fresh signed-release cold starts. APK SHA256:
+`eac4b4be4ab94c07603db4b3604b1f454d40156b9a02f49ddee99e8086323b1a`.
+It includes captured-source content frame/palette corrections. The separate
+26-case/138-page debug evidence includes six direct source horizontal checks;
+source gallery acceptance stays scoped to its unchanged leaves/public traits.
+Vertical allocation (including shrinking the capped visual after priority copy),
+font/glyph/glass/Chrome, real Pixel/Mac/terminal/reply/cold-tap, provider/VPN,
+TalkBack, backend/Play contracts and all broader gates remain open. 712 stays the
+last physical build; phone availability is still pending. Full goal stays active.
+
 ## Source-frame corrections verified; signed 719 next — 2026-10-23
 
 See `HANDOFF.md` and `CLOUD_COMPANION.md`: 39 original native frames are now
@@ -7,8 +21,8 @@ and two wide cohorts pass, with 66 main page records and additional equal-native
 content-width checks. Card x and primary height match source within one physical
 pixel at standard English type in 750/1024-dp content widths. Vertical geometry,
 font/glyph/glass/chrome, screen readers, provider/VPN, real devices and all broader
-gates remain open. 718 is the latest signed artifact before final corrections;
-prepare/verify clean signed 719 next. Physical 712 stays untouched/released.
+gates remain open. 719 is now the latest signed artifact with final corrections and reviewed cold
+starts; authenticated release/device acceptance is still separate. Physical 712 stays untouched/released.
 
 ## Signed 718 verified locally; physical and native acceptance remain open — 2026-10-23
 
@@ -21,8 +35,8 @@ It is local/unpublished and not installed on the phone. Checkpoint:
 `captures/recovery-20261023/parity-candidate-718-checkpoint.json`.
 Native source run 39894117425 passes all source UI methods; corrected local
 association accepts 39 source frames after recording the original stroke-envelope
-assumption failure. Final Android content alignment is verified in later debug
-cohorts and still needs a clean signed candidate after 718.
+assumption failure. Android content alignment is verified in later debug cohorts and packaged in
+clean signed 719; authenticated release/device acceptance remains unproven.
 The phone stays released at last physically verified 712. All broader gates below
 remain open; full parity stays active.
 

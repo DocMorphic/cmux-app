@@ -1,3 +1,37 @@
+## Signed 719 verified; full parity still active — 2026-10-23
+
+Signed local/unpublished **719** contains the source-frame content corrections at
+clean **26d583ff670211936fd743d296cc515d71d7c5e2**. APK:
+`captures/runtime/parity-candidate-719/app-release.apk`, **278,132,829 bytes**,
+SHA256 **`eac4b4be4ab94c07603db4b3604b1f454d40156b9a02f49ddee99e8086323b1a`**.
+Signer remains `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+Strict package/Firebase/attribution verification passes: 22 native libraries,
+21 viewer assets, all 16 fixture exclusions. The clean build repeats **3,131 pass /
+four opt-in skips / zero failures or errors** (3,135 cases, 426 reports).
+The actual signed APK passes two reviewed cold starts on a fresh owned API 36
+Pixel 6a AVD, empty crash buffer and emulator exit 0; only that new AVD is deleted.
+This is release startup evidence, not authenticated onboarding/upgrade or full
+parity. Checkpoint: `captures/recovery-20261023/parity-candidate-719-checkpoint.json`.
+
+Source capture and local reassociation below accept 39 original source frames
+only. Debug alignment checkpoint:
+`captures/recovery-20261023/cloud-onboarding-native-alignment-checkpoint.json`
+binds 26 case executions, 138 page records and six direct source horizontal
+geometry checks. Native appearance, vertical geometry/font/glyph/glass/chrome,
+physical account/terminal/reply/cold-tap, provider/VPN and all broader gates stay
+open. 712 remains last physically verified; no phone/account/Mac operation here.
+`pixel-719-test-plan.json` supersedes 718/717/716/715/714 under the same pending
+15-minute availability question. A plan or old 711/712 availability is not a
+fresh grant; preserve user data, signing and pairing.
+
+Next independent UI issue: the source's 280-point visual is a maximum that can
+shrink after priority copy. The current Android minimum visual can add avoidable
+scrolling when copy plus a smaller complete card would fit. Check/fix that narrow
+vertical allocation with the existing source frames before claiming vertical
+parity. Broader source audit/Cloud create/billing/provider/device gates remain.
+The unbounded full parity objective is active; do not mark complete from these
+fixtures, local signed starts or the scoped native gallery.
+
 ## Native source gallery and Android content alignment verified — 2026-10-23
 
 Native source run **39894117425**, project **059e148fff532d3cfef202f368b5a0c65cb44845**,
@@ -32,10 +66,8 @@ at normal English type. English/Arabic/German normal/enlarged layout paths pass.
 Vertical safe-area/window geometry, native font/glyph/glass/Chrome, real hardware,
 TalkBack, provider/VPN and every broader parity gate remain open.
 
-Signed 718 below is still the latest verified APK; it precedes these final
-source-frame corrections. Prepare signed 719 from a clean committed alignment,
-run its strict verification and fresh release smoke, and update the same pending
-15-minute phone plan. Do not use the phone before fresh availability is granted.
+Signed 719 above verifies the committed alignment and its fresh release startup;
+authenticated upgrade and the bounded physical session remain pending. Do not use the phone before fresh availability is granted.
 The full parity goal remains active.
 
 ## Signed 718 ready before final native-frame corrections — 2026-10-23

@@ -140,6 +140,18 @@ This horizontal geometry/height comparison does not establish matching vertical
 window geometry, fonts, chrome, glass, screen readers or physical tablet hardware.
 
 
+Signed 719 packages the corrected source content at clean
+`26d583ff670211936fd743d296cc515d71d7c5e2`, APK SHA256
+`eac4b4be4ab94c07603db4b3604b1f454d40156b9a02f49ddee99e8086323b1a`.
+It repeats the full 3,131-pass/four-skip JVM suite and passes strict package/
+signer/Firebase/notice checks plus two reviewed fresh release starts. Physical
+upgrade/account preservation and authenticated release onboarding remain open.
+Its checkpoint is `parity-candidate-719-checkpoint.json` in the recovery folder.
+A remaining vertical issue is the narrow visual's minimum-versus-source-maximum
+allocation: it should shrink toward its complete natural card/control height
+when priority copy uses more space. Current scrolling keeps content reachable,
+but does not establish that flexible source behavior or full vertical parity.
+
 ## Restart and request deadlines — 2026-10-23
 
 The a5911a1f source adds provider Restart, which was absent from Android.
