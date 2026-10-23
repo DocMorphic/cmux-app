@@ -65,8 +65,11 @@ internal fun NativeAgentFeedView(
                 live(entry).let { session(it).decide(entry.item, decision) }
             override suspend fun reply(entry: AgentFeedUiEntry, text: String): Boolean =
                 live(entry).let { session(it).terminalReply(entry.item, text) }
-            override suspend fun fullText(entry: AgentFeedUiEntry): String =
-                live(entry).let { session(it).fullText(it.item) }
+            override suspend fun fullText(entry: AgentFeedUiEntry): String {
+                val ready = awaitNativeAgentFeedReadSession(checkCurrent = { live(entry) },
+                    session = { currentSession(live(entry).source.mac) })
+                return ready.fullText(live(entry).item)
+            }
             override fun read(entry: AgentFeedUiEntry, needsInput: Boolean?) {
                 val current = currentNativeEntries[entry.key]?.takeIf(entry::matchesIdentity) ?: return
                 updateRead(if (needsInput == null) currentRead.interacted(current) else currentRead.triage(current, needsInput))

@@ -1,3 +1,33 @@
+## Routed Feed Activity reader recovery verified — 2026-10-23
+
+Actual NativeScreen + local socket recreation exposes/fixes a real one-shot load
+race: restored cached rows appear before their Feed session is read-ready, so
+Full text immediately fails and remains in Retry. The read delegate now waits
+boundedly for the same authorized row/session, rechecks identity and cancels on
+retirement. Four lifecycle/admission JVM checks pass; full suite: 3,148 passes,
+four skips, no failures/errors (3,152 cases, 429 XML).
+
+Final strict Activity test passes / 20.233 s: 290,926-character body, two actual
+recreations, exact Formatted anchor 13,637/selection 13,641 and Source scroll
+8,000 px/selection, 54 paginated RPCs, explicitly non-null same retained client
+through both recreations and client closed on finish. Final post-save byte copies
+contain the actual root/dialog Compose providers and are 10,024 bytes each with
+no message body. Mutable-reference/early-save inspection was insufficient and is
+replaced; fixture paging and failed original error captures remain documented.
+The preceding two-case cohort also passes full Feed navigation/actions regression
+/ 36.767 s on the identical app APK. Crash buffers empty, restored settings read
+back, owned emulators exit 0 and restored frames reviewed. Details: `AGENT_FEED.md`;
+checkpoint: `captures/recovery-20261023/native-feed-reader-activity-checkpoint.json`.
+
+This closes the bounded same-configuration routed Activity check, not process
+death, actual system rotation/font changes, real account/Iroh/Mac/Pixel, TalkBack
+or all app parity. No physical or cmux Mac/account/pairing action; the pairing
+popup can stay closed. Phone availability remains pending. User has no Play/
+billing backend; that external purchase/restore integration stays unavailable.
+Signed 721 is being prepared after commit; 720 still excludes the new ports and
+physical 712 stays released until a newly authorized data-preserving test. Global
+pins/full goal remain active.
+
 ## Original native reader reference accepted; RTL port refined — 2026-10-23
 
 All 39 original SwiftUI leaf frames validate at capture source `a18ed616` /

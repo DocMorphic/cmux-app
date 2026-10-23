@@ -1,5 +1,53 @@
 # Agent Feed companion
 
+## Routed Activity reader recovery fixed — 2026-10-23
+
+Real Activity recreation exposed a load race that the leaf's state-restoration
+test did not cover: cached rows and the restored Full text sheet return before
+the retained Feed session is fresh. The one-shot load immediately failed with
+“Connect to this computer to use Feed” and stayed in Retry after readiness
+returned. The read delegate now waits up to 30 seconds for an admitted session,
+checking the same live row/owner throughout and again before the RPC. Closing,
+replacement, account changes and coroutine cancellation retire the wait. A real
+unavailable session ends in the existing actionable error. RPC admission, identity
+and version/size guards remain authoritative; this never queues a mutation.
+
+Four new JVM cases cover readiness, changed owner/row, close cancellation and
+bounded unavailability. Full suite: **3,148 pass, four skips, zero failures/errors**
+(3,152 cases, 429 reports), archived in
+`native-feed-reader-activity-full-jvm-v5.zip`.
+
+`AgentFeedReaderActivityTest` drives the production NativeScreen Feed through an
+emulator-local socket and synthetic credentials. It opens a 290,926-character
+message, performs two real `ActivityScenario.recreate()` calls, preserves the
+Formatted anchor exactly at 13,637 and selection offset 13,641, preserves Source
+scroll exactly at 8,000 px with its selection, returns to the previous Formatted
+position and reloads the body via 54 real 16-KiB-page RPCs. The admitted foreground
+client is explicitly non-null, stays identical through both recreations and
+closes on Activity finish. The final strict run passes in 20.233 seconds. The
+preceding two-case cohort also passes the existing full Feed search/question/
+permission/reply/navigation regression in 36.767 seconds on the same app APK.
+
+Actual final saved-state bytes are copied at
+`Application.onActivityPostSaveInstanceState`, before the new Activity consumes
+the restored providers. Both final snapshots are 10,024 bytes and contain the
+real root/dialog Compose registry providers; neither UTF-8 nor UTF-16 data
+contains the message sentinel. This replaces an insufficient intermediate test
+that retained a mutable Bundle reference and inspected it after restoration had
+removed provider entries. An earlier fixture also incorrectly returned the whole
+body in one response; it now implements the real 16-KiB paging protocol. The
+original routed failure/error frame and all intermediate diagnostics are retained.
+
+Restored Formatted/Source frames were reviewed. Final crash buffers are empty,
+settings restores are read back, host wall/monotonic timing agrees, and the owned
+emulators exit 0. Evidence: `native-feed-reader-activity-runtime-v6/` and strict
+`native-feed-reader-activity-runtime-v7/`; checkpoint:
+`captures/recovery-20261023/native-feed-reader-activity-checkpoint.json`.
+This verifies same-configuration Activity recreation with local socket RPC,
+not process death, actual system rotation/font changes, real authentication,
+Iroh/Mac/Pixel, TalkBack or all lifecycle/parity gates. No phone, cmux Mac app,
+account or pairing operation occurred; full goal/source pins remain unchanged.
+
 ## Original native UI comparison and RTL fixes — 2026-10-23
 
 All 39 declared original SwiftUI compositor images (13 profiles) are now bound to

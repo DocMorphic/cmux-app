@@ -1,3 +1,19 @@
+## Routed Feed reader Activity recreation — 2026-10-23
+
+Real Activity recreation now waits for the same read-ready authorized Feed session
+instead of leaving the restored reader at an initial connection error. The final
+strict routed socket test passes two actual recreations, exact Formatted/Source
+coordinates and selection, 54 page reads, retained non-null RPC client and finish
+cleanup. Final saved-state byte snapshots are 10,024 bytes for a 290,926-character
+body, with real Compose providers and no body. The broader Feed action/navigation
+regression also passes. JVM: 3,148 pass/four skips (3,152 total); details, initial
+failure and strengthened saved-state capture: [AGENT_FEED.md](AGENT_FEED.md).
+
+Scope is same-configuration Activity recreation with synthetic credentials/local
+socket, not process death, real system changes, authenticated Iroh/Mac/Pixel,
+TalkBack or full lifecycle/app parity. No physical/pairing operations; global pins
+stay unchanged. Signed 721 preparation follows the committed fix.
+
 ## Original native reader UI reference and RTL refinement — 2026-10-23
 
 The 39-frame original SwiftUI leaf reference is verified with immutable source/

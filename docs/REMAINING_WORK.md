@@ -1,3 +1,23 @@
+## Routed reader Activity recreation fixed within scope — 2026-10-23
+
+The real restored-reader load race is fixed: cached rows wait for an admitted
+session for the same owner/target, with cancellation and bounded retry. Four new
+JVM checks pass; full suite is 3,148 passes/four skips (3,152 cases). The strict
+production NativeScreen/local-socket test passes two actual recreations with
+exact Formatted/Source positions/selections, paged body reload, retained non-null
+client and finish cleanup. Final post-save byte snapshots contain actual Compose
+providers, remain 10,024 bytes and exclude the 290,926-character body. Full Feed
+action/navigation regression also passes. See `AGENT_FEED.md` and the Activity
+checkpoint for exact scope, failures and corrected immutable state capture.
+
+Process death, actual system rotation/type changes, real account/transport/Mac/
+Pixel, TalkBack and broader lifecycle/app parity remain open. No phone/cmux Mac/
+account/pairing action; the pairing popup can stay closed. User has no Play/
+billing backend, which remains an external purchase/restore integration rather
+than a requirement for the private companion. Signed 721 preparation follows
+commit; physical 712 remains released and availability is still pending. Global
+pins/full goal remain active.
+
 ## Native reader source UI/RTL verified; external billing state clarified — 2026-10-23
 
 The 39-image original SwiftUI native leaf reference is accepted through bound
