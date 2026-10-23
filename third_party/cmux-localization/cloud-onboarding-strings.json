@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+  "catalogSha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd",
+  "strings": [
+    {
+      "key": "mobile.cloud.onboarding.title",
+      "resource": "cmux_cloud_intro_title",
+      "translations": {
+        "en": "Cloud basics",
+        "ar": "أساسيات Cloud",
+        "de": "Cloud-Grundlagen",
+        "es": "Conceptos de Cloud",
+        "fr": "Découvrir Cloud",
+        "ja": "Cloudの基本",
+        "ko": "Cloud 기본 안내",
+        "zh-Hans": "Cloud 基础知识",
+        "zh-Hant": "Cloud 基礎知識"
+      }
+    },
+    {
+      "key": "mobile.cloud.title",
+      "resource": "cmux_cloud_intro_cloud_title",
+      "translations": {
+        "en": "Cloud",
+        "ar": "السحابة",
+        "de": "Cloud",
+        "es": "Cloud",
+        "fr": "Cloud",
+        "ja": "Cloud",
+        "ko": "Cloud",
+        "zh-Hans": "Cloud",
+        "zh-Hant": "Cloud"
+      }
+    },
+    {
+      "key": "mobile.cloud.onboarding.skip",
+      "resource": "cmux_cloud_intro_skip",
+      "translations": {
+        "en": "Skip",
+        "ar": "تخطي",
+        "de": "Überspringen",
+        "es": "Omitir",
+        "fr": "Passer",
+        "ja": "スキップ",
+        "ko": "건너뛰기",
+        "zh-Hans": "跳过",
+        "zh-Hant": "略過"
+      }
+    },
+    {
+      "key": "mobile.cloud.onboarding.workspace.title",
+      "resource": "cmux_cloud_intro_workspace_title",
+      "translations": {
+        "en": "Your workspace lives in the Cloud",
+        "ar": "مساحة عملك موجودة في السحابة",
+        "de": "Dein Arbeitsbereich liegt in der Cloud",
+        "es": "Tu espacio de trabajo está en Cloud",
+        "fr": "Votre espace de travail est dans le Cloud",
+        "ja": "ワークスペースはCloud上にあります",
+        "ko": "작업 공간은 Cloud에 있습니다",
+        "zh-Hans": "你的工作区位于 Cloud",
+        "zh-Hant": "你的工作區位於 Cloud"
+      }
+    },
+    {
+      "key": "mobile.cloud.onboarding.workspace.message",
+      "resource": "cmux_cloud_intro_workspace_message",
+      "translations": {
+        "en": "Workspaces keep their terminals, browsers, and coding agents running on a Cloud machine.",
+        "ar": "تُبقي مساحات العمل الطرفيات والمتصفحات ووكلاء البرمجة قيد التشغيل على جهاز Cloud.",
+        "de": "Arbeitsbereiche lassen ihre Terminals, Browser und Programmierassistenten auf einer Cloud-Maschine weiterlaufen.",
+        "es": "Los espacios de trabajo mantienen sus terminales, navegadores y agentes de programación en una máquina Cloud.",
+        "fr": "Vos espaces de travail gardent leurs terminaux, navigateurs et agents de programmation actifs sur une machine Cloud.",
+        "ja": "ワークスペースでは、ターミナル、ブラウザ、コーディングエージェントがCloudマシン上で動き続けます。",
+        "ko": "워크스페이스는 터미널, 브라우저, 코딩 에이전트를 Cloud 머신에서 계속 실행합니다.",
+        "zh-Hans": "工作区会让终端、浏览器和编程代理继续在 Cloud 主机上运行。",
+        "zh-Hant": "工作區會讓終端機、瀏覽器和程式設計代理持續在 Cloud 主機上執行。"
+      }
+    },
+    {
+      "key": "mobile.cloud.vpn.title",
+      "resource": "cmux_cloud_intro_vpn_title",
+      "translations": {
+        "en": "System VPN",
+        "ar": "VPN النظام",
+        "de": "System-VPN",
+        "es": "VPN del sistema",
+        "fr": "VPN système",
+        "ja": "システムVPN",
+        "ko": "시스템 VPN",
+        "zh-Hans": "系统 VPN",
+        "zh-Hant": "系統 VPN"
+      }
+    },
+    {
+      "key": "mobile.cloud.onboarding.key.title",
+      "resource": "cmux_cloud_intro_key_title",
+      "translations": {
+        "en": "A private key keeps it private",
+        "ar": "مفتاح خاص يحمي الاتصال",
+        "de": "Ein privater Schlüssel schützt den Zugang",
+        "es": "Una clave privada protege el acceso",
+        "fr": "Une clé privée protège l’accès",
+        "ja": "秘密鍵でプライバシーを守る",
+        "ko": "개인 키로 접근을 보호합니다",
+        "zh-Hans": "私钥保护访问",
+        "zh-Hant": "私密金鑰保護存取"
+      }
+    },
+    {
+      "key": "mobile.cloud.onboarding.continue",
+      "resource": "cmux_cloud_intro_continue",
+      "translations": {
+        "en": "Continue",
+        "ar": "متابعة",
+        "de": "Weiter",
+        "es": "Continuar",
+        "fr": "Continuer",
+        "ja": "続ける",
+        "ko": "계속",
+        "zh-Hans": "继续",
+        "zh-Hant": "繼續"
+      }
+    },
+    {
+      "key": "mobile.cloud.onboarding.done",
+      "resource": "cmux_cloud_intro_done",
+      "translations": {
+        "en": "Get started",
+        "ar": "ابدأ",
+        "de": "Loslegen",
+        "es": "Empezar",
+        "fr": "Commencer",
+        "ja": "はじめる",
+        "ko": "시작하기",
+        "zh-Hans": "开始使用",
+        "zh-Hant": "開始使用"
+      }
+    },
+    {
+      "key": "mobile.cloud.onboarding.back",
+      "resource": "cmux_cloud_intro_back",
+      "translations": {
+        "en": "Back",
+        "ar": "رجوع",
+        "de": "Zurück",
+        "es": "Atrás",
+        "fr": "Retour",
+        "ja": "戻る",
+        "ko": "뒤로",
+        "zh-Hans": "返回",
+        "zh-Hant": "返回"
+      }
+    },
+    {
+      "key": "mobile.cloud.onboarding.progressLabel",
+      "resource": "cmux_cloud_intro_progress_label",
+      "translations": {
+        "en": "Cloud introduction progress",
+        "ar": "تقدم مقدمة Cloud",
+        "de": "Fortschritt der Cloud-Einführung",
+        "es": "Progreso de la introducción a Cloud",
+        "fr": "Progression de l’introduction à Cloud",
+        "ja": "Cloud入門の進行状況",
+        "ko": "Cloud 소개 진행 상황",
+        "zh-Hans": "Cloud 介绍进度",
+        "zh-Hant": "Cloud 介紹進度"
+      }
+    },
+    {
+      "key": "mobile.onboarding.progressFormat",
+      "resource": "cmux_cloud_intro_progress_format",
+      "translations": {
+        "en": "Step %1$d of %2$d",
+        "ar": "الخطوة %1$d من %2$d",
+        "de": "Schritt %1$d von %2$d",
+        "es": "Paso %1$d de %2$d",
+        "fr": "Étape %1$d de %2$d",
+        "ja": "全%2$dステップ中%1$d",
+        "ko": "%2$d의 %1$d 단계",
+        "zh-Hans": "%2$d 的步骤 %1$d",
+        "zh-Hant": "%2$d 的步驟 %1$d"
+      }
+    },
+    {
+      "key": "mobile.cloud.onboarding.vpn.controlFooter",
+      "resource": "cmux_cloud_intro_vpn_control_footer",
+      "translations": {
+        "en": "You can change this later in Cloud settings.",
+        "ar": "يمكنك تغيير ذلك لاحقًا في إعدادات Cloud.",
+        "de": "Du kannst dies später in den Cloud-Einstellungen ändern.",
+        "es": "Puedes cambiarlo más tarde en los ajustes de Cloud.",
+        "fr": "Vous pourrez modifier ce réglage plus tard dans les réglages Cloud.",
+        "ja": "この設定は後でCloud設定から変更できます。",
+        "ko": "나중에 Cloud 설정에서 변경할 수 있습니다.",
+        "zh-Hans": "稍后可以在 Cloud 设置中更改。",
+        "zh-Hant": "之後可以在 Cloud 設定中變更。"
+      }
+    },
+    {
+      "key": "mobile.cloud.vpn.status.off",
+      "resource": "cmux_cloud_intro_vpn_off",
+      "translations": {
+        "en": "Off",
+        "ar": "متوقف",
+        "de": "Aus",
+        "es": "Desactivado",
+        "fr": "Désactivé",
+        "ja": "オフ",
+        "ko": "끔",
+        "zh-Hans": "关闭",
+        "zh-Hant": "關閉"
+      }
+    },
+    {
+      "key": "mobile.cloud.vpn.status.preparing",
+      "resource": "cmux_cloud_intro_vpn_preparing",
+      "translations": {
+        "en": "Setting up…",
+        "ar": "جارٍ الإعداد…",
+        "de": "Wird eingerichtet …",
+        "es": "Configurando…",
+        "fr": "Configuration…",
+        "ja": "設定中…",
+        "ko": "설정 중…",
+        "zh-Hans": "正在设置…",
+        "zh-Hant": "正在設定…"
+      }
+    },
+    {
+      "key": "mobile.cloud.vpn.status.connecting",
+      "resource": "cmux_cloud_intro_vpn_connecting",
+      "translations": {
+        "en": "Connecting…",
+        "ar": "جارٍ الاتصال…",
+        "de": "Verbinden …",
+        "es": "Conectando…",
+        "fr": "Connexion…",
+        "ja": "接続中…",
+        "ko": "연결 중…",
+        "zh-Hans": "正在连接…",
+        "zh-Hant": "正在連線…"
+      }
+    },
+    {
+      "key": "mobile.cloud.vpn.status.connected",
+      "resource": "cmux_cloud_intro_vpn_connected",
+      "translations": {
+        "en": "Connected",
+        "ar": "متصل",
+        "de": "Verbunden",
+        "es": "Conectado",
+        "fr": "Connecté",
+        "ja": "接続済み",
+        "ko": "연결됨",
+        "zh-Hans": "已连接",
+        "zh-Hant": "已連線"
+      }
+    },
+    {
+      "key": "mobile.cloud.vpn.status.disconnecting",
+      "resource": "cmux_cloud_intro_vpn_disconnecting",
+      "translations": {
+        "en": "Disconnecting…",
+        "ar": "جارٍ قطع الاتصال…",
+        "de": "Trennen …",
+        "es": "Desconectando…",
+        "fr": "Déconnexion…",
+        "ja": "切断中…",
+        "ko": "연결 해제 중…",
+        "zh-Hans": "正在断开连接…",
+        "zh-Hant": "正在中斷連線…"
+      }
+    }
+  ]
+}

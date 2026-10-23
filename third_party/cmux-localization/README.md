@@ -50,3 +50,14 @@ converts it to `%1$s`, and marks only those Android resources as formatted.
 It rejects missing/additional/other-type placeholders. The nine generated
 `cmux_cloud_lifecycle_strings.xml` files are checked without adding Cloud text to
 the general migration dictionary. Other Cloud copy remains outside this import.
+
+`cloud-onboarding-strings.json` imports eighteen onboarding, navigation, VPN
+phase and progress labels from the same exact a5911a1f catalog. The progress
+format preserves exactly one numbered `%1$d` and `%2$d` integer argument,
+including languages that reverse their order. `cloud-onboarding-android-strings.json`
+separately attributes two project-authored explanations for a generic Android
+browser and Android Keystore encryption/storage. The generator checks all 180
+values and owns nine `cmux_cloud_onboarding_strings.xml` files. It does not add
+these strings to general English-label migration. Other VPN warnings, permission
+and cleanup errors, complete Cloud localization and real TalkBack acceptance
+remain separate work.

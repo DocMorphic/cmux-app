@@ -13,6 +13,8 @@ BILLING_DATA = ROOT / 'third_party/cmux-localization/billing-strings.json'
 BILLING_ANDROID_DATA = ROOT / 'third_party/cmux-localization/billing-android-strings.json'
 BROWSER_DIALOG_DATA = ROOT / 'third_party/cmux-localization/browser-dialog-strings.json'
 CLOUD_LIFECYCLE_DATA = ROOT / 'third_party/cmux-localization/cloud-lifecycle-strings.json'
+CLOUD_ONBOARDING_DATA = ROOT / 'third_party/cmux-localization/cloud-onboarding-strings.json'
+CLOUD_ONBOARDING_ANDROID_DATA = ROOT / 'third_party/cmux-localization/cloud-onboarding-android-strings.json'
 LANGUAGES = ('en', 'ar', 'de', 'es', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant')
 FOLDERS = {'en': 'values', 'zh-Hans': 'values-b+zh+Hans', 'zh-Hant': 'values-b+zh+Hant'}
 NAME = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
@@ -224,6 +226,38 @@ def load_cloud_lifecycle_rows(path=CLOUD_LIFECYCLE_DATA):
     return rows
 
 
+def load_cloud_onboarding_rows(path=CLOUD_ONBOARDING_DATA, android_path=CLOUD_ONBOARDING_ANDROID_DATA):
+    data = json.loads(path.read_text()); android = json.loads(android_path.read_text())
+    if (data['version'] != 1 or android['version'] != 1
+            or data['upstream'] != 'a5911a1f92f3eeb11c4d7f3e2ef89204718c5009'
+            or data['catalog'] != 'ios/cmux/Resources/Localizable.xcstrings'
+            or data['catalogSha256'] != '9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd'):
+        raise ValueError('Unreviewed Cloud onboarding localization source')
+    expected = {'mobile.cloud.onboarding.' + k for k in ('title', 'skip', 'workspace.title', 'workspace.message',
+        'key.title', 'continue', 'done', 'back', 'progressLabel', 'vpn.controlFooter')}
+    expected |= {'mobile.cloud.title', 'mobile.cloud.vpn.title', 'mobile.onboarding.progressFormat'}
+    expected |= {'mobile.cloud.vpn.status.' + s for s in ('off', 'preparing', 'connecting', 'connected', 'disconnecting')}
+    if {r['key'] for r in data['strings']} != expected or len(data['strings']) != len(expected):
+        raise ValueError('Incomplete Cloud onboarding source labels')
+    if {r['resource'] for r in android['strings']} != {'cmux_cloud_intro_android_vpn_message', 'cmux_cloud_intro_android_key_message'} or len(android['strings']) != 2:
+        raise ValueError('Incomplete Android Cloud onboarding copy')
+    rows = []; names = set()
+    for original in data['strings'] + android['strings']:
+        row = dict(original); formatted = row.get('key') == 'mobile.onboarding.progressFormat'
+        if (not re.fullmatch(r'cmux_cloud_intro_[a-z_]+', row['resource']) or row['resource'] in names
+                or set(row['translations']) != set(LANGUAGES)):
+            raise ValueError('Invalid Cloud onboarding localization row')
+        for value in row['translations'].values():
+            if not isinstance(value, str) or not value:
+                raise ValueError('Invalid Cloud onboarding translation')
+            if formatted:
+                if value.count('%1$d') != 1 or value.count('%2$d') != 1 or '%' in value.replace('%1$d', '').replace('%2$d', ''):
+                    raise ValueError('Cloud progress format must contain two numbered integers')
+            elif '%' in value: raise ValueError('Unexpected Cloud onboarding label format')
+        row['formatted'] = formatted; rows.append(row); names.add(row['resource'])
+    return rows
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--migrate', action='store_true')
@@ -233,6 +267,7 @@ def main():
     billing_rows = load_billing_rows()
     browser_dialog_rows = load_browser_dialog_rows()
     cloud_lifecycle_rows = load_cloud_lifecycle_rows()
+    cloud_onboarding_rows = load_cloud_onboarding_rows()
     if args.migrate:
         if args.check: parser.error('--migrate and --check are exclusive')
         changes = 0
@@ -269,7 +304,14 @@ def main():
                 raise ValueError(f'Generated Cloud lifecycle resources differ: {folder}')
         else:
             cloud_path.write_bytes(encoded)
-    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog and {len(cloud_lifecycle_rows)} Cloud lifecycle labels / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
+        onboarding_path = path.with_name('cmux_cloud_onboarding_strings.xml')
+        encoded = resource_xml(cloud_onboarding_rows, language, 'from pinned Cloud onboarding labels and separately attributed Android browser/Keystore copy')
+        if args.check:
+            if not onboarding_path.is_file() or onboarding_path.read_bytes() != encoded:
+                raise ValueError(f'Generated Cloud onboarding resources differ: {folder}')
+        else:
+            onboarding_path.write_bytes(encoded)
+    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog, {len(cloud_lifecycle_rows)} Cloud lifecycle and {len(cloud_onboarding_rows)} Cloud onboarding labels / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
 
 
 if __name__ == '__main__':

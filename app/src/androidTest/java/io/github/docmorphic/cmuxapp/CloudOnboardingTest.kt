@@ -2,7 +2,11 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import org.junit.Assert.*
@@ -17,7 +21,7 @@ class CloudOnboardingTest {
         var allowWrite = false
         val store = CloudOnboardingStore({ saved }, { if (allowWrite) { saved = true; true } else false })
         val restoration = StateRestorationTester(compose)
-        restoration.setContent { MaterialTheme { Surface { NativeCloudFlow(null, {}, {}, {}, progressStore = store) } } }
+        restoration.setContent { CloudOnboardingFrame { NativeCloudFlow(null, {}, {}, {}, progressStore = store) } }
         compose.onNodeWithTag("cloud.introduction.inline").assertIsDisplayed()
         compose.onNodeWithTag("cloud.introduction.skip").performClick()
         compose.onNodeWithText("Could not save Cloud introduction progress. Try again.").assertIsDisplayed()
@@ -36,18 +40,19 @@ class CloudOnboardingTest {
         var writes = 0
         val store = CloudOnboardingStore({ saved }, { writes++; saved = true; true })
         val restoration = StateRestorationTester(compose)
-        restoration.setContent { MaterialTheme { Surface { NativeCloudFlow(null, {}, {}, {}, progressStore = store) } } }
+        restoration.setContent { CloudOnboardingFrame { NativeCloudFlow(null, {}, {}, {}, progressStore = store) } }
         compose.onNodeWithTag("cloud.introduction.next").performClick()
-        compose.onNodeWithContentDescription("Cloud introduction, step 2 of 3").assertExists()
-        compose.onNodeWithTag("cloud.introduction.vpn.status").assertIsDisplayed()
+        compose.onNodeWithTag("cloud.introduction.progress").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Step 2 of 3"))
+        compose.onNodeWithText("System VPN controls are unavailable in this session.").assertDoesNotExist()
+        compose.onNodeWithTag("cloud.introduction.graphic.1").assertIsDisplayed()
         captureCloudScreen("cloud-basics-vpn")
         restoration.emulateSavedInstanceStateRestore()
-        compose.onNodeWithContentDescription("Cloud introduction, step 2 of 3").assertExists()
+        compose.onNodeWithTag("cloud.introduction.progress").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Step 2 of 3"))
         compose.onNodeWithTag("cloud.introduction.next").performClick()
         compose.onNodeWithText("Get started").assertIsDisplayed()
         assertEquals(0, writes)
         compose.onNodeWithTag("cloud.introduction.back").performClick()
-        compose.onNodeWithContentDescription("Cloud introduction, step 2 of 3").assertExists()
+        compose.onNodeWithTag("cloud.introduction.progress").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Step 2 of 3"))
         compose.onNodeWithTag("cloud.introduction.next").performClick()
         compose.onNodeWithTag("cloud.introduction.next").performClick()
         assertTrue(saved); assertEquals(1, writes)
@@ -57,7 +62,7 @@ class CloudOnboardingTest {
     @Test fun replayDismissesWithoutWritingOrMutatingMachines() {
         var writes = 0
         val store = CloudOnboardingStore({ true }, { writes++; true })
-        compose.setContent { MaterialTheme { Surface { NativeCloudFlow(null, {}, {}, {}, progressStore = store) } } }
+        compose.setContent { CloudOnboardingFrame { NativeCloudFlow(null, {}, {}, {}, progressStore = store) } }
         compose.onNodeWithTag("cloud.basics").performClick()
         compose.onNodeWithTag("cloud.introduction.replay").assertIsDisplayed()
         compose.onNodeWithTag("cloud.introduction.next").performClick()
@@ -67,4 +72,10 @@ class CloudOnboardingTest {
         compose.onNodeWithTag("cloud.screen").assertIsDisplayed()
         assertEquals(0, writes)
     }
+}
+
+@Composable private fun CloudOnboardingFrame(content: @Composable () -> Unit) {
+    CmuxTheme(darkTheme = true) { Surface(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().safeDrawingPadding()) { content() }
+    } }
 }

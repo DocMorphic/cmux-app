@@ -1,27 +1,41 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
 /** Per-install completion, independent of accounts and the Mac introduction. */
@@ -70,76 +84,146 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
     val pager = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val page = pager.settledPage
-    fun move(index: Int) { scope.launch { pager.animateScrollToPage(index.coerceIn(0, 2)) } }
+    val reducedMotion = cloudOnboardingReducedMotion()
+    fun move(index: Int) { scope.launch {
+        if (reducedMotion) pager.scrollToPage(index.coerceIn(0, 2)) else pager.animateScrollToPage(index.coerceIn(0, 2))
+    } }
     BackHandler(enabled = replay || !LocalWorkspaceShellChrome.current.split) { if (page > 0) move(page - 1) else onBack() }
     val configuration = LocalConfiguration.current
+    val background = if (NativeAppColors.dark) Color.Black else Color.White
     BoxWithConstraints(modifier.fillMaxSize()) {
-        // A tablet window can contain a narrow sidebar. Arrange the introduction
-        // using its actual column width, not the width of the entire display.
-        val wide = (maxWidth >= 700.dp || (maxWidth >= 560.dp && maxHeight < 480.dp)) && configuration.fontScale < 1.3f
-        Column(Modifier.fillMaxSize().testTag(if (replay) "cloud.introduction.replay" else "cloud.introduction.inline")
-            .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = .10f), MaterialTheme.colorScheme.surface)))) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onComplete, modifier = Modifier.testTag("cloud.introduction.skip")) { Text("Skip") }
-                Text(if (replay) "Cloud basics" else "Cloud", Modifier.weight(1f), textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.titleMedium)
+        // Size classes refer to this actual pane. A wide device can have a
+        // narrow Cloud sidebar. Compact-height controls also work at large type.
+        val compact = maxHeight < 480.dp && maxWidth >= 560.dp
+        val wide = compact || (maxWidth >= 700.dp && configuration.fontScale < 1.3f)
+        NativeCloudOnboardingBackdrop(reducedMotion, Modifier.matchParentSize())
+        Column(Modifier.fillMaxSize().testTag(if (replay) "cloud.introduction.replay" else "cloud.introduction.inline")) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onComplete, modifier = Modifier.testTag("cloud.introduction.skip")) { Text(stringResource(R.string.cmux_cloud_intro_skip)) }
+                Text(stringResource(if (replay) R.string.cmux_cloud_intro_title else R.string.cmux_cloud_intro_cloud_title),
+                    Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (!replay && LocalWorkspaceShellChrome.current.split) NativeWorkspaceSidebarToggle()
                 else Spacer(Modifier.width(64.dp))
             }
-            Row(Modifier.fillMaxWidth().padding(12.dp).clearAndSetSemantics {
-                contentDescription = "Cloud introduction, step ${page + 1} of 3"
-            }, horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
-                repeat(3) { index -> Box(Modifier.size(if (index == page) 28.dp else 8.dp, 8.dp)
-                    .background(if (index == page) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp))) }
-            }
-            HorizontalPager(pager, Modifier.weight(1f).testTag("cloud.introduction.pager")) { index ->
-                val title = when (index) {
-                    0 -> "Your workspace lives in the Cloud"
-                    1 -> "System VPN"
-                    else -> "A private key keeps it private"
-                }
-                val message = when (index) {
-                    0 -> "Workspaces keep their terminals, browsers, and coding agents running on a Cloud machine. Open your Cloud terminals from Workspaces alongside your other computers."
-                    1 -> "A system VPN lets a browser or another app reach a private service on a Cloud machine. Cloud terminals use their own secure connection."
-                    else -> "cmux encrypts this phone's Cloud private key with a key protected by Android Keystore. The Cloud private key stays on this phone."
-                }
-                val copy: @Composable () -> Unit = {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = if (wide) Alignment.Start else Alignment.CenterHorizontally) {
-                        Text(title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold,
-                            textAlign = if (wide) TextAlign.Start else TextAlign.Center, modifier = Modifier.semantics { heading() })
-                        Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = if (wide) TextAlign.Start else TextAlign.Center)
-                        if (index == 1 && vpnControl == null) Text("System VPN controls are unavailable in this session.",
-                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.testTag("cloud.introduction.vpn.status"))
-                        if (index == 1) vpnControl?.invoke()
+            val progressLabel = stringResource(R.string.cmux_cloud_intro_progress_label)
+            val progressValue = stringResource(R.string.cmux_cloud_intro_progress_format, page + 1, 3)
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp).testTag("cloud.introduction.progress")
+                .clearAndSetSemantics { contentDescription = progressLabel; stateDescription = progressValue },
+                horizontalArrangement = Arrangement.Center) {
+                Row(Modifier.drawBehind {
+                    withTransform({ scale(1f, .22f, center) }) {
+                        drawCircle(Brush.radialGradient(listOf(background, background, background.copy(alpha = 0f)), center, 100.dp.toPx()),
+                            radius = 100.dp.toPx(), center = center)
+                    }
+                }, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    repeat(3) { index ->
+                        val width by animateDpAsState(if (index == page) 22.dp else 7.dp,
+                            animationSpec = if (reducedMotion) snap() else tween(220), label = "Cloud page dot")
+                        Box(Modifier.size(width, 7.dp).background(if (index == page) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .24f), CircleShape))
                     }
                 }
-                val visual: @Composable () -> Unit = {
-                    Row(Modifier.heightIn(min = 100.dp, max = 200.dp).padding(24.dp).clearAndSetSemantics {},
-                        horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (index != 2) {
-                            Icon(painterResource(R.drawable.ic_menu_phone), null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-                            Text("···", style = MaterialTheme.typography.headlineLarge)
+            }
+            HorizontalPager(pager, Modifier.fillMaxWidth().weight(1f).testTag("cloud.introduction.pager")) { index ->
+                CloudIntroductionPage(index, compact, wide, vpnControl)
+            }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(Modifier.widthIn(max = 568.dp).fillMaxWidth().padding(horizontal = 24.dp)
+                    .padding(top = if (compact) 8.dp else 16.dp, bottom = if (compact) 8.dp else 12.dp)
+                    .testTag("cloud.introduction.footer"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
+                    val primary: @Composable (Modifier) -> Unit = { actionModifier ->
+                        Button(onClick = { if (page < 2) move(page + 1) else onComplete() }, enabled = !pager.isScrollInProgress,
+                            shape = CircleShape, contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
+                            modifier = actionModifier.heightIn(min = 60.dp).testTag("cloud.introduction.next")) {
+                            Text(stringResource(if (page < 2) R.string.cmux_cloud_intro_continue else R.string.cmux_cloud_intro_done),
+                                fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                         }
-                        Icon(painterResource(if (index == 2) R.drawable.ic_workspace_lock else R.drawable.ic_workspace_cloud),
-                            null, Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    val secondary: @Composable (Modifier) -> Unit = { actionModifier ->
+                        TextButton(onClick = { move(page - 1) }, enabled = page > 0 && !pager.isScrollInProgress,
+                            modifier = actionModifier.heightIn(min = 44.dp).alpha(if (page > 0) 1f else 0f)
+                                .then(if (page == 0) Modifier.clearAndSetSemantics {} else Modifier.testTag("cloud.introduction.back"))) {
+                            Text(stringResource(R.string.cmux_cloud_intro_back), fontSize = 15.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+                        }
+                    }
+                    if (compact) Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        primary(Modifier.weight(1f)); if (page > 0) secondary(Modifier.weight(1f))
+                    } else Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        primary(Modifier.fillMaxWidth()); secondary(Modifier)
                     }
                 }
-                Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), contentAlignment = Alignment.TopCenter) {
-                    if (wide) Row(Modifier.widthIn(max = 980.dp), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f)) { copy() }; Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { visual() }
-                    } else Column(Modifier.widthIn(max = 560.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(18.dp)) { copy(); visual() }
-                }
-            }
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-                Button(onClick = { if (page < 2) move(page + 1) else onComplete() }, enabled = !pager.isScrollInProgress,
-                    modifier = Modifier.fillMaxWidth().testTag("cloud.introduction.next")) { Text(if (page < 2) "Continue" else "Get started") }
-                if (page > 0) TextButton(onClick = { move(page - 1) }, enabled = !pager.isScrollInProgress,
-                    modifier = Modifier.fillMaxWidth().testTag("cloud.introduction.back")) { Text("Back") }
             }
         }
+    }
+}
+
+@Composable private fun CloudIntroductionPage(index: Int, compact: Boolean, wide: Boolean, vpnControl: (@Composable () -> Unit)?) {
+    val title = stringResource(when (index) {
+        0 -> R.string.cmux_cloud_intro_workspace_title
+        1 -> R.string.cmux_cloud_intro_vpn_title
+        else -> R.string.cmux_cloud_intro_key_title
+    })
+    val message = stringResource(when (index) {
+        0 -> R.string.cmux_cloud_intro_workspace_message
+        1 -> R.string.cmux_cloud_intro_android_vpn_message
+        else -> R.string.cmux_cloud_intro_android_key_message
+    })
+    val copy: @Composable () -> Unit = {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.semantics(mergeDescendants = true) {}.testTag("cloud.introduction.copy.$index")) {
+            Text(title, fontSize = 34.sp, lineHeight = 41.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)), modifier = Modifier.semantics { heading() })
+            Text(message, fontSize = 17.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)), textAlign = TextAlign.Center)
+        }
+    }
+    val visual: @Composable () -> Unit = {
+        Column(Modifier.widthIn(max = 520.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            CloudIntroductionGraphic(index, compact)
+            // A missing controller omits the control, matching the source.
+            // The Android permission control stays accessible and interactive.
+            if (index == 1) vpnControl?.invoke()
+        }
+    }
+    BoxWithConstraints(Modifier.fillMaxSize().testTag("cloud.introduction.page.$index")) {
+        val availableHeight = maxHeight
+        // Preserve the source's centered page; scrolling is a fallback when
+        // Android text scaling or the permission/error card needs more height.
+        Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Box(Modifier.fillMaxWidth().heightIn(min = availableHeight), contentAlignment = Alignment.Center) {
+                if (wide) Row(Modifier.widthIn(max = 980.dp).fillMaxWidth()
+                    .padding(horizontal = if (compact) 16.dp else 48.dp, vertical = if (compact) 4.dp else 32.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (compact) 16.dp else 48.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f, fill = false).widthIn(max = if (compact) 280.dp else 390.dp)) { copy() }
+                    Box(Modifier.weight(1f, fill = false), contentAlignment = Alignment.Center) { visual() }
+                } else Column(Modifier.widthIn(max = 620.dp).fillMaxWidth().padding(horizontal = 24.dp).padding(top = 12.dp, bottom = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Box(Modifier.widthIn(max = 560.dp)) { copy() }; visual()
+                }
+            }
+        }
+    }
+}
+
+@Composable private fun CloudIntroductionGraphic(index: Int, compact: Boolean) {
+    val tint = when (index) {
+        0 -> Color(0xFF0088FF)
+        1 -> Color(0xFF34C759)
+        else -> Color(0xFFAF52DE)
+    }
+    val shape = RoundedCornerShape(if (compact) 20.dp else 30.dp)
+    Box(Modifier.size(if (compact) 88.dp else 152.dp).testTag("cloud.introduction.graphic.$index")
+        .background(tint.copy(alpha = .14f), shape).border(1.dp, tint.copy(alpha = .30f), shape)
+        .clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
+        Icon(painterResource(when (index) {
+            0 -> R.drawable.ic_cloud_intro_cloud
+            1 -> R.drawable.ic_cloud_intro_shield
+            else -> R.drawable.ic_cloud_intro_key
+        }), null, Modifier.size(if (compact) 32.dp else 58.dp), tint = tint)
     }
 }

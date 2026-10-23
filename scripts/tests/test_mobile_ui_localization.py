@@ -113,6 +113,29 @@ Text("Cancel")
             self.assertEqual(len(rows), len(xml.findall('string')))
             self.assertEqual({row['resource'] for row in rows}, {node.attrib['name'] for node in xml.findall('string')})
 
+    def test_cloud_progress_keeps_numbered_integer_order_for_every_language(self):
+        rows = UI.load_cloud_onboarding_rows()
+        self.assertEqual(20, len(rows))
+        for language in UI.LANGUAGES:
+            xml = ET.fromstring(UI.resource_xml(rows, language))
+            formats = [e for e in xml.findall('string') if e.attrib['formatted'] == 'true']
+            self.assertEqual(1, len(formats))
+            self.assertEqual('cmux_cloud_intro_progress_format', formats[0].attrib['name'])
+            self.assertEqual(1, formats[0].text.count('%1$d')); self.assertEqual(1, formats[0].text.count('%2$d'))
+        self.assertNotIn('Keychain', next(r for r in rows if r['resource'] == 'cmux_cloud_intro_android_key_message')['translations']['en'])
+
+    def test_cloud_progress_rejects_wrong_types_unbound_arguments_and_missing_locales(self):
+        data = json.loads(UI.CLOUD_ONBOARDING_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'labels.json'
+            for value in ['Step %d of %d', '%1$s of %2$d', '%1$d of %1$d', '%1$d of %2$d plus %@']:
+                altered = copy.deepcopy(data)
+                next(r for r in altered['strings'] if r['key'] == 'mobile.onboarding.progressFormat')['translations']['en'] = value
+                path.write_text(json.dumps(altered))
+                with self.subTest(value=value), self.assertRaises(ValueError): UI.load_cloud_onboarding_rows(path)
+            altered = copy.deepcopy(data); del altered['strings'][0]['translations']['ar']; path.write_text(json.dumps(altered))
+            with self.assertRaises(ValueError): UI.load_cloud_onboarding_rows(path)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -114,16 +115,16 @@ class CloudWorkspaceSidebarTest {
                 })
         } } }
         compose.onNodeWithTag("cloud.introduction.next").assertIsDisplayed().performClick()
-        compose.onNodeWithContentDescription("Cloud introduction, step 2 of 3").assertExists()
-        compose.onNodeWithTag("cloud.introduction.vpn.status").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("cloud.introduction.progress").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Step 2 of 3"))
+        compose.onNodeWithTag("cloud.introduction.graphic.1").performScrollTo().assertIsDisplayed()
         captureCloudScreen("cloud-sidebar-introduction")
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.onNodeWithContentDescription("Cloud introduction, step 2 of 3").assertExists()
+        compose.onNodeWithTag("cloud.introduction.progress").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Step 2 of 3"))
         compose.runOnIdle { assertEquals(1, detailBacks); width = 412 }
         compose.onNodeWithText("Selected workspace").assertDoesNotExist()
-        compose.onNodeWithContentDescription("Cloud introduction, step 2 of 3").assertExists()
+        compose.onNodeWithTag("cloud.introduction.progress").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Step 2 of 3"))
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.onNodeWithContentDescription("Cloud introduction, step 1 of 3").assertExists()
+        compose.onNodeWithTag("cloud.introduction.progress").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Step 1 of 3"))
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.onNodeWithText("Selected workspace").assertIsDisplayed()
         compose.runOnIdle { assertFalse(cloud); assertEquals(0, completed) }

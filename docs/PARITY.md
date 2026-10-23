@@ -1,3 +1,17 @@
+## Cloud onboarding behavior checkpoint — 2026-10-23
+
+The scoped a5911a1f introduction/backdrop port adds centered copy, topic cards,
+capsule progress, a reserved Back slot, compact/wide layouts and the ambient
+Conway grid. Android passes 22 phone/sidebar cases with 66 page records plus two
+separate wide-window cases with 36 more page records. Actual Reduced Motion
+pixels and lifecycle cancellation pass. Seven JVM cases include eight executed
+original Swift math vectors; the full suite passes 3,131 with four opt-in skips.
+Nine-language labels and separately authored Android copy are attributed.
+The optimized native source reference run 39894117425 is still in progress;
+the interrupted first run is excluded. Matched native frames/font/glass,
+connected provider/VPN, physical Pixel/Mac and full parity remain open.
+See [CLOUD_COMPANION.md](CLOUD_COMPANION.md).
+
 ## Cloud Restart behavior checkpoint — 2026-10-23
 
 The missing source restart family is now mounted from model/API to owner-bound

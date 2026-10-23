@@ -1,5 +1,82 @@
 # Cloud companion parity
 
+## Onboarding page and ambient backdrop port — 2026-10-23
+
+The reviewed a5911a1f onboarding leaves are pinned independently in
+`third_party/cmux-cloud/onboarding-manifest.json`. Android now uses the source's
+centered title/body hierarchy, blue/green/purple topic cards, 22/7-point capsule
+progress, reserved portrait Back slot and compact-height horizontal footer.
+The layout uses actual pane constraints so a narrow workspace sidebar retains
+its own usable page. Long Android translations and enlarged type can scroll
+without moving the footer or clipping the complete card after scrolling.
+Android glyphs are separately authored filled vector artwork, not SF Symbols;
+identical glyphs, native glass, typography, colors and matched native frames
+remain open until source comparisons establish them.
+
+The ambient grid ports 36 columns, 52 rows, 22-percent initial occupancy,
+toroidal Conway S23/B3, 80-ms updates, population reseeding and the 120-step
+limit. Cells draw at 52 percent of the smaller stride, centered and snapped to
+physical pixels, with the source's light/dark opacity/flicker and bottom wash.
+Updates invalidate drawing instead of recomposing the page's text/actions.
+The actual Android animator-duration setting is observed while the scene is
+open: disabled motion freezes a generation and stops ticks. Backgrounding below
+STARTED and leaving the composition cancel updates; resuming restarts only the
+ambient loop. It creates no Cloud session or VPN enrollment.
+
+The completion key, per-install store and inline/replay ownership are retained.
+Completion-write failures stay visible and retryable. A missing VPN controller
+omits that control instead of displaying an extra unavailable warning. When
+present, the control is below its graphic and remains accessible and interactive
+on Android. Existing account-owner fences, explicit confirmation, one-VPN warning
+and Android permission flow remain in force. Eighteen source labels and two
+separately authored browser/Keystore explanations are generated in all nine
+locales; other VPN errors/warnings and full Cloud localization remain open.
+
+Seven focused JVM cases pass, including eight vectors executed from the original
+Swift colony method bodies (only mutating declarations adapted for isolated
+value-type storage), strict seeding, both wrapped edges, survival/population and
+step-limit boundaries, owned input storage and static opacity. These are math
+vectors, not UIKit evidence. Twelve localization/export-format guards pass.
+The v3 owned API 36 emulator cohort passes 22 cases in 65.745 seconds, covering
+66 pages in 22 controlled composition profiles, failure/restoration/replay,
+optional accessible VPN controls and existing machine/workspace/terminal
+recovery. Every measured title/body line fits without ellipsis; the reserved
+footer keeps the pager height stable and scrolling exposes each full topic card.
+Actual pixel comparisons distinguish animation from Reduced Motion, and the
+tick observations stop in the background and after disposal. The v3 fixture
+also corrects its outer system-bar background. Earlier compile/fixture failures
+and the v2 captures remain retained; they do not replace the final evidence.
+
+Two further owned-window cohorts pass separately: 18 pages each at an actual
+860-by-428 dp landscape content viewport and 860-by-1091 dp tablet-sized content
+viewport. English, Arabic and German are checked at normal/doubled text. Compact
+cards are 88 dp; regular cards are 152 dp. Copy/card order mirrors RTL, landscape
+actions share a row and regular-height actions stack; enlarged tablet text uses
+the narrow page hierarchy. These are resized emulator windows, not actual tablet
+hardware. Both cohorts have empty crash buffers and exit 0 after restoring
+settings; the English landscape/tablet frames are visually reviewed.
+The full JVM suite passes 3,131 cases with four opt-in skips and zero failures/
+errors (3,135 cases, 426 reports). This adds no physical device or native UI gate.
+
+The separate native workflow compiles the unchanged source onboarding, backdrop
+and environment leaves with exact original Cloud/Support/Core package trees and
+the original application string catalog. Its declared 13 scenes/39 frames cover
+all nine languages, light/dark, landscape, accessibility type and tablet. The
+first run, 39891391930 at project d6fecfb7322eaa32669563e5a54d6852932bc366,
+was deliberately stopped to diagnose an unusually slow first capture group;
+it is not accepted native UI evidence. Parser/preparation/guard checks alone do
+not establish an iOS build or rendered equivalence. Connected provider/VPN,
+actual Pixel/Mac, VoiceOver/TalkBack and full parity acceptance remain open.
+The diagnostic log shows successful app execution through the last standard
+language; repeated per-element queries caused the long run. Its 21,264,926-byte
+artifact (12476320204, ZIP SHA256
+`be620151f2945620d6917ee03a1513fc200bfec4a5ce2c1e0faa470654cba51c`)
+contains diagnostics and no finalized scene exports. The revised immutable run
+39894117425 at 059e148fff532d3cfef202f368b5a0c65cb44845 queries only required
+copy/controls, checks optional publicly exposed graphic bounds, adds a Back
+round trip and bounds capture steps so diagnostics can finish. It is in progress
+and is not yet accepted. There is no source animation or private idle override.
+
 ## Restart and request deadlines — 2026-10-23
 
 The a5911a1f source adds provider Restart, which was absent from Android.

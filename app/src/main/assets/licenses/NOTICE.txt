@@ -1,6 +1,15 @@
 cmux-app is an unofficial Android companion distributed under GNU GPL version 3.
 Source: https://github.com/DocMorphic/cmux-app
 
+Cloud onboarding page/footer/progress, topic-card presentation and ambient Conway
+grid also adapt CloudOnboardingView.swift and CloudOnboardingBackdrop.swift at
+cmux a5911a1f92f3eeb11c4d7f3e2ef89204718c5009.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Exact scope/hashes: third_party/cmux-cloud/onboarding-manifest.json in source.
+Eighteen source labels retain nine translations; two browser/Android Keystore
+explanations are separately project-authored. The filled cloud, shield and key
+topic vectors are project-authored Android artwork, not SF Symbols assets.
+
 Chief protocol, conversation state, presentation and structured questions follow
 MobileChiefClient.swift, ChiefHomeView.swift, ChiefConversationBackend.swift and
 the shared CmuxAgentQuestion sources at cmux

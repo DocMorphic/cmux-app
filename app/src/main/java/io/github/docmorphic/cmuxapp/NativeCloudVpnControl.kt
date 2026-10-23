@@ -7,6 +7,8 @@ import android.net.VpnService
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -32,26 +34,30 @@ import androidx.compose.ui.unit.dp
     LaunchedEffect(owner) { confirming = null; permissionOwner = null; error = null }
     val checked = state.phase in setOf(CloudSystemVpnPhase.PREPARING, CloudSystemVpnPhase.CONNECTING, CloudSystemVpnPhase.CONNECTED)
     val busy = state.phase in setOf(CloudSystemVpnPhase.PREPARING, CloudSystemVpnPhase.CONNECTING, CloudSystemVpnPhase.DISCONNECTING)
-    Column(modifier.fillMaxWidth().padding(16.dp).testTag("cloud.vpn.controls"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .85f), RoundedCornerShape(16.dp))
+        .padding(16.dp).testTag("cloud.vpn.controls"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("System VPN", style = MaterialTheme.typography.titleMedium)
-                Text(when (state.phase) {
-                    CloudSystemVpnPhase.PREPARING -> "Setting up…"
-                    CloudSystemVpnPhase.CONNECTING -> "Connecting…"
-                    CloudSystemVpnPhase.CONNECTED -> "Connected"
-                    CloudSystemVpnPhase.DISCONNECTING -> "Disconnecting…"
-                    else -> "Off"
-                }, style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.cmux_cloud_intro_vpn_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(when (state.phase) {
+                    CloudSystemVpnPhase.PREPARING -> R.string.cmux_cloud_intro_vpn_preparing
+                    CloudSystemVpnPhase.CONNECTING -> R.string.cmux_cloud_intro_vpn_connecting
+                    CloudSystemVpnPhase.CONNECTED -> R.string.cmux_cloud_intro_vpn_connected
+                    CloudSystemVpnPhase.DISCONNECTING -> R.string.cmux_cloud_intro_vpn_disconnecting
+                    else -> R.string.cmux_cloud_intro_vpn_off
+                }), style = MaterialTheme.typography.bodySmall)
             }
+            val vpnLabel = stringResource(R.string.cmux_cloud_intro_vpn_title)
             Switch(checked, onCheckedChange = { enable ->
                 error = null
                 if (enable) confirming = owner else runtime.disable()
             }, enabled = owner != null && !busy && permissionOwner == null, modifier = Modifier.testTag("cloud.vpn.switch")
-                .semantics { contentDescription = "System VPN" })
+                .semantics { contentDescription = vpnLabel })
         }
         Text("Reach private Cloud services from your browser and other apps. Enabling this replaces Tailscale or another active Android VPN.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.cmux_cloud_intro_vpn_control_footer), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
         (error ?: failure ?: state.message)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (state.pendingCleanup > 0) Text("${state.pendingCleanup} Cloud VPN peer(s) awaiting cleanup.", style = MaterialTheme.typography.bodySmall)
         if (!busy && (failure != null || state.phase == CloudSystemVpnPhase.FAILED || state.pendingCleanup > 0))

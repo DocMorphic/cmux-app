@@ -1,3 +1,18 @@
+## Cloud onboarding port; native comparison still pending — 2026-10-23
+
+The scoped source onboarding/backdrop port now passes 22 owned phone/sidebar
+cases (66 page records), two wide-window cases (36 page records) and actual
+Reduced Motion pixel/lifecycle checks. Seven new JVM cases include eight original
+Swift math vectors; the full suite passes 3,131 with four opt-in skips. All nine
+locales have eighteen exact source labels plus two attributed Android browser/
+Keystore adaptations. This does not localize all Cloud/VPN error and warning text.
+The first native capture run was interrupted/excluded; optimized immutable run
+39894117425 at 059e148fff532d3cfef202f368b5a0c65cb44845 is in progress.
+Matched native frames/font/glass, true tablet and phone hardware, provider/VPN,
+TalkBack and every broader gate below remain open. See `CLOUD_COMPANION.md` and
+`HANDOFF.md`. Signed 717 and physical 712 remain the latest verified candidates
+in their respective scopes; no phone or production backend was used here.
+
 ## Signed 717 ready; Cloud Restart verified within scoped gates — 2026-10-23
 
 Local/unpublished candidate 717 adds the Cloud Restart/deadline port to 716.

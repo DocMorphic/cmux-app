@@ -690,8 +690,9 @@ NativeCloudFlow.kt adapts the introduction and replay flow from CloudFlowView.sw
 and CloudOnboardingView.swift in Packages/iOS/CmuxMobileCloudUI, at cmux revision
 c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
-Android uses Compose paging and SharedPreferences, describes its Keystore-backed
-key storage, and records the still-unimplemented system VPN explicitly.
+Android uses Compose paging and SharedPreferences and describes its Keystore-backed
+key storage. Optional Android VPN integration is attributed separately below;
+real-provider and platform acceptance are tracked in docs/CLOUD_COMPANION.md.
 
 
 CloudVpnRoutePolicy.kt and CloudVpnStore.kt adapt private routing and durable
@@ -809,3 +810,22 @@ string argument is converted to Android `%1$s`. Android adds current-owner
 admission at dispatch, a fresh-catalog gate for selected terminals and bounded
 swipe-action widths. Native iOS font/material and actual-provider acceptance
 are not established by this port.
+
+`NativeCloudFlow.kt`, `NativeCloudOnboardingBackdrop.kt` and
+`CloudOnboardingColony.kt` also adapt the reviewed onboarding/page/footer,
+capsule progress, topic cards and ambient Conway grid from
+`CloudOnboardingView.swift` and `CloudOnboardingBackdrop.swift` at
+`a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`
+(Copyright 2024-present Manaflow, Inc.; GPL-3.0-or-later).
+`third_party/cmux-cloud/onboarding-manifest.json` records the exact leaf and
+catalog hashes and the unchanged Cloud/Support/Core package trees used by the
+isolated native reference host. The optional VPN control stays reachable through
+Android accessibility and retains its own system permission/account-owner guards.
+The three filled topic vector symbols are project-authored Android artwork;
+they are not redistributed SF Symbols assets or evidence of identical glyphs.
+Eighteen source onboarding/navigation/status labels and formats retain all nine
+original translations in `cloud-onboarding-strings.json`. Two browser/Keystore
+explanations are separately authored in `cloud-onboarding-android-strings.json`.
+The original Swift colony method bodies are executed in an isolated value-type
+host to generate eight math vectors; only its mutating method declarations are
+adapted for non-`@State` storage. This is not native UI or full parity evidence.

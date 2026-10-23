@@ -1,3 +1,38 @@
+## Cloud onboarding port verified in scoped Android fixtures — 2026-10-23
+
+The a5911a1f onboarding leaves/catalog and exact Cloud/Support/Core trees are
+bound by `third_party/cmux-cloud/onboarding-manifest.json`. The port includes
+centered copy/topic cards, source-size progress capsules, stable portrait Back
+space, compact footer, 36x52 Conway background and live Reduced Motion/lifecycle
+cancellation. Completion/store/account/VPN permission ownership is retained.
+Eighteen source labels and two attributed Android adaptations cover nine locales.
+Seven new JVM cases include eight executed original Swift colony math vectors.
+The full suite passes 3,131 with four opt-in skips (3,135/426 reports).
+
+Owned API 36 phone/sidebar v3 passes 22 cases in 65.745 seconds and 66 page
+records, including actual static/animated pixels and cancellation. Two real
+resized wide-window cohorts pass separately (36 page records, normal/enlarged
+English/Arabic/German); these are emulator windows, not tablet hardware.
+Representative phone/RTL/enlarged/light/landscape/tablet images are reviewed;
+after the v3 fixture correction, system bars use the actual outer page backdrop.
+The previous compile/fixture failures remain excluded from complete-pass claims.
+
+Native capture run 39891391930/d6fecfb7322eaa32669563e5a54d6852932bc366 was
+stopped after excessive descendant enumeration. Logs show execution through the
+last standard language, but its interrupted xcresult has no finalized exports;
+it is not accepted source UI evidence. Diagnostic artifact 12476320204 is retained
+under `captures/recovery-20261023/cloud-onboarding-reference-run-39891391930`.
+Optimized run **39894117425**, exact source **059e148fff532d3cfef202f368b5a0c65cb44845**,
+is in progress. Do not dispatch duplicates after observation timeouts. It queries
+required copy/controls only, records optional public graphic bounds, checks a Back
+round trip and preserves actual source animation. Full native-frame comparison,
+provider/VPN/Pixel/Mac/TalkBack acceptance and all broader gates remain open.
+
+717 remains the latest signed local candidate until a later candidate is verified.
+712 remains the last physical build verified. The phone is released; no current
+availability reply grants this turn device use. Preserve the pending phone/backend
+questions and all account/pairing/signing state. The full parity goal stays active.
+
 ## Signed 717 ready; Cloud Restart verified within scoped gates — 2026-10-23
 
 Local/unpublished candidate 717 adds the Cloud Restart/deadline port to 716.
