@@ -1,3 +1,28 @@
+## Original 52-frame reader reference verified; source differences now measured — 2026-10-23
+
+Source run 39961701278 succeeds at a0b825d5. Three original iOS UI-test methods
+pass; strict CI/local verification yields identical complete receipts and all
+52 image hashes (13 profiles × four states, 22 whole pinned source files). Dark/
+light, Arabic, enlarged German and tablet frames reviewed. Accepted scope is the
+original Full text component in its authored offline presenter, not the whole
+production caller or Android app. Evidence: AGENT_FEED.md and
+captures/recovery-20261023/ios-feed-reader-accepted-checkpoint.json.
+
+The data exposes open corrections: UIKit shifts long titles away from Close
+instead of imposing strict centering; toolbar text grows less than body text;
+tablet presentation is centered; semantic palette is not identical to every
+painted material; capsule cancellation, loading appearance and error allocation
+differ. The current Android reflow/centering checks are not full source-parity
+acceptance. Reconcile these measured contracts next, including the extra-row choice.
+Earlier failed selectors remain retained. Source caller/privacy overlay and
+original production-Feed debug preview entry point are located and scope-limited.
+
+Seven Android reflow/lifecycle checks and 3,148 JVM passes/four skips remain valid
+within their recorded scope. Full visual, production context, transport, physical
+Pixel/Mac and TalkBack gates remain open. No phone/Mac/pairing action, new signed
+artifact or source-pin advance. Physical 712 stays released; 721 excludes newer
+reader changes. Full goal remains active.
+
 ## Header text loss repaired; source capture progresses — 2026-10-23
 
 Translated/enlarged reader labels now reflow into a separate title row when the

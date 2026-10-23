@@ -1,5 +1,58 @@
 # Agent Feed companion
 
+## Original full-sheet component reference accepted; visual gaps measured — 2026-10-23
+
+Run 39961701278 at source a0b825d5 succeeds. All three actual XCUITest methods
+pass (standard 438.043 s, enlarged 71.369 s, tablet 49.815 s), followed by strict
+export association. The same verifier was rerun locally: the entire CI/local
+receipt and all 52 image hashes match. The reference binds 22 whole original
+files at a5911a1f, authored presenter/loader/adapter, clean source commit,
+fixture/catalog/package/preparer and host/test hashes, actual runtime/traits/
+localized controls and independent XCUIScreen PNGs. It covers 13 profiles and
+loading/error/loaded/closed, including real Close cancellation and one successful
+retry. The two earlier failed loading-selector attempts remain retained.
+
+English dark loading/error/loaded, English light loaded, Arabic RTL loaded,
+German enlarged loaded and tablet loaded were visually reviewed. This accepts
+the original component reference in its declared authored offline context, not
+Android UI parity or original production caller/account/transport/replay/global
+appearance. The original caller and transparent replay-only overlay are separately
+source-audited. An original DEBUG AgentFeedDecisionPreviewView using the production
+Feed/scaffold is located for a broader caller comparison; its dependency closure
+and production-global context remain unverified.
+
+Actual data changes the next implementation work. UIKit does not force the title
+to remain at the window center: German title centers are 206.333 pt normally and
+236 pt enlarged in a 402-pt window; both leading edges are Close.right + 16 pt.
+English stays centered. The earlier unconditional centered-title test is therefore
+a bounded Android layout check, **not** the correct full source-parity contract.
+Toolbar enlargement is also smaller than body enlargement: German body preferred
+size 17→28 pt, title AX height 20.667→25.333 pt, Close AX height remains 36 pt.
+These frames do not directly prove the toolbar's actual UIFont point size.
+
+The presented semantic background is elevated level 1: dark 28/28/30 and light
+white. Actual tablet panel pixels differ from that semantic color (dominant
+20/25/18); the material/caller/runtime cause is unverified, so neither value is a
+blanket production tablet color. The tablet presents a centered panel, while the
+current Android wrapper delegates to a bottom sheet. Source cancellation uses a
+capsule; the source loading indicator is a gray native spoke view. Error-group
+allocation also differs: normal English text starts at 47 pt, loaded content at
+16 pt; enlarged German error text starts at 16 pt.
+
+Next: reconcile source collision allocation and toolbar role sizing (including the
+current Android extra-row choice), state-specific sizing/padding, scoped reader
+palette/cancel/loading appearance and wide presentation against this data.
+Do not claim those differences are unavoidable OS limits without evidence. Native
+glyph/material rendering and production caller context require separate checks.
+
+Accepted receipt/images:
+captures/recovery-20261023/ios-feed-reader-39961701278/canonical-local/.
+Detailed measurements, open findings, hashes, reviewed frames and failed attempts:
+ios-feed-reader-accepted-checkpoint.json and ios-feed-reader-caller-audit.json.
+The full goal, global source pins, real Pixel/Mac/transport/TalkBack gates remain
+open. No phone/cmux Mac/account/pairing action or new signed artifact. Physical
+712 stays released; signed 721 excludes the newer reader changes.
+
 ## Enlarged translated header reflows without text loss — 2026-10-23
 
 The previously reviewed narrow German truncation is repaired. The native reader

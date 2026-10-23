@@ -32,3 +32,12 @@ This reference does not instantiate original accounts, transport, sessions or th
 production URL router. Passing it does not prove Android acceptance, real-device
 behavior, whole app appearance or full parity. Review its actual captures before
 using them to adjust Android's full-sheet controls, errors, title and palette.
+
+
+Verified capture: run [39961701278](https://github.com/DocMorphic/cmux-app/actions/runs/39961701278)
+at a0b825d5 passes all three methods and the complete 52-image association.
+CI/local receipts and hashes match. Retain the failed prior selector attempts.
+This is a component reference with an authored presenter, not production app
+appearance acceptance. Actual title collision allocation, bounded toolbar
+growth, tablet placement and material/context effects must guide Android work;
+do not substitute a universal centered-title or semantic-color assumption.
