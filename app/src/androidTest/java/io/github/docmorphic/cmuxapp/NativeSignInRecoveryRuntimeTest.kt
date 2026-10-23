@@ -60,7 +60,7 @@ class NativeSignInRecoveryRuntimeTest {
                 compose.waitForIdle()
                 assertTrue(UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).takeScreenshot(File(folder, "$name.png")))
                 val image = android.graphics.BitmapFactory.decodeFile(File(folder, "$name.png").path)
-                try { assertEquals("Actual production dark Surface wraps the form", 0xFF0B0C0E.toInt(), image.getPixel(2, image.height/2)) }
+                try { assertEquals("Original dark challenge backdrop wraps the form", android.graphics.Color.BLACK, image.getPixel(2, image.height/2)) }
                 finally { image.recycle() }
             }
             compose.onNodeWithTag("signin.email").performTextInput("PERSON@Example.test")

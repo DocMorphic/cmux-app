@@ -1,3 +1,27 @@
+## Sign-in challenge screens separated — 2026-10-24
+
+Code and verification states now replace the email methods form. The code card
+uses the original mark, check-email/address/Verify copy, bottom card,60-point
+pill and fixed32-point monospaced input; recovery shares brand/background.
+Five original keys provide45 exact translations. Code autofocus now depends on
+whether email was focused, as in the source; unfocused and recovery paths skip it.
+
+All37 focused JVM and21 localization checks pass. Final owned API36 cohort passes
+nine cases in46.792s, including36 controlled code-card locale/scale/appearance
+profiles with complete errors/reachable controls and measured viewport ends at
+keyboard1614px. Existing paste/replacement/timeout/recovery/Activity checks pass.
+Seven frames reviewed, crash empty, settings/window restored, emulator exit0.
+Earlier harness failures and passing-but-unaccepted profile placement remain
+recorded; final host matches MainActivity adjustResize and adds keyboard geometry
+guards without changing the production APK. Bindings: [SIGN_IN.md](SIGN_IN.md),
+recovery-20261023/native-signin-card-checkpoint.json and-runtime-v3/.
+
+Original methods/providers/entry scaffold/restore UI, typography/glass/transitions/
+motion, window/OS variants, complete auth coordinator and real backend/Pixel/Mac/
+autofill/TalkBack/full-app gates remain open. No new signed delivery or real
+account/device action;722/physical712/global pins/account/pairing/signing unchanged.
+Goal active.
+
 ## Automatic sign-in code behavior advanced — 2026-10-24
 
 Android now normalizes to six uppercase ASCII letters/digits and automatically

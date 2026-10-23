@@ -13,6 +13,25 @@ ROWS = {'Cancel': {'resource': 'cmux_ui_cancel'}, 'Done': {'resource': 'cmux_ui_
 
 
 class MobileUiLocalization(unittest.TestCase):
+    def test_signin_code_email_format_and_locales_remain_bound(self):
+        rows = UI.load_signin_code_rows()
+        self.assertEqual(5, len(rows))
+        for language in UI.LANGUAGES:
+            xml = ET.fromstring(UI.resource_xml(rows, language))
+            formatted = [e for e in xml if e.get('formatted') == 'true']
+            self.assertEqual(1, len(formatted))
+            self.assertEqual(1, formatted[0].text.count('%1$s'))
+        data = json.loads(UI.SIGNIN_CODE_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'labels.json'
+            for text in ['Missing email', '%@ and %@', '%d', '%1$s', '%@ plus %s']:
+                altered = copy.deepcopy(data)
+                next(r for r in altered['strings'] if r['key'].endswith('sentCodeFormat'))['translations']['ar'] = text
+                path.write_text(json.dumps(altered))
+                with self.subTest(text=text), self.assertRaises(ValueError): UI.load_signin_code_rows(path)
+            altered = copy.deepcopy(data); del altered['strings'][0]['translations']['ko']; path.write_text(json.dumps(altered))
+            with self.assertRaises(ValueError): UI.load_signin_code_rows(path)
+
     def test_markdown_url_placeholder_and_locale_inventory_are_preserved(self):
         rows = UI.load_markdown_rows()
         self.assertEqual(10, len(rows))

@@ -1,0 +1,15 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "copyright": "Manaflow, Inc.",
+  "license": "GPL-3.0-or-later",
+  "files": {
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SignInView.swift": "56bcbb3b2902fa0517c219a06faa4e0f9c01b9c1a305f0668e0fb903887ba134",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/GlassInputPill.swift": "910d42cb1e2cb9a3942ae4048f3473681973d508f5cbed23291300befb71bfc8",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/GameOfLifeHeader.swift": "99770330839fa778ef8f426fee24e5cb6694794a0b6f42af0a9a2841390594a1",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/GameOfLifeGrid.swift": "c94d73117b0107044e48d374a90adb2af0c8a0e50c0d8a0c1b416b2a3d1e33be",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/PlatformPalette.swift": "ced833b99f8d9988cbabfc301da4d1e2d082591a71deba5691637f8f70ee8a25",
+    "Packages/iOS/CmuxMobileSupport/Sources/CmuxMobileSupport/View+MobileGlass.swift": "4a2d3fcd60b00265ac35a4add6cfda8fa947ad517645aa74cc08672bbb682da1",
+    "ios/cmux/Assets.xcassets/CmuxSignInMark.imageset/cmux-sign-in-mark.svg": "098a67fec7d1e9bb7b607fff19feb9911f4332c5f5049ad2cfebd587b9a16cc0"
+  },
+  "scope": "Code-only/recovery state separation, shared card/brand, code input geometry and backdrop mechanisms. Android capsule treatment is not UIKit Liquid Glass acceptance; methods/provider/scaffold variants remain open."
+}

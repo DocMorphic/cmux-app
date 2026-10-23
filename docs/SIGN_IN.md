@@ -1,4 +1,58 @@
-# Native sign-in recovery
+# Native sign-in
+
+## Separate challenge screens and source code card — 2026-10-24
+
+Code and email-verification states now replace the methods form instead of stacking
+below its email/request/help controls. The code card uses the original brand mark,
+check-email heading, sent-to address, placeholder and Verify code label. Five
+original main-catalog keys supply45 exact values across nine languages; only the
+single email format argument changes from `%@` to `%1$s`. The unmodified SVG,
+Android vector conversion and seven whole original source hashes are attributed
+in third_party/cmux-signin/ and native-signin-card-source-comparison.json. Those
+whole originals are identical at detected79d982f9; global pins remain unchanged.
+
+The code card ports the430-point maximum width,20/24/20 horizontal/top/bottom
+padding,18-point stack spacing,28-point mark and60-point centered code pill with
+fixed32-point semibold monospaced input. It sits at the bottom of an independently
+scrollable viewport. Recovery shares the brand/card/backdrop and busy dimming;
+its existing recovery controls remain. The existing Cloud colony/Canvas provides
+the matching source grid/seed/tick/paint rules. Exact iOS glass/font rendering and
+sign-in motion under accessibility settings are not accepted: the shared Android
+backdrop also has lifecycle/reduced-motion handling. This is an open fidelity
+question, not an asserted unavoidable platform difference.
+
+The original send action captures whether the email field is focused. Android
+now requests code focus only for that path; an unfocused send leaves code entry
+unfocused. Verification recovery continues to skip autofocus. Focused code Back
+still restores email focus, deferring it while an admitted exchange is busy.
+
+All37 focused JVM tests and21 localization checks pass. Final owned API36 cohort
+passes nine cases in46.792s. Thirty-six controlled language/scale/appearance
+profiles retain one send/one failed exchange, complete localized errors, a fixed
+60dp input and reachable code/Verify/Back controls. Every challenge viewport ends
+at the actual keyboard edge (1614px in this provider); large-text screenshots
+scroll upper content out of view rather than claiming simultaneous visibility.
+Actual focused/unfocused paths pass. Existing clipboard/replacement/late-callback/
+timeout,18 error-locale profiles and code/recovery Activity-retention cases pass.
+Seven final frames reviewed. Crash empty, preflight no ANR, settings/window
+restored, owned emulator exit0. No real account/email/backend request was made.
+
+Evidence: recovery-20261023/native-signin-card-checkpoint.json and-runtime-v3/.
+App SHA256:13fc897704bd99e96526efc71565f31343690f4d198129eb4768ef6b452488ae.
+Test SHA256:f847edb85b6d631808a426d3ec3aa5909dc15c6c6b29d6f999acaf2d2bb7c2c1.
+Runtime-v1 retains two harness failures (synthetic locale context hid the Activity
+owner, and a pre-backdrop Surface-color expectation). Runtime-v2 passed nine
+functional cases but its generic host showed a keyboard/viewport gap. V3 matches
+MainActivity's adjustResize, waits for native IME idle and asserts measured
+keyboard-edge geometry across all36 profiles. Production APK is unchanged across
+these attempts; earlier profile frames do not establish accepted placement.
+
+Next: original methods/providers and entry scaffold, restore status, exact
+typography/glass/transitions/motion, landscape/tablet/older OS and real OS settings.
+Complete coordinator/backoff/connectivity/user/team/token rollback, real account/
+Pixel/Mac/autofill/TalkBack and all full-app gates remain open. No new signed
+delivery or physical-device action;722/physical712/account/pairing/signing remain
+unchanged. The full goal remains active.
 
 ## Automatic code entry and exchange retirement — 2026-10-24
 

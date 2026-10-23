@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalog": {
+    "path": "ios/cmux/Resources/Localizable.xcstrings",
+    "sha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd"
+  },
+  "strings": [
+    {
+      "key": "mobile.signIn.title",
+      "resource": "cmux_signin_code_brand",
+      "translations": {
+        "en": "cmux",
+        "ar": "cmux",
+        "de": "cmux",
+        "es": "cmux",
+        "fr": "cmux",
+        "ja": "cmux",
+        "ko": "cmux",
+        "zh-Hans": "多路复用器",
+        "zh-Hant": "多路復用器"
+      }
+    },
+    {
+      "key": "mobile.signIn.checkEmail",
+      "resource": "cmux_signin_code_title",
+      "translations": {
+        "en": "Check your email",
+        "ar": "تحقق من بريدك الإلكتروني",
+        "de": "Überprüfen Sie Ihre E-Mails",
+        "es": "Revisa tu correo electrónico",
+        "fr": "Vérifiez votre courrier électronique",
+        "ja": "メールを確認してください",
+        "ko": "이메일을 확인하세요",
+        "zh-Hans": "检查您的电子邮件",
+        "zh-Hant": "檢查您的電子郵件"
+      }
+    },
+    {
+      "key": "mobile.signIn.sentCodeFormat",
+      "resource": "cmux_signin_code_sent_to",
+      "translations": {
+        "en": "We sent a code to %@",
+        "ar": "أرسلنا رمزًا إلى %@",
+        "de": "Wir haben einen Code an %@ gesendet",
+        "es": "Enviamos un código a %@",
+        "fr": "Nous avons envoyé un code à %@",
+        "ja": "%@ にコードを送信しました",
+        "ko": "%@로 코드를 보냈습니다.",
+        "zh-Hans": "我们向 %@ 发送了代码",
+        "zh-Hant": "我們向 %@ 發送了代碼"
+      }
+    },
+    {
+      "key": "mobile.signIn.codePlaceholder",
+      "resource": "cmux_signin_code_placeholder",
+      "translations": {
+        "en": "ABC123",
+        "ar": "ABC123",
+        "de": "ABC123",
+        "es": "ABC123",
+        "fr": "ABC123",
+        "ja": "ABC123",
+        "ko": "ABC123",
+        "zh-Hans": "ABC123",
+        "zh-Hant": "ABC123"
+      }
+    },
+    {
+      "key": "mobile.signIn.verifyCode",
+      "resource": "cmux_signin_code_verify",
+      "translations": {
+        "en": "Verify code",
+        "ar": "التحقق من الرمز",
+        "de": "Code überprüfen",
+        "es": "Verificar código",
+        "fr": "Vérifier le code",
+        "ja": "コードを確認",
+        "ko": "코드 확인",
+        "zh-Hans": "验证码",
+        "zh-Hant": "驗證碼"
+      }
+    }
+  ]
+}

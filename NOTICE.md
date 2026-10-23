@@ -9,6 +9,15 @@ the exact hashes of SignInCodeInputPolicy.swift and SignInCodeInputChangeAction.
 from a supplied upstream checkout with an authored JSON adapter. See
 `tests/fixtures/README.md` and `docs/SIGN_IN.md` for scope and remaining differences.
 
+The separate challenge card and sign-in backdrop follow SignInView.swift,
+GlassInputPill.swift, GameOfLifeHeader.swift, GameOfLifeGrid.swift,
+PlatformPalette.swift and View+MobileGlass.swift at that same revision.
+`third_party/cmux-signin/manifest.json` binds the whole original sources and
+unmodified sign-in mark SVG. The Android VectorDrawable preserves its path and
+gradient; the code-entry catalog supplies45 exact localized values, with the
+email argument converted from `%@` to `%1$s`. Android capsule paint, typography,
+window variants and the remaining methods are not claimed as UIKit parity.
+
 The Chief wire models, RPC request contracts and shared question validation in
 `NativeChiefModels.kt`, `NativeChiefClient.kt` and `NativeChiefQuestion.kt` follow
 the iOS Chief client and shared AgentQuestion sources at cmux

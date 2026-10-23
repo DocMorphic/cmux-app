@@ -119,10 +119,18 @@ class NativeSignInCodeTest {
         var sends = 0
         val model = NativeSignInSession(this, { if (++sends==2) throw NativeAccountRequestFailure("USER_EMAIL_ALREADY_EXISTS", true, "Fixture") }, {}, requestVerification = {})
         try {
-            model.editEmail("person@example.test"); model.requestCode(); runCurrent()
+            model.editEmail("person@example.test"); model.requestCodeFromEmail(focused = true); runCurrent()
             val focus = checkNotNull(model.state.value.codeFocusRequest); assertTrue(model.consumeCodeFocus(focus)); assertFalse(model.consumeCodeFocus(focus))
             model.useDifferentEmail(); model.requestCode(); runCurrent(); assertTrue(model.state.value.verificationRequired)
             model.requestCode(); runCurrent(); assertTrue(model.state.value.codeSent); assertNull(model.state.value.codeFocusRequest)
+        } finally { model.close() }
+    }
+
+    @Test fun requestingFromAnUnfocusedEmailDoesNotOpenTheCodeKeyboard() = runTest {
+        val model = NativeSignInSession(this, {}, {})
+        try {
+            model.editEmail("person@example.test"); model.requestCodeFromEmail(focused = false); runCurrent()
+            assertTrue(model.state.value.codeSent); assertNull(model.state.value.codeFocusRequest)
         } finally { model.close() }
     }
 

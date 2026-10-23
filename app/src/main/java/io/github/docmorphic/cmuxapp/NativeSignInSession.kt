@@ -44,8 +44,9 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
         if (code.length == 6) request(signingIn = true, automatic = true)
     }
     fun requestCode() = request(signingIn = false)
+    fun requestCodeFromEmail(focused: Boolean) = request(signingIn = false, focusCodeOnSuccess = focused)
     fun submitCode() = request(signingIn = true)
-    private fun request(signingIn: Boolean, automatic: Boolean = false) {
+    private fun request(signingIn: Boolean, automatic: Boolean = false, focusCodeOnSuccess: Boolean = false) {
         val form = state.value
         val valid = if (signingIn) form.codeSent && form.code.length == 6 else form.email.isNotBlank()
         if (!job.isActive || (form.busy && !(automatic && form.authenticating)) || form.completion != null || !valid) return
@@ -76,7 +77,7 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
                 if (generation != admitted) return@launch
                 mutable.value = if (signingIn) NativeSignInState(completion = admitted)
                     else mutable.value.copy(codeSent = true, verificationRequired = false,
-                        codeFocusRequest = if (form.verificationRequired) null else admitted)
+                        codeFocusRequest = if (!form.verificationRequired && focusCodeOnSuccess) admitted else null)
             } catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
                 if (generation != admitted) return@launch
