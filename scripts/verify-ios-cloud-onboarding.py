@@ -84,6 +84,8 @@ def verify(exported, output, commit):
         for page in pages:
             index = page['page']; size, scale = validate_observation(page, scene, commit, provenance)
             require(page.get('completed') is False and page.get('completionCount') == 0, 'Premature onboarding completion')
+            require(page.get('captureMethod') == 'XCUIScreen.main.screenshot', 'Missing actual onboarding compositor capture')
+            if index == 2: require(page.get('backRoundTripVerified') is True, 'Source onboarding Back round trip missing')
             primary = page.get('primary', {})
             require(primary.get('identifier') == 'CloudOnboardingPrimaryButton' and primary.get('hittable') is True and primary.get('enabled') is True and
                 geometry.rect(primary.get('frame')) and primary.get('label') == labels['mobile.cloud.onboarding.' + ('continue' if index < 2 else 'done')],
@@ -94,6 +96,12 @@ def verify(exported, output, commit):
             progress.append(indicator['value'])
             title = labels[['mobile.cloud.onboarding.workspace.title', 'mobile.cloud.vpn.title', 'mobile.cloud.onboarding.key.title'][index]]
             require(any(title in e.get('label', '') and geometry.rect(e.get('frame')) for e in page.get('elements', [])), 'Missing localized onboarding copy')
+            graphic = page.get('graphic')
+            if graphic is not None:
+                require(graphic.get('identifier') == 'CloudOnboardingGraphic-' + ['workspace', 'vpn', 'key'][index] and geometry.rect(graphic.get('frame')),
+                    'Wrong actual source graphic')
+                dimension = 88 if page['verticalSizeClass'] == 1 else 152
+                require(all(abs(dimension - v) < .1 for v in graphic['frame'][2:]), 'Wrong source graphic dimensions')
             if index > 0:
                 secondary = page.get('secondary') or {}
                 require(secondary.get('identifier') == 'CloudOnboardingSecondaryButton' and secondary.get('label') == labels['mobile.cloud.onboarding.back'] and

@@ -47,6 +47,7 @@ class OnboardingExportGuards(unittest.TestCase):
                 state = copy.deepcopy(base)
                 title = labels[['mobile.cloud.onboarding.workspace.title', 'mobile.cloud.vpn.title', 'mobile.cloud.onboarding.key.title'][page]]
                 state.update(page=page, imageSha256=hashlib.sha256(image).hexdigest(), completed=False, completionCount=0,
+                    captureMethod='XCUIScreen.main.screenshot', backRoundTripVerified=page == 2,
                     primary=dict(identifier='CloudOnboardingPrimaryButton', label=labels['mobile.cloud.onboarding.' + ('continue' if page < 2 else 'done')],
                         hittable=True, enabled=True, frame=[0, 0, 30, 10]),
                     progress=dict(identifier='CloudOnboardingProgressIndicator', value=str(page)),
@@ -104,3 +105,6 @@ class OnboardingExportGuards(unittest.TestCase):
 
     def test_wrong_actual_category_is_rejected(self):
         self.rejects(lambda v: v['pages'][0].update(category='UICTContentSizeCategoryM'), 'actual onboarding text category')
+
+    def test_missing_back_round_trip_is_rejected(self):
+        self.rejects(lambda v: v['pages'][2].update(backRoundTripVerified=False), 'Back round trip missing')

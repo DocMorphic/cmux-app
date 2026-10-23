@@ -64,14 +64,34 @@ final class CloudOnboardingUITests: XCTestCase {
                 XCTAssertEqual(primary.label, expectedLabel)
                 let progress = app.descendants(matching: .any).matching(identifier: "CloudOnboardingProgressIndicator").firstMatch
                 XCTAssertTrue(progress.exists)
+                if page == 2 {
+                    let finalProgress = try XCTUnwrap(progress.value as? String)
+                    app.buttons["CloudOnboardingSecondaryButton"].tap()
+                    let until = Date().addingTimeInterval(10)
+                    while Date() < until && (progress.value as? String) == finalProgress { RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }
+                    XCTAssertNotEqual(progress.value as? String, finalProgress)
+                    XCTAssertEqual(primary.label, expected["mobile.cloud.onboarding.continue"])
+                    primary.tap()
+                    let returned = Date().addingTimeInterval(10)
+                    while Date() < returned && (progress.value as? String) != finalProgress { RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }
+                    XCTAssertEqual(progress.value as? String, finalProgress)
+                }
                 let snapshot = XCUIScreen.main.screenshot()
                 let name = "cloud-" + id + "-page-\(page)"
                 let image = XCTAttachment(screenshot: snapshot); image.name = name; image.lifetime = .keepAlways; add(image)
-                let elements = app.descendants(matching: .any).allElementsBoundByIndex
-                    .filter { $0.identifier != "reference.cloud.observation" }.map(element)
+                // Read only source controls/copy needed by this reference. The
+                // first diagnostic run spent most of its time resolving every
+                // descendant's properties repeatedly and could not be exported
+                // after interruption. No idle/quiescence or animation override.
+                let elements = [element(copy)]
                 var record = try wait(app) { $0["completed"] as? Bool == false }
                 record["page"] = page; record["imageSha256"] = SHA256.hash(data: snapshot.pngRepresentation).map { String(format: "%02x", $0) }.joined()
                 record["primary"] = element(primary); record["progress"] = element(progress); record["elements"] = elements
+                record["captureMethod"] = "XCUIScreen.main.screenshot"
+                record["backRoundTripVerified"] = page == 2
+                let topic = ["workspace", "vpn", "key"][page]
+                let graphic = app.images["CloudOnboardingGraphic-" + topic]
+                record["graphic"] = graphic.exists ? element(graphic) : NSNull()
                 let secondary = app.buttons["CloudOnboardingSecondaryButton"]
                 record["secondary"] = secondary.exists ? element(secondary) : NSNull()
                 pages.append(record)
