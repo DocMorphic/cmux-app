@@ -1,5 +1,51 @@
 # Agent Feed companion
 
+## Landscape title centering and grabber visibility reconciled — 2026-10-23
+
+Original English landscape title centers437pt in its874pt window. Android had
+centered the title in the safe content rectangle, shifting it24dp on the observed
+left48/right0 cutout. The reader now derives that offset from actual insets and
+centers the toolbar title in the full sheet when space allows. Native Close/body
+bounds stay clear of the camera/system areas, collision allocation still shifts
+long titles, and RTL converts the offset in the correct physical direction.
+
+A source correction follows direct review: the original keeps a24pt top area but
+paints no compact-landscape grabber. Read-only center strips in all39 attributed
+presented frames (13 profiles × loading/error/loaded) verify portrait/tablet
+visibility and zero contrasting pixels in the three landscape strips. EXIF6 is
+normalized in memory for landscape; all source PNG hashes match their observations.
+The Android glyph is now hidden only in compact landscape, retaining its top
+space and drag dismissal. Portrait/tablet paint remains. This supersedes the
+earlier assumption that the24pt allocation implied a visible landscape handle.
+
+Final owned API36 cohort: the21-profile header/collision/type/edge/Enter case and
+actual portrait loading/grabber case pass14.310s; eight compact profiles pass
+5.590/5.396/5.358/5.674/5.666/5.529/5.381/5.631s (10 invocations total). Real window
+insets switch left144px/right0 to left0/right144; every title centers1311px in the
+2622px window, within1px. Dark/light themes and controlled LTR/RTL preserve native
+camera-safe controls/body, flags/colors, and release. Four actual injected swipes
+and four Back actions each dismiss once and release the native reader. Selected
+dark/LTR, light/RTL/opposite-rotation and portrait frames reviewed; crash buffer
+empty, no preflight System UI ANR, settings/window restored and emulator exit0.
+App APK6ba63adc7d2dbb305056e79c335bb05de16ae0a963692c5b35650d8e3fec5af7;
+test42d9c911650c21a03cc0c4de477ff07ac45696b1c7774225624b58a1687511d4.
+Exact source/installation/geometry receipts: recovery-20261023/
+native-feed-reader-chrome-center-checkpoint.json and-runtime-v2/;
+ios-feed-reader-grabber-visibility-audit.json. Earlier v1 passes nine geometry
+checks on different sources/APKs but paints the wrong landscape handle; it is
+retained as superseded prototype evidence, not final-source appearance acceptance.
+Some snapshots have a lighter Close fill after the header Enter case; complete
+focus/glass/material rendering is outside this cohort's acceptance.
+
+Remaining landscape source checks include status-bar and Close-edge policy:
+original PNGs have no visible status icons/top safe inset0, while Android retains
+visible status icons/top28dp. This is recorded as an open difference, not an
+unavoidable exception. Body horizontal policy, exact enlarged UIKit metrics,
+material/tablet/transition variants, actual OS locales/RTL, real transport,
+physical Pixel/Mac and TalkBack/full source/feature gates remain open. No new
+signed candidate or phone/Mac/account/pairing/signing action; candidate722,
+physical712 and global pins unchanged. Goal remains active.
+
 ## Reader loading/error layout and accessible retry scrolling verified — 2026-10-23
 
 Original AgentFeedFullTextView at a5911a1f uses a top-padded ScrollView, intrinsic

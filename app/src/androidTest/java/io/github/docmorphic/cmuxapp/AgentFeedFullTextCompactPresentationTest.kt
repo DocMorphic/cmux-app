@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import org.json.JSONObject
@@ -21,7 +23,9 @@ class AgentFeedFullTextCompactPresentationTest {
     @Before fun emulatorOnly() {
         check(android.os.Build.MODEL.contains("sdk") || android.os.Build.FINGERPRINT.contains("generic"))
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        device.setOrientationLeft()
+        val rotation = InstrumentationRegistry.getArguments().getString("cmux_reader_rotation") ?: "left"
+        check(rotation in listOf("left", "right"))
+        if (rotation == "left") device.setOrientationLeft() else device.setOrientationRight()
         try {
             compose.waitUntil(15_000) {
                 val configuration = compose.activity.resources.configuration
@@ -45,12 +49,16 @@ class AgentFeedFullTextCompactPresentationTest {
         var dismissals = 0
         val requestedTheme = InstrumentationRegistry.getArguments().getString("cmux_reader_theme")
         check(requestedTheme == null || requestedTheme in listOf("dark", "light"))
+        val requestedDirection = InstrumentationRegistry.getArguments().getString("cmux_reader_direction") ?: "ltr"
+        check(requestedDirection in listOf("ltr", "rtl"))
         compose.setContent { CmuxTheme(darkTheme = when (requestedTheme) {
             "dark" -> true
             "light" -> false
             else -> androidx.compose.foundation.isSystemInDarkTheme()
         }) {
-            if (shown) AgentFeedFullText({ "# Landscape reader\n\nSelectable native body." }, {}, { dismissals++; shown = false })
+            CompositionLocalProvider(LocalLayoutDirection provides if (requestedDirection == "rtl") LayoutDirection.Rtl else LayoutDirection.Ltr) {
+                if (shown) AgentFeedFullText({ "# Landscape reader\n\nSelectable native body." }, {}, { dismissals++; shown = false })
+            }
         } }
         var reader: NativeMarkdownList? = null
         compose.waitUntil(15_000) {
@@ -100,12 +108,19 @@ class AgentFeedFullTextCompactPresentationTest {
         assertEquals("Original compact landscape drag area is 24 points", 24f, drag.height / density, .5f)
         val header = compose.onNodeWithTag("AgentFeedFullTextHeader").fetchSemanticsNode().boundsInRoot
         assertEquals("Ordinary source toolbar is 54 points", 54f, header.height / density, .5f)
+        val title = compose.onNodeWithTag("AgentFeedFullTextTitle").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("AgentFeedFullTextDragIndicator", useUnmergedTree = true).assertDoesNotExist()
+        assertEquals("Original toolbar centers short titles in the whole window", metrics.bounds.exactCenterX(), title.center.x, 1f)
         val close = compose.onNodeWithTag("AgentFeedFullTextCloseCapsule")
         close.assertHeightIsEqualTo(44.dp).assertTouchHeightIsEqualTo(48.dp)
         assertEquals("Painted Close shares the source control row center", 22f,
             (close.fetchSemanticsNode().boundsInRoot.center.y - header.top) / density, .5f)
         assertEquals("Title shares the source control row center", 22f,
             (compose.onNodeWithTag("AgentFeedFullTextTitle").fetchSemanticsNode().boundsInRoot.center.y - header.top) / density, .5f)
+        val closeBounds = close.fetchSemanticsNode().boundsInRoot
+        assertTrue("Cancellation control stays clear of actual camera/system insets", closeBounds.left >= usable.left && closeBounds.right <= usable.right)
+        if (requestedDirection == "rtl") assertTrue("RTL cancellation stays on the trailing physical side", closeBounds.left > title.right)
+        else assertTrue("LTR cancellation stays on the leading physical side", closeBounds.right < title.left)
         val bounds = Rect()
         compose.runOnUiThread {
             val location = IntArray(2)
@@ -120,7 +135,9 @@ class AgentFeedFullTextCompactPresentationTest {
         val record = JSONObject().put("windowBoundsPx", metrics.bounds.toString()).put("usableBoundsPx", usable.toString())
             .put("windowInsetsPx", insets.toString()).put("bodyBoundsPx", bounds.toString()).put("panelBoundsPx", panel.toString())
             .put("dragAreaBoundsPx", drag.toString()).put("headerBoundsPx", header.toString()).put("density", density)
-            .put("requestedTheme", requestedTheme ?: "system")
+            .put("requestedTheme", requestedTheme ?: "system").put("requestedDirection", requestedDirection)
+            .put("requestedRotation", InstrumentationRegistry.getArguments().getString("cmux_reader_rotation") ?: "left")
+            .put("titleBoundsPx", title.toString()).put("dragIndicatorVisible", false).put("closeBoundsPx", closeBounds.toString())
         compose.waitForIdle()
         device.waitForIdle(2_000)
         val settledBars = barAppearance()
@@ -155,11 +172,17 @@ class AgentFeedFullTextCompactPresentationTest {
         }
         assertEquals("Focused reader navigation icons follow its actual sheet appearance", !darkSheet,
             settledBars.getBoolean("lightNavigationBars"))
-        record.put("backInjectionReturned", device.pressBack())
+        val dismissal = InstrumentationRegistry.getArguments().getString("cmux_reader_dismiss") ?: "back"
+        check(dismissal in listOf("back", "swipe"))
+        record.put("dismissalMethod", dismissal)
+        if (dismissal == "swipe") {
+            record.put("swipeInjectionReturned", device.swipe(metrics.bounds.centerX(), drag.center.y.toInt(),
+                metrics.bounds.centerX(), usable.bottom - (8 * density).toInt(), 30))
+        } else record.put("backInjectionReturned", device.pressBack())
         compose.waitUntil(5_000) { dismissals == 1 }
         compose.onNodeWithTag("AgentFeedFullTextCompactPanel").assertDoesNotExist()
         compose.runOnUiThread { assertTrue(reader!!.released) }
         File(folder, "result.json").writeText(record.put("dismissals", dismissals).put("scope",
-            "Owned compact landscape API36 emulator, real production reader/window/insets and Back. Not iOS materials, real transport, physical Pixel/Mac, TalkBack or full parity acceptance.").toString(2))
+            "Owned compact landscape API36 emulator, real production reader/window/insets, full-window toolbar centering and source compact-landscape grabber visibility, controlled LTR/RTL and Back/swipe dismissal. Not exact iOS Close edge margins, OS RTL locales/materials, real transport, physical Pixel/Mac, TalkBack or full parity acceptance.").toString(2))
     }
 }

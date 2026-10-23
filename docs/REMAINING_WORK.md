@@ -1,3 +1,22 @@
+## Landscape toolbar center and grabber visibility verified — 2026-10-23
+
+The reader title now centers in the full window despite an asymmetric cutout,
+while retaining safe controls/body and translated collision behavior. A39-frame
+attributed original audit corrects the landscape grabber assumption: its24pt top
+space remains but the glyph is hidden; portrait/tablet retain it. Ten final owned
+API36 invocations pass:21-profile header plus portrait case, and eight actual
+left/right rotation × dark/light × controlled LTR/RTL compact profiles. Four
+injected swipes and four Back actions dismiss/release correctly. Selected frames
+reviewed, crash buffer empty, settings/window restored, emulator exit0. Exact
+source/APKs and superseded prototype scope are in AGENT_FEED.md and recovery-
+20261023/native-feed-reader-chrome-center-checkpoint.json.
+
+Next landscape source checks: status-bar/Close-edge policy (source status icons
+absent/top safe0, Android visible/top28dp), body horizontal behavior and broader
+materials/type/transition/OS-locale variants. Actual transport, Pixel/Mac/TalkBack
+and every full app gate remain open. Candidate722/physical712/global pins and
+account/pairing/signing unchanged; no phone/Mac action. Goal active.
+
 ## Reader loading/error allocation and retry reachability advanced — 2026-10-23
 
 The reader now uses the source scroll/intrinsic error-group allocation,17sp body

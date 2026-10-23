@@ -85,6 +85,8 @@ class AgentFeedFullTextTest {
             assertEquals("Portrait reserves only the safe top inset remaining below the sheet offset",
                 maxOf(panel.top, safeTop), drag.top, 1f)
             assertEquals("Ordinary portrait drag area matches the original 16 points", 16f, drag.height / compose.density.density, .5f)
+            val indicator = compose.onNodeWithTag("AgentFeedFullTextDragIndicator", useUnmergedTree = true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+            assertEquals("Portrait grabber remains centered in the full sheet", panel.center.x, indicator.center.x, 1f)
         }
         val indicator = compose.onNodeWithTag("AgentFeedFullTextProgress", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val label = compose.onNodeWithTag("AgentFeedFullTextLoadingLabel", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot

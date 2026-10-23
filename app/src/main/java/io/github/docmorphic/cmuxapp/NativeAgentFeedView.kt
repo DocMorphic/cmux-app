@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.window.DialogProperties
@@ -34,6 +35,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -262,6 +264,8 @@ internal fun AgentFeedFullTextTheme(content: @Composable () -> Unit) {
         onBackground = foreground, onSurface = foreground), content = content)
 }
 
+private val LocalAgentFeedChromeCenterOffset = compositionLocalOf { 0.dp }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AgentFeedFullTextPresentation(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
@@ -279,6 +283,15 @@ private fun AgentFeedFullTextPresentation(onDismiss: () -> Unit, content: @Compo
         }
     } else {
         val landscape = configuration.screenWidthDp > configuration.screenHeightDp
+        val density = LocalDensity.current
+        val direction = LocalLayoutDirection.current
+        // Modal content consumes asymmetric horizontal safe areas. Keep the
+        // toolbar's visual center on the full sheet, as the original bar does,
+        // while retaining safe content/control bounds on this actual device.
+        val chromeCenterOffset = with(density) {
+            ((WindowInsets.safeDrawing.getRight(this, direction) -
+                WindowInsets.safeDrawing.getLeft(this, direction)) / 2f).toDp()
+        }
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         // Material 1.3.2 doesn't consume the sheet offset from top insets.
         // Subtract the space above the sheet, retaining any remaining camera/
@@ -292,19 +305,26 @@ private fun AgentFeedFullTextPresentation(onDismiss: () -> Unit, content: @Compo
             // The original compact sheet spans the window even in landscape.
             // Keep its controls and native text inside this device's actual bars/cutout.
             contentWindowInsets = { WindowInsets.safeDrawing },
-            dragHandle = { AgentFeedFullTextDragIndicator() }) {
-            Column(Modifier.fillMaxWidth().fillMaxHeight(if (landscape) 1f else .96f)
-                .testTag("AgentFeedFullTextSheet"), content = content)
+            dragHandle = { AgentFeedFullTextDragIndicator(centerOffset = chromeCenterOffset) }) {
+            CompositionLocalProvider(LocalAgentFeedChromeCenterOffset provides chromeCenterOffset) {
+                Column(Modifier.fillMaxWidth().fillMaxHeight(if (landscape) 1f else .96f)
+                    .testTag("AgentFeedFullTextSheet"), content = content)
+            }
         }
     }
 }
 
 @Composable
-private fun AgentFeedFullTextDragIndicator(wide: Boolean = false) {
+private fun AgentFeedFullTextDragIndicator(wide: Boolean = false, centerOffset: Dp = 0.dp) {
     val configuration = LocalConfiguration.current
     val height = if (wide) 10.dp else if (configuration.screenWidthDp > configuration.screenHeightDp) 24.dp else 16.dp
     Box(Modifier.fillMaxWidth().height(height).testTag("AgentFeedFullTextDragArea"), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(36.dp, 5.dp).background(NativeAppColors.text.copy(alpha = .3f), RoundedCornerShape(50)))
+        // Original capture run40003411274 paints the grabber in portrait/tablet,
+        // but not compact landscape, despite the authored visible preference.
+        if (wide || configuration.screenWidthDp <= configuration.screenHeightDp) {
+            Box(Modifier.absoluteOffset(x = centerOffset).size(36.dp, 5.dp).testTag("AgentFeedFullTextDragIndicator")
+                .background(NativeAppColors.text.copy(alpha = .3f), RoundedCornerShape(50)))
+        }
     }
 }
 
@@ -313,6 +333,8 @@ private fun AgentFeedFullTextDragIndicator(wide: Boolean = false) {
 internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
     val configuration = LocalConfiguration.current
     val wide = configuration.screenWidthDp >= 600 && configuration.screenHeightDp >= 600
+    val physicalCenterOffset = with(LocalDensity.current) { LocalAgentFeedChromeCenterOffset.current.roundToPx() }
+    val logicalCenterOffset = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -physicalCenterOffset else physicalCenterOffset
     val titleStyle = with(LocalDensity.current) {
         // Source UIKit measurements: 17pt at ordinary text, capped at 21pt
         // while the body reaches 28pt. Convert through the actual Android font
@@ -363,13 +385,15 @@ internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
                 maxHeight = (constraints.maxHeight - close.height - rowGap - 10.dp.roundToPx()).coerceAtLeast(0)))
             layout(constraints.maxWidth, close.height + rowGap + title.height + 10.dp.roundToPx()) {
                 close.placeRelative(0, 0)
-                title.place((constraints.maxWidth - title.width) / 2, close.height + rowGap)
+                title.place(((constraints.maxWidth - title.width) / 2 + physicalCenterOffset)
+                    .coerceIn(0, constraints.maxWidth - title.width), close.height + rowGap)
             }
         } else {
             val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
                 maxWidth = (constraints.maxWidth - close.width - gap - trailing).coerceAtLeast(0)))
             val rowHeight = 44.dp.roundToPx()
-            val titleStart = maxOf((constraints.maxWidth - title.width) / 2, close.width + gap)
+            val titleStart = ((constraints.maxWidth - title.width) / 2 + logicalCenterOffset)
+                .coerceIn(close.width + gap, constraints.maxWidth - title.width - trailing)
             layout(constraints.maxWidth, 54.dp.roundToPx()) {
                 close.placeRelative(0, (rowHeight - close.height) / 2)
                 title.placeRelative(titleStart, (rowHeight - title.height) / 2)
