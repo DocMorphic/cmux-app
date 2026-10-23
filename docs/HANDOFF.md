@@ -1,3 +1,15 @@
+## Settled compact bars verified; original control/color measurement next — 2026-10-23
+
+Forced dark/light app themes on actual dark-system API36 both pass settled bar
+checks (6.760s/5.949s); real reader window flags0/24 match the themes and reviewed
+compositor frames show contrasting indicators. Initial/settled flags and actual
+window state are retained. No production bar-code change; earlier isolated dark
+capture not reproduced, precise cause unproven. See AGENT_FEED.md and recovery-
+20261023/native-feed-reader-bars-checkpoint.json. Scope excludes all transition
+timing, physical/platform variants and full visual parity. Next collect original
+Close/control UIFont and link/tertiary colors for the remaining reader port.
+No live emulator remains; candidate722/physical712/pairing unchanged. Goal active.
+
 ## Compact reader and adaptive recreation verified; visual gates remain — 2026-10-23
 
 The compact Full text sheet now spans the phone window in landscape, with the

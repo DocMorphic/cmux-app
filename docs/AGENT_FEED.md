@@ -1,5 +1,28 @@
 # Agent Feed companion
 
+## Settled compact system-bar appearance verified — 2026-10-23
+
+The focused diagnostic passes with forced dark6.760s and light5.949s app themes
+on an actual dark-mode API36 system. Focused reader WindowInsetsController flags
+are0/dark and24/light: status/navigation light-appearance bits both follow the
+app theme. The native view ancestry reaches Material's own dialog layout, and
+settled compositor frames show visible light/dark gesture indicators respectively.
+The test now records initial/settled flags, window state and images, waits for
+idle and asserts actual navigation appearance before Back/release. The earlier
+isolated dark-indicator capture has not reproduced; its precise cause is unproven.
+No production bar-code change was justified. This accepts these settled profiles,
+not all transition timing or physical/platform variants.
+
+App SHA25665dc2dc98dc5b2ba1b3c27779631e5d725e14421a919963225c0aaf8e2a2e416;
+test8c2f1446abdfb1141290d9ecfb16d55973f3454ea4032704df758c83562f2ef6.
+App source36baf84a; build metadata changed from the prior13-invocation artifact,
+so this is a separate two-profile check. Both settled images reviewed. Crash
+buffer empty, settings/window restored, owned emulator exits0. Evidence:
+captures/recovery-20261023/native-feed-reader-bars-checkpoint.json and
+native-feed-reader-bars-runtime-v2/. Candidate722/physical712/pairing unchanged.
+Next: improve original Close UIFont/control/color observations before remaining
+reader appearance changes. Broader app/source/physical/TalkBack gates stay open.
+
 ## Compact landscape and actual class-change restoration verified — 2026-10-23
 
 The original reference spans874 points in compact landscape with24-point drag

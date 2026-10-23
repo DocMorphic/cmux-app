@@ -1,3 +1,13 @@
+## Current reader appearance follow-through — 2026-10-23
+
+Settled compact bar checks pass in both forced app themes on actual dark-system
+API36: real window flags and reviewed compositor contrast match. The earlier
+isolated dark capture has not reproduced; precise cause remains unproven. See
+AGENT_FEED.md and native-feed-reader-bars-checkpoint.json. Broader transition,
+physical/platform variants remain open. Next improve original Close UIFont/control
+and semantic color observations, then reconcile reader appearance. No phone,
+Mac app or pairing step; candidate722/physical712 unchanged. Goal remains active.
+
 ## Current compact/adaptive reader follow-through — 2026-10-23
 
 Compact landscape width/insets/24dp drag area and actual compact→wide→compact

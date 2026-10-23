@@ -1,3 +1,13 @@
+## Settled compact bar profiles verified — 2026-10-23
+
+Two forced app-theme profiles on a dark-system API36 emulator pass actual reader
+window-flag, settled compositor and Back/release checks. Dark/light flags0/24 and
+visible contrasting indicators follow the app theme. Earlier isolated dark-bar
+image is unreproduced; cause remains unproven. No production bar change or broad
+timing/physical acceptance. See AGENT_FEED.md and native-feed-reader-bars-checkpoint.json.
+Remaining original control/colors/material/loading/error and full app gates stay
+open. Candidate722/physical712 and global source pins unchanged.
+
 ## Reader compact width/insets and class-change restoration — 2026-10-23
 
 Compact landscape now spans the actual window with24dp drag spacing,54dp toolbar

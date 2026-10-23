@@ -2,6 +2,7 @@ package io.github.docmorphic.cmuxapp
 
 import android.graphics.Rect
 import android.view.inspector.WindowInspector
+import android.view.WindowInsetsController
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
@@ -41,7 +42,13 @@ class AgentFeedFullTextCompactPresentationTest {
     @Test fun landscapeReaderSpansTheWindowAndKeepsControlsInsideSafeInsets() {
         var shown by mutableStateOf(true)
         var dismissals = 0
-        compose.setContent { CmuxTheme {
+        val requestedTheme = InstrumentationRegistry.getArguments().getString("cmux_reader_theme")
+        check(requestedTheme == null || requestedTheme in listOf("dark", "light"))
+        compose.setContent { CmuxTheme(darkTheme = when (requestedTheme) {
+            "dark" -> true
+            "light" -> false
+            else -> androidx.compose.foundation.isSystemInDarkTheme()
+        }) {
             if (shown) AgentFeedFullText({ "# Landscape reader\n\nSelectable native body." }, {}, { dismissals++; shown = false })
         } }
         var reader: NativeMarkdownList? = null
@@ -59,6 +66,26 @@ class AgentFeedFullTextCompactPresentationTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
         assertTrue(device.takeScreenshot(File(folder, "landscape-loaded.png")))
+        fun barAppearance(): JSONObject {
+            val record = JSONObject()
+            compose.runOnUiThread {
+                val view = reader!!
+                val flags = checkNotNull(view.windowInsetsController).systemBarsAppearance
+                record.put("flags", flags).put("lightStatusBars", flags and WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS != 0)
+                    .put("lightNavigationBars", flags and WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS != 0)
+                    .put("foreground", view.colors.foreground).put("focused", view.hasWindowFocus())
+                    .put("systemNightMode", view.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                var parent: android.view.View? = view
+                val ancestry = org.json.JSONArray()
+                while (parent != null) {
+                    ancestry.put(parent.javaClass.name)
+                    parent = parent.parent as? android.view.View
+                }
+                record.put("viewAncestry", ancestry)
+            }
+            return record
+        }
+        val initialBars = barAppearance()
         val density = compose.activity.resources.displayMetrics.density
         val metrics = compose.activity.windowManager.currentWindowMetrics
         val insets = metrics.windowInsets.getInsetsIgnoringVisibility(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
@@ -86,6 +113,17 @@ class AgentFeedFullTextCompactPresentationTest {
         val record = JSONObject().put("windowBoundsPx", metrics.bounds.toString()).put("usableBoundsPx", usable.toString())
             .put("windowInsetsPx", insets.toString()).put("bodyBoundsPx", bounds.toString()).put("panelBoundsPx", panel.toString())
             .put("dragAreaBoundsPx", drag.toString()).put("headerBoundsPx", header.toString()).put("density", density)
+            .put("requestedTheme", requestedTheme ?: "system")
+        compose.waitForIdle()
+        device.waitForIdle(2_000)
+        val settledBars = barAppearance()
+        record.put("initialSystemBars", initialBars).put("settledSystemBars", settledBars)
+        File(folder, "system-bars.json").writeText(record.toString(2))
+        File(folder, "window-state.txt").writeText(device.executeShellCommand("dumpsys window"))
+        assertTrue(device.takeScreenshot(File(folder, "landscape-settled.png")))
+        val darkSheet = androidx.core.graphics.ColorUtils.calculateLuminance(settledBars.getInt("foreground")) > .5
+        assertEquals("Focused reader navigation icons follow its actual sheet appearance", !darkSheet,
+            settledBars.getBoolean("lightNavigationBars"))
         record.put("backInjectionReturned", device.pressBack())
         compose.waitUntil(5_000) { dismissals == 1 }
         compose.onNodeWithTag("AgentFeedFullTextCompactPanel").assertDoesNotExist()
