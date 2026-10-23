@@ -28,6 +28,16 @@ class FeedSheetExportGuards(unittest.TestCase):
                 raw = png(index*4+i, *size); (self.export/(scene['id']+'-'+stage+'.png')).write_bytes(raw)
                 closed = stage=='closed'; language=scene['language']
                 def control(label): return dict(exists=True, hittable=True, label=label, frame=[16,40,90,20])
+                def layout(): return dict(className='Synthetic navigation layout integrity guard only',
+                    frame=[0,30,size[0],54], bounds=[0,0,size[0],54], safeArea=[0,0,0,0], margins=[0,16,0,16],
+                    directionalMargins=[0,16,0,16], guideFrame=[16,0,size[0]-32,54],
+                    effectiveDirection=1 if language=='ar' else 0, preservesSuperviewMargins=False,
+                    insetsMarginsFromSafeArea=True, horizontalSizeClass=1, verticalSizeClass=1 if scene['orientation']=='landscape' else 2)
+                bar=layout(); bar['children']=[layout()]
+                chrome=dict(sceneOrientation=3 if scene['orientation']=='landscape' else 1,
+                    horizontalSizeClass=1, verticalSizeClass=1 if scene['orientation']=='landscape' else 2,
+                    statusBar=dict(available=True, hidden=scene['orientation']=='landscape',
+                        frameInScene=[0,0,0,0] if scene['orientation']=='landscape' else [0,0,size[0],20], style=0))
                 expected = 'Open reference sheet' if closed else self.fixture['probes']['top'] if stage=='loaded' else self.fixture['uiStrings'][stage if stage=='loading' else 'unavailable'][language]
                 pages.append(dict(schema=1, referenceKind='originalFeedFullTextObservation', context='presentedOriginalFullTextSheet',
                     scene=scene['id'], stage=stage, probe='root' if closed else 'sheet', mode='loading' if stage=='loading' else 'retry',
@@ -41,13 +51,14 @@ class FeedSheetExportGuards(unittest.TestCase):
                     loadAttempts=1 if stage in ['loading','error'] else 2, dismissed=closed, loadCancellations=0,
                     target=control('In progress, '+expected if stage=='loading' else expected), loadingActivityIndicator=stage=='loading', close=dict(exists=False) if closed else control(self.fixture['uiStrings']['close'][language]),
                     title=control(self.fixture['uiStrings']['title'][language]), unexpectedSourceControl=False,
-                    navigationBars=[[0,30,size[0],54]], navigationLabels=[dict(text=self.fixture['uiStrings']['title'][language],
+                    windowChrome=chrome, navigationBarMetrics=[] if closed else [bar], navigationBars=[] if closed else [[0,30,size[0],54]], navigationLabels=[dict(text=self.fixture['uiStrings']['title'][language],
                         pointSize=17 if scene['category']=='large' else 21, lineHeight=21 if scene['category']=='large' else 26,
                         fontName='Synthetic integrity guard only', adjustsForContentSizeCategory=True, frame=[16,40,90,20])],
                     visibleLabels=[dict(text=self.fixture['uiStrings']['close'][language], pointSize=17, lineHeight=21,
                         fontName='Synthetic control integrity guard only', adjustsForContentSizeCategory=True, frame=[16,40,90,20])], visibleButtons=[],
                     captureMethod='XCUIScreen.main.screenshot', imageSha256=hashlib.sha256(raw).hexdigest()))
-            dismissal=deepcopy(pages[0]); dismissal.update(probe='root', dismissed=True, loadCancellations=1)
+            dismissal=deepcopy(pages[0]); dismissal.update(probe='root', dismissed=True, loadCancellations=1,
+                close=dict(exists=False), navigationBars=[], navigationLabels=[], navigationBarMetrics=[], visibleLabels=[])
             (self.export/(scene['id']+'.json')).write_text(json.dumps(dict(schema=1, referenceKind='originalFeedFullTextScene',
                 scene=scene['id'], pages=pages, loadingDismissal=dismissal)))
     def verify(self):
@@ -106,3 +117,34 @@ class FeedSheetExportGuards(unittest.TestCase):
     def test_invalid_button_font_rejected(self):
         self.rejects(lambda d:d['pages'][0].update(visibleButtons=[dict(title='Close', accessibilityLabel='Close',frame=[16,40,90,20],
             attributedFonts=[dict(text='Close',fontName='Synthetic invalid font',pointSize=17,lineHeight=0)])]),'public control font')
+
+    def test_window_chrome_and_navigation_layout_receipts_are_complete(self):
+        result=self.verify()
+        self.assertEqual(len(result['windowChromeObservations']),52)
+        self.assertEqual(len(result['navigationLayoutObservations']),52)
+        self.assertEqual(len(result['loadingDismissalWindowChrome']),13)
+    def test_missing_window_chrome_rejected(self): self.rejects(lambda d:d['pages'][0].pop('windowChrome'),'window chrome')
+    def test_invalid_scene_orientation_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome'].update(sceneOrientation=True),'scene orientation')
+    def test_invalid_scene_size_class_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome'].update(verticalSizeClass=9),'size class')
+    def test_unavailable_status_manager_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(available=False),'status-bar manager')
+    def test_nonboolean_hidden_status_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(hidden=1),'status-bar manager')
+    def test_invalid_status_frame_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(frameInScene=[0,0,-1,0]),'status-bar frame')
+    def test_invalid_status_style_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(style=True),'status-bar style')
+    def test_missing_navigation_metrics_rejected(self): self.rejects(lambda d:d['pages'][0].pop('navigationBarMetrics'),'navigation layout')
+    def test_navigation_metric_frame_binding_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(frame=[2,30,120,54]),'bound to observed bar')
+    def test_nonfinite_navigation_margin_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(margins=[0,float('inf'),0,16]),'layout insets')
+    def test_negative_navigation_safe_area_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(safeArea=[0,-1,0,0]),'layout insets')
+    def test_invalid_directional_margins_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(directionalMargins=[0,16]),'layout insets')
+    def test_invalid_layout_guide_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(guideFrame=[0,0,float('nan'),10]),'layout rectangle')
+    def test_nonboolean_margin_behavior_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(insetsMarginsFromSafeArea=1),'margin behavior')
+    def test_invalid_navigation_direction_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(effectiveDirection=3),'navigation direction')
+    def test_invalid_navigation_size_class_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(horizontalSizeClass=True),'navigation size class')
+    def test_missing_navigation_children_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].pop('children'),'layout shape')
+    def test_invalid_navigation_child_bounds_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0]['children'][0].update(bounds=[0,0,-1,1]),'layout rectangle')
+    def test_zero_sized_layout_guide_and_hidden_status_are_valid_observations(self):
+        p=self.export/'en-dark.json'; d=json.loads(p.read_text()); d['pages'][0]['navigationBarMetrics'][0]['children'][0]['guideFrame']=[0,0,0,0]
+        d['pages'][0]['windowChrome']['statusBar'].update(hidden=True,frameInScene=[0,0,0,0]);p.write_text(json.dumps(d));self.verify()
+    def test_signed_finite_margins_are_preserved_as_observed(self):
+        p=self.export/'en-dark.json'; d=json.loads(p.read_text()); d['pages'][0]['navigationBarMetrics'][0]['margins']=[-1,16,-2,16]
+        p.write_text(json.dumps(d));result=self.verify();self.assertEqual(result['navigationLayoutObservations']['en-dark-loading'][0]['margins'],[-1,16,-2,16])
+    def test_loading_dismissal_chrome_is_required(self): self.rejects(lambda d:d['loadingDismissal'].pop('windowChrome'),'window chrome')

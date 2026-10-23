@@ -1,5 +1,26 @@
 # Agent Feed companion
 
+## Original toolbar edge-metric collector prepared — 2026-10-23
+
+The collector now observes public UINavigationBar/immediate UIView child layout
+frames, safe areas, physical/directional margins, layout guides, margin behavior,
+effective direction and size classes, plus the actual scene/status-bar manager.
+The original22 declarations remain whole and unchanged. New strict verification
+binds metrics to observed bars and records them with52 page receipts; all53
+synthetic corruption/association guards pass. Swift syntax parsing and local
+whole-source host rehashing pass. Local host provenance is intentionally dirty;
+no new UIKit compile/capture or actual margin acceptance is claimed yet. Dispatch
+and verify the existing original-sheet workflow from the clean committed driver.
+Earlier captures retain their exact older collector/verifier provenance.
+
+Latest upstream-watch run40021054162 detects79d982f9. A complete recursive-tree
+comparison confirms all22 reader reference blobs exactly match a5911a1f. This
+supports continuing the component measurement; it is not the full upstream audit
+or a global pin advance. Evidence under recovery-20261023/: feed-reader-latest-source-comparison.json,
+ios-feed-reader-bar-metrics-guards-v2.log and ios-feed-reader-bar-metrics-local-host/.
+Android edge policy remains pending actual source metrics; no app/release/phone/
+Mac/account/pairing/signing change. Candidate722/physical712 unchanged; goal active.
+
 ## Compact landscape status policy and window restoration verified — 2026-10-23
 
 The reader now hides status bars only in its own compact-landscape modal window,

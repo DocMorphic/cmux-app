@@ -1,3 +1,14 @@
+## Original toolbar edge-metric capture prepared — 2026-10-23
+
+Public navigation/child margins, guide/safe-area/direction/trait frames and actual
+scene/status-bar metadata are now collected without changing original sources.
+All53 strict evidence guards, local Swift parsing and whole22-file preparation
+pass. These are preflight checks; actual UIKit compile/capture and interpretation
+are required before changing the Android Close-edge rule. See AGENT_FEED.md.
+All22 reader blobs are also unchanged at detected upstream79d982f9, verified from
+the complete tree; broader source review/global pins remain open. No new Android
+artifact, phone/Mac/account/pairing/signing action; full goal remains active.
+
 ## Landscape status bars and scoped restoration verified — 2026-10-23
 
 The compact-landscape reader now hides status icons in its own modal window,

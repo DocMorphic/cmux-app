@@ -55,3 +55,19 @@ medium, while body sizes are 17 and 28. The bar is 54 points high; the standard
 tablet bar starts 10 points below the panel top. These measurements do not
 establish Close's UIFont: its rendered text is not among the observed UILabels.
 Keep Close typography, native materials and production-caller context open.
+
+Public bar-layout collection adds `navigationBarMetrics` (frame in window, bounds/
+layout-guide frame in owner coordinates, physical/directional margins, safe area,
+margin behavior, effective direction, size classes and immediate UIView children).
+`windowChrome` records the actual scene orientation/size classes and public status-
+bar manager availability, hidden flag, raw scene frame and style. No original
+view is edited, no private selector is called, and these observations do not
+establish Close UIFont identity or automatically prove a particular margin rule.
+
+The verifier now requires and binds these observations to the measured navigation
+frames for all52 compositor pages and checks dismissal metadata as well. All53
+synthetic integrity guards pass locally; they reject malformed/unbound metrics
+and are not UI evidence. Swift syntax parsing and whole22-file host preparation
+pass locally. Actual UIKit compilation/capture must succeed on the existing CI
+runner before accepting the new measurements. Earlier receipts remain bound to
+their earlier exact collector/verifier hashes.

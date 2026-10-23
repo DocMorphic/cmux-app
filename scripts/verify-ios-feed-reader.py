@@ -52,7 +52,54 @@ def traits(page, scene, commit, provenance, probe):
     colors = page.get('colors', {})
     require(set(colors) == {'background', 'label', 'secondaryLabel', 'tertiaryLabel', 'link', 'separator'} and all(
         isinstance(c, list) and len(c) == 4 and all(finite(v) and -1e-6 <= v <= 1+1e-6 for v in c) for c in colors.values()), 'Invalid sheet colors')
+    window_chrome(page, scale)
     return size, scale
+
+
+def window_chrome(page, scale):
+    """Require actual public window/bar layout observations, without inventing margins."""
+    chrome = page.get('windowChrome')
+    require(isinstance(chrome, dict) and set(chrome) == {'sceneOrientation', 'horizontalSizeClass', 'verticalSizeClass', 'statusBar'},
+        'Missing/invalid window chrome observations')
+    def enum(value, allowed, message):
+        require(type(value) is int and value in allowed, message)
+    enum(chrome['sceneOrientation'], range(5), 'Invalid actual scene orientation')
+    for key in ('horizontalSizeClass', 'verticalSizeClass'):
+        enum(chrome[key], range(3), 'Invalid actual size class')
+    def box(value, message):
+        require(isinstance(value, list) and len(value) == 4 and all(finite(v) for v in value) and
+            value[2] >= 0 and value[3] >= 0, message)
+    status = chrome['statusBar']
+    require(isinstance(status, dict) and set(status) == {'available', 'hidden', 'frameInScene', 'style'} and
+        status['available'] is True and type(status['hidden']) is bool, 'Missing actual status-bar manager')
+    box(status['frameInScene'], 'Invalid actual status-bar frame')
+    enum(status['style'], range(4), 'Invalid actual status-bar style')
+    bars, metrics = page.get('navigationBars'), page.get('navigationBarMetrics')
+    require(isinstance(bars, list) and isinstance(metrics, list) and len(bars) == len(metrics),
+        'Missing/unbound navigation layout observations for navigation bar')
+    keys = {'className', 'frame', 'bounds', 'safeArea', 'margins', 'directionalMargins', 'guideFrame',
+        'effectiveDirection', 'preservesSuperviewMargins', 'insetsMarginsFromSafeArea', 'horizontalSizeClass', 'verticalSizeClass'}
+    def layout(value, root=False):
+        require(isinstance(value, dict) and set(value) == keys | ({'children'} if root else set()) and
+            isinstance(value['className'], str) and value['className'], 'Invalid public navigation layout shape')
+        for key in ('frame', 'bounds', 'guideFrame'): box(value[key], 'Invalid public navigation layout rectangle')
+        for key in ('safeArea', 'margins', 'directionalMargins'):
+            v = value[key]
+            require(isinstance(v, list) and len(v) == 4 and all(finite(n) for n in v) and
+                (key != 'safeArea' or all(n >= 0 for n in v)), 'Invalid public navigation layout insets')
+        enum(value['effectiveDirection'], range(2), 'Invalid public navigation direction')
+        for key in ('horizontalSizeClass', 'verticalSizeClass'):
+            enum(value[key], range(3), 'Invalid public navigation size class')
+        for key in ('preservesSuperviewMargins', 'insetsMarginsFromSafeArea'):
+            require(type(value[key]) is bool, 'Invalid public navigation margin behavior')
+        if root:
+            require(isinstance(value['children'], list), 'Missing public navigation child layout')
+            for child in value['children']: layout(child)
+    for bar, metric in zip(bars, metrics):
+        require(geometry.rect(bar), 'Invalid observed navigation frame')
+        layout(metric, root=True)
+        require(all(abs(a-b) <= 1/scale+1e-6 for a,b in zip(bar, metric['frame'])),
+            'Public navigation layout is not bound to observed bar frame')
 
 
 def public_controls(page, size):
@@ -122,7 +169,7 @@ def verify(exported, output, commit):
             if isinstance(value, dict) and value.get('referenceKind') == 'originalFeedFullTextScene':
                 name = value.get('scene'); require(name not in values, 'Duplicate exported sheet scene'); values[name] = value
     require(set(values) == set(scenes), 'Missing/unexpected full-sheet scenes')
-    provenance = None; reviewed = reviewed_provenance(); pairs = []; controls = {}
+    provenance = None; reviewed = reviewed_provenance(); pairs = []; controls = {}; chrome = {}; layouts = {}; dismissals = {}
     for name, scene in scenes.items():
         value = values[name]
         require(value.get('schema') == 1 and isinstance(value.get('pages'), list) and
@@ -134,6 +181,8 @@ def verify(exported, output, commit):
             if provenance is None: provenance = source
             stage = page['stage']; closed = stage == 'closed'
             size, scale = traits(page, scene, commit, provenance, 'root' if closed else 'sheet')
+            chrome[name+'-'+stage] = page['windowChrome']
+            layouts[name+'-'+stage] = page['navigationBarMetrics']
             public_controls(page, size)
             require(page.get('mode') == ('loading' if stage == 'loading' else 'retry') and
                 page.get('loadAttempts') == (1 if stage in ('loading', 'error') else 2), 'Wrong original load/retry sequence')
@@ -165,6 +214,7 @@ def verify(exported, output, commit):
         dismissal = value.get('loadingDismissal', {})
         dismissal_size, _ = traits(dismissal, scene, commit, provenance, 'root')
         public_controls(dismissal, dismissal_size)
+        dismissals[name] = dismissal['windowChrome']
         require(dismissal.get('mode') == 'loading' and dismissal.get('dismissed') is True and
             dismissal.get('loadAttempts') == 1 and dismissal.get('loadCancellations') == 1, 'Loading cancellation/dismissal unproven')
     output.mkdir(parents=True, exist_ok=False)
@@ -173,6 +223,7 @@ def verify(exported, output, commit):
     receipt = dict(schema=1, projectCommit=commit, provenance=provenance, verifierSha256=digest(Path(__file__)), scenes=list(scenes),
         capturedPageCount=len(pairs), imageSha256={n:digest(p) for n,p,_ in pairs}, imageGeometry={n:g for n,_,g in pairs},
         publicControlObservations=controls,
+        windowChromeObservations=chrome, navigationLayoutObservations=layouts, loadingDismissalWindowChrome=dismissals,
         scope='Whole unchanged original Feed full-text view/model/renderer declarations in an authored offline sheet presenter. Actual simulator compositor, localized controls, loading/retry/cancellation and measured traits. Not original account/transport/URL router, Android, physical-device or full app parity acceptance.')
     (output/'receipt.json').write_text(json.dumps(receipt, indent=2)+'\n'); print(json.dumps(receipt, indent=2)); return receipt
 

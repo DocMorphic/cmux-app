@@ -72,8 +72,23 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
             // bar. AX bounds alone cannot establish the actual toolbar font.
             var navigationLabels: [[String: Any]] = []
             var navigationBars: [[CGFloat]] = []
+            var navigationBarMetrics: [[String: Any]] = []
             var visibleLabels: [[String: Any]] = []
             var visibleButtons: [[String: Any]] = []
+            func rect(_ value: CGRect) -> [CGFloat] { [value.minX, value.minY, value.width, value.height] }
+            func edges(_ value: UIEdgeInsets) -> [CGFloat] { [value.top, value.left, value.bottom, value.right] }
+            func layoutObservation(_ view: UIView) -> [String: Any] {
+                let margins = view.directionalLayoutMargins
+                return ["className": String(describing: type(of: view)), "frame": rect(view.convert(view.bounds, to: window)),
+                    "bounds": rect(view.bounds), "safeArea": edges(view.safeAreaInsets), "margins": edges(view.layoutMargins),
+                    "directionalMargins": [margins.top, margins.leading, margins.bottom, margins.trailing],
+                    "guideFrame": rect(view.layoutMarginsGuide.layoutFrame),
+                    "effectiveDirection": view.effectiveUserInterfaceLayoutDirection.rawValue,
+                    "preservesSuperviewMargins": view.preservesSuperviewLayoutMargins,
+                    "insetsMarginsFromSafeArea": view.insetsLayoutMarginsFromSafeArea,
+                    "horizontalSizeClass": view.traitCollection.horizontalSizeClass.rawValue,
+                    "verticalSizeClass": view.traitCollection.verticalSizeClass.rawValue]
+            }
             func labelObservation(_ text: UILabel) -> [String: Any]? {
                 let frame = text.convert(text.bounds, to: window)
                 guard !text.isHidden, text.alpha > 0, text.window === window,
@@ -90,7 +105,15 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
                 guard !view.isHidden, view.alpha > 0, view.window === window else { return }
                 let navigation = inNavigationBar || view is UINavigationBar
                 let frame = view.convert(view.bounds, to: window)
-                if view is UINavigationBar { navigationBars.append([frame.minX, frame.minY, frame.width, frame.height]) }
+                if let bar = view as? UINavigationBar {
+                    navigationBars.append(rect(frame))
+                    var measured = layoutObservation(bar)
+                    // Public UIView layout properties only. Child runtime class
+                    // names are observations, never private selectors or edits.
+                    measured["children"] = bar.subviews.filter { !$0.isHidden && $0.alpha > 0 && $0.window === window }
+                        .map { layoutObservation($0) }
+                    navigationBarMetrics.append(measured)
+                }
                 if let text = view as? UILabel, let measured = labelObservation(text) {
                     visibleLabels.append(measured)
                     if navigation { navigationLabels.append(measured) }
@@ -117,6 +140,11 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
                 for child in view.subviews { observe(child, inNavigationBar: navigation) }
             }
             for child in window.subviews { observe(child) }
+            var statusBar: [String: Any] = ["available": false]
+            if let manager = window.windowScene?.statusBarManager {
+                statusBar = ["available": true, "hidden": manager.isStatusBarHidden,
+                    "frameInScene": rect(manager.statusBarFrame), "style": manager.statusBarStyle.rawValue]
+            }
             let value: [String: Any] = [
                 "schema": 1, "referenceKind": "originalFeedFullTextObservation", "context": "presentedOriginalFullTextSheet",
                 "scene": scene.id, "mode": mode, "probe": kind, "provenance": try! JSONSerialization.jsonObject(with: resource("Provenance.json")),
@@ -131,6 +159,10 @@ private enum ReferenceFailure: Error { case expectedOfflineFailure }
                 "style": traits.userInterfaceStyle == .dark ? "dark" : "light", "interfaceLevel": traits.userInterfaceLevel.rawValue,
                 "bodyPointSize": UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).pointSize,
                 "navigationLabels": navigationLabels, "navigationBars": navigationBars,
+                "navigationBarMetrics": navigationBarMetrics,
+                "windowChrome": ["sceneOrientation": window.windowScene?.interfaceOrientation.rawValue ?? 0,
+                    "horizontalSizeClass": traits.horizontalSizeClass.rawValue, "verticalSizeClass": traits.verticalSizeClass.rawValue,
+                    "statusBar": statusBar],
                 "visibleLabels": visibleLabels, "visibleButtons": visibleButtons,
                 "colors": ["background": rgba(.systemBackground), "label": rgba(.label), "secondaryLabel": rgba(.secondaryLabel),
                     "tertiaryLabel": rgba(.tertiaryLabel), "link": rgba(.link), "separator": rgba(.separator)],
