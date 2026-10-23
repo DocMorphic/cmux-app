@@ -1,5 +1,42 @@
 # Agent Feed companion
 
+## Title allocation and adaptive reader presentation verified — 2026-10-23
+
+The title now stays centered while space permits, then moves away from Close
+with the measured 16-point gap (dp on Android). It uses the full remaining row
+before falling back to a separate row in unusually narrow/enlarged windows.
+The ordinary compact toolbar is 54 dp with a 16 dp drag area; larger windows
+use a centered panel capped at the original standard iPad capture's 580 × 650
+points, expressed in dp and constrained by the actual Android window. Android
+system bars/camera cutouts define the usable area. This does not accept all
+UIKit sizing, colors or materials.
+
+Nine invocations pass against identical production APK
+02745e5b7664f3b1c9b0a6ed01f1261d464687c9bf1df83bad5857fd76ceb7e3:
+seven compact checks / 123.189 s (21 translated/type/width profiles, loading,
+retry/cancellation, actual rotation/system type and recreation, two actual
+process restorations) and wide portrait/landscape / 4.199 s and 4.667 s. Actual
+platform outside taps and Back produce two dismissal callbacks per wide profile,
+remove the panel and release its reader. UiDevice's Back return flag is false
+even though dismissal occurs; preserve that diagnostic, do not equate the flag
+with app behavior. The initial whole-display center assertion ignored a measured
+150 px landscape camera cutout; the final check uses actual WindowMetrics/insets.
+Failed attempts are retained. Crash buffers empty, settings restored, final wm
+readback matches, owned emulators exit 0. Reviewed compact/wide images.
+Evidence: captures/recovery-20261023/native-feed-reader-presentation-checkpoint.json.
+No new JVM claim is made for these UI-only changes.
+
+Typography observation run 39969462359 at 8c3d0817 is still running on its original
+handle. It measures public original navigation UILabel fonts/frames; no new font
+values are accepted yet. Poll and verify the same run. Whole original Feed preview
+entry/root and original testFeedFullTextReadingAndRetry are now source-audited in
+ios-feed-reader-production-preview-audit.json. This is not a compiled caller capture.
+
+Fonts, capsule/material palette, spinner, error allocation, compact landscape
+width, adaptive class-transition retention, production caller/account/transport,
+physical Pixel/Mac and TalkBack remain open. Signed 721 and physical 712 stay
+unchanged; these edits are not on the phone. No Mac app/pairing operation.
+
 ## Original full-sheet component reference accepted; visual gaps measured — 2026-10-23
 
 Run 39961701278 at source a0b825d5 succeeds. All three actual XCUITest methods

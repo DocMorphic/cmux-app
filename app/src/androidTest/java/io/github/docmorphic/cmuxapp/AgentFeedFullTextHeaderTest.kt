@@ -25,13 +25,14 @@ class AgentFeedFullTextHeaderTest {
     @Before fun emulatorOnly() { check(android.os.Build.MODEL.contains("sdk") || android.os.Build.FINGERPRINT.contains("generic")) }
     @After fun finish() { compose.activity.finish() }
 
-    @Test fun titleStaysCenteredAndCloseRemainsSeparateAcrossLanguagesAndTextSizes() {
+    @Test fun titleCentersOrShiftsAwayFromCloseWithoutLosingTranslatedText() {
         data class Profile(val language: String, val scale: Float, val narrow: Boolean = false)
         val profiles = listOf("en", "ar", "de", "es", "fr", "ja", "ko", "zh-Hans", "zh-Hant").flatMap {
             listOf(Profile(it, 1f), Profile(it, 2f))
         } + listOf(Profile("en", 2f, true), Profile("ar", 2f, true), Profile("de", 2f, true))
         var profile by mutableStateOf(profiles.first())
         var clicks = 0
+        var shiftedProfiles = 0
         compose.setContent { CmuxTheme {
             val base = LocalContext.current; val density = LocalDensity.current
             val configuration = remember(base, profile) { Configuration(base.resources.configuration).apply {
@@ -60,10 +61,19 @@ class AgentFeedFullTextHeaderTest {
             val title = compose.onNodeWithTag("AgentFeedFullTextTitle").assertIsDisplayed().assertTextEquals(titleText)
             val root = compose.onNodeWithTag("AgentFeedFullTextHeader").fetchSemanticsNode().boundsInRoot
             val c = close.fetchSemanticsNode().boundsInRoot; val t = title.fetchSemanticsNode().boundsInRoot
-            assertEquals("Title remains centered independently of the translated Close width", root.center.x, t.center.x, 1f)
             val stacked = c.bottom <= t.top + 1f
-            if (!stacked) {
-                if (p.language == "ar") assertTrue(t.right <= c.left + 1f) else assertTrue(c.right <= t.left + 1f)
+            if (stacked) {
+                assertEquals("Fallback second row remains centered", root.center.x, t.center.x, 1f)
+            } else {
+                val gap = with(compose.density) { 16.dp.toPx() }
+                if (p.language == "ar") {
+                    assertEquals("RTL title shifts away from trailing-screen Close", minOf(root.center.x + t.width / 2, c.left - gap), t.right, 1f)
+                    assertTrue(t.right <= c.left - gap + 1f)
+                } else {
+                    assertEquals("Title centers until it would collide with Close", maxOf(root.center.x - t.width / 2, c.right + gap), t.left, 1f)
+                    assertTrue(t.left >= c.right + gap - 1f)
+                }
+                if (kotlin.math.abs(root.center.x - t.center.x) > 1f) shiftedProfiles++
             }
             for (node in listOf(close, title)) {
                 val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
@@ -84,6 +94,7 @@ class AgentFeedFullTextHeaderTest {
                 .put("stacked", stacked).put("root", root.toString()).put("close", c.toString()).put("title", t.toString()).put("clickCount", clicks))
         }
         assertEquals(profiles.size, clicks)
+        assertTrue("Exercise actual collision allocation, not just already-centered titles", shiftedProfiles > 0)
         File(output, "result.json").writeText(JSONObject().put("profiles", records).put("scope",
             "Controlled production-header context/composition layout and actual semantics clicks. Not real system locale/type changes, full sheet colors/fonts, TalkBack, physical device or full iOS parity acceptance.").toString(2))
     }

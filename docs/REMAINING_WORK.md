@@ -1,3 +1,16 @@
+## Current reader follow-through — 2026-10-23
+
+Title allocation, compact chrome and wide panel behavior now have nine scoped
+passing emulator invocations on one production APK; see AGENT_FEED.md and the
+presentation checkpoint. Keep their scope distinct from full visual acceptance.
+Next: finish/reverify original typography run 39969462359 (8c3d0817), reconcile
+actual toolbar fonts, capsule/material colors, loading and error allocation;
+verify compact landscape width and adaptive class-transition retention. Use the
+newly located official full-text preview/root/test for production Feed caller
+context rather than substituting the offline presenter for whole app evidence.
+Physical Pixel/Mac, real transport, TalkBack and all other completion gates below
+remain open. Physical 712/candidate 721 unchanged; no new pairing step is needed.
+
 ## Original 52-frame reader reference verified; source differences now measured — 2026-10-23
 
 Source run 39961701278 succeeds at a0b825d5. Three original iOS UI-test methods

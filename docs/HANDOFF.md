@@ -1,3 +1,21 @@
+## Reader title/chrome and centered wide panel pass scoped checks — 2026-10-23
+
+Cancellation-side title allocation replaces forced symmetric centering. Compact
+chrome is reduced; wide readers use a centered 580 × 650 dp panel within actual
+system/cutout insets. Nine invocations pass against one production APK: seven
+compact/lifecycle/process checks plus portrait/landscape outside-tap/Back cases.
+Evidence, exact hashes, retained test-assumption failures and scope are in
+AGENT_FEED.md and the presentation checkpoint under captures/recovery-20261023/.
+
+Original typography run 39969462359, job 120467965578, source 8c3d0817 remains
+live: poll that handle, verify exports, inspect measured fonts before changing
+role scaling. The actual official Feed full-text preview/root/test entry is now
+located; caller compilation/capture remains open. Fonts/colors/materials/error/
+spinner, compact landscape and adaptive-transition details, real transport,
+physical Pixel/Mac and TalkBack are not accepted. No new signed artifact or
+phone/Mac/pairing operation; physical 712 and candidate 721 remain unchanged.
+Full goal and global source pins remain open.
+
 ## Original 52-frame reader reference verified; source differences now measured — 2026-10-23
 
 Source run 39961701278 succeeds at a0b825d5. Three original iOS UI-test methods

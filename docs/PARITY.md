@@ -1,3 +1,16 @@
+## Native reader title allocation and wide presentation advanced — 2026-10-23
+
+Scoped partial progress: source-measured cancellation-side title allocation,
+smaller compact chrome and a centered bounded wide panel. Nine emulator test
+invocations pass on identical production APK, including real window inset
+geometry, outside-tap/Back dismissal, translated layouts and routed lifecycle/
+process recovery. See AGENT_FEED.md and the presentation checkpoint. This is
+not full reader appearance or whole app parity. Fonts, materials, spinner,
+error allocation, compact landscape widths, adaptive transitions, actual caller,
+real Pixel/Mac/transport and TalkBack remain open. Original typography run
+39969462359 is live at 8c3d0817; verify its exports before accepting font values.
+No signed release, device install, pairing action or global pin advance.
+
 ## Original 52-frame reader reference verified; source differences now measured — 2026-10-23
 
 Source run 39961701278 succeeds at a0b825d5. Three original iOS UI-test methods

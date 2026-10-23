@@ -19,6 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -230,9 +233,7 @@ internal fun AgentFeedFullText(load: suspend () -> String, onRead: () -> Unit, o
             failed = true
         }
     }
-    NativeModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = NativeAppColors.page, contentColor = NativeAppColors.text) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("AgentFeedFullTextSheet")) {
+    AgentFeedFullTextPresentation(onDismiss) {
             AgentFeedFullTextHeader(onDismiss)
             when {
                 failed -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -247,14 +248,44 @@ internal fun AgentFeedFullText(load: suspend () -> String, onRead: () -> Unit, o
                 }
                 else -> NativeMarkdownReader(text!!, formattedPosition)
             }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AgentFeedFullTextPresentation(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val configuration = LocalConfiguration.current
+    if (configuration.screenWidthDp >= 600 && configuration.screenHeightDp >= 600) {
+        NativeDialog(onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(Modifier.widthIn(max = 580.dp).fillMaxWidth().heightIn(max = 650.dp).fillMaxHeight()
+                .testTag("AgentFeedFullTextPanel"), shape = RoundedCornerShape(32.dp),
+                color = NativeAppColors.page, contentColor = NativeAppColors.text) {
+                Column {
+                    AgentFeedFullTextDragIndicator()
+                    Column(Modifier.fillMaxWidth().weight(1f).testTag("AgentFeedFullTextSheet"), content = content)
+                }
+            }
+        }
+    } else {
+        NativeModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = NativeAppColors.page, contentColor = NativeAppColors.text,
+            dragHandle = { AgentFeedFullTextDragIndicator() }) {
+            Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("AgentFeedFullTextSheet"), content = content)
         }
     }
 }
 
-/** Keep the title centered; reflow narrow/enlarged labels instead of truncating them. */
+@Composable
+private fun AgentFeedFullTextDragIndicator() {
+    Box(Modifier.fillMaxWidth().height(16.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(36.dp, 5.dp).background(NativeAppColors.text.copy(alpha = .3f), RoundedCornerShape(50)))
+    }
+}
+
+/** Center when space permits, then shift away from Close as the original bar does. */
 @Composable
 internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
-    androidx.compose.ui.layout.Layout(modifier = Modifier.fillMaxWidth().testTag("AgentFeedFullTextHeader").padding(12.dp), content = {
+    androidx.compose.ui.layout.Layout(modifier = Modifier.fillMaxWidth().testTag("AgentFeedFullTextHeader").padding(horizontal = 20.dp, vertical = 3.dp), content = {
         TextButton(onClick = onDismiss) {
             Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_close_4053e619),
                 maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
@@ -263,27 +294,29 @@ internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
             maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }) { children, constraints ->
-        val closeWidth = children[0].maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity)
+        val close = children[0].measure(constraints.copy(minWidth = 0, minHeight = 0))
         val titleWidth = children[1].maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity)
-        val stacked = 2L * closeWidth + titleWidth > constraints.maxWidth
+        val gap = 16.dp.roundToPx()
+        // The original bar reserves space only on the cancellation side. A
+        // symmetric reservation needlessly wraps translated titles. Retain a
+        // second row only for Android windows where the complete pair cannot fit.
+        val stacked = close.width.toLong() + gap + titleWidth > constraints.maxWidth
         if (stacked) {
-            val close = children[0].measure(constraints.copy(minWidth = 0, minHeight = 0))
-            val gap = 8.dp.roundToPx()
+            val rowGap = 8.dp.roundToPx()
             val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
-                maxHeight = (constraints.maxHeight - close.height - gap).coerceAtLeast(0)))
-            layout(constraints.maxWidth, close.height + gap + title.height) {
+                maxHeight = (constraints.maxHeight - close.height - rowGap).coerceAtLeast(0)))
+            layout(constraints.maxWidth, close.height + rowGap + title.height) {
                 close.placeRelative(0, 0)
-                title.place((constraints.maxWidth - title.width) / 2, close.height + gap)
+                title.place((constraints.maxWidth - title.width) / 2, close.height + rowGap)
             }
         } else {
-            val close = children[0].measure(constraints.copy(minWidth = 0, minHeight = 0,
-                maxWidth = ((constraints.maxWidth - titleWidth) / 2).coerceAtLeast(0)))
             val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
-                maxWidth = (constraints.maxWidth - 2 * close.width).coerceAtLeast(0)))
+                maxWidth = (constraints.maxWidth - close.width - gap).coerceAtLeast(0)))
             val height = maxOf(close.height, title.height)
+            val titleStart = maxOf((constraints.maxWidth - title.width) / 2, close.width + gap)
             layout(constraints.maxWidth, height) {
                 close.placeRelative(0, (height - close.height) / 2)
-                title.place((constraints.maxWidth - title.width) / 2, (height - title.height) / 2)
+                title.placeRelative(titleStart, (height - title.height) / 2)
             }
         }
     }

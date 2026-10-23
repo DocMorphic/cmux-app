@@ -39,6 +39,9 @@ class AgentFeedFullTextTest {
         val title = compose.onNodeWithTag("AgentFeedFullTextTitle").fetchSemanticsNode().boundsInRoot
         val sheet = compose.onNodeWithTag("AgentFeedFullTextSheet").fetchSemanticsNode().boundsInRoot
         assertEquals(sheet.center.x, title.center.x, 1f)
+        val header = compose.onNodeWithTag("AgentFeedFullTextHeader").fetchSemanticsNode().boundsInRoot
+        assertEquals("Ordinary reader toolbar matches the measured 54-point source component", 54f,
+            header.height / compose.density.density, .5f)
         val indicator = compose.onNodeWithTag("AgentFeedFullTextProgress").fetchSemanticsNode().boundsInRoot
         val label = compose.onNodeWithText("Loading full text…").fetchSemanticsNode().boundsInRoot
         assertTrue(indicator.bottom <= label.top)
