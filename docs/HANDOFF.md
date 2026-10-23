@@ -1,3 +1,20 @@
+## Actual iOS detector capture running — 2026-10-23
+
+Run [39877268200](https://github.com/DocMorphic/cmux-app/actions/runs/39877268200)
+is confirmed in progress at exact project source
+`c18eabaeaa2a0b7b5ca9d5b7ede240ce17571dad`. Checkout/preparation and simulator
+selection passed; the nine-language observation step is running. Source package
+remains pinned to a5911a1f. No native detector output is accepted yet.
+
+Follow that exact run, then verify its terminal artifact independently with
+`captures/recovery-20261023/native-detection-run-39877268200/source/scripts/verify-ios-chief-detection.py`
+and `--project-commit c18eabaeaa2a0b7b5ca9d5b7ede240ce17571dad`.
+The immutable source ZIP and checkpoint in that directory bind the expected
+fixture/Swift/provenance. Do not substitute newer source after a verifier edit.
+The SDK observations remain isolated: no production engine has been selected,
+715 is unchanged, Pixel remains released at last verified 712 and availability/
+backend questions stay pending. Full parity remains active.
+
 ## Date/address engine evaluated; actual iOS comparison prepared — 2026-10-23
 
 The isolated opt-in detector-spike evaluates eleven shared synthetic inputs

@@ -89,3 +89,9 @@ result/owner fencing, model corruption/download/offline recovery, locale/time-zo
 handling, explicit read-only Calendar/Maps dispatch and existing literal text.
 Actual bubble rendering, taps, accessibility, physical/lifecycle behavior and
 all broader full-parity gates remain open; no platform difference is waived.
+
+Native run [39877268200](https://github.com/DocMorphic/cmux-app/actions/runs/39877268200)
+is now confirmed in progress at project c18eabaeaa2a0b7b5ca9d5b7ede240ce17571dad.
+Its immutable verifier/source archive is under
+`captures/recovery-20261023/native-detection-run-39877268200`. No native result is
+accepted until the terminal artifact is independently verified.
