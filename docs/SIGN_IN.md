@@ -1,5 +1,54 @@
 # Native sign-in recovery
 
+## Automatic code entry and exchange retirement — 2026-10-24
+
+Code entry now keeps ASCII letters/digits, uppercases and caps at six characters.
+Completing normalized input automatically verifies, including platform clipboard
+paste. The field stays editable during verification; manual submit stays disabled.
+Ordinary code entry requests focus/keyboard once. The verification-recovery
+continuation does not autofocus. Returning from focused code entry retains its
+admitted exchange and defers email focus until the email form becomes idle.
+The code field declares the OTP autofill content type and ASCII/character-capital
+keyboard options with autocorrection disabled.
+
+Replacement verification cancels old exchanges and waits for their terminal
+completion before starting another. Retired UI waiters cannot update the form;
+cancelled/late callbacks cannot publish credentials. Independent60-second bounds
+cover exchange and preflight waits. Timed-out uncooperative work remains tracked
+until terminal so a later attempt cannot overlap it. The latest Android queued
+edit wins; exact scheduling of multiple queued original coordinator flows and
+the full source user/team/token rollback contract remain unaccepted.
+
+Eleven whole original files at a5911a1f (identical at detected79d982f9) bind the
+input, view/caller, text options, coordinator, preflight and timeout review in
+recovery-20261023/native-signin-code-source-audit/review.json. The fixture generator
+compiles/executes the two unchanged original Swift input declarations:514 cases
+match Android normalization/completion, and a separate original reexecution passes.
+This oracle proves pure input policy, not SwiftUI event ordering or full auth.
+
+All36 focused JVM tests pass, including actual challenge/publication fencing,
+multiple queued replacements, timeout/preflight recovery and focus consumption.
+Seven owned API36 instrumentation cases pass in26.26s. Actual clipboard paste
+submits ABC123; replacement GHI789 waits for the retired callback, then publishes
+once. Code Back preserves its admitted request and restores email focus after its
+failure. An injected500ms deadline releases the form and blocks late credentials;
+this does not prove a real backend's60-second wall-clock behavior. Existing code/
+recovery Activity retention and18 controlled locale/font error profiles pass.
+Observed EditorInfo inputType0x1001/imeOptions0x82000006 confirms character capitals,
+no autocorrect flag and force-ASCII. OTP semantics are checked; actual autofill
+service delivery remains open. Four new frames reviewed; the timeout frame's
+lower code field extends below the keyboard and remains part of the open scaffold
+layout review. Crash empty, preflight no ANR, settings/window restored, emulator exit0.
+
+Bindings: recovery-20261023/native-signin-code-checkpoint.json and-runtime-v1/.
+App SHA256:0d18bee9b1a219c684c25ce0766c90aa30958d25a6cec08874665f224266a7ba.
+Test SHA256:bac02027ec66de55e54108f62dde49be667ac4736ab3644e2e9744bda6f595f0.
+Next: original entry/code scaffold, methods, materials, geometry and remaining
+copy/localization; complete coordinator/backoff/connectivity/user/team rollback,
+OS variants, real account/Pixel/Mac/TalkBack and all full-app gates remain open.
+No real email/account request or new signed delivery;722/physical712/global pins
+and stored account/pairing/signing unchanged. Goal remains active.
+
 ## Original sign-in error roles and copy applied — 2026-10-24
 
 The form now retains a display role rather than arbitrary provider/exception
@@ -40,11 +89,8 @@ TalkBack or full original sign-in UI/method/phase-orchestration acceptance.
 Automatic-backoff orchestration and its separate retrying state remain open.
 Real connectivity preflight/deadline behavior is not proven by mapped roles.
 
-Next source behavior: original CmuxMobileWorkspace/SignInCodeInputPolicy keeps
-ASCII letters/digits, uppercases and caps at six; SignInView automatically verifies
-complete normalized input. Android currently preserves case and waits for its
-manual submit button. Port those event/focus/busy semantics and original entry
-states alongside the remaining scaffold/method/keyboard/localization gates.
+The subsequent automatic-code section above supersedes this checkpoint's former
+next step. Original entry states/scaffold/method/localization gates remain open.
 No new signed build or real-device action;722/physical712/global pins and stored
 account/pairing/signing unchanged. Full goal remains active.
 

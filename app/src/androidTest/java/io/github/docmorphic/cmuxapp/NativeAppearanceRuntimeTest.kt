@@ -120,7 +120,9 @@ class NativeAppearanceRuntimeTest {
         compose.onNodeWithTag("signin.email").assertTextContains("fixture@example.test").assertIsNotEnabled()
         assertEquals(1, sends.get()); sendGate.complete(Unit)
         compose.waitUntil(5_000) { model!!.state.value.codeSent }
+        compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("signin.code").assertIsFocused(); true }.getOrDefault(false) }
         compose.onNodeWithTag("signin.code").performScrollTo().performTextInput("A1B2C3")
+        compose.waitUntil(5_000) { signs.get() == 1 }
         hideKeyboard(); form!!.recreate()
         compose.onNodeWithTag("signin.code").assertTextContains("A1B2C3")
         val saved = checkNotNull(NativeSignInLifecycleTestActivity.saved)
@@ -128,7 +130,6 @@ class NativeAppearanceRuntimeTest {
         val bytes = try { parcel.writeBundle(saved); parcel.marshall() } finally { parcel.recycle() }
         fun contains(pattern: ByteArray) = (0..bytes.size - pattern.size).any { start -> pattern.indices.all { bytes[start + it] == pattern[it] } }
         assertFalse("Code must stay out of saved state", contains("A1B2C3".toByteArray(Charsets.UTF_16LE)) || contains("A1B2C3".toByteArray()))
-        compose.onNodeWithTag("signin.submit").performScrollTo().performClick()
         compose.waitUntil(5_000) { signs.get() == 1 }; form!!.recreate()
         compose.onNodeWithTag("signin.submit").assertIsNotEnabled()
         assertEquals(1, signs.get()); authGate.complete(Unit)

@@ -1,3 +1,24 @@
+## Automatic sign-in code behavior advanced — 2026-10-24
+
+Android now normalizes to six uppercase ASCII letters/digits and automatically
+verifies complete input, including actual clipboard paste. Code remains editable
+while verifying; replacement exchanges wait for retired work to finish and late
+callbacks cannot publish credentials. Ordinary code autofocus is consumed once;
+verification recovery skips it, and code Back defers email focus until idle.
+OTP semantics and observed ASCII/capital/no-autocorrect EditorInfo are verified.
+The production preflight/exchange bounds are60s; fixture runtime uses500ms.
+
+All514 cases from executed unchanged original Swift input declarations match;
+36 focused JVM tests and seven owned API36 cases pass (26.26s), retaining prior
+18 controlled locale/font error profiles and Activity recovery checks. Four frames
+reviewed, crash empty, settings/window restored, emulator exit0. Exact bindings:
+[SIGN_IN.md](SIGN_IN.md), recovery-20261023/native-signin-code-checkpoint.json.
+Exact original multi-queued coordinator scheduling/full user/team/token rollback,
+entry/code scaffold/methods/materials/copy, keyboard layout/OS variants/backoff/
+connectivity, actual autofill service, real backend/Pixel/Mac/TalkBack and full-app
+gates remain open. No new signed delivery or real account request;722/physical712/
+global pins/account/pairing/signing unchanged. Goal active.
+
 ## Original sign-in error handling advanced — 2026-10-24
 
 The form now stores source display roles instead of provider text, renders the

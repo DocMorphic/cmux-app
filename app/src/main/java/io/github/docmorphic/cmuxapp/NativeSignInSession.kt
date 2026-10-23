@@ -7,19 +7,26 @@ import kotlinx.coroutines.flow.asStateFlow
 internal data class NativeSignInState(val email: String = "", val code: String = "", val codeSent: Boolean = false,
     val busy: Boolean = false, val error: NativeSignInError? = null, val completion: Long? = null,
     val verificationRequired: Boolean = false, val recoveryError: NativeSignInRecoveryError? = null,
-    val billingRecoveryAccepted: Boolean = false)
+    val billingRecoveryAccepted: Boolean = false, val authenticating: Boolean = false,
+    val codeFocusRequest: Long? = null, val emailFocusRequest: Long? = null)
 
 /** Owner-confined, memory-only form and requests. Configuration changes do not retire this owner. */
 internal class NativeSignInSession(parent: CoroutineScope, private val send: suspend (String) -> Unit,
     private val authenticate: suspend (String) -> Unit, private val clearChallenge: () -> Unit = {},
     private val requestVerification: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
-    private val requestBilling: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) }) : AutoCloseable {
+    private val requestBilling: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
+    private val verificationTimeoutMillis: Long = 60_000) : AutoCloseable {
+    init { require(verificationTimeoutMillis > 0) }
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
     private val mutable = MutableStateFlow(NativeSignInState())
     val state = mutable.asStateFlow()
     private var generation = 0L
+    private var emailFocusCounter = 0L
     private var pending: Job? = null
+    // A cancelled exchange can outlive its UI waiter. Track it until terminal,
+    // including through multiple replacement edits or a timed-out preflight.
+    private val exchanges = mutableSetOf<Deferred<Unit>>()
     fun editEmail(value: String) {
         if (!job.isActive || state.value.busy || state.value.completion != null) return
         if (value != state.value.email) {
@@ -28,25 +35,48 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
         }
     }
     fun editCode(value: String) {
-        if (job.isActive && !state.value.busy && state.value.completion == null && state.value.codeSent)
-            mutable.value = state.value.copy(code = value.filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }.take(6))
+        val form = state.value
+        if (!job.isActive || form.completion != null || !form.codeSent || (form.busy && !form.authenticating) || value == form.code) return
+        val code = nativeSignInCode(value)
+        mutable.value = form.copy(code = code)
+        // SwiftUI applies .assign, then receives .verify for the normalized
+        // six-character value. An unchanged value is not a new edit event.
+        if (code.length == 6) request(signingIn = true, automatic = true)
     }
     fun requestCode() = request(signingIn = false)
     fun submitCode() = request(signingIn = true)
-    private fun request(signingIn: Boolean) {
+    private fun request(signingIn: Boolean, automatic: Boolean = false) {
         val form = state.value
         val valid = if (signingIn) form.codeSent && form.code.length == 6 else form.email.isNotBlank()
-        if (!job.isActive || form.busy || form.completion != null || !valid) return
+        if (!job.isActive || (form.busy && !(automatic && form.authenticating)) || form.completion != null || !valid) return
         val admitted = ++generation
+        val previous = if (signingIn) exchanges.toList() else emptyList()
+        if (signingIn) {
+            previous.forEach { it.cancel() }
+            pending?.cancel()
+        }
         mutable.value = form.copy(busy = true, error = null, recoveryError = null, completion = null, codeSent = if (signingIn) form.codeSent else false,
-            code = if (signingIn) form.code else "")
-        pending = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            code = if (signingIn) form.code else "", authenticating = signingIn)
+        val task = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                if (signingIn) authenticate(form.code) else send(form.email)
+                if (signingIn) {
+                    // Original beginSignInFlow cancels/joins older token work
+                    // with the60s network bound before starting a new exchange.
+                    withTimeout(verificationTimeoutMillis) { previous.forEach { it.join() } }
+                    ensureActive()
+                    if (generation != admitted) return@launch
+                    val exchange = scope.async(start = CoroutineStart.LAZY) { authenticate(form.code) }
+                    exchanges.add(exchange)
+                    exchange.invokeOnCompletion { exchanges.remove(exchange) }
+                    exchange.start()
+                    try { withTimeout(verificationTimeoutMillis) { exchange.await() } }
+                    finally { exchange.cancel() }
+                } else send(form.email)
                 ensureActive()
                 if (generation != admitted) return@launch
                 mutable.value = if (signingIn) NativeSignInState(completion = admitted)
-                    else mutable.value.copy(codeSent = true, verificationRequired = false)
+                    else mutable.value.copy(codeSent = true, verificationRequired = false,
+                        codeFocusRequest = if (form.verificationRequired) null else admitted)
             } catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
                 if (generation != admitted) return@launch
@@ -70,9 +100,22 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
                     error = display)
                 }
             } finally {
-                if (job.isActive && generation == admitted) mutable.value = mutable.value.copy(busy = false)
+                if (job.isActive && generation == admitted) mutable.value = mutable.value.copy(busy = false, authenticating = false)
             }
         }
+        pending = task
+        task.start()
+    }
+    fun consumeCodeFocus(request: Long): Boolean {
+        if (!job.isActive || !state.value.codeSent || state.value.codeFocusRequest != request) return false
+        mutable.value = state.value.copy(codeFocusRequest = null)
+        return true
+    }
+    fun consumeEmailFocus(request: Long): Boolean {
+        val form = state.value
+        if (!job.isActive || form.busy || form.codeSent || form.verificationRequired || form.emailFocusRequest != request) return false
+        mutable.value = form.copy(emailFocusRequest = null)
+        return true
     }
     private fun recoveryFailure(failure: Exception) {
         mutable.value = mutable.value.copy(recoveryError = (failure as? NativeSignInRecoveryFailure)?.reason
@@ -99,11 +142,20 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
             }
         }
     }
-    fun useDifferentEmail() {
+    fun useDifferentEmail() = returnToEmail(focusEmail = false)
+    fun returnFromCode(focusEmail: Boolean) = returnToEmail(focusEmail)
+    private fun returnToEmail(focusEmail: Boolean) {
         val form = state.value
-        if (!job.isActive || form.busy || form.completion != null) return
+        if (!job.isActive || (form.busy && !form.authenticating) || form.completion != null) return
+        val focus = if (focusEmail) ++emailFocusCounter else null
+        if (form.authenticating) {
+            // Original code-view Back changes entry mode without cancelling the
+            // admitted exchange; the email form stays busy until it finishes.
+            mutable.value = form.copy(codeSent = false, code = "", error = null, codeFocusRequest = null, emailFocusRequest = focus)
+            return
+        }
         clear()
-        mutable.value = NativeSignInState(email = form.email)
+        mutable.value = NativeSignInState(email = form.email, emailFocusRequest = focus)
     }
     fun consumeCompletion(value: Long): Boolean {
         if (!job.isActive || state.value.completion != value) return false
@@ -111,7 +163,7 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
         return true
     }
     fun clear() {
-        ++generation; pending?.cancel(); pending = null; clearChallenge()
+        ++generation; pending?.cancel(); pending = null; exchanges.toList().forEach { it.cancel() }; clearChallenge()
         mutable.value = NativeSignInState()
     }
     override fun close() { clear(); job.cancel() }

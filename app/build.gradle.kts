@@ -258,6 +258,8 @@ dependencies {
 
 // JVM interoperability cases run the real Node helper; helper changes must invalidate their cached result.
 tasks.withType<Test>().configureEach {
+    inputs.file(rootProject.file("tests/fixtures/signin-code-input-reference.json"))
+    inputs.file(rootProject.file("scripts/generate-signin-code-reference.py"))
     inputs.files(rootProject.fileTree("push") { include("*.mjs") })
     inputs.file(rootProject.file("scripts/push-enrollment-fixture-server.mjs"))
     inputs.files(rootProject.fileTree("build/push") { include("cmux-push-seal") })

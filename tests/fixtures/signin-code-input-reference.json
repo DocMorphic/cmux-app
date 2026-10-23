@@ -1,0 +1,3098 @@
+{
+  "schema": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "sourceFiles": {
+    "Packages/iOS/CmuxMobileWorkspace/Sources/CmuxMobileWorkspace/SignInCodeInputPolicy.swift": "7ac93e945b430aa7409e575a1f7e6169de5ba35cd0a41191cc7a54cf3dab148f",
+    "Packages/iOS/CmuxMobileWorkspace/Sources/CmuxMobileWorkspace/SignInCodeInputChangeAction.swift": "0591b382aa7bac4b3f57618389e85c8f19f990cad3eb12e203bef04287e281bc"
+  },
+  "adapterSha256": "e0ead17e56b10e20c7659dbf083754f1b3ab1f1d1e90986cc001fc6634df360d",
+  "generatorSha256": "b920f5b8902951eb6634f3171c9eefd90b80af0bcaf79ceab44d3f0a7b86661b",
+  "compiler": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "cases": [
+    {
+      "initialAction": "none",
+      "input": "",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "abc12",
+      "normalized": "ABC12",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "abc123",
+      "normalized": "ABC123",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "verify",
+      "input": "ABC123",
+      "normalized": "ABC123",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "ab c-123",
+      "normalized": "ABC123",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "123456\n",
+      "normalized": "123456",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "1234567",
+      "normalized": "123456",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\uff21\uff22\uff23\uff11\uff12\uff13",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e4\u00e9\u0130\u0131\u00df\u212a\u0430\u0431\u0432\uff11\uff12\uff13\u0661\u0662\u0663abc123",
+      "normalized": "ABC123",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\ud83d\ude42a\u0301b\nc123",
+      "normalized": "ABC123",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0000A\tbC123",
+      "normalized": "ABC123",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0000_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0001_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0002_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0003_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0004_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0005_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0006_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0007_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\b_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\t_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\n_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u000b_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\f_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\r_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u000e_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u000f_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0010_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0011_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0012_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0013_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0014_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0015_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0016_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0017_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0018_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0019_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u001a_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u001b_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u001c_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u001d_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u001e_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u001f_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": " _a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "!_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\"_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "#_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "$_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "%_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "&_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "'_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "(_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ")_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "*_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "+_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ",_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "-_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "._a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "/_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "0_a1b2c3",
+      "normalized": "0A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "1_a1b2c3",
+      "normalized": "1A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "2_a1b2c3",
+      "normalized": "2A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "3_a1b2c3",
+      "normalized": "3A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "4_a1b2c3",
+      "normalized": "4A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "5_a1b2c3",
+      "normalized": "5A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "6_a1b2c3",
+      "normalized": "6A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "7_a1b2c3",
+      "normalized": "7A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "8_a1b2c3",
+      "normalized": "8A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "9_a1b2c3",
+      "normalized": "9A1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ":_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ";_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "<_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "=_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ">_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "?_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "@_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "A_a1b2c3",
+      "normalized": "AA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "B_a1b2c3",
+      "normalized": "BA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "C_a1b2c3",
+      "normalized": "CA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "D_a1b2c3",
+      "normalized": "DA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "E_a1b2c3",
+      "normalized": "EA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "F_a1b2c3",
+      "normalized": "FA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "G_a1b2c3",
+      "normalized": "GA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "H_a1b2c3",
+      "normalized": "HA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "I_a1b2c3",
+      "normalized": "IA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "J_a1b2c3",
+      "normalized": "JA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "K_a1b2c3",
+      "normalized": "KA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "L_a1b2c3",
+      "normalized": "LA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "M_a1b2c3",
+      "normalized": "MA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "N_a1b2c3",
+      "normalized": "NA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "O_a1b2c3",
+      "normalized": "OA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "P_a1b2c3",
+      "normalized": "PA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Q_a1b2c3",
+      "normalized": "QA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "R_a1b2c3",
+      "normalized": "RA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "S_a1b2c3",
+      "normalized": "SA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "T_a1b2c3",
+      "normalized": "TA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "U_a1b2c3",
+      "normalized": "UA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "V_a1b2c3",
+      "normalized": "VA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "W_a1b2c3",
+      "normalized": "WA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "X_a1b2c3",
+      "normalized": "XA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Y_a1b2c3",
+      "normalized": "YA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Z_a1b2c3",
+      "normalized": "ZA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "[_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\\_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "]_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "^_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "__a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "`_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "a_a1b2c3",
+      "normalized": "AA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "b_a1b2c3",
+      "normalized": "BA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "c_a1b2c3",
+      "normalized": "CA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "d_a1b2c3",
+      "normalized": "DA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "e_a1b2c3",
+      "normalized": "EA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "f_a1b2c3",
+      "normalized": "FA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "g_a1b2c3",
+      "normalized": "GA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "h_a1b2c3",
+      "normalized": "HA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "i_a1b2c3",
+      "normalized": "IA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "j_a1b2c3",
+      "normalized": "JA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "k_a1b2c3",
+      "normalized": "KA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "l_a1b2c3",
+      "normalized": "LA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "m_a1b2c3",
+      "normalized": "MA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "n_a1b2c3",
+      "normalized": "NA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "o_a1b2c3",
+      "normalized": "OA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "p_a1b2c3",
+      "normalized": "PA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "q_a1b2c3",
+      "normalized": "QA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "r_a1b2c3",
+      "normalized": "RA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "s_a1b2c3",
+      "normalized": "SA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "t_a1b2c3",
+      "normalized": "TA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "u_a1b2c3",
+      "normalized": "UA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "v_a1b2c3",
+      "normalized": "VA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "w_a1b2c3",
+      "normalized": "WA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "x_a1b2c3",
+      "normalized": "XA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "y_a1b2c3",
+      "normalized": "YA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "z_a1b2c3",
+      "normalized": "ZA1B2C",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "{_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "|_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "}_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "~_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u007f_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0080_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0081_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0082_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0083_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0084_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0085_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0086_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0087_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0088_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0089_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u008a_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u008b_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u008c_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u008d_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u008e_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u008f_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0090_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0091_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0092_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0093_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0094_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0095_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0096_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0097_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0098_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0099_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u009a_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u009b_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u009c_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u009d_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u009e_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u009f_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a0_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a1_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a2_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a3_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a4_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a5_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a6_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a7_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a8_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00a9_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00aa_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ab_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ac_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ad_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ae_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00af_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b0_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b1_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b2_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b3_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b4_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b5_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b6_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b7_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b8_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00b9_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ba_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00bb_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00bc_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00bd_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00be_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00bf_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c0_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c1_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c2_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c3_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c4_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c5_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c6_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c7_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c8_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00c9_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ca_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00cb_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00cc_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00cd_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ce_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00cf_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d0_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d1_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d2_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d3_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d4_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d5_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d6_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d7_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d8_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00d9_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00da_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00db_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00dc_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00dd_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00de_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00df_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e0_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e1_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e2_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e3_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e4_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e5_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e6_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e7_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e8_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e9_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ea_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00eb_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ec_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ed_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ee_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ef_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f0_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f1_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f2_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f3_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f4_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f5_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f6_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f7_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f8_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00f9_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00fa_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00fb_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00fc_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00fd_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00fe_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00ff_a1b2c3",
+      "normalized": "A1B2C3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "m",
+      "normalized": "M",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "03_\ud83d\ude425",
+      "normalized": "035",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "NN8U]i`=\u0130%u/?2G7o<saq\u00e9=#*Wb[kV@",
+      "normalized": "NN8UIU",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ":\u03019\u00e9>}2.vq&`gcRYKrM",
+      "normalized": "92VQGC",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "{",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "P3'c~$)dR\u0301_i\t@t\n):ftx",
+      "normalized": "P3CDRI",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\uff12T\ng",
+      "normalized": "TG",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "[$wav`9y{\u0661X:y6I:kX799?\u00e91",
+      "normalized": "WAV9YX",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "=z+P \u0661R~4i%j~\u0131e\\mJd",
+      "normalized": "ZPR4IJ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\\4\u00df]0F\ud83d\ude42@ o.\t&'r#dd(~",
+      "normalized": "40FORD",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "j,5vX>9gT!u ~B\n#\u5b570$Av",
+      "normalized": "J5VX9G",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "9q:\ud83d\ude42,\u6f22\u00e9mp!:*mFS^\u5b57QT_S\tP5497DfXv=#VN6p@fa",
+      "normalized": "9QMPMF",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "1U\u0301u@+\u5b57]>xP#",
+      "normalized": "1UUXP",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "FuP\t\u00e9(\"CT7n$\ud83d\ude42Hs",
+      "normalized": "FUPCT7",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ")7r\\ek-=jI>pi]iz^|Py",
+      "normalized": "7REKJI",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Pr9xcf\\N\t\"fr\u212a]C",
+      "normalized": "PR9XCF",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "i_ $\tE|5H/AYg@S|I8\u212akx~kiX~\ud83d\ude42\u06619=\\#V#",
+      "normalized": "IE5HAY",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "6\ud83d\ude42OJq\u0131Yw{EO4\u212a\u6f22;Qkr}6+k;e",
+      "normalized": "6OJQYW",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "X6n\\U!>Or'(\u00e9NK^k>bkybZ9R",
+      "normalized": "X6NUOR",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "=\tjx$40)h\ud83d\ude42}(6\u6f22`v\u00e9\u00dfk%W\tU\u0131j\uff12 /Y\u0131R[",
+      "normalized": "JX40H6",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "l D69\"-7f",
+      "normalized": "LD697F",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "AyZv+fDUJ\uff12V\nkOlH4<#7\t=\nX%c",
+      "normalized": "AYZVFD",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "zy&.);.\u0131T\u00df>",
+      "normalized": "ZYT",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "6P<5iQg0\u00dfdPoh~\u0130Z\u00e9uM,C1wo)I&y4>.",
+      "normalized": "6P5IQG",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "-uTo$\tl_WKc4$T\ud83d\ude42\uff12(yo-CqSH(*K2&:",
+      "normalized": "UTOLWK",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "G\uff12vsmct~ytX(6\u00e9(7roOv",
+      "normalized": "GVSMCT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\uff12ayVd(KS uXa#f=h\u0301\ud83d\ude42 \ud83d\ude42e[szj:4\tSCUBk<d ",
+      "normalized": "AYVDKS",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "r\u6f22{s",
+      "normalized": "RS",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e9F)C[i Km<TtM#*WNew~`&0\u6f22`on9'3elCp",
+      "normalized": "FCIKMT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "u/3a\u212a$O\ud83d\ude42`21",
+      "normalized": "U3AO21",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "PAV?=\uff12#b2vt{L",
+      "normalized": "PAVB2V",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "#\u00df-93H\u0661Y?",
+      "normalized": "93HY",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": ";\u03018gs\u0130s/D\uff12\uff12]<|OaA.6^m\"u<d.T %X%\u00df;",
+      "normalized": "8GSSDO",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "wHw`",
+      "normalized": "WHW",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "$j$g\uff12wYJ\u0661\u0130",
+      "normalized": "JGWYJ",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "%yv#/]05eEY\\=%2\u212a=y?_Ry\uff12$\"\nRdC~F{H\u00e9}Eer",
+      "normalized": "YV05EE",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "V}<\tc/^?c'gp4V}&\u0301",
+      "normalized": "VCCGP4",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "2WZuG`;Ov#Fk:&n]Po\u0130\u0301T?~#\uff12ro{<s19q0g~S",
+      "normalized": "2WZUGO",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "R\uff12WktA",
+      "normalized": "RWKTA",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": ".}iu#V'g2\u0661\t~Hl;K\u0130.\ud83d\ude42\u0131\u0301\u0131s)y&",
+      "normalized": "IUVG2H",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "( H\u0130^cEB\\G\u00df!=o\u5b57hh];>:",
+      "normalized": "HCEBGO",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "qy\ud83d\ude42N\",BQ\u0130zc+uh]\u0661.6~,jnJ.b=b|FPe&@oBGA2]",
+      "normalized": "QYNBQZ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "KGG\t:(v07ATugh,Vss95s_y.0\u00e9k~5Ry1]!gDc",
+      "normalized": "KGGV07",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "b\ud83d\ude42\u0130>K<i;\u0131xlP(C",
+      "normalized": "BKIXLP",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "RjR~%ZR",
+      "normalized": "RJRZR",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": ",=@g=\u6f22",
+      "normalized": "G",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u5b57+\u0131SncC",
+      "normalized": "SNCC",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Q\ud83d\ude42b!!~1\nB{.B\ud83d\ude42D\tt\u03012\u0661!]GC3\\Xho=X0yzdLe1{Y",
+      "normalized": "QB1BBD",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "3x\\h\"N:S{RgO*\"",
+      "normalized": "3XHNSR",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0131\u0301\u6f22^+",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "[M@|5C",
+      "normalized": "M5C",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "UJ/\u0130>/a?'mzWqaD\u01300-H-JZAHc\"r\u00df|YpHnm",
+      "normalized": "UJAMZW",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ";#';",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": ",qJ,${JZ\u00df",
+      "normalized": "QJJZ",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": ":,5|=0\u00dfU+j3#zbvJn\u0130.I\u212a-w#-:I\\Ld",
+      "normalized": "50UJ3Z",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "?\u00e9Rt",
+      "normalized": "RT",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "`hj7<4B<y\ud83d\ude42Ohnm\u00df\u00df$\uff126\u0131db>G\\^il?",
+      "normalized": "HJ74BY",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00df",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "72-U=\n-;`",
+      "normalized": "72U",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\t/owko\u00dfYuw\u00e9qz{\u0130:lmpeOa\u6f22",
+      "normalized": "OWKOYU",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "#1661=o:L.|k\u0130'L#?RstJ2<ed'X",
+      "normalized": "1661OL",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "x",
+      "normalized": "X",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "none",
+      "input": "F",
+      "normalized": "F",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "PWuwF;aNN})N!\u0301V4QyY%U\u6f229{iG(Q:c\u00df}e}$a",
+      "normalized": "PWUWFA",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "fO>Kre\u00dfe\u0130$5d*c?B\u0131S\u6f225u5H\nBN^",
+      "normalized": "FOKREE",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "%[a!>",
+      "normalized": "A",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "yI|5>\u6f22J\u212a<\u0301\u00dff~c5NfoLXY\u00df-mYD5\\:}bN\u0301u",
+      "normalized": "YI5JFC",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "JoB`$:*4",
+      "normalized": "JOB4",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Pv*<Rj},qX=u%r9L-W",
+      "normalized": "PVRJQX",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\n\u212aT-\uff12( Ogmz\tt|jhLN\u5b57KE?vgm\u00df",
+      "normalized": "TOGMZT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ")a;~%7_bOi8p>r]s[b",
+      "normalized": "A7BOI8",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\\\u0301._Cq\u0131S.g\\ek\u0661$,0*OS4rvKj/\ndDo?!$a.|c",
+      "normalized": "CQSGEK",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "/K\t\"PPp7*\ud83d\ude42ovt\\WuR\uff12x",
+      "normalized": "KPPP7O",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "|J}aC8",
+      "normalized": "JAC8",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": " B\u212aNK0l+\n~]u x#7rmaGiGu;f%78I:EeoZ",
+      "normalized": "BNK0LU",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ";\u00dfzb3dshA;EDt\u0130\u0661Y6o,j(jFu|,:496OJ}0T1#Um",
+      "normalized": "ZB3DSH",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "IYfB[\u212a'B\u212a|hpkPkwT^#Av;\u0130*)M\"rX\u0131JH?[qag",
+      "normalized": "IYFBBH",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u013148YHq_1808Eb5h?p E\n-6`BsD%\"Q-\u0661w/g{",
+      "normalized": "48YHQ1",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "g@KZg:P5is<yqS\u212adJ`f\ty/\u06612P1+E\u6f22+Nx;\u0301",
+      "normalized": "GKZGP5",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "/?h{|dV\u212aYc.{Z Z",
+      "normalized": "HDVYCZ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "qW}#p`PEQ\u0301",
+      "normalized": "QWPPEQ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "wX.PYv,kS,`0\u0131e%ujM\nQDh0%\u00e9J!ys\u00e9r$hh\u6f22\u212a",
+      "normalized": "WXPYVK",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "-i=@o}0?#)\u0301!JV\tyoZx:Lk2,]\u0661Ix@@Q\u00e9sO>",
+      "normalized": "IO0JVY",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "XzNu,KRIb J{mK50?\ud83d\ude4248rc",
+      "normalized": "XZNUKR",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "J:hG(/5Q6M\\Y0L-|\u5b57{\u0131)J\ud83d\ude42']zzH'zEsOMD7Z#M",
+      "normalized": "JHG5Q6",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "[{G*_O38C\u0661*5\"*",
+      "normalized": "GO38C5",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "k0\u212a3s~'{ktoBz\"\ud83d\ude42b",
+      "normalized": "K03SKT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "DQnjKe0K\u0130",
+      "normalized": "DQNJKE",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "^|2\"iYO6J#",
+      "normalized": "2IYO6J",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "p\u212a7._v=\nNbGz*\u00e9",
+      "normalized": "P7VNBG",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "/nqijB\u6f226D_\t\nK4P\uff12g\nV[\u212a6\uff12K4\u0131\n~\u00e9\u0131",
+      "normalized": "NQIJB6",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "G7Y)\\a\u0131VtS~\tkj~]\u00e9'O3c/2<G)iNsR !#e\u0661]&U",
+      "normalized": "G7YAVT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "PV'BD$\u212aI",
+      "normalized": "PVBDI",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "sA@DTK",
+      "normalized": "SADTK",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "+",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "J5.\u212a",
+      "normalized": "J5",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "dP]",
+      "normalized": "DP",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "none",
+      "input": "39",
+      "normalized": "39",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "y=K8\u212ahwE\u6f22!\u212a%%\"()\u00e9[XJ[\"%P#W\nW_)Ck\u0301Iek=$a",
+      "normalized": "YK8HWE",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "gtb.kQ\u0131T34_\u212a+:\u5b57bmh\tJM]//RJ'v2!Y'Iy\u0131\u0301*D",
+      "normalized": "GTBKQT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "_1`<9U}OvAR^&\ud83d\ude42c 4ooC!~a#?H#\u00dfc':m\"\u00e9\u0131\u5b57D\u212a",
+      "normalized": "19UOVA",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0131&\u5b57!\"\u00e9ETG,Ot$&DWDZke\u5b57_s\u06619?en",
+      "normalized": "ETGOTD",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": " \u5b57W?^gjZ\u5b57G:\u0131oy\u5b57Q45p}l8\u0130pp=5\u00e9r E",
+      "normalized": "WGJZGO",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ",yF]A@@\u0661",
+      "normalized": "YFA",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "RucXNeR|T+{m(p \u6f22*gYF!nx\u212a~\\/i0B\ud83d\ude42bm>W\u5b57\u212a\u0301\\R",
+      "normalized": "RUCXNE",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "ONN}",
+      "normalized": "ONN",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "k+*Q$8(+qMguor",
+      "normalized": "KQ8QMG",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "N!VC\uff12",
+      "normalized": "NVC",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "4UYZu Bc9\u0661hjhP",
+      "normalized": "4UYZUB",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\"k(\u5b57=XWW\u0130Y",
+      "normalized": "KXWWY",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "ef8?;f`>\u0661",
+      "normalized": "EF8F",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "wk\u0301\u00dfm]T;@s",
+      "normalized": "WKMTS",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "&kTP$]V}}tCv$\uff127\u00e9SC95F}YB",
+      "normalized": "KTPVTC",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "-1S/N/}xXL4R{%i\\qne>u=HJd{'-)\\a;U\u00df",
+      "normalized": "1SNXXL",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "E-\uff12/G\u0130",
+      "normalized": "EG",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "=B]9w`RBtc\u6f22v'w_x\ud83d\ude42:nFOT\u0661O",
+      "normalized": "B9WRBT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "2\u0130!b)<\u212ark`$v\u0661N2\u00e9tm\\UO",
+      "normalized": "2BRKVN",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Ys=/&9\u5b57y z\\Tv7_",
+      "normalized": "YS9YZT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "t1ZTAg\u6f22zuQ0\u6f22,:\n@FIm]?'R\n'yj5",
+      "normalized": "T1ZTAG",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "S~?_C H\u212a:Ou1N|7M\u212aOi\"",
+      "normalized": "SCHOU1",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "VM`e",
+      "normalized": "VME",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "s%\u212aI\u00e9*m7W",
+      "normalized": "SIM7W",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "}1N\u212aJ0A[\u5b57D`DE",
+      "normalized": "1NJ0AD",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "JtIr\u00dfc4CKj)i,>v",
+      "normalized": "JTIRC4",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ")",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "P`px\uff12gJ{\u5b57\u6f22mf})nI^Fo\"lsy\ud83d\ude42y4`L",
+      "normalized": "PPXGJM",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "mg#[WBnL8\u00df\u0301$:i7aWKoD#A<)Fj,S8\u0130\u00dfb\u00dfOu",
+      "normalized": "MGWBNL",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "S1\u0661l$W}h2:n#+",
+      "normalized": "S1LWH2",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "H,\u0131iEB\u5b574ijJmywW\u00df!BEJQ{t+\u00dfT>`4odr",
+      "normalized": "HIEB4I",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "!scios\n\nW'}\ud83d\ude42Zr\u0661Q\u212a=gM9*O):;g\tWIs*f\u0130u@Z",
+      "normalized": "SCIOSW",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "G!iY\ud83d\ude42&nC6\u6f22\u5b57Y.\ud83d\ude425}|8OY#{",
+      "normalized": "GIYNC6",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "oT(3E\u00e9L\tTp>O'Q0]\\6 \uff12\u5b57KA/\uff12L_<':L\u00df!E/i",
+      "normalized": "OT3ELT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Qu[vu1{tl5/\u0130;BHx0/ZF.\u00df\t)H!I12gi2",
+      "normalized": "QUVU1T",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Y#Pu\u00e9_O\uff12p",
+      "normalized": "YPUOP",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "{iD*@sb\"9,.M@0\"\u00e9^8nAa",
+      "normalized": "IDSB9M",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0131}Z!;.0o\n\u00e9\u212a+r`8Px\ud83d\ude42fD\u00e9LtwM\u00e94T\u06617P!PceD9Hp",
+      "normalized": "Z0OR8P",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0131=FDs+(m\u00df5\n4z*rHXP",
+      "normalized": "FDSM54",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "'z\u212a%]x6R\u00e9#-\u00e9Bi\u0661",
+      "normalized": "ZX6RBI",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "U\u5b57\n<gqAb+\u5b579\n^h<\\,jr_g/\u00dfUiqDiWqde2G`L\"\u01315",
+      "normalized": "UGQAB9",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "wdE\u0661s@qTdLBYfbO=:NB#",
+      "normalized": "WDESQT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "zP!S",
+      "normalized": "ZPS",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "r$J65$3PD>*q\\3nh8sgXcE\u5b57gH",
+      "normalized": "RJ653P",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "6\t$x;N\uff121W-M",
+      "normalized": "6XN1WM",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "{\u5b57lTP$\"hb+p6}^=L%\u5b57Q'#+~cXIoC2",
+      "normalized": "LTPHBP",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "&7v$< 6@-u%i\u0131%",
+      "normalized": "7V6UI",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "{5]4cR:%>",
+      "normalized": "54CR",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": ":X5.\uff12gPeN\u6f22_li\u5b57_Yb>s",
+      "normalized": "X5GPEN",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "3 cE7\u0301K=3(,m6u$G!=\u6f22\u212a4w}\"MwsF-tno?P",
+      "normalized": "3CE7K3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "{iLz\u03015\u5b57}U!zi'\\a",
+      "normalized": "ILZ5UZ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\\.\u00df`R\u00df\n>.<]",
+      "normalized": "R",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "]XUKDu=*`/sf\u0661f'{BubPxWKL'\n|s%Wh0",
+      "normalized": "XUKDUS",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "jW<`RVjkSPdM5(|!~Rr\\>xfxx:|By?8F",
+      "normalized": "JWRVJK",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "D&+pXdT%Wly$B",
+      "normalized": "DPXDTW",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "RgW\nqB",
+      "normalized": "RGWQB",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "j\"*\niv]+7~<>do\\'[s<i0XX+6ZZ{Aq.",
+      "normalized": "JIV7DO",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "d8pbA,L9\uff12.@}\\sUB&Qu0U|3\"",
+      "normalized": "D8PBAL",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "3(\ud83d\ude42'o\u0130.tT_.fXC(\u0130uWS!fy[IIIV3eHi|n",
+      "normalized": "3OTTFX",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "s~4A>7\u5b57jWN&$__@)Gt]Ua2\u212a/%\u0661;d\ud83d\ude42OT",
+      "normalized": "S4A7JW",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "0=My_9yuH Ca86Y4g\u0301R\u00e9-@@u}\u5b57",
+      "normalized": "0MY9YU",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "M643FKeg9Q'3d\tG]j[S",
+      "normalized": "M643FK",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Jd)8J-&&Q'v\u6f22N0=8S\u6f22\u0301|G[",
+      "normalized": "JD8JQV",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "e`\"\tL!>V\u00e9KXoZVzH'\uff12wWW|x}I t.",
+      "normalized": "ELVKXO",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "U4\u00dfC!b2%pd\u212ai-47Al",
+      "normalized": "U4CB2P",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "4O|M\\oXT?\u0131n5RkTG&{K`f\u00e9!9sW<\u212a\\",
+      "normalized": "4OMOXT",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ">\ud83d\ude42\ud83d\ude42k`N=\u0661\u00e947'>ICz)W\u00dfpa^c ^K\"z#ak8EWWP\uff12",
+      "normalized": "KN47IC",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "`Kn9+_\u0130>Gf*An\u00df\\c",
+      "normalized": "KN9GFA",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "~[",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "L1*m<BiS2IsMjG\u0661e(",
+      "normalized": "L1MBIS",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "n)]XjP\u212ad..#%eEhxc\u0661C\u0130:b=S",
+      "normalized": "NXJPDE",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "8_/#5",
+      "normalized": "85",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "$[T\uff12uw\uff12eg\u6f22J;jzofb~I\u0661F}Z \u0131",
+      "normalized": "TUWEGJ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Gru$kc<dLy@/WL",
+      "normalized": "GRUKCD",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ">ap-",
+      "normalized": "AP",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "9;`jfO2{t=|j}ItYP-zU\nj9kB9{y4F\u212aI}",
+      "normalized": "9JFO2T",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "jg?@!?@~p",
+      "normalized": "JGP",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "d@n qxJ\u6f22F",
+      "normalized": "DNQXJF",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "cB\u0661(e],G81k!/\u00e98",
+      "normalized": "CBEG81",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00e9QM\u00df\t%J#r;p,!}7{NC%ZUmjWp2gF",
+      "normalized": "QMJRP7",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "<Z\uff12'Q8v_-WXv3u",
+      "normalized": "ZQ8VWX",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ")-\uff12\u00e9/ gTE}W\tp\u0301k\u0301!Ctf`X1I}MB%",
+      "normalized": "GTEWPK",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u6f22nH|\ud83d\ude42-Uy8\u0301p,1X\n=~b\\w;",
+      "normalized": "NHUY8P",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0301lYZYJUmmjs7\u212a*X1\u00df\":ZVWp8",
+      "normalized": "LYZYJU",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0130+)Cp?'D^m=>6V\nP",
+      "normalized": "CPDM6V",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "ctDC$cXD0\u0661Td",
+      "normalized": "CTDCCX",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "+;2$-xU*]xkwx|Hf\n\u0301GiQeF",
+      "normalized": "2XUXKW",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0131\u6f22,u/La\u212a[P6'}\uff12|]kv",
+      "normalized": "ULAP6K",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "?P#9|2\u0661\"9\u00e9",
+      "normalized": "P929",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Gf7;Df8x N\u5b57f~5l|k9",
+      "normalized": "GF7DF8",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "eGb|=e\\['siEu",
+      "normalized": "EGBESI",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "{Jd[",
+      "normalized": "JD",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "xg^YhsIrs1_~b3JW9Mb\u212a",
+      "normalized": "XGYHSI",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "cVo}d`5~\u6f221\u0301.E1:N:m5]&b)deCD#YUUv",
+      "normalized": "CVOD51",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "ad]75",
+      "normalized": "AD75",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "OQcNB5-\u00dfu0h1xJ@U\u00e9r\ud83d\ude42tsRHA4{",
+      "normalized": "OQCNB5",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "(|[(sq2gsAkbiM\uff120b:ln}85@wmUvV[am:\nH`3",
+      "normalized": "SQ2GSA",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "J60L\u0661\u6f22sz\u0301t0*K!\u00df(r7",
+      "normalized": "J60LSZ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "w_)}{(.;Z",
+      "normalized": "WZ",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "2\tYe{6\u5b57{OQ\n]UAJ/,Xk",
+      "normalized": "2YE6OQ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0130[J\u0130yH\u0661m.e3\\u\u00df\uff12MqJ>Zi}+dfh]t'\u0130;P>\u212a$dak",
+      "normalized": "JYHME3",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "}4=7iJ@~Z\t&/\n\uff12cVE!(G>}C/G\u5b57OM%<\u0661V",
+      "normalized": "47IJZC",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "s-P!BKEK`O?\\8\uff12  8F\u0131E!Lzap\u5b576",
+      "normalized": "SPBKEK",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "HrXVd<\u0661yHOKdYvr^2]Hq_b\u0301hN,1\u0131",
+      "normalized": "HRXVDY",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "wS\\J$",
+      "normalized": "WSJ",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "l\u00df\u6f228\u5b57RAZjkx$Z\\-l\nyX\u01308bD",
+      "normalized": "L8RAZJ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u0130uF&Mk",
+      "normalized": "UFMK",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "RO~@KJO\ud83d\ude42_zD&\u6f22O[8$Rl+3\\^;2m7;c*\tkrV\u0301mO'",
+      "normalized": "ROKJOZ",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": ".H",
+      "normalized": "H",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "ghU>w7n*\u212a'.C>Y+<ZqB(A5={*_q\u5b57*",
+      "normalized": "GHUW7N",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "(y*m\ud83d\ude42mm\u0661L",
+      "normalized": "YMMML",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "`3);6M E[(\t$j\"o}8*5w|UB9+`^p3b\u6f22",
+      "normalized": "36MEJO",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "L,xi+esie`>\tl65jb)!c4/KuqO=uvaJ`~1P?jE0",
+      "normalized": "LXIESI",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "FF7DM\u00e9Rk7\u0131\u212a\u212aeE-\u5b57",
+      "normalized": "FF7DMR",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "C2B6?nL6\u00df\u00dfC$mt !AiJ",
+      "normalized": "C2B6NL",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "8CSo\u0661+lWc^N&y^PW|O$I8z\\n0J/hZd",
+      "normalized": "8CSOLW",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "s9o8\u0661\t.7\tOAO\u212aQ`\u0301USu\u0301O&;2C{",
+      "normalized": "S9O87O",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "=7#XgB>^Aa\tg]h\tB_h6=*nN\u00e92O#(&5'Xqa7o.a",
+      "normalized": "7XGBAA",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "r\u212a\"kA`m'ywiA{",
+      "normalized": "RKAMYW",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "1@\u212a_Bbt6/\ud83d\ude42&p}",
+      "normalized": "1BBT6P",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u212a^Ve.$d\uff12 Y:XX&NC_lp\u00df!b>Q&[S(|\uff12S@&}KDL5$P",
+      "normalized": "VEDYXX",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "[DW\tf5\u00dfguK6Uw\u5b57X 89>PY{k\u00e9%b@n<]\\iih",
+      "normalized": "DWF5GU",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "WU(4$'\u00e9+(H*hdejd&cXMv\n'!9tD-_",
+      "normalized": "WU4HHD",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "W|K1Y\t^PN+{aQ#2\u212a5.",
+      "normalized": "WK1YPN",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "~):'pkX~#{\"0\u0661UF:_1W\u6f22!AEA#<!^P7[|R=XK\"\u0661",
+      "normalized": "PKX0UF",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "b\t+\u5b57+@=`}i:6E/sb?3{\uff12cN]\u0301",
+      "normalized": "BI6ESB",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "f\\;$oI4;\tLWrN2w\u5b57-\"gk4\\GDh,\u00e9R\ud83d\ude42K\u00e9\u212a\u5b57O_rA",
+      "normalized": "FOI4LW",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "'LsI`R-}dk*/Ib\u5b57\u00e9K][r*9=1\uff126\u0301\u0661fjnw}GFT\u0131S",
+      "normalized": "LSIRDK",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "/2UoZG",
+      "normalized": "2UOZG",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "Gi1m1,p/{a<6_uWX`x\u5b57])@aT\u0661yFdgwk%&]#C",
+      "normalized": "GI1M1P",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u212a",
+      "normalized": "",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "m|XDsiVS~W C'N\u0130mJVO bP% ",
+      "normalized": "MXDSIV",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "#\u00df b @#N't\ud83d\ude42T~j\n2\ud83d\ude42;71:\n=$g\u00e9cYkVbX",
+      "normalized": "BNTTJ2",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "?A",
+      "normalized": "A",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "ni!?K\u5b57m+c068N%Q\u0661\u0131\u212a'A9DY",
+      "normalized": "NIKMC0",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "/M\u0130Pd)D\uff1218/w'b&rrb",
+      "normalized": "MPDD18",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "G\u5b57v\u6f22CD",
+      "normalized": "GVCD",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "nv\ncB@!\u0301(\u212a&\"an\u0131@B$KgKflz!\uff12JR8'jR",
+      "normalized": "NVCBAN",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "+\"+DO",
+      "normalized": "DO",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "q&5\u212a#\u0130E#]_/\u0661)l!U62:",
+      "normalized": "Q5ELU6",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u00dfnf!_9\u5b57E}pi7\uff12SDsi\u0301Zx\u0131>K\u00dfd%JTKbriB",
+      "normalized": "NF9EPI",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "PqN\u0130PTit9\u5b57.>Z?W?`gQ7",
+      "normalized": "PQNPTI",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "none",
+      "input": "L",
+      "normalized": "L",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "J2rI$7o2.\u6f22rM'zpmrM3us_X'/K\u00e9/px''K",
+      "normalized": "J2RI7O",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "r]gY(HwmTtuv\\Xiye$\\r'\u0131G4iScrQ.7HSYV?p^",
+      "normalized": "RGYHWM",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\u01302y\u00dfg4\uff12R).cc01d\u00dfx'[Mz\u0130\u0661|04ffL(_mnU\\",
+      "normalized": "2YG4RC",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "assign",
+      "input": "\"?v8<:Dr\nJG=aF<Z",
+      "normalized": "V8DRJG",
+      "stableAction": "verify"
+    },
+    {
+      "initialAction": "none",
+      "input": "HU6H",
+      "normalized": "HU6H",
+      "stableAction": "none"
+    },
+    {
+      "initialAction": "assign",
+      "input": "H>F",
+      "normalized": "HF",
+      "stableAction": "none"
+    }
+  ],
+  "scope": "Whole unchanged original Swift normalization/completion declarations executed with authored JSON input/output. Not SwiftUI event ordering, focus/busy behavior, UIKit, backend, physical device or full parity acceptance."
+}

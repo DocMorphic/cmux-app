@@ -83,13 +83,14 @@ class NativeSignInRecoveryRuntimeTest {
             screenshot("privacy-neutral-recovery")
             verified.set(true); tap("signin.emailVerificationContinue")
             compose.waitUntil(10_000) { compose.onAllNodesWithTag("signin.code").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitForIdle(); compose.onNodeWithTag("signin.code").assertIsNotFocused()
             compose.onNodeWithTag("signin.code").performScrollTo().performTextInput("BAD123")
-            tap("signin.submit"); compose.waitForIdle()
+            compose.waitUntil(10_000) { exchanges.get() == 1 && compose.onAllNodesWithTag("signin.error").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithTag("signin.code").assert(hasText(""))
             compose.onNodeWithTag("signin.error").assertTextEquals(compose.activity.getString(R.string.cmux_signin_error_invalid_code))
             compose.onNodeWithTag("signin.submit").assertIsNotEnabled()
             assertEquals(0, publications.get())
-            compose.onNodeWithTag("signin.code").performScrollTo().performTextInput("ABC123"); tap("signin.submit")
+            compose.onNodeWithTag("signin.code").performScrollTo().performTextInput("abc123")
             compose.waitUntil(10_000) { completions.get() == 1 }
             assertEquals(1, publications.get()); assertEquals(3, sends.get()); assertEquals(2, exchanges.get())
             val requests = (1..3).map { checkNotNull(server.takeRequest()) }

@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
@@ -52,6 +53,8 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
@@ -4500,6 +4503,30 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
     val session = retained ?: checkNotNull(local)
     DisposableEffect(local) { onDispose { local?.close() } }
     val form by session.state.collectAsState()
+    val codeFocus = remember { FocusRequester() }
+    val emailFocus = remember { FocusRequester() }
+    var codeHasFocus by remember { mutableStateOf(false) }
+    val codeKeyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(session, form.codeSent, form.codeFocusRequest) {
+        val request = form.codeFocusRequest
+        if (form.codeSent && request != null) {
+            withFrameNanos { }
+            if (session.consumeCodeFocus(request)) {
+                codeFocus.requestFocus()
+                codeKeyboard?.show()
+            }
+        }
+    }
+    LaunchedEffect(session, form.busy, form.emailFocusRequest) {
+        val request = form.emailFocusRequest
+        if (!form.busy && request != null) {
+            withFrameNanos { }
+            if (session.consumeEmailFocus(request)) {
+                emailFocus.requestFocus()
+                codeKeyboard?.show()
+            }
+        }
+    }
     val email = form.email; val otp = form.code; val codeSent = form.codeSent; val busy = form.busy; val signInError = form.error
     LaunchedEffect(session, form.completion) { form.completion?.let { if (session.consumeCompletion(it)) completed() } }
     var showPairingHelp by rememberSaveable { mutableStateOf(false) }
@@ -4517,7 +4544,7 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
         Spacer(Modifier.height(24.dp))
         if (form.verificationRequired) NativeSignInRecoveryView(form, session) else {
         OutlinedTextField(email, session::editEmail,
-            Modifier.fillMaxWidth().testTag("signin.email"), label = { Text("Email") }, singleLine = true, enabled = !busy,
+            Modifier.fillMaxWidth().focusRequester(emailFocus).testTag("signin.email"), label = { Text("Email") }, singleLine = true, enabled = !busy,
             keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email))
         Spacer(Modifier.height(12.dp))
         Button(onClick = { session.requestCode() }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth().testTag("signin.request")) {
@@ -4529,9 +4556,15 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
         if (codeSent) {
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(otp, session::editCode,
-                Modifier.fillMaxWidth().testTag("signin.code"), label = { Text("Six-character code") }, singleLine = true, enabled = !busy,
-                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
+                Modifier.fillMaxWidth().focusRequester(codeFocus).onFocusChanged { codeHasFocus = it.isFocused }
+                    .semantics { contentType = ContentType.SmsOtpCode }
+                    .testTag("signin.code"), label = { Text("Six-character code") }, singleLine = true, enabled = !busy || form.authenticating,
+                keyboardOptions = KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters,
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii, autoCorrectEnabled = false))
             Button(onClick = { session.submitCode() }, enabled = !busy && otp.length == 6, modifier = Modifier.fillMaxWidth().testTag("signin.submit")) { Text(if (busy) "Signing in…" else "Sign in") }
+            TextButton({ session.returnFromCode(focusEmail = codeHasFocus) }, modifier = Modifier.testTag("signin.code.useDifferentEmail")) {
+                Text(stringResource(R.string.cmux_signin_recovery_different))
+            }
         }
         }
         TextButton(onClick = { session.clear(); onUseHelper() }) { Text("Use existing helper connection") }

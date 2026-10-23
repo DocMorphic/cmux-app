@@ -1,5 +1,14 @@
 # Attribution
 
+Native sign-in code normalization/completion and reviewed focus, editable-code,
+Back, preflight and timeout behavior follow the original cmux mobile sign-in and
+shared authentication sources at `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. The executed reference fixture records
+the exact hashes of SignInCodeInputPolicy.swift and SignInCodeInputChangeAction.swift;
+`scripts/generate-signin-code-reference.py` runs those whole unchanged declarations
+from a supplied upstream checkout with an authored JSON adapter. See
+`tests/fixtures/README.md` and `docs/SIGN_IN.md` for scope and remaining differences.
+
 The Chief wire models, RPC request contracts and shared question validation in
 `NativeChiefModels.kt`, `NativeChiefClient.kt` and `NativeChiefQuestion.kt` follow
 the iOS Chief client and shared AgentQuestion sources at cmux

@@ -57,7 +57,7 @@ class NativeSignInSessionTest {
         var cleared = 0; var signed = 0
         val model = NativeSignInSession(this, {}, { signed++ }, { cleared++ })
         try {
-            model.editEmail("first@example.test"); model.requestCode(); runCurrent(); model.editCode("123456")
+            model.editEmail("first@example.test"); model.requestCode(); runCurrent(); model.editCode("12345")
             val before = cleared; model.editEmail("second@example.test")
             assertTrue(cleared > before); assertEquals(NativeSignInState(email = "second@example.test"), model.state.value)
             model.submitCode(); runCurrent(); assertEquals(0, signed)
