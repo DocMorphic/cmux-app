@@ -1,3 +1,25 @@
+## Native reader system/process recovery verified within scope — 2026-10-23
+
+Actual rotation/system text-size changes and the ordinary recreation regression
+pass two routed Android tests (45.519 s), preserving selected text, reflowed text
+anchors, admitted client and body-free final saved state. A separate actual
+MainActivity-subclass process-death case passes (46.717 s): Android restores the
+same task twice into new UI processes, reloads the body and restores Formatted/
+Source reading positions. Text viewport pixels match; full Source screenshots
+match, while Formatted differs only in the native indicator strip. Raw frames,
+explicit comparison bounds, failed attempts and scope are recorded in
+`AGENT_FEED.md` and the system-config/process checkpoints under
+`captures/recovery-20261023/`. Crash buffers empty, settings restored/read back,
+emulators exit 0. Production source is unchanged; signed 721 stays the candidate.
+
+Process-restored selection and in-flight/revocation, original full sheet chrome/
+elevated traits, actual account/Iroh/Mac/Pixel, TalkBack and broader parity remain
+open. Original Full text has Close; Android's additional Source/Formatted control
+and transport error line need source UI reconciliation. The accepted source
+reference covers the leaf only. No phone/cmux Mac/pairing action; physical 712
+stays released, pending availability is not reused, and the popup can stay closed.
+Full goal and global source pins remain open.
+
 ## Signed 721 ready; fresh release startup reviewed — 2026-10-23
 
 Signed candidate 721 binds clean production source `7700152ac86bfb5cca7741a7d089a09e6f821dda`

@@ -1,5 +1,58 @@
 # Agent Feed companion
 
+## Actual system configuration and process restoration — 2026-10-23
+
+The routed native reader now has real Android-system evidence beyond manual
+`ActivityScenario.recreate()`. The final two-case cohort passes in **45.519 s**:
+actual landscape rotation replaces the Activity and changes native reader width
+from 1,206 to 1,920 px; actual system font scale 1 to 2 replaces it again and
+changes native Source text from 48 to 84 px and Formatted text from 51 to 87 px
+(Android's nonlinear font scaling). The same selected text survives. The original
+character remains in the top visible line after reflow, rather than requiring an
+invalid identical pixel offset across different line breaks. Source scroll moves
+from 8,000 to 31,184 px while retaining its text anchor and selection. The ordinary
+recreation regression still retains its exact anchor/8,000-px scroll. Each case
+reloads a 290,926-character body through 54 page RPCs, retains the same non-null
+admitted client, closes it on finish and saves only 10,020–10,032-byte final
+provider-containing state snapshots without message text. Ten native frame/trait
+records and unchanged screenshots retain the measured reflow evidence.
+
+`WorkspaceProcessRestorationTest.fullFeedReaderRestoresSamePaintedPassageAfterRealProcessDeath`
+separately passes in **46.717 s**. It drives the actual MainActivity subclass via
+UIAutomator, waits for bound native text, performs real swipes and proves that the
+painted passage changes. Android retains task 1580 and its saved Bundle while only
+the isolated UI process is killed: PIDs 3527 → 3666 → 3736; instrumentation PID
+3234 survives. Restoring Formatted, then Source, reloads the 298,910-character
+message through fresh page RPCs (38 reads after the first restore, 57 after the
+second), retaining both modes' same text viewport. Full raw screenshots are saved.
+
+The automated text comparison explicitly excludes the right 20-dp native padding/
+scrollbar strip. Independent full-image comparison finds the entire Source pair
+identical; Formatted differs only in a 12×24-px indicator rectangle, with all text
+pixels identical. Earlier whole-viewport assertions correctly fail on that
+indicator; a one-second fade wait does not remove it. This exclusion is a stated
+text-position check, not whole-UI equivalence. The first attempt also exposed an
+insufficient list-ready/scroll-Boolean harness check, fixed by real body admission
+and verified swipe-driven paint change. Failed attempts and the test-only missing
+import build failure remain retained. Process-restored selection is **not** tested.
+
+Final restored frames are reviewed; crash buffers are empty, original settings
+are restored/read back, host wall/monotonic times agree and both owned emulators
+exit 0. The final configuration and process cohorts use the identical production
+debug APK. No production source changed after `7700152`; signed 721 remains the
+verified candidate, and no additional release is needed for these test changes.
+Evidence/checkpoints: `captures/recovery-20261023/native-feed-reader-system-config-*`
+and `native-feed-reader-process-*`. No phone/cmux Mac/account/pairing action;
+physical 712 stays released, availability is pending, full goal/pins remain open.
+
+Original full-sheet UI is still unaccepted. The unchanged upstream Full text view
+at `a5911a1f` declares NavigationStack, inline title and Close, while Android adds
+Source/Formatted and a transport error line. The accepted original reference is
+only the native leaf in a standalone base window. Capture original sheet/elevated
+traits and reconcile these controls/error/title/chrome differences next; see
+`native-feed-fulltext-chrome-audit.json`. Broader in-flight/revocation/selection,
+real authentication/Iroh/Mac/Pixel, older APIs, TalkBack and app parity remain open.
+
 ## Routed Activity reader recovery fixed — 2026-10-23
 
 Real Activity recreation exposed a load race that the leaf's state-restoration

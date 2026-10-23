@@ -2,6 +2,9 @@ package io.github.docmorphic.cmuxapp
 
 import android.app.Activity
 import android.app.Application
+import android.content.res.Configuration
+import android.widget.TextView
+import androidx.test.uiautomator.UiDevice
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.os.Parcel
@@ -29,8 +32,10 @@ class AgentFeedReaderActivityTest {
     @get:Rule val compose = createEmptyComposeRule(effectContext = StandardTestDispatcher())
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
-    private val output get() = File(context.getExternalFilesDir(null), "feed-reader-activity").apply { mkdirs() }
+    private val output get() = File(context.getExternalFilesDir(null), if (systemChanges) "feed-reader-system-config" else "feed-reader-activity").apply { mkdirs() }
     private var phase = "initial-load"
+    private var systemChanges = false
+    private val device get() = UiDevice.getInstance(instrumentation)
     @Before fun emulatorOnly() {
         check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk"))
         Assume.assumeTrue("Final post-save callback requires API 29+", android.os.Build.VERSION.SDK_INT >= 29)
@@ -74,11 +79,49 @@ class AgentFeedReaderActivityTest {
         return body.layout.getLineStart(body.layout.getLineForVertical(y))
     }
     private fun capture(name: String) {
-        settle(); val image = instrumentation.uiAutomation.takeScreenshot()
+        settle()
+        compose.runOnUiThread {
+            val view = reader() ?: source()!!
+            val body = paragraph() ?: source()?.body
+            val record = JSONObject().put("phase", phase).put("orientation", view.resources.configuration.orientation)
+                .put("fontScale", view.resources.configuration.fontScale).put("readerWidth", view.width).put("readerHeight", view.height)
+                .put("textPixels", body?.textSize).put("selectionStart", body?.selectionStart).put("selectionEnd", body?.selectionEnd)
+                .put("lineCount", body?.lineCount).put("sourceScrollY", source()?.scrollY)
+            paragraph()?.let { record.put("formattedAnchor", anchor()) }
+            File(output, "$name-frame.json").writeText(record.toString(2))
+        }
+        val image = instrumentation.uiAutomation.takeScreenshot()
         File(output, "$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }; image.recycle()
     }
 
-    @Test fun routedFormattedAndSourceReadersReloadAndRestoreThroughActualActivityRecreation() {
+    @Test fun routedFormattedAndSourceReadersReloadAndRestoreThroughActualActivityRecreation() = routedReader(false)
+
+    @Test fun actualRotationAndSystemFontChangeRetainRoutedReaderPositionSelectionAndSession() = routedReader(true)
+
+    private fun topLineContains(body: TextView, scrollY: Int, character: Int) {
+        val line = body.layout.getLineForVertical((scrollY - body.totalPaddingTop).coerceAtLeast(0))
+        assertTrue("Original character $character stays in top visible line [${body.layout.getLineStart(line)}, ${body.layout.getLineEnd(line)})",
+            character in body.layout.getLineStart(line) until body.layout.getLineEnd(line))
+    }
+
+    private fun changeConfiguration(scenario: ActivityScenario<NativeLifecycleTestActivity>, font: Boolean) {
+        var previous: NativeLifecycleTestActivity? = null
+        scenario.onActivity { previous = it }
+        if (font) device.executeShellCommand("settings put system font_scale 2.0") else device.setOrientationLeft()
+        compose.waitUntil(20_000) { runCatching {
+            var changed = false
+            scenario.onActivity { changed = it !== previous && if (font) kotlin.math.abs(it.resources.configuration.fontScale - 2f) < .001f
+                else it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
+            changed
+        }.getOrDefault(false) }
+        assertTrue(previous!!.isDestroyed)
+    }
+
+    private fun routedReader(withSystemChanges: Boolean) {
+        systemChanges = withSystemChanges
+        val originalFontSetting = device.executeShellCommand("settings get system font_scale").trim()
+        require(originalFontSetting == "null" || originalFontSetting.toFloatOrNull()?.let { it.isFinite() && it > 0 } == true)
+        if (systemChanges) assertEquals("Controlled owned emulator starts at normal font", "1.0", originalFontSetting)
         val store = NativeCredentialStore(context); val peer = NativeFixturePeer()
         val preferences = context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE)
         val hadFeedPreference = preferences.contains(NativeDisplayPreferences.feedReplacesNotificationsKey)
@@ -142,11 +185,13 @@ class AgentFeedReaderActivityTest {
                 val retainedClient = checkNotNull(client) { "Routed Feed must have an admitted foreground RPC client" }
                 assertFalse(retainedClient.isClosed)
                 var before = 0; var selected = 0
+                var formattedPixelsBefore = 0f; var portraitWidth = 0
                 compose.runOnUiThread {
                     reader()!!.setSelectionFromTop(1, -30_000)
                 }
                 settle(); compose.runOnUiThread {
                     before = anchor(); assertTrue(before > 1000); selected = before + 4
+                    formattedPixelsBefore = paragraph()!!.textSize; portraitWidth = reader()!!.width
                     val body = paragraph()!!; Selection.setSelection(body.text as Spannable, selected, selected + 8)
                     assertEquals(selected, body.selectionStart)
                 }
@@ -154,10 +199,17 @@ class AgentFeedReaderActivityTest {
                 compose.runOnUiThread { assertEquals(selected, paragraph()!!.selectionStart) }
                 val reads = peer.requests.count { it.optString("method") == "feed.text" }
                 phase = "formatted-recreate"
-                scenario.recreate()
+                if (systemChanges) changeConfiguration(scenario, font = false) else scenario.recreate()
                 await { paragraph()?.selectionStart == selected && reader()!!.firstVisiblePosition == 1 }; settle()
                 var after = 0
-                compose.runOnUiThread { after = anchor(); assertEquals(before, after) }
+                compose.runOnUiThread {
+                    after = anchor()
+                    if (systemChanges) {
+                        assertTrue("Real landscape has a wider reader", reader()!!.width > portraitWidth)
+                        val row = paragraph()!!.parent as NativeMarkdownRow
+                        topLineContains(paragraph()!!, reader()!!.paddingTop - row.top - paragraph()!!.top, before)
+                    } else assertEquals(before, after)
+                }
                 scenario.onActivity {
                     assertNotSame(old, it); assertTrue(old!!.isDestroyed)
                     assertSame(retainedClient, ViewModelProvider(it).get(NativeFeedSession::class.java).connectionState("").client)
@@ -168,21 +220,38 @@ class AgentFeedReaderActivityTest {
                 phase = "source-load"
                 compose.onNodeWithText("Source").performClick(); await { source()?.body?.text?.toString() == text }; settle()
                 compose.runOnUiThread { source()!!.scrollTo(0, 8_000) }
-                settle(); var sourceY = 0; var sourceSelection = 0
+                settle(); var sourceY = 0; var sourceSelection = 0; var sourceAnchor = 0; var sourcePixelsBefore = 0f
                 compose.runOnUiThread { source()!!.apply {
                     sourceY = scrollY; assertTrue(sourceY > 0)
+                    sourceAnchor = body.layout.getLineStart(body.layout.getLineForVertical((scrollY - body.paddingTop).coerceAtLeast(0)))
+                    sourcePixelsBefore = body.textSize
                     sourceSelection = body.layout.getLineStart(body.layout.getLineForVertical((scrollY - body.paddingTop).coerceAtLeast(0))) + 4
                     Selection.setSelection(body.text as Spannable, sourceSelection, sourceSelection + 10)
                 } }
-                capture("source-before"); phase = "source-recreate"; scenario.recreate()
+                capture("source-before"); phase = "source-recreate"
+                if (systemChanges) changeConfiguration(scenario, font = true) else scenario.recreate()
                 await { source()?.body?.selectionStart == sourceSelection }; settle()
-                compose.runOnUiThread { assertEquals(sourceY, source()!!.scrollY); assertEquals(text, source()!!.body.text.toString()) }
+                compose.runOnUiThread {
+                    val view = source()!!
+                    if (systemChanges) {
+                        assertTrue("System font updates actual native text", view.body.textSize > sourcePixelsBefore)
+                        topLineContains(view.body, view.scrollY, sourceAnchor)
+                    } else assertEquals(sourceY, view.scrollY)
+                    assertEquals(text, view.body.text.toString())
+                }
                 scenario.onActivity { assertSame(retainedClient, ViewModelProvider(it).get(NativeFeedSession::class.java).connectionState("").client) }
                 capture("source-restored")
                 phase = "formatted-return"
                 compose.onNodeWithText("Formatted").performClick()
                 await { paragraph()?.selectionStart == selected }; settle()
-                compose.runOnUiThread { assertEquals(before, anchor()) }
+                compose.runOnUiThread {
+                    if (systemChanges) {
+                        val body = paragraph()!!; val row = body.parent as NativeMarkdownRow
+                        assertTrue(body.textSize > formattedPixelsBefore)
+                        topLineContains(body, reader()!!.paddingTop - row.top - body.top, after)
+                    } else assertEquals(before, anchor())
+                }
+                capture("formatted-return")
                 assertTrue("Actual saved Activity bundles", saved.size >= 2)
                 val bytes = JSONArray()
                 val registryKeys = JSONArray()
@@ -205,11 +274,16 @@ class AgentFeedReaderActivityTest {
                 File(output, "result.json").writeText(JSONObject().put("bodyCharacters", text.length).put("savedStateBytes", bytes)
                     .put("savedRegistryKeys", registryKeys).put("savedStateCapture", "Application.onActivityPostSaveInstanceState")
                     .put("formattedBeforeAnchor", before).put("formattedAfterAnchor", after).put("formattedSelection", selected).put("sourceScrollY", sourceY)
+                    .put("actualSystemRotationAndFontChange", systemChanges).put("sourceAnchor", sourceAnchor)
                     .put("textReads", peer.requests.count { it.optString("method") == "feed.text" }).put("retainedRpcClient", true)
-                    .put("scope", "Actual Activity recreation of routed production Feed using emulator-local credentials and socket RPC; no process death, real authentication, Mac/Pixel, TalkBack or full parity acceptance.").toString(2))
+                    .put("scope", "Actual Activity recreation of routed production Feed using emulator-local credentials and socket RPC; system changes only when explicitly recorded; no process death, real authentication, Mac/Pixel, TalkBack or full parity acceptance.").toString(2))
             }
             assertTrue("Finishing the Activity releases its admitted client", client!!.isClosed)
         } finally {
+            if (systemChanges) {
+                device.executeShellCommand(if (originalFontSetting == "null") "settings delete system font_scale" else "settings put system font_scale $originalFontSetting")
+                device.setOrientationNatural(); device.unfreezeRotation()
+            }
             application.unregisterActivityLifecycleCallbacks(callbacks); NativeLifecycleTestActivity.connector = null; peer.close(); store.clear()
             context.getSharedPreferences("native_agent_feed_read", android.content.Context.MODE_PRIVATE).edit().clear().commit()
             val edit = preferences.edit()

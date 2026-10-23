@@ -103,6 +103,102 @@ class WorkspaceProcessRestorationTest {
             putInt("restored_task", restoredTaskId)
         })
     }
+    @Test fun fullFeedReaderRestoresSamePaintedPassageAfterRealProcessDeath() {
+        val preferences = context.getSharedPreferences("cmux-display", Context.MODE_PRIVATE)
+        val key = NativeDisplayPreferences.feedReplacesNotificationsKey
+        val had = preferences.contains(key); val previous = preferences.getBoolean(key, true)
+        val output = File(context.getExternalFilesDir(null), "feed-reader-process").apply { mkdirs() }
+        val body = "# Process reader\n\n" + (1..4000).joinToString("\n") { "Process row $it: body reloaded after process death with **bold** content." }
+        val bytes = body.toByteArray(Charsets.UTF_8)
+        val rows = JSONArray().put(JSONObject().put("id", "process-reader").put("workstream_id", "reader-turn")
+            .put("source", "Claude").put("kind", "stop").put("status", "telemetry").put("created_at", 198).put("updated_at", 198)
+            .put("title", "Process report").put("reason", "Read this report").put("full_text_truncated", true)
+            .put("workspace_id", "workspace-1").put("surface_id", "terminal-1"))
+        peer.agentFeedResponse = { method, params -> when (method) {
+            "feed.list" -> JSONObject().put("revision", 1).put("items", rows)
+            "feed.text" -> {
+                assertEquals("process-reader", params.getString("item_id"))
+                val start = params.optInt("offset"); val end = (start + 16_384).coerceAtMost(bytes.size)
+                JSONObject().put("text", bytes.copyOfRange(start, end).toString(Charsets.UTF_8)).put("version", 1).apply {
+                    if (end < bytes.size) put("next_offset", end)
+                }
+            }
+            else -> JSONObject()
+        } }
+        fun reader(clazz: String): androidx.test.uiautomator.UiObject2 {
+            // The list exists before its asynchronous paragraph binding completes.
+            checkNotNull(device.wait(Until.findObject(By.textContains("Process row 1:")), 20_000)) { "Native body not ready" }
+            return checkNotNull(device.wait(Until.findObject(By.clazz(clazz)), 20_000)) { "Reader not restored: $clazz" }
+        }
+        fun capture(name: String, clazz: String): Pair<android.graphics.Bitmap, android.graphics.Rect> {
+            val view = reader(clazz); device.waitForIdle()
+            // Native scrollbar fade is transient paint, independent of reading state.
+            // Wait beyond its default delay/fade before comparing the entire viewport.
+            SystemClock.sleep(1_000)
+            val nativeBounds = view.visibleBounds
+            // Compare the text viewport, excluding the native right padding/
+            // scrollbar strip. Full unmodified screenshots remain the evidence.
+            val bounds = android.graphics.Rect(nativeBounds).apply { right -= (20 * context.resources.displayMetrics.density).toInt() }
+            File(output, "$name-bounds.json").writeText(JSONObject().put("nativeBounds", nativeBounds.toShortString())
+                .put("textComparisonBounds", bounds.toShortString()).put("excludedRightDp", 20).toString(2))
+            val image = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            File(output, "$name.png").outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            device.dumpWindowHierarchy(File(output, "$name.xml"))
+            return image to bounds
+        }
+        val measurements = JSONArray()
+        fun restorePassage(mode: String, clazz: String) {
+            val (initial, initialBounds) = capture("$mode-at-start", clazz)
+            repeat(2) {
+                val bounds = reader(clazz).visibleBounds
+                assertTrue("Actual native swipe injection", device.swipe(bounds.centerX(), bounds.bottom - bounds.height() / 8,
+                    bounds.centerX(), bounds.top + bounds.height() / 4, 40))
+                device.waitForIdle()
+            }
+            val (before, bounds) = capture("$mode-before", clazz)
+            try {
+                assertEquals(initialBounds, bounds)
+                val original = android.graphics.Bitmap.createBitmap(initial, bounds.left, bounds.top, bounds.width(), bounds.height())
+                val scrolled = android.graphics.Bitmap.createBitmap(before, bounds.left, bounds.top, bounds.width(), bounds.height())
+                try { assertFalse("The real gestures must change the painted passage", original.sameAs(scrolled)) }
+                finally { original.recycle(); scrolled.recycle() }
+            } finally { initial.recycle() }
+            val reads = calls("feed.text").size
+            val oldPid = checkNotNull(childPid())
+            try {
+                killAndRestore()
+                text("Full text")
+                val (after, restoredBounds) = capture("$mode-restored", clazz)
+                try {
+                    assertEquals("Restored native reader uses the same text viewport", bounds, restoredBounds)
+                    assertTrue("New UI process reloads the message through fresh RPCs", calls("feed.text").size > reads)
+                    val original = android.graphics.Bitmap.createBitmap(before, bounds.left, bounds.top, bounds.width(), bounds.height())
+                    val restored = android.graphics.Bitmap.createBitmap(after, bounds.left, bounds.top, bounds.width(), bounds.height())
+                    try { assertTrue("Same actually painted $mode text viewport after process death", original.sameAs(restored)) }
+                    finally { original.recycle(); restored.recycle() }
+                    measurements.put(JSONObject().put("mode", mode).put("killedPid", oldPid).put("restoredPid", childPid())
+                        .put("bounds", bounds.toShortString()).put("textViewportPixelsIdentical", true).put("textReads", calls("feed.text").size))
+                } finally { after.recycle() }
+            } finally { before.recycle() }
+        }
+        try {
+            preferences.edit().putBoolean(key, true).commit()
+            launch(open = false)
+            checkNotNull(device.wait(Until.findObject(By.textStartsWith("Feed")), 20_000)).click()
+            description("See more").click(); text("Full text")
+            restorePassage("formatted", "android.widget.ListView")
+            text("Source").click()
+            restorePassage("source", "android.widget.ScrollView")
+            text("Formatted").click(); reader("android.widget.ListView")
+            File(output, "result.json").writeText(JSONObject().put("bodyCharacters", body.length).put("processRestores", measurements)
+                .put("scope", "Actual MainActivity subclass task restored by Android after isolated emulator UI process death, local socket and synthetic credentials. Pixel-identical native text comparison viewports excluding the right 20-dp native padding/scrollbar strip; full screenshots retained. No selection, real account/Iroh/Mac/Pixel, TalkBack or full parity acceptance.").toString(2))
+        } catch (error: Throwable) {
+            device.takeScreenshot(File(output, "failure.png")); device.dumpWindowHierarchy(File(output, "failure.xml")); throw error
+        } finally {
+            val edit = preferences.edit(); if (had) edit.putBoolean(key, previous) else edit.remove(key); edit.commit()
+        }
+    }
+
     private val uncertainCreation = "Creation may have completed. Check your workspaces before trying again."
 
     private fun pendingWorkspaceCreate(gate: java.util.concurrent.CountDownLatch) {
