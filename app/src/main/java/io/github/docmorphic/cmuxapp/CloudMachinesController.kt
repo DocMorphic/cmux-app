@@ -28,10 +28,11 @@ internal data class CloudSessionFailure(val detail: String, val status: Int? = n
     }
 }
 internal enum class CloudMachineAction {
-    PAUSE, RESUME, DELETE;
+    PAUSE, RESUME, RESTART, DELETE;
     fun allows(machine: CloudMachine) = when (this) {
         PAUSE -> machine.lifecycle.canPause
         RESUME -> machine.lifecycle.canResume
+        RESTART -> machine.canRestart
         DELETE -> machine.lifecycle.canDelete
     }
 }
@@ -54,7 +55,8 @@ internal class CloudMachinesController(
     private val isCurrent: () -> Boolean,
     private val retireConnections: (Set<String>) -> Unit = {},
     private val provisioningPollLimit: Int = 60, private val listRetryLimit: Int = 8,
-    private val sleep: suspend (Long) -> Unit = { delay(it) }
+    private val sleep: suspend (Long) -> Unit = { delay(it) },
+    private val onMachineRestarted: (String) -> Unit = {}
 ) : AutoCloseable {
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
@@ -170,9 +172,18 @@ internal class CloudMachinesController(
                 when (action) {
                     CloudMachineAction.PAUSE -> service.pause(id)
                     CloudMachineAction.RESUME -> service.resume(id)
+                    CloudMachineAction.RESTART -> service.restart(id)
                     CloudMachineAction.DELETE -> service.delete(id)
                 }
                 ensureActive(); requireCurrent()
+                if (action == CloudMachineAction.RESTART) {
+                    // A provider restart may still list as running: discard the
+                    // old link explicitly, then require a fresh workspace catalog.
+                    retireConnections(setOf(id))
+                    ensureActive(); requireCurrent()
+                    onMachineRestarted(id)
+                    ensureActive(); requireCurrent()
+                }
                 refresh()
                 true
             } catch (failure: Exception) {

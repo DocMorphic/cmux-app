@@ -1,3 +1,11 @@
+## Cloud Restart behavior checkpoint — 2026-10-23
+
+The missing source restart family is now mounted from model/API to owner-bound
+connection recovery and menu/swipe/accessibility actions. The pinned source
+reference passes 45 tests; Android passes 17 runtime cases with 18 controlled
+locale/scale profiles. Provider/backend, Pixel, matched native UI and broader
+Cloud/full app parity remain open. See [CLOUD_COMPANION.md](CLOUD_COMPANION.md).
+
 ## Streamed browser dialog behavior checkpoint — 2026-10-23
 
 Separate HTTP username/password fields, source NUL-delimited wire, nil text for

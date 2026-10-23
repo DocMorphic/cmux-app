@@ -32,6 +32,7 @@ internal interface CloudMachinesService : AutoCloseable {
     suspend fun create(options: CloudMachineCreateOptions, idempotencyKey: String): CloudMachine
     suspend fun pause(id: String)
     suspend fun resume(id: String)
+    suspend fun restart(id: String)
     suspend fun delete(id: String)
 }
 internal interface CloudTerminalService {
@@ -63,6 +64,7 @@ internal class CloudApiRequests(baseUrl: String = "https://cmux.com") {
     }
     fun pause(id: String) = Operation("POST", machinePath(id) + "pause")
     fun resume(id: String) = Operation("POST", machinePath(id) + "resume", deadlineSeconds = 16 * 60)
+    fun restart(id: String) = Operation("POST", machinePath(id) + "restart", deadlineSeconds = 60)
     fun delete(id: String) = Operation("DELETE", machinePath(id))
     fun enroll(publicKey: String, deviceId: String, fingerprint: String, purpose: CloudTunnelPurpose, name: String?): Operation {
         require(publicKey.isNotBlank() && deviceId.isNotBlank() && fingerprint.isNotBlank())
@@ -94,6 +96,8 @@ internal class CloudApiRequests(baseUrl: String = "https://cmux.com") {
         return Request.Builder().url(url).method(operation.method, body)
             .header("Authorization", "Bearer ${credentials.accessToken}")
             .header("X-Stack-Refresh-Token", credentials.refreshToken).header("Accept", "application/json")
+            // Let the control plane answer before the client's actual call deadline.
+            .header("x-cmux-client-timeout-ms", TimeUnit.SECONDS.toMillis(operation.deadlineSeconds).toString())
             .apply {
                 credentials.scope.team?.takeIf { it.isNotEmpty() }?.let { header("X-Cmux-Team-Id", it) }
                 operation.idempotencyKey?.let { header("Idempotency-Key", it) }
@@ -130,6 +134,7 @@ internal class CloudApi(
         CloudResponseDecoding.machine(json(send(requests.create(options, idempotencyKey))))
     override suspend fun pause(id: String) { send(requests.pause(id)) }
     override suspend fun resume(id: String) { send(requests.resume(id)) }
+    override suspend fun restart(id: String) { send(requests.restart(id)) }
     override suspend fun delete(id: String) { send(requests.delete(id)) }
     suspend fun enroll(publicKey: String, deviceId: String, fingerprint: String, purpose: CloudTunnelPurpose, name: String?) =
         CloudResponseDecoding.enrollment(json(send(requests.enroll(publicKey, deviceId, fingerprint, purpose, name))))

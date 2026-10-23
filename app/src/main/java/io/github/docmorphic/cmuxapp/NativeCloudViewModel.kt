@@ -71,9 +71,6 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                     val runtime = CloudTunnelController(scope, { teams.isCurrent(next) },
                         { startNativeCloudTunnelResource(application, scope, api, teams, next) },
                         NativeCloudTunnelResource::retire)
-                    val controller = CloudMachinesController(scope, api,
-                        CloudCreateFileJournal(root, capture), { teams.isCurrent(next) },
-                        retireConnections = { runtime.resource()?.connections?.retire(it) })
                     val workspaces = CloudWorkspaceController(scope, { teams.isCurrent(next) }) { machineId ->
                         val pool = runtime.resource()?.connections
                         val link = pool?.connection(machineId)
@@ -82,6 +79,15 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                         catch (failure: CancellationException) { throw failure }
                         catch (failure: Exception) { pool.retire(machineId, link); throw failure }
                     }
+                    val controller = CloudMachinesController(scope, api,
+                        CloudCreateFileJournal(root, capture), { teams.isCurrent(next) },
+                        retireConnections = { runtime.resource()?.connections?.retire(it) },
+                        onMachineRestarted = { id ->
+                            if (teams.isCurrent(next) && mutableWorkspaces.value === workspaces) {
+                                hosts[id]?.awaitFreshCatalog(workspaces.state.value[id]?.catalogRevision ?: 0)
+                                workspaces.refresh(id)
+                            }
+                        })
                     val creation = CloudWorkspaceCreation(scope, workspaces) { machineId, workspaceId ->
                         val pool = checkNotNull(runtime.resource()?.connections) { "Cloud tunnel is reconnecting" }
                         val link = checkNotNull(pool.connection(machineId)) { "Cloud connection changed" }

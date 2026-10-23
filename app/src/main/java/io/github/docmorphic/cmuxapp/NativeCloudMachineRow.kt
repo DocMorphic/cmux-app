@@ -1,4 +1,5 @@
-/* Cloud machine actions follow cmux CloudSectionView at c2715faa.
+/* Cloud lifecycle actions follow cmux CloudSectionView at a5911a1f;
+ * the surrounding row retains the earlier c2715faa port.
  * Copyright (c) 2024-present Manaflow, Inc. GPL-3.0-or-later. See NOTICE.md. */
 package io.github.docmorphic.cmuxapp
 
@@ -16,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -48,8 +51,16 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
     val currentRetry by rememberUpdatedState(onRetry)
     val currentFailure by rememberUpdatedState(connectionFailure)
     val actions = CloudMachineAction.entries.filter { it.allows(machine) }
+    val labels = CloudMachineAction.entries.associateWith { cloudActionLabel(it) }
+    // SwiftUI places Delete closest to the trailing edge, then Pause/Resume,
+    // then Restart. Preserve that ordering independently of the context menu.
+    val swipeActions = listOf(CloudMachineAction.RESTART, CloudMachineAction.PAUSE,
+        CloudMachineAction.RESUME, CloudMachineAction.DELETE).filter { it in actions }
+    var rowWidth by remember(machine.id) { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val actionWidth = with(density) { minOf(96.dp, if (rowWidth > 0) (rowWidth / actions.size.coerceAtLeast(1)).toDp() else 96.dp) }
     val direction = if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1f else -1f
-    val revealWidth = with(LocalDensity.current) { (96.dp * actions.size).toPx() }
+    val revealWidth = with(LocalDensity.current) { (actionWidth * actions.size).toPx() }
     val opened = swipes.opened == machine.id
     fun dismiss() { menu = false; dragged = null; if (swipes.opened == machine.id) swipes.opened = null }
     fun action(value: CloudMachineAction): Boolean {
@@ -69,7 +80,7 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
     val offset by animateFloatAsState(dragged ?: if (opened) -revealWidth else 0f,
         if (dragged != null) snap() else tween(160), label = "Cloud machine swipe")
     val shape = RoundedCornerShape(16.dp)
-    Box(Modifier.fillMaxWidth().clip(shape).testTag("cloud.machine.${machine.id}")
+    Box(Modifier.fillMaxWidth().clip(shape).testTag("cloud.machine.${machine.id}").onSizeChanged { rowWidth = it.width }
         .pointerInput(machine.id, actions, busy, direction, revealWidth) {
             if (actions.isNotEmpty() && !busy) detectHorizontalDragGestures(
                 onDragStart = { dragged = if (swipes.opened == machine.id) -revealWidth else 0f; swipes.opened = machine.id },
@@ -83,14 +94,16 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
                 })
         }) {
         if (offset < 0f) Row(Modifier.matchParentSize(), horizontalArrangement = Arrangement.End) {
-            actions.forEach { item ->
+            swipeActions.forEach { item ->
                 TextButton(onClick = { action(item) }, enabled = !busy,
-                    modifier = Modifier.width(96.dp).fillMaxHeight().background(when (item) {
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                    modifier = Modifier.width(actionWidth).fillMaxHeight().background(when (item) {
                         CloudMachineAction.DELETE -> Color(0xFF9C293C)
                         CloudMachineAction.PAUSE -> Color(0xFF86520A)
                         CloudMachineAction.RESUME -> Color(0xFF216B46)
+                        CloudMachineAction.RESTART -> Color(0xFF2467A8)
                     }).testTag("cloud.swipe.${machine.id}.${item.name}")) {
-                    Text(item.label, color = Color.White)
+                    Text(labels.getValue(item), color = Color.White)
                 }
             }
         }
@@ -99,7 +112,7 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
             .combinedClickable(onClick = { if (opened) dismiss() }, onLongClick = { if (!currentBusy && (actions.isNotEmpty() || currentFailure != null)) menu = true })
             .semantics { customActions = if (busy) emptyList() else buildList {
                 if (connectionFailure != null) add(CustomAccessibilityAction("Try Again Now", ::retry))
-                actions.forEach { value -> add(CustomAccessibilityAction(value.label) { action(value) }) }
+                actions.forEach { value -> add(CustomAccessibilityAction(labels.getValue(value)) { action(value) }) }
             } }.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.ic_workspace_cloud), null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
@@ -125,14 +138,14 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
                     DropdownMenu(expanded = menu && !busy, onDismissRequest = { menu = false }) {
                         if (connectionFailure != null) DropdownMenuItem(text = { Text("Try Again Now") }, onClick = { retry() })
                         actions.forEach { value -> DropdownMenuItem(text = {
-                            Text(value.label, color = if (value == CloudMachineAction.DELETE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                            Text(labels.getValue(value), color = if (value == CloudMachineAction.DELETE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                         }, onClick = { action(value) }) }
                     }
                 }
             }
             machine.resources?.let { Text("${it.vcpus} vCPUs · ${it.memoryMb / 1024} GB RAM", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
             actionFailure?.let {
-                Text("Couldn't ${it.action.name.lowercase(java.util.Locale.ROOT)}: ${it.failure.userReason}",
+                Text(cloudActionFailure(it.action, it.failure.userReason),
                     color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
             }
             connectionFailure?.let {
@@ -144,8 +157,16 @@ internal class CloudMachineSwipeCoordinator { var opened by mutableStateOf<Strin
     }
 }
 
-private val CloudMachineAction.label get() = when (this) {
-    CloudMachineAction.PAUSE -> "Pause"
-    CloudMachineAction.RESUME -> "Resume"
-    CloudMachineAction.DELETE -> "Delete"
-}
+@Composable private fun cloudActionLabel(action: CloudMachineAction) = stringResource(when (action) {
+    CloudMachineAction.PAUSE -> R.string.cmux_cloud_pause
+    CloudMachineAction.RESUME -> R.string.cmux_cloud_resume
+    CloudMachineAction.RESTART -> R.string.cmux_cloud_restart
+    CloudMachineAction.DELETE -> R.string.cmux_cloud_delete
+})
+
+@Composable private fun cloudActionFailure(action: CloudMachineAction, reason: String) = stringResource(when (action) {
+    CloudMachineAction.PAUSE -> R.string.cmux_cloud_pause_failed
+    CloudMachineAction.RESUME -> R.string.cmux_cloud_resume_failed
+    CloudMachineAction.RESTART -> R.string.cmux_cloud_restart_failed
+    CloudMachineAction.DELETE -> R.string.cmux_cloud_delete_failed
+}, reason)

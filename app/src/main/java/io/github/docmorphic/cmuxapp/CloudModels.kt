@@ -10,6 +10,7 @@ internal enum class CloudMachineLifecycle {
     PROVISIONING, RUNNING, PAUSED, FAILED, DESTROYED, UNKNOWN;
     val canPause get() = this == RUNNING
     val canResume get() = this == PAUSED
+    val canRestart get() = this == RUNNING
     val canDelete get() = this in setOf(PROVISIONING, RUNNING, PAUSED, FAILED)
 }
 internal data class CloudMachineResources(val vcpus: Int, val memoryMb: Int)
@@ -19,7 +20,8 @@ internal data class CloudResourcePool(val vcpus: Int, val memoryMb: Int, val use
     fun fits(vcpus: Int, memoryMb: Int) = vcpus > 0 && memoryMb > 0 && vcpus <= freeVcpus && memoryMb <= freeMemoryMb
 }
 internal data class CloudMachine(val id: String, val provider: String, val status: String,
-    val displayName: String?, val slug: String?, val resources: CloudMachineResources?) {
+    val displayName: String?, val slug: String?, val resources: CloudMachineResources?, val supportsRestart: Boolean = false) {
+    val canRestart get() = supportsRestart && lifecycle.canRestart
     val preferredName get() = displayName ?: slug ?: if (id.startsWith("vm-") && id.length > 11) id.take(11) else id
     val lifecycle get() = CloudMachineLifecycle.entries.firstOrNull { it.name.lowercase(Locale.ROOT) == status.lowercase(Locale.ROOT) }
         ?: CloudMachineLifecycle.UNKNOWN
@@ -61,7 +63,8 @@ internal object CloudResponseDecoding {
             if (cpu != null && ram != null && cpu > 0 && ram > 0) CloudMachineResources(cpu, ram) else null
         }
         return CloudMachine(value.required("id"), value.required("provider"),
-            value.text("status")?.trim()?.takeIf { it.isNotEmpty() } ?: "unknown", value.text("displayName"), value.text("slug"), resources)
+            value.text("status")?.trim()?.takeIf { it.isNotEmpty() } ?: "unknown", value.text("displayName"), value.text("slug"), resources,
+            value.optJSONObject("capabilities")?.opt("restart") == true)
     }
     fun catalog(value: JSONObject): CloudMachineCatalog {
         val rows = value.getJSONArray("vms")

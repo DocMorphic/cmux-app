@@ -25,6 +25,20 @@ class CloudModelsTest {
         assertTrue(limits.pool!!.fits(6, 12288)); assertFalse(limits.pool.fits(7, 12288))
         assertEquals(CloudMachineResources(2, 4096), catalog.machines[0].resources)
     }
+    @Test fun restartRequiresAnExplicitBooleanCapabilityAndARunningMachine() {
+        for (raw in listOf("true", "false", "null", "1", "0", "\"true\"", "[]", "{}")) {
+            val value = JSONObject("""{"id":"vm","provider":"fixture","status":"running","capabilities":{"restart":$raw}}""")
+            val machine = CloudResponseDecoding.machine(value)
+            assertEquals(raw == "true", machine.supportsRestart)
+            for (status in listOf("running", "paused", "failed", "provisioning", "destroyed", "unknown"))
+                assertEquals("$raw/$status", raw == "true" && status == "running", machine.copy(status = status).canRestart)
+            val catalog = CloudResponseDecoding.catalog(JSONObject().put("vms", org.json.JSONArray().put(value)))
+            assertEquals(machine, catalog.machines.single())
+        }
+        val old = CloudResponseDecoding.machine(JSONObject("""{"id":"old","provider":"p","status":"running"}"""))
+        assertFalse(old.canRestart)
+    }
+
     @Test fun absentCapabilitiesAreDifferentFromAnExplicitlyEmptySupportedSet() {
         val absent = CloudResponseDecoding.catalog(JSONObject("""{"vms":[]} """))
         assertNull(absent.availableKinds); assertNull(absent.limits)

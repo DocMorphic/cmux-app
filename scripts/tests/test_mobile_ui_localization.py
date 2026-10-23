@@ -1,3 +1,6 @@
+import copy
+import json
+import tempfile
 import importlib.util
 from pathlib import Path
 import unittest
@@ -77,6 +80,29 @@ Text("Cancel")
         with self.assertRaises(ValueError): UI.android_literal('unsafe\x00value')
         for source in ['Text("unfinished)', '/* unfinished', 'val x = "${unfinished"']:
             with self.subTest(source=source), self.assertRaises(ValueError): UI.tokens(source)
+
+    def test_cloud_failure_formats_preserve_one_string_argument_in_every_locale(self):
+        rows = UI.load_cloud_lifecycle_rows()
+        self.assertEqual(8, len(rows))
+        for language in UI.LANGUAGES:
+            xml = ET.fromstring(UI.resource_xml(rows, language))
+            for row, entry in zip(sorted(rows, key=lambda r: r['resource']), xml.findall('string')):
+                self.assertEqual(str(row['formatted']).lower(), entry.get('formatted'))
+                if row['formatted']:
+                    self.assertEqual(1, entry.text.count('%1$s'))
+                    self.assertNotIn('%@', entry.text)
+                else: self.assertNotIn('%', entry.text)
+
+    def test_cloud_failure_format_rejects_extra_missing_or_wrong_type_placeholders(self):
+        data = json.loads(UI.CLOUD_LIFECYCLE_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'labels.json'
+            for value in ['No argument', '%@ and %@', '%d', '%@ plus %s', '%1$s']:
+                altered = copy.deepcopy(data)
+                row = next(row for row in altered['strings'] if row['key'].endswith('FailedFormat'))
+                row['translations']['en'] = value
+                path.write_text(json.dumps(altered))
+                with self.subTest(value=value), self.assertRaises(ValueError): UI.load_cloud_lifecycle_rows(path)
 
     def test_selected_catalog_has_complete_locales_and_unique_static_labels(self):
         rows = UI.load_rows()

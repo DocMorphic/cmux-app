@@ -82,6 +82,42 @@ class CloudApiTest {
         } }
     }
 
+    @Test fun restartHasItsOwnDeadlineAndAllOperationsAdvertiseTheirActualBudget() {
+        val builder = CloudApiRequests()
+        val operations = listOf(builder.list() to 20_000L, builder.pause("vm") to 20_000L,
+            builder.delete("vm") to 20_000L, builder.restart("vm") to 60_000L,
+            builder.resume("vm") to 960_000L, builder.create(CloudMachineCreateOptions(), "op") to 960_000L,
+            builder.attach("vm", "fingerprint") to 90_000L,
+            builder.enroll("public", "device", "fingerprint", CloudTunnelPurpose.TERMINAL, null) to 20_000L,
+            builder.revoke("fingerprint", CloudTunnelPurpose.BROWSER) to 20_000L,
+            builder.approve("vm", "invitation") to 20_000L, builder.accountPlan() to 20_000L)
+        for ((operation, expected) in operations) {
+            assertEquals(expected, TimeUnit.SECONDS.toMillis(operation.deadlineSeconds))
+            assertEquals(expected.toString(), builder.request(operation, credentials()).header("x-cmux-client-timeout-ms"))
+        }
+    }
+
+    @Test fun restartUsesEncodedControlPlaneRouteWithoutRetryAndKeepsServerRecoveryAction() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setResponseCode(504).setBody("""{"message":"Provider is recovering","action":"Still in progress; refresh to check again."}"""))
+            val observedTimeout = java.util.concurrent.atomic.AtomicLong()
+            val http = okhttp3.OkHttpClient.Builder().eventListener(object : okhttp3.EventListener() {
+                override fun callStart(call: okhttp3.Call) { observedTimeout.set(call.timeout().timeoutNanos()) }
+            }).build()
+            CloudApi(owner, { credentials() }, { true }, CloudApiRequests(server.url("/").toString()), http).use { api ->
+                val failure = runCatching { api.restart(" vm/a? ") }.exceptionOrNull() as CloudApiFailure
+                assertEquals(504, failure.status)
+                assertEquals("Still in progress; refresh to check again.", failure.action)
+                val request = server.takeRequest(3, TimeUnit.SECONDS)!!
+                assertEquals("POST", request.method); assertEquals("/api/vm/vm%2Fa%3F/restart", request.path)
+                assertEquals("60000", request.getHeader("x-cmux-client-timeout-ms"))
+                assertEquals(TimeUnit.SECONDS.toNanos(60), observedTimeout.get())
+                assertEquals("team", request.getHeader("X-Cmux-Team-Id")); assertEquals(0L, request.bodySize)
+                assertNull(request.getHeader("Idempotency-Key")); assertEquals(1, server.requestCount)
+            }
+        }
+    }
+
     @Test fun teamChangeDuringTokenAcquisitionPreventsTransmission() = runBlocking {
         MockWebServer().use { server ->
             val gate = CompletableDeferred<Unit>(); var current = true

@@ -795,3 +795,17 @@ platform input/accessibility semantics. Eight fallback/field labels retain all
 nine source translations and the exact catalog SHA-256 in
 `third_party/cmux-localization/browser-dialog-strings.json`. Android control
 materials and font metrics are platform rendering, not an accepted UIKit match.
+
+Cloud restart admission, API deadlines, connection retirement and row actions in
+`CloudModels.kt`, `CloudApi.kt`, `CloudMachinesController.kt`,
+`NativeCloudViewModel.kt` and `NativeCloudMachineRow.kt` adapt the selected
+`CmuxMobileCloud` and `CloudSectionView` behavior at
+`a5911a1f92f3eeb11c4d7f3e2ef89204718c5009` (Manaflow, Inc.; GPL-3.0-or-later).
+`third_party/cmux-cloud/lifecycle-manifest.json` binds the exact nine source files
+and scoped reference run. Eight lifecycle labels/error formats retain all nine
+source translations and catalog hash in
+`third_party/cmux-localization/cloud-lifecycle-strings.json`; each single `%@`
+string argument is converted to Android `%1$s`. Android adds current-owner
+admission at dispatch, a fresh-catalog gate for selected terminals and bounded
+swipe-action widths. Native iOS font/material and actual-provider acceptance
+are not established by this port.

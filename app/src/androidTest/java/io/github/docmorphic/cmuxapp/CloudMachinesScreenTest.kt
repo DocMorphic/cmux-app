@@ -1,6 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Modifier
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
@@ -19,12 +21,15 @@ class CloudMachinesScreenTest {
     private class Service : CloudMachinesService {
         val creates = mutableListOf<CloudMachineCreateOptions>()
         val deletes = mutableListOf<String>()
+        val restarts = mutableListOf<String>()
+        var restart: suspend () -> Unit = {}
         var rows = listOf(CloudMachine("vm", "fixture", "running", "My machine", null, CloudMachineResources(4, 8192)))
         override suspend fun catalog() = CloudMachineCatalog(rows, setOf(CloudMachineKind.DESKTOP),
             CloudMachineLimits(5, 1, "pro", listOf(4096, 8192), listOf(65536), "max", null, CloudResourcePool(8, 16384, 4, 8192)))
         override suspend fun create(options: CloudMachineCreateOptions, idempotencyKey: String): CloudMachine { creates += options; return rows.first() }
         override suspend fun pause(id: String) { rows = rows.map { if (it.id == id) it.copy(status = "paused") else it } }
         override suspend fun resume(id: String) { rows = rows.map { if (it.id == id) it.copy(status = "running") else it } }
+        override suspend fun restart(id: String) { restarts += id; restart() }
         override suspend fun delete(id: String) { deletes += id; rows = rows.filterNot { it.id == id } }
         override fun close() {}
     }
@@ -36,7 +41,7 @@ class CloudMachinesScreenTest {
                 override suspend fun complete(key: String) {}
             }, { true }).also { it.refresh() }
         }
-        compose.setContent { CmuxTheme { Surface { NativeCloudScreen(controller, {}, onPlans, machines = machines, onRetryConnections = onRetry, connectionFailures = connectionFailures) } } }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) { NativeCloudScreen(controller, {}, onPlans, machines = machines, onRetryConnections = onRetry, connectionFailures = connectionFailures) } } }
     }
     @After fun stop() { compose.runOnUiThread { controller?.close(); scope.cancel() } }
     private fun openCreate() {
@@ -69,6 +74,68 @@ class CloudMachinesScreenTest {
         compose.onNodeWithTag("cloud.machine.vm").assertDoesNotExist()
         assertEquals(listOf("vm"), service.deletes)
     }
+    @Test fun restartRequiresCapabilityAndBusyRowsRejectAnotherActionUntilAcknowledged() {
+        val service = Service(); mount(service)
+        compose.onNodeWithContentDescription("Actions for My machine").performClick()
+        compose.onNodeWithText("Restart").assertDoesNotExist()
+        androidx.test.espresso.Espresso.pressBack()
+        val gate = CompletableDeferred<Unit>()
+        compose.runOnUiThread {
+            service.rows = service.rows.map { it.copy(supportsRestart = true) }
+            service.restart = { gate.await() }; controller!!.refresh()
+        }
+        compose.waitUntil(10_000) { controller!!.state.value.catalog.machines.single().canRestart }
+        compose.onNodeWithContentDescription("Actions for My machine").performClick()
+        compose.onNodeWithText("Restart").performClick()
+        compose.waitUntil(10_000) { service.restarts.size == 1 }
+        compose.onNodeWithTag("cloud.busy.vm").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Actions for My machine").assertIsNotEnabled()
+        assertTrue(service.deletes.isEmpty())
+        compose.runOnUiThread { gate.complete(Unit) }
+        compose.waitUntil(10_000) { controller!!.state.value.actions.isEmpty() }
+        assertEquals(listOf("vm"), service.restarts)
+        assertEquals("running", controller!!.state.value.catalog.machines.single().status)
+        compose.onNodeWithContentDescription("Actions for My machine").assertIsEnabled()
+    }
+
+    @Test fun fullSwipeRevealsRestartWithoutMutatingAndClickTargetsOnlyThatMachine() {
+        val service = Service().apply { rows = rows.map { it.copy(supportsRestart = true) } }; mount(service)
+        compose.onNodeWithTag("cloud.machine.vm").performTouchInput { swipeLeft() }
+        compose.onNodeWithTag("cloud.swipe.vm.RESTART").assertIsDisplayed()
+        compose.onNodeWithTag("cloud.swipe.vm.PAUSE").assertIsDisplayed()
+        compose.onNodeWithTag("cloud.swipe.vm.DELETE").assertIsDisplayed()
+        val restart = compose.onNodeWithTag("cloud.swipe.vm.RESTART").fetchSemanticsNode().boundsInRoot
+        val pause = compose.onNodeWithTag("cloud.swipe.vm.PAUSE").fetchSemanticsNode().boundsInRoot
+        val delete = compose.onNodeWithTag("cloud.swipe.vm.DELETE").fetchSemanticsNode().boundsInRoot
+        assertTrue(restart.right <= pause.left + 1 && pause.right <= delete.left + 1)
+        assertTrue(service.restarts.isEmpty()); assertTrue(service.deletes.isEmpty())
+        captureCloudScreen("machine-restart-actions")
+        compose.onNodeWithTag("cloud.swipe.vm.RESTART").performClick()
+        compose.waitUntil(10_000) { service.restarts.size == 1 && controller!!.state.value.actions.isEmpty() }
+        assertEquals(listOf("vm"), service.restarts); assertTrue(service.deletes.isEmpty())
+        compose.onNodeWithTag("cloud.delete.confirm").assertDoesNotExist()
+    }
+
+    @Test fun restartFailureIsScopedAndAnOldMenuCannotRestartAfterCapabilityRevocation() {
+        val service = Service().apply {
+            rows = listOf(rows.single().copy(supportsRestart = true), rows.single().copy(id = "other", displayName = "Other machine", supportsRestart = true))
+            restart = { throw CloudApiFailure(504, "Restart is still in progress.", "private provider diagnostic") }
+        }; mount(service)
+        compose.onNodeWithContentDescription("Actions for My machine").performClick()
+        compose.onNodeWithText("Restart").performClick()
+        compose.waitUntil(10_000) { controller!!.state.value.actionFailure != null }
+        compose.onNodeWithText("Couldn't restart: Restart is still in progress.", useUnmergedTree = true).assertIsDisplayed()
+        compose.onAllNodesWithText("Couldn't restart: Restart is still in progress.", useUnmergedTree = true).assertCountEquals(1)
+        compose.onNodeWithText("private provider diagnostic", substring = true).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Actions for My machine").performClick()
+        val stale = checkNotNull(compose.onNodeWithText("Restart").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+        compose.runOnUiThread { service.rows = service.rows.map { it.copy(supportsRestart = false) }; controller!!.refresh() }
+        compose.waitUntil(10_000) { controller!!.state.value.catalog.machines.none { it.canRestart } }
+        compose.onNodeWithText("Restart").assertDoesNotExist()
+        compose.runOnUiThread { stale() }
+        assertEquals(listOf("vm"), service.restarts)
+    }
+
     @Test fun cloudTabIsSelectedWithoutWorkspaceSearch() {
         var workspace: Boolean? = null
         compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface {

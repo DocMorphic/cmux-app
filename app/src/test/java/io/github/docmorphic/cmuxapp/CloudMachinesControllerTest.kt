@@ -23,6 +23,7 @@ class CloudMachinesControllerTest {
         }
         override suspend fun pause(id: String) { actions += id to "pause"; action() }
         override suspend fun resume(id: String) { actions += id to "resume"; action() }
+        override suspend fun restart(id: String) { actions += id to "restart"; action() }
         override suspend fun delete(id: String) { actions += id to "delete"; action() }
         override fun close() { closed = true }
     }
@@ -154,6 +155,92 @@ class CloudMachinesControllerTest {
             assertNull(controller.act("unknown", CloudMachineAction.DELETE))
             controller.act("vm", CloudMachineAction.DELETE); runCurrent()
             assertEquals(listOf("retire", "send"), events)
+        }
+    }
+    @Test fun acknowledgedRestartRetiresOnlyItsCachedLinkAndReloadsAnUnchangedRunningCatalog() = runTest {
+        class Session : AutoCloseable { var retired = false; var closes = 0; override fun close() { closes++ } }
+        val sessions = mutableListOf<Pair<String, Session>>()
+        val terminal = object : CloudTerminalService {
+            override suspend fun attach(id: String, fingerprint: String, capabilities: List<String>) = CloudAttachEndpoint("fixture", id, null, true)
+            override suspend fun approve(id: String, invitationId: String) = error("No approval")
+        }
+        val pool = CloudMachineConnections(this, terminal, "fixture", { true }, { endpoint ->
+            Session().also { sessions += endpoint.session to it }
+        }, StandardTestDispatcher(testScheduler), { it.retired = true })
+        val rows = listOf(machine("one").copy(supportsRestart = true), machine("two"))
+        val workspaces = CloudWorkspaceController(this, { true }) { id ->
+            val link = checkNotNull(pool.connection(id))
+            pool.withConnection(id, link) { CloudWorkspaceCatalog(emptyList(), emptyList()) }
+        }
+        val gate = CompletableDeferred<Unit>()
+        val service = Service().apply { list = { catalog(*rows.toTypedArray()) }; action = { gate.await() } }
+        val reloaded = mutableListOf<String>()
+        val controller = CloudMachinesController(this, service, Journal(), { true }, pool::retire,
+            onMachineRestarted = { id -> reloaded += id; workspaces.refresh(id) })
+        try {
+            controller.refresh(); workspaces.setMachines(rows); workspaces.setAvailable(true); runCurrent()
+            val old = pool.connection("one"); val other = pool.connection("two")
+            val originalRevision = workspaces.state.value.getValue("one").catalogRevision
+            val action = checkNotNull(controller.act("one", CloudMachineAction.RESTART)); runCurrent()
+            assertNull(controller.act("one", CloudMachineAction.PAUSE)); assertNull(controller.act("one", CloudMachineAction.RESTART))
+            assertFalse(sessions.first { it.first == "one" }.second.retired); assertTrue(reloaded.isEmpty())
+            gate.complete(Unit); runCurrent(); assertTrue(action.await())
+            assertTrue(sessions.first { it.first == "one" }.second.retired)
+            assertEquals(1, sessions.first { it.first == "one" }.second.closes)
+            assertNotSame(old, pool.connection("one")); assertSame(other, pool.connection("two"))
+            assertEquals(listOf("one"), reloaded)
+            assertEquals(listOf("one", "two", "one"), sessions.map { it.first })
+            assertTrue(workspaces.state.value.getValue("one").catalogRevision > originalRevision)
+            assertEquals(rows, controller.state.value.catalog.machines)
+            assertEquals(listOf("one" to "restart"), service.actions)
+        } finally { gate.complete(Unit); controller.close(); workspaces.close(); pool.close(); runCurrent() }
+    }
+
+    @Test fun restartFailureKeepsTheLinkAndNeverAutomaticallyRepeatsTheMutation() = runTest {
+        val service = Service().apply {
+            list = { catalog(machine().copy(supportsRestart = true)) }
+            action = { throw CloudApiFailure(504, "Still in progress; refresh to check again.", "Provider recovery") }
+        }
+        val retired = mutableListOf<Set<String>>(); val reloaded = mutableListOf<String>()
+        CloudMachinesController(this, service, Journal(), { true }, retired::add, onMachineRestarted = reloaded::add).use { controller ->
+            controller.refresh(); runCurrent()
+            val action = checkNotNull(controller.act("vm", CloudMachineAction.RESTART)); runCurrent()
+            assertFalse(action.await()); assertTrue(retired.isEmpty()); assertTrue(reloaded.isEmpty())
+            assertEquals(CloudMachineAction.RESTART, controller.state.value.actionFailure?.action)
+            advanceTimeBy(120_000); runCurrent(); assertEquals(1, service.actions.size)
+            service.action = {}
+            val retry = checkNotNull(controller.act("vm", CloudMachineAction.RESTART)); runCurrent(); assertTrue(retry.await())
+            assertNull(controller.state.value.actionFailure); assertEquals(listOf(setOf("vm")), retired)
+            assertEquals(listOf("vm"), reloaded); assertEquals(2, service.actions.size)
+        }
+    }
+
+    @Test fun restartUsesTheCurrentCapabilityAndRetiredOwnersCannotResetSuccessorConnections() = runTest {
+        val gate = CompletableDeferred<Unit>(); var current = true
+        var row = machine().copy(supportsRestart = true)
+        val service = Service().apply { list = { catalog(row) }; action = { withContext(NonCancellable) { gate.await() } } }
+        val retired = mutableListOf<Set<String>>(); val reloaded = mutableListOf<String>()
+        val controller = CloudMachinesController(this, service, Journal(), { current }, retired::add, onMachineRestarted = reloaded::add)
+        try {
+            controller.refresh(); runCurrent(); row = row.copy(supportsRestart = false)
+            controller.refresh(); runCurrent(); assertNull(controller.act("vm", CloudMachineAction.RESTART))
+            row = row.copy(supportsRestart = true, status = "paused")
+            controller.refresh(); runCurrent(); assertNull(controller.act("vm", CloudMachineAction.RESTART))
+            row = row.copy(status = "running"); controller.refresh(); runCurrent(); retired.clear()
+            val old = checkNotNull(controller.act("vm", CloudMachineAction.RESTART)); runCurrent()
+            current = false; gate.complete(Unit); runCurrent()
+            assertFalse(old.await()); assertTrue(retired.isEmpty()); assertTrue(reloaded.isEmpty())
+            assertNull(controller.state.value.actionFailure); assertNull(controller.act("vm", CloudMachineAction.RESTART))
+        } finally { gate.complete(Unit); controller.close(); runCurrent() }
+    }
+
+    @Test fun retirementDuringLinkCleanupCannotNotifyOrReloadAReplacementOwner() = runTest {
+        var current = true; val reloaded = mutableListOf<String>()
+        val service = Service().apply { list = { catalog(machine().copy(supportsRestart = true)) } }
+        CloudMachinesController(this, service, Journal(), { current }, { current = false }, onMachineRestarted = reloaded::add).use { controller ->
+            controller.refresh(); runCurrent()
+            val action = checkNotNull(controller.act("vm", CloudMachineAction.RESTART)); runCurrent()
+            assertFalse(action.await()); assertTrue(reloaded.isEmpty())
         }
     }
     @Test fun retirementCancelsOperationsClearsStateAndRejectsLateUncancellableResults() = runTest {

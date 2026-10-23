@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalog": "ios/cmux/Resources/Localizable.xcstrings",
+  "catalogSha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd",
+  "strings": [
+    {
+      "key": "mobile.cloud.action.pause",
+      "resource": "cmux_cloud_pause",
+      "translations": {
+        "en": "Pause",
+        "ar": "إيقاف مؤقت",
+        "de": "Pausieren",
+        "es": "Pausar",
+        "fr": "Mettre en pause",
+        "ja": "一時停止",
+        "ko": "일시 정지",
+        "zh-Hans": "暂停",
+        "zh-Hant": "暫停"
+      }
+    },
+    {
+      "key": "mobile.cloud.action.pauseFailedFormat",
+      "resource": "cmux_cloud_pause_failed",
+      "translations": {
+        "en": "Couldn't pause: %@",
+        "ar": "تعذّر الإيقاف المؤقت: %@",
+        "de": "Pausieren nicht möglich: %@",
+        "es": "No se pudo pausar: %@",
+        "fr": "Impossible de mettre en pause : %@",
+        "ja": "一時停止できませんでした: %@",
+        "ko": "일시 정지할 수 없음: %@",
+        "zh-Hans": "无法暂停：%@",
+        "zh-Hant": "無法暫停：%@"
+      }
+    },
+    {
+      "key": "mobile.cloud.action.resume",
+      "resource": "cmux_cloud_resume",
+      "translations": {
+        "en": "Resume",
+        "ar": "استئناف",
+        "de": "Fortsetzen",
+        "es": "Reanudar",
+        "fr": "Reprendre",
+        "ja": "再開",
+        "ko": "재개",
+        "zh-Hans": "继续",
+        "zh-Hant": "繼續"
+      }
+    },
+    {
+      "key": "mobile.cloud.action.resumeFailedFormat",
+      "resource": "cmux_cloud_resume_failed",
+      "translations": {
+        "en": "Couldn't resume: %@",
+        "ar": "تعذّر الاستئناف: %@",
+        "de": "Fortsetzen nicht möglich: %@",
+        "es": "No se pudo reanudar: %@",
+        "fr": "Impossible de reprendre : %@",
+        "ja": "再開できませんでした: %@",
+        "ko": "재개할 수 없음: %@",
+        "zh-Hans": "无法继续：%@",
+        "zh-Hant": "無法繼續：%@"
+      }
+    },
+    {
+      "key": "mobile.cloud.action.restart",
+      "resource": "cmux_cloud_restart",
+      "translations": {
+        "en": "Restart",
+        "ar": "إعادة التشغيل",
+        "de": "Neu starten",
+        "es": "Reiniciar",
+        "fr": "Redémarrer",
+        "ja": "再起動",
+        "ko": "재시작",
+        "zh-Hans": "重新启动",
+        "zh-Hant": "重新啟動"
+      }
+    },
+    {
+      "key": "mobile.cloud.action.restartFailedFormat",
+      "resource": "cmux_cloud_restart_failed",
+      "translations": {
+        "en": "Couldn't restart: %@",
+        "ar": "تعذّرت إعادة التشغيل: %@",
+        "de": "Neustart nicht möglich: %@",
+        "es": "No se pudo reiniciar: %@",
+        "fr": "Impossible de redémarrer : %@",
+        "ja": "再起動できませんでした: %@",
+        "ko": "재시작할 수 없음: %@",
+        "zh-Hans": "无法重新启动：%@",
+        "zh-Hant": "無法重新啟動：%@"
+      }
+    },
+    {
+      "key": "mobile.cloud.action.delete",
+      "resource": "cmux_cloud_delete",
+      "translations": {
+        "en": "Delete",
+        "ar": "حذف",
+        "de": "Löschen",
+        "es": "Eliminar",
+        "fr": "Supprimer",
+        "ja": "削除",
+        "ko": "삭제",
+        "zh-Hans": "删除",
+        "zh-Hant": "刪除"
+      }
+    },
+    {
+      "key": "mobile.cloud.action.deleteFailedFormat",
+      "resource": "cmux_cloud_delete_failed",
+      "translations": {
+        "en": "Couldn't delete: %@",
+        "ar": "تعذّر الحذف: %@",
+        "de": "Löschen nicht möglich: %@",
+        "es": "No se pudo eliminar: %@",
+        "fr": "Impossible de supprimer : %@",
+        "ja": "削除できませんでした: %@",
+        "ko": "삭제할 수 없음: %@",
+        "zh-Hans": "无法删除：%@",
+        "zh-Hant": "無法刪除：%@"
+      }
+    }
+  ]
+}

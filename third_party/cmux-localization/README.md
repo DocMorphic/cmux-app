@@ -42,3 +42,11 @@ global source pin and implements no purchase, refund, restore, or analytics API.
 The catalog SHA-256 and original keys are retained. The generator owns the nine
 `cmux_browser_dialog_strings.xml` files; labels supplied by the host remain
 host-supplied. This scoped import advances no global source pin.
+
+`cloud-lifecycle-strings.json` imports eight Cloud pause/resume/restart/delete
+labels and failure formats from that a5911a1f catalog (72 original values).
+The loader accepts exactly one `%@` string argument for each failure format,
+converts it to `%1$s`, and marks only those Android resources as formatted.
+It rejects missing/additional/other-type placeholders. The nine generated
+`cmux_cloud_lifecycle_strings.xml` files are checked without adding Cloud text to
+the general migration dictionary. Other Cloud copy remains outside this import.

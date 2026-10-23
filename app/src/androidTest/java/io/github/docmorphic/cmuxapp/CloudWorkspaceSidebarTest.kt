@@ -32,6 +32,7 @@ class CloudWorkspaceSidebarTest {
         override suspend fun create(options: CloudMachineCreateOptions, idempotencyKey: String): CloudMachine = error("Unexpected create")
         override suspend fun pause(id: String) = error("Unexpected pause")
         override suspend fun resume(id: String) = error("Unexpected resume")
+        override suspend fun restart(id: String) = error("Unexpected restart")
         override suspend fun delete(id: String) = error("Unexpected delete")
         override fun close() {}
     }

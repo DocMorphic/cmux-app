@@ -101,6 +101,7 @@ class NativeAdaptivePanelsTest {
             override suspend fun create(options: CloudMachineCreateOptions, idempotencyKey: String): CloudMachine = error("No writes")
             override suspend fun pause(id: String) = error("No writes")
             override suspend fun resume(id: String) = error("No writes")
+            override suspend fun restart(id: String) = error("No writes")
             override suspend fun delete(id: String) = error("No writes")
             override fun close() {}
         }

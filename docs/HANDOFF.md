@@ -1,3 +1,28 @@
+## Cloud Restart port verified; actual provider and full parity open — 2026-10-23
+
+Android now implements a5911a1f's explicit restart capability, 60-second control-
+plane call, per-machine busy/error state, cached-link retirement and fresh
+workspace/terminal catalog gate. Shared API calls advertise their real client
+budget. Menus, swipe/accessibility actions and eight labels/error formats cover
+all nine locales, with stale callbacks rejected and no automatic mutation retry.
+No real VM, phone or account was operated. Signed 716 excludes this port.
+
+Pinned source run 39886896080 passes 45 unmodified lifecycle/API tests on full
+Xcode/macOS; both package inventories and all 306 source hashes are independently
+verified. Android's final owned API 36 cohort passes 17 cases in 35.677 seconds,
+including 18 narrow locale/scale profiles and existing workspace/terminal recovery.
+Visual QA fixed a real enlarged Arabic overflow and fixture system-bar insets.
+The full JVM suite before that final padding change passes 3,124 with four skips;
+the next clean signed candidate repeats it. Details and exact scope:
+[CLOUD_COMPANION.md](CLOUD_COMPANION.md), source manifest
+`third_party/cmux-cloud/lifecycle-manifest.json`, local checkpoint
+`captures/recovery-20261023/cloud-restart-checkpoint.json`.
+
+Source onboarding illustrations and create-sheet billing changes, actual Cloud/
+Pixel, native UI/accessibility and every broader completion gate remain open.
+Fresh Pixel availability and backend/store questions are still pending. Full
+parity stays active; existing account/pairing/phone/workspaces remain untouched.
+
 ## Signed 716 ready; browser behavior verified, full parity open — 2026-10-23
 
 Local/unpublished candidate 716 adds the streamed browser dialog fixes to 715.

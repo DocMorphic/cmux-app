@@ -1,0 +1,29 @@
+{
+  "upstream": "https://github.com/manaflow-ai/cmux",
+  "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "scope": "Restart capability/request/controller/row and VM client deadline header only. Whole Cloud package, onboarding, billing, native UI, actual backend/device and full parity remain open.",
+  "files": {
+    "Packages/iOS/CmuxMobileCloud/Sources/CmuxMobileCloud/CloudAPIRequestBuilder.swift": "69a216fe5c5e2d3948eaf617224112db58c200d56cfd3f234e287f09ee320404",
+    "Packages/iOS/CmuxMobileCloud/Sources/CmuxMobileCloud/CloudAPIResponseDecoding.swift": "90d3f510ef95604d784452c7c92cf4a6382fe1820dc841f184c249516959bc3c",
+    "Packages/iOS/CmuxMobileCloud/Sources/CmuxMobileCloud/CloudMachine.swift": "0c02ba1029e63d6489cf8ddfa42d31a4ad8bf7d77e39035b380f37a4a89062d6",
+    "Packages/iOS/CmuxMobileCloud/Sources/CmuxMobileCloud/CloudMachineAction.swift": "2c9e6ab2b0b861bf5cb779ec4831996952c787716643b47f1dbc7d4f63fe9b50",
+    "Packages/iOS/CmuxMobileCloud/Sources/CmuxMobileCloud/CloudSessionController.swift": "50cb4432d9dc0c577179f0374aa0e36a88618df6456b642f5c4de34eac6b2f05",
+    "Packages/iOS/CmuxMobileCloud/Sources/CmuxMobileCloud/CloudVMService.swift": "91ffb89aff8c190c5260ab6683db0b4c4a9a3df39ac7a904a34cf801feffb206",
+    "Packages/iOS/CmuxMobileCloud/Sources/CmuxMobileCloud/CloudVMServing.swift": "187d21537abf3b411ee8173404142e46dfbf01b40c09d5920527e39773216281",
+    "Packages/iOS/CmuxMobileCloudUI/Sources/CmuxMobileCloudUI/CloudSectionView.swift": "c86471e157e1ec153f7dd4f8fa79d9749d1feb6a44f2732e66797dfa60ce2a73",
+    "ios/cmux/Resources/Localizable.xcstrings": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd"
+  },
+  "sourceReference": {
+    "runId": 39886896080,
+    "projectCommit": "7bafcc2ac9c7c4548988177a605b32569e2e836d",
+    "tests": 45,
+    "artifactSha256": "a9781c6161dcd6e0084888c7ce3ad2a6ee664bb57a627d9f9670a18a59917400",
+    "scope": "Unmodified source lifecycle and API suites on disposable macOS/full-Xcode runner; no production service, UI or physical parity acceptance.",
+    "toolchain": {
+      "xcode": "26.6",
+      "build": "17F113",
+      "swift": "6.3.3",
+      "target": "arm64-apple-macosx26.0"
+    }
+  }
+}

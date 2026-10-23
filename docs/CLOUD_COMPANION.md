@@ -1,5 +1,81 @@
 # Cloud companion parity
 
+## Restart and request deadlines — 2026-10-23
+
+The a5911a1f source adds provider Restart, which was absent from Android.
+The reviewed scope is the new model/decoder capability, lifecycle action,
+request/service/controller behavior and the row actions in `CloudSectionView`.
+Nine exact source hashes and the narrow scope are recorded in
+`third_party/cmux-cloud/lifecycle-manifest.json`; no global pin is advanced.
+
+- Restart requires a running machine and literal Boolean `capabilities.restart:
+  true`. Missing, false, null, numeric, string and malformed capabilities do not
+  offer or admit it. Dispatch rechecks the current catalog and busy state, so an
+  old menu or accessibility callback cannot bypass revocation.
+- The control-plane call is `POST /api/vm/{encoded-id}/restart`, empty body,
+  60-second actual call timeout, captured account/team credentials and no
+  automatic mutation retry. All shared client requests now carry
+  `x-cmux-client-timeout-ms` matching their effective deadline: ordinary 20,000,
+  restart 60,000, attachment 90,000 and create/resume 960,000 ms. Existing cookie,
+  redirect, response-size, authentication and stale-owner guards remain in force.
+- The row stays busy until acknowledgement, without guessing its new status.
+  Success retires only that machine's cached link even if the catalog still says
+  running. Android maps the source's retry generation to an owner-bound callback
+  that gates the selected terminal on a newer verified catalog and reloads its
+  workspaces. Display/composer ownership is retained. Failure records the correct
+  machine/action and refreshes the list; it does not discard the link or repeat
+  the restart. Account retirement fences late successes and failures.
+- Restart is present in the action menu, trailing swipe controls and accessibility
+  custom actions. Full swipe only reveals buttons. Delete retains its separate
+  confirmation. The trailing order is Restart, Pause/Resume, Delete in LTR and
+  mirrored in RTL, with widths bounded to the row. Eight exact source lifecycle
+  labels/formats are now available in all nine locales; error formatting accepts
+  one string argument only. Other Cloud localization is still incomplete.
+
+Thirty-two focused JVM cases pass, including real loopback HTTP headers/deadlines,
+strict capability parsing, per-machine admission, failed/late operations and
+actual `CloudMachineConnections`/workspace replacement with another link retained.
+Before the final label-padding adjustment, the full JVM suite passes 3,124 cases with four opt-in skips, no failures/errors
+(3,128 cases, 425 reports). Ten localization guards pass. The first owned API 36
+emulator cohort passes 17 cases in 33.883 seconds, including 18 controlled
+locale/scale profiles at 260 dp width and existing workspace/terminal recovery.
+Representative revealed-action and enlarged German/Arabic/Japanese frames were
+reviewed. The final v4 cohort passes all 17 in 35.677 seconds, corrects the omitted outer
+system-bar insets and verifies actual line extents. It catches and fixes an
+enlarged Arabic overflow (202 px inside 188 px): narrower horizontal button
+padding gives 236 px without changing text scale. All 18 profiles have full
+labels, no clipped/ellipsized Restart lines and correctly formatted failures.
+At narrow width and doubled text, labels still wrap; matched native typography
+is open. Final main/Arabic/German frames are reviewed, crash buffer is empty,
+restoration commands succeed and the owned emulator exits 0. Exact APKs, inputs
+and evidence are bound in `captures/recovery-20261023/cloud-restart-checkpoint.json`.
+Earlier cohorts and compile/fixture failures remain retained and excluded from
+complete-pass claims. The signed build will repeat the final clean JVM suite.
+
+The local command `swift test --package-path
+captures/source-audit-20261020/upstream/Packages/iOS/CmuxMobileCloud --scratch-path
+captures/recovery-20261023/cloud-restart-swift-build --jobs 2 --filter
+CloudMachineLifecycleTests` builds the production package but cannot compile the
+tests: this Mac's Command Line Tools lack the `Testing` module. That is an
+environment build failure, not a failed source assertion. No Xcode install or
+source/test rewrite was performed. The full-Xcode disposable runner
+[39886896080](https://github.com/DocMorphic/cmux-app/actions/runs/39886896080),
+project source `7bafcc2ac9c7c4548988177a605b32569e2e836d`, uses Xcode 26.6 / Swift 6.3.3 and executes the unmodified
+`CloudMachineLifecycleTests|CloudAPITests` suites: all 45 pass. Independent
+artifact verification matches both complete package trees and all 306 file
+hashes, plus the named restart/capability/request tests. The 23,121-byte ZIP SHA256
+is `a9781c6161dcd6e0084888c7ce3ad2a6ee664bb57a627d9f9670a18a59917400`.
+Evidence: `captures/recovery-20261023/cloud-source-run-39886896080`.
+These are macOS source/core tests with generated services, not iOS UI or an
+Android-provider equivalence claim.
+
+No real VM was created/restarted/paused/deleted or connected, and no phone,
+account, credential or pairing data was changed. Signed 716 excludes this port.
+Real Cloud/provider, Pixel, system-locale/TalkBack, source typography/material
+and broader Cloud transport/UI acceptance remain open. The newer onboarding
+illustrations and create-sheet billing-policy changes are separate unfinished
+source comparisons; this lifecycle port does not close them or the full goal.
+
 ## Create-form integration follow-up — 2026-10-10
 
 The debug app at main `5d254f84` passed all **eight CloudMachinesScreenTest cases**
