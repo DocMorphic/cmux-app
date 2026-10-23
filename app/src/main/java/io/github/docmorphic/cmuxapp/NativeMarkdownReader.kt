@@ -51,7 +51,8 @@ internal class NativeMarkdownPosition {
     }
 }
 
-internal data class NativeMarkdownColors(val foreground: Int, val secondary: Int, val accent: Int)
+internal data class NativeMarkdownColors(val foreground: Int, val secondary: Int, val accent: Int,
+    val quoteBar: Int, val divider: Int, val codeBackground: Int)
 
 /** Android lazy native rows avoid Compose's packed item-height limit for large paragraphs. */
 internal class NativeMarkdownList(context: Context, val blocks: List<NativeMarkdownBlock>,
@@ -284,8 +285,8 @@ internal class NativeMarkdownRow(private val reader: NativeMarkdownList) : Linea
     fun applyColors() {
         body?.setTextColor(if (block?.kind == NativeMarkdownBlock.Kind.QUOTE) reader.colors.secondary else reader.colors.foreground)
         body?.setLinkTextColor(reader.colors.accent); marker?.setTextColor(reader.colors.secondary); caption?.setTextColor(reader.colors.secondary)
-        bar?.setBackgroundColor((reader.colors.secondary and 0x00ffffff) or 0x66000000)
-        card?.background = GradientDrawable().apply { cornerRadius = dp(8f).toFloat(); setColor((reader.colors.secondary and 0x00ffffff) or 0x19000000) }
+        bar?.setBackgroundColor(if (block?.kind == NativeMarkdownBlock.Kind.RULE) reader.colors.divider else reader.colors.quoteBar)
+        card?.background = GradientDrawable().apply { cornerRadius = dp(8f).toFloat(); setColor(reader.colors.codeBackground) }
     }
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
@@ -309,7 +310,17 @@ internal fun NativeMarkdownReader(markdown: String, position: NativeMarkdownPosi
             NativeMarkdownDocument.parse(markdown) { owner.ensureActive() }
         }
     }
-    val colors = NativeMarkdownColors(NativeAppColors.text.toArgb(), NativeAppColors.muted.toArgb(), NativeAppColors.accent.toArgb())
+    // Original native reader run40003411274: preserve secondary-label alpha so
+    // captions blend over the code card independently of quotes over the page.
+    // Link/fill/rule RGB follows measured compositor output, which differs from
+    // raw UIKit getRed components. These roles belong to this document reader.
+    val dark = NativeAppColors.dark
+    val colors = NativeMarkdownColors(NativeAppColors.text.toArgb(),
+        if (dark) 0x99EBEBF5.toInt() else 0x993C3C43.toInt(),
+        if (dark) 0xFF0091FF.toInt() else 0xFF0088FF.toInt(),
+        if (dark) 0xFF5A5A5E.toInt() else 0xFFC5C5C7.toInt(),
+        if (dark) 0xFF3E3E41.toInt() else 0xFFC6C6C8.toInt(),
+        if (dark) 0xFF28282B.toInt() else 0xFFF3F3F4.toInt())
     if (blocks == null) Box(Modifier.fillMaxSize().testTag("NativeMarkdownLoading"), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
     else AndroidView(factory = { NativeMarkdownList(it, blocks!!, position, colors) }, update = { it.updateColors(colors) },
         modifier = Modifier.fillMaxSize().clipToBounds(), onRelease = { it.release() })

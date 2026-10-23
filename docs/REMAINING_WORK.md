@@ -1,3 +1,19 @@
+## Reader document color roles verified against original phone pixels — 2026-10-23
+
+Quotes/list markers/code captions now use the original translucent secondary
+label role; links, quote bars, dividers and code cards follow distinct measured
+rendered colors. Six owned API36 cases pass27.825s, including actual seven-role
+compositor checks across dark→light→dark with the same native reader/selection,
+native long text/link/code restoration and controls/retry/cancellation. Dark/light
+frames reviewed, crash buffer empty, no preflight System UI ANR, settings/window
+restored and emulator exit0. Source PNG/native-renderer hashes and exact APK/source
+bindings are in AGENT_FEED.md and recovery-20261023/native-feed-reader-role-colors-checkpoint.json.
+
+Scope is measured default phone roles. Dynamic glass/tablet materials, loading/
+error allocation, landscape horizontal policy, broader variants/transport/source,
+physical Pixel/Mac and TalkBack/full app acceptance remain open. Signed722 stays
+frozen, physical712 unchanged; no account/pairing or Mac/phone action. Goal active.
+
 ## Close control and toolbar source measurements applied — 2026-10-23
 
 Original36pt AX bounds sit inside44pt painted bounds (4pt outset), verified across

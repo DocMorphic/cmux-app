@@ -1,5 +1,37 @@
 # Agent Feed companion
 
+## Native document color roles match measured phone rendering — 2026-10-23
+
+The reader now gives quotes/list markers/code captions their original translucent
+secondary-label roles, preserving different blending over the page and code card.
+Quote bars, dividers and code backgrounds have distinct roles. Link and divider
+RGB follows actual attributed source pixels rather than assuming raw UIKit
+getRed components equal compositor output. Original en-dark/light loaded frame
+hashes are matched to run40003411274, with unchanged native-renderer declaration
+hash checked at a5911a1f. Read-only sample boxes/counts are retained; no images edited.
+
+Six owned API36 cases pass in27.825s on production APK
+ a18f598ce7a6cec8fd776af1b1731a9e057060241fe3b4e4229d332f5580e758
+and test APK8d686f832285b39fdc685b896accbd11cc873413d975f97f3e7ffe01eabb91b0.
+The new production-reader case checks seven rendered roles across dark→light→dark,
+retains the same native list/selected range0…6, and verifies secondary colors at
+the real native TextViews. Actual compositor link/bar/divider/fill pixels match
+exact source RGB; secondary glyph samples allow1/255 channel quantization and
+also contain hundreds/thousands of exact matching pixels. The other five cases
+retain native links/code/horizontal restoration,14k-line painted tail/selection/
+anchor restoration and retry/cancellation/late-read behavior. Dark/light frames
+reviewed; crash buffer empty, no preflight System UI ANR, settings/window overrides
+restored and owned emulator exits0. Full JVM/physical/source/UI parity is not
+implied by these component regressions. No production code changed after the run.
+
+Evidence under captures/recovery-20261023/: ios-feed-reader-rendered-role-samples.json,
+native-feed-reader-role-colors-checkpoint.json and native-feed-reader-role-colors-runtime-v1/.
+Default phone reader roles are accepted within those measured profiles. Dynamic
+colors/glass/tablet materials, loading/error allocation, landscape horizontal
+policy, wider variants/real transport/TalkBack/physical Pixel and Mac and all
+full app gates remain open. Candidate722/physical712/account/pairing/global pins
+unchanged. No new signed artifact or phone/Mac action. Goal remains active.
+
 ## Measured Close capsule and toolbar allocation verified — 2026-10-23
 
 Correction to the earlier control audit: the original36pt AX frame is inset4pt
