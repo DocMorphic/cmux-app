@@ -6,12 +6,14 @@ geometry and Back/release pass; see AGENT_FEED.md and native-feed-reader-palette
 Other palette roles, Close/material/loading/error and broader UI/lifecycle/source/
 physical/TalkBack gates remain open. Candidate722/physical712/pairing unchanged.
 
-Next revalidate original run40003411274/job120585108804 at5140226d, currently
-capturing tablet after standard/enlarged phone steps passed. Preserve/attribute
-all52 exports and inspect actual public control/font candidates, semantic link/
-tertiary colors and pixels before acceptance. Do not restart a live handle or
-claim a Close font merely because the observer now looks outside UINavigationBar.
-Then finish remaining reader controls/colors/material/loading/error behavior.
+Original run40003411274/job120585108804 succeeds at5140226d: all three methods,
+identical52-page CI/local receipts,22 whole original files and31 evidence guards.
+No public Close UIFont emerges. Next port its measured36pt capsule/54pt bar and
+22pt control-center allocation, bounded native text using glyph/AX measurements,
+and remaining rendered colors/material/loading/error behavior. Android currently
+centers~27dp and enlarges its bar under large text. Raw semantic link values
+differ from rendered blue; use the rendered-color and close-layout audits.
+No live reference job or emulator remains. Do not claim a measured Close UIFont.
 No phone, Mac app or pairing action needed for this work. Goal remains active.
 
 ## Current reader appearance follow-through — 2026-10-23

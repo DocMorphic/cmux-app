@@ -5,8 +5,10 @@ own theme: dark28/28/30 with white text; light white with black text. Two compac
 profiles pass exact actual compositor/body-heading colors plus flags/insets and
 dismissal. See AGENT_FEED.md and native-feed-reader-palette-checkpoint.json.
 Remaining color roles, Close/material/loading/error, broader lifecycle/physical/
-TalkBack and full source/feature gates remain open. Separate original control/color
-run40003411274 is live at5140226d, pending verified52-export acceptance. No new
+TalkBack and full source/feature gates remain open. Original control/color run
+40003411274 succeeds at5140226d with identical CI/local52-page receipts. Public
+scan exposes no Close UIFont; actual glyph/AX layout and semantic/rendered color
+differences are measured for the next port. See AGENT_FEED.md. No new
 signed package, physical/pairing action or global source-pin advance.
 
 ## Settled compact bar profiles verified — 2026-10-23

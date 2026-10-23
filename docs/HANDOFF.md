@@ -1,4 +1,4 @@
-## Reader primary colors matched; original control capture live — 2026-10-23
+## Reader primary colors matched; original controls/colors verified — 2026-10-23
 
 The presented reader now scopes measured background/primary-label roles: dark
 28/28/30 with white text, light white with black text. Actual compositor pixels
@@ -10,12 +10,15 @@ recovery-20261023. Other color roles, Close/material/loading/error, broader sour
 lifecycle/physical/TalkBack acceptance remain open. No new signed package;
 candidate722/physical712/account/pairing unchanged. Goal remains active.
 
-Original collector run40003411274/job120585108804 at5140226d is live: phone
-standard/enlarged steps pass, tablet active at last observation. Poll this exact
-handle; never restart on an observation timeout. Verify source/provenance and
-all52 actual compositor exports, inspect Close candidates and trait colors before
-acceptance. All31 local evidence guards pass; unchanged22-file original closure.
-No new original Close UIFont/color acceptance yet. No local emulator remains.
+Original collector run40003411274/job120585108804 at5140226d completes successfully:
+all three actual methods pass, CI/local receipts identical for52 pages/22 whole
+original files,31 guards pass. Selected dark/light/enlarged/tablet frames reviewed.
+Its39 presented pages expose title labels but no public buttons or Close UIFont.
+Next use measured visual capsule36pt/bar54pt/control center22pt and glyph bounds
+to port the native Close role and fix Android's~27dp center/enlarged bar growth.
+Raw semantic link differs from rendered blue; consult the rendered-color audit
+before remaining color roles. See AGENT_FEED.md, ios-feed-reader-controls-checkpoint.json
+and native-feed-reader-close-layout-audit.json. No live job/emulator remains.
 
 ## Settled compact bars verified; original control/color measurement next — 2026-10-23
 

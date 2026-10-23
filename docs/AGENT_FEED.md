@@ -1,5 +1,41 @@
 # Agent Feed companion
 
+## Original control/color collection verified; next layout differences measured — 2026-10-23
+
+Run40003411274/job120585108804 succeeds at5140226d. Actual original capture
+methods pass: standard255.061s, enlarged38.013s, tablet44.181s. Strict CI/local
+receipts are identical for all52 compositor pages and22 unchanged original files;
+31 evidence guards pass. Artifact12523178842 is8,808,544 bytes, digest
+2b1ff8f3a8c3a7d461ec838ed1d5c3bd2b8712fdffdfe256b731f267bbff0489.
+Dark/light, enlarged German and tablet loaded frames reviewed. No job remains live.
+Scope is the original component in its authored offline presenter, not real
+account/transport, the full application, Android or physical/full parity.
+
+All39 presented observations expose only the title UILabel; zero public buttons
+and zero Close label candidates. Close UIFont remains unobserved. Source AX and
+glyphs nevertheless measure its visual geometry:36pt capsule,54pt bar, title and
+Close center22pt below bar top in all13 loaded profiles. Current unchanged Android
+header centers at about27dp and grows under enlarged text (e.g. German59.333dp,
+narrow German91.667dp stacked). Original German accessibility stays54pt/one row.
+Close glyph ink is73×13pt ordinary German and87.667×15.667pt enlarged; these are
+thresholded compositor bounds, not actual UIFont sizes. Use those measurements
+to verify a native control role and vertical allocation without inventing a font
+observation. See native-feed-reader-close-layout-audit.json.
+
+Raw UIKit link traits are9/132/255 dark and0/122/255 light; dominant rendered blue
+in the reviewed loaded phone frames is0/145/255 and0/136/255. The inline link is
+the only visible blue element there, so this is a candidate rendered link tint;
+the color-space/style cause of the difference is unproven. Do not equate raw
+semantic components with compositor output. Code-padding pixels are40/40/43 dark
+and243/243/244 light. TertiaryLabel alpha is76/255. Tablet material remains visibly
+tinted despite scalar systemBackground28/28/30; its cause/material port stays open.
+
+Evidence: captures/recovery-20261023/ios-feed-reader-controls-checkpoint.json,
+ios-feed-reader-controls-rendered-color-audit.json, native-feed-reader-close-layout-audit.json,
+and ios-feed-reader-controls-40003411274/canonical-local/. Next port remaining
+Close/capsule/vertical allocation and actual rendered color roles, loading/error
+and broader gates. Candidate722/physical712/pairing/global pins unchanged.
+
 ## Measured reader background and primary labels matched — 2026-10-23
 
 Read-only pixel/trait comparison bound to original run39961701278 showed the
@@ -24,12 +60,10 @@ Close, secondary/link/code roles, tablet/glass materials, loading/error allocati
 broader appearance/lifecycle/source and physical/TalkBack gates remain open.
 Candidate722/physical712/pairing unchanged; no new signed artifact or user action.
 
-Original control/color reference run40003411274/job120585108804 is live at driver
-5140226d. Standard phone and accessibility-text capture steps have passed; tablet
-capture is active at last observation. Guard/immutable preparation succeeds; the
-22 original files and all13 profiles/four states remain unchanged. Revalidate the
-same handle, then attribute/inspect its52 exports and actual Close candidates and
-colors before new measurement acceptance. See ios-feed-reader-controls-checkpoint.json.
+Original control/color reference run40003411274/job120585108804 is complete and
+verified at5140226d; the entry above supersedes its live capture observations.
+All52 exports verify. See ios-feed-reader-controls-checkpoint.json for limited
+measurement acceptance and the still-unobserved Close UIFont.
 
 ## Settled compact system-bar appearance verified — 2026-10-23
 
@@ -40,7 +74,7 @@ not assume Close uses those controls or guarantee a font observation. The verifi
 validates all raw control/font/color shapes and reports Close label candidates
 only when contained in the independent AX Close frame. All31 synthetic integrity
 guards pass; Swift syntax parses locally. Actual UIKit compilation/captures and
-any new control/color acceptance remain pending the dedicated reference run.
+limited measurement acceptance are now verified on run40003411274, as above.
 Whole pinned original source declarations and all13 profiles/four states remain
 unchanged; these are observer/attribution additions only.
 
