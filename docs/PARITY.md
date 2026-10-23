@@ -1,3 +1,18 @@
+## Reader compact width/insets and class-change restoration — 2026-10-23
+
+Compact landscape now spans the actual window with24dp drag spacing,54dp toolbar
+and safe text/control bounds. Portrait consumes only top space already above its
+sheet, preserving remaining cutout clearance. Actual compact→wide→compact routed
+Activity changes retain passage/selection/RPC and keep the body out of saved state.
+Final ten-case cohort plus compact and two wide profile invocations pass (13
+invocations). See AGENT_FEED.md and native-feed-reader-compact-checkpoint.json.
+
+Accepted scope is owned API36 emulator geometry and recorded lifecycle behavior.
+A dark gesture indicator in the compact screenshot still needs settled-appearance
+verification; Close/material/palette/loading/error, broader variants, physical
+devices, real transport/TalkBack and full feature/source reconciliation stay open.
+No new signed package, physical upgrade, pairing action or global pin advance.
+
 ## Candidate 722 package/startup verification — 2026-10-23
 
 Signed candidate722 at clean726ccd3a passes the full JVM suite (3,148 pass/four

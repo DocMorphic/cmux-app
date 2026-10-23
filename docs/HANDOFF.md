@@ -1,3 +1,25 @@
+## Compact reader and adaptive recreation verified; visual gates remain — 2026-10-23
+
+The compact Full text sheet now spans the phone window in landscape, with the
+measured24dp drag area and actual camera/system-bar clearance. Portrait retains
+16dp and consumes its sheet offset before remaining top insets; this fixes extra
+padding in pinned Material1.3.2 without dropping cutout protection. Wide panel
+geometry remains580×650dp. Actual compact→wide→compact Activity recreation keeps
+the same reading passage, selected text and RPC client; final bundles10,024–10,408
+bytes contain no body. See AGENT_FEED.md and recovery-20261023/
+native-feed-reader-compact-checkpoint.json for exact APK/source hashes and evidence.
+
+Final ten-case cohort140.596s plus compact5.148s, wide landscape4.873s and wide
+portrait4.636s all pass. Captures reviewed, crash buffer empty, no preflight System
+UI ANR, settings/window restored, owned emulator exits0. Earlier lookup/setup
+failures and a prototype portrait inset regression are retained separately.
+The final compact screenshot has a dark gesture indicator against the dark sheet;
+next inspect settled window appearance flags and capture timing. This observation
+is unresolved; width/lifecycle passes are not full visual acceptance. Close,
+palette/material/spinner/error, broader variants, physical Pixel/Mac/TalkBack and
+all global source/feature gates remain open. Candidate722/physical712 unchanged;
+no phone, Mac app or pairing action. Full goal remains active.
+
 ## Signed candidate 722 ready; original app context verified — 2026-10-23
 
 Candidate 722 is built from clean source 726ccd3a with the existing certificate

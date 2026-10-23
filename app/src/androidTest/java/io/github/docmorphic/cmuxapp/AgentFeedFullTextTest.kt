@@ -42,6 +42,16 @@ class AgentFeedFullTextTest {
         val header = compose.onNodeWithTag("AgentFeedFullTextHeader").fetchSemanticsNode().boundsInRoot
         assertEquals("Ordinary reader toolbar matches the measured 54-point source component", 54f,
             header.height / compose.density.density, .5f)
+        val configuration = compose.activity.resources.configuration
+        if (configuration.screenWidthDp < 600 && configuration.screenWidthDp < configuration.screenHeightDp) {
+            val panel = compose.onNodeWithTag("AgentFeedFullTextCompactPanel").fetchSemanticsNode().boundsInRoot
+            val drag = compose.onNodeWithTag("AgentFeedFullTextDragArea", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val safeTop = compose.activity.windowManager.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout()).top.toFloat()
+            assertEquals("Portrait reserves only the safe top inset remaining below the sheet offset",
+                maxOf(panel.top, safeTop), drag.top, 1f)
+            assertEquals("Ordinary portrait drag area matches the original 16 points", 16f, drag.height / compose.density.density, .5f)
+        }
         val indicator = compose.onNodeWithTag("AgentFeedFullTextProgress").fetchSemanticsNode().boundsInRoot
         val label = compose.onNodeWithText("Loading full text…").fetchSemanticsNode().boundsInRoot
         assertTrue(indicator.bottom <= label.top)

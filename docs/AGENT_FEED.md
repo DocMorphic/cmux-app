@@ -1,5 +1,54 @@
 # Agent Feed companion
 
+## Compact landscape and actual class-change restoration verified — 2026-10-23
+
+The original reference spans874 points in compact landscape with24-point drag
+spacing and54-point toolbar. Android now removes Material's640dp width cap for
+compact sheets, fills their landscape height, keeps the portrait16dp/wide10dp
+drag areas and applies actual platform safe insets. The pinned BOM2025.09.00
+resolves Material1.3.2: its source applies all contentWindowInsets without
+consuming the sheet offset. Consuming that positive offset preserves only the
+remaining top camera/status clearance; the ordinary portrait runtime asserts
+dragTop=max(sheetTop,safeTop), plus16dp drag and54dp header. This fixes the first
+prototype's extra portrait gap while retaining real cutout protection.
+
+New actual emulator checks cover the full2622×1206 compact window (874×402dp),
+safe bounds left144/top84/right0/bottom72 pixels, body144,318–2622,1134, Back
+dismissal and native reader release. Wide profiles retain580×650dp panels,
+centering within actual usable bounds and real outside-tap/Back dismissal.
+Orientation is requested through UiDevice and awaited on the actual Activity;
+the host's settings/delay alone did not establish it reliably after a fresh boot.
+
+The routed production Feed also survives real compact→wide→compact Activity
+recreation using local socket RPC and a290,926-character body. Selected character
+13,641 stays selected; original top character13,637 remains in the restored top
+line starting13,628. The same admitted client survives and closes on finish.
+Four final saved-state snapshots10,024/10,200/10,408/10,408 bytes contain the
+Compose registry and coordinates, without the body marker. Native blocks/links/
+horizontal code,14k-line painted text,21 header profiles, cancellation/retry,
+rotation/type/recreation and two process/task restores also pass in this cohort.
+
+Final runtime-v4: ten cases140.596s, compact5.148s, wide landscape4.873s and
+portrait4.636s. App SHA256:
+81b0743932369b9ff774ae17df6329f97ca193eb1a1d54bdc7cfb7c76cdc8e57;
+test SHA256:8c8d3a5111b5f139549dd839fc70ea32b0db9b6cefbf4ce6c3c06b844d82264e.
+Installed hashes/source bindings verified. Reviewed loading, compact and both
+wide captures; crash buffer empty, no preflight System UI ANR, settings/window
+read back restored, owned emulator exit0. Evidence:
+captures/recovery-20261023/native-feed-reader-compact-checkpoint.json and
+native-feed-reader-compact-runtime-v4/. Earlier lookup failure (merged drag
+semantics), setup precondition failure and prototype passes/inset finding remain
+in attempt1/2/3 checkpoints. The naive portrait top-omission variant was compiled
+but never run or accepted; final source instead retains remaining safe padding.
+
+One final compact capture shows a dark gesture indicator against the dark sheet,
+where prototype/wide captures show a light indicator. Determine settled window
+appearance flags and capture timing before accepting its system bars. This is an
+unresolved observation, not proof of a specific cause. Close UIFont/capsule,
+materials/palette/spinner/error allocation, broader adaptive/platform variants,
+real accounts/transport, physical Pixel/Mac/TalkBack and full app parity remain
+open. Candidate722, physical712 and pairing are unchanged; no user-device action.
+
 ## Reader changes packaged in signed candidate 722 — 2026-10-23
 
 Clean source726ccd3a produces signed722 with the existing signing identity;

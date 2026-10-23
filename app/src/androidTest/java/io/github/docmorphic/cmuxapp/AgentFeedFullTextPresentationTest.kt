@@ -20,8 +20,21 @@ class AgentFeedFullTextPresentationTest {
         check(android.os.Build.MODEL.contains("sdk") || android.os.Build.FINGERPRINT.contains("generic"))
         val configuration = compose.activity.resources.configuration
         check(configuration.screenWidthDp >= 600 && configuration.screenHeightDp >= 600)
+        val orientation = InstrumentationRegistry.getArguments().getString("cmux_presentation_orientation")
+        if (orientation != null) {
+            check(orientation in listOf("portrait", "landscape"))
+            val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            if (orientation == "landscape") device.setOrientationLeft() else device.setOrientationNatural()
+            compose.waitUntil(15_000) {
+                val current = compose.activity.resources.configuration
+                (current.screenWidthDp > current.screenHeightDp) == (orientation == "landscape")
+            }
+        }
     }
-    @After fun finish() { compose.activity.finish() }
+    @After fun finish() {
+        compose.activity.finish()
+        UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).apply { setOrientationNatural(); unfreezeRotation() }
+    }
 
     @Test fun wideWindowCentersTheReaderAndOutsideTapAndBackDismissIt() {
         var shown by mutableStateOf(true)

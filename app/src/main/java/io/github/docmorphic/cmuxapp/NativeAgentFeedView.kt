@@ -28,6 +28,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -270,17 +271,32 @@ private fun AgentFeedFullTextPresentation(onDismiss: () -> Unit, content: @Compo
             }
         }
     } else {
-        NativeModalBottomSheet(onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        val landscape = configuration.screenWidthDp > configuration.screenHeightDp
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        // Material 1.3.2 doesn't consume the sheet offset from top insets.
+        // Subtract the space above the sheet, retaining any remaining camera/
+        // status inset; requireOffset is initialized by its first measurement.
+        val sheetTop = try { sheetState.requireOffset().toInt().coerceAtLeast(0) }
+            catch (_: IllegalStateException) { 0 }
+        NativeModalBottomSheet(onDismiss, modifier = Modifier.testTag("AgentFeedFullTextCompactPanel")
+                .consumeWindowInsets(WindowInsets(top = sheetTop)),
+            sheetState = sheetState, sheetMaxWidth = Dp.Unspecified,
             containerColor = NativeAppColors.page, contentColor = NativeAppColors.text,
+            // The original compact sheet spans the window even in landscape.
+            // Keep its controls and native text inside this device's actual bars/cutout.
+            contentWindowInsets = { WindowInsets.safeDrawing },
             dragHandle = { AgentFeedFullTextDragIndicator() }) {
-            Column(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("AgentFeedFullTextSheet"), content = content)
+            Column(Modifier.fillMaxWidth().fillMaxHeight(if (landscape) 1f else .96f)
+                .testTag("AgentFeedFullTextSheet"), content = content)
         }
     }
 }
 
 @Composable
 private fun AgentFeedFullTextDragIndicator(wide: Boolean = false) {
-    Box(Modifier.fillMaxWidth().height(if (wide) 10.dp else 16.dp), contentAlignment = Alignment.Center) {
+    val configuration = LocalConfiguration.current
+    val height = if (wide) 10.dp else if (configuration.screenWidthDp > configuration.screenHeightDp) 24.dp else 16.dp
+    Box(Modifier.fillMaxWidth().height(height).testTag("AgentFeedFullTextDragArea"), contentAlignment = Alignment.Center) {
         Box(Modifier.size(36.dp, 5.dp).background(NativeAppColors.text.copy(alpha = .3f), RoundedCornerShape(50)))
     }
 }

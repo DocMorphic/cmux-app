@@ -32,9 +32,11 @@ class AgentFeedReaderActivityTest {
     @get:Rule val compose = createEmptyComposeRule(effectContext = StandardTestDispatcher())
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
-    private val output get() = File(context.getExternalFilesDir(null), if (systemChanges) "feed-reader-system-config" else "feed-reader-activity").apply { mkdirs() }
+    private val output get() = File(context.getExternalFilesDir(null),
+        if (adaptiveChanges) "feed-reader-adaptive" else if (systemChanges) "feed-reader-system-config" else "feed-reader-activity").apply { mkdirs() }
     private var phase = "initial-load"
     private var systemChanges = false
+    private var adaptiveChanges = false
     private val device get() = UiDevice.getInstance(instrumentation)
     @Before fun emulatorOnly() {
         check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk"))
@@ -95,6 +97,8 @@ class AgentFeedReaderActivityTest {
 
     @Test fun actualRotationAndSystemFontChangeRetainRoutedReaderPositionSelectionAndSession() = routedReader(true)
 
+    @Test fun actualCompactWideCompactWindowChangesRetainPositionSelectionAndSession() = routedReader(true, true)
+
     private fun topLineContains(body: TextView, scrollY: Int, character: Int) {
         val line = body.layout.getLineForVertical((scrollY - body.totalPaddingTop).coerceAtLeast(0))
         assertTrue("Original character $character stays in top visible line [${body.layout.getLineStart(line)}, ${body.layout.getLineEnd(line)})",
@@ -114,9 +118,39 @@ class AgentFeedReaderActivityTest {
         assertTrue(previous!!.isDestroyed)
     }
 
-    private fun routedReader(withSystemChanges: Boolean) {
+    private fun changeWindowClass(scenario: ActivityScenario<NativeLifecycleTestActivity>, wide: Boolean,
+        expectedDensity: Float, resize: () -> Unit) {
+        var previous: NativeLifecycleTestActivity? = null
+        scenario.onActivity { previous = it }
+        resize()
+        compose.waitUntil(20_000) { runCatching {
+            var changed = false
+            scenario.onActivity {
+                val configuration = it.resources.configuration
+                val regular = configuration.screenWidthDp >= 600 && configuration.screenHeightDp >= 600
+                changed = it !== previous && regular == wide &&
+                    kotlin.math.abs(it.resources.displayMetrics.density - expectedDensity) < .001f
+            }
+            changed
+        }.getOrDefault(false) }
+        assertTrue(previous!!.isDestroyed)
+    }
+
+    private fun routedReader(withSystemChanges: Boolean, withAdaptiveChanges: Boolean = false) {
         systemChanges = withSystemChanges
+        adaptiveChanges = withAdaptiveChanges
         val originalFontSetting = device.executeShellCommand("settings get system font_scale").trim()
+        val originalDensity = context.resources.displayMetrics.density
+        val originalWindow = listOf("size", "density").associateWith { key ->
+            device.executeShellCommand("wm $key").trim()
+        }
+        fun restoreWindow() {
+            for ((key, value) in originalWindow) {
+                val override = value.lineSequence().firstOrNull { it.startsWith("Override ") }?.substringAfter(": ")
+                require(override == null || override.matches(Regex(if (key == "size") "[0-9]+x[0-9]+" else "[0-9]+")))
+                device.executeShellCommand("wm $key ${override ?: "reset"}")
+            }
+        }
         require(originalFontSetting == "null" || originalFontSetting.toFloatOrNull()?.let { it.isFinite() && it > 0 } == true)
         if (systemChanges) assertEquals("Controlled owned emulator starts at normal font", "1.0", originalFontSetting)
         val store = NativeCredentialStore(context); val peer = NativeFixturePeer()
@@ -196,16 +230,26 @@ class AgentFeedReaderActivityTest {
                 compose.runOnUiThread { assertEquals(selected, paragraph()!!.selectionStart) }
                 val reads = peer.requests.count { it.optString("method") == "feed.text" }
                 phase = "formatted-recreate"
-                if (systemChanges) changeConfiguration(scenario, font = false) else scenario.recreate()
+                if (adaptiveChanges) changeWindowClass(scenario, true, 2f) {
+                    device.executeShellCommand("wm size 2048x2732")
+                    device.executeShellCommand("wm density 320")
+                } else if (systemChanges) changeConfiguration(scenario, font = false) else scenario.recreate()
                 await { paragraph()?.selectionStart == selected && reader()!!.firstVisiblePosition == 1 }; settle()
                 var after = 0
                 compose.runOnUiThread {
                     after = anchor()
                     if (systemChanges) {
-                        assertTrue("Real landscape has a wider reader", reader()!!.width > portraitWidth)
+                        if (adaptiveChanges) {
+                            assertEquals("Real regular window uses the measured 580dp panel", 580f,
+                                reader()!!.width / reader()!!.resources.displayMetrics.density, 1f)
+                        } else assertTrue("Real landscape has a wider reader", reader()!!.width > portraitWidth)
                         val row = paragraph()!!.parent as NativeMarkdownRow
                         topLineContains(paragraph()!!, reader()!!.paddingTop - row.top - paragraph()!!.top, before)
                     } else assertEquals(before, after)
+                }
+                if (adaptiveChanges) {
+                    compose.onNodeWithTag("AgentFeedFullTextPanel").assertIsDisplayed()
+                    compose.onNodeWithTag("AgentFeedFullTextCompactPanel").assertDoesNotExist()
                 }
                 scenario.onActivity {
                     assertNotSame(old, it); assertTrue(old!!.isDestroyed)
@@ -217,14 +261,19 @@ class AgentFeedReaderActivityTest {
                 phase = "second-native-recreate"
                 val secondAnchor = after
                 val secondReads = peer.requests.count { it.optString("method") == "feed.text" }
-                if (systemChanges) changeConfiguration(scenario, font = true) else scenario.recreate()
+                if (adaptiveChanges) changeWindowClass(scenario, false, originalDensity, ::restoreWindow)
+                else if (systemChanges) changeConfiguration(scenario, font = true) else scenario.recreate()
                 await { paragraph()?.selectionStart == selected }; settle()
                 compose.runOnUiThread {
                     val body = paragraph()!!; val row = body.parent as NativeMarkdownRow
                     if (systemChanges) {
-                        assertTrue(body.textSize > formattedPixelsBefore)
+                        if (!adaptiveChanges) assertTrue(body.textSize > formattedPixelsBefore)
                         topLineContains(body, reader()!!.paddingTop - row.top - body.top, secondAnchor)
                     } else assertEquals(before, anchor())
+                }
+                if (adaptiveChanges) {
+                    compose.onNodeWithTag("AgentFeedFullTextCompactPanel").assertIsDisplayed()
+                    compose.onNodeWithTag("AgentFeedFullTextPanel").assertDoesNotExist()
                 }
                 scenario.onActivity { assertSame(retainedClient, ViewModelProvider(it).get(NativeFeedSession::class.java).connectionState("").client) }
                 assertTrue(peer.requests.count { it.optString("method") == "feed.text" } > secondReads)
@@ -252,13 +301,16 @@ class AgentFeedReaderActivityTest {
                 File(output, "result.json").writeText(JSONObject().put("bodyCharacters", text.length).put("savedStateBytes", bytes)
                     .put("savedRegistryKeys", registryKeys).put("savedStateCapture", "Application.onActivityPostSaveInstanceState")
                     .put("formattedBeforeAnchor", before).put("formattedAfterAnchor", after).put("formattedSelection", selected)
-                    .put("actualSystemRotationAndFontChange", systemChanges)
+                    .put("actualSystemRotationAndFontChange", systemChanges && !adaptiveChanges)
+                    .put("actualCompactWideCompactWindowChanges", adaptiveChanges)
+                    .put("originalWindowConfiguration", JSONObject(originalWindow))
                     .put("textReads", peer.requests.count { it.optString("method") == "feed.text" }).put("retainedRpcClient", true)
                     .put("scope", "Actual Activity recreation of routed production Feed using emulator-local credentials and socket RPC; system changes only when explicitly recorded; no process death, real authentication, Mac/Pixel, TalkBack or full parity acceptance.").toString(2))
             }
             assertTrue("Finishing the Activity releases its admitted client", client!!.isClosed)
         } finally {
             if (systemChanges) {
+                if (adaptiveChanges) restoreWindow()
                 device.executeShellCommand(if (originalFontSetting == "null") "settings delete system font_scale" else "settings put system font_scale $originalFontSetting")
                 device.setOrientationNatural(); device.unfreezeRotation()
             }
