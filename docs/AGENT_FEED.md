@@ -1,5 +1,35 @@
 # Agent Feed companion
 
+## Original navigation/status measurements recovered locally — 2026-10-23
+
+Original capture40025958696 at cleana3a68956 passes all three UIKit/XCUITest
+methods: standard phone535.822s, enlarged phone35.844s, tablet35.187s. Its final
+association failed because the new guard incorrectly restricted status styles
+to0…3. The public status-bar manager actually reports raw-1, hidden=true and
+frame[0,0,0,0] in all five landscape observations. The repaired guard permits-1
+only with that exact hidden/empty shape and rejects boolean, visible/nonempty
+and other unknown variants; all57 integrity guards pass. All52 original frames,
+22 whole source files,52 bar/scene observations and13 loading dismissals now
+associate locally without editing captures or the collector. No new UIKit run
+is implied by the repair. Remote retained-artifact association remains pending.
+
+The observed margin guide is not the Close frame: portrait bar margins16 versus
+Close AX leading20; landscape safe62/margins82/guide82 versus AX42 (paint38 from
+the separate compositor audit); tablet bar margins20 versus AX14 (paint10).
+Immediate content-view margins are0 portrait/tablet and62 landscape. These actual
+public values disprove a direct bar-margin-to-Close mapping; they do not establish
+a general Android cutout rule. Compact landscape status hidden/empty is now
+confirmed by the manager as well as pixels. Landscape, portrait error and tablet
+loaded images reviewed. Close UIFont and dynamic material remain unobserved.
+
+Evidence: recovery-20261023/ios-feed-reader-bar-metrics-40025958696/, -summary.json,
+-verification-v1.json, -guards-v3.log and -run-failed.log. Artifact12532894542 digest
+638cdb0dc125a595692e775db749fab451750e1e16f4a3803f73925a27e5c4f6; all52 PNG
+hashes rechecked. New ios-feed-reader-associate workflow requires the original
+clean source/run identity and successful actual capture steps before strict
+verification of retained bytes. Android app/edge policy and signed722/physical712,
+Mac/account/pairing/signing/global pins unchanged. Full goal remains active.
+
 ## Active original-reader metric capture — 2026-10-23 21:39 UTC
 
 [Run40025958696](https://github.com/DocMorphic/cmux-app/actions/runs/40025958696),

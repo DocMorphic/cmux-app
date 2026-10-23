@@ -130,6 +130,15 @@ class FeedSheetExportGuards(unittest.TestCase):
     def test_nonboolean_hidden_status_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(hidden=1),'status-bar manager')
     def test_invalid_status_frame_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(frameInScene=[0,0,-1,0]),'status-bar frame')
     def test_invalid_status_style_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(style=True),'status-bar style')
+    def test_observed_hidden_empty_manager_raw_minus_one_is_retained(self):
+        p=self.export/'en-landscape.json'; d=json.loads(p.read_text())
+        for page in d['pages']+[d['loadingDismissal']]:page['windowChrome']['statusBar']['style']=-1
+        p.write_text(json.dumps(d));r=self.verify()
+        self.assertEqual(r['windowChromeObservations']['en-landscape-loaded']['statusBar']['style'],-1)
+        self.assertEqual(r['loadingDismissalWindowChrome']['en-landscape']['statusBar']['style'],-1)
+    def test_raw_minus_one_visible_status_is_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(style=-1),'status-bar style')
+    def test_raw_minus_one_hidden_nonempty_status_is_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(style=-1,hidden=True),'status-bar style')
+    def test_other_unknown_hidden_style_is_rejected(self): self.rejects(lambda d:d['pages'][0]['windowChrome']['statusBar'].update(style=-2,hidden=True,frameInScene=[0,0,0,0]),'status-bar style')
     def test_missing_navigation_metrics_rejected(self): self.rejects(lambda d:d['pages'][0].pop('navigationBarMetrics'),'navigation layout')
     def test_navigation_metric_frame_binding_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(frame=[2,30,120,54]),'bound to observed bar')
     def test_nonfinite_navigation_margin_rejected(self): self.rejects(lambda d:d['pages'][0]['navigationBarMetrics'][0].update(margins=[0,float('inf'),0,16]),'layout insets')

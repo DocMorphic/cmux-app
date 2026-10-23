@@ -71,3 +71,11 @@ and are not UI evidence. Swift syntax parsing and whole22-file host preparation
 pass locally. Actual UIKit compilation/capture must succeed on the existing CI
 runner before accepting the new measurements. Earlier receipts remain bound to
 their earlier exact collector/verifier hashes.
+
+The actual hidden landscape manager in run40025958696 reports raw status style
+-1 with a zero scene frame. This is retained as an observed raw value, not named
+as a public enum case; guards permit it only when hidden with the exact empty
+frame. Retained original captures can be associated after a guard repair with
+`ios-feed-reader-associate.yml`; it binds the original clean commit/artifact and
+requires all three actual capture steps to have succeeded. This adds no new UI
+execution and cannot establish Android/full app parity by itself.

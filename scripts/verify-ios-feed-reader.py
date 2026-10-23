@@ -73,7 +73,12 @@ def window_chrome(page, scale):
     require(isinstance(status, dict) and set(status) == {'available', 'hidden', 'frameInScene', 'style'} and
         status['available'] is True and type(status['hidden']) is bool, 'Missing actual status-bar manager')
     box(status['frameInScene'], 'Invalid actual status-bar frame')
-    enum(status['style'], range(4), 'Invalid actual status-bar style')
+    # Run40025958696's public manager returns raw-1 in all five landscape
+    # observations, where it is hidden and its scene frame is exactly empty.
+    # Preserve that measured value without naming it as a public enum case or
+    # allowing it for a visible/nonempty status bar.
+    allowed_styles = (-1, 0, 1, 2, 3) if status['hidden'] and status['frameInScene'] == [0,0,0,0] else range(4)
+    enum(status['style'], allowed_styles, 'Invalid actual status-bar style')
     bars, metrics = page.get('navigationBars'), page.get('navigationBarMetrics')
     require(isinstance(bars, list) and isinstance(metrics, list) and len(bars) == len(metrics),
         'Missing/unbound navigation layout observations for navigation bar')
