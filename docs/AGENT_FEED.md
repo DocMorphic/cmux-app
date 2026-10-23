@@ -1,5 +1,51 @@
 # Agent Feed companion
 
+## Compact landscape status policy and window restoration verified — 2026-10-23
+
+The reader now hides status bars only in its own compact-landscape modal window,
+matching the original reference's absent status icons/top safe inset0. It keeps
+navigation available, requests native transient-reveal behavior, captures the actual
+previous visibility/behavior after inset dispatch, and restores them when that
+scope ends. It finds an actual DialogWindowProvider and never falls back to the
+surrounding Activity window. Portrait and wide reader policy remains unchanged.
+
+Thirteen final owned API36 invocations pass. Eight actual left/right rotation ×
+dark/light × controlled LTR/RTL profiles pass5.803/6.297/5.423/6.725/5.977/6.582/
+5.652/6.578s. Actual dialog insets have top0, title center46dp, body viewport top78dp
+and window-center437dp, matching original geometry within physical-pixel rounding.
+Camera/native navigation insets remain. Four Back and four injected swipes dismiss
+and release; all eight preserve parent visibility/navigation/behavior, including
+two already-hidden parents with transient behavior2. The reader uses behavior2
+while active; normal parent behavior1 restores after dismissal. These checks read
+real window inset/controller state rather than assuming a global bar preference.
+
+Five further cases pass63.298s:21-profile header/input, actual portrait grabber/
+loading/status visibility, and three routed Activity recreation/rotation/font/
+adaptive cases. Portrait and wide frames report visible status bars; landscape
+and font-enlarged landscape report hidden status bars; all retain navigation.
+The routed tests retain reading passage/selection/RPC and keep body content out of
+saved bundles (10,020–10,404 bytes). Actual system rotation goes portrait→landscape;
+adaptive recreation goes compact→wide→compact. Reverse physical rotation and all
+transient/focus/platform variants remain separate gates. RPC is emulator-local
+fixture transport, not a real Mac/account acceptance.
+
+APKc24f9b2126e1333202f9e3a38319a6bd400d6cd9320aef992d3c5227af8c974e;
+test8a4198ef240ed00b3708e18fc45e5e4a76ca1086dcd5fc0ec2499f0196223caa.
+Exact source/installation/window/parent/lifecycle bindings: recovery-20261023/
+native-feed-reader-status-bars-checkpoint.json and-runtime-v1/. Selected dark,
+light/RTL/opposite-cutout and portrait frames reviewed. Crash buffer empty, no
+preflight System UI ANR, settings/window overrides restored, emulator exit0.
+Builds pass; no app source changed after the accepted run. A post-run host logcat
+client waited after the emulator stopped; only that exact diagnostic client was
+terminated, with no device/server restart or physical-target action.
+
+The previous status-bar difference is reconciled within this profile scope.
+Exact Close-edge/body horizontal policy, enlarged UIKit type/control metrics,
+dynamic/tablet/focus/glass materials, older APIs/transitions/actual locales,
+physical Pixel/Mac/TalkBack and full source/feature/real-transport acceptance
+remain open. No signed candidate, phone/Mac/account/pairing/signing change or
+global pin advance; candidate722/physical712 unchanged. Goal remains active.
+
 ## Landscape title centering and grabber visibility reconciled — 2026-10-23
 
 Original English landscape title centers437pt in its874pt window. Android had

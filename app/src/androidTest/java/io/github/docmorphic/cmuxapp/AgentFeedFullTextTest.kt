@@ -40,7 +40,9 @@ class AgentFeedFullTextTest {
             compose.runOnUiThread {
                 WindowInspector.getGlobalWindowViews().filter { it.isShown }.forEach {
                     put(org.json.JSONObject().put("class", it.javaClass.name).put("focus", it.hasWindowFocus())
-                        .put("appearanceFlags", it.windowInsetsController?.systemBarsAppearance))
+                        .put("appearanceFlags", it.windowInsetsController?.systemBarsAppearance)
+                        .put("statusVisible", it.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.statusBars()))
+                        .put("navigationVisible", it.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.navigationBars())))
                 }
             }
         }
@@ -59,6 +61,10 @@ class AgentFeedFullTextTest {
         assertTrue(drawn.await(5, java.util.concurrent.TimeUnit.SECONDS))
         instrumentation.waitForIdleSync()
         val after = windows(); screenshot("-settled")
+        if (compose.activity.resources.configuration.screenWidthDp < compose.activity.resources.configuration.screenHeightDp) {
+            val focused = (0 until after.length()).map { after.getJSONObject(it) }.single { it.getBoolean("focus") }
+            assertTrue("Original portrait reader retains visible status icons", focused.getBoolean("statusVisible"))
+        }
         File(directory, name + "-windows.json").writeText(org.json.JSONObject().put("initial", before).put("settled", after).toString(2))
     }
 

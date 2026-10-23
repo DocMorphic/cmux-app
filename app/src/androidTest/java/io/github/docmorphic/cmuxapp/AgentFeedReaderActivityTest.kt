@@ -79,6 +79,12 @@ class AgentFeedReaderActivityTest {
     }
     private fun capture(name: String) {
         settle()
+        await {
+            val view = reader() ?: return@await false
+            val config = view.resources.configuration
+            val compactLandscape = config.screenWidthDp > config.screenHeightDp && config.screenHeightDp < 600
+            view.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.statusBars()) == !compactLandscape
+        }
         compose.runOnUiThread {
             val view = reader()!!
             val body = paragraph()
@@ -86,6 +92,9 @@ class AgentFeedReaderActivityTest {
                 .put("fontScale", view.resources.configuration.fontScale).put("readerWidth", view.width).put("readerHeight", view.height)
                 .put("textPixels", body?.textSize).put("selectionStart", body?.selectionStart).put("selectionEnd", body?.selectionEnd)
                 .put("lineCount", body?.lineCount)
+                .put("statusVisible", view.rootWindowInsets.isVisible(android.view.WindowInsets.Type.statusBars()))
+                .put("navigationVisible", view.rootWindowInsets.isVisible(android.view.WindowInsets.Type.navigationBars()))
+                .put("windowBarBehavior", view.windowInsetsController?.systemBarsBehavior)
             paragraph()?.let { record.put("formattedAnchor", anchor()) }
             File(output, "$name-frame.json").writeText(record.toString(2))
         }

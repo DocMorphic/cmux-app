@@ -306,6 +306,7 @@ private fun AgentFeedFullTextPresentation(onDismiss: () -> Unit, content: @Compo
             // Keep its controls and native text inside this device's actual bars/cutout.
             contentWindowInsets = { WindowInsets.safeDrawing },
             dragHandle = { AgentFeedFullTextDragIndicator(centerOffset = chromeCenterOffset) }) {
+            AgentFeedReaderStatusBars(hidden = landscape)
             CompositionLocalProvider(LocalAgentFeedChromeCenterOffset provides chromeCenterOffset) {
                 Column(Modifier.fillMaxWidth().fillMaxHeight(if (landscape) 1f else .96f)
                     .testTag("AgentFeedFullTextSheet"), content = content)

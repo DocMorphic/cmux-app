@@ -45,7 +45,7 @@ class AgentFeedFullTextCompactPresentationTest {
     }
 
     @Test fun landscapeReaderSpansTheWindowAndKeepsControlsInsideSafeInsets() {
-        var shown by mutableStateOf(true)
+        var shown by mutableStateOf(false)
         var dismissals = 0
         val requestedTheme = InstrumentationRegistry.getArguments().getString("cmux_reader_theme")
         check(requestedTheme == null || requestedTheme in listOf("dark", "light"))
@@ -60,12 +60,42 @@ class AgentFeedFullTextCompactPresentationTest {
                 if (shown) AgentFeedFullText({ "# Landscape reader\n\nSelectable native body." }, {}, { dismissals++; shown = false })
             }
         } }
+        fun parentBars(): JSONObject {
+            val record = JSONObject()
+            compose.runOnUiThread {
+                val decor = compose.activity.window.decorView
+                val insets = checkNotNull(decor.rootWindowInsets)
+                record.put("statusVisible", insets.isVisible(android.view.WindowInsets.Type.statusBars()))
+                    .put("navigationVisible", insets.isVisible(android.view.WindowInsets.Type.navigationBars()))
+                    .put("behavior", checkNotNull(decor.windowInsetsController).systemBarsBehavior)
+                    .put("focused", decor.hasWindowFocus())
+            }
+            return record
+        }
+        compose.waitUntil(10_000) { var ready = false; compose.runOnUiThread {
+            ready = compose.activity.window.decorView.rootWindowInsets != null
+        }; ready }
+        val parentBaseline = parentBars()
+        val parentHidden = InstrumentationRegistry.getArguments().getString("cmux_parent_status_hidden") == "true"
+        compose.runOnUiThread {
+            compose.activity.window.insetsController!!.apply {
+                if (parentHidden) {
+                    systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    hide(android.view.WindowInsets.Type.statusBars())
+                } else show(android.view.WindowInsets.Type.statusBars())
+            }
+        }
+        compose.waitUntil(10_000) { parentBars().getBoolean("statusVisible") == !parentHidden }
+        val parentBefore = parentBars()
+        compose.runOnIdle { shown = true }
         var reader: NativeMarkdownList? = null
         compose.waitUntil(15_000) {
             compose.runOnUiThread {
                 reader = WindowInspector.getGlobalWindowViews().firstNotNullOfOrNull {
                     it.findViewWithTag<NativeMarkdownList>("AgentFeedNativeMarkdown")?.takeIf { view ->
-                        view.isShown && !view.released && view.hasWindowFocus()
+                        view.isShown && !view.released && view.hasWindowFocus() &&
+                            view.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.statusBars()) == false &&
+                            (view.getChildAt(0) as? NativeMarkdownRow)?.ready == true
                     }
                 }
             }
@@ -74,6 +104,10 @@ class AgentFeedFullTextCompactPresentationTest {
         val folder = File(compose.activity.getExternalFilesDir(null), "feed-reader-compact").apply { mkdirs() }
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
+        compose.waitForIdle()
+        val drawn = java.util.concurrent.CountDownLatch(1)
+        compose.runOnUiThread { reader!!.postOnAnimation { reader!!.postOnAnimation { drawn.countDown() } } }
+        assertTrue(drawn.await(5, java.util.concurrent.TimeUnit.SECONDS))
         assertTrue(device.takeScreenshot(File(folder, "landscape-loaded.png")))
         fun barAppearance(): JSONObject {
             val record = JSONObject()
@@ -84,6 +118,9 @@ class AgentFeedFullTextCompactPresentationTest {
                     .put("lightNavigationBars", flags and WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS != 0)
                     .put("foreground", view.colors.foreground).put("focused", view.hasWindowFocus())
                     .put("systemNightMode", view.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                    .put("statusVisible", view.rootWindowInsets.isVisible(android.view.WindowInsets.Type.statusBars()))
+                    .put("navigationVisible", view.rootWindowInsets.isVisible(android.view.WindowInsets.Type.navigationBars()))
+                    .put("behavior", view.windowInsetsController!!.systemBarsBehavior)
                 var parent: android.view.View? = view
                 val ancestry = org.json.JSONArray()
                 while (parent != null) {
@@ -97,7 +134,12 @@ class AgentFeedFullTextCompactPresentationTest {
         val initialBars = barAppearance()
         val density = compose.activity.resources.displayMetrics.density
         val metrics = compose.activity.windowManager.currentWindowMetrics
-        val insets = metrics.windowInsets.getInsetsIgnoringVisibility(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
+        var actualInsets: android.view.WindowInsets? = null
+        compose.runOnUiThread { actualInsets = reader!!.rootWindowInsets }
+        val insets = checkNotNull(actualInsets).getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
+        assertFalse("Original landscape reader has no status icons", checkNotNull(actualInsets).isVisible(android.view.WindowInsets.Type.statusBars()))
+        assertTrue("The reader keeps Android navigation available", checkNotNull(actualInsets).isVisible(android.view.WindowInsets.Type.navigationBars()))
+        assertEquals("Original landscape has no top status inset", 0, insets.top)
         val usable = Rect(metrics.bounds).apply {
             left += insets.left; top += insets.top; right -= insets.right; bottom -= insets.bottom
         }
@@ -106,11 +148,13 @@ class AgentFeedFullTextCompactPresentationTest {
         compose.onNodeWithTag("AgentFeedFullTextPanel").assertDoesNotExist()
         val drag = compose.onNodeWithTag("AgentFeedFullTextDragArea", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         assertEquals("Original compact landscape drag area is 24 points", 24f, drag.height / density, .5f)
+        assertEquals("The original24pt allocation begins at the window top", 0f, drag.top, 1f)
         val header = compose.onNodeWithTag("AgentFeedFullTextHeader").fetchSemanticsNode().boundsInRoot
         assertEquals("Ordinary source toolbar is 54 points", 54f, header.height / density, .5f)
         val title = compose.onNodeWithTag("AgentFeedFullTextTitle").fetchSemanticsNode().boundsInRoot
         compose.onNodeWithTag("AgentFeedFullTextDragIndicator", useUnmergedTree = true).assertDoesNotExist()
         assertEquals("Original toolbar centers short titles in the whole window", metrics.bounds.exactCenterX(), title.center.x, 1f)
+        assertEquals("Original title center is46pt below the landscape window top", 46f, title.center.y / density, .5f)
         val close = compose.onNodeWithTag("AgentFeedFullTextCloseCapsule")
         close.assertHeightIsEqualTo(44.dp).assertTouchHeightIsEqualTo(48.dp)
         assertEquals("Painted Close shares the source control row center", 22f,
@@ -130,6 +174,7 @@ class AgentFeedFullTextCompactPresentationTest {
         assertEquals("Body uses all safe horizontal space", usable.width().toFloat(), bounds.width().toFloat(), 2f)
         assertEquals("Body starts after the real camera/system inset", usable.left.toFloat(), bounds.left.toFloat(), 2f)
         assertTrue("Native text ends above the system navigation inset", bounds.bottom <= usable.bottom + 2)
+        assertEquals("Original body viewport starts after24pt top area and54pt bar", 78f, bounds.top / density, .5f)
         assertTrue("The compact reader keeps a usable landscape viewport", bounds.height() / density > 200)
         compose.onNodeWithText("Close").assertIsDisplayed().assertHasClickAction()
         val record = JSONObject().put("windowBoundsPx", metrics.bounds.toString()).put("usableBoundsPx", usable.toString())
@@ -138,6 +183,7 @@ class AgentFeedFullTextCompactPresentationTest {
             .put("requestedTheme", requestedTheme ?: "system").put("requestedDirection", requestedDirection)
             .put("requestedRotation", InstrumentationRegistry.getArguments().getString("cmux_reader_rotation") ?: "left")
             .put("titleBoundsPx", title.toString()).put("dragIndicatorVisible", false).put("closeBoundsPx", closeBounds.toString())
+            .put("parentBaseline", parentBaseline).put("parentBefore", parentBefore).put("parentHiddenProfile", parentHidden)
         compose.waitForIdle()
         device.waitForIdle(2_000)
         val settledBars = barAppearance()
@@ -182,7 +228,22 @@ class AgentFeedFullTextCompactPresentationTest {
         compose.waitUntil(5_000) { dismissals == 1 }
         compose.onNodeWithTag("AgentFeedFullTextCompactPanel").assertDoesNotExist()
         compose.runOnUiThread { assertTrue(reader!!.released) }
+        compose.waitUntil(10_000) {
+            val state = parentBars()
+            state.getBoolean("focused") && state.getBoolean("statusVisible") == parentBefore.getBoolean("statusVisible") &&
+                state.getBoolean("navigationVisible") == parentBefore.getBoolean("navigationVisible") &&
+                state.getInt("behavior") == parentBefore.getInt("behavior")
+        }
+        record.put("parentAfter", parentBars())
+        compose.runOnUiThread {
+            compose.activity.window.insetsController!!.apply {
+                systemBarsBehavior = parentBaseline.getInt("behavior")
+                if (parentBaseline.getBoolean("statusVisible")) show(android.view.WindowInsets.Type.statusBars())
+                else hide(android.view.WindowInsets.Type.statusBars())
+            }
+        }
+        compose.waitUntil(10_000) { parentBars().getBoolean("statusVisible") == parentBaseline.getBoolean("statusVisible") }
         File(folder, "result.json").writeText(record.put("dismissals", dismissals).put("scope",
-            "Owned compact landscape API36 emulator, real production reader/window/insets, full-window toolbar centering and source compact-landscape grabber visibility, controlled LTR/RTL and Back/swipe dismissal. Not exact iOS Close edge margins, OS RTL locales/materials, real transport, physical Pixel/Mac, TalkBack or full parity acceptance.").toString(2))
+            "Owned compact landscape API36 emulator, real production reader/window/insets, full-window toolbar/source vertical geometry, landscape status hidden/navigation available, grabber visibility, controlled LTR/RTL and Back/swipe dismissal with shown/hidden parent restoration. Not exact iOS Close edge margins, OS RTL locales/materials, real transport, physical Pixel/Mac, TalkBack or full parity acceptance.").toString(2))
     }
 }

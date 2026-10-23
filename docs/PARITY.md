@@ -1,3 +1,22 @@
+## Landscape status bars and scoped restoration verified — 2026-10-23
+
+The compact-landscape reader now hides status icons in its own modal window,
+retains navigation, requests transient-reveal behavior and restores captured visibility/behavior.
+Thirteen owned API36 invocations pass: eight actual rotation/theme/controlled-RTL
+profiles with source top0/title-center46/body-top78dp, four Back/four swipe releases,
+and parent-state preservation (including already-hidden immersive parents); plus
+header/portrait and three actual routed recreation/rotation/font/adaptive cases.
+Status visibility follows portrait/wide versus compact landscape; passage,
+selection/RPC and body-free saved state retain. Selected frames reviewed, crash
+buffer empty, settings/window restored, emulator exit0. Exact scope/hashes:
+AGENT_FEED.md and recovery-20261023/native-feed-reader-status-bars-checkpoint.json.
+
+Next: Close-edge/body horizontal policy, exact enlarged metrics, dynamic materials
+and broader transition/focus/older-API/OS-locale variants. Reverse physical rotation,
+real transport, Pixel/Mac/TalkBack and full app/source gates remain open. No new
+signed artifact or phone/Mac/account/pairing/signing action; candidate722,
+physical712/global pins unchanged. Goal active.
+
 ## Landscape toolbar center and grabber visibility verified — 2026-10-23
 
 The reader title now centers in the full window despite an asymmetric cutout,
