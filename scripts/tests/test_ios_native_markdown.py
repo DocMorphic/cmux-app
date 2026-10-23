@@ -104,3 +104,11 @@ class NativeMarkdownExportGuards(unittest.TestCase):
 
     def test_standalone_window_cannot_claim_sheet_palette(self):
         self.rejects(lambda v: v['pages'][0].update(interfaceLevel=1), 'host scope')
+
+    def test_ui_color_white_conversion_epsilon_is_preserved(self):
+        path = self.export / 'en-dark.json'; value = json.loads(path.read_text())
+        value['pages'][0]['colors']['label'] = [1.0000001192092896] * 3 + [1]
+        path.write_text(json.dumps(value)); self.verify()
+
+    def test_invalid_color_is_not_hidden_by_epsilon(self):
+        self.rejects(lambda v: v['pages'][0]['colors'].update(label=[1.001, 1, 1, 1]), 'resolved native Markdown colors')

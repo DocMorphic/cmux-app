@@ -1,0 +1,63 @@
+name: Verify retained iOS native Markdown captures
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Original native Markdown capture run to verify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check export integrity guards
+        run: python3 -m unittest discover -s scripts/tests -p test_ios_native_markdown.py
+      - name: Retrieve original capture and bind it to its actual source commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REFERENCE_RUN: ${{ inputs.run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$REFERENCE_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$REFERENCE_RUN" > "$RUNNER_TEMP/source-run.json"
+          gh run download "$REFERENCE_RUN" --repo "$GITHUB_REPOSITORY" --name ios-native-markdown --dir "$RUNNER_TEMP/source"
+          python3 - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+          tmp = Path(os.environ['RUNNER_TEMP'])
+          raw = (tmp / 'source-run.json').read_bytes(); run = json.loads(raw)
+          source = json.loads((tmp / 'source/markdown-reference/Provenance.json').read_text())
+          assert run['path'] == '.github/workflows/ios-native-markdown.yml'
+          assert run['head_repository']['full_name'] == os.environ['GITHUB_REPOSITORY']
+          assert run['event'] == 'workflow_dispatch' and run['status'] == 'completed'
+          assert re.fullmatch('[0-9a-f]{40}', run['head_sha'])
+          assert source['projectSourceCommit'] == run['head_sha'] and source['projectSourceDirty'] is False
+          with open(os.environ['GITHUB_ENV'], 'a') as f: f.write('REFERENCE_COMMIT=' + run['head_sha'] + '\n')
+          receipt = dict(schema=1, sourceRun=run['id'], sourceRunConclusion=run['conclusion'], sourceCommit=run['head_sha'],
+              sourceRunMetadataSha256=hashlib.sha256(raw).hexdigest(), verifierCommit=os.environ['GITHUB_SHA'],
+              scope='Reassociate unchanged original compositor exports after capture-harness/export-guard repair; no new UI execution and no full parity claim.')
+          (tmp / 'association.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
+      - name: Verify every declared original frame and observation
+        run: |
+          python3 scripts/verify-ios-native-markdown.py --exported "$RUNNER_TEMP/source/markdown-exported" \
+            --output "$RUNNER_TEMP/canonical" --project-commit "$REFERENCE_COMMIT" > "$RUNNER_TEMP/association-output.json"
+      - name: Preserve bound native references
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-native-markdown-verified
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/canonical
+            ${{ runner.temp }}/association.json
+            ${{ runner.temp }}/source-run.json

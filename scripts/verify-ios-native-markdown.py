@@ -60,7 +60,10 @@ def validate(page, scene, stage, fixture, commit, provenance):
     require(abs(fonts['body']['pointSize'] - (17 if scene['category'] == 'large' else 28)) < 0.01, 'Wrong actual native Markdown body size')
     colors = page.get('colors', {})
     require(set(colors) == {'background', 'label', 'secondaryLabel', 'tertiaryLabel', 'separator'} and all(
-        isinstance(c, list) and len(c) == 4 and all(finite(v) and 0 <= v <= 1 for v in c) for c in colors.values()), 'Missing resolved native Markdown colors')
+        # UIColor's extended-sRGB conversion can resolve white as
+        # 1.0000001192092896. Retain the original observation; accept only a
+        # floating-point epsilon, not out-of-gamut or invalid components.
+        isinstance(c, list) and len(c) == 4 and all(finite(v) and -1e-6 <= v <= 1 + 1e-6 for v in c) for c in colors.values()), 'Missing resolved native Markdown colors')
     target = page.get('target', {})
     require(target.get('exists') is True and target.get('hittable') is True and target.get('label') == fixture['probes'][stage] and
         geometry.rect(target.get('frame')), 'Missing visible original native Markdown target')
