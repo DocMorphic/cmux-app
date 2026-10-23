@@ -1,5 +1,36 @@
 # Agent Feed companion
 
+## Measured reader background and primary labels matched — 2026-10-23
+
+Read-only pixel/trait comparison bound to original run39961701278 showed the
+reader still inherited the shell palette: dark11/12/14 with244/245/247 text and
+light242/242/247 with28/28/30 text. Original presented-sheet padding pixels and
+UIKit label traits are dark28/28/30 with white text, light white with black text.
+The reader now scopes those background/surface and primary-label roles through
+its own MaterialTheme; loading ownership and saved coordinates remain outside it.
+Other palette roles, controls and materials are not accepted by this change.
+
+Two actual compact-landscape profiles pass, dark5.893s/light5.777s. The test reads
+the compositor's blank native-body padding pixel and actual ready native heading
+currentTextColor, matching those exact source values. Real window flags0/24,
+geometry/insets, Back/release also pass. Both settled frames reviewed, crash
+buffer empty, settings/window restored, owned emulator exits0. App SHA256:
+3f421863158bfb0d3fb02af13f1bc9d2914e8a9ab76c047f21f5f700d1a210c7;
+test8997db97b47bad3b1751de212e49dde7800e7a85689e51935410da8e445d67e5.
+Evidence: captures/recovery-20261023/native-feed-reader-palette-audit.json,
+native-feed-reader-palette-checkpoint.json and native-feed-reader-palette-runtime-v1/.
+This is a separate two-profile artifact, not a repeat of the earlier13 checks.
+Close, secondary/link/code roles, tablet/glass materials, loading/error allocation,
+broader appearance/lifecycle/source and physical/TalkBack gates remain open.
+Candidate722/physical712/pairing unchanged; no new signed artifact or user action.
+
+Original control/color reference run40003411274/job120585108804 is live at driver
+5140226d. Standard phone and accessibility-text capture steps have passed; tablet
+capture is active at last observation. Guard/immutable preparation succeeds; the
+22 original files and all13 profiles/four states remain unchanged. Revalidate the
+same handle, then attribute/inspect its52 exports and actual Close candidates and
+colors before new measurement acceptance. See ios-feed-reader-controls-checkpoint.json.
+
 ## Settled compact system-bar appearance verified — 2026-10-23
 
 The next original-sheet collector also walks visible public UILabel/UIButton

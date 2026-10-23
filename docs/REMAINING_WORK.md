@@ -1,3 +1,19 @@
+## Current reader colors and original control capture — 2026-10-23
+
+Measured reader background and primary-label roles now match original source
+traits/pixels in two actual forced-theme compact profiles. Bar flags/contrast,
+geometry and Back/release pass; see AGENT_FEED.md and native-feed-reader-palette-checkpoint.json.
+Other palette roles, Close/material/loading/error and broader UI/lifecycle/source/
+physical/TalkBack gates remain open. Candidate722/physical712/pairing unchanged.
+
+Next revalidate original run40003411274/job120585108804 at5140226d, currently
+capturing tablet after standard/enlarged phone steps passed. Preserve/attribute
+all52 exports and inspect actual public control/font candidates, semantic link/
+tertiary colors and pixels before acceptance. Do not restart a live handle or
+claim a Close font merely because the observer now looks outside UINavigationBar.
+Then finish remaining reader controls/colors/material/loading/error behavior.
+No phone, Mac app or pairing action needed for this work. Goal remains active.
+
 ## Current reader appearance follow-through — 2026-10-23
 
 Settled compact bar checks pass in both forced app themes on actual dark-system

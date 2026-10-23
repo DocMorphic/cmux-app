@@ -237,7 +237,8 @@ internal fun AgentFeedFullText(load: suspend () -> String, onRead: () -> Unit, o
             failed = true
         }
     }
-    AgentFeedFullTextPresentation(onDismiss) {
+    AgentFeedFullTextTheme {
+        AgentFeedFullTextPresentation(onDismiss) {
             AgentFeedFullTextHeader(onDismiss)
             when {
                 failed -> Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -252,7 +253,19 @@ internal fun AgentFeedFullText(load: suspend () -> String, onRead: () -> Unit, o
                 }
                 else -> NativeMarkdownReader(text!!, formattedPosition)
             }
+        }
     }
+}
+
+@Composable
+private fun AgentFeedFullTextTheme(content: @Composable () -> Unit) {
+    // Measured in the original presented reader's UIKit traits and compositor:
+    // elevated dark system background 28/28/30 with white labels; light is white/black.
+    val dark = NativeAppColors.dark
+    val background = if (dark) Color(0xFF1C1C1E) else Color.White
+    val foreground = if (dark) Color.White else Color.Black
+    MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(background = background, surface = background,
+        onBackground = foreground, onSurface = foreground), content = content)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,3 +1,22 @@
+## Reader primary colors matched; original control capture live — 2026-10-23
+
+The presented reader now scopes measured background/primary-label roles: dark
+28/28/30 with white text, light white with black text. Actual compositor pixels
+and ready native heading colors match in two forced-theme compact profiles
+(5.893s/5.777s); flags, geometry, Back/release pass. Both frames reviewed, no crash,
+settings/window restored, emulator exit0. Exact APK/source receipts and before/
+after audit: AGENT_FEED.md and native-feed-reader-palette-checkpoint.json under
+recovery-20261023. Other color roles, Close/material/loading/error, broader source/
+lifecycle/physical/TalkBack acceptance remain open. No new signed package;
+candidate722/physical712/account/pairing unchanged. Goal remains active.
+
+Original collector run40003411274/job120585108804 at5140226d is live: phone
+standard/enlarged steps pass, tablet active at last observation. Poll this exact
+handle; never restart on an observation timeout. Verify source/provenance and
+all52 actual compositor exports, inspect Close candidates and trait colors before
+acceptance. All31 local evidence guards pass; unchanged22-file original closure.
+No new original Close UIFont/color acceptance yet. No local emulator remains.
+
 ## Settled compact bars verified; original control/color measurement next — 2026-10-23
 
 Forced dark/light app themes on actual dark-system API36 both pass settled bar

@@ -121,7 +121,31 @@ class AgentFeedFullTextCompactPresentationTest {
         File(folder, "system-bars.json").writeText(record.toString(2))
         File(folder, "window-state.txt").writeText(device.executeShellCommand("dumpsys window"))
         assertTrue(device.takeScreenshot(File(folder, "landscape-settled.png")))
-        val darkSheet = androidx.core.graphics.ColorUtils.calculateLuminance(settledBars.getInt("foreground")) > .5
+        val darkSheet = when (requestedTheme) {
+            "dark" -> true
+            "light" -> false
+            else -> androidx.core.graphics.ColorUtils.calculateLuminance(settledBars.getInt("foreground")) > .5
+        }
+        // Independent source observations: original en-dark/en-light presented
+        // sheet traits and attributed compositor padding pixels, run39961701278.
+        val expectedBackground = if (darkSheet) android.graphics.Color.rgb(28, 28, 30) else android.graphics.Color.WHITE
+        val expectedForeground = if (darkSheet) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+        assertEquals("Native reader uses original primary label color", expectedForeground, settledBars.getInt("foreground"))
+        val screenshot = checkNotNull(android.graphics.BitmapFactory.decodeFile(File(folder, "landscape-settled.png").absolutePath))
+        try {
+            val x = bounds.left + (4 * density).toInt()
+            val y = bounds.centerY()
+            val color = screenshot.getPixel(x, y)
+            record.put("backgroundSamplePx", org.json.JSONArray(listOf(x, y))).put("backgroundPixel", color)
+            File(folder, "system-bars.json").writeText(record.toString(2))
+            assertEquals("Actual empty native body padding matches original sheet background", expectedBackground, color)
+        } finally { screenshot.recycle() }
+        compose.runOnUiThread {
+            val row = reader!!.getChildAt(0) as NativeMarkdownRow
+            val heading = row.body!!
+            assertTrue("Actual heading text has completed native precomputation", row.ready && heading.text.toString() == "Landscape reader")
+            assertEquals("The rendered native heading receives the original label color", expectedForeground, heading.currentTextColor)
+        }
         assertEquals("Focused reader navigation icons follow its actual sheet appearance", !darkSheet,
             settledBars.getBoolean("lightNavigationBars"))
         record.put("backInjectionReturned", device.pressBack())

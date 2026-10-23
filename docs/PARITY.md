@@ -1,3 +1,14 @@
+## Reader background/primary labels matched within measured profiles — 2026-10-23
+
+The reader uses original presented-sheet background/primary labels, scoped to its
+own theme: dark28/28/30 with white text; light white with black text. Two compact
+profiles pass exact actual compositor/body-heading colors plus flags/insets and
+dismissal. See AGENT_FEED.md and native-feed-reader-palette-checkpoint.json.
+Remaining color roles, Close/material/loading/error, broader lifecycle/physical/
+TalkBack and full source/feature gates remain open. Separate original control/color
+run40003411274 is live at5140226d, pending verified52-export acceptance. No new
+signed package, physical/pairing action or global source-pin advance.
+
 ## Settled compact bar profiles verified — 2026-10-23
 
 Two forced app-theme profiles on a dark-system API36 emulator pass actual reader
