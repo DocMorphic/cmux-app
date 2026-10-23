@@ -1,5 +1,44 @@
 # Agent Feed companion
 
+## Enlarged translated header reflows without text loss — 2026-10-23
+
+The previously reviewed narrow German truncation is repaired. The native reader
+header measures the translated labels' intrinsic widths. It retains the centered
+single row when they fit; otherwise Close stays leading and the centered title
+uses a separate row, with up to two title lines. It preserves the chosen text
+size instead of shrinking it. This is an explicit Android layout choice, not an
+assertion of identical iOS toolbar typography or an unavoidable OS difference;
+source toolbar metrics/appearance still require comparison before full UI acceptance.
+
+The strengthened production-header test passes all 21 controlled locale/font/
+width profiles with complete rendered text, no ellipsized lines, centered title,
+nonoverlapping bounds, full semantics and click actions. Six profiles use the
+extra row (enlarged German/Spanish/French and narrow enlarged English/Arabic/
+German). Normal English and enlarged Arabic single-row frames plus narrow German
+two-line text were visually reviewed. A seven-case affected cohort passes in
+91.282 s, including loading/retry/cancellation and native Activity/system-change/
+actual process recovery. Full JVM: 3,148 pass/four skips, no failures/errors,
+429 XML. Crash buffer empty, original settings restored/read back, host wall and
+monotonic times agree, emulator exits 0. Three optional pulls fail only because
+the broader runner names test groups not selected in this seven-case cohort;
+all required selected artifacts are present. Evidence/source/APK/archive binding:
+captures/recovery-20261023/native-feed-reader-reflow-checkpoint.json.
+
+The source reference job 39961701278 has passed standard and enlarged phone
+capture steps and is currently capturing the tablet. Accept no complete gallery
+until export association and actual images/traits are checked. Do not restart a
+live job from a read timeout. The caller audit independently records the original
+Feed's sheet(item:) composition and replay-only privacy mask. Its inspected whole
+UIView types are transparent, noninteractive and AX hidden; they add no drawing
+overrides. The offline presenter omits production Feed/account/global appearance
+and replay integration. It does not establish replay/analytics or production
+caller acceptance. Source hashes: ios-feed-reader-caller-audit.json.
+
+No signed build/physical phone/cmux Mac/account/pairing operation. Signed 721
+excludes this change; physical 712 stays released and fresh availability is still
+pending. Full sheet palette/materials/typography, real-device/transport/TalkBack
+and all broader goal gates remain open. Global source pins remain unchanged.
+
 ## Native-only original reader controls and lifecycle regression pass — 2026-10-23
 
 Full text now follows the original's native-renderer choice throughout. The

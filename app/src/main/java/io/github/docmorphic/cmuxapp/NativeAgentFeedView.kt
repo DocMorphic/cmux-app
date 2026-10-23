@@ -251,7 +251,7 @@ internal fun AgentFeedFullText(load: suspend () -> String, onRead: () -> Unit, o
     }
 }
 
-/** Keep the title centered in the sheet, with a symmetric inset for Close. */
+/** Keep the title centered; reflow narrow/enlarged labels instead of truncating them. */
 @Composable
 internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
     androidx.compose.ui.layout.Layout(modifier = Modifier.fillMaxWidth().testTag("AgentFeedFullTextHeader").padding(12.dp), content = {
@@ -260,18 +260,31 @@ internal fun AgentFeedFullTextHeader(onDismiss: () -> Unit) {
                 maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
         }
         Text(stringResource(R.string.cmux_ui_mobile_agentfeed_fulltext_title_257807f0), Modifier.testTag("AgentFeedFullTextTitle"), fontWeight = FontWeight.SemiBold,
-            maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+            maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }) { children, constraints ->
-        // Retain readable title space even when a translated Close label grows.
-        val titleMinimum = 48.dp.roundToPx().coerceAtMost(constraints.maxWidth)
-        val close = children[0].measure(constraints.copy(minWidth = 0, minHeight = 0,
-            maxWidth = ((constraints.maxWidth - titleMinimum) / 2).coerceAtLeast(0)))
-        val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
-            maxWidth = (constraints.maxWidth - 2 * close.width).coerceAtLeast(0)))
-        val height = maxOf(close.height, title.height)
-        layout(constraints.maxWidth, height) {
-            close.placeRelative(0, (height - close.height) / 2)
-            title.place((constraints.maxWidth - title.width) / 2, (height - title.height) / 2)
+        val closeWidth = children[0].maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity)
+        val titleWidth = children[1].maxIntrinsicWidth(androidx.compose.ui.unit.Constraints.Infinity)
+        val stacked = 2L * closeWidth + titleWidth > constraints.maxWidth
+        if (stacked) {
+            val close = children[0].measure(constraints.copy(minWidth = 0, minHeight = 0))
+            val gap = 8.dp.roundToPx()
+            val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
+                maxHeight = (constraints.maxHeight - close.height - gap).coerceAtLeast(0)))
+            layout(constraints.maxWidth, close.height + gap + title.height) {
+                close.placeRelative(0, 0)
+                title.place((constraints.maxWidth - title.width) / 2, close.height + gap)
+            }
+        } else {
+            val close = children[0].measure(constraints.copy(minWidth = 0, minHeight = 0,
+                maxWidth = ((constraints.maxWidth - titleWidth) / 2).coerceAtLeast(0)))
+            val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
+                maxWidth = (constraints.maxWidth - 2 * close.width).coerceAtLeast(0)))
+            val height = maxOf(close.height, title.height)
+            layout(constraints.maxWidth, height) {
+                close.placeRelative(0, (height - close.height) / 2)
+                title.place((constraints.maxWidth - title.width) / 2, (height - title.height) / 2)
+            }
         }
     }
 }

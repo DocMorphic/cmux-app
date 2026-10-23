@@ -61,7 +61,18 @@ class AgentFeedFullTextHeaderTest {
             val root = compose.onNodeWithTag("AgentFeedFullTextHeader").fetchSemanticsNode().boundsInRoot
             val c = close.fetchSemanticsNode().boundsInRoot; val t = title.fetchSemanticsNode().boundsInRoot
             assertEquals("Title remains centered independently of the translated Close width", root.center.x, t.center.x, 1f)
-            if (p.language == "ar") assertTrue(t.right <= c.left + 1f) else assertTrue(c.right <= t.left + 1f)
+            val stacked = c.bottom <= t.top + 1f
+            if (!stacked) {
+                if (p.language == "ar") assertTrue(t.right <= c.left + 1f) else assertTrue(c.right <= t.left + 1f)
+            }
+            for (node in listOf(close, title)) {
+                val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+                node.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+                assertTrue("Translated controls must actually render all their text", layouts.isNotEmpty() && layouts.all { layout ->
+                    !layout.didOverflowHeight && layout.getLineEnd(layout.lineCount - 1) == layout.layoutInput.text.length &&
+                        (0 until layout.lineCount).none { layout.isLineEllipsized(it) }
+                })
+            }
             assertTrue(c.left >= root.left && c.right <= root.right && t.left >= root.left && t.right <= root.right)
             if ((p.language == "en" && p.scale == 1f) || (p.language == "ar" && p.scale == 2f && !p.narrow) || (p.language == "de" && p.narrow)) {
                 compose.onNodeWithTag("AgentFeedFullTextHeader").captureToImage()
@@ -70,7 +81,7 @@ class AgentFeedFullTextHeaderTest {
             }
             close.performClick()
             records.put(JSONObject().put("language", p.language).put("compositionFontScale", p.scale).put("narrow260dp", p.narrow)
-                .put("root", root.toString()).put("close", c.toString()).put("title", t.toString()).put("clickCount", clicks))
+                .put("stacked", stacked).put("root", root.toString()).put("close", c.toString()).put("title", t.toString()).put("clickCount", clicks))
         }
         assertEquals(profiles.size, clicks)
         File(output, "result.json").writeText(JSONObject().put("profiles", records).put("scope",

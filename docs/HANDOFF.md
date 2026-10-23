@@ -1,3 +1,23 @@
+## Header text loss repaired; source capture progresses — 2026-10-23
+
+Translated/enlarged reader labels now reflow into a separate title row when the
+centered single row cannot fit. All 21 controlled profiles render complete labels
+without ellipsis, preserve full semantics/actions and avoid overlap. Seven affected
+runtime cases pass / 91.282 s; full JVM 3,148 pass/four skips, no failures/errors.
+Reviewed normal/Arabic/narrow German frames, empty crash buffer, restored settings
+and emulator exit 0. See AGENT_FEED.md and the reflow checkpoint under
+captures/recovery-20261023/. The extra row is an Android layout choice, not proof
+of identical source typography; full source toolbar comparison remains open.
+
+Original source run 39961701278 passes standard/enlarged phone steps and is live
+in tablet capture. No full gallery acceptance yet; poll this job and verify exports.
+The original sheet caller/replay-only transparent mask are now source-audited;
+offline component captures do not accept production account/global appearance or
+replay/analytics integration. Full visual, physical-device, transport and TalkBack
+gates remain open. No new signed artifact or phone/Mac/pairing action; 721 excludes
+this change, physical 712 stays released and fresh availability remains pending.
+Full goal/global source pins remain open.
+
 ## Original reader controls aligned; native regressions pass — 2026-10-23
 
 Full text now keeps the original native renderer and Close/title controls, with
