@@ -29,7 +29,7 @@ jobs:
             Packages/iOS/CmuxMobileSupport
             Packages/Shared/CMUXMobileCore
             ios/cmux/Assets.xcassets
-            web/app/[locale]/components
+            web/app
             ios/cmux/Resources
             scripts
           persist-credentials: false
