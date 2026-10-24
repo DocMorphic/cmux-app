@@ -1,3 +1,7 @@
+Follow-up: [Token resolution and pending shared refresh](TOKEN_RESOLUTION.md)
+records the later proactive/forced selection and private pending-owner integration.
+The checkpoint and remaining work below describe their earlier scope.
+
 # Account restoration
 
 ## iOS contract reviewed

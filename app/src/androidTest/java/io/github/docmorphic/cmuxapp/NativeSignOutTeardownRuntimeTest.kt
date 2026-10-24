@@ -108,7 +108,7 @@ class NativeSignOutTeardownRuntimeTest {
             server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));assertTrue(owner.signOutAndRevoke())
             assertEquals("DELETE",withContext(Dispatchers.IO) { server.takeRequest(3,TimeUnit.SECONDS) }!!.method)
             server.enqueue(MockResponse().setBody("{\"location\":\"https://provider.example/authorize\"}"))
-            server.enqueue(MockResponse().setBody("{\"access_token\":\"fresh-access\",\"refresh_token\":\"fresh-refresh\"}"))
+            server.enqueue(MockResponse().setBody(JSONObject().put("access_token",fresh()).put("refresh_token","fresh-refresh").toString()))
             server.enqueue(MockResponse().setBody("{\"id\":\"fresh-user\"}"))
             val joiningStarted=System.nanoTime()
             val signingIn=async(Dispatchers.Default) { owner.signInWithProvider(NativeOAuthProvider.GOOGLE) }

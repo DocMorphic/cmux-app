@@ -1,0 +1,3435 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/APIClient.swift": "477c288e5721a60169a4d4b87a4a97605efe3c9efd279ea3a2d4e1528932bc48"
+  },
+  "executedDeclarationsSha256": [
+    "07cdcbdcd39e9116c63298fa31999144c05fa15e62555b338299a267e7c1d225",
+    "a01ac193eb2dbc669204f964d2c0dcc16899ccff9c5dae4079a7eb2f9d031e61",
+    "02b2f448f71e4f26c114a2581d7af1449f5478eaf44328f161223825a15992ee"
+  ],
+  "seams": "Complete unchanged getOrFetchLikelyValidTokensFromStore, fetchNewAccessToken(store/rejected) and resolveRefresh execute. Store getter sequences, expiry/freshness predicates and coordinator result are inert seams; child-task cancellation is real. This proves selection/fallback/control flow, not JWT parsing, actual shared refresh/coalescing/cooldown/commit, timers, HTTP or iOS-runtime behavior. Predicate execution has a separate original SDK reference.",
+  "cases": [
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "False-None-success-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "False-None-transient-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "False-None-timeout-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "False-None-changed-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "False-None-cancelled-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "False-None-rejected-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          null
+        ],
+        "rejected": null,
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "False-fresh-success-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "False-fresh-transient-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "False-fresh-timeout-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "False-fresh-changed-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "False-fresh-cancelled-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "False-fresh-rejected-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          null
+        ],
+        "rejected": null,
+        "result": {}
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "False-stale-success-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "False-stale-transient-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "stale",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "False-stale-timeout-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": "stale",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "False-stale-changed-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "False-stale-cancelled-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "False-stale-rejected-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          null
+        ],
+        "rejected": null,
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "False-expired-success-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "False-expired-transient-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "False-expired-timeout-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "False-expired-changed-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "False-expired-cancelled-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "False-expired-rejected-None",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          null
+        ],
+        "rejected": null,
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-success-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-success-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-success-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-transient-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-transient-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-transient-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-timeout-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-timeout-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-timeout-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-changed-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-changed-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-changed-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-cancelled-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-cancelled-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-cancelled-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-rejected-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": null,
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-rejected-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": "stale",
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": null,
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "True-None-rejected-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": "different",
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "fresh",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-success-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-success-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-success-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "fresh",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-transient-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-transient-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-transient-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "fresh",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-timeout-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-timeout-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-timeout-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "fresh",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-changed-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-changed-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-changed-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "fresh",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-cancelled-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-cancelled-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-cancelled-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "fresh",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-rejected-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": null,
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-rejected-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": "stale",
+        "result": {}
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "True-fresh-rejected-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": "different",
+        "result": {}
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-success-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-success-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-success-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "stale",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-transient-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-transient-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-transient-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "stale",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-timeout-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-timeout-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-timeout-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": "stale",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-changed-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-changed-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-changed-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": "stale",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-cancelled-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-cancelled-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-cancelled-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": "stale",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-rejected-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": null,
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-rejected-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": "stale",
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "True-stale-rejected-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": "different",
+        "result": {}
+      },
+      "pair": {
+        "access": "stale",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-success-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-success-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-success-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": "new",
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-transient-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-transient-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-transient-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": "R"
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-timeout-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-timeout-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-timeout-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "timedOut"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "timedOut",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-changed-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-changed-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-changed-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "sessionChanged"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-cancelled-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": null,
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-cancelled-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "stale",
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-cancelled-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          "R"
+        ],
+        "rejected": "different",
+        "result": {
+          "failure": "cancelled"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-rejected-None",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": null,
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-rejected-stale",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": "stale",
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "expired",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "True-expired-rejected-different",
+        "force": true,
+        "refreshReads": [
+          "R",
+          null
+        ],
+        "rejected": "different",
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "token-only-False-None",
+        "force": false,
+        "refreshReads": [
+          null
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "token-only-False-fresh",
+        "force": false,
+        "refreshReads": [
+          null
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": "fresh",
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "token-only-False-stale",
+        "force": false,
+        "refreshReads": [
+          null
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": "stale",
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "token-only-False-expired",
+        "force": false,
+        "refreshReads": [
+          null
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          null
+        ],
+        "case": "token-only-True-None",
+        "force": true,
+        "refreshReads": [
+          null
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "token-only-True-fresh",
+        "force": true,
+        "refreshReads": [
+          null
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "token-only-True-stale",
+        "force": true,
+        "refreshReads": [
+          null
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "expired"
+        ],
+        "case": "token-only-True-expired",
+        "force": true,
+        "refreshReads": [
+          null
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": null,
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh",
+          "new"
+        ],
+        "case": "token-only-access-replaced",
+        "force": false,
+        "refreshReads": [
+          null
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "access"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "token-only-refresh-replaced",
+        "force": false,
+        "refreshReads": [
+          null,
+          "replacement"
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "fresh"
+        ],
+        "case": "refresh-replaced-before-freshness",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "replacement"
+        ],
+        "result": {}
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "case": "refresh-replaced-after-exchange",
+        "force": false,
+        "refreshReads": [
+          "R",
+          "R",
+          "replacement"
+        ],
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "sessionChanged",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    },
+    {
+      "exchangeInputs": [],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "cancelBefore": true,
+        "case": "cancel-before-proactive",
+        "force": false,
+        "refreshReads": [
+          "R"
+        ],
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": []
+    },
+    {
+      "exchangeInputs": [
+        {
+          "access": "stale",
+          "refresh": "R"
+        }
+      ],
+      "input": {
+        "accessReads": [
+          "stale"
+        ],
+        "cancelDuring": true,
+        "case": "cancel-during-exchange",
+        "force": false,
+        "refreshReads": [
+          "R"
+        ],
+        "result": {
+          "access": "new",
+          "refresh": "R"
+        }
+      },
+      "pair": {
+        "access": null,
+        "failure": "cancelled",
+        "refresh": null
+      },
+      "reads": [
+        "refresh",
+        "access",
+        "refresh",
+        "refresh"
+      ]
+    }
+  ],
+  "foundation": {
+    "coreFoundationVersion": 5026.5,
+    "os": "Version 26.5.2 (Build 25F84)"
+  }
+}

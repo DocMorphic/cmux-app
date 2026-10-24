@@ -83,7 +83,12 @@ class NativeAuthJsonTest {
         for((name,eligible) in listOf("duplicate-anonymous-true-first" to false,"duplicate-anonymous-false-first" to true))
             MockWebServer().use{server->server.teamUsers(2){response(wire(name))};if(eligible)server.enqueue(response(wire("valid")))
                 NativeAccountTeams({"fixture-access"},{"login"},server.url("/api/v1/")).use{c->val result=runCatching{c.refresh()}
-                    assertEquals(name,eligible,result.isSuccess);assertEquals(if(eligible)3 else 2,server.requestCount)
+                    assertEquals(name,eligible,result.isSuccess)
+                    // An ineligible user cancels its sibling lookup before or after that HTTP starts.
+                    if(eligible)assertEquals(3,server.requestCount)else {
+                        assertTrue(server.requestCount in 1..2)
+                        repeat(server.requestCount){assertEquals("/api/v1/users/me",server.takeRequest().path)}
+                    }
                     assertEquals(eligible,c.state.value.scope!=null)}
             }
     }

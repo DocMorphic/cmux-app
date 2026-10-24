@@ -1,3 +1,38 @@
+## Pending token resolution and shared refresh reconciled — 2026-10-24
+
+Interactive and orphaned pending-user validation now applies the original SDK's
+proactive and forced token-selection policy through the existing shared refresh
+coordinator. Separate account objects coalesce exchanges and share cooldowns;
+only an unexpired access token can survive a proactive transient failure or
+timeout. Forced rejection cannot reuse that access. Pending and published owners
+remain distinct, and public/worker callers still reject pending credentials.
+Metadata writes retain the attempt; publication/replacement retires it. Late
+responses cannot overwrite publication. A reconstructed background account cannot
+validate an interactive flow's pending receipt while that flow owns publication.
+
+Full JVM: 3,472 total in 462 suites, 3,468 passed, four existing SSH skips, zero
+failures/errors. Owned API36: 230/230 in 363.422 seconds, ten new methods plus
+220 regressions. The 110-case source resolver reference executes three complete
+unchanged declarations and runs on ART. Regeneration is byte-identical. Actual
+Android coalescing/cooldown/timeout/commit checks use disposable encrypted stores
+and controlled HTTP. The real 60-second phase returned at 60008ms with
+ciphertext/pairing intact and no PATCH. Crash log empty, no preflight ANR,
+settings/window restored, owned exit0. Build-v6 reused identical JVM results and
+rebuilt corrected Android fixtures; the app APK is unchanged across runtime-v1/v2.
+Earlier fixture failures remain separate evidence.
+
+Full parity remains active. Ordinary SDK consumer adoption and error/budget
+projections, callback failures, direct OAuth/form/backend contracts, reporting/
+diagnostic/team-error UI, metadata/image/demo/reset/identity/worker paths,
+iOS-runtime proof, actual locked storage/OS/death, physical Pixel/Mac/provider/
+helper/Firebase, matched full UI/accessibility and signed delivery remain open.
+The reference uses inert getters, validity predicates and coordinator outcomes
+on macOS26.5.2/CoreFoundation5026.5. Real child cancellation executes. No physical
+install, real account/pairing/signing data, global pin or frozen signed722 changed.
+
+Details: [Token resolution](TOKEN_RESOLUTION.md).
+Evidence: `captures/recovery-20261023/token-resolution-checkpoint.json`.
+
 ## User-fetch error outcomes reconciled — 2026-10-24
 
 Post-resolution SDK user reads now preserve the source's distinct nil, missing-

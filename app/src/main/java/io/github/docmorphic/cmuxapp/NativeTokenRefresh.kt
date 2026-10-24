@@ -4,7 +4,7 @@ import kotlinx.coroutines.*
 import org.json.JSONObject
 import kotlin.coroutines.EmptyCoroutineContext
 
-internal data class NativeRefreshOwner(val login:String,val refresh:String,val epoch:Long) {
+internal data class NativeRefreshOwner(val login:String,val refresh:String,val epoch:Long,val pending:Boolean=false) {
     override fun toString()="NativeRefreshOwner(redacted)"
     companion object {
         fun from(root:JSONObject?,epoch:Long):NativeRefreshOwner? {
@@ -12,6 +12,14 @@ internal data class NativeRefreshOwner(val login:String,val refresh:String,val e
             val login=root.optString("task_session").takeIf(String::isNotBlank) ?: return null
             val refresh=root.optString("refresh_token").takeIf(String::isNotBlank) ?: return null
             return NativeRefreshOwner(login,refresh,epoch)
+        }
+        /** Registry bookkeeping can see pending ownership; normal account views cannot. */
+        fun stored(root:JSONObject?,epoch:Long):NativeRefreshOwner? {
+            if(!NativeSignInCompletion.isPending(root))return from(root,epoch)
+            val receipt=root?.opt(NativeSignInCompletion.PENDING) as? String ?: return null
+            if(receipt.isBlank() || root.opt("task_session")!=receipt)return null
+            val refresh=(root.opt("refresh_token") as? String)?.takeIf(String::isNotBlank) ?: return null
+            return NativeRefreshOwner(receipt,refresh,epoch,pending=true)
         }
     }
 }

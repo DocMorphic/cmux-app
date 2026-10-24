@@ -15,6 +15,7 @@ import java.io.File
 import java.security.KeyStore
 import java.security.KeyStoreException
 import java.util.UUID
+import java.util.Base64
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.SecretKey
 
@@ -30,6 +31,8 @@ class NativeLocalLogoutRuntimeTest {
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
     private val user=NativeSignInUser("old-user","Saved Person","saved@example.test",null)
     private val pairing=NativeCredentialStore.PairedMac("fixture-pairing","fixture-mac","Saved Mac")
+    private fun fresh()="header."+Base64.getUrlEncoder().withoutPadding().encodeToString(
+        "{\"exp\":${System.currentTimeMillis()/1000+3600}}".toByteArray())+".signature"
     private fun keys()=KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
     private val prefs get()=context.getSharedPreferences(name,Context.MODE_PRIVATE)
     private fun client(server:MockWebServer?=null)=if(server==null)NativeOAuthClient(NativeAccount.PROJECT_ID,NativeAccount.PUBLISHABLE_KEY)
@@ -91,7 +94,7 @@ class NativeLocalLogoutRuntimeTest {
             seed(server);val browser=NativeOAuthBrowser();val owner=account(server,browser)
             mode.set(1);assertTrue(owner.signOut());assertTrue(reader.localLogoutPending);mode.set(0)
             server.enqueue(MockResponse().setBody("{\"location\":\"https://provider.example/authorize\"}"))
-            server.enqueue(MockResponse().setBody("{\"access_token\":\"fresh-access\",\"refresh_token\":\"fresh-refresh\"}"))
+            server.enqueue(MockResponse().setBody(JSONObject().put("access_token",fresh()).put("refresh_token","fresh-refresh").toString()))
             server.enqueue(MockResponse().setBody("{\"id\":\"fresh-user\"}"))
             val operation=async(Dispatchers.Default) { owner.signInWithProvider(NativeOAuthProvider.GOOGLE) }
             val launch=withTimeout(5000) { browser.state.filterNotNull().first() }

@@ -51,6 +51,7 @@ internal class NativeSignInCompletion(
     private val onVerified: (String, NativeSignInUser) -> Unit = { _, _ -> },
     private val sessionEpoch: () -> Long = { 0 },
     private val fetchUserWithRefresh:(suspend(String,suspend(String?)->String?)->NativeSignInUser)?=null,
+    private val fetchPendingUser:(suspend(String,()->Unit)->NativeSignInUser)?=null,
 ) {
     private class Flow(val id: String, val generation: Long, val operation: Job, var epoch: Long,
         val lease: NativeAuthWork.SignInLease) {
@@ -173,7 +174,9 @@ internal class NativeSignInCompletion(
                 } }
                 return work.run(NativeAuthPhase.USER, networkTimeoutMillis, flow.id) { fetchUser(next) }
             }
-            val user = if(fetchUserWithRefresh!=null)work.run(NativeAuthPhase.USER,networkTimeoutMillis,flow.id) {
+            val user = if(fetchPendingUser!=null)work.run(NativeAuthPhase.USER,networkTimeoutMillis,flow.id) {
+                pendingUser(flow,access.orEmpty(),timeoutMillis)
+            } else if(fetchUserWithRefresh!=null)work.run(NativeAuthPhase.USER,networkTimeoutMillis,flow.id) {
                 val initial=access ?: refreshPendingAccess(flow,null,timeoutMillis) ?: throw NativeSessionUserUnavailable()
                 pendingUser(flow,initial,timeoutMillis)
             } else if (access == null) refreshUser() else try {
@@ -201,8 +204,11 @@ internal class NativeSignInCompletion(
         } finally { flow.lease.finish();synchronized(flowLock) { active -= flow } }
     }
 
-    private suspend fun pendingUser(flow:Flow,access:String,refreshTimeout:Long):NativeSignInUser =
-        fetchUserWithRefresh?.invoke(access) {failed->refreshPendingAccess(flow,failed,refreshTimeout)} ?: fetchUser(access)
+    private suspend fun pendingUser(flow:Flow,access:String,refreshTimeout:Long):NativeSignInUser {
+        val caller=currentCoroutineContext()
+        return fetchPendingUser?.invoke(flow.id) {caller.ensureActive();checkCurrent(flow)}
+            ?: fetchUserWithRefresh?.invoke(access) {failed->refreshPendingAccess(flow,failed,refreshTimeout)} ?: fetchUser(access)
+    }
 
     /** A pending receipt can refresh itself without admitting its unverified tokens as an account. */
     private suspend fun refreshPendingAccess(flow:Flow,rejected:String?,timeout:Long):String? {

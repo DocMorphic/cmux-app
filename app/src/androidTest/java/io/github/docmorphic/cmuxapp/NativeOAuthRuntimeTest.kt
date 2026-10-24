@@ -91,7 +91,9 @@ class NativeOAuthRuntimeTest {
         scenario = ActivityScenario.launch(NativeSignInLifecycleTestActivity::class.java)
     }
     private fun enqueueAuthorization() = server!!.enqueue(MockResponse().setBody("{\"location\":\"https://provider.example/authorize\"}"))
-    private fun enqueueTokens() = server!!.enqueue(MockResponse().setBody("{\"access_token\":\"fixture-access\",\"refresh_token\":\"fixture-refresh\"}"))
+    private val fixtureAccess="fixture."+java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+        JSONObject().put("exp",4102444800L).toString().toByteArray())+".fixture"
+    private fun enqueueTokens() = server!!.enqueue(MockResponse().setBody(JSONObject().put("access_token",fixtureAccess).put("refresh_token","fixture-refresh").toString()))
     private fun enqueueUser() = server!!.enqueue(MockResponse().setBody("{\"id\":\"fixture-user\",\"primary_email\":\"fixture@example.test\",\"display_name\":\"Fixture\"}"))
     private fun tap(provider: String, count: Int) {
         compose.onNodeWithTag("signin.$provider").performScrollTo().performClick()
@@ -144,7 +146,7 @@ class NativeOAuthRuntimeTest {
         dispatch(0, AuthTabIntent.RESULT_OK, callback(authorization)); compose.waitUntil(10_000) { completions.get() == 1 }
         runBlocking { withTimeout(5000) { old.join() } }
         compose.waitUntil(5000) { authWork!!.activeCount == 0 }
-        assertEquals("fixture-access", store!!.load()!!.getString("access_token")); assertNotEquals("old-login", store!!.taskSession())
+        assertEquals(fixtureAccess, store!!.load()!!.getString("access_token")); assertNotEquals("old-login", store!!.taskSession())
         assertEquals(3, server!!.requestCount); assertTrue(account!!.isSignedIn()); preservedPairing()
         File(folder, if (rejected) "refresh-rejection-preflight-result.json" else "refresh-preflight-result.json").writeText(JSONObject().put("newHttpWaitedForActualRefreshTermination", true)
             .put("separateAccountAndStoreObjectsShareWorkOwnership", true)
@@ -191,10 +193,10 @@ class NativeOAuthRuntimeTest {
         val verifier = checkNotNull(form["code_verifier"]); assertEquals(64, verifier.length)
         fun contains(pattern: ByteArray) = (0..bytes.size-pattern.size).any { start -> pattern.indices.all { bytes[start+it]==pattern[it] } }
         assertFalse(contains(verifier.toByteArray())); assertFalse(contains(verifier.toByteArray(Charsets.UTF_16LE)))
-        assertTrue(account!!.isSignedIn()); assertEquals("fixture-access", store!!.load()!!.getString("access_token"))
+        assertTrue(account!!.isSignedIn()); assertEquals(fixtureAccess, store!!.load()!!.getString("access_token"))
         assertNotNull(store!!.taskSession()); assertEquals(1, completions.get()); preservedPairing()
         val verification = server!!.takeRequest(); assertEquals("/api/v1/users/me", verification.requestUrl!!.encodedPath)
-        assertEquals("fixture-access", verification.getHeader("x-hexclave-access-token")); assertNull(verification.getHeader("Authorization"))
+        assertEquals(fixtureAccess, verification.getHeader("x-hexclave-access-token")); assertNull(verification.getHeader("Authorization"))
         assertEquals(3, server!!.requestCount); assertFalse(NativeSignInCompletion.isPending(store!!.load()))
         assertEquals("fixture-user", store!!.load()!!.getJSONObject(NativeAccountProfileCache.KEY).getString("user"))
         assertFalse(NativeOAuthRedirectCallbacks.deliver(link)); assertTrue(browser!!.presentations.value.isEmpty())
@@ -282,7 +284,7 @@ class NativeOAuthRuntimeTest {
         val restored = NativeAccount(store!!, NativeOAuthClient("fixture-project", "fixture-public-key", server!!.url("/")), NativeOAuthBrowser())
         runBlocking { restored.restorePendingSignIn() }
         val request = server!!.takeRequest(); assertEquals("/api/v1/users/me", request.requestUrl!!.encodedPath)
-        assertEquals("fixture-access", request.getHeader("x-hexclave-access-token"))
+        assertEquals(fixtureAccess, request.getHeader("x-hexclave-access-token"))
         if (expired) {
             val refresh = server!!.takeRequest(); assertEquals("/api/v1/auth/oauth/token", refresh.requestUrl!!.encodedPath)
             val form = refresh.body.readUtf8().split('&').associate { field ->

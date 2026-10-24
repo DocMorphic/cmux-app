@@ -55,13 +55,13 @@ class NativeIrohRuntimeTest {
         val holds = mutableListOf<NativeForegroundTransport>()
         fun backend(id: String = initial.teamId) = created.first { it.account.teamId == id }.backend as Backend
         suspend fun select(id: String): NativeTeamScope {
-            repeat(2){server.enqueue(MockResponse().setBody(user(id).toString()))}
+            server.teamSelection{MockResponse().setBody(user(id).toString())}
             val next = checkNotNull(account.select(id).scope)
             withTimeout(2000) { runtime.state.first { it.account == next && it.ready } }
             return next
         }
         suspend fun refresh(selected: String, vararg members: String) {
-            repeat(2){server.enqueue(MockResponse().setBody(user(selected).toString()))}
+            server.teamUsers(2){MockResponse().setBody(user(selected).toString())}
             server.enqueue(MockResponse().setBody(members(*members).toString()))
             account.refresh()
         }
@@ -84,7 +84,7 @@ class NativeIrohRuntimeTest {
     private suspend fun continuation(block: suspend ContinuationFixture.() -> Unit) {
         MockWebServer().use { server ->
             NativeAccountTeams({ "fixture" }, { team.login }, server.url("/api/v1/")).use { account ->
-                repeat(2){server.enqueue(MockResponse().setBody(user(team.teamId).toString()))}
+                server.teamUsers(2){MockResponse().setBody(user(team.teamId).toString())}
                 server.enqueue(MockResponse().setBody(members(team.teamId, "team-b").toString()))
                 val initial = checkNotNull(account.refresh().scope)
                 val created = java.util.concurrent.CopyOnWriteArrayList<Created>()
@@ -267,11 +267,11 @@ class NativeIrohRuntimeTest {
         continuation {
             val firstBackend = backend(); val closing = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
             firstBackend.awaitClose = { closing.complete(Unit); release.await() }
-            repeat(2){server.enqueue(MockResponse().setBody(user("team-b").toString()))}
+            server.teamSelection{MockResponse().setBody(user("team-b").toString())}
             account.select("team-b")
             try {
                 withTimeout(2000) { closing.await() }
-                repeat(2){server.enqueue(MockResponse().setBody(user(initial.teamId).toString()))}
+                server.teamSelection{MockResponse().setBody(user(initial.teamId).toString())}
                 val returned = checkNotNull(account.select(initial.teamId).scope)
                 assertEquals(1, created.size)
                 release.complete(Unit)

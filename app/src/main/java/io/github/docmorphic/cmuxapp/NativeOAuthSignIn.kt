@@ -151,10 +151,10 @@ internal class NativeOAuthClient(private val project: String, private val publis
             method="POST",body=body)
         return NativeAuthJson.objectValue(nativeSdkSend(initial,false,sleep=sdkRetrySleep,exchange=::sdkWire))
     }
-    private fun userRequest(access:String,refresh:String?)=nativeSdkRequest(
+    private fun userRequest(access:String?,refresh:String?)=nativeSdkRequest(
         origin.newBuilder().encodedPath("/api/v1/users/me").build(),project,publishableKey,access=access,refresh=refresh)
 
-    suspend fun currentUser(access:String,refresh:String?=null,refreshRejectedAccess:(suspend(String?)->String?)?=null):NativeSignInUser {
+    suspend fun currentUser(access:String?,refresh:String?=null,refreshRejectedAccess:(suspend(String?)->String?)?=null):NativeSignInUser {
         return nativeSdkGetUser {
             val raw=nativeSdkSend(userRequest(access,refresh),true,refreshRejectedAccess,sleep=sdkRetrySleep,exchange=::sdkWire)
             userPayload(raw)
@@ -162,7 +162,7 @@ internal class NativeOAuthClient(private val project: String, private val publis
     }
 
     /** Match getUser(.throw): invalid JSON is nil; non-rate failures do not verify a user. */
-    suspend fun restoredCurrentUser(access:String,refresh:String?=null,refreshRejectedAccess:suspend(String?)->String?):NativeSignInUser? {
+    suspend fun restoredCurrentUser(access:String?,refresh:String?=null,refreshRejectedAccess:suspend(String?)->String?):NativeSignInUser? {
         return try {
             nativeSdkGetUser {
                 val raw=nativeSdkSend(userRequest(access,refresh),true,refreshRejectedAccess,sleep=sdkRetrySleep,exchange=::sdkWire)
