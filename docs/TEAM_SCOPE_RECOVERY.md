@@ -91,8 +91,10 @@ noncooperative encrypted IO and public-phase versus actual-operation membership
 counting, actual device sleep/Doze/network reconnection and process death remain
 open. A noncooperative operation can hold the Android membership mutex beyond a
 public phase deadline; deterministic timers alone do not demonstrate recovery
-from that case. Mutations still need the source's fresh-user eligibility checks;
-separate/parallel selected-team reads, SDK malformed-list/default-model semantics,
+from that case. [The mutation/picker checkpoint](TEAM_MUTATIONS.md) adds fresh
+selection eligibility and failure-tolerant backend creation. Complete mutation
+public-phase/cached admission, separate/parallel selected-team reads and SDK
+malformed-list/default-model semantics,
 full user metadata and profile bounds also remain open.
 
 The reporting producer is not the original consent-aware aggregation/recovery

@@ -48,7 +48,7 @@ class NativeAccountProfileRuntimeTest {
                     val state by restored.state.collectAsState()
                     NativeAccountTeamSection(state, onRefresh = {
                         scope.launch { runCatching { restored.refresh() } }
-                    }, onSelect = { id -> scope.launch { restored.select(id) } }, onCreate = { error("No team creation expected") })
+                    }, onSelect = { id -> restored.select(id);Unit }, onCreate = { error("No team creation expected") })
                 } } } }
                 compose.onNodeWithText("Fixture Person").assertIsDisplayed()
                 compose.onNodeWithText("fixture@example.test").assertIsDisplayed()
@@ -68,7 +68,7 @@ class NativeAccountProfileRuntimeTest {
                 compose.onNodeWithText("Team one").assertIsEnabled()
                 compose.onNodeWithText("Create Team").assertIsEnabled()
                 assertTrue(restored.isCurrent(restored.state.value.scope!!))
-                server.enqueue(MockResponse().setBody("{\"id\":\"fixture-user\",\"selected_team\":{\"id\":\"two\"}}"))
+                repeat(2){server.enqueue(MockResponse().setBody("{\"id\":\"fixture-user\",\"selected_team\":{\"id\":\"two\"}}"))}
                 compose.onNodeWithText("Team one").performClick(); compose.onNodeWithText("Team two").performClick()
                 compose.waitUntil(5000) { restored.state.value.selectedTeamId == "two" }
                 compose.onNodeWithText("Updated Person").assertIsDisplayed()

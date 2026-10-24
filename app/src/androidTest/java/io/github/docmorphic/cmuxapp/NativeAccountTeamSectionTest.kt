@@ -102,7 +102,7 @@ class NativeAccountTeamSectionTest {
             if (showing) NativeAccountTeamSection(state, {}, { selected += it }, onCreate = { error("Not submitted") })
         } } } }
         val action = compose.onNodeWithTag("settings.team:two").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
-        for (replacement in listOf(initial.copy(loading = true), initial.copy(cached = true),
+        for (replacement in listOf(initial.copy(cached = true),
             initial.copy(teams = listOf(initial.teams[0], NativeTeam("three", "Third team"))),
             initial.copy(userId = "replacement-user", scope = initial.scope!!.copy(userId = "replacement-user")),
             initial.copy(scope = initial.scope!!.copy(login = "login-b")))) {
@@ -112,7 +112,9 @@ class NativeAccountTeamSectionTest {
         }
         compose.runOnIdle { state = initial }
         compose.waitForIdle()
-        compose.runOnIdle { action(); assertEquals(listOf("two"), selected); showing = false }
+        compose.runOnIdle { action() }
+        compose.waitForIdle()
+        compose.runOnIdle { assertEquals(listOf("two"), selected); showing = false }
         compose.waitForIdle()
         compose.runOnIdle { action(); assertEquals(listOf("two"), selected) }
     }

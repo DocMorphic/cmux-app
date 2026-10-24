@@ -32,8 +32,8 @@ class NativeSavedTailscaleRuntimeTest {
         }
     }
     private suspend fun select(f: Fixture, account: NativeAccountTeams, server: MockWebServer, id: String): NativeTeamScope {
-        server.enqueue(MockResponse().setBody(JSONObject().put("id", "user")
-            .put("selected_team", JSONObject().put("id", id)).toString()))
+        repeat(2){server.enqueue(MockResponse().setBody(JSONObject().put("id", "user")
+            .put("selected_team", JSONObject().put("id", id)).toString()))}
         val result = account.select(id); f.teams.value = result
         val scope = checkNotNull(result.scope)
         withTimeout(2000) { f.local.state.first { it.account == scope } }

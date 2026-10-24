@@ -1,3 +1,16 @@
+## Pending picker and mutation boundary — 2026-10-24
+
+The picker now shows a pending choice immediately, permits a newer choice, and
+uses localized failure/retry feedback. Actual selection remains server-persisted;
+each request captures its account/mutation identity, so an old response cannot
+overwrite the latest result or cache. The main screen awaits the real action.
+The final 150-case runtime cohort includes the three existing Settings round-trip/
+creation/pending-handle cases and the original-detail/Tailscale selection cases.
+They retain their exact-root/authority checks. These fixture results do not prove
+physical Pixel/Mac or matched full UI/accessibility acceptance.
+
+See [the source mapping and remaining limits](TEAM_MUTATIONS.md).
+
 ## Android connection cleanup validation batch — 2026-10-13
 
 Latest debug/test APKs built in **2m59s**. Six selected classes pass Android 17

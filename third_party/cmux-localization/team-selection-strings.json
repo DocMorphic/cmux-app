@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalog": {
+    "path": "ios/cmux/Resources/Localizable.xcstrings",
+    "sha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd"
+  },
+  "strings": [
+    {
+      "key": "mobile.settings.teamFooter",
+      "resource": "cmux_team_selection_footer",
+      "translations": {
+        "en": "Switches which cmux team's computers and devices this app shows.",
+        "ar": "يقوم بتبديل أجهزة الكمبيوتر والأجهزة الخاصة بفريق cmux التي يعرضها هذا التطبيق.",
+        "de": "Schaltet um, welche Computer und Geräte des Cmux-Teams diese App anzeigt.",
+        "es": "Cambia qué computadoras y dispositivos del equipo cmux muestra esta aplicación.",
+        "fr": "Bascule les ordinateurs et les appareils de l'équipe cmux affichés par cette application.",
+        "ja": "このアプリに表示する cmux チームのコンピュータとデバイスを切り替えます。",
+        "ko": "이 앱이 표시하는 cmux 팀의 컴퓨터와 장치를 전환합니다.",
+        "zh-Hans": "切换此应用程序显示的 cmux 团队的计算机和设备。",
+        "zh-Hant": "切換此應用程式顯示的 cmux 團隊的電腦和裝置。"
+      }
+    },
+    {
+      "key": "mobile.settings.teamSwitchFailed",
+      "resource": "cmux_team_selection_failed",
+      "translations": {
+        "en": "Could not switch teams. Try again.",
+        "ar": "تعذر تبديل الفرق. حاول مرة أخرى.",
+        "de": "Teams konnten nicht gewechselt werden. Bitte versuche es erneut.",
+        "es": "No se pudieron cambiar los equipos. Inténtalo de nuevo.",
+        "fr": "Impossible de changer d'équipe. Réessayez.",
+        "ja": "チームを切り替えられませんでした。もう一度お試しください。",
+        "ko": "팀을 전환할 수 없습니다. 다시 시도해 주세요.",
+        "zh-Hans": "无法切换团队。请重试。",
+        "zh-Hant": "無法切換團隊。請再試一次。"
+      }
+    }
+  ]
+}

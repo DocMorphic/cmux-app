@@ -95,8 +95,8 @@ class TailscalePairingAuthorityTest {
         }
     }
     private suspend fun select(f: Fixture, account: NativeAccountTeams, server: MockWebServer, id: String) {
-        server.enqueue(MockResponse().setBody(JSONObject().put("id", "user")
-            .put("selected_team", JSONObject().put("id", id)).toString()))
+        repeat(2){server.enqueue(MockResponse().setBody(JSONObject().put("id", "user")
+            .put("selected_team", JSONObject().put("id", id)).toString()))}
         f.switch(account.select(id).scope); f.authority.retireInvalid()
     }
 

@@ -2785,12 +2785,8 @@ internal fun NativeScreen(
                             catch (failure: Exception) { if (failure is CancellationException) throw failure }
                         }
                     }, onSelect = { id ->
-                        scope.launch {
-                            try {
-                                if (!feedSession.selectTeam(accountTeams, id)) {
-                                    selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
-                                }
-                            } catch (failure: Exception) { if (failure is CancellationException) throw failure }
+                        if (!feedSession.selectTeam(accountTeams, id)) {
+                            selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
                         }
                     }, onCreate = { name ->
                         try {

@@ -1,0 +1,176 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift": "5b9c73c8b2b66c91ed994e7b4881a8771812c551604dd261d418bcd41696c76f",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/User.swift": "a9a6a06f7e04ca7a6c3f3ce0edbb88e59aae8e9d0c2758aac0b54dc138a3c33e",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Models/CMUXAuthTeam.swift": "67d9440f7c227320b16925a1cfb84b1e00b329abadddd71ee8d9e4b86904e957"
+  },
+  "executedDeclarationSha256": [
+    "015e578295c46c0c1a77937b7acb13548b21747ebcf5c158c8b67fa6cc5a8bf6",
+    "6492216eb8fff08339654421c31c65aa791d582982d544f012353501d5cdf78f",
+    "399dfd7ba73c8029ac773a541825636f3013512b16d7328656c331914e359ae0"
+  ],
+  "resolved": [
+    {
+      "members": [
+        "one",
+        "two"
+      ],
+      "resolved": "one",
+      "selected": null
+    },
+    {
+      "members": [
+        "one",
+        "two"
+      ],
+      "resolved": "one",
+      "selected": "one"
+    },
+    {
+      "members": [
+        "one",
+        "two"
+      ],
+      "resolved": "two",
+      "selected": "two"
+    },
+    {
+      "members": [
+        "one",
+        "two"
+      ],
+      "resolved": "one",
+      "selected": "missing"
+    },
+    {
+      "members": [],
+      "resolved": null,
+      "selected": null
+    },
+    {
+      "members": [],
+      "resolved": "remembered",
+      "selected": "remembered"
+    },
+    {
+      "members": [],
+      "resolved": "",
+      "selected": ""
+    }
+  ],
+  "rows": [
+    {
+      "request": {
+        "authenticated": true,
+        "body": {
+          "selected_team_id": "two"
+        },
+        "method": "PATCH",
+        "path": "/users/me"
+      },
+      "responseKind": "json",
+      "selected": "two",
+      "succeeded": true
+    },
+    {
+      "request": {
+        "authenticated": true,
+        "body": {
+          "selected_team_id": "two"
+        },
+        "method": "PATCH",
+        "path": "/users/me"
+      },
+      "responseKind": "empty",
+      "selected": "two",
+      "succeeded": true
+    },
+    {
+      "request": {
+        "authenticated": true,
+        "body": {
+          "selected_team_id": "two"
+        },
+        "method": "PATCH",
+        "path": "/users/me"
+      },
+      "responseKind": "malformed",
+      "selected": "two",
+      "succeeded": true
+    },
+    {
+      "request": {
+        "authenticated": true,
+        "body": {
+          "selected_team_id": "one"
+        },
+        "method": "PATCH",
+        "path": "/users/me"
+      },
+      "responseKind": "json",
+      "selected": "one",
+      "succeeded": true
+    },
+    {
+      "request": {
+        "authenticated": true,
+        "body": {
+          "selected_team_id": "one"
+        },
+        "method": "PATCH",
+        "path": "/users/me"
+      },
+      "responseKind": "empty",
+      "selected": "one",
+      "succeeded": true
+    },
+    {
+      "request": {
+        "authenticated": true,
+        "body": {
+          "selected_team_id": "one"
+        },
+        "method": "PATCH",
+        "path": "/users/me"
+      },
+      "responseKind": "malformed",
+      "selected": "one",
+      "succeeded": true
+    },
+    {
+      "request": {
+        "authenticated": true,
+        "body": {},
+        "method": "PATCH",
+        "path": "/users/me"
+      },
+      "responseKind": "json",
+      "selected": null,
+      "succeeded": true
+    },
+    {
+      "request": {
+        "authenticated": true,
+        "body": {},
+        "method": "PATCH",
+        "path": "/users/me"
+      },
+      "responseKind": "empty",
+      "selected": null,
+      "succeeded": true
+    },
+    {
+      "request": {
+        "authenticated": true,
+        "body": {},
+        "method": "PATCH",
+        "path": "/users/me"
+      },
+      "responseKind": "malformed",
+      "selected": null,
+      "succeeded": true
+    }
+  ]
+}

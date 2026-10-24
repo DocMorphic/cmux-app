@@ -68,7 +68,7 @@ class NativeForegroundTailscaleRoutesRuntimeTest {
                     val access = NativeForegroundComputerDetailAccess(original, mac, root, management) {
                         screenOwnsRoot && authority.scopeFor(mac, root) == original
                     }
-                    server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}"""))
+                    repeat(2){server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}"""))}
                     teams.select("picker"); val selected = checkNotNull(teams.state.value.scope)
                     assertTrue(access.current())
                     val saved = TailscaleGrantStore(store::load, store::update)

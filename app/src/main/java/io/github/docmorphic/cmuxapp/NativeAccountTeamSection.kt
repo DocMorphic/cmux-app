@@ -17,22 +17,29 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 
 @Composable
 internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh: () -> Unit,
-    onSelect: (String) -> Unit, afterAccount: @Composable () -> Unit = {}, onCreate: suspend (String) -> Boolean) {
+    onSelect: suspend (String) -> Unit, afterAccount: @Composable () -> Unit = {}, onCreate: suspend (String) -> Boolean) {
     var creating by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
     var submitting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val busy = state.loading || submitting
+    val owner = state.userId to state.scope?.login
+    var pendingTeam by remember(owner) { mutableStateOf<String?>(null) }
+    var selectionRequest by remember(owner) { mutableStateOf<Any?>(null) }
+    var selectionTask by remember(owner) { mutableStateOf<Job?>(null) }
+    var selectionFailed by remember(owner) { mutableStateOf(false) }
+    DisposableEffect(owner) { onDispose { selectionTask?.cancel() } }
+    val busy = state.loading || submitting || pendingTeam!=null
     val canManage = state.userId != null && !state.cached
     val currentState by rememberUpdatedState(state)
-    val currentBusy by rememberUpdatedState(busy)
+    val currentSubmitting by rememberUpdatedState(submitting)
     val currentSelect by rememberUpdatedState(onSelect)
     var admitted by remember { mutableStateOf(true) }
     DisposableEffect(Unit) { onDispose { admitted = false } }
-    val owner = state.userId to state.scope?.login
     Text("ACCOUNT", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() }, color = NativeAppColors.muted, fontSize = 11.sp)
     if (state.userId != null) SelectionContainer {
         Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp)) {
@@ -50,27 +57,40 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
             state.teams.forEach { team ->
                 // Keep cached accessibility actions bound to their original account and team.
                 key(owner, team.id) {
-                    val chosen = team.id == state.selectedTeamId
+                    val resolved=nativeResolvedTeamId(state.selectedTeamId,state.teams)
+                    val chosen = team.id == (pendingTeam ?: resolved)
                     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("settings.team:${team.id}")
-                        .selectable(chosen, enabled = !busy && canManage, role = Role.RadioButton, onClick = {
+                        .selectable(chosen, enabled = !submitting && canManage, role = Role.RadioButton, onClick = {
                             val latest = currentState
-                            if (admitted && !currentBusy && !latest.cached && latest.userId != null &&
+                            val effective=nativeResolvedTeamId(latest.selectedTeamId,latest.teams)
+                            if (admitted && !currentSubmitting && !latest.cached && latest.userId != null &&
                                 owner == (latest.userId to latest.scope?.login) && latest.teams.any { it.id == team.id } &&
-                                latest.selectedTeamId != team.id) currentSelect(team.id)
+                                (pendingTeam ?: effective) != team.id) {
+                                val request=Any()
+                                selectionTask?.cancel();selectionRequest=request;pendingTeam=team.id;selectionFailed=false
+                                selectionTask=scope.launch {
+                                    try {currentSelect(team.id)}
+                                    catch(_:CancellationException) { /* A newer choice or a retired account owns the UI. */ }
+                                    catch(_:Exception) {if(selectionRequest===request)selectionFailed=true}
+                                    finally {if(selectionRequest===request){pendingTeam=null;selectionRequest=null}}
+                                }
+                            }
                         }).semantics { contentDescription = team.name.ifBlank { "Unnamed team" } }
                         .padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(team.name.ifBlank { "Unnamed team" }, Modifier.weight(1f).padding(end = 12.dp),
-                            color = if (canManage && !busy) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                            color = if (canManage && !submitting) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
                         if (chosen) Icon(painterResource(R.drawable.ic_menu_check), null, Modifier.size(20.dp),
-                            tint = if (canManage && !busy) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            tint = if (canManage && !submitting) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         }
-        Text("Switches which cmux team's computers and devices this app shows.",
+        Text(stringResource(R.string.cmux_team_selection_footer),
             Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = NativeAppColors.muted, fontSize = 13.sp)
+        if(selectionFailed)Text(stringResource(R.string.cmux_team_selection_failed),
+            Modifier.padding(horizontal=22.dp,vertical=4.dp).testTag("settings.team.error"),color=NativeAppColors.error,fontSize=13.sp)
     }
-    state.error?.let { Text(it, Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = NativeAppColors.error, fontSize = 13.sp) }
+    if(!selectionFailed && pendingTeam==null)state.error?.let { Text(it, Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = NativeAppColors.error, fontSize = 13.sp) }
     Row(Modifier.padding(horizontal = 14.dp)) {
         TextButton(onClick = onRefresh, enabled = !busy) { Text("Refresh account") }
         TextButton(onClick = { name = ""; creating = true }, enabled = !busy && canManage) { Text("Create Team") }

@@ -66,8 +66,9 @@ unchanged.
 This checkpoint aligns eligibility and the failed-refresh continuity policy.
 [The later recovery checkpoint](TEAM_SCOPE_RECOVERY.md) adds process-owned
 scheduling and Retry-After/backoff metadata. Noncooperative IO/public-phase
-counting and the reporting consumer remain open, alongside fresh-user checks in
-mutation paths, exact separate/parallel selected-team reads and SDK malformed-list
+counting and the reporting consumer remain open. [The later mutation checkpoint](TEAM_MUTATIONS.md)
+adds fresh-user selection and failure-tolerant creation; complete public-phase/
+cached admission, exact separate/parallel selected-team reads and SDK malformed-list
 /default-model semantics. The bounded Android parser
 can reject malformed lists that the SDK would decode as empty; this checkpoint
 does not call that behavior equivalent. Profile shape/id/size bounds and complete

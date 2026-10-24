@@ -79,7 +79,7 @@ class NativeComputerDetailsLifetimeRuntimeTest {
                         feed.computerDetailsState.value = NativeComputerDetailsPresentation(original, access.target, foreground = access)
                     }
                     val page = checkNotNull(feed.computerDetailsState.value)
-                    server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}"""))
+                    repeat(2){server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}"""))}
                     teams.select("picker"); val selected = checkNotNull(teams.state.value.scope)
                     val picker = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(mac.code, mac.deviceId, "Picker Mac", "default"), selected)
                     store.update { it.put("pairings", JSONArray().put(NativePairingRecords.encode(mac)).put(NativePairingRecords.encode(picker)))

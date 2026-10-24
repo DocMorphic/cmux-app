@@ -96,7 +96,7 @@ class NativeSettingsTeamSwitchRuntimeTest {
                             val projection = nativeRecordComputerConnections(inventory, emptyMap(), emptyList(), MobileConnectionTransport.TAILSCALE,
                                 isForeground = { row -> row == mac && feed.hasAdmittedForeground() }, isPending = { false })
                             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                                NativeAccountTeamSection(team, {}, { id -> scope.launch { feed.selectTeam(teams, id) } },
+                                NativeAccountTeamSection(team, {}, { id -> feed.selectTeam(teams, id);Unit },
                                     onCreate = { name -> feed.createTeam(teams, name); true })
                                 NativeSettingsConnections(NativeComputerMenuOwner(store.taskSession(), team.scope),
                                     nativeSettingsConnectionRows(inventory, projection), NativeMacAppearances(), onDetails = { row ->
@@ -109,7 +109,7 @@ class NativeSettingsTeamSwitchRuntimeTest {
                                 confirm = feed::confirmComputerForget, prepareDetached = feed::prepareComputerForget,
                                 connectionFor = projection::get) { if (feed.computerDetailsState.value === page) feed.computerDetailsState.value = null }
                         } } }
-                        server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}"""))
+                        repeat(2){server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}"""))}
                         compose.onNodeWithTag("settings.team:picker").performClick()
                         compose.waitUntil(5000) { teams.state.value.scope?.teamId == "picker" }
                         assertSame(root, feed.connectionState(mac.code).client); assertTrue(feed.hasAdmittedForeground())
@@ -119,7 +119,7 @@ class NativeSettingsTeamSwitchRuntimeTest {
                         compose.onNodeWithText("Check Connection").performScrollTo().performClick()
                         compose.waitUntil(5000) { wire.methods.contains("mobile.workspace.list") }
                         compose.onNodeWithText("‹  Back").performClick()
-                        server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"original"}}"""))
+                        repeat(2){server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"original"}}"""))}
                         compose.onNodeWithTag("settings.team:original").performScrollTo().performClick()
                         compose.waitUntil(5000) { teams.state.value.scope?.teamId == "original" }
                         assertNotEquals(original.generation, teams.state.value.scope!!.generation)
@@ -182,7 +182,9 @@ class NativeSettingsTeamSwitchRuntimeTest {
                         feed.admitForeground(original, mac, root)
                     }
                     server.enqueue(MockResponse().setBody("""{"team":{"id":"created","name":"Created"}}"""))
+                    server.enqueue(MockResponse().setBody("""{"id":"user"}"""))
                     server.enqueue(MockResponse().setBody("""{"items":[{"id":"original","display_name":"Original"},{"id":"created","display_name":"Created"}]}"""))
+                    server.enqueue(MockResponse().setBody("""{"id":"user"}"""))
                     server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"created"}}"""))
                     assertTrue(feed.createTeam(teams, "Created"))
                     assertEquals("created", teams.state.value.scope?.teamId)

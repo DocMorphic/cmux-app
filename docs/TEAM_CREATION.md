@@ -1,8 +1,11 @@
 # Android team creation
 
-For the separately audited iOS behavior that preserves a live Mac terminal during
-team selection, see [TEAM_SWITCH.md](TEAM_SWITCH.md). Android foreground retention
-is still unimplemented; the creation and picker checks below do not establish it.
+Current creation and pending-picker behavior is documented in
+[TEAM_MUTATIONS.md](TEAM_MUTATIONS.md), including backend authorization, cached/
+unloaded authority, failed-list fallback and create/select exclusion. Foreground
+retention and its remaining physical acceptance are documented in
+[TEAM_SWITCH.md](TEAM_SWITCH.md). The dated September implementation notes below
+predate the current controller and reference later changes separately.
 
 Reference: cmux commit `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`:
 

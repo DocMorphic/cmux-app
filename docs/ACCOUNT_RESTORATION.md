@@ -31,8 +31,11 @@ It contains no access/refresh token, live connection scope or scope generation.
 Invalid, oversized, duplicate or mismatched cached data is ignored.
 
 Settings displays saved account details immediately, including an offline
-explanation. Team selection and creation remain disabled until a fresh account
-and membership request succeeds. Restoring a cache never establishes live
+explanation. Cached team rows cannot select a connection owner. The existing
+Android create dialog enables after fresh user publication even if membership
+fails. The shared creation API can also use a primed cached owner through backend
+authorization, without granting loaded membership or connection scope; see
+[the current creation and selection contract](TEAM_MUTATIONS.md). Restoring a cache never establishes live
 authority or starts a native endpoint. The connection owner preserves the cache
 during initial login observation rather than clearing it before refresh.
 

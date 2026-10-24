@@ -1,3 +1,32 @@
+## Team selection and creation source behavior aligned — 2026-10-24
+
+Selection now reads an eligible user before PATCH, accepts successful optional
+response bodies and keeps independent request identities so a newer choice can
+finish while an older PATCH is stalled. The inline picker shows the pending
+choice, stays usable, and restores the committed choice on failure with the
+pinned retry message in nine locales. The main screen awaits the actual action.
+The existing Android create dialog remains an extension to the pinned iOS picker.
+
+Backend creation is not replayed. A failed post-create list falls back to the
+prior available teams and still attempts selection. A primed/cold API owner or
+initially failed membership can create without inventing a loaded team generation
+or connection scope. Loaded membership removal retires old proofs before final
+selection, and effective nil/stale selection falls back like the source helper.
+Create/select exclusion, latest-choice caching and account replacement are fenced.
+
+Full JVM: 3,386 total, 3,382 passed, four existing SSH skips, zero failures in 453
+suites. Owned API 36: 150/150 in 234.927s, including ten new cases and 140 existing
+regressions; empty crash log, no preflight ANR, restored settings/window, exit0.
+Nine wire and seven effective-selection rows execute complete original declarations;
+those and nine locale resources reproduce byte-identically. 38 local inputs and 24
+whole original files bind the evidence. Full parity remains active: public phase
+budgets/noncooperative IO, remaining SDK/load/cache admission semantics, physical/
+provider/helper/OS, full source/UI/accessibility and signed-release gates remain
+open. No phone/Mac install, global source pin or frozen signed 722 change.
+
+Details: [team mutation and picker mapping](TEAM_MUTATIONS.md).
+Evidence: `captures/recovery-20261023/team-mutation-checkpoint.json`.
+
 ## Team-scope recovery follows upstream backoff — 2026-10-24
 
 The process account now retries an unloaded team list at 2, 4, 8, 16, 32 and

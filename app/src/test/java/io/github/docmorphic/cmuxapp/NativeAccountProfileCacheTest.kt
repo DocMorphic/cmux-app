@@ -36,7 +36,7 @@ class NativeAccountProfileCacheTest {
         return controller(server, store).use { checkNotNull(it.refresh().scope) }
     }
 
-    @Test fun restartRestoresDisplayButCannotAuthorizeOrMutateBeforeMembershipRefresh() = runBlocking<Unit> {
+    @Test fun restartRestoresDisplayWithoutConnectionOrCachedSelectionAuthority() = runBlocking<Unit> {
         MockWebServer().use { server ->
             val store = Store(); val previous = seed(server, store)
             controller(server, store).use { restored ->
@@ -47,7 +47,6 @@ class NativeAccountProfileCacheTest {
                 assertFalse(restored.isCurrent(previous)); assertEquals(2, server.requestCount)
                 assertNull(restored.captureContinuation(previous))
                 assertTrue(runCatching { restored.select("one") }.isFailure)
-                assertTrue(runCatching { restored.create("Never sent") }.isFailure)
                 assertEquals(2, server.requestCount)
                 assertTrue(restored.state.value.cached)
                 restored.reconcileLogin() // Initial app-runtime observation must keep the cached card.
@@ -83,10 +82,11 @@ class NativeAccountProfileCacheTest {
             val store = Store(); server.profile()
             controller(server, store).use { account ->
                 account.refresh()
+                server.enqueue(MockResponse().setBody("{\"id\":\"user\"}"))
                 server.enqueue(MockResponse().setResponseCode(503))
                 assertTrue(runCatching { account.select("one") }.isFailure)
                 assertEquals("two", store.cache.read("login", "${server.url("/api/v1/")}#${NativeAccount.PROJECT_ID}")!!.selectedTeamId)
-                server.enqueue(MockResponse().setBody("{\"id\":\"user\",\"selected_team\":{\"id\":\"one\"}}"))
+                repeat(2){server.enqueue(MockResponse().setBody("{\"id\":\"user\",\"selected_team\":{\"id\":\"one\"}}"))}
                 assertEquals("Fixture Person", account.select("one").displayName)
             }
             controller(server, store).use { assertEquals("one", it.state.value.selectedTeamId); assertNull(it.state.value.scope) }

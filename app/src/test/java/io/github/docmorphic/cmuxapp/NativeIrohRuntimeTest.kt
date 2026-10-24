@@ -55,7 +55,7 @@ class NativeIrohRuntimeTest {
         val holds = mutableListOf<NativeForegroundTransport>()
         fun backend(id: String = initial.teamId) = created.first { it.account.teamId == id }.backend as Backend
         suspend fun select(id: String): NativeTeamScope {
-            server.enqueue(MockResponse().setBody(user(id).toString()))
+            repeat(2){server.enqueue(MockResponse().setBody(user(id).toString()))}
             val next = checkNotNull(account.select(id).scope)
             withTimeout(2000) { runtime.state.first { it.account == next && it.ready } }
             return next
@@ -267,11 +267,11 @@ class NativeIrohRuntimeTest {
         continuation {
             val firstBackend = backend(); val closing = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
             firstBackend.awaitClose = { closing.complete(Unit); release.await() }
-            server.enqueue(MockResponse().setBody(user("team-b").toString()))
+            repeat(2){server.enqueue(MockResponse().setBody(user("team-b").toString()))}
             account.select("team-b")
             try {
                 withTimeout(2000) { closing.await() }
-                server.enqueue(MockResponse().setBody(user(initial.teamId).toString()))
+                repeat(2){server.enqueue(MockResponse().setBody(user(initial.teamId).toString()))}
                 val returned = checkNotNull(account.select(initial.teamId).scope)
                 assertEquals(1, created.size)
                 release.complete(Unit)
