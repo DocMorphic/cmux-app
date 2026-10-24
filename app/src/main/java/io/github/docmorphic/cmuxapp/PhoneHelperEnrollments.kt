@@ -57,7 +57,7 @@ internal object PhoneHelperEnrollments {
             fun access(write: Boolean, action: (JSONObject, PhoneFcmTokenSnapshot?) -> Unit) = synchronized(store.accountStateLock) {
                 val token = PhoneFcmTokens.snapshot(context)
                 if (write) store.update { action(it, token) }
-                else action(store.load() ?: JSONObject(), token)
+                else action(store.requireReadable() ?: JSONObject(), token)
             }
             PhoneHelperEnrollmentRecovery(
                 transaction = { access(true, it) }, inspect = { access(false, it) },

@@ -63,3 +63,10 @@ UIKit traits, real accessibility control frames and XCUIScreen compositor images
 `verify-ios-signin-methods.py` binds each image to scene/source/traits and rejects
 missing or dirty evidence. The authored service/state adapter does not authenticate
 or establish the full source app's coordinator, restore or provider behavior.
+
+`storage-availability-reference.json` binds the original session priming/state,
+validation policy and locked-storage/staleness tests. Android now preserves
+unreadable ciphertext, never creates a key on read, blocks empty-baseline writes
+and stops destructive helper/FCM reconciliation on unknown storage. This is a
+storage-preservation foundation; the complete cached/restoring auth coordinator
+and actual locked-device acceptance remain open.

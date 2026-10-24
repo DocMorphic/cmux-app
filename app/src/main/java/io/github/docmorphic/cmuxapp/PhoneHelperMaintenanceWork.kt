@@ -20,7 +20,7 @@ internal object PhoneHelperMaintenanceWork {
     /** Called under the shared store lock, before publishing a primary account mutation. No network or scheduling. */
     fun preserve(context: Context, account: JSONObject?, stageRetirement: Boolean = false) {
         if (!stageRetirement && account?.has(PhoneHelperEnrollmentState.RECEIPTS) != true) return
-        val store = ledger(context); val state = store.load() ?: JSONObject(); val before = state.toString()
+        val store = ledger(context); val state = store.requireReadable() ?: JSONObject(); val before = state.toString()
         PhoneHelperMaintenanceQueue(state).apply {
             preserve(account)
             if (stageRetirement) this.stageRetirement(account ?: JSONObject())
@@ -33,8 +33,8 @@ internal object PhoneHelperMaintenanceWork {
     private fun access(context: Context, write: Boolean, action: (PhoneHelperMaintenanceQueue) -> Unit): Boolean {
         val credentials = NativeCredentialStore(context); val storage = ledger(context)
         return synchronized(credentials.accountStateLock) {
-            val account = credentials.load() ?: JSONObject(); val beforeAccount = account.toString()
-            val state = storage.load() ?: JSONObject(); val beforeState = state.toString()
+            val account = credentials.requireReadable() ?: JSONObject(); val beforeAccount = account.toString()
+            val state = storage.requireReadable() ?: JSONObject(); val beforeState = state.toString()
             val provider = PhoneFcmTokens.setup(context)
             val queue = PhoneHelperMaintenanceQueue(state)
             queue.reconcile(account, provider.grant, provider.token)

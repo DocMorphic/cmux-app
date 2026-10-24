@@ -1,0 +1,26 @@
+{
+  "reference": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "files": {
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Models/CMUXAuthState.swift": "c76babdc04c6defd4b75f3f0efa3907d03edec999382229e7db076cabb2fe8f8",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Persistence/CMUXAuthSessionCache.swift": "53e215347b58a0b220536483c4fdaa8e7e6c9a1d35107a387eed19907064f304",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+SessionPriming.swift": "ef486f14d9784aaa92930ecc155a5ef8b2cae497bb4223848a54de881107f188",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthError+DisplaySafe.swift": "f47aa08877c19ce909c356a22e09f0afd8a2112ebc86416d44bdf648ca56dbed",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorLockedStorageTests.swift": "b828edf26b63a355273a587f5485fde2c8700c2f306f8862271b8b77662b760a",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSessionValidityTests.swift": "fcf312678381d9ca876fb2e93bc070ff5ba4e335bf0cf7cedec0cbda67643bb0",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSessionSnapshotRevalidationTests.swift": "9a04de294798e25c538eda64a55484d40401df34d7bc2d23040458124fa18fac",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorStaleRevalidationTests.swift": "601d4ec8a8aaf0b138690a1b4bdff2307b7e066f9c89f9ad39c4d1a27d7420da"
+  },
+  "identicalAtDetected79d982f9": {
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Models/CMUXAuthState.swift": true,
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Persistence/CMUXAuthSessionCache.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+SessionPriming.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthError+DisplaySafe.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorLockedStorageTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSessionValidityTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSessionSnapshotRevalidationTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorStaleRevalidationTests.swift": true
+  },
+  "scope": "Source restore distinguishes absent credentials from unavailable protected storage and preserves cached session after transient failures. Android encrypted-document read/mutation preservation and helper/FCM guards are implemented here. The complete priming, cached-user, launch/foreground validation, loading, storage-unlock and session-generation behavior is not yet ported or accepted."
+}

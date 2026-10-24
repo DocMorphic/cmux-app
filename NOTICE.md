@@ -1,5 +1,11 @@
 # Attribution
 
+Session storage availability follows the original cmux distinction between
+missing and unavailable protected credentials. Whole source policy/test bindings
+are in third_party/cmux-signin/storage-availability-reference.json. Android
+Keystore/ciphertext preservation is an adaptation; the full cached/restoring
+authentication coordinator is not claimed as ported.
+
 The sign-in methods card adapts the pinned original SignInView, provider and
 helper views. `third_party/cmux-signin/methods-reference.json` records whole-source
 bindings. Google and GitHub assets preserve the upstream SVG paths/colors;

@@ -110,4 +110,65 @@ class PhoneHelperMaintenanceStorageTest {
             assertFalse(NativeCredentialStore(context).load()!!.has(PhoneHelperEnrollmentState.RECEIPTS))
         }
     }
+    @Test fun unreadablePrimaryAccountCannotRetireOrRewriteItsHelperMaintenanceLedger() {
+        IsolatedContext(InstrumentationRegistry.getInstrumentation().targetContext).use { context ->
+            val seeded=seed(context)
+            val account=context.getSharedPreferences("native_cmux",Context.MODE_PRIVATE)
+            val savedAccount=account.getString("state",null)!!
+            val maintenance=context.getSharedPreferences("phone_helper_maintenance",Context.MODE_PRIVATE)
+            val savedLedger=maintenance.getString("state",null)!!
+            assertTrue(account.edit().putString("state","unreadable fixture ciphertext").commit())
+            try { kotlinx.coroutines.runBlocking { PhoneHelperMaintenanceWork.recover(context) }; fail("Unknown account must not mean logout") }
+            catch (_:NativeCredentialReadException) { }
+            assertEquals("unreadable fixture ciphertext",account.getString("state",null))
+            assertEquals(savedLedger,maintenance.getString("state",null))
+            assertTrue(account.edit().putString("state",savedAccount).commit())
+            val recovered=NativeCredentialStore(context).load()!!
+            assertEquals(seeded.receipt.getString("id"),recovered.getJSONArray(PhoneHelperEnrollmentState.RECEIPTS).getJSONObject(0).getString("id"))
+            assertEquals(savedLedger,maintenance.getString("state",null))
+        }
+    }
+
+    @Test fun unreadableMaintenanceLedgerCannotCommitACompetingAccountProjection() {
+        IsolatedContext(InstrumentationRegistry.getInstrumentation().targetContext).use { context ->
+            seed(context)
+            val account=context.getSharedPreferences("native_cmux",Context.MODE_PRIVATE)
+            val savedAccount=account.getString("state",null)!!
+            val maintenance=context.getSharedPreferences("phone_helper_maintenance",Context.MODE_PRIVATE)
+            val savedLedger=maintenance.getString("state",null)!!
+            assertTrue(maintenance.edit().putString("state","unreadable fixture ledger").commit())
+            try { NativeCredentialStore(context).update { it.remove(PhoneHelperEnrollmentState.RECEIPTS);it.remove(PhonePushHelperState.KEY) }; fail("Unknown ledger must stop the account commit") }
+            catch (_:NativeCredentialReadException) { }
+            assertEquals(savedAccount,account.getString("state",null))
+            assertEquals("unreadable fixture ledger",maintenance.getString("state",null))
+            assertTrue(maintenance.edit().putString("state",savedLedger).commit())
+            assertEquals(1,rows(context).length());assertNotNull(NativeCredentialStore(context).load())
+        }
+    }
+
+    @Test fun unreadableFcmGrantCannotMeanOptOutOrRetireThePrivateHelper() {
+        IsolatedContext(InstrumentationRegistry.getInstrumentation().targetContext).use { context ->
+            val seeded=seed(context)
+            val tokens=NativeCredentialStore(context,"phone_fcm_tokens")
+            tokens.update { PhoneFcmTokenState(it).authorize(seeded.team.login,PhoneFcmProject.parse(seeded.receipt.getJSONObject("project"))) }
+            val fcm=context.getSharedPreferences("phone_fcm_tokens",Context.MODE_PRIVATE)
+            val savedFcm=fcm.getString("state",null)!!
+            val account=context.getSharedPreferences("native_cmux",Context.MODE_PRIVATE)
+            val savedAccount=account.getString("state",null)!!
+            val maintenance=context.getSharedPreferences("phone_helper_maintenance",Context.MODE_PRIVATE)
+            val savedLedger=maintenance.getString("state",null)!!
+            assertTrue(fcm.edit().putString("state","unreadable fixture FCM grant").commit())
+            try { PhoneFcmTokens.snapshot(context);fail("Unknown grant is not a missing grant") }
+            catch (_:NativeCredentialReadException) { }
+            try { kotlinx.coroutines.runBlocking { PhoneHelperMaintenanceWork.recover(context) };fail("Unknown grant must not trigger retirement") }
+            catch (_:NativeCredentialReadException) { }
+            val recovery=PhoneFcmTokens.recover(context);kotlinx.coroutines.runBlocking { recovery.join() }
+            assertTrue(recovery.isCompleted);assertFalse("Background recovery must contain read failures",recovery.isCancelled)
+            assertEquals(savedAccount,account.getString("state",null));assertEquals(savedLedger,maintenance.getString("state",null))
+            assertEquals("unreadable fixture FCM grant",fcm.getString("state",null))
+            assertTrue(fcm.edit().putString("state",savedFcm).commit())
+            assertNotNull(tokens.load());assertEquals(1,rows(context).length())
+        }
+    }
+
 }

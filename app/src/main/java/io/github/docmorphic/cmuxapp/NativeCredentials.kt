@@ -14,6 +14,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.security.KeyStore
+import java.security.KeyStoreException
 import java.util.UUID
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -21,13 +22,21 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** Android Keystore-backed storage for the official cmux pairing and account session. */
-class NativeCredentialStore(context: Context, storageName: String = "native_cmux") {
+class NativeCredentialStore private constructor(context: Context, storageName: String,
+    private val keyAlias: String, private val keyProviderOverride: (() -> SecretKey)?) {
+    constructor(context: Context, storageName: String = "native_cmux") : this(context, storageName, "cmux_native_v1", null)
     private val applicationContext = context.applicationContext
     private val primaryAccount = storageName == "native_cmux"
     // Team admission is called both inside credential transactions and before
     // credential reads. Share their monitor to avoid reversing two lock orders.
     internal val accountStateLock: Any get() = storageLock
     private val preferences = context.getSharedPreferences(storageName, Context.MODE_PRIVATE)
+    private val documentKey = context.applicationInfo.dataDir + "/" + storageName
+    private val readStatus = synchronized(storageLock) {
+        readStates.getOrPut(documentKey) { kotlinx.coroutines.flow.MutableStateFlow(NativeCredentialReadStatus.UNCHECKED) }
+    }
+    /** An unreadable encrypted document is distinct from an absent document. */
+    internal val readability: kotlinx.coroutines.flow.StateFlow<NativeCredentialReadStatus> get() = readStatus
     private val changeState = synchronized(storageLock) {
         changes.getOrPut(context.applicationInfo.dataDir + "/" + storageName) { kotlinx.coroutines.flow.MutableStateFlow(0L) }
     }
@@ -150,7 +159,14 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
             TailscaleGrantStore.removeComputer(state, team, target.deviceId, target.buildTag)
         }
 
-    fun load(): JSONObject? = synchronized(storageLock) { readState() }
+    // Existing read-only consumers may lack a snapshot while storage is unavailable.
+    // They can observe readability; mutations must use the strict read below.
+    fun load(): JSONObject? = synchronized(storageLock) {
+        try { readState() } catch (_: NativeCredentialReadException) { null }
+    }
+
+    /** Absence is usable; unavailable data must never become an empty mutation baseline. */
+    internal fun requireReadable(): JSONObject? = synchronized(storageLock) { readState() }
 
     /** Tab preferences share the credential transaction so retired logins cannot recreate account state. */
     internal fun lastWorkspaceTab(login: String, key: NativeWorkspaceTabKey): NativeWorkspaceTab? = synchronized(storageLock) {
@@ -179,38 +195,48 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
 
     /** A login incarnation, independent of access-token refresh and Activity recreation. */
     internal fun taskSession(): String? = synchronized(storageLock) {
-        val state = load() ?: return@synchronized null
-        if (NativeSignInCompletion.isPending(state)) return@synchronized null
-        if (state.optString("refresh_token").isBlank()) return@synchronized null
-        state.optString("task_session").takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString().also { session ->
+        taskSessionFrom(load())
+    }
+    /** Destructive background reconciliation must distinguish unknown from signed out. */
+    internal fun requireReadableTaskSession(): String? = synchronized(storageLock) { taskSessionFrom(readState()) }
+    private fun taskSessionFrom(state: JSONObject?): String? {
+        if (state == null || NativeSignInCompletion.isPending(state) || state.optString("refresh_token").isBlank()) return null
+        return state.optString("task_session").takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString().also { session ->
             update { it.put("task_session", session) }
         }
     }
 
     private fun readState(): JSONObject? {
-        val encoded = preferences.getString("state", null) ?: return null
         return try {
+            val encoded = preferences.getString("state", null) ?: run {
+                readStatus.value = NativeCredentialReadStatus.EMPTY
+                return null
+            }
             val bytes = Base64.decode(encoded, Base64.NO_WRAP)
             require(bytes.size > 12)
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
-            JSONObject(String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), Charsets.UTF_8))
+            cipher.init(Cipher.DECRYPT_MODE, key(createIfMissing = false), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
+            JSONObject(String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), Charsets.UTF_8)).also {
+                readStatus.value = NativeCredentialReadStatus.AVAILABLE
+            }
         } catch (_: Exception) {
-            // Corrupt ciphertext cannot supply cleanup credentials; avoid recursively reading it in clear().
-            preferences.edit().remove("state").apply(); changeState.value++
-            null
+            // Never delete or replace persisted state on a read verdict, including
+            // temporarily unavailable Keystore, missing keys or malformed data.
+            // Parser exceptions can contain decrypted text: do not retain a cause.
+            readStatus.value = NativeCredentialReadStatus.UNAVAILABLE
+            throw NativeCredentialReadException()
         }
     }
 
     fun update(transform: (JSONObject) -> Unit): Unit = synchronized(storageLock) {
-        val value = load() ?: JSONObject()
+        val value = readState() ?: JSONObject()
         transform(value)
         save(value)
     }
 
     /** The maintenance ledger already committed this projection; do not re-import deliberately retired keys. */
     internal fun updateFromMaintenance(transform: (JSONObject) -> Unit): Unit = synchronized(storageLock) {
-        val value = load() ?: JSONObject()
+        val value = readState() ?: JSONObject()
         transform(value)
         save(value, preserveHelpers = false)
     }
@@ -246,9 +272,10 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         PhoneReplyOutbox(value).prune()
         if (primaryAccount && preserveHelpers) PhoneHelperMaintenanceWork.preserve(applicationContext, value, stageRetirement = true)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, key())
+        cipher.init(Cipher.ENCRYPT_MODE, key(createIfMissing = true))
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(value.toString().toByteArray()), Base64.NO_WRAP)
         check(preferences.edit().putString("state", encoded).commit()) { "Could not save account" }
+        readStatus.value = NativeCredentialReadStatus.AVAILABLE
         changeState.value++
     }
 
@@ -258,6 +285,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
             PhoneHelperMaintenanceWork.preserve(applicationContext, JSONObject(), stageRetirement = true)
         }
         check(preferences.edit().remove("state").commit()) { "Could not clear account" }
+        readStatus.value = NativeCredentialReadStatus.EMPTY
         changeState.value++
     }
 
@@ -267,14 +295,19 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         private val storageLock = Any()
         private val changes = mutableMapOf<String, kotlinx.coroutines.flow.MutableStateFlow<Long>>()
         private val accountWork = mutableMapOf<String, NativeAuthWork>()
+        private val readStates = mutableMapOf<String, kotlinx.coroutines.flow.MutableStateFlow<NativeCredentialReadStatus>>()
+        internal fun withKeyProvider(context: Context, storageName: String, keyAlias: String,
+            provider: (() -> SecretKey)? = null) = NativeCredentialStore(context, storageName, keyAlias, provider)
     }
 
-    private fun key(): SecretKey {
+    private fun key(createIfMissing: Boolean): SecretKey {
+        keyProviderOverride?.let { return it() }
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (store.getKey("cmux_native_v1", null) as? SecretKey)?.let { return it }
+        (store.getKey(keyAlias, null) as? SecretKey)?.let { return it }
+        if (!createIfMissing) throw KeyStoreException("Saved account key is unavailable")
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").apply {
             init(KeyGenParameterSpec.Builder(
-                "cmux_native_v1",
+                keyAlias,
                 KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
             ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)

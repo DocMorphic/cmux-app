@@ -1,5 +1,67 @@
 # Native sign-in
 
+## Encrypted read preservation and complete source references advanced — 2026-10-24
+
+NativeCredentialStore no longer deletes its encrypted document after a read,
+Keystore, GCM, JSON or preference-type failure. Reads never generate replacement
+keys. Read availability is separate from credential revisions; unavailable is
+not an absent document. Strict mutation snapshots stop updates and conditional
+account clears before they can replace unreadable account/pairing/push data.
+Failures expose a sanitized message with no parser/crypto plaintext cause.
+The existing key alias, cipher format and stored account schema are unchanged.
+
+Helper maintenance and enrollment now require readable snapshots. FCM grant,
+owner and cleanup reconciliation also stop on unknown storage instead of treating
+it as logout or opt-out. Background recovery contains those failures. Six native
+crypto cases use isolated real Keystore keys and encrypted documents; three new
+maintenance cases protect unknown account, ledger and FCM-grant boundaries.
+
+Final full JVM:3229 total,3225 pass,4 skipped SSH cases,0 failures. The first run
+had a feed timing failure; that case passed alone and the final full run passed
+without changing feed code/tests. Final owned API36 cohort:41/41 in105.258s,
+including existing auth/methods/code/error/recovery/recreation, encrypted profile,
+push identity and helper-maintenance cases. Crash empty, no preflight ANR,
+settings/window restored, emulator exit0. Hashes/bindings:
+recovery-20261023/native-credential-read-checkpoint.json.
+
+Original iOS reference run40056063765 succeeded: all10 scenes pass actual
+source/traits/control/PNG association, including tablet landscape. Actual fixed/
+current screen coordinates, native pixels, window conversion, UIImage orientation
+and CGImage size resolve the earlier mismatch without rotating/synthesizing PNGs.
+Local re-verification is idempotent and still rejects genuine duplicate scenes.
+This is an offline original-UI reference, not full app or Android parity proof.
+
+The full cached-user/has-tokens startup/foreground coordinator, storage-unavailable
+UI/unlock retry, local-first sign-out while storage is unreadable, callbacks that
+arrive while FCM storage is unavailable, exact membership/loading/publication and
+post-sign-in boundaries remain open. So do native paint/window/accessibility,
+real provider/browser, physical Pixel/Mac and every broader parity gate.
+No phone, Mac, live account, signed delivery or global source pin changed.
+Goal remains active; last known Pixel712 and frozen signed722 are unchanged.
+
+Accepted runtime: native-credential-read-runtime-v1/; final JVM report:
+credential-read-jvm-v2/. Earlier full/isolated reports are diagnostics.
+App APK SHA256: b99bd4f3f9160abb498c36095a92a09ff8b9aaf76091f565fc0cb2f5cd33ce05.
+Test APK SHA256: 00ce4a24a82f2003c2464adefd077d3ece2b2b7ff20aac2fae4a9ad9b38c871e.
+
+Read-only legacy callers still receive no snapshot when a document cannot be
+read; readability distinguishes this from empty storage. The complete auth/root
+integration must use that distinction to preserve cached presentation and avoid
+a false signed-out state. It is not accepted as complete here. All real device
+first-unlock/Keystore availability, foreground restoration and notification
+recovery still need acceptance. Missing/corrupt data is preserved, not magically
+recoverable; safe user-facing recovery remains open. The removed key in the
+native test belonged only to a unique fixture alias; the app key was untouched.
+
+storage-availability-reference.json binds nine whole source policy/test files,
+all unchanged at detected79. The source has four normal priming combinations of
+cached-user presence and a separate has-tokens hint; current NativeAccount still
+uses persisted refresh presence outside pending sign-ins. Its full coordinator
+has not been replaced. The original publishes a verified user before fallible
+team refresh and preserves cached state on transient live-validation failures;
+those publication/validation boundaries must be ported, not replaced by an
+Android-only authority policy. Global source pins are unchanged.
+
 ## Original methods card and editable busy email advanced — 2026-10-24
 
 The methods screen now follows the original bottom card, brand, provider order,

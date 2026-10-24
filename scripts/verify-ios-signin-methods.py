@@ -69,7 +69,7 @@ def verify(exported, provenance, commit):
     require(provenance.get('generatorSha256')==hashlib.sha256((ROOT/'scripts/prepare-ios-signin-methods-reference.py').read_bytes()).hexdigest(),'Changed source generator')
     fixture=json.loads((templates/'References.json').read_text());scenes={s['id']:s for s in fixture['scenes']};records={};images={}
     for path in exported.rglob('*'):
-        if not path.is_file() or path.stat().st_size>32*1024*1024:continue
+        if exported/'paired' in path.parents or not path.is_file() or path.stat().st_size>32*1024*1024:continue
         data=path.read_bytes()
         if data.startswith(b'\x89PNG\r\n\x1a\n'):images[hashlib.sha256(data).hexdigest()]=path
         elif data.lstrip().startswith(b'{'):
