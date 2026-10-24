@@ -221,18 +221,18 @@ internal class NativeOAuthClient(private val project: String, private val publis
                             buffer.write(bytes, 0, size)
                         }
                     }
-                    val raw = buffer.toString("UTF-8")
+                    val raw = buffer.toByteArray()
                     val status = if(rawHttpStatus) response.code else
                         (response.header("x-hexclave-actual-status") ?: response.header("x-stack-actual-status"))?.toIntOrNull() ?: response.code
                     val known = if(rawHttpStatus) null else response.header("x-hexclave-known-error") ?: response.header("x-stack-known-error")
                     if (status !in 200..299 || (successStatus != null && status != successStatus) || !known.isNullOrBlank()) {
-                        val parsed = runCatching { JSONObject(raw) }.getOrNull()
+                        val parsed = runCatching { NativeAuthJson.objectValue(raw) }.getOrNull()
                         if (accountRequest && status in unauthorizedStatuses) throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
                         val code = known ?: (parsed?.opt("error") as? String) ?: (parsed?.opt("code") as? String)
                             ?: if (status == 429) "RATE_LIMITED" else if (accountRequest) "SERVER_ERROR" else "OAUTH_ERROR"
                         throw NativeAccountRequestFailure(code, false, "OAuth request failed")
                     }
-                    if(discardBody) JSONObject() else runCatching { JSONObject(raw) }.getOrElse { if (missingUserJson) throw NativeMissingUserPayload(); throw NativeSignInFailure(if (accountRequest) NativeSignInError.SERVER_ERROR else NativeSignInError.BROWSER_SIGN_IN_FAILED) }
+                    if(discardBody) JSONObject() else runCatching { NativeAuthJson.objectValue(raw) }.getOrElse { if (missingUserJson) throw NativeMissingUserPayload(); throw NativeSignInFailure(if (accountRequest) NativeSignInError.SERVER_ERROR else NativeSignInError.BROWSER_SIGN_IN_FAILED) }
                 } }
                 if (continuation.isActive) result.fold(continuation::resume, continuation::resumeWithException)
             }

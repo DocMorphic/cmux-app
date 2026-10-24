@@ -1,3 +1,37 @@
+## SDK response-byte decoding and cache extensions reconciled — 2026-10-24
+
+SDK response and error JSON now decode from bytes with measured Foundation
+semantics: encodings, duplicate-first keys, permitted trailing commas, rejected
+trailing material/controls/Unicode and numeric eligibility boundaries. Invalid
+user/list outcomes retain their existing separate nil/error/loaded-empty behavior.
+Malformed legacy cached-user selection extensions cannot discard the shared
+account or override its independent remembered team choice. Backend and terminal/
+cloud decoders retain their separate existing contracts.
+
+Full JVM: 3,454 total in 458 suites, 3,450 passed, four existing SSH skips, zero
+failures/errors. Owned API 36: 201/201 in 357.094 seconds, six new cases plus 195
+prior regressions. The exact 368-case original wire corpus executes on ART; eight
+shared-cache cases execute in JVM tests. Actual account/Keystore/HTTP cases cover
+encoded replies, duplicate flags through recovery, invalid-list scope retirement,
+cache extensions and primary nil-user clearing with pairing/key retention. The
+real 60-second phase returned at 60,015ms with ciphertext/pairing intact and no
+PATCH. Crash log empty, no preflight ANR, restored settings/window, owned exit0.
+The receipt binds 72 local inputs, 41 originals, installed APKs and the corpus
+asset hash. Independent reference regeneration is byte-identical.
+
+The oracle is measured macOS26.5.2/CoreFoundation5026.5, not an iOS-runtime proof;
+this host has no Xcode/iOS Simulator SDK installed. Full parity remains active:
+iOS Foundation equivalence, arbitrary numeric serialization/metadata consumers,
+other parser/Codable paths, complete SDK transport/error/retry/nonce, remaining
+backend/token/mutation bounds and identity/worker adoption, image/demo UI, full
+auth-project reset, consent-aware reporting/rate integration, actual locked
+storage/OS/death, physical Pixel/Mac/provider/helper/Firebase, matched full UI/
+accessibility and signed release remain open. No physical install, real account/
+pairing/signing material, global pin or frozen signed 722 changed.
+
+Details: [SDK JSON response bytes](SDK_JSON_BYTES.md).
+Evidence: `captures/recovery-20261023/sdk-json-checkpoint.json`.
+
 ## SDK user/team projections and empty-id authority reconciled — 2026-10-24
 
 SDK user/team fields now preserve raw strings and defaults, including repeated

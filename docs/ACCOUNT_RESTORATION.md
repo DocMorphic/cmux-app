@@ -67,6 +67,12 @@ empty membership and retires prior scope/proofs. Raw/default user fields and
 encrypted profile-image/demo metadata now follow the source projections. A verified
 empty-id user can be authenticated and load teams but has no connection identity;
 cached presentation alone cannot supply the explicit validation-generation proof.
+[SDK response bytes](SDK_JSON_BYTES.md) now use a shared byte decoder for user,
+membership and error JSON. First-duplicate eligibility, encoded replies and
+invalid-body nil/empty outcomes are covered through actual account restoration.
+A malformed legacy cached-user `selected` extension cannot discard the account
+card or override the independent remembered preference. iOS-runtime equivalence
+and complete SDK transport/error handling remain separate gates.
 The process owner now schedules [team-scope recovery](TEAM_SCOPE_RECOVERY.md)
 for missing membership, with source backoff/rate-limit rules and a healthy
 empty-list distinction. Private workers do not start indefinite recovery loops. Sign-out/account replacement

@@ -24,6 +24,8 @@ internal object NativeAuthUserCache {
         }
         val demo=value.opt("demonstration_content_enabled")
         require(demo==null || demo===JSONObject.NULL || demo is Boolean)
-        NativeSignInUser(id,optional("name"),optional("email"),optional("selected"),optional("profile_image_url"),demo==true)
+        // This legacy SDK-selection extension is not part of the shared cached user.
+        // A malformed extension cannot discard its identity or override remembered team choice.
+        NativeSignInUser(id,optional("name"),optional("email"),value.opt("selected") as? String,optional("profile_image_url"),demo==true)
     }.getOrNull()
 }

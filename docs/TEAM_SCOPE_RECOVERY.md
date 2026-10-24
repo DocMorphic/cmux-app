@@ -100,7 +100,9 @@ covers receipt/publication storage; actual locked-storage/death and full project
 reset remain open. [SDK projections](SDK_USER_TEAM_PROJECTIONS.md) cover raw/default
 fields, common malformed successful lists and model/cache bounds. Recovery now
 accepts auth-generation outcomes for verified empty-id users without inventing a
-connection identity. Complete JSON lexical and transport/retry behavior remain open.
+connection identity. [SDK response bytes](SDK_JSON_BYTES.md) adds measured grammar,
+encodings and first-duplicate eligibility through actual restore/recovery. Actual
+iOS-runtime equivalence and complete transport/retry behavior remain open.
 
 The reporting producer is not the original consent-aware aggregation/recovery
 telemetry consumer. Interactive sign-in's separate rate-retry flow is outside

@@ -103,9 +103,11 @@ both runtime directories, original reference regeneration and
 
 ## Remaining scope
 
-This is not full SDK or app parity. Foundation versus Android JSON lexical,
-Unicode/number/error behavior beyond the executed matrix remains open; Android's
-general JSONObject parser still accepts some forms Foundation rejects. Complete
+This is not full SDK or app parity. [The response-byte follow-up](SDK_JSON_BYTES.md)
+replaces platform JSONObject parsing on the SDK response paths and executes a
+larger wire corpus on the host Foundation and Android. iOS Foundation equivalence,
+general numeric serialization/metadata consumers and other parser/Codable paths
+remain open. Complete
 SDK transport/error/retry/nonce semantics, remaining backend/token/mutation bounds
 and full identity/backend/worker consumer adoption also remain open. Preserving
 profile-image/demo fields does not close their downstream UI/demo-content gates.

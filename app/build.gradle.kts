@@ -186,6 +186,7 @@ android {
     sourceSets.getByName("main").assets.directories.add(simulatorNativeRoot.dir("notices").asFile.path)
     sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/terminal")
     sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/browser")
+    sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/auth")
 
     packaging.resources {
         merges += "META-INF/LICENSE.md"

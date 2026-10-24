@@ -114,7 +114,9 @@ cooldown, account replacement, cancellation and private WorkManager notices.
 [The SDK projection follow-up](SDK_USER_TEAM_PROJECTIONS.md) covers exposed
 user/team defaults, raw strings, duplicate/empty rows, common successful malformed
 list bodies and the former Android-only successful response/field/row bounds.
-Complete JSON lexical/Unicode/number semantics and SDK transport/error/retry
+[The byte-decoder follow-up](SDK_JSON_BYTES.md) adds the measured grammar, encoding
+and numeric-eligibility projections on SDK response paths. iOS-runtime equivalence,
+general metadata/numeric serialization and complete SDK transport/error/retry
 behavior remain open. Choice-versus-card lifetime is covered in the linked follow-up;
 actual OS/storage acceptance and complete auth-project reset remain open.
 The endpoint-routed runtime fixture separates GET-user and other reply queues so

@@ -128,7 +128,8 @@ published-profile projection. [Independent selection lifetime](TEAM_SELECTION_LI
 covers receipt/publication storage, with actual locked-storage/death and full
 project reset still open. [SDK projections](SDK_USER_TEAM_PROJECTIONS.md) cover raw/default
 fields, model/cache metadata, repeated/empty rows and former successful body bounds.
-Complete JSON lexical/Unicode/number semantics and
+[SDK response bytes](SDK_JSON_BYTES.md) adds measured grammar/encoding and numeric
+eligibility projections. Actual iOS-runtime equivalence and
 transport/retry semantics, worker retry/rate consumers, complete identity/backend
 adoption and consent-aware reporting remain open.
 Physical Pixel/Mac, actual provider/helper/Firebase, signed-release and matched

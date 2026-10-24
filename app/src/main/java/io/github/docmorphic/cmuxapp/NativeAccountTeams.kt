@@ -539,8 +539,10 @@ internal class NativeAccountTeams(
                         if (backend && body.contentLength() > MAX_REPLY) throw IOException("Account response too large")
                         val source = body.source()
                         if (backend && source.request(MAX_REPLY + 1L)) throw IOException("Account response too large")
-                        val raw=source.readUtf8()
-                        if(!parseBody)JSONObject() else try {JSONObject(raw)} catch(failure:Exception) {
+                        val raw=source.readByteArray()
+                        if(!parseBody)JSONObject() else try {
+                            if(backend)JSONObject(raw.toString(Charsets.UTF_8))else NativeAuthJson.objectValue(raw)
+                        } catch(failure:Exception) {
                             if(emptyObjectOnInvalidJson)JSONObject() else throw failure
                         }
                     }

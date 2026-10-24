@@ -3,17 +3,20 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.*
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.RecordedRequest
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
 class NativeTeamIdentityTest {
     private val a=NativeSignInUser("a","A",null,"one")
     private fun teams()=MockResponse().setBody("{\"items\":[{\"id\":\"one\",\"display_name\":\"One\"}]}")
     private fun user(id:String)=MockResponse().setBody("{\"id\":\"$id\",\"selected_team\":{\"id\":\"one\"}}")
-    private fun MockWebServer.membership(){repeat(2){enqueue(user("a"))};enqueue(teams())}
+    private fun MockWebServer.membership(){teamUsers(2){user("a")};enqueue(teams())}
     @Test fun publishedPrincipalChangesCloseAdmissionAndContinuationBeforeReconciliationAndCannotAbaRevive()=runBlocking<Unit> {
         MockWebServer().use { server ->
             val identity=AtomicReference(NativeAuthIdentity(0,"a"))
@@ -52,8 +55,9 @@ class NativeTeamIdentityTest {
             val identity=AtomicReference(NativeAuthIdentity(0,"a"))
             NativeAccountTeams({"token"},{"login"},server.url("/api/v1/"),sessionIdentity=identity::get).use { controller ->
                 server.membership();val old=checkNotNull(controller.refreshAfterSignIn("login",a).scope)
-                val proof=checkNotNull(controller.captureContinuation(old));repeat(2){server.enqueue(user("b"))}
-                assertTrue(runCatching {controller.refresh()}.isFailure);assertEquals(5,server.requestCount)
+                val proof=checkNotNull(controller.captureContinuation(old));server.teamUsers(2){user("b")}
+                assertTrue(runCatching {controller.refresh()}.isFailure);assertTrue(server.requestCount in 4..5)
+                val calls=List(server.requestCount){server.takeRequest()};assertTrue(calls.drop(3).all{it.path=="/api/v1/users/me"})
                 assertFalse(controller.isCurrent(old));assertFalse(controller.allowsContinuation(proof));assertNull(controller.state.value.scope)
             }
         }
@@ -76,13 +80,23 @@ class NativeTeamIdentityTest {
             val stateLock=Any()
             val cache=NativeAccountProfileCache({synchronized(stateLock){root}},{change->synchronized(stateLock){root=JSONObject(root.toString()).also(change)}})
             NativeAccountTeams({"token"},{"login"},server.url("/api/v1/"),cache=cache,lock=stateLock,sessionIdentity=identity::get).use { controller ->
-                repeat(2){server.enqueue(user("a"))};server.enqueue(teams().setBodyDelay(200,TimeUnit.MILLISECONDS))
+                val entered=CountDownLatch(1);val release=CountDownLatch(1)
+                server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                    if(request.path=="/api/v1/users/me")return user("a")
+                    if(request.path=="/api/v1/teams?user_id=me"){entered.countDown();check(release.await(5,TimeUnit.SECONDS));return teams()}
+                    return MockResponse().setResponseCode(599)
+                }}
                 val old=async(Dispatchers.IO) { runCatching {controller.refreshAfterSignIn("login",a)} }
-                assertEquals("/api/v1/teams?user_id=me",withContext(Dispatchers.IO) {List(3){checkNotNull(server.takeRequest(2,TimeUnit.SECONDS))}.last().path})
+                try {
+                assertTrue(withContext(Dispatchers.IO){entered.await(3,TimeUnit.SECONDS)})
+                val calls=withContext(Dispatchers.IO){List(3){checkNotNull(server.takeRequest(2,TimeUnit.SECONDS))}}
+                assertEquals(2,calls.count{it.path=="/api/v1/users/me"});assertEquals(1,calls.count{it.path=="/api/v1/teams?user_id=me"})
                 synchronized(stateLock) { NativeAccountProfileCache.writeVerifiedUser(root,"login",environment,a.copy(id="b",name="B"));identity.set(NativeAuthIdentity(1,"b")) }
+                release.countDown()
                 assertTrue(old.await().isFailure);assertNull(controller.state.value.scope)
                 assertEquals("b",cache.read("login",environment)?.userId)
                 controller.reconcileLogin();assertEquals("b",controller.state.value.userId);assertNull(controller.state.value.scope)
+                }finally{release.countDown();old.cancelAndJoin()}
             }
         }
     }

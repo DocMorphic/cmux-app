@@ -92,7 +92,9 @@ Evidence: `team-choice-build-v3.log`, `team-choice-jvm-v3`,
 This closes the identified choice-versus-card receipt/publication lifetime gap,
 not full app parity. [SDK user/team projections](SDK_USER_TEAM_PROJECTIONS.md)
 cover the default fields/raw strings, model/cache metadata and former successful
-response/row bounds. Complete JSON lexical and transport/retry behavior,
+response/row bounds. [SDK response bytes](SDK_JSON_BYTES.md) adds measured byte
+decoding and tolerates malformed cached-selection extensions without losing the
+shared account. iOS-runtime equivalence and complete transport/retry behavior,
 auth-project token/backend adoption, worker retry/rate/
 reporting integration, actual locked Keystore, OS sleep/network loss/process
 death, physical Pixel/Mac/provider/helper/Firebase, matched full UI/accessibility
