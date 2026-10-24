@@ -1,0 +1,4010 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/StackClientApp.swift": "1013bedc8099496b006660e5e5e01095631acd69cd86fd2d96dd1ee44edb01b4",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Errors.swift": "bde908319a1277e43a4e86398d1c05649a93300322326122f5d95297433a4bc5",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/User.swift": "a9a6a06f7e04ca7a6c3f3ce0edbb88e59aae8e9d0c2758aac0b54dc138a3c33e",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift": "5b9c73c8b2b66c91ed994e7b4881a8771812c551604dd261d418bcd41696c76f",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/Team.swift": "563d789bb25bf51ca4f6914227082f5c4d3cd5e8d84f2859e285cecab7730f9b",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Models/CMUXAuthUser.swift": "efb7028c38c08ec70e2dc53449b022c33cb2e073eed663f9d84bf8f63828de08",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Models/CMUXAuthTeam.swift": "67d9440f7c227320b16925a1cfb84b1e00b329abadddd71ee8d9e4b86904e957",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift": "f207a5d02577cc89e1e34ad08a019f200a5bdd96817ba08f9695f10415461845",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthError.swift": "d354ed3803800f3d9bb6e1d23ac45ab8f308f256d618a79176b57b704c0da790",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthError+DisplaySafe.swift": "f47aa08877c19ce909c356a22e09f0afd8a2112ebc86416d44bdf648ca56dbed",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthError+FailureDetail.swift": "ec8d89dc521bf8cb3a6e692b1d59614e1b1dcc57d78ba76b55b7c881ab781342",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/CachedSessionValidationFailureAction.swift": "0d19f7dcd6db7fe408ca038646ff9928a754b4544d65aefb2fb6245b7f9e3772"
+  },
+  "executedDeclarations": [
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift",
+      "signature": "public var id:",
+      "sha256": "357ba4f1ce483a1a47b81222250ed677db13e8a40dac00371e28274dc4c150cf"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift",
+      "signature": "public var displayName:",
+      "sha256": "79a719807f21584657255e28bebab642365e84168e28f8ba2b7dde7f1a3607e4"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift",
+      "signature": "public var primaryEmail:",
+      "sha256": "30fd9dd91c40858992490bae88a9facb06dc42f480a8516e7e0694bc29cd3921"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift",
+      "signature": "public var profileImageUrl:",
+      "sha256": "50474ff8d8c5376573589d64ce8c922f031e8e4809978199dca18e5c650f0b7b"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift",
+      "signature": "public var clientReadOnlyMetadata:",
+      "sha256": "34261783f8c46f15099b45e3c458acad7ed8ffbf11fcc9dfb1263d8e039b194b"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift",
+      "signature": "public var isAnonymous:",
+      "sha256": "3134d53b824541ac864850c3495b8a2b7fc5bf190c7ef6aafceb7ee9bdd91bd3"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift",
+      "signature": "public var isRestricted:",
+      "sha256": "f50baff90ce6a50895f31a03f5b8ccf068755112bddf579d810338dd3b48a35b"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift",
+      "signature": "init(client: APIClient, json: [String: Any])",
+      "sha256": "bdb1d44f539180de2a28614ddbfa9e7f3241250cca1529f2bf966c51ad6ef92d"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift",
+      "signature": "public func listTeams()",
+      "sha256": "6968646d421f9c5faea71376c2c3c4cdef31face7a88415c00aaa6c7154b95e7"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/Team.swift",
+      "signature": "init(client: APIClient, json: [String: Any])",
+      "sha256": "3b3d9c55ddd9c3410b8adbc550941d2931be6f9d2b6b928a596be01ffe7ffc08"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/StackClientApp.swift",
+      "signature": "public func getUser(or:",
+      "sha256": "28984f04b87534e9f10cdbd821238c24cd8f56a5929a121e469a2983f2662fcb"
+    },
+    {
+      "file": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/StackClientApp.swift",
+      "signature": "private func handleNoUser(or:",
+      "sha256": "d8592e8514b5c888af631cdc456db29f2d4947ff50c5f2ba2c4c11f35486cb9d"
+    },
+    {
+      "file": "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift",
+      "signature": "private static func mapped(",
+      "sha256": "975c30bb6c5705910684545ea02ea633809aa1ecc697c9b6a59d69628b1d3d8b"
+    },
+    {
+      "file": "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift",
+      "signature": "extension CurrentUser {",
+      "sha256": "918ceae41be5ca919b503aca7c2eef67c870f433b9627eadfb5b55784efc5bb2"
+    },
+    {
+      "file": "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift",
+      "signature": "public func currentUser(throwOnMissing:",
+      "sha256": "324607681d5a2811ad7bee74e8265cb5a49b774e733d48b63af4345aa1997dba"
+    },
+    {
+      "file": "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift",
+      "signature": "public func listTeams()",
+      "sha256": "67bdf3ba178c615a7aa5da17bfbfd7a48300d55c31854dee7c4fe4536ab972b1"
+    },
+    {
+      "file": "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift",
+      "signature": "public func selectedTeamID()",
+      "sha256": "b3fed37608070d1213f3a71b94775887e15b5d50ae6bdb36fc060ad52ea42c8b"
+    },
+    {
+      "file": "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift",
+      "signature": "private func completeSignIn(flow:",
+      "sha256": "66e79231ac0740eafebd96dad558ee65a008454463c6d17a0ece8f370a64faf5"
+    }
+  ],
+  "seams": "Complete unchanged getUser/handleNoUser, SDK user/team initializers/getters/listTeams, StackAuthClient currentUser/listTeams/selectedTeamID/mapped/demo extension, and coordinator completeSignIn execute. Whole original models, Errors, AuthError/display-safe/failure-detail and validation-action sources compile in one module; module imports are flattened. Inert API supplies token presence and planned response/error; anonymous signup is outside the app corpus. Coordinator phase timing/publication/receipt state is inert: this does not prove token freshness, transport/refresh, ownership races, timers, UI rendering or iOS-runtime behavior.",
+  "cases": [
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "valid",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "valid",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "valid",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "valid",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "valid",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "teams": [
+          {
+            "id": "team",
+            "name": "Team"
+          }
+        ]
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "valid",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "valid",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "missing-token",
+        "hasTokens": false,
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "missing-token",
+        "hasTokens": false,
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [],
+      "consumer": "client-throw",
+      "input": {
+        "case": "missing-token",
+        "hasTokens": false,
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [],
+      "consumer": "client-null",
+      "input": {
+        "case": "missing-token",
+        "hasTokens": false,
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [],
+      "consumer": "teams",
+      "input": {
+        "case": "missing-token",
+        "hasTokens": false,
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [],
+      "consumer": "selected",
+      "input": {
+        "case": "missing-token",
+        "hasTokens": false,
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [],
+      "consumer": "sign-in",
+      "input": {
+        "case": "missing-token",
+        "hasTokens": false,
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "invalid-json",
+        "wire": "cHJpdmF0ZS1ib2R5LWNhbmFyeQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "invalid-json",
+        "wire": "cHJpdmF0ZS1ib2R5LWNhbmFyeQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "invalid-json",
+        "wire": "cHJpdmF0ZS1ib2R5LWNhbmFyeQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "invalid-json",
+        "wire": "cHJpdmF0ZS1ib2R5LWNhbmFyeQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "invalid-json",
+        "wire": "cHJpdmF0ZS1ib2R5LWNhbmFyeQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "user_unavailable"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "invalid-json",
+        "wire": "cHJpdmF0ZS1ib2R5LWNhbmFyeQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "invalid-json",
+        "wire": "cHJpdmF0ZS1ib2R5LWNhbmFyeQ=="
+      },
+      "outcome": {
+        "displayDetail": "UNAUTHORIZED",
+        "error": "UNAUTHORIZED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "empty",
+        "wire": ""
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "empty",
+        "wire": ""
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "empty",
+        "wire": ""
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "empty",
+        "wire": ""
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "empty",
+        "wire": ""
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "user_unavailable"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "empty",
+        "wire": ""
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "empty",
+        "wire": ""
+      },
+      "outcome": {
+        "displayDetail": "UNAUTHORIZED",
+        "error": "UNAUTHORIZED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "array",
+        "wire": "W10="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "array",
+        "wire": "W10="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "array",
+        "wire": "W10="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "array",
+        "wire": "W10="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "array",
+        "wire": "W10="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "user_unavailable"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "array",
+        "wire": "W10="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "array",
+        "wire": "W10="
+      },
+      "outcome": {
+        "displayDetail": "UNAUTHORIZED",
+        "error": "UNAUTHORIZED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "null",
+        "wire": "bnVsbA=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "null",
+        "wire": "bnVsbA=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "null",
+        "wire": "bnVsbA=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "null",
+        "wire": "bnVsbA=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "null",
+        "wire": "bnVsbA=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "user_unavailable"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "null",
+        "wire": "bnVsbA=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "null",
+        "wire": "bnVsbA=="
+      },
+      "outcome": {
+        "displayDetail": "UNAUTHORIZED",
+        "error": "UNAUTHORIZED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "empty-object",
+        "wire": "e30="
+      },
+      "outcome": {
+        "id": "",
+        "name": null,
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "empty-object",
+        "wire": "e30="
+      },
+      "outcome": {
+        "id": "",
+        "name": null,
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "empty-object",
+        "wire": "e30="
+      },
+      "outcome": {
+        "id": "",
+        "name": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "empty-object",
+        "wire": "e30="
+      },
+      "outcome": {
+        "id": "",
+        "name": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "empty-object",
+        "wire": "e30="
+      },
+      "outcome": {
+        "teams": [
+          {
+            "id": "team",
+            "name": "Team"
+          }
+        ]
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "empty-object",
+        "wire": "e30="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "empty-object",
+        "wire": "e30="
+      },
+      "outcome": {
+        "id": ""
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "anonymous",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOnRydWV9"
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "anonymous",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOnRydWV9"
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "anonymous",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOnRydWV9"
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "anonymous",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOnRydWV9"
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "anonymous",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOnRydWV9"
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "anonymous",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOnRydWV9"
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "anonymous",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOnRydWV9"
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "restricted",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjp0cnVlfQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "restricted",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjp0cnVlfQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "restricted",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjp0cnVlfQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "restricted",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjp0cnVlfQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "restricted",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjp0cnVlfQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "restricted",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjp0cnVlfQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "restricted",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjp0cnVlfQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "numeric-anonymous-one",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOjF9"
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "numeric-anonymous-one",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOjF9"
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "numeric-anonymous-one",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOjF9"
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "numeric-anonymous-one",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOjF9"
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "numeric-anonymous-one",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOjF9"
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "numeric-anonymous-one",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOjF9"
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "numeric-anonymous-one",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19hbm9ueW1vdXMiOjF9"
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "numeric-restricted-two",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjoyfQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": null,
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "numeric-restricted-two",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjoyfQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": null,
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "numeric-restricted-two",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjoyfQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "numeric-restricted-two",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjoyfQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "numeric-restricted-two",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjoyfQ=="
+      },
+      "outcome": {
+        "teams": [
+          {
+            "id": "team",
+            "name": "Team"
+          }
+        ]
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "numeric-restricted-two",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjoyfQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "numeric-restricted-two",
+        "wire": "eyJpZCI6InVzZXIiLCJpc19yZXN0cmljdGVkIjoyfQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "selected-empty",
+        "wire": "eyJpZCI6InVzZXIiLCJzZWxlY3RlZF90ZWFtIjp7fX0="
+      },
+      "outcome": {
+        "id": "user",
+        "name": null,
+        "selected": ""
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "selected-empty",
+        "wire": "eyJpZCI6InVzZXIiLCJzZWxlY3RlZF90ZWFtIjp7fX0="
+      },
+      "outcome": {
+        "id": "user",
+        "name": null,
+        "selected": ""
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "selected-empty",
+        "wire": "eyJpZCI6InVzZXIiLCJzZWxlY3RlZF90ZWFtIjp7fX0="
+      },
+      "outcome": {
+        "id": "user",
+        "name": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "selected-empty",
+        "wire": "eyJpZCI6InVzZXIiLCJzZWxlY3RlZF90ZWFtIjp7fX0="
+      },
+      "outcome": {
+        "id": "user",
+        "name": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "selected-empty",
+        "wire": "eyJpZCI6InVzZXIiLCJzZWxlY3RlZF90ZWFtIjp7fX0="
+      },
+      "outcome": {
+        "teams": [
+          {
+            "id": "team",
+            "name": "Team"
+          }
+        ]
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "selected-empty",
+        "wire": "eyJpZCI6InVzZXIiLCJzZWxlY3RlZF90ZWFtIjp7fX0="
+      },
+      "outcome": {
+        "selected": ""
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "selected-empty",
+        "wire": "eyJpZCI6InVzZXIiLCJzZWxlY3RlZF90ZWFtIjp7fX0="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'SCHEMA_ERROR'",
+        "error": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'SCHEMA_ERROR'",
+        "error": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'SCHEMA_ERROR'",
+        "error": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'SCHEMA_ERROR'",
+        "error": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'SCHEMA_ERROR'",
+        "error": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'SCHEMA_ERROR'",
+        "error": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'SCHEMA_ERROR'",
+        "error": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'RATE_LIMITED'",
+        "error": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "RATE_LIMITED \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "RATE_LIMITED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'RATE_LIMITED'",
+        "error": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "RATE_LIMITED \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "RATE_LIMITED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'RATE_LIMITED'",
+        "error": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "RATE_LIMITED \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "RATE_LIMITED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'RATE_LIMITED'",
+        "error": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "RATE_LIMITED \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "RATE_LIMITED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'RATE_LIMITED'",
+        "error": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "RATE_LIMITED \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "RATE_LIMITED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'RATE_LIMITED'",
+        "error": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "RATE_LIMITED \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "RATE_LIMITED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'RATE_LIMITED'",
+        "error": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "RATE_LIMITED \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "RATE_LIMITED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'rate_limited'",
+        "error": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'rate_limited'",
+        "error": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'rate_limited'",
+        "error": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'rate_limited'",
+        "error": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'rate_limited'",
+        "error": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'rate_limited'",
+        "error": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'rate_limited'",
+        "error": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'RATE_LIMIT'",
+        "error": "RATE_LIMIT",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'RATE_LIMIT'",
+        "error": "RATE_LIMIT",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'RATE_LIMIT'",
+        "error": "RATE_LIMIT",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'RATE_LIMIT'",
+        "error": "RATE_LIMIT",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'RATE_LIMIT'",
+        "error": "RATE_LIMIT",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'RATE_LIMIT'",
+        "error": "RATE_LIMIT",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'RATE_LIMIT'",
+        "error": "RATE_LIMIT",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'USER_NOT_SIGNED_IN'",
+        "error": "USER_NOT_SIGNED_IN",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'USER_NOT_SIGNED_IN'",
+        "error": "USER_NOT_SIGNED_IN",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'USER_NOT_SIGNED_IN'",
+        "error": "USER_NOT_SIGNED_IN",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'USER_NOT_SIGNED_IN'",
+        "error": "USER_NOT_SIGNED_IN",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'USER_NOT_SIGNED_IN'",
+        "error": "USER_NOT_SIGNED_IN",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'USER_NOT_SIGNED_IN'",
+        "error": "USER_NOT_SIGNED_IN",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'USER_NOT_SIGNED_IN'",
+        "error": "USER_NOT_SIGNED_IN",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'UNAUTHORIZED'",
+        "error": "UNAUTHORIZED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'UNAUTHORIZED'",
+        "error": "UNAUTHORIZED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'UNAUTHORIZED'",
+        "error": "UNAUTHORIZED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'UNAUTHORIZED'",
+        "error": "UNAUTHORIZED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'UNAUTHORIZED'",
+        "error": "UNAUTHORIZED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'UNAUTHORIZED'",
+        "error": "UNAUTHORIZED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'UNAUTHORIZED'",
+        "error": "UNAUTHORIZED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'invalid_access_token'",
+        "error": "invalid_access_token",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'invalid_access_token'",
+        "error": "invalid_access_token",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'invalid_access_token'",
+        "error": "invalid_access_token",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'invalid_access_token'",
+        "error": "invalid_access_token",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'invalid_access_token'",
+        "error": "invalid_access_token",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'invalid_access_token'",
+        "error": "invalid_access_token",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'invalid_access_token'",
+        "error": "invalid_access_token",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'http_error'",
+        "error": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'http_error'",
+        "error": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'http_error'",
+        "error": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'http_error'",
+        "error": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'http_error'",
+        "error": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'http_error'",
+        "error": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'http_error'",
+        "error": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'network_error'",
+        "error": "network_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'network_error'",
+        "error": "network_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'network_error'",
+        "error": "network_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'network_error'",
+        "error": "network_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'network_error'",
+        "error": "network_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'network_error'",
+        "error": "network_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'network_error'",
+        "error": "network_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'INVALID_OTP'",
+        "error": "INVALID_OTP",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'INVALID_OTP'",
+        "error": "INVALID_OTP",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'INVALID_OTP'",
+        "error": "INVALID_OTP",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'INVALID_OTP'",
+        "error": "INVALID_OTP",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'INVALID_OTP'",
+        "error": "INVALID_OTP",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'INVALID_OTP'",
+        "error": "INVALID_OTP",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'INVALID_OTP'",
+        "error": "INVALID_OTP",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'VERIFICATION_CODE_ERROR'",
+        "error": "VERIFICATION_CODE_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'VERIFICATION_CODE_ERROR'",
+        "error": "VERIFICATION_CODE_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'VERIFICATION_CODE_ERROR'",
+        "error": "VERIFICATION_CODE_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'VERIFICATION_CODE_ERROR'",
+        "error": "VERIFICATION_CODE_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'VERIFICATION_CODE_ERROR'",
+        "error": "VERIFICATION_CODE_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'VERIFICATION_CODE_ERROR'",
+        "error": "VERIFICATION_CODE_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'VERIFICATION_CODE_ERROR'",
+        "error": "VERIFICATION_CODE_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-'USER_EMAIL_ALREADY_EXISTS'",
+        "error": "USER_EMAIL_ALREADY_EXISTS",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-'USER_EMAIL_ALREADY_EXISTS'",
+        "error": "USER_EMAIL_ALREADY_EXISTS",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-'USER_EMAIL_ALREADY_EXISTS'",
+        "error": "USER_EMAIL_ALREADY_EXISTS",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-'USER_EMAIL_ALREADY_EXISTS'",
+        "error": "USER_EMAIL_ALREADY_EXISTS",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-'USER_EMAIL_ALREADY_EXISTS'",
+        "error": "USER_EMAIL_ALREADY_EXISTS",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-'USER_EMAIL_ALREADY_EXISTS'",
+        "error": "USER_EMAIL_ALREADY_EXISTS",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-'USER_EMAIL_ALREADY_EXISTS'",
+        "error": "USER_EMAIL_ALREADY_EXISTS",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-error-''",
+        "error": "",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-error-''",
+        "error": "",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-error-''",
+        "error": "",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-error-''",
+        "error": "",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-error-''",
+        "error": "",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-error-''",
+        "error": "",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-error-''",
+        "error": "",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-network",
+        "errorKind": "network",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-network",
+        "errorKind": "network",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-network",
+        "errorKind": "network",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-network",
+        "errorKind": "network",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-network",
+        "errorKind": "network",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-network",
+        "errorKind": "network",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-network",
+        "errorKind": "network",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-cancel",
+        "errorKind": "cancel",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-cancel",
+        "errorKind": "cancel",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-cancel",
+        "errorKind": "cancel",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-cancel",
+        "errorKind": "cancel",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-cancel",
+        "errorKind": "cancel",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-cancel",
+        "errorKind": "cancel",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-cancel",
+        "errorKind": "cancel",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "user-foreign-rate",
+        "errorKind": "foreign-rate",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "user-foreign-rate",
+        "errorKind": "foreign-rate",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "user-foreign-rate",
+        "errorKind": "foreign-rate",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "user-foreign-rate",
+        "errorKind": "foreign-rate",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "nil": true
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "user-foreign-rate",
+        "errorKind": "foreign-rate",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "user-foreign-rate",
+        "errorKind": "foreign-rate",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": null
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "user-foreign-rate",
+        "errorKind": "foreign-rate",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "USER_NOT_SIGNED_IN"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "teams-body-not-json",
+        "teamsWire": "bm90LWpzb24=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "teams-body-not-json",
+        "teamsWire": "bm90LWpzb24=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "teams-body-not-json",
+        "teamsWire": "bm90LWpzb24=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "teams-body-not-json",
+        "teamsWire": "bm90LWpzb24=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "teams-body-not-json",
+        "teamsWire": "bm90LWpzb24=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "teams": []
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "teams-body-not-json",
+        "teamsWire": "bm90LWpzb24=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "teams-body-not-json",
+        "teamsWire": "bm90LWpzb24=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "teams-body-{}",
+        "teamsWire": "e30=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "teams-body-{}",
+        "teamsWire": "e30=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "teams-body-{}",
+        "teamsWire": "e30=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "teams-body-{}",
+        "teamsWire": "e30=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "teams-body-{}",
+        "teamsWire": "e30=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "teams": []
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "teams-body-{}",
+        "teamsWire": "e30=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "teams-body-{}",
+        "teamsWire": "e30=",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "teams-body-{\"items\":[]}",
+        "teamsWire": "eyJpdGVtcyI6W119",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "teams-body-{\"items\":[]}",
+        "teamsWire": "eyJpdGVtcyI6W119",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "teams-body-{\"items\":[]}",
+        "teamsWire": "eyJpdGVtcyI6W119",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "teams-body-{\"items\":[]}",
+        "teamsWire": "eyJpdGVtcyI6W119",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "teams-body-{\"items\":[]}",
+        "teamsWire": "eyJpdGVtcyI6W119",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "teams": []
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "teams-body-{\"items\":[]}",
+        "teamsWire": "eyJpdGVtcyI6W119",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "teams-body-{\"items\":[]}",
+        "teamsWire": "eyJpdGVtcyI6W119",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "teams-body-{\"items\":[{\"id\":\"\",\"display_name\":\"\"}]}",
+        "teamsWire": "eyJpdGVtcyI6W3siaWQiOiIiLCJkaXNwbGF5X25hbWUiOiIifV19",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "teams-body-{\"items\":[{\"id\":\"\",\"display_name\":\"\"}]}",
+        "teamsWire": "eyJpdGVtcyI6W3siaWQiOiIiLCJkaXNwbGF5X25hbWUiOiIifV19",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "teams-body-{\"items\":[{\"id\":\"\",\"display_name\":\"\"}]}",
+        "teamsWire": "eyJpdGVtcyI6W3siaWQiOiIiLCJkaXNwbGF5X25hbWUiOiIifV19",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "teams-body-{\"items\":[{\"id\":\"\",\"display_name\":\"\"}]}",
+        "teamsWire": "eyJpdGVtcyI6W3siaWQiOiIiLCJkaXNwbGF5X25hbWUiOiIifV19",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "teams-body-{\"items\":[{\"id\":\"\",\"display_name\":\"\"}]}",
+        "teamsWire": "eyJpdGVtcyI6W3siaWQiOiIiLCJkaXNwbGF5X25hbWUiOiIifV19",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "teams": [
+          {
+            "id": "",
+            "name": ""
+          }
+        ]
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "teams-body-{\"items\":[{\"id\":\"\",\"display_name\":\"\"}]}",
+        "teamsWire": "eyJpdGVtcyI6W3siaWQiOiIiLCJkaXNwbGF5X25hbWUiOiIifV19",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "teams-body-{\"items\":[{\"id\":\"\",\"display_name\":\"\"}]}",
+        "teamsWire": "eyJpdGVtcyI6W3siaWQiOiIiLCJkaXNwbGF5X25hbWUiOiIifV19",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "teams-error-SCHEMA_ERROR",
+        "teamsError": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "teams-error-SCHEMA_ERROR",
+        "teamsError": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "teams-error-SCHEMA_ERROR",
+        "teamsError": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "teams-error-SCHEMA_ERROR",
+        "teamsError": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "teams-error-SCHEMA_ERROR",
+        "teamsError": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "SCHEMA_ERROR \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "SCHEMA_ERROR"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "teams-error-SCHEMA_ERROR",
+        "teamsError": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "teams-error-SCHEMA_ERROR",
+        "teamsError": "SCHEMA_ERROR",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "teams-error-RATE_LIMITED",
+        "teamsError": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "teams-error-RATE_LIMITED",
+        "teamsError": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "teams-error-RATE_LIMITED",
+        "teamsError": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "teams-error-RATE_LIMITED",
+        "teamsError": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "teams-error-RATE_LIMITED",
+        "teamsError": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "RATE_LIMITED \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "RATE_LIMITED"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "teams-error-RATE_LIMITED",
+        "teamsError": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "teams-error-RATE_LIMITED",
+        "teamsError": "RATE_LIMITED",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "teams-error-rate_limited",
+        "teamsError": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "teams-error-rate_limited",
+        "teamsError": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "teams-error-rate_limited",
+        "teamsError": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "teams-error-rate_limited",
+        "teamsError": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "teams-error-rate_limited",
+        "teamsError": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "RATE_LIMITED \u00b7 HTTP 503 \u00b7 Request ID request",
+        "error": "rate_limited"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "teams-error-rate_limited",
+        "teamsError": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "teams-error-rate_limited",
+        "teamsError": "rate_limited",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-throw",
+      "input": {
+        "case": "teams-error-http_error",
+        "teamsError": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sdk-null",
+      "input": {
+        "case": "teams-error-http_error",
+        "teamsError": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User ",
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-throw",
+      "input": {
+        "case": "teams-error-http_error",
+        "teamsError": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "client-null",
+      "input": {
+        "case": "teams-error-http_error",
+        "teamsError": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user",
+        "name": " User "
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me",
+        "/teams?user_id=me"
+      ],
+      "consumer": "teams",
+      "input": {
+        "case": "teams-error-http_error",
+        "teamsError": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "displayDetail": "AUTH_FAILED",
+        "error": "http_error"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "selected",
+      "input": {
+        "case": "teams-error-http_error",
+        "teamsError": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "selected": "team"
+      },
+      "preflights": 1
+    },
+    {
+      "calls": [
+        "/users/me"
+      ],
+      "consumer": "sign-in",
+      "input": {
+        "case": "teams-error-http_error",
+        "teamsError": "http_error",
+        "wire": "eyJpZCI6InVzZXIiLCJkaXNwbGF5X25hbWUiOiIgVXNlciAiLCJzZWxlY3RlZF90ZWFtIjp7ImlkIjoidGVhbSJ9fQ=="
+      },
+      "outcome": {
+        "id": "user"
+      },
+      "preflights": 1
+    }
+  ],
+  "foundation": {
+    "coreFoundationVersion": 5026.5,
+    "os": "Version 26.5.2 (Build 25F84)"
+  }
+}

@@ -155,22 +155,28 @@ internal class NativeOAuthClient(private val project: String, private val publis
         origin.newBuilder().encodedPath("/api/v1/users/me").build(),project,publishableKey,access=access,refresh=refresh)
 
     suspend fun currentUser(access:String,refresh:String?=null,refreshRejectedAccess:(suspend(String?)->String?)?=null):NativeSignInUser {
-        val raw=nativeSdkSend(userRequest(access,refresh),true,refreshRejectedAccess,sleep=sdkRetrySleep,exchange=::sdkWire)
-        val payload=runCatching{NativeAuthJson.objectValue(raw)}.getOrElse{throw NativeSignInFailure(NativeSignInError.SERVER_ERROR)}
-        return NativeSignInUser.decode(payload)
+        return nativeSdkGetUser {
+            val raw=nativeSdkSend(userRequest(access,refresh),true,refreshRejectedAccess,sleep=sdkRetrySleep,exchange=::sdkWire)
+            userPayload(raw)
+        } ?: throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
     }
 
     /** Match getUser(.throw): invalid JSON is nil; non-rate failures do not verify a user. */
     suspend fun restoredCurrentUser(access:String,refresh:String?=null,refreshRejectedAccess:suspend(String?)->String?):NativeSignInUser? {
         return try {
-            val raw=nativeSdkSend(userRequest(access,refresh),true,refreshRejectedAccess,sleep=sdkRetrySleep,exchange=::sdkWire)
-            val payload=runCatching{NativeAuthJson.objectValue(raw)}.getOrNull() ?: return null
-            NativeSignInUser.decode(payload)
+            nativeSdkGetUser {
+                val raw=nativeSdkSend(userRequest(access,refresh),true,refreshRejectedAccess,sleep=sdkRetrySleep,exchange=::sdkWire)
+                userPayload(raw)
+            }
         } catch(failure:Exception) {
             currentCoroutineContext().ensureActive()
-            if(nativeSessionCheckLimit(failure)!=null)throw failure
+            if(failure is NativeSdkRequestFailure && failure.code=="RATE_LIMITED")throw failure
             throw NativeSessionUserUnavailable()
         }
+    }
+
+    private suspend fun userPayload(raw:ByteArray):JSONObject?=withContext(Dispatchers.Default) {
+        runCatching{NativeAuthJson.objectValue(raw)}.getOrNull()
     }
 
     private suspend fun sdkWire(request:Request):ByteArray=suspendCancellableCoroutine {continuation->

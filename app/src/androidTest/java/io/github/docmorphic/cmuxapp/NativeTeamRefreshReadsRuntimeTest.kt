@@ -118,14 +118,16 @@ class NativeTeamRefreshReadsRuntimeTest {
             }finally{plan.release.countDown()}}
     }
     @Test fun aSingleTeamDeadlineBoundsFreshUserAndMembershipHttpTogether()=runBlocking<Unit> {
-        MockWebServer().use{server->val(account,teams,plan)=binding(server,300);plan.delayMillis=190
+        // Keep each transfer below the shared budget and their sum above it.
+        // Leave enough scheduling/Keystore margin for the second HTTP stage to start.
+        MockWebServer().use{server->val(account,teams,plan)=binding(server,2000);plan.delayMillis=1250
             val observed=AtomicReference<Exception?>();teams.onMembershipCompleted={_,failure->observed.set(failure)}
             val start=android.os.SystemClock.elapsedRealtime();boot(account);val elapsed=android.os.SystemClock.elapsedRealtime()-start
             val error=observed.get();assertTrue(error.toString(),error is NativeSignInFailure)
-            assertEquals(NativeSignInError.TIMED_OUT,(error as NativeSignInFailure).reason);assertTrue(elapsed in 250..2500)
+            assertEquals(NativeSignInError.TIMED_OUT,(error as NativeSignInFailure).reason);assertTrue(elapsed in 1800..6000)
             assertEquals(3,plan.userReads.get());assertEquals(1,plan.memberReads.get());assertEquals(0,teams.activeMembershipReads)
             assertNull(teams.state.value.scope);assertTrue(account.sessionRestore.state.value.authenticated)
-            record("shared-budget",JSONObject().put("configuredPhaseMillis",300).put("elapsedMillis",elapsed)
+            record("shared-budget",JSONObject().put("configuredPhaseMillis",2000).put("elapsedMillis",elapsed)
                 .put("publishedAccountPreserved",true).put("partialScopeWithheld",true))}
     }
     @Test fun replacingThePublishedIdentityWhileFreshReadsWaitRejectsTheirOldResults()=runBlocking<Unit> {

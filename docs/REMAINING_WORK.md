@@ -1,3 +1,39 @@
+## User-fetch error outcomes reconciled — 2026-10-24
+
+Post-resolution SDK user reads now preserve the source's distinct nil, missing-
+user and exact SDK rate-limit outcomes. Ineligible users and HTTP/known/network
+failures become USER_NOT_SIGNED_IN and the generic sign-in message; malformed
+successful user JSON becomes nil and the interactive coordinator's unauthorized
+message. Foreign errors spelling RATE_LIMITED do not escape as SDK rate limits.
+Parent cancellation remains cancellation. User JSON parsing runs off the UI
+dispatcher. Real account tests verify unverified interactive credentials remain
+pending, while orphaned nil-user cleanup and transient-failure preservation
+remain distinct and keep pairing data.
+
+Full JVM: 3,470 total in 461 suites, 3,466 passed, four existing SSH skips, zero
+failures/errors. Owned API36: 220/220 in 352.36 seconds, five new methods plus
+215 regressions. The 252-case reference executes complete original getUser,
+adapters, coordinator completion and display-safe error projection with stated
+inert seams; it also runs on ART. Real encrypted account/HTTP and live Compose
+cases cover the production callers. The 60-second phase returned at 60,009ms
+with ciphertext/pairing intact and no PATCH. Crash log empty, no preflight ANR,
+settings/window restored, owned exit0. Receipt: 95 local inputs, 47 originals,
+installed APKs and the corpus asset hash. Regeneration is identical. The two
+failed runtime attempts and their corrected deadline/readiness fixtures remain
+separate; the production APK is identical across the three attempts.
+
+Full parity remains active: token-freshness/preflight and shared pending/verified
+refresh ownership, callback failures, direct OAuth/form/backend protocols,
+reporting/diagnostic/team-error UI, remaining metadata/image/demo/reset/identity/
+worker work, iOS-runtime proof, actual locked storage/OS/death, physical Pixel/
+Mac/provider/helper/Firebase, matched full UI/accessibility and signed delivery
+remain open. Token presence and original phase/publication/receipt are inert
+reference seams on macOS26.5.2/CoreFoundation5026.5. No physical install, real
+account/pairing/signing data, global pin or frozen signed722 changed.
+
+Details: [User-fetch error outcomes](USER_FETCH_ERRORS.md).
+Evidence: `captures/recovery-20261023/user-fetch-checkpoint.json`.
+
 ## SDK transport and pending-session refresh reconciled — 2026-10-24
 
 Shared SDK requests now send Hexclave-only headers, snapshot both tokens and

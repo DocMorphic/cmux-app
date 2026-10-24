@@ -87,7 +87,9 @@ class NativeTaskOfflineTest {
         waitFor(hasContentDescription("Drafts"))
         compose.onNodeWithContentDescription("Drafts").performClick()
         compose.onNodeWithText("Keep my unpaired draft").performClick()
-        waitFor(hasContentDescription("Task prompt"))
+        // Saving the current editor completes asynchronously before the selected
+        // draft replaces it; the underlying disabled prompt is already present.
+        waitFor(hasContentDescription("Task prompt") and isEnabled() and hasText("Keep my unpaired draft", substring = true))
         compose.onNodeWithContentDescription("Task prompt").assertTextContains("Keep my unpaired draft")
         assertTrue(peer.requests.isEmpty())
     }

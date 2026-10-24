@@ -159,7 +159,7 @@ class NativeOAuthRuntimeTest {
             tap(if (index == 0) "apple" else "google", index + 1); val authorization = server!!.takeRequest()
             dispatch(index, AuthTabIntent.RESULT_OK, callback(authorization))
             compose.waitUntil(10_000) { !session!!.state.value.busy }
-            assertEquals(NativeSignInError.UNAUTHORIZED, session!!.state.value.error)
+            assertEquals(NativeSignInError.SERVER_ERROR, session!!.state.value.error)
             assertFalse(account!!.isSignedIn()); assertNull(store!!.taskSession()); assertEquals(0, completions.get())
             assertTrue(NativeSignInCompletion.isPending(store!!.load())); assertFalse(store!!.load()!!.has(NativeAccountProfileCache.KEY))
             server!!.takeRequest(); server!!.takeRequest(); preservedPairing()

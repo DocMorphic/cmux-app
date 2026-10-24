@@ -170,3 +170,14 @@ and 201 regressions. Complete getUser/adaptor error/freshness behavior, remainin
 transport/reporting/consumer/reset/UI work and real-device acceptance remain open.
 See the linked checkpoint for measured source seams, earlier failed attempts,
 remaining scope and exact evidence bindings. This does not establish full parity.
+
+## User-fetch outcome checkpoint — 2026-10-24
+
+[User-fetch error outcomes](USER_FETCH_ERRORS.md) reconciles post-resolution
+getUser nil/missing/error/rate behavior and its interactive display role. SDK
+ineligibility and most request failures map to the generic sign-in error;
+successful non-object/malformed user JSON follows the source nil-user path.
+The 252-case original reference and production account/HTTP callers execute on
+ART. Full JVM: 3,466 passed/four skips; owned API36: 220/220. Token freshness,
+original race/timing and iOS-runtime behavior, diagnostic/team failure UI and
+remaining full-app acceptance are separate open gates; see the linked scope.

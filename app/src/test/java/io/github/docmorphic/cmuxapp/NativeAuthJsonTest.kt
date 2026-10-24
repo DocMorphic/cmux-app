@@ -91,7 +91,7 @@ class NativeAuthJsonTest {
         MockWebServer().use{server->val client=NativeOAuthClient("fixture","public",server.url("/"))
             server.enqueue(response(wire("utf8-surrogate")))
             val error=runCatching{client.currentUser("fixture-access")}.exceptionOrNull() as NativeSignInFailure
-            assertEquals(NativeSignInError.SERVER_ERROR,error.reason)
+            assertEquals(NativeSignInError.UNAUTHORIZED,error.reason)
             server.enqueue(response(wire("utf8-surrogate")))
             assertNull(client.restoredCurrentUser("fixture-access"){error("Unexpected refresh")})
         }
@@ -99,9 +99,9 @@ class NativeAuthJsonTest {
     @Test fun knownErrorMessageUsesBytesAndBareHttpBodyCannotInventACode()=runBlocking<Unit> {
         MockWebServer().use{server->val client=NativeOAuthClient("fixture","public",server.url("/"))
             server.enqueue(response("{\"error\":\"wire-error\"}".toByteArray(Charsets.UTF_16BE)).setResponseCode(400).setHeader("x-hexclave-known-error","wire-error"))
-            assertEquals("wire-error",(runCatching{client.currentUser("fixture-access")}.exceptionOrNull() as NativeAccountRequestFailure).code)
+            assertEquals("USER_NOT_SIGNED_IN",(runCatching{client.currentUser("fixture-access")}.exceptionOrNull() as NativeAccountRequestFailure).code)
             server.enqueue(response("{error:'wire-error'}".toByteArray()).setResponseCode(400))
-            assertEquals("http_error",(runCatching{client.currentUser("fixture-access")}.exceptionOrNull() as NativeAccountRequestFailure).code)
+            assertEquals("USER_NOT_SIGNED_IN",(runCatching{client.currentUser("fixture-access")}.exceptionOrNull() as NativeAccountRequestFailure).code)
         }
     }
 }
