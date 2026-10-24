@@ -119,7 +119,11 @@ class NativeAppearanceRuntimeTest {
         compose.onNodeWithTag("signin.request").performScrollTo().performClick()
         compose.waitUntil(5_000) { sends.get() == 1 }
         form!!.recreate()
-        compose.onNodeWithTag("signin.email").assertTextContains("fixture@example.test").assertIsNotEnabled()
+        compose.onNodeWithTag("signin.email").assertTextContains("fixture@example.test").assertIsEnabled()
+            .performTextReplacement("edited-while-pending@example.test")
+        form!!.recreate()
+        compose.onNodeWithTag("signin.email").assertTextContains("edited-while-pending@example.test").assertIsEnabled()
+        assertTrue(model!!.state.value.busy)
         assertEquals(1, sends.get()); sendGate.complete(Unit)
         compose.waitUntil(5_000) { model!!.state.value.codeSent }
         compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("signin.code").assertIsFocused(); true }.getOrDefault(false) }

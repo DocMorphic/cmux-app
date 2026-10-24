@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "attribution": "Project-authored Android-only entry options preserve existing setup, helper and license routes. These controls and translations are not in the original iOS sign-in card.",
+  "strings": [
+    {
+      "resource": "cmux_signin_android_options",
+      "translations": {
+        "en": "Sign-in options",
+        "ar": "خيارات تسجيل الدخول",
+        "de": "Anmeldeoptionen",
+        "es": "Opciones de inicio de sesión",
+        "fr": "Options de connexion",
+        "ja": "サインインのオプション",
+        "ko": "로그인 옵션",
+        "zh-Hans": "登录选项",
+        "zh-Hant": "登入選項"
+      }
+    },
+    {
+      "resource": "cmux_signin_android_setup",
+      "translations": {
+        "en": "Set Up Computer",
+        "ar": "إعداد الكمبيوتر",
+        "de": "Computer einrichten",
+        "es": "Configurar equipo",
+        "fr": "Configurer l’ordinateur",
+        "ja": "コンピュータを設定",
+        "ko": "컴퓨터 설정",
+        "zh-Hans": "设置电脑",
+        "zh-Hant": "設定電腦"
+      }
+    },
+    {
+      "resource": "cmux_signin_android_mac_setup",
+      "translations": {
+        "en": "Set up cmux on your Mac",
+        "ar": "إعداد cmux على Mac",
+        "de": "cmux auf deinem Mac einrichten",
+        "es": "Configurar cmux en tu Mac",
+        "fr": "Configurer cmux sur votre Mac",
+        "ja": "Macでcmuxを設定",
+        "ko": "Mac에서 cmux 설정",
+        "zh-Hans": "在 Mac 上设置 cmux",
+        "zh-Hant": "在 Mac 上設定 cmux"
+      }
+    },
+    {
+      "resource": "cmux_signin_android_helper",
+      "translations": {
+        "en": "Use existing helper connection",
+        "ar": "استخدام اتصال المساعد الحالي",
+        "de": "Bestehende Helferverbindung verwenden",
+        "es": "Usar conexión existente del asistente",
+        "fr": "Utiliser la connexion existante de l’assistant",
+        "ja": "既存のヘルパー接続を使用",
+        "ko": "기존 도우미 연결 사용",
+        "zh-Hans": "使用现有辅助程序连接",
+        "zh-Hant": "使用現有輔助程式連線"
+      }
+    },
+    {
+      "resource": "cmux_signin_android_licenses",
+      "translations": {
+        "en": "Open-source licenses",
+        "ar": "تراخيص المصادر المفتوحة",
+        "de": "Open-Source-Lizenzen",
+        "es": "Licencias de código abierto",
+        "fr": "Licences open source",
+        "ja": "オープンソースライセンス",
+        "ko": "오픈 소스 라이선스",
+        "zh-Hans": "开源许可证",
+        "zh-Hant": "開放原始碼授權"
+      }
+    }
+  ]
+}

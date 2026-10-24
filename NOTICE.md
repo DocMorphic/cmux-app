@@ -1,10 +1,20 @@
 # Attribution
 
+The sign-in methods card adapts the pinned original SignInView, provider and
+helper views. `third_party/cmux-signin/methods-reference.json` records whole-source
+bindings. Google and GitHub assets preserve the upstream SVG paths/colors;
+Apple uses the upstream web AppleMark, while iOS uses the native apple.logo
+symbol. Raw sources and Android vector hashes are in provider-artwork.json.
+The offline iOS reference host executes original UI declarations with an authored
+fixture auth service; it is not the full app or an authentication implementation.
+Android-only sign-in menu text is separately attributed in
+third_party/cmux-localization/sign-in-android-strings.json.
+
 Native provider sign-in follows the pinned cmux OAuthSignInProvider,
 AuthCoordinator, StackAuthClient, MobileAuthComposition and vendored StackClientApp
 PKCE/authorization-location/token-exchange contracts. Exact whole-source hashes
 and scope are in `third_party/cmux-signin/oauth-reference.json`. Provider/divider/
-email-button labels retain45 original catalog values across nine locales.
+email-entry labels retain54 original catalog values across nine locales.
 Android adds a variant-specific callback path and flow nonce for Intent routing;
 Apple uses the configured web provider. This is not a claim of full original
 authentication coordinator, browser or UI parity.

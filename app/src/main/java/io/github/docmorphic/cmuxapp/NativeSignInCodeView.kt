@@ -106,13 +106,13 @@ internal fun NativeSignInChallengeScreen(form: NativeSignInState, session: Nativ
     }
 }
 
-@Composable private fun NativeSignInBrand() {
+@Composable internal fun NativeSignInBrand() {
     Row(Modifier.fillMaxWidth().padding(bottom = 2.dp).testTag("signin.brand"),
         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically) {
         Image(painterResource(R.drawable.cmux_signin_mark), contentDescription = null, modifier = Modifier.size(28.dp))
         Text(stringResource(R.string.cmux_signin_code_brand), fontSize = 22.sp,
-            fontWeight = FontWeight.SemiBold, letterSpacing = (-.33).sp, color = signInInk())
+            lineHeight = 26.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-.33).sp, color = signInInk())
     }
 }
 
@@ -123,6 +123,7 @@ internal fun NativeSignInChallengeScreen(form: NativeSignInState, session: Nativ
     }
 }
 
-@Composable private fun signInInk() = if (NativeAppColors.dark) Color.White else Color.Black
-@Composable private fun signInMuted() = if (NativeAppColors.dark) Color(0x99EBEBF5) else Color(0x993C3C43)
-@Composable private fun signInAccent() = if (NativeAppColors.dark) Color(0xFF0A84FF) else Color(0xFF007AFF)
+@Composable internal fun signInInk() = if (NativeAppColors.dark) Color.White else Color.Black
+@Composable internal fun signInMuted() = if (NativeAppColors.dark) Color(0x99EBEBF5) else Color(0x993C3C43)
+// Actual UIKit systemBlue resolved by the pinned iOS26 reference host.
+@Composable internal fun signInAccent() = if (NativeAppColors.dark) Color(0xFF0091FF) else Color(0xFF0088FF)

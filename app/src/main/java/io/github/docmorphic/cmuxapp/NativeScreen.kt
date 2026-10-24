@@ -4536,7 +4536,6 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
             }
         }
     }
-    val email = form.email; val busy = form.busy; val signInError = form.error
     LaunchedEffect(session, form.completion) { form.completion?.let { if (session.consumeCompletion(it)) completed() } }
     var showPairingHelp by rememberSaveable { mutableStateOf(false) }
     if (showPairingHelp) NativePairingHelp(macPolicy, signedIn = false,
@@ -4545,30 +4544,14 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
     if (form.codeSent || form.verificationRequired) {
         NativeSignInChallengeScreen(form, session, codeFocus, { codeHasFocus = it },
             returnToEmail = { session.returnFromCode(focusEmail = codeHasFocus) })
-    } else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-    NativeHeader("Sign in to cmux")
-    Column(Modifier.fillMaxWidth().padding(24.dp)) {
-        Text("Use the same cmux account as your Mac.", color = nativeMuted)
-        NativeSetupHelpButton(macPolicy, NativeSetupGuidance.NOT_SIGNED_IN, "signin.setup-help", "Set Up Computer")
-        TextButton(onClick = { showPairingHelp = true }, modifier = Modifier.testTag("signin.pairing.help")) {
-            Text("Set up cmux on your Mac")
-        }
-        Spacer(Modifier.height(24.dp))
-        NativeOAuthButtons(form, session)
-        OutlinedTextField(email, session::editEmail,
-            Modifier.fillMaxWidth().focusRequester(emailFocus).onFocusChanged { emailHasFocus = it.isFocused }.testTag("signin.email"), label = { Text("Email") }, singleLine = true, enabled = !busy,
-            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email))
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = { session.requestCodeFromEmail(emailHasFocus) }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth().testTag("signin.request")) {
-            Text(stringResource(R.string.cmux_signin_provider_email_code))
-        }
-        signInError?.let { Text(stringResource(it.resource), Modifier.fillMaxWidth().padding(vertical = 12.dp)
-            .testTag("signin.error").semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
-            color = NativeAppColors.onErrorContainer) }
-        TextButton(onClick = { session.clear(); onUseHelper() }) { Text("Use existing helper connection") }
-        TextButton(onClick = onLicenses) { Text("Open-source licenses") }
+    } else {
+        var showSetupHelp by rememberSaveable { mutableStateOf(false) }
+        if (showSetupHelp) NativeSetupHelp(macPolicy, NativeSetupGuidance.NOT_SIGNED_IN) { showSetupHelp = false }
+        NativeSignInMethodsScreen(form, session, emailFocus, { emailHasFocus = it },
+            requestCode = { session.requestCodeFromEmail(emailHasFocus) },
+            onSetup = { showSetupHelp = true }, onMacSetup = { showPairingHelp = true },
+            onUseHelper = { session.clear(); onUseHelper() }, onLicenses = onLicenses)
     }
-}
 }
 
 

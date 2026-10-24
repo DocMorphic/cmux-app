@@ -4,6 +4,7 @@
     <string name="cmux_signin_provider_apple" formatted="false">"تسجيل الدخول مع أبل"</string>
     <string name="cmux_signin_provider_divider" formatted="false">"أو الاستمرار مع البريد الإلكتروني"</string>
     <string name="cmux_signin_provider_email_code" formatted="false">"أرسل لي رمزًا عبر البريد الإلكتروني"</string>
+    <string name="cmux_signin_provider_email_placeholder" formatted="false">"عنوان البريد الإلكتروني"</string>
     <string name="cmux_signin_provider_github" formatted="false">"قم بتسجيل الدخول باستخدام جيثب"</string>
     <string name="cmux_signin_provider_google" formatted="false">"قم بتسجيل الدخول باستخدام جوجل"</string>
 </resources>

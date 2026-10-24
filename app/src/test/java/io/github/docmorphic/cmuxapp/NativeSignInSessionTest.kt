@@ -23,9 +23,9 @@ class NativeSignInSessionTest {
         val model = NativeSignInSession(this, { emails += it; codeGate.await() }, { codes += it; authGate.await() })
         try {
             model.editEmail("draft@example.test"); model.requestCode(); model.requestCode()
-            model.editEmail("must-not-replace@example.test"); runCurrent()
+            runCurrent(); model.editEmail("edited@example.test"); runCurrent()
             assertEquals(listOf("draft@example.test"), emails); assertTrue(model.state.value.busy)
-            assertEquals("draft@example.test", model.state.value.email)
+            assertEquals("edited@example.test", model.state.value.email)
             codeGate.complete(Unit); runCurrent(); assertTrue(model.state.value.codeSent)
             model.editCode("A1 B2C3-more"); assertEquals("A1B2C3", model.state.value.code)
             model.submitCode(); model.submitCode(); runCurrent(); assertEquals(listOf("A1B2C3"), codes)

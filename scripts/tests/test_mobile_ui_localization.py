@@ -15,9 +15,9 @@ ROWS = {'Cancel': {'resource': 'cmux_ui_cancel'}, 'Done': {'resource': 'cmux_ui_
 class MobileUiLocalization(unittest.TestCase):
     def test_signin_provider_inventory_and_locales_cannot_be_mixed_or_omitted(self):
         rows = UI.load_signin_provider_rows()
-        self.assertEqual(5, len(rows))
+        self.assertEqual(6, len(rows))
         for language in UI.LANGUAGES:
-            self.assertEqual(5, len(ET.fromstring(UI.resource_xml(rows, language)).findall('string')))
+            self.assertEqual(6, len(ET.fromstring(UI.resource_xml(rows, language)).findall('string')))
         data = json.loads(UI.SIGNIN_PROVIDER_DATA.read_text())
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder)/'providers.json'

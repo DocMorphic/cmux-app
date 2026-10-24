@@ -4,6 +4,7 @@
     <string name="cmux_signin_provider_apple" formatted="false">"使用 Apple 登入"</string>
     <string name="cmux_signin_provider_divider" formatted="false">"或繼續使用電子郵件"</string>
     <string name="cmux_signin_provider_email_code" formatted="false">"透過電子郵件給我發送代碼"</string>
+    <string name="cmux_signin_provider_email_placeholder" formatted="false">"電子郵件"</string>
     <string name="cmux_signin_provider_github" formatted="false">"使用 GitHub 登入"</string>
     <string name="cmux_signin_provider_google" formatted="false">"使用 Google 登入"</string>
 </resources>

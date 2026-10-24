@@ -80,6 +80,21 @@
         "zh-Hans": "通过电子邮件给我发送代码",
         "zh-Hant": "透過電子郵件給我發送代碼"
       }
+    },
+    {
+      "key": "mobile.signIn.emailPlaceholder",
+      "resource": "cmux_signin_provider_email_placeholder",
+      "translations": {
+        "en": "Email address",
+        "ar": "عنوان البريد الإلكتروني",
+        "de": "E-Mail-Adresse",
+        "es": "Dirección de correo electrónico",
+        "fr": "Adresse email",
+        "ja": "メールアドレス",
+        "ko": "이메일 주소",
+        "zh-Hans": "电子邮件",
+        "zh-Hant": "電子郵件"
+      }
     }
   ]
 }

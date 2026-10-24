@@ -4,6 +4,7 @@
     <string name="cmux_signin_provider_apple" formatted="false">"Apple でサインイン"</string>
     <string name="cmux_signin_provider_divider" formatted="false">"またはメールで続行"</string>
     <string name="cmux_signin_provider_email_code" formatted="false">"コードをメールで受け取る"</string>
+    <string name="cmux_signin_provider_email_placeholder" formatted="false">"メールアドレス"</string>
     <string name="cmux_signin_provider_github" formatted="false">"GitHub でサインイン"</string>
     <string name="cmux_signin_provider_google" formatted="false">"Google でサインイン"</string>
 </resources>

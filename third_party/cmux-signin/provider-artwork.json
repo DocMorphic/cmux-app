@@ -1,0 +1,27 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "scope": "Google/GitHub SVG path, color and fill rules preserved. Apple uses the upstream web mark, not the iOS native SF Symbol. This is not UIKit rendering or pixel acceptance.",
+  "assets": {
+    "google": {
+      "upstreamPath": "ios/cmux/Assets.xcassets/GoogleLogo.imageset/google-logo.svg",
+      "source": "third_party/cmux-signin/google-logo.svg",
+      "sourceSha256": "4e595e5e7fae16a8ded1e12f819e917a5cdba84fd99033c7509ab08ac500b4de",
+      "android": "app/src/main/res/drawable/cmux_signin_google.xml",
+      "androidSha256": "d8ab8313f7dbcc299348f907236559c075b845f9b9502a6b3a16202bf89e88a3"
+    },
+    "github": {
+      "upstreamPath": "ios/cmux/Assets.xcassets/GitHubLogo.imageset/github-logo.svg",
+      "source": "third_party/cmux-signin/github-logo.svg",
+      "sourceSha256": "28101cb7dbd2224f00327fb963faa11a1846aaf110bfe886725ff3922f0ee0b1",
+      "android": "app/src/main/res/drawable/cmux_signin_github.xml",
+      "androidSha256": "d7fdd493dcd7eb2282df5b466fc35dff482161322c4f4a888997efbe65d06481"
+    },
+    "apple": {
+      "upstreamPath": "web/app/[locale]/components/apple-mark.tsx",
+      "source": "third_party/cmux-signin/apple-mark.tsx",
+      "sourceSha256": "c17a08ca6b365daf0f49fe6bae006c00b2175d5de1911a0c523e656b53798f0f",
+      "android": "app/src/main/res/drawable/cmux_signin_apple.xml",
+      "androidSha256": "86218965003d441ba8dc82a41ac90ee2f4a2fb436c0fdebc8e50a36c1b429dcc"
+    }
+  }
+}

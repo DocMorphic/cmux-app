@@ -107,8 +107,8 @@ class NativeSignInCodeTest {
         val model = NativeSignInSession(this, {}, { calls++; gate.await() }, { clears++ })
         try {
             model.editEmail("person@example.test"); model.requestCode(); runCurrent(); model.editCode("ABC123"); runCurrent()
-            val before = clears; model.returnFromCode(focusEmail = true); model.editEmail("blocked@example.test")
-            assertFalse(model.state.value.codeSent); assertTrue(model.state.value.busy); assertEquals("person@example.test", model.state.value.email)
+            val before = clears; model.returnFromCode(focusEmail = true); model.editEmail("edited@example.test")
+            assertFalse(model.state.value.codeSent); assertTrue(model.state.value.busy); assertEquals("edited@example.test", model.state.value.email)
             assertFalse(model.consumeEmailFocus(checkNotNull(model.state.value.emailFocusRequest)))
             assertEquals(before, clears); assertEquals(1, calls)
             gate.complete(Unit); runCurrent(); assertNotNull(model.state.value.completion)

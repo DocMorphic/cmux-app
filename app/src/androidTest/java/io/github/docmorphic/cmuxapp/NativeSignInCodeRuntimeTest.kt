@@ -106,7 +106,7 @@ class NativeSignInCodeRuntimeTest {
         compose.waitUntil(5_000) { calls.get()==1 }
         compose.onNodeWithTag("signin.code.useDifferentEmail").performScrollTo().performClick()
         compose.onNodeWithTag("signin.code").assertDoesNotExist()
-        compose.onNodeWithTag("signin.email").assertIsNotEnabled()
+        compose.onNodeWithTag("signin.email").assertIsEnabled()
         assertNotNull(model!!.state.value.emailFocusRequest); assertEquals(1, calls.get())
         gate.complete(Unit)
         compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("signin.email").assertIsFocused().assertIsEnabled(); true }.getOrDefault(false) }

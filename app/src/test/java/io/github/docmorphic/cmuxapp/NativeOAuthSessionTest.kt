@@ -12,9 +12,9 @@ class NativeOAuthSessionTest {
         val owner = NativeSignInSession(this, { error("No email request") }, {}, authenticateProvider = { calls += it; gate.await() })
         try {
             owner.signInProvider(NativeOAuthProvider.GOOGLE); runCurrent(); owner.signInProvider(NativeOAuthProvider.GITHUB)
-            owner.editEmail("blocked@example.test"); owner.requestCode(); runCurrent()
+            owner.editEmail("edited@example.test"); owner.requestCode(); runCurrent()
             assertEquals(listOf(NativeOAuthProvider.GOOGLE), calls); assertTrue(owner.state.value.busy)
-            assertEquals(NativeOAuthProvider.GOOGLE, owner.state.value.provider); assertEquals("", owner.state.value.email)
+            assertEquals(NativeOAuthProvider.GOOGLE, owner.state.value.provider); assertEquals("edited@example.test", owner.state.value.email)
             gate.complete(Unit); runCurrent(); val completion = owner.state.value.completion!!
             assertTrue(owner.consumeCompletion(completion)); assertFalse(owner.consumeCompletion(completion)); assertFalse(owner.state.value.busy)
         } finally { gate.complete(Unit); owner.close() }

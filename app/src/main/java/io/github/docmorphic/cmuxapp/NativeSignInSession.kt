@@ -32,8 +32,15 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
     // including through multiple replacement edits or a timed-out preflight.
     private val exchanges = mutableSetOf<Deferred<Unit>>()
     fun editEmail(value: String) {
-        if (!job.isActive || state.value.busy || state.value.completion != null) return
+        if (!job.isActive || state.value.completion != null) return
         if (value != state.value.email) {
+            // The original methods TextField stays editable while provider/send
+            // work runs. Editing its draft must not retire that admitted work.
+            if (state.value.busy) {
+                if (!state.value.codeSent && !state.value.verificationRequired)
+                    mutable.value = state.value.copy(email = value)
+                return
+            }
             clearChallenge()
             mutable.value = NativeSignInState(email = value)
         }

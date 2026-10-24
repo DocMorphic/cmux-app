@@ -105,13 +105,14 @@ class NativeSetupHelpTest {
             NativeSignIn({ actions++ }, { actions++ }, { actions++ }, { actions++ },
                 NativeMacCompatibilityPolicy.baked, { actions++ })
         } } }
-        compose.onNodeWithText("Email").performTextInput("fixture@example.invalid")
+        compose.onNodeWithTag("signin.email").performTextInput("fixture@example.invalid")
         androidx.test.espresso.Espresso.closeSoftKeyboard()
-        compose.onNodeWithTag("signin.setup-help").performScrollTo().performClick()
+        compose.onNodeWithTag("signin.options").performClick()
+        compose.onNodeWithTag("signin.setup-help").performClick()
         compose.onNodeWithTag("setup.help.you-are-here").assertExists()
             .assert(hasAnyAncestor(hasTestTag("setup.help.gate:notSignedIn")))
         compose.onNodeWithTag("setup.help.done").performClick()
-        compose.onNodeWithText("Email").assertTextContains("fixture@example.invalid")
+        compose.onNodeWithTag("signin.email").assertTextContains("fixture@example.invalid")
         compose.runOnIdle { assertEquals(0, actions) }
     }
 

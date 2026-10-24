@@ -2,7 +2,7 @@
 
 `manifest.json` records the original whole-file hashes at cmux
 `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`, copyright Manaflow, Inc.,
-GPL-3.0-or-later. The repository LICENSE/NOTICE preserves that attribution.
+GPL-3.0-or-later. The repository LICENSE/NOTICE.md preserves that attribution.
 `cmux-sign-in-mark.svg` is unmodified upstream artwork. Its single path and
 three-stop gradient are represented by `app/src/main/res/drawable/cmux_signin_mark.xml`.
 
@@ -19,9 +19,13 @@ also has Android lifecycle/reduced-motion handling; exact original sign-in motio
 behavior under system accessibility settings has not been accepted.
 
 The Android capsule paint and system typeface do not execute UIKit Liquid Glass
-or establish exact source rendering. Original provider methods, entry scaffold,
-restore status, transitions, window/keyboard variants and real accessibility
-remain open. Scoped runtime evidence and remaining requirements: `docs/SIGN_IN.md`.
+or establish exact source rendering. The methods card now follows the original brand/provider/divider/email grouping
+and bottom alignment; Android-only setup/helper/license routes live in a menu.
+Google/GitHub artwork is preserved from upstream SVGs. Apple uses the original
+web mark, not native apple.logo; see provider-artwork.json. Six original methods
+labels across nine languages are bound separately from five Android-only options.
+Native glass/font/paint, restore status, transitions, window/keyboard variants
+and real accessibility remain open. Scoped runtime evidence and remaining requirements: `docs/SIGN_IN.md`.
 
 `oauth-reference.json` adds seven whole original provider/coordinator/client/
 composition/SDK sources, their identity at detected79d982f9 and the unmodified
@@ -52,3 +56,10 @@ fences cancelled refresh writes/clears and joins owned token work before sign-in
 Token absolute expiry, exclusive races, automatic dampers and explicit user
 supersession retain their distinct source rules. It does not establish complete
 coordinator, cache/loading, browser, UI or device parity; see `docs/SIGN_IN.md`.
+
+The optional `ios-signin-methods.yml` workflow executes original view declarations
+in an offline iOS host with actual unmodified support/core packages. It records
+UIKit traits, real accessibility control frames and XCUIScreen compositor images.
+`verify-ios-signin-methods.py` binds each image to scene/source/traits and rejects
+missing or dirty evidence. The authored service/state adapter does not authenticate
+or establish the full source app's coordinator, restore or provider behavior.

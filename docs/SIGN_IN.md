@@ -1,5 +1,60 @@
 # Native sign-in
 
+## Original methods card and editable busy email advanced — 2026-10-24
+
+The methods screen now follows the original bottom card, brand, provider order,
+artwork/label spacing, divider and50-point email pill. Existing Android setup,
+Mac help, helper and license routes remain in a separately attributed options
+menu. Six original labels and five Android-only labels cover nine locales.
+Google/GitHub SVG paths and colors are preserved; Apple uses the original web
+mark rather than native apple.logo. UIKit26 blue is taken from real source traits.
+Native glass/shadow/font paint is not accepted as equivalent.
+
+The original methods email remains editable while send/provider work is busy.
+Draft edits preserve the admitted request and pending challenge. A synchronous,
+memory-only TextFieldValue bridge prevents an opening IME from echoing an old
+empty value into the retained form. Background taps dismiss the keyboard.
+
+Final full JVM suite:3229 total,3225 passed,4 skipped SSH cases,0 failures.
+Localization/resources and27 Python guards pass. Final owned API36 cohort:
+25/25 in107.900s, including36 methods profiles, editable busy send/providers,
+setup/helper/license actions, pending draft edits across actual recreation and
+all previous19 auth/challenge/error/recovery/recreation cases. Crash empty,
+no preflight ANR, settings/window restored, emulator exit0. Evidence and hashes:
+recovery-20261023/native-signin-methods-checkpoint.json; details in SIGN_IN.md.
+
+Nine original phone scenes were individually bound to actual UIKit traits,
+control frames and compositor PNGs from clean source a39c6266, run40053276605.
+The full reference workflow remains failed: the passing tablet test exceeded its
+six-minute teardown budget, and its raw portrait pixel axes do not match the
+landscape UIKit viewport. The full association guard rejects that tablet capture.
+The future tablet step budget is ten minutes; orientation metadata still needs
+repair. This is scoped reference evidence, not full source-app acceptance.
+
+Restore/cache/loading UI and membership boundaries, post-sign-in effects,
+queued/source callback details, real browser/provider flows, exact UI/window/
+keyboard/accessibility variants and every broader parity gate remain open.
+No phone, live account, Mac, signed delivery or global source pin was changed.
+Goal remains active; Pixel712 and frozen signed722 are unchanged.
+
+Current debug app SHA256: fa49fd0b6836b02c0873c3d767d3d0bc1ae03cff955a11f812c6fc7d4edd121f.
+Test APK SHA256: d53bfe0e2027a6be0d422d9d95e3cbaaad7ad01174ec7a938b5c68b226603a08.
+Accepted runtime: native-signin-methods-runtime-v4/; full JVM:
+signin-methods-jvm-v9/. Earlier runs are diagnostic failures, not acceptance.
+The provider geometry check uses shaped line extents, height and ellipsis rather
+than the cached intrinsic paragraph container's width. Current light and Arabic
+2x screenshots were inspected. Light paint still lacks native glass/shadows;
+large-font profiles are controlled composition tests, not OS/TalkBack proof.
+
+Original reference: methods-reference.json binds19 whole originals and two real
+support/core package trees; all19 selected files are identical at detected79.
+The host executes unchanged UI declarations and helper leaves with an authored
+offline service/state adapter. Nine phone images individually pass scene/source/
+trait/label/PNG association checks; phone-verification.json records this subset.
+The full10-scene guard fails on the tablet. The adapter is not the original
+coordinator, restored account, backend or browser; source status UI alone does
+not supply Android restore behavior. None of the global adoption pins moved.
+
 ## Tracked phase waits and shared token-work preflight — 2026-10-24
 
 NativeAuthWork owns actual operation jobs independently of UI waiters. Deadline

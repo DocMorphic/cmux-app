@@ -4,6 +4,7 @@
     <string name="cmux_signin_provider_apple" formatted="false">"Connectez-vous avec Apple"</string>
     <string name="cmux_signin_provider_divider" formatted="false">"ou continuez avec l\'e-mail"</string>
     <string name="cmux_signin_provider_email_code" formatted="false">"Envoyez-moi un code"</string>
+    <string name="cmux_signin_provider_email_placeholder" formatted="false">"Adresse email"</string>
     <string name="cmux_signin_provider_github" formatted="false">"Connectez-vous avec GitHub"</string>
     <string name="cmux_signin_provider_google" formatted="false">"Connectez-vous avec Google"</string>
 </resources>
