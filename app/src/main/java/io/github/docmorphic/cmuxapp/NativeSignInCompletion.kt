@@ -5,7 +5,8 @@ import org.json.JSONObject
 import java.util.UUID
 
 /** The fetched identity is distinct from a credential exchange's successful token write. */
-internal data class NativeSignInUser(val id: String, val name: String?, val email: String?, val selectedTeam: String?) {
+internal data class NativeSignInUser(val id: String, val name: String?, val email: String?, val selectedTeam: String?,
+    val profileImageUrl:String?=null,val demonstrationContentEnabled:Boolean=false) {
     companion object {
         fun isEligible(value: JSONObject): Boolean {
             // JSONSerialization bridges numeric 0/1 to Bool too; strings do not cast.
@@ -20,17 +21,13 @@ internal data class NativeSignInUser(val id: String, val name: String?, val emai
             // StackClientApp.getUser(.throw) excludes these users by default.
             if (!isEligible(value))
                 throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
-            fun text(value: Any?, limit: Int): String? {
-                if (value == null || value === JSONObject.NULL) return null
-                if (value !is String || value.length > limit) throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
-                return value.trim().takeIf(String::isNotEmpty)
-            }
-            val id = text(value.opt("id"), 128) ?: throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
-            val selected = value.opt("selected_team")
-            if (selected != null && selected !== JSONObject.NULL && selected !is JSONObject)
-                throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
-            return NativeSignInUser(id, text(value.opt("display_name"), 512), text(value.opt("primary_email"), 512),
-                (selected as? JSONObject)?.let { text(it.opt("id"), 128) })
+            // Complete SDK User/CurrentUser projections preserve strings and use defaults;
+            // publishing an empty account id still cannot produce a connection identity.
+            return NativeSignInUser(value.opt("id") as? String ?: "",value.opt("display_name") as? String,
+                value.opt("primary_email") as? String,
+                value.optJSONObject("selected_team")?.let{it.opt("id") as? String ?: ""},
+                value.opt("profile_image_url") as? String,
+                value.optJSONObject("client_read_only_metadata")?.opt("cmuxReviewDemoContent") == true)
         }
     }
 }

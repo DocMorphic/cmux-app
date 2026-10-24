@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -18,6 +19,24 @@ import org.junit.Test
 
 class NativeAccountTeamSectionTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun duplicateAndEmptySdkRowsKeepRawLabelsAndIndependentCompositionIdentity() {
+        var state by mutableStateOf(NativeAccountTeamsState(userId="model-user",teams=listOf(
+            NativeTeam("same"," First "),NativeTeam("same","Second"),NativeTeam("","")),selectedTeamId="same"))
+        val selections=mutableListOf<String>()
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { Column(Modifier.safeDrawingPadding()) {
+            NativeAccountTeamSection(state,{}, {selections+=it;state=state.copy(selectedTeamId=it)},onCreate={false})
+        } } } }
+        compose.onAllNodesWithTag("settings.team:same").assertCountEquals(2)
+        compose.onNodeWithText(" First ").assertIsDisplayed();compose.onNodeWithText("Second").assertIsDisplayed()
+        compose.onNodeWithTag("settings.team:").assertContentDescriptionEquals("Unnamed team").performClick()
+        compose.waitUntil(5000){selections==listOf("")}
+        compose.onNodeWithTag("settings.team:").assertIsSelected()
+        compose.runOnIdle{state=state.copy(teams=state.teams.reversed())}
+        compose.onAllNodesWithTag("settings.team:same").assertCountEquals(2)
+        compose.onNodeWithText(" First ").assertIsDisplayed();compose.onNodeWithText("Second").assertIsDisplayed()
+        capture("team-sdk-rows")
+    }
 
     @Test fun createTrimsNameAndDisablesDuplicateSubmissionUntilConfirmed() {
         val complete = CompletableDeferred<Boolean>()

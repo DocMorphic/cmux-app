@@ -436,14 +436,15 @@ class NativeAccountTeamsTest {
         }
     }
 
-    @Test fun malformedMembershipCannotReplaceAnEstablishedScope() = runBlocking<Unit> {
+    @Test fun duplicateMembershipRowsFollowSdkAndRetireTheRemovedScope() = runBlocking<Unit> {
         MockWebServer().use { server ->
             controller(server).use { account ->
                 server.profile()
                 val original = checkNotNull(account.refresh().scope)
                 repeat(2){server.reply(user("two"))}; server.reply(teams("two", "two"))
-                assertTrue(runCatching { account.refresh() }.isFailure)
-                assertTrue(account.isCurrent(original))
+                val value=account.refresh()
+                assertEquals(listOf("two","two"),value.teams.map{it.id})
+                assertEquals("two",value.scope?.teamId);assertFalse(account.isCurrent(original))
             }
         }
     }

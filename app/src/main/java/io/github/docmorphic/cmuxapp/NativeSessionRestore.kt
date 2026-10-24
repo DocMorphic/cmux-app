@@ -49,16 +49,20 @@ internal class NativeSessionRestore(
     private var validation: CompletableDeferred<Unit>? = null
     private var bootstrap: Job? = null
     private var initialValidationAttempted=false
-    val needsIdentityValidation get()=synchronized(lock) { !initialValidationAttempted || publishedIdentity.value!=verifiedIdentity }
+    val needsIdentityValidation get()=synchronized(lock) { !initialValidationAttempted || verifiedSessionGeneration!=generation || publishedIdentity.value!=verifiedIdentity }
     private val mutable = MutableStateFlow(NativeAuthState.primed(hasTokensHint, cachedUser))
     val state = mutable.asStateFlow()
     private val publishedIdentity=MutableStateFlow(identityFrom(mutable.value))
     private var verifiedIdentity:NativeAuthIdentity?=null
+    private var verifiedSessionGeneration:Long?=null
     val identities=publishedIdentity.asStateFlow()
-    private fun identityFrom(value:NativeAuthState)=value.user?.id?.takeIf { value.authenticated && it.isNotBlank() }
+    private fun identityFrom(value:NativeAuthState)=value.user?.id?.takeIf { value.authenticated && it.isNotEmpty() }
         ?.let { NativeAuthIdentity(generation,it) }
     fun identity():NativeAuthIdentity?=synchronized(lock) { publishedIdentity.value }
     fun isIdentityCurrent(identity:NativeAuthIdentity)=synchronized(lock) { publishedIdentity.value==identity }
+    internal fun verifiedUser():NativeSignInUser?=synchronized(lock) {
+        mutable.value.user?.takeIf{mutable.value.authenticated && verifiedSessionGeneration==generation && publishedIdentity.value==verifiedIdentity}
+    }
     private val checking = MutableStateFlow(false)
     val revalidating = checking.asStateFlow()
     private data class Context(val generation: Long, val writes: Long, val external: Long)
@@ -75,7 +79,7 @@ internal class NativeSessionRestore(
     /** Private background account owners have no Activity bootstrap; join or run the same validation. */
     suspend fun restoreIdentityIfNeeded():NativeSignInUser? {
         if(identity()==null || needsIdentityValidation)checkExisting()
-        return synchronized(lock) { mutable.value.user?.takeIf { mutable.value.authenticated && verifiedIdentity!=null && verifiedIdentity==publishedIdentity.value } }
+        return verifiedUser()
     }
     suspend fun revalidate() {
         if (synchronized(lock) { !mutable.value.authenticated && !mutable.value.restoring && !hint }) return
@@ -90,7 +94,7 @@ internal class NativeSessionRestore(
     private fun clearIfCurrent(context: Context?, clearCachedUser: Boolean = true) {
         val cleared = synchronized(lock) {
             if (context != null && !clearIsCurrent(context)) false else {
-                generation++; hint = false; verifiedIdentity=null;publishedIdentity.value=null;mutable.value = NativeAuthState()
+                generation++; hint = false; verifiedIdentity=null;verifiedSessionGeneration=null;publishedIdentity.value=null;mutable.value = NativeAuthState()
                 runCatching { setHint(false) }; recoveryObserver?.cleared();true
             }
         }
@@ -108,7 +112,7 @@ internal class NativeSessionRestore(
             initialValidationAttempted=true
             hint = true
             val value=NativeAuthState(true,user,false)
-            verifiedIdentity=identityFrom(value);publishedIdentity.value=verifiedIdentity;mutable.value=value
+            verifiedSessionGeneration=generation;verifiedIdentity=identityFrom(value);publishedIdentity.value=verifiedIdentity;mutable.value=value
             runCatching { setHint(true) }
             generation to transition
         }

@@ -249,11 +249,12 @@ class NativeSignInCompletionTest {
         flow.restorePending(); assertEquals(2, fetches); assertEquals("legacy-refresh", store.load().getString("refresh_token")); store.preserved()
     }
 
-    @Test fun malformedOrMissingFetchedIdentitiesCannotBecomeAuthenticatedUsers() {
-        for (value in listOf(JSONObject(), JSONObject().put("id", 7), JSONObject().put("id", " "), JSONObject().put("id", "ok").put("primary_email", 7),
-            JSONObject().put("id", "ok").put("selected_team", "wrong"))) {
-            assertThrows(NativeSignInFailure::class.java) { NativeSignInUser.decode(value) }
-        }
+    @Test fun optionalFieldDefaultsAndRawIdsMatchTheSdkProjection() {
+        assertEquals("",NativeSignInUser.decode(JSONObject()).id)
+        assertEquals("",NativeSignInUser.decode(JSONObject().put("id",7)).id)
+        assertEquals(" ",NativeSignInUser.decode(JSONObject().put("id"," ")).id)
+        assertNull(NativeSignInUser.decode(JSONObject().put("id","ok").put("primary_email",7)).email)
+        assertNull(NativeSignInUser.decode(JSONObject().put("id","ok").put("selected_team","wrong")).selectedTeam)
         assertEquals(user, NativeSignInUser.decode(JSONObject().put("id", user.id).put("display_name", user.name).put("primary_email", user.email)
             .put("selected_team", JSONObject().put("id", user.selectedTeam))))
     }

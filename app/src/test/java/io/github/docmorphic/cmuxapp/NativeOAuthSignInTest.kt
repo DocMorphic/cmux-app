@@ -88,7 +88,7 @@ class NativeOAuthSignInTest {
             assertEquals("html",(runCatching {client.refreshAccess("refresh")}.exceptionOrNull() as NativeRefreshRateLimited).bodyKind)
         }
     }
-    @Test fun userVerificationUsesTheCapturedAccessTokenAndRejectsHttp200ApplicationErrorsOrMissingUsers() = runBlocking {
+    @Test fun userVerificationUsesCapturedTokenRejectsApplicationErrorsAndKeepsSdkEmptyIdDefault() = runBlocking {
         MockWebServer().use { server ->
             val client = NativeOAuthClient("fixture-project", "fixture-key", server.url("/"))
             server.enqueue(MockResponse().setBody("{\"id\":\"user\",\"primary_email\":\"fixture@example.test\"}"))
@@ -100,8 +100,8 @@ class NativeOAuthSignInTest {
             val rejected = runCatching { client.currentUser("captured-access") }.exceptionOrNull() as Exception
             assertEquals(NativeSignInError.UNAUTHORIZED, nativeSignInError(rejected)); server.takeRequest()
             server.enqueue(MockResponse().setBody("{}"))
-            val missing = runCatching { client.currentUser("captured-access") }.exceptionOrNull() as Exception
-            assertEquals(NativeSignInError.UNAUTHORIZED, nativeSignInError(missing)); server.takeRequest()
+            val empty=client.currentUser("captured-access")
+            assertEquals("",empty.id);assertNull(empty.name);assertNull(empty.email);server.takeRequest()
             assertEquals(3, server.requestCount)
         }
     }

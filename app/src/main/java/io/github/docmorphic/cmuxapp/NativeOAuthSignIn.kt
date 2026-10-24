@@ -162,12 +162,12 @@ internal class NativeOAuthClient(private val project: String, private val publis
         .header("x-stack-access-type", "client").header("x-stack-client-version", "cmux-android@0.2.0")
         .header("x-stack-access-token", access).header("x-stack-override-error-status", "true")
         .header("x-stack-random-nonce", java.util.UUID.randomUUID().toString()).build()
-    suspend fun currentUser(access: String): NativeSignInUser = NativeSignInUser.decode(request(userRequest(access), accountRequest = true))
+    suspend fun currentUser(access: String): NativeSignInUser = NativeSignInUser.decode(request(userRequest(access), accountRequest = true,unboundedBody=true))
 
     /** Match getUser(.throw): invalid JSON is nil, most errors are USER_NOT_SIGNED_IN. */
     suspend fun restoredCurrentUser(access: String, refreshRejectedAccess: suspend () -> String?): NativeSignInUser? {
         suspend fun read(token: String) = request(userRequest(token), accountRequest = true,
-            unauthorizedStatuses = emptySet(), missingUserJson = true)
+            unauthorizedStatuses = emptySet(), missingUserJson = true,unboundedBody=true)
         return try {
             val payload = try { read(access) } catch (failure: NativeAccountRequestFailure) {
                 if (failure.code != "invalid_access_token") throw failure
@@ -184,7 +184,7 @@ internal class NativeOAuthClient(private val project: String, private val publis
     private class NativeMissingUserPayload : Exception()
     private suspend fun request(request: Request, successStatus: Int? = null, accountRequest: Boolean = false,
         unauthorizedStatuses: Set<Int> = setOf(401), missingUserJson: Boolean = false, discardBody:Boolean=false,
-        rawHttpStatus:Boolean=false): JSONObject = suspendCancellableCoroutine { continuation ->
+        rawHttpStatus:Boolean=false,unboundedBody:Boolean=false): JSONObject = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
@@ -217,7 +217,7 @@ internal class NativeOAuthClient(private val project: String, private val publis
                         val bytes = ByteArray(8192)
                         while (true) {
                             val size = stream.read(bytes); if (size < 0) break
-                            if (buffer.size() + size > 262_144) throw NativeSignInFailure(if (accountRequest) NativeSignInError.SERVER_ERROR else NativeSignInError.BROWSER_SIGN_IN_FAILED)
+                            if (!unboundedBody && buffer.size() + size > 262_144) throw NativeSignInFailure(if (accountRequest) NativeSignInError.SERVER_ERROR else NativeSignInError.BROWSER_SIGN_IN_FAILED)
                             buffer.write(bytes, 0, size)
                         }
                     }

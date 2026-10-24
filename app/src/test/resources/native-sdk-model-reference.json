@@ -1,0 +1,1055 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/User.swift": "a9a6a06f7e04ca7a6c3f3ce0edbb88e59aae8e9d0c2758aac0b54dc138a3c33e",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift": "5b9c73c8b2b66c91ed994e7b4881a8771812c551604dd261d418bcd41696c76f",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/Team.swift": "563d789bb25bf51ca4f6914227082f5c4d3cd5e8d84f2859e285cecab7730f9b",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Models/CMUXAuthUser.swift": "efb7028c38c08ec70e2dc53449b022c33cb2e073eed663f9d84bf8f63828de08",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Persistence/CMUXAuthIdentityStore.swift": "c03b108b31d2f984616456ff42cfd972db7954c4ef9219692aa6965156404bfe",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Persistence/CMUXAuthKeyValueStore.swift": "a883ba8a5dc5c17b5c1b4d8b4af2e0c1eee685cd3bd5213f5f875b054a732c1a",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift": "f207a5d02577cc89e1e34ad08a019f200a5bdd96817ba08f9695f10415461845"
+  },
+  "executedDeclarationsSha256": [
+    "bdb1d44f539180de2a28614ddbfa9e7f3241250cca1529f2bf966c51ad6ef92d",
+    "6968646d421f9c5faea71376c2c3c4cdef31face7a88415c00aaa6c7154b95e7",
+    "3b3d9c55ddd9c3410b8adbc550941d2931be6f9d2b6b928a596be01ffe7ffc08",
+    "975c30bb6c5705910684545ea02ea633809aa1ecc697c9b6a59d69628b1d3d8b",
+    "0d6037b68b4c40a39f144700a14004899e6a0e0babae6e26e18ba4d7da3b37fb"
+  ],
+  "seams": "Inert APIClient returns controlled body/transport failure. Complete original list and constructor/mapping declarations and shared User/cache sources execute. Not the original APIClient/getUser/token/timer, scope publisher, UI or platform storage.",
+  "boundaries": {
+    "rawBytes": 2238212,
+    "rows": 4097,
+    "transportFailureThrows": true
+  },
+  "caches": [
+    {
+      "payload": {
+        "id": "user"
+      },
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "payload": {
+        "id": ""
+      },
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "payload": {
+        "id": " "
+      },
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": " ",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "payload": {
+        "id": 4
+      },
+      "user": null
+    },
+    {
+      "payload": {
+        "displayName": 4,
+        "id": "user"
+      },
+      "user": null
+    },
+    {
+      "payload": {
+        "displayName": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "primaryEmail": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "user": {
+        "demo": false,
+        "email": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "image": null,
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+      }
+    },
+    {
+      "payload": {
+        "demonstrationContentEnabled": true,
+        "id": "user"
+      },
+      "user": {
+        "demo": true,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "payload": {
+        "demonstrationContentEnabled": false,
+        "id": "user"
+      },
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "payload": {
+        "demonstrationContentEnabled": null,
+        "id": "user"
+      },
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "payload": {
+        "demonstrationContentEnabled": 1,
+        "id": "user"
+      },
+      "user": null
+    },
+    {
+      "payload": {
+        "demonstrationContentEnabled": "true",
+        "id": "user"
+      },
+      "user": null
+    },
+    {
+      "payload": {
+        "id": "user",
+        "profileImageURL": " url "
+      },
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": " url ",
+        "name": null
+      }
+    },
+    {
+      "payload": {
+        "id": "user",
+        "profileImageURL": 4
+      },
+      "user": null
+    }
+  ],
+  "lists": [
+    {
+      "raw": "",
+      "teams": []
+    },
+    {
+      "raw": "broken",
+      "teams": []
+    },
+    {
+      "raw": "[]",
+      "teams": []
+    },
+    {
+      "raw": "null",
+      "teams": []
+    },
+    {
+      "raw": "\"text\"",
+      "teams": []
+    },
+    {
+      "raw": "{}",
+      "teams": []
+    },
+    {
+      "raw": "{\"items\":null}",
+      "teams": []
+    },
+    {
+      "raw": "{\"items\":{}}",
+      "teams": []
+    },
+    {
+      "raw": "{\"items\":[]}",
+      "teams": []
+    },
+    {
+      "raw": "{\"items\":[null]}",
+      "teams": []
+    },
+    {
+      "raw": "{\"items\":[1]}",
+      "teams": []
+    },
+    {
+      "raw": "{\"items\":[{},false]}",
+      "teams": []
+    },
+    {
+      "raw": "{\"items\":[{}]}",
+      "teams": [
+        {
+          "id": "",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "raw": "{\"items\":[{\"id\":7,\"display_name\":false}]}",
+      "teams": [
+        {
+          "id": "",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "raw": "{\"items\":[{\"id\":\"\",\"display_name\":\"\"}]}",
+      "teams": [
+        {
+          "id": "",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "raw": "{\"items\":[{\"id\":\" raw \",\"display_name\":\" Name \"}]}",
+      "teams": [
+        {
+          "id": " raw ",
+          "name": " Name "
+        }
+      ]
+    },
+    {
+      "raw": "{\"items\":[{\"id\":\"same\",\"display_name\":\"First\"},{\"id\":\"same\",\"display_name\":\"Second\"}]}",
+      "teams": [
+        {
+          "id": "same",
+          "name": "First"
+        },
+        {
+          "id": "same",
+          "name": "Second"
+        }
+      ]
+    },
+    {
+      "raw": "{\"items\": [{\"id\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\", \"display_name\": \"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn\"}]}",
+      "teams": [
+        {
+          "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+        }
+      ]
+    },
+    {
+      "raw": "{\"items\":[{\"id\":\"one\"},{\"id\":\"two\",\"display_name\":null}]}",
+      "teams": [
+        {
+          "id": "one",
+          "name": ""
+        },
+        {
+          "id": "two",
+          "name": ""
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "eligible": true,
+      "payload": {},
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": 5
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": ""
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": " "
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": " ",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": " ",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "display_name": " Name ",
+        "id": " raw ",
+        "primary_email": " email "
+      },
+      "restored": {
+        "demo": false,
+        "email": " email ",
+        "id": " raw ",
+        "image": null,
+        "name": " Name "
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": " email ",
+        "id": " raw ",
+        "image": null,
+        "name": " Name "
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "display_name": 5,
+        "id": "user",
+        "primary_email": false,
+        "profile_image_url": []
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "selected_team": null
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "selected_team": false
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "selected_team": []
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "selected_team": {}
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": "",
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "selected_team": {
+          "id": 4
+        }
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": "",
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "selected_team": {
+          "id": ""
+        }
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": "",
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "selected_team": {
+          "id": " raw "
+        }
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": " raw ",
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "display_name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "primary_email": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "profile_image_url": " url "
+      },
+      "restored": {
+        "demo": false,
+        "email": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "image": " url ",
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "image": " url ",
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "client_read_only_metadata": {
+          "cmuxReviewDemoContent": true
+        },
+        "id": "user"
+      },
+      "restored": {
+        "demo": true,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": true,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "client_read_only_metadata": {
+          "cmuxReviewDemoContent": false
+        },
+        "id": "user"
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "client_read_only_metadata": {
+          "cmuxReviewDemoContent": 1
+        },
+        "id": "user"
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "client_read_only_metadata": {
+          "cmuxReviewDemoContent": 0
+        },
+        "id": "user"
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "client_read_only_metadata": {
+          "cmuxReviewDemoContent": "true"
+        },
+        "id": "user"
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "client_read_only_metadata": {
+          "cmuxReviewDemoContent": {}
+        },
+        "id": "user"
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "client_read_only_metadata": {
+          "cmuxReviewDemoContent": null
+        },
+        "id": "user"
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "client_metadata": {
+          "cmuxReviewDemoContent": true
+        },
+        "id": "user"
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": false,
+      "payload": {
+        "id": "user",
+        "is_anonymous": true
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "is_anonymous": false
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": false,
+      "payload": {
+        "id": "user",
+        "is_anonymous": 1
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "is_anonymous": 0
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "is_anonymous": 2
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "is_anonymous": "true"
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": false,
+      "payload": {
+        "id": "user",
+        "is_restricted": true
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "is_restricted": false
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": false,
+      "payload": {
+        "id": "user",
+        "is_restricted": 1
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "is_restricted": 0
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "is_restricted": 2
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    },
+    {
+      "eligible": true,
+      "payload": {
+        "id": "user",
+        "is_restricted": "true"
+      },
+      "restored": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      },
+      "selected": null,
+      "user": {
+        "demo": false,
+        "email": null,
+        "id": "user",
+        "image": null,
+        "name": null
+      }
+    }
+  ]
+}

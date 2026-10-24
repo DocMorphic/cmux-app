@@ -54,9 +54,9 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
         Text("TEAM", Modifier.padding(horizontal = 22.dp, vertical = 10.dp).semantics { heading() },
             color = NativeAppColors.muted, fontSize = 11.sp)
         Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).selectableGroup()) {
-            state.teams.forEach { team ->
+            state.teams.forEachIndexed { index,team ->
                 // Keep cached accessibility actions bound to their original account and team.
-                key(owner, team.id) {
+                key(owner, team.id, index) {
                     val resolved=nativeResolvedTeamId(state.selectedTeamId,state.teams)
                     val chosen = team.id == (pendingTeam ?: resolved)
                     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("settings.team:${team.id}")
@@ -77,7 +77,7 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
                             }
                         }).semantics { contentDescription = team.name.ifBlank { "Unnamed team" } }
                         .padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(team.name.ifBlank { "Unnamed team" }, Modifier.weight(1f).padding(end = 12.dp),
+                        Text(team.name, Modifier.weight(1f).padding(end = 12.dp),
                             color = if (canManage && !submitting) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
                         if (chosen) Icon(painterResource(R.drawable.ic_menu_check), null, Modifier.size(20.dp),
                             tint = if (canManage && !submitting) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)

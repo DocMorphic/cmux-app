@@ -97,9 +97,10 @@ selection eligibility and failure-tolerant backend creation. [Independent refres
 adds fresh callback user/selected reads, preserved empty-list choice and account
 profile projection. [Independent choice lifetime](TEAM_SELECTION_LIFETIME.md) now
 covers receipt/publication storage; actual locked-storage/death and full project
-reset remain open. SDK malformed-list/
-default-model semantics, full user metadata/profile bounds and complete transport/
-retry behavior remain open.
+reset remain open. [SDK projections](SDK_USER_TEAM_PROJECTIONS.md) cover raw/default
+fields, common malformed successful lists and model/cache bounds. Recovery now
+accepts auth-generation outcomes for verified empty-id users without inventing a
+connection identity. Complete JSON lexical and transport/retry behavior remain open.
 
 The reporting producer is not the original consent-aware aggregation/recovery
 telemetry consumer. Interactive sign-in's separate rate-retry flow is outside

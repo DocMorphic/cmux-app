@@ -18,7 +18,7 @@ class NativeTeamEligibilityTest {
     private fun controller(server:MockWebServer,identity:AtomicReference<NativeAuthIdentity> = AtomicReference(NativeAuthIdentity(0,a.id)))=
         NativeAccountTeams({"fixture-token"},{"login"},server.url("/api/v1/"),sessionIdentity=identity::get)
     private suspend fun establish(server:MockWebServer,c:NativeAccountTeams):Pair<NativeTeamScope,NativeTeamContinuation> {
-        repeat(2){server.enqueue(reply(user()))};server.enqueue(teams());val scope=checkNotNull(c.refreshAfterSignIn("login",a).scope)
+        repeat(2){server.teamUsers{reply(user())}};server.enqueue(teams());val scope=checkNotNull(c.refreshAfterSignIn("login",a).scope)
         return scope to checkNotNull(c.captureContinuation(scope))
     }
     @Test fun decoderMatchesTwentyNineCasesExecutedFromTheWholeOriginalSdkUserModel() {
@@ -34,7 +34,7 @@ class NativeTeamEligibilityTest {
     }
     @Test fun ineligibleUsersCannotObtainFreshMembershipOrAMemoryProof()=runBlocking<Unit> {
         for(flag in listOf("is_anonymous","is_restricted"))MockWebServer().use {server->controller(server).use {c->
-            repeat(2){server.enqueue(reply(user(flag)))}
+            repeat(2){server.teamUsers{reply(user(flag))}}
             assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
             assertEquals(2,server.requestCount);assertEquals("/api/v1/users/me",server.takeRequest().path)
             assertNull(c.state.value.scope);assertTrue(c.state.value.teams.isEmpty())
@@ -42,23 +42,23 @@ class NativeTeamEligibilityTest {
     }
     @Test fun anIneligibleReadKeepsOnlyTheAlreadyLoadedSameSessionAuthorityAndDoesNotFetchTeams()=runBlocking<Unit> {
         for(flag in listOf("is_anonymous","is_restricted"))MockWebServer().use {server->controller(server).use {c->
-            val(scope,proof)=establish(server,c);repeat(2){server.enqueue(reply(user(flag)))}
+            val(scope,proof)=establish(server,c);repeat(2){server.teamUsers{reply(user(flag))}}
             assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
             assertEquals(5,server.requestCount);assertEquals(scope,c.state.value.scope)
             assertTrue(c.isCurrent(scope));assertTrue(c.allowsContinuation(proof));assertFalse(c.state.value.loading)
-            repeat(2){server.enqueue(reply(user()))};server.enqueue(teams());assertEquals(scope,c.refresh().scope)
+            repeat(2){server.teamUsers{reply(user())}};server.enqueue(teams());assertEquals(scope,c.refresh().scope)
             assertTrue(c.allowsContinuation(proof));assertEquals(8,server.requestCount)
         }}
     }
     @Test fun missingOrStringFlagsStillAllowTheSameEligibleMembershipRead()=runBlocking<Unit> {
         for(value in listOf<Any>(false,0,2,"true","1",JSONObject.NULL))MockWebServer().use {server->controller(server).use {c->
-            repeat(2){server.enqueue(reply(user("is_anonymous",value)))};server.enqueue(teams())
+            repeat(2){server.teamUsers{reply(user("is_anonymous",value))}};server.enqueue(teams())
             assertNotNull(c.refresh().scope);assertEquals(3,server.requestCount)
         }}
     }
     @Test fun everyFailedUserReadPreservesLoadedMembershipButRateLimitRemainsDistinct()=runBlocking<Unit> {
         for(status in listOf(400,401,403,404,429,503))MockWebServer().use {server->controller(server).use {c->
-            val(scope,proof)=establish(server,c);repeat(if(status==401)4 else 2){server.enqueue(MockResponse().setResponseCode(status))}
+            val(scope,proof)=establish(server,c);repeat(if(status==401)4 else 2){server.teamUsers{MockResponse().setResponseCode(status)}}
             val failure=runCatching {c.refresh()}.exceptionOrNull();assertNotNull(failure)
             if(status==429)assertTrue(failure is NativeAccountRateLimited)
             else assertTrue(failure is NativeSessionUserUnavailable)
@@ -68,11 +68,11 @@ class NativeTeamEligibilityTest {
     }
     @Test fun failedMembershipIsNotEmptyMembershipAndSuccessfulRemovalCannotReviveAnOldProof()=runBlocking<Unit> {
         MockWebServer().use {server->controller(server).use {c->
-            val(scope,proof)=establish(server,c);repeat(2){server.enqueue(reply(user()))};server.enqueue(MockResponse().setResponseCode(403))
+            val(scope,proof)=establish(server,c);repeat(2){server.teamUsers{reply(user())}};server.enqueue(MockResponse().setResponseCode(403))
             assertTrue(runCatching {c.refresh()}.isFailure);assertEquals(scope,c.state.value.scope);assertTrue(c.allowsContinuation(proof))
-            repeat(2){server.enqueue(reply(user()))};server.enqueue(MockResponse().setBody("{\"items\":[]}"));c.refresh()
+            repeat(2){server.teamUsers{reply(user())}};server.enqueue(MockResponse().setBody("{\"items\":[]}"));c.refresh()
             assertNull(c.state.value.scope);assertFalse(c.allowsContinuation(proof))
-            repeat(2){server.enqueue(reply(user()))};server.enqueue(teams());val fresh=checkNotNull(c.refresh().scope)
+            repeat(2){server.teamUsers{reply(user())}};server.enqueue(teams());val fresh=checkNotNull(c.refresh().scope)
             assertTrue(c.isCurrent(fresh));assertFalse(c.allowsContinuation(proof));assertNotEquals(scope.generation,fresh.generation)
         }}
     }
@@ -85,7 +85,7 @@ class NativeTeamEligibilityTest {
             NativeAccountTeams({"fixture-token"},{"login"},server.url("/api/v1/"),cache=cache,
                 sessionIdentity={NativeAuthIdentity(0,a.id)}).use {c->
                 assertTrue(c.state.value.cached);assertNull(c.state.value.scope)
-                repeat(2){server.enqueue(reply(user("is_restricted")))}
+                repeat(2){server.teamUsers{reply(user("is_restricted"))}}
                 assertTrue(runCatching {c.refresh()}.isFailure);assertTrue(c.state.value.cached)
                 assertNull(c.state.value.scope);assertEquals(2,server.requestCount);assertEquals("one",cache.read("login",env)?.selectedTeamId)
             }
@@ -97,7 +97,7 @@ class NativeTeamEligibilityTest {
             val cache=NativeAccountProfileCache({root},{change->root=JSONObject(root.toString()).also(change)})
             val identity=AtomicReference(NativeAuthIdentity(0,a.id));val env="${server.url("/api/v1/")}#${NativeAccount.PROJECT_ID}"
             NativeAccountTeams({"fixture-token"},{"login"},server.url("/api/v1/"),cache=cache,sessionIdentity=identity::get).use {c->
-                val(_,proof)=establish(server,c);identity.set(NativeAuthIdentity(1,a.id));repeat(2){server.enqueue(MockResponse().setResponseCode(403))}
+                val(_,proof)=establish(server,c);identity.set(NativeAuthIdentity(1,a.id));repeat(2){server.teamUsers{MockResponse().setResponseCode(403)}}
                 assertTrue(runCatching {c.refreshAfterSignIn("login",a.copy(name="Updated A"))}.isFailure)
                 assertNull(c.state.value.scope);assertFalse(c.allowsContinuation(proof));assertEquals("Updated A",c.state.value.displayName)
                 assertFalse(c.state.value.cached);assertEquals("Updated A",cache.read("login",env)?.displayName)
@@ -111,7 +111,7 @@ class NativeTeamEligibilityTest {
             val identity=AtomicReference(NativeAuthIdentity(0,a.id));val env="${server.url("/api/v1/")}#${NativeAccount.PROJECT_ID}"
             NativeAccountTeams({"fixture-token"},{"login"},server.url("/api/v1/"),cache=cache,lock=lock,sessionIdentity=identity::get).use {c->
                 val(_,proof)=establish(server,c);repeat(3){server.takeRequest()}
-                repeat(2){server.enqueue(reply(user("is_anonymous")).setBodyDelay(200,TimeUnit.MILLISECONDS))}
+                repeat(2){server.teamUsers{reply(user("is_anonymous")).setBodyDelay(200,TimeUnit.MILLISECONDS)}}
                 val pending=async(Dispatchers.IO){runCatching {c.refresh()}}
                 assertNotNull(withContext(Dispatchers.IO){server.takeRequest(2,TimeUnit.SECONDS)})
                 synchronized(lock){identity.set(NativeAuthIdentity(1,"account-b"));NativeAccountProfileCache.writeVerifiedUser(root,"login",env,a.copy(id="account-b",name="B"))}
@@ -122,11 +122,12 @@ class NativeTeamEligibilityTest {
     }
     @Test fun malformedUserAndMembershipBodiesCannotLeakTheirContentsIntoPresentation()=runBlocking<Unit> {
         MockWebServer().use {server->controller(server).use {c->
-            val(scope,proof)=establish(server,c)
-            repeat(2){server.enqueue(MockResponse().setBody("private-user-body-canary"))};assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
+            val(_,proof)=establish(server,c)
+            repeat(2){server.teamUsers{MockResponse().setBody("private-user-body-canary")}};assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
             assertFalse(c.state.value.error.orEmpty().contains("private-user-body-canary"));assertTrue(c.allowsContinuation(proof))
-            repeat(2){server.enqueue(reply(user()))};server.enqueue(MockResponse().setBody("private-team-body-canary"));assertTrue(runCatching {c.refresh()}.isFailure)
-            assertFalse(c.state.value.error.orEmpty().contains("private-team-body-canary"));assertEquals(scope,c.state.value.scope)
+            repeat(2){server.teamUsers{reply(user())}};server.enqueue(MockResponse().setBody("private-team-body-canary"))
+            val empty=c.refresh();assertTrue(empty.teams.isEmpty());assertNull(empty.scope);assertTrue(c.hasLoadedMembership)
+            assertFalse(c.state.value.error.orEmpty().contains("private-team-body-canary"));assertFalse(c.allowsContinuation(proof))
         }}
     }
 }

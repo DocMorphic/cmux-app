@@ -23,6 +23,15 @@ class NativeTeamScopeRecoveryTest {
     }
     private fun reference()=JSONObject(checkNotNull(javaClass.getResourceAsStream("/native-team-recovery-reference.json"))
         .bufferedReader().use {it.readText()})
+    @Test fun anAuthGenerationOutcomeDoesNotRequireAConnectionIdentityAndRejectsOldGenerations()=runTest {
+        val f=Fixture(this)
+        f.recovery.membershipCompletedGeneration(0,NativeAccountRateLimited(1.0,"/api/v1/teams","json"))
+        assertTrue(f.recovery.hasRateLimit);assertTrue(f.recovery.hasPendingRecovery)
+        f.recovery.membershipCompletedGeneration(null,null);assertTrue(f.recovery.hasRateLimit)
+        f.generation=1;f.recovery.membershipCompletedGeneration(0,null);assertTrue(f.recovery.hasRateLimit)
+        f.loaded=true;f.recovery.membershipCompletedGeneration(1,null);assertFalse(f.recovery.hasRateLimit)
+        f.recovery.validationCompleted();assertFalse(f.recovery.hasPendingRecovery);assertEquals(0,f.calls)
+    }
     @Test fun normalDelaysMatchAllTenExecutedOriginalCases() {
         val root=reference();assertEquals("a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",root.getString("upstream"))
         val rows=root.getJSONArray("normal");assertEquals(10,rows.length())

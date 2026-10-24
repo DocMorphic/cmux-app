@@ -1,3 +1,36 @@
+## SDK user/team projections and empty-id authority reconciled — 2026-10-24
+
+SDK user/team fields now preserve raw strings and defaults, including repeated
+and empty-id rows. Common successful malformed/missing-items team bodies count as
+loaded empty membership and retire old scope/proofs; transport failures remain
+distinct. Android-only successful SDK user/team body, row and field caps are
+removed. Profile-image/demo metadata survives encrypted account reconstruction;
+its downstream rendering/demo flow remains open. Verified auth generation is
+separate from optional connection identity, so empty-id users can load/recover
+membership without obtaining scope, and older empty-id sessions cannot publish.
+
+Full JVM: 3,446 total in 457 suites, 3,442 passed, four existing SSH skips, zero
+failures/errors. Owned API 36: 195/195 in 371.92 seconds, five new account cases,
+one new component case and 189 prior regressions. After a test-container inset
+correction, the one component case passed again in 2.151 seconds; production APK
+unchanged. The corrected image was inspected. Both runs have empty crash logs,
+no preflight ANR, restored settings/window and owned exit0. The real 60-second
+phase returned at 60,015ms with fixture ciphertext/pairing intact and no PATCH.
+34 user, 19 list and 13 cached-user original projections regenerate identically,
+including original 4,097-row/2,238,212-byte acceptance. The receipt binds 65 local
+inputs and 41 whole originals, with the two test-APK runs kept distinct.
+
+Full parity remains active: complete JSON lexical/Unicode/number/error and SDK
+transport/retry/nonce behavior, remaining backend/token/mutation bounds and
+identity/worker consumer adoption, image/demo UI, full auth-project reset,
+consent-aware reporting/rate integration, actual locked storage/OS/death,
+physical Pixel/Mac/provider/helper/Firebase, matched full UI/accessibility and
+signed release remain open. No physical install, real account/pairing/signing
+material, global pin or frozen signed 722 changed.
+
+Details: [SDK user/team projections](SDK_USER_TEAM_PROJECTIONS.md).
+Evidence: `captures/recovery-20261023/sdk-model-checkpoint.json`.
+
 ## Independent remembered team choice reconciled — 2026-10-24
 
 The remembered team choice now lives separately from cached account/member rows

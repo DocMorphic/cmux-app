@@ -117,8 +117,9 @@ adds source network budgets, actual/public lifetime accounting, a real default
 selection. Locked encrypted storage, OS sleep/Doze/network loss and process-death
 acceptance remain open. [Independent refresh reads](TEAM_REFRESH_READS.md) now cover
 parallel user/list and selected-team requests, remembered choice and profile
-projection. Malformed-list/default-model semantics, complete user metadata/profile
-bounds, consent-aware telemetry and
+projection. [SDK user/team projections](SDK_USER_TEAM_PROJECTIONS.md) cover raw/default
+fields, repeated/empty rows, common malformed successful lists and model/cache
+metadata and bounds. Complete JSON lexical/transport behavior, consent-aware telemetry and
 worker retry/rate integration remain open. The SDK-only create fallback without
 the configured cmux backend is not an Android production route. Readonly cached nil selection is covered in that follow-up;
 [independent selection lifetime](TEAM_SELECTION_LIFETIME.md) now covers new receipts

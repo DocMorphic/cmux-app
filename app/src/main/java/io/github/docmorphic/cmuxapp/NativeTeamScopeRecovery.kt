@@ -44,11 +44,15 @@ internal class NativeTeamScopeRecovery(
     override fun signedIn()=reset()
     override fun cleared()=reset()
     fun membershipCompleted(identity:NativeAuthIdentity?,error:Exception?) {
-        if(identity==null)return
+        membershipCompletedGeneration(identity?.generation,error)
+    }
+    /** A verified empty-id user still owns an auth generation, but has no connection identity. */
+    fun membershipCompletedGeneration(expected:Long?,error:Exception?) {
+        if(expected==null)return
         if(error==null) {
-            val accepted=synchronized(lock){if(closed || identity.generation!=generation())false else {limit=null;true}}
+            val accepted=synchronized(lock){if(closed || expected!=generation())false else {limit=null;true}}
             if(accepted)runCatching(succeeded)
-        } else if(noteFailure(identity.generation,error))schedule(identity.generation)
+        } else if(noteFailure(expected,error))schedule(expected)
     }
     private fun noteFailure(expected:Long,error:Exception):Boolean {
         val observation=synchronized(lock) {

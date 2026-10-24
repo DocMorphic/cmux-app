@@ -25,8 +25,8 @@ class NativeAuthUserCacheTest {
         assertEquals(user.copy(selectedTeam = null), NativeAuthUserCache.read(root, "environment"))
         NativeAuthUserCache.write(root, "environment", user)
         val original = root.getJSONObject(NativeAuthUserCache.KEY).toString()
-        for ((key, value) in listOf("version" to 2, "user" to "", "user" to 9, "name" to JSONObject(),
-            "email" to "x".repeat(513), "selected" to "x".repeat(129))) {
+        for ((key, value) in listOf("version" to 2, "user" to 9, "name" to JSONObject(),
+            "profile_image_url" to false, "demonstration_content_enabled" to 1)) {
             root.put(NativeAuthUserCache.KEY, JSONObject(original).put(key, value))
             assertNull("$key must not produce a cached identity", NativeAuthUserCache.read(root, "environment"))
         }

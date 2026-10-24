@@ -111,9 +111,11 @@ cooldown, account replacement, cancellation and private WorkManager notices.
 
 ## Remaining acceptance
 
-The primary user and membership decoder's complete SDK malformed/default models,
-row/body/id/profile/metadata bounds, complete SDK transport/error/retry behavior
-remain open. Choice-versus-card lifetime is covered in the linked follow-up;
+[The SDK projection follow-up](SDK_USER_TEAM_PROJECTIONS.md) covers exposed
+user/team defaults, raw strings, duplicate/empty rows, common successful malformed
+list bodies and the former Android-only successful response/field/row bounds.
+Complete JSON lexical/Unicode/number semantics and SDK transport/error/retry
+behavior remain open. Choice-versus-card lifetime is covered in the linked follow-up;
 actual OS/storage acceptance and complete auth-project reset remain open.
 The endpoint-routed runtime fixture separates GET-user and other reply queues so
 parallel calls cannot consume a teams response; unscripted user requests fail the

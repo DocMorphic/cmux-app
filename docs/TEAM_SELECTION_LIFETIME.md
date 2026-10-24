@@ -90,8 +90,10 @@ Evidence: `team-choice-build-v3.log`, `team-choice-jvm-v3`,
 ## Remaining acceptance
 
 This closes the identified choice-versus-card receipt/publication lifetime gap,
-not full app parity. Complete SDK model defaults/malformed payloads, metadata and
-transport/retry behavior, auth-project token/backend adoption, worker retry/rate/
+not full app parity. [SDK user/team projections](SDK_USER_TEAM_PROJECTIONS.md)
+cover the default fields/raw strings, model/cache metadata and former successful
+response/row bounds. Complete JSON lexical and transport/retry behavior,
+auth-project token/backend adoption, worker retry/rate/
 reporting integration, actual locked Keystore, OS sleep/network loss/process
 death, physical Pixel/Mac/provider/helper/Firebase, matched full UI/accessibility
 and final signed release gates remain open. Neither isolated reference execution

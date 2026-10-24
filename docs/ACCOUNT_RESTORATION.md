@@ -61,6 +61,12 @@ the same published session, including broad HTTP401/403 failures. Anonymous or
 restricted users cannot obtain a fresh team list. Actual credential-session loss,
 account replacement and successful membership removal still retire authority;
 see [the source policy reconciliation](TEAM_REFRESH_ELIGIBILITY.md).
+Successful malformed/missing-items team bodies are distinct from a failed request:
+[the SDK projection follow-up](SDK_USER_TEAM_PROJECTIONS.md) records them as loaded
+empty membership and retires prior scope/proofs. Raw/default user fields and
+encrypted profile-image/demo metadata now follow the source projections. A verified
+empty-id user can be authenticated and load teams but has no connection identity;
+cached presentation alone cannot supply the explicit validation-generation proof.
 The process owner now schedules [team-scope recovery](TEAM_SCOPE_RECOVERY.md)
 for missing membership, with source backoff/rate-limit rules and a healthy
 empty-list distinction. Private workers do not start indefinite recovery loops. Sign-out/account replacement

@@ -126,7 +126,9 @@ do not establish actual sleep/Doze/wake equivalence with the source clock.
 user and separate parallel selection read, empty-membership remembered choice and
 published-profile projection. [Independent selection lifetime](TEAM_SELECTION_LIFETIME.md)
 covers receipt/publication storage, with actual locked-storage/death and full
-project reset still open. Primary SDK malformed/default models, profile/metadata bounds, complete
+project reset still open. [SDK projections](SDK_USER_TEAM_PROJECTIONS.md) cover raw/default
+fields, model/cache metadata, repeated/empty rows and former successful body bounds.
+Complete JSON lexical/Unicode/number semantics and
 transport/retry semantics, worker retry/rate consumers, complete identity/backend
 adoption and consent-aware reporting remain open.
 Physical Pixel/Mac, actual provider/helper/Firebase, signed-release and matched

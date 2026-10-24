@@ -68,27 +68,26 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
             if (root == null || !owns(root, login)) return null
             val saved = root.optJSONObject(KEY) ?: return null
             if (saved.opt("version") != 1 || saved.opt("login") != login || saved.opt("environment") != environment) return null
-            fun id(value: Any?): String = (value as? String)?.takeIf { it.isNotBlank() && it.length <= 128 }
+            fun id(value: Any?): String = value as? String
                 ?: error("Invalid cached identity")
-            fun optional(key: String, limit: Int): String? {
+            fun optional(key: String): String? {
                 val value = saved.opt(key)
                 if (value == null || value === JSONObject.NULL) return null
-                require(value is String && value.length <= limit)
-                return value.takeIf { it.isNotBlank() }
+                require(value is String)
+                return value
             }
             val user = id(saved.opt("user"))
-            val items = saved.getJSONArray("teams"); require(items.length() <= 4096)
+            val items = saved.getJSONArray("teams")
             val teams = (0 until items.length()).map { index ->
                 val item = items.getJSONObject(index)
-                val name = item.opt("name"); require(name is String && name.length <= 512)
+                val name = item.opt("name"); require(name is String)
                 NativeTeam(id(item.opt("id")), name)
             }
-            require(teams.map { it.id }.distinct().size == teams.size)
             val selected = NativeTeamSelectionStore.read(root,environment)
             // The coordinator persists explicit selection independently; its effective
             // member falls back separately. Cached rows still grant no connection proof.
             NativeAccountTeamsState(userId = user, teams = teams, selectedTeamId = selected,
-                displayName = optional("name", 512), email = optional("email", 512), cached = true)
+                displayName = optional("name"), email = optional("email"), cached = true)
         }.getOrNull()
     }
 }

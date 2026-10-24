@@ -9,11 +9,11 @@ internal class NativeAccountTeamRecovery(scope:CoroutineScope,account:NativeAcco
     val coordinator=NativeTeamScopeRecovery(scope,{model.sessionGeneration},{model.state.value.authenticated},
         {teams.hasLoadedMembership},{teams.activeMembershipReads},
         {admit->account.retryLocalLogout();model.revalidateIf(admit)},nowMillis,jitter,lock=lock)
-    private val outcome:(NativeAuthIdentity?,Exception?)->Unit=coordinator::membershipCompleted
-    init {model.recoveryObserver=coordinator;teams.onMembershipCompleted=outcome}
+    private val outcome:(Long?,Exception?)->Unit=coordinator::membershipCompletedGeneration
+    init {model.recoveryObserver=coordinator;teams.onMembershipGenerationCompleted=outcome}
     override fun close() {
         if(model.recoveryObserver===coordinator)model.recoveryObserver=null
-        if(teams.onMembershipCompleted===outcome)teams.onMembershipCompleted={_,_->}
+        if(teams.onMembershipGenerationCompleted===outcome)teams.onMembershipGenerationCompleted={_,_->}
         coordinator.close()
     }
 }
