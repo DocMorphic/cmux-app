@@ -34,7 +34,7 @@ class NativeTeamPhaseRuntimeTest {
             backendOrigin=server.url("/"),cache=NativeAccountProfileCache(store::load,store::update),lock=store.accountStateLock,
             sessionIdentity=account.sessionRestore::identity,restoreUser=account.sessionRestore::restoreIdentityIfNeeded,
             needsRestoration={account.sessionRestore.needsIdentityValidation},phaseNowMillis={android.os.SystemClock.elapsedRealtime()},
-            phaseWork=store.authWork,networkTimeoutMillis=timeout)
+            phaseWork=store.authWork,networkTimeoutMillis=timeout,accountUser={account.sessionRestore.state.value.user})
         return result.also{owners+=it}
     }
     private suspend fun binding(server:MockWebServer,timeout:Long=NativeAccountTeams.NETWORK_TIMEOUT_MILLIS,fault:Boolean=false):Pair<NativeAccount,NativeAccountTeams> {
@@ -44,7 +44,7 @@ class NativeTeamPhaseRuntimeTest {
             NativeAuthUserCache.write(it,client(server).accountEnvironment,user)}
         val account=NativeAccount(store,client(server),NativeOAuthBrowser());val teams=controller(server,account,timeout,fault)
         account.onSignedIn={login,value->teams.refreshAfterSignIn(login,value)}
-        server.enqueue(profile());server.enqueue(members());account.sessionRestore.start(scope)
+        server.teamUsers(3){profile()};server.enqueue(members());account.sessionRestore.start(scope)
         withTimeout(5000){account.sessionRestore.awaitBootstrapped()};assertTrue(teams.hasLoadedMembership)
         return account to teams
     }
@@ -63,15 +63,15 @@ class NativeTeamPhaseRuntimeTest {
     @Test fun selectionBudgetCoversFreshUserAndPatchTogetherWithoutChangingEncryptedAccountOnTimeout()=runBlocking<Unit> {
         MockWebServer().use{server->val(_,teams)=binding(server,timeout=300);val before=checkNotNull(teams.state.value.scope)
             val cipher=context.getSharedPreferences(name,0).getString("state",null)
-            server.enqueue(profile().setBodyDelay(190,TimeUnit.MILLISECONDS));server.enqueue(MockResponse().setBody("{}").setBodyDelay(190,TimeUnit.MILLISECONDS))
+            server.teamUsers{profile().setBodyDelay(190,TimeUnit.MILLISECONDS)};server.enqueue(MockResponse().setBody("{}").setBodyDelay(190,TimeUnit.MILLISECONDS))
             timedOut(runCatching{teams.select("two")}.exceptionOrNull());assertFalse(teams.state.value.loading);assertEquals(before,teams.state.value.scope)
             assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null));drained()
             record("selection-budget",JSONObject().put("configuredPhaseMillis",300).put("httpRequests",server.requestCount).put("ciphertextPreserved",true))}
     }
     @Test fun creationUsesThreeIndependentPhaseBudgetsAndNeverRepeatsItsPost()=runBlocking<Unit> {
         MockWebServer().use{server->val(_,teams)=binding(server,timeout=300)
-            server.enqueue(created().setBodyDelay(180,TimeUnit.MILLISECONDS));server.enqueue(profile().setBodyDelay(80,TimeUnit.MILLISECONDS))
-            server.enqueue(members().setBodyDelay(80,TimeUnit.MILLISECONDS));server.enqueue(profile().setBodyDelay(80,TimeUnit.MILLISECONDS))
+            server.enqueue(created().setBodyDelay(180,TimeUnit.MILLISECONDS));server.teamUsers{profile().setBodyDelay(80,TimeUnit.MILLISECONDS)}
+            server.enqueue(members().setBodyDelay(80,TimeUnit.MILLISECONDS));server.teamUsers{profile().setBodyDelay(80,TimeUnit.MILLISECONDS)}
             server.enqueue(MockResponse().setBody("{}").setBodyDelay(80,TimeUnit.MILLISECONDS))
             val started=android.os.SystemClock.elapsedRealtime();assertEquals("new",teams.create("New").scope?.teamId)
             val elapsed=android.os.SystemClock.elapsedRealtime()-started;assertTrue(elapsed>300)
@@ -84,7 +84,7 @@ class NativeTeamPhaseRuntimeTest {
             val old=scope.async{runCatching{teams.select("two")}}
             try{entered.await();timedOut(withTimeout(3000){old.await()}.exceptionOrNull());assertFalse(teams.state.value.loading)
                 assertEquals(1,store.authWork.activeCount);token={force,account->account.accessToken(force)}
-                server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204));assertEquals("two",teams.select("two").scope?.teamId)
+                server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204));assertEquals("two",teams.select("two").scope?.teamId)
                 val requests=server.requestCount;release.complete(Unit);drained();assertEquals(requests,server.requestCount)
                 record("plain-retirement",JSONObject().put("actualWorkRetainedAfterPublicTimeout",true).put("newSelectionCompleted",true).put("lateHttpRequests",0))
             }finally{release.complete(Unit);old.cancelAndJoin()}}
@@ -96,7 +96,7 @@ class NativeTeamPhaseRuntimeTest {
             try{entered.await();timedOut(withTimeout(3000){old.await()}.exceptionOrNull());assertEquals(0,teams.activeMembershipReads)
                 assertEquals(1,store.authWork.activeCount);val requests=server.requestCount
                 token={force,account->account.accessToken(force)};timedOut(runCatching{teams.refresh()}.exceptionOrNull());assertEquals(requests,server.requestCount)
-                release.complete(Unit);drained();assertEquals(requests,server.requestCount);server.enqueue(profile());server.enqueue(members())
+                release.complete(Unit);drained();assertEquals(requests,server.requestCount);server.teamUsers(2){profile()};server.enqueue(members())
                 assertNotNull(teams.refresh().scope)
                 record("token-retirement",JSONObject().put("publicMembershipReads",0).put("actualWorkRetained",true).put("gatedRetryHttp",0).put("lateHttpRequests",0))
             }finally{release.complete(Unit);old.cancelAndJoin()}}
@@ -104,7 +104,7 @@ class NativeTeamPhaseRuntimeTest {
     @Test fun postCreateListTimeoutStillSelectsTheConfirmedTeamAndRetiredReadCannotResumeHttp()=runBlocking<Unit> {
         MockWebServer().use{server->val(_,teams)=binding(server,timeout=250,fault=true);val release=gate();val tokens=AtomicInteger()
             token={force,account->if(tokens.incrementAndGet()==2)withContext(NonCancellable){release.await()};account.accessToken(force)}
-            server.enqueue(created());server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
+            server.enqueue(created());server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204))
             val create=scope.async{teams.create("New")}
             try{assertEquals("new",withTimeout(5000){create.await()}.scope?.teamId);assertEquals(1,store.authWork.activeCount)
                 val requests=server.requestCount;release.complete(Unit);drained();assertEquals(requests,server.requestCount)
@@ -113,16 +113,16 @@ class NativeTeamPhaseRuntimeTest {
             }finally{release.complete(Unit);create.cancelAndJoin()}}
     }
     @Test fun selectionAfterFreshMembershipRemovalKeepsTheNewProfileAndCannotReviveOldProof()=runBlocking<Unit> {
-        MockWebServer().use{server->val(_,teams)=binding(server,timeout=2000)
-            server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204));val previous=checkNotNull(teams.select("two").scope)
+        MockWebServer().use{server->val(account,teams)=binding(server,timeout=2000)
+            server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204));val previous=checkNotNull(teams.select("two").scope)
             val proof=checkNotNull(teams.captureContinuation(previous));val entered=CountDownLatch(1);val release=CountDownLatch(1)
             server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
                 if(request.method=="PATCH"){entered.countDown();check(release.await(5,TimeUnit.SECONDS));return MockResponse().setResponseCode(204)}
-                return if(request.path!!.startsWith("/api/v1/teams"))members("one") else profile()
+                return if(request.path!!.startsWith("/api/v1/teams"))members("one") else profile().setBody(JSONObject().put("id","user").put("display_name","Updated").put("selected_team",JSONObject().put("id","one")).toString())
             }}
             val selection=scope.async{teams.select("two")}
             try{assertTrue(withContext(Dispatchers.IO){entered.await(3,TimeUnit.SECONDS)})
-                teams.refreshAfterSignIn("login",user.copy(name="Updated"));assertFalse(teams.allowsContinuation(proof))
+                account.sessionRestore.revalidate();assertFalse(teams.allowsContinuation(proof))
                 release.countDown();val result=withTimeout(3000){selection.await()}
                 assertEquals(listOf("one"),result.teams.map{it.id});assertEquals("Updated",result.displayName)
                 assertEquals("one",result.scope?.teamId);assertFalse(teams.allowsContinuation(proof))
@@ -132,7 +132,7 @@ class NativeTeamPhaseRuntimeTest {
     @Test fun cachedOptionalSelectionPersistsNilWithoutVerifyingRowsOrTheNewAccountOwner()=runBlocking<Unit> {
         MockWebServer().use{server->binding(server);val account=NativeAccount(store,client(server),NativeOAuthBrowser());val cold=controller(server,account)
             assertTrue(cold.state.value.cached);assertTrue(account.sessionRestore.needsIdentityValidation)
-            server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204));val result=cold.select(null)
+            server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204));val result=cold.select(null)
             assertTrue(result.cached);assertNull(result.error);assertNull(result.scope);assertFalse(cold.hasLoadedMembership)
             assertTrue(account.sessionRestore.needsIdentityValidation);val restored=controller(server,account)
             assertTrue(restored.state.value.cached);assertNull(restored.state.value.selectedTeamId);assertEquals(2,restored.state.value.teams.size)
@@ -144,12 +144,12 @@ class NativeTeamPhaseRuntimeTest {
             val cipher=context.getSharedPreferences(name,0).getString("state",null)
             // Five chunks at0,20,40,60,80 seconds avoid the SDK's30s idle timeout.
             val body=JSONObject().put("id","user").put("padding","x".repeat(33_000)).toString()
-            server.enqueue(MockResponse().setBody(body).throttleBody(8192,20,TimeUnit.SECONDS))
+            server.teamUsers{MockResponse().setBody(body).throttleBody(8192,20,TimeUnit.SECONDS)}
             val started=android.os.SystemClock.elapsedRealtime();val error=runCatching{teams.select("two")}.exceptionOrNull()
             val elapsed=android.os.SystemClock.elapsedRealtime()-started;timedOut(error)
             assertTrue("Default deadline returned too early: $elapsed",elapsed>=59_000)
             assertTrue("Default deadline did not bound the phase: $elapsed",elapsed<75_000)
-            assertEquals(original,teams.state.value.scope);assertFalse(teams.state.value.loading);assertEquals(3,server.requestCount)
+            assertEquals(original,teams.state.value.scope);assertFalse(teams.state.value.loading);assertEquals(5,server.requestCount)
             assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null));drained()
             record("default-sixty-seconds",JSONObject().put("configuredMillis",NativeAccountTeams.NETWORK_TIMEOUT_MILLIS).put("elapsedMillis",elapsed)
                 .put("idleGapSeconds",20).put("selectionPatches",0).put("ciphertextPreserved",true).put("tokenFaultInjected",false))

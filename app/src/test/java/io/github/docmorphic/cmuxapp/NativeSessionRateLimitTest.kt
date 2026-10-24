@@ -28,9 +28,14 @@ class NativeSessionRateLimitTest {
     @Test fun teamUserAndMembershipThrottlesUseTheSameBoundedClassifier()=runBlocking<Unit> {
         MockWebServer().use {server->NativeAccountTeams({"fixture-token"},{"login"},server.url("/api/v1/"),
             sessionIdentity={NativeAuthIdentity(0,"account-a")}).use {teams->
-            server.enqueue(throttle());val user=runCatching{teams.refresh()}.exceptionOrNull() as NativeAccountRateLimited
+            val allowUser=java.util.concurrent.atomic.AtomicBoolean(false)
+            server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                if(allowUser.get() && request.path=="/api/v1/users/me")return MockResponse().setBody("{\"id\":\"account-a\"}")
+                return throttle()
+            }}
+            val user=runCatching{teams.refresh()}.exceptionOrNull() as NativeAccountRateLimited
             assertEquals("/api/v1/users/me",user.endpoint);assertEquals("html",user.bodyKind);assertFalse(teams.hasLoadedMembership)
-            server.enqueue(throttle());val team=runCatching{teams.refreshAfterSignIn("login",NativeSignInUser("account-a",null,null,null))}
+            allowUser.set(true);val team=runCatching{teams.refreshAfterSignIn("login",NativeSignInUser("account-a",null,null,null))}
                 .exceptionOrNull() as NativeAccountRateLimited
             assertEquals("/api/v1/teams",team.endpoint);assertFalse(teams.hasLoadedMembership);assertEquals(0,teams.activeMembershipReads)
         }}

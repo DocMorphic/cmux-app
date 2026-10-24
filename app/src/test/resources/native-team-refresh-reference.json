@@ -1,0 +1,347 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthTimeouts.swift": "045370674e60eecaf1a0d2e27f1c65e30a408f607545cfdbcfbae6e5d6b1c709",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Models/CMUXAuthTeam.swift": "67d9440f7c227320b16925a1cfb84b1e00b329abadddd71ee8d9e4b86904e957",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Persistence/CMUXAuthTeamSelectionStore.swift": "c2aabf41f1b7ec85bf6e6f8855c5dff0e42e77bf5b38b86c5666f53607d36e80",
+    "Packages/Shared/CMUXAuthCore/Sources/CMUXAuthCore/Persistence/CMUXAuthKeyValueStore.swift": "a883ba8a5dc5c17b5c1b4d8b4af2e0c1eee685cd3bd5213f5f875b054a732c1a",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/User.swift": "a9a6a06f7e04ca7a6c3f3ce0edbb88e59aae8e9d0c2758aac0b54dc138a3c33e",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift": "5b9c73c8b2b66c91ed994e7b4881a8771812c551604dd261d418bcd41696c76f",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/Team.swift": "563d789bb25bf51ca4f6914227082f5c4d3cd5e8d84f2859e285cecab7730f9b"
+  },
+  "executedDeclarationSha256": [
+    "31e3b122ee8110ed9cc7378d5a93e070b66e493ef3f7cc367fbd92123feaeb9b",
+    "399dfd7ba73c8029ac773a541825636f3013512b16d7328656c331914e359ae0",
+    "bdb1d44f539180de2a28614ddbfa9e7f3241250cca1529f2bf966c51ad6ef92d",
+    "3b3d9c55ddd9c3410b8adbc550941d2931be6f9d2b6b928a596be01ffe7ffc08"
+  ],
+  "persistence": [
+    {
+      "input": null,
+      "restored": null,
+      "stored": null
+    },
+    {
+      "input": "",
+      "restored": null,
+      "stored": null
+    },
+    {
+      "input": " \n",
+      "restored": null,
+      "stored": null
+    },
+    {
+      "input": " two ",
+      "restored": "two",
+      "stored": "two"
+    },
+    {
+      "input": "remembered",
+      "restored": "remembered",
+      "stored": "remembered"
+    },
+    {
+      "input": "\u0085two\u0085",
+      "restored": "two",
+      "stored": "two"
+    },
+    {
+      "input": "\u00a0two\u00a0",
+      "restored": "two",
+      "stored": "two"
+    },
+    {
+      "input": "\u2007two\u202f",
+      "restored": "two",
+      "stored": "two"
+    },
+    {
+      "input": "\u200b",
+      "restored": null,
+      "stored": null
+    }
+  ],
+  "refresh": [
+    {
+      "active": 0,
+      "case": "server-wins",
+      "failure": null,
+      "failures": 0,
+      "loaded": true,
+      "members": [
+        "one",
+        "two"
+      ],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [
+        "one",
+        "two"
+      ],
+      "recoveries": 0,
+      "remembered": "one",
+      "selected": "two",
+      "serverSelected": "two",
+      "stale": false,
+      "successes": 1
+    },
+    {
+      "active": 0,
+      "case": "selected-fails",
+      "failure": "selection",
+      "failures": 0,
+      "loaded": true,
+      "members": [
+        "one",
+        "two"
+      ],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [
+        "one",
+        "two"
+      ],
+      "recoveries": 0,
+      "remembered": "two",
+      "selected": "two",
+      "serverSelected": "one",
+      "stale": false,
+      "successes": 1
+    },
+    {
+      "active": 0,
+      "case": "selected-cancels",
+      "failure": "selectedCancellation",
+      "failures": 0,
+      "loaded": true,
+      "members": [
+        "one",
+        "two"
+      ],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [
+        "one",
+        "two"
+      ],
+      "recoveries": 0,
+      "remembered": "two",
+      "selected": "two",
+      "serverSelected": "one",
+      "stale": false,
+      "successes": 1
+    },
+    {
+      "active": 0,
+      "case": "selected-nil",
+      "failure": null,
+      "failures": 0,
+      "loaded": true,
+      "members": [
+        "one",
+        "two"
+      ],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [
+        "one",
+        "two"
+      ],
+      "recoveries": 0,
+      "remembered": "two",
+      "selected": "two",
+      "serverSelected": null,
+      "stale": false,
+      "successes": 1
+    },
+    {
+      "active": 0,
+      "case": "selected-stale",
+      "failure": null,
+      "failures": 0,
+      "loaded": true,
+      "members": [
+        "one",
+        "two"
+      ],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [
+        "one",
+        "two"
+      ],
+      "recoveries": 0,
+      "remembered": "two",
+      "selected": "one",
+      "serverSelected": "stale",
+      "stale": false,
+      "successes": 1
+    },
+    {
+      "active": 0,
+      "case": "empty-remembers",
+      "failure": null,
+      "failures": 0,
+      "loaded": true,
+      "members": [],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [],
+      "recoveries": 0,
+      "remembered": "remembered",
+      "selected": "remembered",
+      "serverSelected": null,
+      "stale": false,
+      "successes": 1
+    },
+    {
+      "active": 0,
+      "case": "empty-server",
+      "failure": null,
+      "failures": 0,
+      "loaded": true,
+      "members": [],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [],
+      "recoveries": 0,
+      "remembered": "remembered",
+      "selected": "external",
+      "serverSelected": "external",
+      "stale": false,
+      "successes": 1
+    },
+    {
+      "active": 0,
+      "case": "empty-string",
+      "failure": null,
+      "failures": 0,
+      "loaded": true,
+      "members": [],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [],
+      "recoveries": 0,
+      "remembered": "remembered",
+      "selected": "",
+      "serverSelected": "",
+      "stale": false,
+      "successes": 1
+    },
+    {
+      "active": 0,
+      "case": "membership-fails",
+      "failure": "membership",
+      "failures": 1,
+      "loaded": false,
+      "members": [
+        "one",
+        "two"
+      ],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [
+        "old"
+      ],
+      "recoveries": 1,
+      "remembered": "remembered",
+      "selected": "remembered",
+      "serverSelected": "two",
+      "stale": false,
+      "successes": 0
+    },
+    {
+      "active": 0,
+      "case": "stale-generation",
+      "failure": null,
+      "failures": 0,
+      "loaded": false,
+      "members": [
+        "one",
+        "two"
+      ],
+      "parallel": true,
+      "phases": 1,
+      "publishedMembers": [
+        "old"
+      ],
+      "recoveries": 0,
+      "remembered": "remembered",
+      "selected": "remembered",
+      "serverSelected": "two",
+      "stale": true,
+      "successes": 0
+    }
+  ],
+  "selectedProjection": [
+    {
+      "payload": {},
+      "selected": null
+    },
+    {
+      "payload": {
+        "selected_team": null
+      },
+      "selected": null
+    },
+    {
+      "payload": {
+        "selected_team": false
+      },
+      "selected": null
+    },
+    {
+      "payload": {
+        "selected_team": []
+      },
+      "selected": null
+    },
+    {
+      "payload": {
+        "selected_team": "two"
+      },
+      "selected": null
+    },
+    {
+      "payload": {
+        "selected_team": {}
+      },
+      "selected": ""
+    },
+    {
+      "payload": {
+        "selected_team": {
+          "id": 4
+        }
+      },
+      "selected": ""
+    },
+    {
+      "payload": {
+        "selected_team": {
+          "id": ""
+        }
+      },
+      "selected": ""
+    },
+    {
+      "payload": {
+        "selected_team": {
+          "id": " two "
+        }
+      },
+      "selected": " two "
+    },
+    {
+      "payload": {
+        "display_name": 4,
+        "selected_team": {
+          "id": "two"
+        }
+      },
+      "selected": "two"
+    }
+  ]
+}

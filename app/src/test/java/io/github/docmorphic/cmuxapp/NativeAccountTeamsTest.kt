@@ -22,7 +22,7 @@ class NativeAccountTeamsTest {
             val user = NativeSignInUser("verified-user", "Verified name", "fixture@example.test", "one")
             NativeAccountProfileCache.writeVerifiedUser(root, "login", environment, user)
             NativeAccountTeams({ "fixture-token" }, { "login" }, server.url("/api/v1/"), cache = cache).use { account ->
-                repeat(2) { server.enqueue(MockResponse().setResponseCode(401).setBody("{}")) }
+                repeat(4) { server.enqueue(MockResponse().setResponseCode(401).setBody("{}")) }
                 assertTrue(runCatching { account.refreshAfterSignIn("login", user) }.isFailure)
                 assertEquals(user.id, account.state.value.userId); assertEquals(user.name, account.state.value.displayName)
                 assertNull(account.state.value.scope); assertTrue(account.state.value.teams.isEmpty())
@@ -31,17 +31,17 @@ class NativeAccountTeamsTest {
             }
         }
     }
-    @Test fun signInMembershipUsesTheAlreadyVerifiedUserAndFencesTheCapturedLogin() = runBlocking<Unit> {
+    @Test fun signInMembershipReadsFreshUserAndSelectionAndFencesTheCapturedLogin() = runBlocking<Unit> {
         MockWebServer().use { server -> controller(server).use { account ->
-            server.reply(teams("one", "two"))
+            repeat(2){server.reply(user("two","signed-in-user"))};server.reply(teams("one", "two"))
             val user = NativeSignInUser("signed-in-user", "Name", "fixture@example.test", "two")
             val result = account.refreshAfterSignIn("login", user)
-            assertEquals("/api/v1/teams?user_id=me", server.takeRequest().path); assertEquals(1, server.requestCount)
+            val calls=List(3){server.takeRequest()};assertEquals(2,calls.count{it.path=="/api/v1/users/me"});assertEquals(1,calls.count{it.path=="/api/v1/teams?user_id=me"});assertEquals(3,server.requestCount)
             assertEquals("signed-in-user", result.userId); assertEquals("two", result.scope!!.teamId)
             assertEquals(user.name, result.displayName); assertEquals(user.email, result.email)
             assertTrue(account.isCurrent(result.scope))
             assertTrue(runCatching { account.refreshAfterSignIn("retired-login", user) }.isFailure)
-            assertEquals(1, server.requestCount); assertEquals(result.scope, account.state.value.scope)
+            assertEquals(3, server.requestCount); assertEquals(result.scope, account.state.value.scope)
         } }
     }
     @Test fun admittedContinuationSurvivesSelectionWithoutRevivingOldAdmissionGeneration() = runBlocking<Unit> {
@@ -79,7 +79,7 @@ class NativeAccountTeamsTest {
         MockWebServer().use { server -> controller(server).use { account ->
             server.profile(); val first = checkNotNull(account.refresh().scope)
             val proof = checkNotNull(account.captureContinuation(first))
-            server.reply(user(id = "replacement")); server.enqueue(MockResponse().setResponseCode(503))
+            repeat(2){server.reply(user(id = "replacement"))}; server.enqueue(MockResponse().setResponseCode(503))
             assertTrue(runCatching { account.refresh() }.isFailure)
             assertFalse(account.allowsContinuation(proof)); assertNull(account.captureContinuation(first))
             server.profile(); account.refresh()
@@ -91,11 +91,10 @@ class NativeAccountTeamsTest {
         for (status in listOf(401, 403)) MockWebServer().use { server -> controller(server).use { account ->
             server.profile(); val first = checkNotNull(account.refresh().scope)
             val proof = checkNotNull(account.captureContinuation(first))
-            server.enqueue(MockResponse().setResponseCode(503))
+            repeat(2){server.enqueue(MockResponse().setResponseCode(503))}
             assertTrue(runCatching { account.refresh() }.isFailure)
             assertTrue(account.allowsContinuation(proof)); assertTrue(account.isCurrent(first))
-            server.enqueue(MockResponse().setResponseCode(status))
-            if (status == 401) server.enqueue(MockResponse().setResponseCode(401))
+            repeat(if(status==401)4 else 2){server.enqueue(MockResponse().setResponseCode(status))}
             assertTrue(runCatching { account.refresh() }.isFailure)
             assertTrue(account.allowsContinuation(proof)); assertNotNull(account.captureContinuation(first))
             server.profile(); account.refresh()
@@ -180,7 +179,7 @@ class NativeAccountTeamsTest {
     private fun MockWebServer.reply(value: JSONObject) = enqueue(MockResponse().setBody(value.toString()))
     private fun MockWebServer.selection(selected:String) {reply(user());reply(user(selected))}
     private fun MockWebServer.profile(selected: String? = "one", vararg ids: String = arrayOf("one", "two")) {
-        reply(user(selected)); reply(teams(*ids))
+        repeat(2){reply(user(selected))}; reply(teams(*ids))
     }
     private fun controller(server: MockWebServer, owner: AtomicReference<String?> = AtomicReference("login"),
                            token: suspend (Boolean) -> String? = { "fixture-token" }) =
@@ -194,7 +193,7 @@ class NativeAccountTeamsTest {
     @Test fun createsThroughCmuxThenVerifiesSelectionEvenWithLaggingMembership() = runBlocking<Unit> {
         MockWebServer().use { server -> creator(server).use { account ->
             server.profile(); val original = checkNotNull(account.refresh().scope)
-            server.takeRequest(); server.takeRequest()
+            repeat(3){server.takeRequest()}
             server.reply(created()); server.reply(user());server.reply(teams("one", "two"));server.selection("new")
             val result = account.create("  New team  ")
             val post = server.takeRequest()
@@ -251,7 +250,7 @@ class NativeAccountTeamsTest {
             MockWebServer().use { server -> creator(server).use { account ->
                 server.profile(); account.refresh(); server.enqueue(response)
                 assertTrue(runCatching { account.create("New team") }.isFailure)
-                assertEquals(3, server.requestCount)
+                assertEquals(4, server.requestCount)
                 assertNull(account.state.value.createdTeam)
                 assertTrue(account.state.value.error!!.contains("not confirmed"))
             } }
@@ -262,13 +261,13 @@ class NativeAccountTeamsTest {
         MockWebServer().use { server ->
             val owner = AtomicReference<String?>("login")
             creator(server, owner).use { account ->
-                server.profile(); account.refresh(); server.takeRequest(); server.takeRequest()
+                server.profile(); account.refresh(); repeat(3){server.takeRequest()}
                 server.enqueue(MockResponse().setBody(created().toString()).setBodyDelay(250, TimeUnit.MILLISECONDS))
                 val pending = async { runCatching { account.create("New team") } }
                 withContext(Dispatchers.IO) { assertEquals("POST", server.takeRequest(2, TimeUnit.SECONDS)?.method) }
                 owner.set("different-login")
                 assertTrue(pending.await().exceptionOrNull() is CancellationException)
-                assertEquals(3, server.requestCount); assertNull(account.state.value.createdTeam)
+                assertEquals(4, server.requestCount); assertNull(account.state.value.createdTeam)
                 assertNull(account.state.value.scope)
             }
         }
@@ -284,7 +283,7 @@ class NativeAccountTeamsTest {
                 assertEquals("user", captured.userId)
                 assertTrue(account.isCurrent(captured))
                 assertEquals("/api/v1/users/me", server.takeRequest().path)
-                val teamRequest = server.takeRequest()
+                val rest=List(2){server.takeRequest()};val teamRequest = rest.single{it.path=="/api/v1/teams?user_id=me"}
                 assertEquals("/api/v1/teams?user_id=me", teamRequest.path)
                 assertEquals(NativeAccount.PROJECT_ID, teamRequest.getHeader("x-stack-project-id"))
                 assertEquals("fixture-token", teamRequest.getHeader("x-stack-access-token"))
@@ -303,7 +302,7 @@ class NativeAccountTeamsTest {
                 server.profile(null, *emptyArray())
                 val removed = account.refresh()
                 assertNull(removed.scope)
-                assertNull(removed.selectedTeamId)
+                assertEquals("one",removed.selectedTeamId)
                 assertFalse(account.isCurrent(checkNotNull(before.scope)))
             }
         }
@@ -314,7 +313,7 @@ class NativeAccountTeamsTest {
             controller(server).use { account ->
                 server.profile()
                 val first = checkNotNull(account.refresh().scope)
-                server.takeRequest(); server.takeRequest()
+                repeat(3){server.takeRequest()}
                 server.selection("two")
                 val second = account.select("two")
                 assertEquals("GET",server.takeRequest().method)
@@ -338,7 +337,7 @@ class NativeAccountTeamsTest {
                 server.profile()
                 val original = checkNotNull(account.refresh().scope)
                 assertTrue(runCatching { account.select("stranger") }.isFailure)
-                assertEquals(2, server.requestCount)
+                assertEquals(3, server.requestCount)
                 server.reply(user());server.enqueue(MockResponse().setResponseCode(403))
                 assertTrue(runCatching { account.select("two") }.isFailure)
                 assertTrue(account.isCurrent(original))
@@ -350,20 +349,22 @@ class NativeAccountTeamsTest {
         }
     }
 
-    @Test fun actualStatus401RefreshesOnceAndOtherResponsesAreNotRetried() = runBlocking<Unit> {
+    @Test fun actualStatus401RefreshesOnlyItsRejectedReadAndRedirectsCannotReachMembership() = runBlocking<Unit> {
         MockWebServer().use { server ->
-            val forced = mutableListOf<Boolean>()
+            val forced = java.util.Collections.synchronizedList(mutableListOf<Boolean>())
+            var redirect=false
+            server.dispatcher=object:okhttp3.mockwebserver.Dispatcher(){override fun dispatch(request:okhttp3.mockwebserver.RecordedRequest):MockResponse {
+                if(redirect)return MockResponse().setResponseCode(307).setHeader("Location",server.url("/elsewhere"))
+                if(request.path!!.contains("/teams?"))return MockResponse().setBody(teams("one","two").toString())
+                if(request.getHeader("x-stack-access-token")=="fixture-token")return MockResponse().setHeader("x-stack-actual-status","401").setBody("{}")
+                return MockResponse().setBody(user().toString())
+            }}
             controller(server, token = { force -> forced += force; if (force) "new-token" else "fixture-token" }).use { account ->
-                server.enqueue(MockResponse().setHeader("x-stack-actual-status", "401").setBody("{}"))
-                server.profile()
-                account.refresh()
-                assertEquals(listOf(false, true, false), forced)
-                server.takeRequest()
-                assertEquals("new-token", server.takeRequest().getHeader("x-stack-access-token"))
-                server.takeRequest()
-                server.enqueue(MockResponse().setResponseCode(307).setHeader("Location", server.url("/elsewhere")))
+                assertNotNull(account.refresh().scope);assertEquals(2,forced.count{it})
+                val before=server.requestCount;redirect=true
                 assertTrue(runCatching { account.refresh() }.isFailure)
-                assertEquals(4, server.requestCount)
+                val calls=List(server.requestCount){server.takeRequest()};assertTrue(calls.drop(before).all{it.path=="/api/v1/users/me"})
+                assertEquals(2,server.requestCount-before)
             }
         }
     }
@@ -373,7 +374,7 @@ class NativeAccountTeamsTest {
             controller(server).use { account ->
                 server.profile()
                 val original = checkNotNull(account.refresh().scope)
-                server.reply(user())
+                repeat(2){server.reply(user())}
                 server.enqueue(MockResponse().setResponseCode(403))
                 assertTrue(runCatching { account.refresh() }.isFailure)
                 assertEquals(original,account.state.value.scope)
@@ -417,7 +418,7 @@ class NativeAccountTeamsTest {
             controller(server).use { account ->
                 server.profile()
                 val original = checkNotNull(account.refresh().scope)
-                server.takeRequest(); server.takeRequest()
+                repeat(3){server.takeRequest()}
                 server.reply(user());server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
                 val pending = async { withTimeoutOrNull(250) { account.select("two") } }
                 withContext(Dispatchers.IO) {
@@ -425,7 +426,7 @@ class NativeAccountTeamsTest {
                     assertEquals("PATCH",server.takeRequest(2,TimeUnit.SECONDS)!!.method)
                 }
                 assertNull(withTimeout(2000) { pending.await() })
-                assertEquals(4, server.requestCount)
+                assertEquals(5, server.requestCount)
                 assertTrue(account.isCurrent(original))
                 assertFalse(account.state.value.loading)
             }
@@ -437,7 +438,7 @@ class NativeAccountTeamsTest {
             controller(server).use { account ->
                 server.profile()
                 val original = checkNotNull(account.refresh().scope)
-                server.reply(user("two")); server.reply(teams("two", "two"))
+                repeat(2){server.reply(user("two"))}; server.reply(teams("two", "two"))
                 assertTrue(runCatching { account.refresh() }.isFailure)
                 assertTrue(account.isCurrent(original))
             }

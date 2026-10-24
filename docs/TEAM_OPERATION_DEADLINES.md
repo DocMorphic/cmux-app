@@ -122,10 +122,12 @@ process death remain open. Network wait bounds alone do not prove every storage
 or controller wait can finish. Android coroutine timers and elapsed guards also
 do not establish actual sleep/Doze/wake equivalence with the source clock.
 
-Separate/parallel selected-team reads, replacing the callback membership path's
-published-user shortcut with the source client's fresh user read, complete load-time
-projection and SDK malformed/default models, profile/metadata bounds, worker retry/rate consumers,
-complete identity/backend adoption and consent-aware reporting remain open.
+[The independent-refresh follow-up](TEAM_REFRESH_READS.md) adds the fresh callback
+user and separate parallel selection read, empty-membership remembered choice and
+published-profile projection. Complete independent selection-store/new-login
+lifetime, primary SDK malformed/default models, profile/metadata bounds, complete
+transport/retry semantics, worker retry/rate consumers, complete identity/backend
+adoption and consent-aware reporting remain open.
 Physical Pixel/Mac, actual provider/helper/Firebase, signed-release and matched
 full UI/accessibility acceptance remain open. The Create Team dialog is an
 existing Android extension, not an iOS creation dialog. No physical phone/Mac

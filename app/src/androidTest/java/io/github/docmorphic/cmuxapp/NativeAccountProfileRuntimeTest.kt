@@ -30,8 +30,8 @@ class NativeAccountProfileRuntimeTest {
     private fun controller(server: MockWebServer) = NativeAccountTeams({ "fixture-access" }, { store.taskSession() },
         server.url("/api/v1/"), cache = cache)
     private fun MockWebServer.profile(name: String = "Fixture Person", selected: String = "two") {
-        enqueue(MockResponse().setBody(JSONObject().put("id", "fixture-user").put("display_name", name)
-            .put("primary_email", "fixture@example.test").put("selected_team", JSONObject().put("id", selected)).toString()))
+        teamUsers(2){MockResponse().setBody(JSONObject().put("id", "fixture-user").put("display_name", name)
+            .put("primary_email", "fixture@example.test").put("selected_team", JSONObject().put("id", selected)).toString())}
         enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray(listOf("one", "two").map {
             JSONObject().put("id", it).put("display_name", "Team $it")
         })).toString()))
@@ -54,8 +54,8 @@ class NativeAccountProfileRuntimeTest {
                 compose.onNodeWithText("fixture@example.test").assertIsDisplayed()
                 compose.onNodeWithText("Team two").assertIsNotEnabled().performClick()
                 compose.onNodeWithText("Create Team").assertIsNotEnabled().performClick()
-                assertNull(restored.state.value.scope); assertEquals(2, server.requestCount)
-                server.enqueue(MockResponse().setResponseCode(503))
+                assertNull(restored.state.value.scope); assertEquals(3, server.requestCount)
+                server.teamUsers(2){MockResponse().setResponseCode(503)}
                 compose.onNodeWithText("Refresh account").performClick()
                 compose.waitUntil(5000) { !restored.state.value.loading && restored.state.value.error != null }
                 compose.onNodeWithText("Showing saved account details. Connect to refresh your teams.").assertIsDisplayed()
@@ -68,7 +68,7 @@ class NativeAccountProfileRuntimeTest {
                 compose.onNodeWithText("Team one").assertIsEnabled()
                 compose.onNodeWithText("Create Team").assertIsEnabled()
                 assertTrue(restored.isCurrent(restored.state.value.scope!!))
-                repeat(2){server.enqueue(MockResponse().setBody("{\"id\":\"fixture-user\",\"selected_team\":{\"id\":\"two\"}}"))}
+                server.teamSelection{MockResponse().setBody("{\"id\":\"fixture-user\",\"selected_team\":{\"id\":\"two\"}}")}
                 compose.onNodeWithText("Team one").performClick(); compose.onNodeWithText("Team two").performClick()
                 compose.waitUntil(5000) { restored.state.value.selectedTeamId == "two" }
                 compose.onNodeWithText("Updated Person").assertIsDisplayed()
@@ -95,7 +95,7 @@ class NativeAccountProfileRuntimeTest {
                 restored.reconcileLogin(); assertEquals(NativeAccountTeamsState(), restored.state.value)
                 assertFalse(NativeAccount(store).signOut("fixture-login"))
                 assertEquals("replacement-refresh", store.load()!!.getString("refresh_token"))
-                assertEquals(2, server.requestCount)
+                assertEquals(3, server.requestCount)
             }
         }
     }

@@ -67,7 +67,7 @@ class PhoneFcmIngressTest {
         it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }
     private suspend fun waitFor(condition: () -> Boolean) = withTimeout(5000) { while (!condition()) delay(25) }
     private fun MockWebServer.profile(member: Boolean = true) {
-        enqueue(MockResponse().setBody("""{"id":"fixture-user","selected_team":{"id":"other-team"}}"""))
+        teamUsers(2){MockResponse().setBody("""{"id":"fixture-user","selected_team":{"id":"other-team"}}""")}
         enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray((listOf("other-team") +
             if (member) listOf(team.teamId) else emptyList()).map { JSONObject().put("id", it).put("display_name", it) })).toString()))
     }
@@ -138,16 +138,25 @@ class PhoneFcmIngressTest {
             assertEquals(firstPost, alerts().single().postTime)
             queue(raw("dismiss")); server.profile(); assertEquals(ListenableWorker.Result.success(), worker(server).doWork())
             waitFor { alerts().isEmpty() }
-            assertEquals(6, server.requestCount)
+            assertEquals(9, server.requestCount)
         }
     }
     @Test fun failedMembershipWaitsAndFreshRevocationCannotPost() = runBlocking {
         queue(raw())
         MockWebServer().use { server ->
-            server.enqueue(MockResponse().setResponseCode(503))
+            val unavailable=java.util.concurrent.atomic.AtomicBoolean(true)
+            server.dispatcher=object:okhttp3.mockwebserver.Dispatcher(){
+                override fun dispatch(request:okhttp3.mockwebserver.RecordedRequest):MockResponse {
+                    check(request.method=="GET")
+                    if(request.path=="/api/v1/users/me")return if(unavailable.get())MockResponse().setResponseCode(503)
+                        else MockResponse().setBody("{\"id\":\"fixture-user\",\"selected_team\":{\"id\":\"other-team\"}}")
+                    check(request.path=="/api/v1/teams?user_id=me")
+                    return MockResponse().setBody("{\"items\":[{\"id\":\"other-team\",\"display_name\":\"Other\"}]}")
+                }
+            }
             assertEquals(ListenableWorker.Result.retry(), worker(server).doWork())
             assertTrue(alerts().isEmpty()); assertTrue(store.load()!!.has(PhoneFcmQueue.KEY))
-            server.profile(member = false)
+            unavailable.set(false)
             assertEquals(ListenableWorker.Result.success(), worker(server).doWork())
             assertTrue(alerts().isEmpty()); assertFalse(store.load()!!.has(PhoneFcmQueue.KEY))
         }

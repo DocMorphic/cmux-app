@@ -45,7 +45,7 @@ class NativeCachedComputersRuntimeTest {
     private fun controller(server: MockWebServer) = NativeAccountTeams({ "fixture-access" }, { store.taskSession() },
         server.url("/api/v1/"), cache = NativeAccountProfileCache(store::load, store::update))
     private fun MockWebServer.profile() {
-        enqueue(MockResponse().setBody("""{"id":"cached-user","selected_team":{"id":"cached-team"}}"""))
+        teamUsers(2){MockResponse().setBody("""{"id":"cached-user","selected_team":{"id":"cached-team"}}""")}
         enqueue(MockResponse().setBody("""{"items":[{"id":"cached-team","display_name":"Saved Team"}]}"""))
     }
     private fun content(teams: NativeAccountTeams, server: MockWebServer) = compose.setContent {
@@ -87,9 +87,9 @@ class NativeCachedComputersRuntimeTest {
                 compose.onNodeWithText("Offline Studio").assertIsDisplayed().performClick()
                 compose.onNodeWithTag("computer.visibility." + row.origin).assertIsNotEnabled().performClick()
                 compose.onNodeWithText("Mac update required").assertIsDisplayed()
-                assertNull(restored.state.value.scope); assertEquals(2, server.requestCount)
+                assertNull(restored.state.value.scope); assertEquals(3, server.requestCount)
                 assertEquals(0, selections); assertEquals(0, visibilityChanges)
-                server.enqueue(MockResponse().setResponseCode(503))
+                server.teamUsers(2){MockResponse().setResponseCode(503)}
                 compose.onNodeWithText("Refresh computers").performScrollTo().performClick()
                 compose.waitUntil(5000) { !restored.state.value.loading && restored.state.value.error != null }
                 compose.onNodeWithText("Offline Studio").performScrollTo().assertIsDisplayed()
@@ -103,7 +103,7 @@ class NativeCachedComputersRuntimeTest {
             }
         }
     }
-    @Test fun hiddenManagementRowsStayDisabledAndDefinitiveRejectionRemovesCachedComputers() {
+    @Test fun hiddenManagementRowsStayDisabledAndLocalSignOutRemovesCachedComputersAfterFailedRead() {
         MockWebServer().use { server ->
             server.profile(); controller(server).use { runBlocking { it.refresh() } }
             store.update { NativeComputerVisibility.setVisible(it, team.login, row, false) { true } }
@@ -113,9 +113,11 @@ class NativeCachedComputersRuntimeTest {
                 compose.onNodeWithText("Offline Studio").assertIsDisplayed()
                 compose.onNodeWithTag("computer.visibility." + row.origin).assertIsNotEnabled().performClick()
                 compose.runOnIdle { assertEquals(0, visibilityChanges); management = false }
-                repeat(2) { server.enqueue(MockResponse().setResponseCode(401)) }
+                server.teamUsers(4){MockResponse().setResponseCode(401)}
                 compose.onNodeWithText("Refresh computers").performScrollTo().performClick()
-                compose.waitUntil(5000) { restored.state.value.error != null && !restored.state.value.cached }
+                compose.waitUntil(5000) { restored.state.value.error != null && !restored.state.value.loading }
+                assertTrue(restored.state.value.cached);assertNull(restored.state.value.scope)
+                assertTrue(NativeAccount(store).signOut(team.login));restored.reconcileLogin()
                 compose.onNodeWithText("Offline Studio").assertDoesNotExist()
                 compose.onNodeWithTag("computers.cached").assertDoesNotExist()
                 assertNull(restored.state.value.scope)

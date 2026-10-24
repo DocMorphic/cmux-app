@@ -10,6 +10,28 @@ import org.junit.Test
 import java.util.concurrent.TimeUnit
 
 class NativeAccountProfileCacheTest {
+    @Test fun persistedSelectionNormalizesLikeTheCompleteOriginalSelectionStore() {
+        val rows=JSONObject(checkNotNull(javaClass.getResourceAsStream("/native-team-refresh-reference.json"))
+            .bufferedReader().use{it.readText()}).getJSONArray("persistence")
+        assertEquals(9,rows.length())
+        for(i in 0 until rows.length()) {val row=rows.getJSONObject(i);val store=Store()
+            val input=row.opt("input").takeUnless{it===JSONObject.NULL} as? String
+            val expected=row.opt("restored").takeUnless{it===JSONObject.NULL} as? String
+            store.cache.save("login","fixture-env",NativeAccountTeamsState("user",emptyList(),input))
+            assertEquals(expected,store.cache.read("login","fixture-env")!!.selectedTeamId)
+            store.cache.updateSelection("login","fixture-env","user",input)
+            assertEquals(expected,store.cache.read("login","fixture-env")!!.selectedTeamId)
+        }
+    }
+    @Test fun sameOwnerUserPublicationPreservesTheRememberedSelectionWhileClearingSavedMembership() {
+        val store=Store();val user=NativeSignInUser("user","Updated",null,null)
+        store.cache.save("login","fixture-env",NativeAccountTeamsState("user",listOf(NativeTeam("one","One")),"remembered"))
+        store.update{NativeAccountProfileCache.writeVerifiedUser(it,"login","fixture-env",user)}
+        val saved=checkNotNull(store.cache.read("login","fixture-env"))
+        assertEquals("remembered",saved.selectedTeamId);assertTrue(saved.teams.isEmpty());assertNull(saved.scope);assertTrue(saved.cached)
+        store.update{NativeAccountProfileCache.writeVerifiedUser(it,"login","fixture-env",user.copy(id="replacement"))}
+        assertNull(store.cache.read("login","fixture-env")!!.selectedTeamId)
+    }
     private class Store {
         var value = JSONObject().put("task_session", "login").put("refresh_token", "fixture-refresh")
         var fail = false
@@ -25,8 +47,8 @@ class NativeAccountProfileCacheTest {
         server.url("/api/v1/"), cache = store.cache)
     private fun MockWebServer.profile(selected: String? = "two", ids: List<String> = listOf("one", "two"),
                                       name: Any = " Fixture Person ", userId: String = "user") {
-        enqueue(MockResponse().setBody(JSONObject().put("id", userId).put("display_name", name)
-            .put("primary_email", "person@example.test").put("selected_team", selected?.let { JSONObject().put("id", it) } ?: JSONObject.NULL).toString()))
+        repeat(2){enqueue(MockResponse().setBody(JSONObject().put("id", userId).put("display_name", name)
+            .put("primary_email", "person@example.test").put("selected_team", selected?.let { JSONObject().put("id", it) } ?: JSONObject.NULL).toString()))}
         enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray(ids.map {
             JSONObject().put("id", it).put("display_name", "Team $it")
         })).toString()))
@@ -44,10 +66,10 @@ class NativeAccountProfileCacheTest {
                 assertEquals("person@example.test", restored.state.value.email)
                 assertEquals("two", restored.state.value.selectedTeamId)
                 assertTrue(restored.state.value.cached); assertNull(restored.state.value.scope)
-                assertFalse(restored.isCurrent(previous)); assertEquals(2, server.requestCount)
+                assertFalse(restored.isCurrent(previous)); assertEquals(3, server.requestCount)
                 assertNull(restored.captureContinuation(previous))
                 assertTrue(runCatching { restored.select("one") }.isFailure)
-                assertEquals(2, server.requestCount)
+                assertEquals(3, server.requestCount)
                 assertTrue(restored.state.value.cached)
                 restored.reconcileLogin() // Initial app-runtime observation must keep the cached card.
                 assertEquals("two", restored.state.value.selectedTeamId)
@@ -59,7 +81,7 @@ class NativeAccountProfileCacheTest {
         MockWebServer().use { server ->
             val store = Store(); seed(server, store)
             controller(server, store).use { restored ->
-                server.enqueue(MockResponse().setResponseCode(503))
+                repeat(2){server.enqueue(MockResponse().setResponseCode(503))}
                 assertTrue(runCatching { restored.refresh() }.isFailure)
                 assertTrue(restored.state.value.cached); assertNull(restored.state.value.scope)
                 assertEquals("Fixture Person", restored.state.value.displayName)
@@ -73,7 +95,7 @@ class NativeAccountProfileCacheTest {
                 server.profile(selected = null, ids = emptyList())
                 assertNull(restored.refresh().scope); assertTrue(restored.state.value.teams.isEmpty())
             }
-            controller(server, store).use { assertTrue(it.state.value.cached); assertNull(it.state.value.selectedTeamId) }
+            controller(server, store).use { assertTrue(it.state.value.cached); assertEquals("one",it.state.value.selectedTeamId) }
         }
     }
 
@@ -97,7 +119,7 @@ class NativeAccountProfileCacheTest {
         MockWebServer().use { server ->
             val store = Store(); seed(server, store)
             controller(server, store).use { account ->
-                server.enqueue(MockResponse().setResponseCode(403))
+                repeat(2){server.enqueue(MockResponse().setResponseCode(403))}
                 assertTrue(runCatching { account.refresh() }.isFailure)
                 assertEquals("user",account.state.value.userId);assertTrue(account.state.value.cached)
                 assertNull(account.state.value.scope);assertTrue(store.load().has(NativeAccountProfileCache.KEY))
@@ -105,7 +127,7 @@ class NativeAccountProfileCacheTest {
             seed(server, store)
             controller(server, store).use { account ->
                 repeat(server.requestCount) { server.takeRequest() }
-                server.enqueue(MockResponse().setResponseCode(403).setBody("{}").setBodyDelay(250, TimeUnit.MILLISECONDS))
+                repeat(2){server.enqueue(MockResponse().setResponseCode(403).setBody("{}").setBodyDelay(250, TimeUnit.MILLISECONDS))}
                 val old = async { runCatching { account.refresh() } }
                 withContext(Dispatchers.IO) { assertNotNull(server.takeRequest(2, TimeUnit.SECONDS)) }
                 store.update { it.put("task_session", "new-login") }
@@ -123,14 +145,14 @@ class NativeAccountProfileCacheTest {
             val store = Store(); server.profile()
             controller(server, store).use { account ->
                 val previous = account.refresh().scope!!
-                server.enqueue(MockResponse().setBody("{\"id\":\"different-user\"}"))
+                repeat(2){server.enqueue(MockResponse().setBody("{\"id\":\"different-user\"}"))}
                 server.enqueue(MockResponse().setResponseCode(503))
                 assertTrue(runCatching { account.refresh() }.isFailure)
                 assertFalse(account.isCurrent(previous)); assertNull(account.state.value.scope)
                 assertNull(account.state.value.userId)
                 assertFalse(store.load().has(NativeAccountProfileCache.KEY))
                 assertTrue(runCatching { account.select("one") }.isFailure)
-                assertEquals(4, server.requestCount)
+                assertEquals(6, server.requestCount)
             }
         }
     }
@@ -139,11 +161,11 @@ class NativeAccountProfileCacheTest {
         MockWebServer().use { server ->
             val store = Store(); seed(server, store)
             controller(server, store).use { account ->
-                server.enqueue(MockResponse().setBody("{\"id\":\"user\",\"display_name\":42}"))
+                repeat(2){server.enqueue(MockResponse().setBody("{\"id\":\"user\",\"display_name\":42}"))}
                 assertTrue(runCatching { account.refresh() }.isFailure)
                 assertTrue(account.state.value.cached); assertNull(account.state.value.scope)
                 assertTrue(runCatching { account.select("one") }.isFailure)
-                assertEquals(3, server.requestCount)
+                assertEquals(5, server.requestCount)
             }
         }
     }

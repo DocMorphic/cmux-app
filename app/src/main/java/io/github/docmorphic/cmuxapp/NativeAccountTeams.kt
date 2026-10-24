@@ -1,6 +1,9 @@
 package io.github.docmorphic.cmuxapp
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +61,7 @@ internal class NativeAccountTeams(
     private val phaseNowMillis:()->Long={System.nanoTime()/1_000_000},
     private val phaseWork:NativeAuthWork=NativeAuthWork(nowMillis=phaseNowMillis),
     private val networkTimeoutMillis:Long=NETWORK_TIMEOUT_MILLIS,
+    private val accountUser:(()->NativeSignInUser?)?=null,
 ) : AutoCloseable {
     constructor(account: NativeAccount, store: NativeCredentialStore,
         origin:HttpUrl="https://api.stack-auth.com/api/v1/".toHttpUrl(),base:OkHttpClient=OkHttpClient(),
@@ -68,7 +72,7 @@ internal class NativeAccountTeams(
         cache = NativeAccountProfileCache(store::load, store::update), lock = store.accountStateLock,
         sessionIdentity=account.sessionRestore::identity,restoreUser=account.sessionRestore::restoreIdentityIfNeeded,
         needsRestoration={account.sessionRestore.needsIdentityValidation},phaseNowMillis={android.os.SystemClock.elapsedRealtime()},phaseWork=store.authWork,
-        networkTimeoutMillis=networkTimeoutMillis)
+        networkTimeoutMillis=networkTimeoutMillis,accountUser={account.sessionRestore.state.value.user})
 
     private class StackFailure(val status: Int) : IOException("Account request failed ($status)")
     private val client = base.newBuilder().followRedirects(false).followSslRedirects(false)
@@ -82,7 +86,7 @@ internal class NativeAccountTeams(
     private var selectingTeams=0
     private class PhaseLease(val deadline:Long?) {val retired=AtomicBoolean(false)}
     private data class Operation(val run:Long,val identity:NativeAuthIdentity?,val mutation:Long?,val phase:PhaseLease?=null)
-    private data class Membership(val user:NativeSignInUser,val teams:List<NativeTeam>)
+    private data class Membership(val user:NativeSignInUser,val teams:List<NativeTeam>,val selected:String?=null)
     private class MembershipReadFailure(val user:String,val failure:Exception):Exception("Could not read account membership") {
         override fun toString()="MembershipReadFailure"
     }
@@ -185,6 +189,18 @@ internal class NativeAccountTeams(
             if(failure is CancellationException || nativeSessionCheckLimit(failure)!=null)throw failure
             throw NativeSessionUserUnavailable()
         }
+    private suspend fun selectedTeamId(owner:String,epoch:Operation):String? = try {
+        val value=request("users/me",owner,epoch)
+        if (!NativeSignInUser.isEligible(value)) null else {
+            // The SDK selected-team projection uses Team's string/default id;
+            // unrelated profile fields do not determine whether this read succeeds.
+            if(sessionIdentity!=null)checkPrincipal(owner,epoch,value.opt("id") as? String ?: "")
+            (value.opt("selected_team") as? JSONObject)?.let {it.opt("id") as? String ?: ""}
+        }
+    } catch(failure:Exception) {
+        currentCoroutineContext().ensureActive()
+        null // The coordinator's independent selectedTeamID call is best effort.
+    }
     private fun claimMutation(create:Boolean):Long=synchronized(lock) {
         check(!closed){"Account team session closed"}
         check(!creatingTeam && (!create || selectingTeams==0)){"A team change is already in progress"}
@@ -310,15 +326,19 @@ internal class NativeAccountTeams(
         var failure:Exception?=null
         try {return perform(publishedUser,identity) {owner,epoch->
             if(expectedLogin!=null && owner!=expectedLogin)throw CancellationException("Account changed")
-            val value=phase(epoch,NativeAuthPhase.TEAM_LIST,NativeAuthWork.Admission.TOKEN) {child->
-                val user=publishedUser ?: eligibleUser(owner,child)
-                checkPrincipal(owner,child,user.id)
-                val teams=try {listTeams(owner,child)} catch(error:Exception) {
-                    if(error is CancellationException)throw error
-                    throw MembershipReadFailure(user.id,error)
+            val value=phase(epoch,NativeAuthPhase.TEAM_LIST,NativeAuthWork.Admission.TOKEN) {child->coroutineScope {
+                val membership=async(CoroutineName("team-membership")) {
+                    val user=eligibleUser(owner,child)
+                    checkPrincipal(owner,child,user.id)
+                    val teams=try {listTeams(owner,child)} catch(error:Exception) {
+                        if(error is CancellationException)throw error
+                        throw MembershipReadFailure(user.id,error)
+                    }
+                    Membership(user,teams)
                 }
-                Membership(user,teams)
-            }
+                val selected=async(CoroutineName("team-selection-read")) {selectedTeamId(owner,child)}
+                membership.await().copy(selected=selected.await())
+            }}
             synchronized(lock) {
                 checkCurrent(owner,epoch)
                 if(mutableState.value.userId?.let{it!=value.user.id}==true) {
@@ -326,11 +346,14 @@ internal class NativeAccountTeams(
                     runCatching{cache?.remove(owner)}
                 }
             }
-            val remembered=synchronized(lock){mutableState.value.takeIf{it.userId==value.user.id}?.selectedTeamId}
-            val selected=if(publishedUser!=null)value.user.selectedTeam else value.user.selectedTeam ?: remembered
-            publish(owner,epoch,value.user.id,value.teams,
-                selected?.takeIf{id->value.teams.any{it.id==id}} ?: value.teams.firstOrNull()?.id,
-                displayName=value.user.name,email=value.user.email)
+            synchronized(lock) {
+                checkCurrent(owner,epoch)
+                val remembered=mutableState.value.takeIf{it.userId==value.user.id}?.selectedTeamId
+                val profile=accountUser?.invoke()?.takeIf{it.id==value.user.id}
+                    ?: publishedUser?.takeIf{it.id==value.user.id} ?: value.user
+                publish(owner,epoch,value.user.id,value.teams,nativeResolvedTeamId(value.selected ?: remembered,value.teams),
+                    displayName=profile.name,email=profile.email)
+            }
         }} catch(error:Exception){failure=error;throw error}
         finally {synchronized(lock){membershipReads--};onMembershipCompleted(identity,failure)}
     }

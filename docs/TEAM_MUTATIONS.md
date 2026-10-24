@@ -115,11 +115,13 @@ This is not full app parity. [The phase/publication follow-up](TEAM_OPERATION_DE
 adds source network budgets, actual/public lifetime accounting, a real default
 60-second phase check, idle-versus-call timeout mapping and readonly cached nil
 selection. Locked encrypted storage, OS sleep/Doze/network loss and process-death
-acceptance remain open. Team list/selected-team parallel reads, malformed-list/default-model
-semantics, complete user metadata/profile bounds, consent-aware telemetry and
+acceptance remain open. [Independent refresh reads](TEAM_REFRESH_READS.md) now cover
+parallel user/list and selected-team requests, remembered choice and profile
+projection. Malformed-list/default-model semantics, complete user metadata/profile
+bounds, consent-aware telemetry and
 worker retry/rate integration remain open. The SDK-only create fallback without
-the configured cmux backend is not an Android production route. Readonly cached nil selection is covered in that follow-up; full load-time
-selection projection remains part of the admission/model audit. Current Android row-size and body bounds are not claimed equivalent
+the configured cmux backend is not an Android production route. Readonly cached nil selection is covered in that follow-up; complete independent choice-store/new-login
+lifetime remains part of the admission/model audit. Current Android row-size and body bounds are not claimed equivalent
 to every SDK default.
 
 Raw-token/access-only consumers, complete backend/identity adoption, live provider,

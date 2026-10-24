@@ -93,9 +93,11 @@ removes the membership serializer, separates public counts from actual task
 handles, bounds network phases and tests the real default 60-second wait. Injected
 noncooperative token faults run outside the encrypted-store monitor; these checks
 do not prove recovery from a thread blocked while holding that monitor. [The mutation/picker checkpoint](TEAM_MUTATIONS.md) adds fresh
-selection eligibility and failure-tolerant backend creation. Full load-time selection projection, separate/parallel selected-team reads and SDK
-malformed-list/default-model semantics,
-full user metadata and profile bounds also remain open.
+selection eligibility and failure-tolerant backend creation. [Independent refresh](TEAM_REFRESH_READS.md)
+adds fresh callback user/selected reads, preserved empty-list choice and account
+profile projection. Complete choice-store/new-login lifetime, SDK malformed-list/
+default-model semantics, full user metadata/profile bounds and complete transport/
+retry behavior remain open.
 
 The reporting producer is not the original consent-aware aggregation/recovery
 telemetry consumer. Interactive sign-in's separate rate-retry flow is outside

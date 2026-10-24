@@ -60,8 +60,8 @@ class PhoneReplyWorkTest {
     }
     private fun MockWebServer.profile(member: Boolean = true) {
         // Another selected team must not block replies for a saved Mac in a current membership.
-        enqueue(MockResponse().setBody(JSONObject().put("id", team.userId)
-            .put("selected_team", JSONObject().put("id", "other-team")).toString()))
+        teamUsers(2){MockResponse().setBody(JSONObject().put("id", team.userId)
+            .put("selected_team", JSONObject().put("id", "other-team")).toString())}
         enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray(
             (listOf("other-team") + if (member) listOf(team.teamId) else emptyList()).map {
                 JSONObject().put("id", it).put("display_name", it)
@@ -97,7 +97,7 @@ class PhoneReplyWorkTest {
         MockWebServer().use { server ->
             server.profile(); server.enqueue(MockResponse().setResponseCode(202))
             assertEquals(ListenableWorker.Result.success(), worker(server, NativeMacBuildAudience.application).doWork())
-            repeat(2) { assertEquals("GET", server.takeRequest(1, TimeUnit.SECONDS)!!.method) }
+            repeat(3) { assertEquals("GET", server.takeRequest(1, TimeUnit.SECONDS)!!.method) }
             val sent = server.takeRequest(1, TimeUnit.SECONDS)!!
             assertEquals("/v1/replies/e2e", sent.path); assertEquals(reply.body, sent.body.readUtf8())
             assertFalse(reply.body.contains(text)); assertEquals("Bearer fixture-token", sent.getHeader("Authorization"))
@@ -110,8 +110,8 @@ class PhoneReplyWorkTest {
         MockWebServer().use { server ->
             server.profile()
             assertEquals(ListenableWorker.Result.retry(), worker(server, NativeMacBuildAudience.application).doWork())
-            assertEquals(2, server.requestCount)
-            repeat(2) { assertEquals("GET", server.takeRequest(1, TimeUnit.SECONDS)!!.method) }
+            assertEquals(3, server.requestCount)
+            repeat(3) { assertEquals("GET", server.takeRequest(1, TimeUnit.SECONDS)!!.method) }
         }
     }
     @Test fun consumerAudienceNeverSendsQueuedReplyToUnsupportedMacBuild() = runBlocking {
@@ -119,8 +119,8 @@ class PhoneReplyWorkTest {
         MockWebServer().use { server ->
             server.profile()
             assertEquals(ListenableWorker.Result.retry(), worker(server, audience = NativeMacBuildAudience.consumer).doWork())
-            assertEquals(2, server.requestCount)
-            repeat(2) { assertEquals("GET", server.takeRequest(1, TimeUnit.SECONDS)!!.method) }
+            assertEquals(3, server.requestCount)
+            repeat(3) { assertEquals("GET", server.takeRequest(1, TimeUnit.SECONDS)!!.method) }
         }
     }
     private fun alerts() = manager.activeNotifications.filter { it.notification.channelId == PhoneReplyNotices.CHANNEL &&
@@ -158,7 +158,7 @@ class PhoneReplyWorkTest {
         MockWebServer().use { server ->
             server.profile(); server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "10"))
             assertEquals(ListenableWorker.Result.retry(), worker(server) { clock }.doWork())
-            server.takeRequest(); server.takeRequest()
+            repeat(3){server.takeRequest()}
             val first = server.takeRequest()
             assertEquals("/v1/replies/e2e", first.path)
             assertEquals("Bearer fixture-token", first.getHeader("Authorization"))
@@ -168,12 +168,12 @@ class PhoneReplyWorkTest {
             assertEquals(reply.body, PhoneReplyOutbox(store.load()!!).waiting(clock).single().body)
             server.profile()
             assertEquals(ListenableWorker.Result.retry(), worker(server) { clock }.doWork())
-            assertEquals(5, server.requestCount) // Account verification only during the persisted cooldown.
-            server.takeRequest(); server.takeRequest()
+            assertEquals(7, server.requestCount) // Account verification only during the persisted cooldown.
+            repeat(3){server.takeRequest()}
             clock += 10_001
             server.profile(); server.enqueue(MockResponse().setResponseCode(202))
             assertEquals(ListenableWorker.Result.success(), worker(server) { clock }.doWork())
-            server.takeRequest(); server.takeRequest()
+            repeat(3){server.takeRequest()}
             assertEquals(reply.body, server.takeRequest().body.readUtf8())
             val state = store.load()!!
             assertTrue(PhoneReplyOutbox(state).waiting(clock).isEmpty())
@@ -187,10 +187,10 @@ class PhoneReplyWorkTest {
         MockWebServer().use { server ->
             server.profile(member = false)
             assertEquals(ListenableWorker.Result.retry(), worker(server) { clock }.doWork())
-            assertEquals(2, server.requestCount)
+            assertEquals(3, server.requestCount)
             clock += 130_000
             assertEquals(ListenableWorker.Result.success(), worker(server) { clock }.doWork())
-            assertEquals(2, server.requestCount)
+            assertEquals(3, server.requestCount)
             waitFor { alerts().size == 1 }
             assertEquals(PhoneReplyNotices.key(reply), alerts().single().tag)
             assertEquals("unconfirmed", PhoneReplyOutbox(store.load()!!).receipts(clock).single().status)
@@ -203,7 +203,7 @@ class PhoneReplyWorkTest {
             server.profile()
             server.enqueue(MockResponse().setResponseCode(202).setHeadersDelay(300, TimeUnit.MILLISECONDS))
             val running = async(Dispatchers.IO) { worker(server).doWork() }
-            repeat(3) { assertNotNull(server.takeRequest(5, TimeUnit.SECONDS)) }
+            repeat(4) { assertNotNull(server.takeRequest(5, TimeUnit.SECONDS)) }
             store.update { it.put("task_session", "replacement-login") }
             assertEquals(ListenableWorker.Result.success(), withTimeout(5_000) { running.await() })
             assertFalse(store.load()!!.has(PhoneReplyOutbox.KEY))
@@ -252,7 +252,7 @@ class PhoneReplyWorkTest {
         MockWebServer().use { server ->
             server.profile(); server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
             val running = async(Dispatchers.IO) { worker(server).doWork() }
-            repeat(3) { assertNotNull(server.takeRequest(5, TimeUnit.SECONDS)) }
+            repeat(4) { assertNotNull(server.takeRequest(5, TimeUnit.SECONDS)) }
             withTimeout(3_000) { running.cancelAndJoin() }
             assertEquals(reply.body, PhoneReplyOutbox(store.load()!!).waiting(System.currentTimeMillis()).single().body)
             assertTrue(PhoneReplyOutbox(store.load()!!).receipts(System.currentTimeMillis()).isEmpty())

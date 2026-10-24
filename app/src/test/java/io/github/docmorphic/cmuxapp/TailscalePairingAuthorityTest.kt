@@ -78,8 +78,8 @@ class TailscalePairingAuthorityTest {
     }
 
     private fun MockWebServer.profile(selected: String, vararg members: String) {
-        enqueue(MockResponse().setBody(JSONObject().put("id", "user")
-            .put("selected_team", JSONObject().put("id", selected)).toString()))
+        repeat(2){enqueue(MockResponse().setBody(JSONObject().put("id", "user")
+            .put("selected_team", JSONObject().put("id", selected)).toString()))}
         enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray(members.map {
             JSONObject().put("id", it).put("display_name", it)
         })).toString()))

@@ -7,15 +7,18 @@ import java.util.UUID
 /** The fetched identity is distinct from a credential exchange's successful token write. */
 internal data class NativeSignInUser(val id: String, val name: String?, val email: String?, val selectedTeam: String?) {
     companion object {
-        fun decode(value: JSONObject): NativeSignInUser {
+        fun isEligible(value: JSONObject): Boolean {
             // JSONSerialization bridges numeric 0/1 to Bool too; strings do not cast.
             fun flag(key: String): Boolean = when (val raw = value.opt(key)) {
                 is Boolean -> raw
                 is Number -> raw.toDouble() == 1.0
                 else -> false
             }
+            return !flag("is_anonymous") && !flag("is_restricted")
+        }
+        fun decode(value: JSONObject): NativeSignInUser {
             // StackClientApp.getUser(.throw) excludes these users by default.
-            if (flag("is_anonymous") || flag("is_restricted"))
+            if (!isEligible(value))
                 throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
             fun text(value: Any?, limit: Int): String? {
                 if (value == null || value === JSONObject.NULL) return null

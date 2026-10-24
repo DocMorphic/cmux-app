@@ -20,7 +20,7 @@ class NativeTeamMutationTest {
         NativeAccountTeams({"fixture-access"},{"login"},server.url("/api/v1/"),refreshCredential={"fixture-refresh"},
             backendOrigin=server.url("/"),sessionIdentity=identity::get,cache=cache)
     private suspend fun establish(server:MockWebServer,c:NativeAccountTeams):NativeTeamScope {
-        server.enqueue(members());return checkNotNull(c.refreshAfterSignIn("login",user).scope)
+        repeat(2){server.enqueue(profile())};server.enqueue(members());return checkNotNull(c.refreshAfterSignIn("login",user).scope)
     }
     @Test fun effectiveSelectionMatchesSevenCasesExecutedFromTheWholeOriginalResolveDeclaration() {
         val rows=JSONObject(checkNotNull(javaClass.getResourceAsStream("/native-team-selection-reference.json"))
@@ -36,7 +36,7 @@ class NativeTeamMutationTest {
             .bufferedReader().use{it.readText()});assertEquals("a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",data.getString("upstream"))
         val rows=data.getJSONArray("rows");assertEquals(9,rows.length())
         for(i in 0 until rows.length()){val row=rows.getJSONObject(i);MockWebServer().use{server->controller(server).use{c->
-            establish(server,c);server.takeRequest();server.enqueue(profile())
+            establish(server,c);repeat(3){server.takeRequest()};server.enqueue(profile())
             server.enqueue(MockResponse().setBody(when(row.getString("responseKind")){"json"->"{\"id\":\"other-user\"}";"empty"->"";else->"private-response-canary"}))
             val id=if(row.isNull("selected"))null else row.getString("selected");assertTrue(row.getBoolean("succeeded"));assertEquals(id,c.select(id).selectedTeamId)
             assertEquals("GET",server.takeRequest().method);val patch=server.takeRequest();val expected=row.getJSONObject("request")
@@ -47,9 +47,9 @@ class NativeTeamMutationTest {
     }
     @Test fun selectionRevalidatesEligibilityBeforeSendingAnyPatchAndPreservesTheLoadedScopeOnFailure()=runBlocking<Unit> {
         for(flag in listOf("is_anonymous","is_restricted"))MockWebServer().use{server->controller(server).use{c->
-            val before=establish(server,c);val proof=checkNotNull(c.captureContinuation(before));server.takeRequest()
+            val before=establish(server,c);val proof=checkNotNull(c.captureContinuation(before));repeat(3){server.takeRequest()}
             server.enqueue(profile(flag));assertTrue(runCatching{c.select("two")}.exceptionOrNull() is NativeSessionUserUnavailable)
-            assertEquals(2,server.requestCount);assertEquals("GET",server.takeRequest().method);assertEquals(before,c.state.value.scope)
+            assertEquals(4,server.requestCount);assertEquals("GET",server.takeRequest().method);assertEquals(before,c.state.value.scope)
             assertTrue(c.allowsContinuation(proof));assertTrue(c.hasLoadedMembership)
         }}
     }
@@ -58,7 +58,7 @@ class NativeTeamMutationTest {
             MockResponse().setResponseCode(429).setHeader("Retry-After","3")))MockWebServer().use{server->controller(server).use{c->
             val before=establish(server,c);server.enqueue(reply);val e=runCatching{c.select("two")}.exceptionOrNull()
             assertTrue(e is NativeSessionUserUnavailable || e is NativeAccountRateLimited)
-            assertFalse(c.state.value.error.orEmpty().contains("canary"));assertEquals(2,server.requestCount);assertEquals(before,c.state.value.scope)
+            assertFalse(c.state.value.error.orEmpty().contains("canary"));assertEquals(4,server.requestCount);assertEquals(before,c.state.value.scope)
         }}
     }
     @Test fun aSuccessfulPatchDoesNotRequireOptionalResponseJsonOrAnEchoedSelection()=runBlocking<Unit> {
@@ -67,25 +67,25 @@ class NativeTeamMutationTest {
             MockWebServer().use{server->controller(server).use{c->
                 establish(server,c);server.enqueue(profile());server.enqueue(reply)
                 assertEquals("two",c.select("two").selectedTeamId);assertEquals("two",c.state.value.scope?.teamId)
-                assertFalse(c.state.value.toString().contains("private-not-json"));assertEquals(3,server.requestCount)
+                assertFalse(c.state.value.toString().contains("private-not-json"));assertEquals(5,server.requestCount)
             }}
     }
     @Test fun reselectingTheSameTeamStillPersistsWithoutReplacingItsAdmissionScope()=runBlocking<Unit> {
-        MockWebServer().use{server->controller(server).use{c->val before=establish(server,c);server.takeRequest()
+        MockWebServer().use{server->controller(server).use{c->val before=establish(server,c);repeat(3){server.takeRequest()}
             server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204));assertEquals(before,c.select("one").scope)
             assertEquals("GET",server.takeRequest().method);val patch=server.takeRequest();assertEquals("PATCH",patch.method)
             assertEquals("one",JSONObject(patch.body.readUtf8()).getString("selected_team_id"))
         }}
     }
     @Test fun nilSelectionMatchesTheSdkOmittedFieldAndDoesNotForgetLoadedMembership()=runBlocking<Unit> {
-        MockWebServer().use{server->controller(server).use{c->val before=establish(server,c);val proof=checkNotNull(c.captureContinuation(before));server.takeRequest()
+        MockWebServer().use{server->controller(server).use{c->val before=establish(server,c);val proof=checkNotNull(c.captureContinuation(before));repeat(3){server.takeRequest()}
             server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204));val value=c.select(null)
             assertNull(value.selectedTeamId);assertEquals(before,value.scope);assertTrue(c.hasLoadedMembership);assertTrue(c.allowsContinuation(proof))
             server.takeRequest();assertEquals(0,JSONObject(server.takeRequest().body.readUtf8()).length())
         }}
     }
     @Test fun backendCreationDoesNotAddAPreflightUserRequestAndContinuesAfterAFailedList()=runBlocking<Unit> {
-        MockWebServer().use{server->controller(server).use{c->establish(server,c);server.takeRequest()
+        MockWebServer().use{server->controller(server).use{c->establish(server,c);repeat(3){server.takeRequest()}
             server.enqueue(created());server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(503))
             server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204));assertEquals("new",c.create("New team").selectedTeamId)
             val requests=(1..5).map{server.takeRequest()};assertEquals(listOf("POST","GET","GET","GET","PATCH"),requests.map{it.method})
@@ -93,19 +93,19 @@ class NativeTeamMutationTest {
         }}
     }
     @Test fun aFailedEligibilityReadDuringPostCreateListingStillAllowsAFreshSelectionAttempt()=runBlocking<Unit> {
-        MockWebServer().use{server->controller(server).use{c->establish(server,c);server.takeRequest()
+        MockWebServer().use{server->controller(server).use{c->establish(server,c);repeat(3){server.takeRequest()}
             server.enqueue(created());server.enqueue(profile("is_restricted"));server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
             assertEquals("new",c.create("New team").selectedTeamId)
             assertEquals(listOf("POST","GET","GET","PATCH"),(1..4).map{server.takeRequest().method})
         }}
     }
     @Test fun creationAfterInitialMembershipFailureDoesNotInventLoadedMembershipOrConnectionAuthority()=runBlocking<Unit> {
-        MockWebServer().use{server->controller(server).use{c->server.enqueue(MockResponse().setResponseCode(503))
+        MockWebServer().use{server->controller(server).use{c->repeat(2){server.enqueue(MockResponse().setResponseCode(503))}
             assertTrue(runCatching{c.refreshAfterSignIn("login",user)}.isFailure);assertFalse(c.hasLoadedMembership)
             server.enqueue(created());server.enqueue(profile());server.enqueue(members("new"));server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
             val value=c.create("New team");assertEquals("new",value.selectedTeamId);assertEquals(listOf("new"),value.teams.map{it.id})
             assertNull(value.scope);assertFalse(c.hasLoadedMembership)
-            server.enqueue(members("new"));assertNotNull(c.refreshAfterSignIn("login",user.copy(selectedTeam="new")).scope)
+            repeat(2){server.enqueue(profile())};server.enqueue(members("new"));assertNotNull(c.refreshAfterSignIn("login",user.copy(selectedTeam="new")).scope)
             assertTrue(c.hasLoadedMembership)
         }}
     }
@@ -124,23 +124,23 @@ class NativeTeamMutationTest {
             controller(server,cache=cache).use{c->assertTrue(c.state.value.cached);assertFalse(c.hasLoadedMembership)
                 server.enqueue(created());server.enqueue(profile());server.enqueue(members());server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
                 assertEquals("new",c.create("New team").selectedTeamId);assertNull(c.state.value.scope);assertFalse(c.hasLoadedMembership)
-                assertEquals("POST",(1..2).map{server.takeRequest().method}.last())
+                assertEquals("POST",(1..4).map{server.takeRequest().method}.last())
             }
         }
     }
     @Test fun freshUserFromAReplacementPrincipalCannotAuthorizeAPatch()=runBlocking<Unit> {
         MockWebServer().use{server->controller(server).use{c->val before=establish(server,c)
             server.enqueue(MockResponse().setBody("{\"id\":\"other\"}"));assertTrue(runCatching{c.select("two")}.exceptionOrNull() is CancellationException)
-            assertEquals(2,server.requestCount);assertFalse(c.isCurrent(before));assertNull(c.state.value.scope)
+            assertEquals(4,server.requestCount);assertFalse(c.isCurrent(before));assertNull(c.state.value.scope)
         }}
     }
     @Test fun parallelSelectionResponsesCannotRebindAfterASameUserGenerationChange()=runBlocking<Unit> {
         MockWebServer().use{server->val identity=AtomicReference(NativeAuthIdentity(0,"user"));controller(server,identity).use{c->
-            establish(server,c);server.takeRequest();repeat(2){server.enqueue(profile().setBodyDelay(150,TimeUnit.MILLISECONDS))}
+            establish(server,c);repeat(3){server.takeRequest()};repeat(2){server.enqueue(profile().setBodyDelay(150,TimeUnit.MILLISECONDS))}
             val first=async{runCatching{c.select("two")}};assertNotNull(withContext(Dispatchers.IO){server.takeRequest(2,TimeUnit.SECONDS)})
             val second=async(start=CoroutineStart.UNDISPATCHED){runCatching{c.select("one")}}
             assertNotNull(withContext(Dispatchers.IO){server.takeRequest(2,TimeUnit.SECONDS)});identity.set(NativeAuthIdentity(1,"user"))
-            assertTrue(first.await().isFailure);assertTrue(second.await().isFailure);assertEquals(3,server.requestCount)
+            assertTrue(first.await().isFailure);assertTrue(second.await().isFailure);assertEquals(5,server.requestCount)
         }}
     }
     @Test fun aNewChoiceCompletesWhileTheSupersededPatchIsBlockedButCreateWaitsForAllSwitches()=runBlocking<Unit> {
@@ -163,28 +163,28 @@ class NativeTeamMutationTest {
         }}
     }
     @Test fun aLaterValidChoiceWinsAndAnUnknownChoiceCannotInvalidateAnAlreadySentSelection()=runBlocking<Unit> {
-        MockWebServer().use{server->controller(server).use{c->establish(server,c);server.takeRequest()
+        MockWebServer().use{server->controller(server).use{c->establish(server,c);repeat(3){server.takeRequest()}
             server.enqueue(profile());server.enqueue(MockResponse().setBody("{}").setBodyDelay(150,TimeUnit.MILLISECONDS))
             val first=async{runCatching{c.select("two")}};withContext(Dispatchers.IO){server.takeRequest(2,TimeUnit.SECONDS);server.takeRequest(2,TimeUnit.SECONDS)}
             assertTrue(runCatching{c.select("missing")}.isFailure)
             server.enqueue(profile());server.enqueue(MockResponse().setBody("{}"))
             val last=async(start=CoroutineStart.UNDISPATCHED){c.select("one")}
-            assertTrue(first.await().isFailure);assertEquals("one",last.await().selectedTeamId);assertEquals(5,server.requestCount)
+            assertTrue(first.await().isFailure);assertEquals("one",last.await().selectedTeamId);assertEquals(7,server.requestCount)
         }}
     }
     @Test fun anUnknownChoiceDoesNotInvalidateAnAlreadySentValidMutation()=runBlocking<Unit> {
-        MockWebServer().use{server->controller(server).use{c->establish(server,c);server.takeRequest()
+        MockWebServer().use{server->controller(server).use{c->establish(server,c);repeat(3){server.takeRequest()}
             server.enqueue(profile());server.enqueue(MockResponse().setBody("{}").setBodyDelay(150,TimeUnit.MILLISECONDS))
             val first=async{c.select("two")};withContext(Dispatchers.IO){server.takeRequest(2,TimeUnit.SECONDS);server.takeRequest(2,TimeUnit.SECONDS)}
-            assertTrue(runCatching{c.select("missing")}.isFailure);assertEquals("two",first.await().selectedTeamId);assertEquals(3,server.requestCount)
+            assertTrue(runCatching{c.select("missing")}.isFailure);assertEquals("two",first.await().selectedTeamId);assertEquals(5,server.requestCount)
         }}
     }
     @Test fun createAndSelectionExcludeEachOtherWithoutQueuingDuplicateCreation()=runBlocking<Unit> {
-        MockWebServer().use{server->controller(server).use{c->establish(server,c);server.takeRequest()
+        MockWebServer().use{server->controller(server).use{c->establish(server,c);repeat(3){server.takeRequest()}
             server.enqueue(created().setBodyDelay(150,TimeUnit.MILLISECONDS));server.enqueue(profile());server.enqueue(members());server.enqueue(profile());server.enqueue(MockResponse().setBody("{}"))
             val pending=async{c.create("New team")};assertEquals("POST",withContext(Dispatchers.IO){server.takeRequest(2,TimeUnit.SECONDS)!!.method})
             assertTrue(runCatching{c.create("Duplicate")}.isFailure);assertTrue(runCatching{c.select("two")}.isFailure)
-            assertEquals("new",pending.await().selectedTeamId);assertEquals(6,server.requestCount)
+            assertEquals("new",pending.await().selectedTeamId);assertEquals(8,server.requestCount)
             server.enqueue(profile().setBodyDelay(150,TimeUnit.MILLISECONDS));server.enqueue(MockResponse().setBody("{}"))
             val selection=async{c.select("one")};withContext(Dispatchers.IO){repeat(4){server.takeRequest()};server.takeRequest(2,TimeUnit.SECONDS)}
             assertTrue(runCatching{c.create("Concurrent")}.isFailure);assertEquals("one",selection.await().selectedTeamId)

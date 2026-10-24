@@ -13,15 +13,16 @@ class NativeTeamIdentityTest {
     private val a=NativeSignInUser("a","A",null,"one")
     private fun teams()=MockResponse().setBody("{\"items\":[{\"id\":\"one\",\"display_name\":\"One\"}]}")
     private fun user(id:String)=MockResponse().setBody("{\"id\":\"$id\",\"selected_team\":{\"id\":\"one\"}}")
+    private fun MockWebServer.membership(){repeat(2){enqueue(user("a"))};enqueue(teams())}
     @Test fun publishedPrincipalChangesCloseAdmissionAndContinuationBeforeReconciliationAndCannotAbaRevive()=runBlocking<Unit> {
         MockWebServer().use { server ->
             val identity=AtomicReference(NativeAuthIdentity(0,"a"))
             NativeAccountTeams({"token"},{"login"},server.url("/api/v1/"),sessionIdentity=identity::get).use { controller ->
-                server.enqueue(teams());val old=checkNotNull(controller.refreshAfterSignIn("login",a).scope)
+                server.membership();val old=checkNotNull(controller.refreshAfterSignIn("login",a).scope)
                 val proof=checkNotNull(controller.captureContinuation(old));assertTrue(controller.isCurrent(old))
                 identity.set(NativeAuthIdentity(1,"b"));assertFalse(controller.isCurrent(old));assertFalse(controller.allowsContinuation(proof))
                 identity.set(NativeAuthIdentity(2,"a"));assertFalse(controller.isCurrent(old));assertFalse(controller.allowsContinuation(proof))
-                server.enqueue(teams());val fresh=checkNotNull(controller.refreshAfterSignIn("login",a).scope)
+                server.membership();val fresh=checkNotNull(controller.refreshAfterSignIn("login",a).scope)
                 assertNotEquals(old.generation,fresh.generation);assertTrue(controller.isCurrent(fresh));assertFalse(controller.allowsContinuation(proof))
             }
         }
@@ -30,8 +31,8 @@ class NativeTeamIdentityTest {
         MockWebServer().use { server ->
             val identity=AtomicReference(NativeAuthIdentity(0,"a"))
             NativeAccountTeams({"token"},{"login"},server.url("/api/v1/"),sessionIdentity=identity::get).use { controller ->
-                server.enqueue(teams());val old=checkNotNull(controller.refreshAfterSignIn("login",a).scope)
-                val proof=checkNotNull(controller.captureContinuation(old));server.enqueue(user("a"));server.enqueue(teams())
+                server.membership();val old=checkNotNull(controller.refreshAfterSignIn("login",a).scope)
+                val proof=checkNotNull(controller.captureContinuation(old));server.membership()
                 val fresh=controller.refresh().scope;assertEquals(old,fresh);assertTrue(controller.allowsContinuation(proof))
             }
         }
@@ -42,7 +43,7 @@ class NativeTeamIdentityTest {
             NativeAccountTeams({"token"},{"login"},server.url("/api/v1/"),sessionIdentity=identity::get).use { controller ->
                 assertTrue(runCatching {controller.refresh()}.exceptionOrNull() is CancellationException)
                 assertEquals(0,server.requestCount);assertNull(controller.state.value.scope)
-                identity.set(NativeAuthIdentity(0,"a"));server.enqueue(teams());assertNotNull(controller.refreshAfterSignIn("login",a).scope)
+                identity.set(NativeAuthIdentity(0,"a"));server.membership();assertNotNull(controller.refreshAfterSignIn("login",a).scope)
             }
         }
     }
@@ -50,20 +51,20 @@ class NativeTeamIdentityTest {
         MockWebServer().use { server ->
             val identity=AtomicReference(NativeAuthIdentity(0,"a"))
             NativeAccountTeams({"token"},{"login"},server.url("/api/v1/"),sessionIdentity=identity::get).use { controller ->
-                server.enqueue(teams());val old=checkNotNull(controller.refreshAfterSignIn("login",a).scope)
-                val proof=checkNotNull(controller.captureContinuation(old));server.enqueue(user("b"))
-                assertTrue(runCatching {controller.refresh()}.isFailure);assertEquals(2,server.requestCount)
+                server.membership();val old=checkNotNull(controller.refreshAfterSignIn("login",a).scope)
+                val proof=checkNotNull(controller.captureContinuation(old));repeat(2){server.enqueue(user("b"))}
+                assertTrue(runCatching {controller.refresh()}.isFailure);assertEquals(5,server.requestCount)
                 assertFalse(controller.isCurrent(old));assertFalse(controller.allowsContinuation(proof));assertNull(controller.state.value.scope)
             }
         }
     }
-    @Test fun aColdPrivateControllerRestoresTheUserThenRequestsMembershipWithoutASecondUserFetch()=runBlocking<Unit> {
+    @Test fun aColdPrivateControllerRestoresTheUserThenRequestsFreshMembershipAndSelection()=runBlocking<Unit> {
         MockWebServer().use { server ->
             val identity=AtomicReference<NativeAuthIdentity?>(null);var restores=0
             NativeAccountTeams({"token"},{"login"},server.url("/api/v1/"),sessionIdentity=identity::get,
                 restoreUser={restores++;identity.set(NativeAuthIdentity(1,"a"));a}).use {controller->
-                server.enqueue(teams());assertNotNull(controller.refresh().scope);assertEquals(1,restores)
-                assertEquals(1,server.requestCount);assertEquals("/api/v1/teams?user_id=me",server.takeRequest().path)
+                server.membership();assertNotNull(controller.refresh().scope);assertEquals(1,restores)
+                assertEquals(3,server.requestCount);val calls=List(3){server.takeRequest()};assertEquals(2,calls.count{it.path=="/api/v1/users/me"});assertEquals(1,calls.count{it.path=="/api/v1/teams?user_id=me"})
             }
         }
     }
@@ -75,9 +76,9 @@ class NativeTeamIdentityTest {
             val stateLock=Any()
             val cache=NativeAccountProfileCache({synchronized(stateLock){root}},{change->synchronized(stateLock){root=JSONObject(root.toString()).also(change)}})
             NativeAccountTeams({"token"},{"login"},server.url("/api/v1/"),cache=cache,lock=stateLock,sessionIdentity=identity::get).use { controller ->
-                server.enqueue(teams().setBodyDelay(200,TimeUnit.MILLISECONDS))
+                repeat(2){server.enqueue(user("a"))};server.enqueue(teams().setBodyDelay(200,TimeUnit.MILLISECONDS))
                 val old=async(Dispatchers.IO) { runCatching {controller.refreshAfterSignIn("login",a)} }
-                assertNotNull(withContext(Dispatchers.IO) {server.takeRequest(2,TimeUnit.SECONDS)})
+                assertEquals("/api/v1/teams?user_id=me",withContext(Dispatchers.IO) {List(3){checkNotNull(server.takeRequest(2,TimeUnit.SECONDS))}.last().path})
                 synchronized(stateLock) { NativeAccountProfileCache.writeVerifiedUser(root,"login",environment,a.copy(id="b",name="B"));identity.set(NativeAuthIdentity(1,"b")) }
                 assertTrue(old.await().isFailure);assertNull(controller.state.value.scope)
                 assertEquals("b",cache.read("login",environment)?.userId)

@@ -61,7 +61,7 @@ class NativeIrohRuntimeTest {
             return next
         }
         suspend fun refresh(selected: String, vararg members: String) {
-            server.enqueue(MockResponse().setBody(user(selected).toString()))
+            repeat(2){server.enqueue(MockResponse().setBody(user(selected).toString()))}
             server.enqueue(MockResponse().setBody(members(*members).toString()))
             account.refresh()
         }
@@ -84,7 +84,7 @@ class NativeIrohRuntimeTest {
     private suspend fun continuation(block: suspend ContinuationFixture.() -> Unit) {
         MockWebServer().use { server ->
             NativeAccountTeams({ "fixture" }, { team.login }, server.url("/api/v1/")).use { account ->
-                server.enqueue(MockResponse().setBody(user(team.teamId).toString()))
+                repeat(2){server.enqueue(MockResponse().setBody(user(team.teamId).toString()))}
                 server.enqueue(MockResponse().setBody(members(team.teamId, "team-b").toString()))
                 val initial = checkNotNull(account.refresh().scope)
                 val created = java.util.concurrent.CopyOnWriteArrayList<Created>()

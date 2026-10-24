@@ -44,7 +44,7 @@ class NativeTeamMutationRuntimeTest {
             .put("fixture_pairing_marker","retain");NativeAuthUserCache.write(it,client(server).accountEnvironment,user)}
         val account=NativeAccount(store,client(server),NativeOAuthBrowser());val teams=teams(server,account)
         account.onSignedIn={login,value->teams.refreshAfterSignIn(login,value)}
-        server.enqueue(profile());server.enqueue(if(failList)MockResponse().setResponseCode(503) else members())
+        server.teamUsers(3){profile()};server.enqueue(if(failList)MockResponse().setResponseCode(503) else members())
         account.sessionRestore.start(scope);withTimeout(5000){account.sessionRestore.awaitBootstrapped()}
         return account to teams
     }
@@ -62,38 +62,38 @@ class NativeTeamMutationRuntimeTest {
         store.clear();context.deleteSharedPreferences(name);KeyStore.getInstance("AndroidKeyStore").apply{load(null)}.deleteEntry(alias)}
     @Test fun freshIneligibleUsersCannotPatchDespitePreviouslyLoadedMembership()=runBlocking<Unit> {
         MockWebServer().use{server->val(_,teams)=binding(server);val before=checkNotNull(teams.state.value.scope);val proof=checkNotNull(teams.captureContinuation(before))
-            for(flag in listOf("is_anonymous","is_restricted")){server.enqueue(profile(flag));assertTrue(runCatching{teams.select("two")}.exceptionOrNull() is NativeSessionUserUnavailable)}
-            assertEquals(4,server.requestCount);assertTrue(teams.isCurrent(before));assertTrue(teams.allowsContinuation(proof))
-            assertEquals(listOf("GET","GET","GET","GET"),(1..4).map{server.takeRequest().method})
+            for(flag in listOf("is_anonymous","is_restricted")){server.teamUsers{profile(flag)};assertTrue(runCatching{teams.select("two")}.exceptionOrNull() is NativeSessionUserUnavailable)}
+            assertEquals(6,server.requestCount);assertTrue(teams.isCurrent(before));assertTrue(teams.allowsContinuation(proof))
+            assertEquals(List(6){"GET"},(1..6).map{server.takeRequest().method})
             record("ineligible",JSONObject().put("freshReads",2).put("patchRequests",0).put("loadedProofPreserved",true))}
     }
     @Test fun successfulEmptyPatchResponsePersistsSelectionInEncryptedDisplayCache()=runBlocking<Unit> {
-        MockWebServer().use{server->val(account,teams)=binding(server);server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
+        MockWebServer().use{server->val(account,teams)=binding(server);server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204))
             assertEquals("two",teams.select("two").scope?.teamId)
             val cipher=context.getSharedPreferences(name,0).getString("state",null)!!;assertFalse(cipher.contains("Account User"))
             val cold=teams(server,account);assertTrue(cold.state.value.cached);assertEquals("two",cold.state.value.selectedTeamId);assertNull(cold.state.value.scope)
-            record("empty-patch",JSONObject().put("httpRequests",4).put("encryptedCacheRestored",true).put("coldAuthorityNotGranted",true))}
+            record("empty-patch",JSONObject().put("httpRequests",6).put("encryptedCacheRestored",true).put("coldAuthorityNotGranted",true))}
     }
     @Test fun createdTeamAfterFailedInitialMembershipIsVisibleWithoutInventingScope()=runBlocking<Unit> {
         MockWebServer().use{server->val(_,teams)=binding(server,failList=true);assertFalse(teams.hasLoadedMembership)
-            server.enqueue(created());server.enqueue(profile());server.enqueue(members());server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
+            server.enqueue(created());server.teamUsers{profile()};server.enqueue(members());server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204))
             val state=teams.create("New team");assertEquals("new",state.selectedTeamId);assertTrue(state.teams.any{it.id=="new"})
-            assertNull(state.scope);assertFalse(teams.hasLoadedMembership);assertEquals(7,server.requestCount)
-            record("created-before-loaded",JSONObject().put("createdAndSelected",true).put("unloadedMembershipPreserved",true).put("httpRequests",7))}
+            assertNull(state.scope);assertFalse(teams.hasLoadedMembership);assertEquals(9,server.requestCount)
+            record("created-before-loaded",JSONObject().put("createdAndSelected",true).put("unloadedMembershipPreserved",true).put("httpRequests",9))}
     }
     @Test fun failedPostCreateMembershipStillSelectsAndNeverRepeatsThePost()=runBlocking<Unit> {
         MockWebServer().use{server->val(_,teams)=binding(server)
-            server.enqueue(created());server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(503));server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
+            server.enqueue(created());server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(503));server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204))
             assertEquals("new",teams.create("New team").scope?.teamId)
-            val methods=(1..7).map{server.takeRequest().method};assertEquals(1,methods.count{it=="POST"});assertEquals(1,methods.count{it=="PATCH"})
-            record("create-list-failure",JSONObject().put("createPosts",1).put("selectionPatches",1).put("httpRequests",7))}
+            val methods=(1..9).map{server.takeRequest().method};assertEquals(1,methods.count{it=="POST"});assertEquals(1,methods.count{it=="PATCH"})
+            record("create-list-failure",JSONObject().put("createPosts",1).put("selectionPatches",1).put("httpRequests",9))}
     }
     @Test fun aDelayedEligibilityResponseCannotPatchOrPublishIntoANewSameUserGeneration()=runBlocking<Unit> {
-        MockWebServer().use{server->val(account,teams)=binding(server);repeat(2){server.takeRequest()};val before=checkNotNull(teams.state.value.scope)
-            server.enqueue(profile().setBodyDelay(200,TimeUnit.MILLISECONDS));val pending=scope.async{runCatching{teams.select("two")}}
+        MockWebServer().use{server->val(account,teams)=binding(server);repeat(4){server.takeRequest()};val before=checkNotNull(teams.state.value.scope)
+            server.teamUsers{profile().setBodyDelay(200,TimeUnit.MILLISECONDS)};val pending=scope.async{runCatching{teams.select("two")}}
             assertEquals("GET",withContext(Dispatchers.IO){server.takeRequest(3,TimeUnit.SECONDS)!!.method})
             account.sessionRestore.publishedSignIn(user.copy(name="Replacement User"));teams.reconcileLogin()
-            assertTrue(withTimeout(5000){pending.await()}.isFailure);assertEquals(3,server.requestCount);assertFalse(teams.isCurrent(before));assertNull(teams.state.value.scope)
+            assertTrue(withTimeout(5000){pending.await()}.isFailure);assertEquals(5,server.requestCount);assertFalse(teams.isCurrent(before));assertNull(teams.state.value.scope)
             assertEquals("Replacement User",account.sessionRestore.state.value.user?.name)
             record("replacement",JSONObject().put("patchRequests",0).put("replacementProfilePreserved",true).put("oldScopeRetired",true))}
     }
@@ -124,18 +124,18 @@ class NativeTeamMutationRuntimeTest {
             }}}}
             compose.onNodeWithText("Create Team").assertIsEnabled().performClick()
             compose.onNodeWithText("Team name").performTextInput("New team")
-            server.enqueue(created());server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(503));server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
+            server.enqueue(created());server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(503));server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204))
             compose.onNodeWithText("Create",useUnmergedTree=false).performClick()
             compose.waitUntil(5000){teams.state.value.selectedTeamId=="new" && !teams.state.value.loading}
             compose.onNodeWithText("Team name").assertDoesNotExist();assertNull(teams.state.value.scope);assertFalse(teams.hasLoadedMembership)
             record("settings-created",JSONObject().put("dialogCompleted",true).put("unloadedScopeNotPromoted",true).put("httpRequests",server.requestCount))}
     }
     @Test fun aPrimedColdAccountCanCreateThroughBackendBeforeBootstrapWithoutConnectionAuthority()=runBlocking<Unit> {
-        MockWebServer().use{server->binding(server);repeat(2){server.takeRequest()}
+        MockWebServer().use{server->binding(server);repeat(4){server.takeRequest()}
             val account=NativeAccount(store,client(server),NativeOAuthBrowser());val cold=teams(server,account)
             assertTrue(account.sessionRestore.state.value.authenticated);assertTrue(account.sessionRestore.needsIdentityValidation)
             assertTrue(cold.state.value.cached);assertFalse(cold.hasLoadedMembership)
-            server.enqueue(created());server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(503));server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
+            server.enqueue(created());server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(503));server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204))
             assertEquals("new",cold.create("New team").selectedTeamId);assertNull(cold.state.value.scope);assertFalse(cold.hasLoadedMembership)
             assertTrue(account.sessionRestore.needsIdentityValidation);assertEquals("POST",server.takeRequest().method)
             record("cached-create",JSONObject().put("backendBeforeBootstrap",true).put("membershipAuthorityNotInvented",true).put("httpRequests",server.requestCount))}
@@ -175,13 +175,13 @@ class NativeTeamMutationRuntimeTest {
     }
     @Test fun pickerFailureRestoresTheCommittedChoiceAndLocalizedRetryClearsTheError() {
         MockWebServer().use{server->val(_,teams)=runBlocking{binding(server)};showPicker(teams)
-            server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(403))
+            server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(403))
             compose.onNodeWithTag("settings.team:two").performClick()
             compose.waitUntil(5000){teams.state.value.error!=null && !teams.state.value.loading}
             compose.onNodeWithTag("settings.team.error").assertTextEquals(context.getString(R.string.cmux_team_selection_failed))
             compose.onNodeWithTag("settings.team:one").assertIsSelected();assertEquals("one",teams.state.value.scope?.teamId)
             capture("picker-failure")
-            server.enqueue(profile());server.enqueue(MockResponse().setResponseCode(204))
+            server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204))
             compose.onNodeWithTag("settings.team:two").performClick();compose.waitUntil(5000){teams.state.value.scope?.teamId=="two" && !teams.state.value.loading}
             compose.onNodeWithTag("settings.team:two").assertIsSelected();compose.onNodeWithTag("settings.team.error").assertDoesNotExist()
             record("picker-retry",JSONObject().put("failureRestoredCommittedChoice",true).put("localizedFailureVisible",true).put("successfulRetryClearedFailure",true))}

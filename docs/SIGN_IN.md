@@ -1,3 +1,31 @@
+## Independent team refresh reads reconciled — 2026-10-24
+
+Membership now fetches a fresh eligible user even after sign-in publication, and
+the selected-team lookup runs independently alongside it under one network phase.
+A selected-read failure cannot fail membership or replace a remembered choice.
+Successful empty membership retains the explicit choice, grants no connection
+scope and retires removed-team proofs. Team lookups preserve the authoritative
+published account profile. Saved choices follow the original whitespace policy;
+same-owner user publication keeps the choice while clearing cached member rows.
+
+Full JVM: 3,416 total in 455 suites, 3,412 passed, four existing SSH skips, zero
+failures/errors. Owned API 36: 183/183 in 347.427s, six new cases plus the prior 158,
+two cached-computer cases and 17 further existing ingress/reply-worker checks. The real default phase fired at
+60,014ms with fixture ciphertext/pairing preserved and no PATCH. Crash log empty,
+no preflight ANR, restored settings/window, owned exit0. Ten refresh, ten selected
+constructor and nine selection-store rows execute original declarations/sources
+and regenerate identically; the receipt binds 42 local inputs and 38 originals.
+
+Full parity remains active. Complete independent choice-store/new-login lifetime,
+primary SDK default/malformed models and metadata/bounds/transport, worker rate/
+retry/reporting integration, actual OS/locked-storage/death, physical/provider/
+helper/Firebase, full matched UI/accessibility and final signed-release gates
+remain open. No physical install, real account/pairing/signing data, global pin or
+frozen signed 722 changed.
+
+Details: [independent team refresh](TEAM_REFRESH_READS.md).
+Evidence: `captures/recovery-20261023/team-reads-checkpoint.json`.
+
 ## Team network deadlines and publication races reconciled — 2026-10-24
 
 Selection's fresh-user read and PATCH share one network phase; backend creation,

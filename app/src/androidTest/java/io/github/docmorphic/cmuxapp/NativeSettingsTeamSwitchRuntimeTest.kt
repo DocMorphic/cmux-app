@@ -42,7 +42,7 @@ class NativeSettingsTeamSwitchRuntimeTest {
         override fun close() { input.close() }
     }
     private fun MockWebServer.profile(selected: String, originalMember: Boolean = true) {
-        enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"$selected"}}"""))
+        teamUsers(2){MockResponse().setBody("""{"id":"user","selected_team":{"id":"$selected"}}""")}
         enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray((if (originalMember) listOf("original", "picker") else listOf("picker"))
             .map { JSONObject().put("id", it).put("display_name", it) })).toString()))
     }
@@ -109,7 +109,7 @@ class NativeSettingsTeamSwitchRuntimeTest {
                                 confirm = feed::confirmComputerForget, prepareDetached = feed::prepareComputerForget,
                                 connectionFor = projection::get) { if (feed.computerDetailsState.value === page) feed.computerDetailsState.value = null }
                         } } }
-                        repeat(2){server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}"""))}
+                        server.teamSelection{MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}""")}
                         compose.onNodeWithTag("settings.team:picker").performClick()
                         compose.waitUntil(5000) { teams.state.value.scope?.teamId == "picker" }
                         assertSame(root, feed.connectionState(mac.code).client); assertTrue(feed.hasAdmittedForeground())
@@ -119,7 +119,7 @@ class NativeSettingsTeamSwitchRuntimeTest {
                         compose.onNodeWithText("Check Connection").performScrollTo().performClick()
                         compose.waitUntil(5000) { wire.methods.contains("mobile.workspace.list") }
                         compose.onNodeWithText("‹  Back").performClick()
-                        repeat(2){server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"original"}}"""))}
+                        server.teamSelection{MockResponse().setBody("""{"id":"user","selected_team":{"id":"original"}}""")}
                         compose.onNodeWithTag("settings.team:original").performScrollTo().performClick()
                         compose.waitUntil(5000) { teams.state.value.scope?.teamId == "original" }
                         assertNotEquals(original.generation, teams.state.value.scope!!.generation)
@@ -182,9 +182,9 @@ class NativeSettingsTeamSwitchRuntimeTest {
                         feed.admitForeground(original, mac, root)
                     }
                     server.enqueue(MockResponse().setBody("""{"team":{"id":"created","name":"Created"}}"""))
-                    server.enqueue(MockResponse().setBody("""{"id":"user"}"""))
+                    server.teamUsers{MockResponse().setBody("""{"id":"user"}""")}
                     server.enqueue(MockResponse().setBody("""{"items":[{"id":"original","display_name":"Original"},{"id":"created","display_name":"Created"}]}"""))
-                    server.enqueue(MockResponse().setBody("""{"id":"user"}"""))
+                    server.teamUsers{MockResponse().setBody("""{"id":"user"}""")}
                     server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"created"}}"""))
                     assertTrue(feed.createTeam(teams, "Created"))
                     assertEquals("created", teams.state.value.scope?.teamId)

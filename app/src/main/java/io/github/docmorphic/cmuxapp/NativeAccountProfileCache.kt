@@ -12,7 +12,7 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
         if (!owns(root, login)) return@update
         check(!state.cached && state.userId != null)
         val value = JSONObject().put("version", 1).put("login", login).put("environment", environment)
-            .put("user", state.userId).put("selected", state.selectedTeamId ?: JSONObject.NULL)
+            .put("user", state.userId).put("selected", normalizedSelection(state.selectedTeamId) ?: JSONObject.NULL)
             .put("name", state.displayName ?: JSONObject.NULL).put("email", state.email ?: JSONObject.NULL)
             .put("teams", JSONArray(state.teams.map { JSONObject().put("id", it.id).put("name", it.name) }))
         root.put(KEY, value)
@@ -26,17 +26,19 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
         if(!owns(root,login))return@update
         val saved=root.optJSONObject(KEY) ?: return@update
         if(saved.opt("version")!=1 || saved.opt("login")!=login || saved.opt("environment")!=environment || saved.opt("user")!=user)return@update
-        saved.put("selected",selected ?: JSONObject.NULL)
+        saved.put("selected",normalizedSelection(selected) ?: JSONObject.NULL)
     }
 
     companion object {
         const val KEY = "account_profile_cache"
+        private fun normalizedSelection(value:String?)=value?.let(NativeChiefTextPolicy::trim)?.takeIf(String::isNotEmpty)
         /** User publication precedes the fallible membership phase; empty teams grant no authority. */
         fun writeVerifiedUser(root: JSONObject, login: String, environment: String, user: NativeSignInUser) {
             check(owns(root, login))
+            val selected=decode(root,login,environment)?.takeIf{it.userId==user.id}?.selectedTeamId
             NativeAuthUserCache.write(root, environment, user)
             root.put(KEY, JSONObject().put("version", 1).put("login", login).put("environment", environment)
-                .put("user", user.id).put("selected", JSONObject.NULL)
+                .put("user", user.id).put("selected", selected ?: JSONObject.NULL)
                 .put("name", user.name ?: JSONObject.NULL).put("email", user.email ?: JSONObject.NULL)
                 .put("teams", JSONArray()))
         }
@@ -68,7 +70,7 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
                 NativeTeam(id(item.opt("id")), name)
             }
             require(teams.map { it.id }.distinct().size == teams.size)
-            val selected = optional("selected", 128)
+            val selected = normalizedSelection(optional("selected", 128))
             // The coordinator persists explicit selection independently; its effective
             // member falls back separately. Cached rows still grant no connection proof.
             NativeAccountTeamsState(userId = user, teams = teams, selectedTeamId = selected,

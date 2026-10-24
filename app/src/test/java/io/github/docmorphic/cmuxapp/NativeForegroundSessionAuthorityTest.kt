@@ -33,7 +33,7 @@ class NativeForegroundSessionAuthorityTest {
         fun user(team:String)=server.enqueue(MockResponse().setBody(JSONObject().put("id","user")
             .put("selected_team",JSONObject().put("id",team)).toString()))
         fun profile(selected: String = "one", vararg teams: String = arrayOf("one", "two")) {
-            user(selected)
+            repeat(2){user(selected)}
             server.enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray(teams.map {
                 JSONObject().put("id", it).put("display_name", it)
             })).toString()))

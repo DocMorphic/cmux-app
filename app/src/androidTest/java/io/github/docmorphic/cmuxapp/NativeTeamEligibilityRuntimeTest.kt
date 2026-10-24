@@ -34,9 +34,9 @@ class NativeTeamEligibilityRuntimeTest {
     private fun account(server:MockWebServer)=NativeAccount(store,client(server),NativeOAuthBrowser())
     private fun teams(server:MockWebServer,account:NativeAccount)=NativeAccountTeams(account,store,server.url("/api/v1/")).also {controllers+=it}
     private suspend fun establish(server:MockWebServer,account:NativeAccount,c:NativeAccountTeams):Pair<NativeTeamScope,NativeTeamContinuation> {
-        server.enqueue(userReply());account.sessionRestore.start(scope);withTimeout(5000){account.sessionRestore.awaitBootstrapped()}
+        server.teamUsers{userReply()};account.sessionRestore.start(scope);withTimeout(5000){account.sessionRestore.awaitBootstrapped()}
         assertFalse(account.sessionRestore.needsIdentityValidation)
-        server.enqueue(teamReply());val owner=checkNotNull(c.refreshAfterSignIn("same-login",a).scope)
+        server.teamUsers(2){userReply()};server.enqueue(teamReply());val owner=checkNotNull(c.refreshAfterSignIn("same-login",a).scope)
         return owner to checkNotNull(c.captureContinuation(owner))
     }
     private fun retained()=assertEquals("retain",store.requireReadable()!!.getString("fixture_pairing_marker"))
@@ -51,7 +51,7 @@ class NativeTeamEligibilityRuntimeTest {
         KeyStore.getInstance("AndroidKeyStore").apply {load(null)}.deleteEntry(alias)}
     @Test fun coldRestrictedUserCannotPromoteCachedPresentationOrRequestMembership()=runBlocking<Unit> {
         MockWebServer().use {server->seed(server);val cipher=context.getSharedPreferences(name,0).getString("state",null)
-            val account=account(server);val c=teams(server,account);server.enqueue(userReply("is_restricted"))
+            val account=account(server);val c=teams(server,account);server.teamUsers{userReply("is_restricted")}
             assertTrue(runCatching {c.refresh()}.isFailure);assertNull(c.state.value.scope);assertEquals(1,server.requestCount)
             assertEquals("/api/v1/users/me",server.takeRequest(3,TimeUnit.SECONDS)!!.path)
             assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null));assertTrue(account.sessionRestore.needsIdentityValidation);retained()
@@ -61,45 +61,57 @@ class NativeTeamEligibilityRuntimeTest {
         MockWebServer().use {server->seed(server);val account=account(server);val c=teams(server,account)
             val(owner,proof)=establish(server,account,c);val identity=account.sessionRestore.identity()
             for(flag in listOf("is_anonymous","is_restricted")) {
-                server.enqueue(userReply(flag));assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
+                server.teamUsers(2){userReply(flag)};assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
                 assertEquals(owner,c.state.value.scope);assertTrue(c.allowsContinuation(proof))
             }
-            assertEquals(4,server.requestCount);assertEquals(identity,account.sessionRestore.identity())
-            server.enqueue(userReply());server.enqueue(teamReply());assertEquals(owner,c.refresh().scope);assertTrue(c.allowsContinuation(proof));retained()
+            assertEquals(8,server.requestCount);assertEquals(identity,account.sessionRestore.identity())
+            server.teamUsers(2){userReply()};server.enqueue(teamReply());assertEquals(owner,c.refresh().scope);assertTrue(c.allowsContinuation(proof));retained()
             record("loaded-ineligible",JSONObject().put("ineligibleUserReads",2).put("newMembershipRequestsForIneligibleUsers",0)
                 .put("sameSessionLoadedProofPreserved",true).put("eligibleRetryKeepsGeneration",true).put("pairingPreserved",true))}
     }
     @Test fun ordinaryUserReadFailuresDoNotBecomeEmptyMembershipAndRateLimitStaysDistinct()=runBlocking<Unit> {
         MockWebServer().use {server->seed(server);val account=account(server);val c=teams(server,account);val(owner,proof)=establish(server,account,c)
-            server.enqueue(MockResponse().setResponseCode(403));assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
-            server.enqueue(MockResponse().setResponseCode(429));val rate=runCatching {c.refresh()}.exceptionOrNull()
-            assertTrue(rate is NativeAccountRateLimited)
-            assertEquals(owner,c.state.value.scope);assertTrue(c.allowsContinuation(proof));assertEquals(4,server.requestCount);retained()
+            val status=java.util.concurrent.atomic.AtomicInteger(403)
+            server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                check(request.method=="GET" && request.path=="/api/v1/users/me")
+                return MockResponse().setResponseCode(status.get())
+            }}
+            assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
+            status.set(429);val rate=runCatching {c.refresh()}.exceptionOrNull();assertTrue(rate.toString(),rate is NativeAccountRateLimited)
+            assertEquals(owner,c.state.value.scope);assertTrue(c.allowsContinuation(proof))
+            // A failed primary may cancel its optional peer before that peer reaches HTTP.
+            assertTrue(server.requestCount in 6..8)
+            val requests=List(server.requestCount){checkNotNull(server.takeRequest(1,TimeUnit.SECONDS))}
+            assertEquals(1,requests.count{it.path=="/api/v1/teams?user_id=me"});retained()
             record("failed-user-reads",JSONObject().put("loadedProofPreserved",true).put("rateLimitNotCollapsedIntoMissingUser",true).put("pairingPreserved",true))}
     }
     @Test fun successfulEmptyMembershipRetiresProofWhileFailedMembershipPreservesIt()=runBlocking<Unit> {
         MockWebServer().use {server->seed(server);val account=account(server);val c=teams(server,account);val(owner,proof)=establish(server,account,c)
-            server.enqueue(userReply());server.enqueue(MockResponse().setResponseCode(403));assertTrue(runCatching {c.refresh()}.isFailure)
+            server.teamUsers(2){userReply()};server.enqueue(MockResponse().setResponseCode(403));assertTrue(runCatching {c.refresh()}.isFailure)
             assertEquals(owner,c.state.value.scope);assertTrue(c.allowsContinuation(proof))
-            server.enqueue(userReply());server.enqueue(MockResponse().setBody("{\"items\":[]}"));c.refresh()
+            server.teamUsers(2){userReply()};server.enqueue(MockResponse().setBody("{\"items\":[]}"));c.refresh()
             assertNull(c.state.value.scope);assertFalse(c.allowsContinuation(proof))
-            server.enqueue(userReply());server.enqueue(teamReply());val fresh=checkNotNull(c.refresh().scope)
+            server.teamUsers(2){userReply()};server.enqueue(teamReply());val fresh=checkNotNull(c.refresh().scope)
             assertTrue(c.isCurrent(fresh));assertNotEquals(owner.generation,fresh.generation);assertFalse(c.allowsContinuation(proof));retained()
             record("failure-versus-empty",JSONObject().put("failedReadKeptLoadedProof",true).put("successfulRemovalRetiredProof",true)
                 .put("readditionCannotReviveOldProof",true).put("pairingPreserved",true))}
     }
     @Test fun actualRefreshRejectionStillRetiresMembershipWhenTheStoredSessionDisappears()=runBlocking<Unit> {
         MockWebServer().use {server->seed(server);val account=account(server);val c=teams(server,account);val(owner,proof)=establish(server,account,c)
-            server.enqueue(MockResponse().setResponseCode(401));server.enqueue(MockResponse().setResponseCode(401).setBody("{}"))
+            val both=CountDownLatch(2)
+            server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                if(request.path=="/api/v1/users/me"){both.countDown();check(both.await(5,TimeUnit.SECONDS));return MockResponse().setResponseCode(401)}
+                return MockResponse().setResponseCode(401).setBody("{}")
+            }}
             assertTrue(runCatching {c.refresh()}.isFailure);assertNull(store.taskSession());assertFalse(c.isCurrent(owner));assertFalse(c.allowsContinuation(proof))
-            assertNull(c.state.value.scope);assertEquals(4,server.requestCount);retained()
-            record("definitive-session-loss",JSONObject().put("userRequests",1).put("refreshRequests",1).put("oldProofRetired",true).put("pairingPreserved",true))}
+            assertNull(c.state.value.scope);assertEquals(7,server.requestCount);retained()
+            record("definitive-session-loss",JSONObject().put("userRequests",2).put("refreshRequests",1).put("oldProofRetired",true).put("pairingPreserved",true))}
     }
     @Test fun aNewGenerationWithFailedMembershipKeepsItsVerifiedProfileWithoutTheOldProof()=runBlocking<Unit> {
         MockWebServer().use {server->seed(server);val account=account(server);val c=teams(server,account);val(_,proof)=establish(server,account,c)
             val fresh=a.copy(name="Updated Account A")
             store.update {NativeAccountProfileCache.writeVerifiedUser(it,"same-login",client(server).accountEnvironment,fresh)}
-            account.sessionRestore.publishedSignIn(fresh);server.enqueue(MockResponse().setResponseCode(403))
+            account.sessionRestore.publishedSignIn(fresh);server.teamUsers(2){MockResponse().setResponseCode(403)}
             assertTrue(runCatching {c.refreshAfterSignIn("same-login",fresh)}.isFailure)
             assertNull(c.state.value.scope);assertFalse(c.allowsContinuation(proof));assertEquals(fresh.name,c.state.value.displayName)
             val cached=teams(server,account);assertEquals(fresh.name,cached.state.value.displayName);assertNull(cached.state.value.scope);assertTrue(cached.state.value.cached);retained()

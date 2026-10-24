@@ -39,7 +39,7 @@ class NativeTeamIdentityRuntimeTest {
     private fun userReply(user:NativeSignInUser)=MockResponse().setBody(JSONObject().put("id",user.id).put("display_name",user.name)
         .put("primary_email",user.email).put("selected_team",JSONObject().put("id","one")).toString())
     private suspend fun establish(server:MockWebServer,teams:NativeAccountTeams):Pair<NativeTeamScope,NativeTeamContinuation> {
-        server.enqueue(teamReply());val owner=checkNotNull(teams.refreshAfterSignIn("same-login",a).scope)
+        server.teamUsers(2){userReply(a)};server.enqueue(teamReply());val owner=checkNotNull(teams.refreshAfterSignIn("same-login",a).scope)
         return owner to checkNotNull(teams.captureContinuation(owner))
     }
     private fun record(case:String,values:JSONObject) { File(target.getExternalFilesDir(null),"team-identity").apply {mkdirs()}
@@ -56,12 +56,12 @@ class NativeTeamIdentityRuntimeTest {
             val (old,proof)=establish(server,teams);val original=checkNotNull(account.sessionRestore.identity())
             val entered=CompletableDeferred<Unit>();val release=CompletableDeferred<Unit>()
             account.onSignedIn={login,user->entered.complete(Unit);release.await();teams.refreshAfterSignIn(login,user)}
-            server.enqueue(userReply(b));server.enqueue(teamReply());account.sessionRestore.start(scope)
+            server.teamUsers(3){userReply(b)};server.enqueue(teamReply());account.sessionRestore.start(scope)
             try {
                 withTimeout(5000){entered.await()}
                 assertEquals(b.id,account.sessionRestore.identity()?.userId);assertFalse(account.sessionRestore.isIdentityCurrent(original))
                 assertEquals("same-login",store.taskSession());assertFalse(teams.isCurrent(old));assertFalse(teams.allowsContinuation(proof))
-                assertEquals(2,server.requestCount);release.complete(Unit);account.sessionRestore.awaitBootstrapped()
+                assertEquals(4,server.requestCount);release.complete(Unit);account.sessionRestore.awaitBootstrapped()
                 val fresh=checkNotNull(teams.state.value.scope);assertEquals(b.id,fresh.userId);assertTrue(teams.isCurrent(fresh))
                 assertFalse(teams.allowsContinuation(proof));assertEquals("retain",store.requireReadable()!!.getString("fixture_pairing_marker"))
                 record("new-user-before-membership",JSONObject().put("unchangedStoredLogin",true).put("publishedNewUser",true)
@@ -75,7 +75,7 @@ class NativeTeamIdentityRuntimeTest {
             val (old,proof)=establish(server,teams);val original=account.sessionRestore.identity()
             val entered=CompletableDeferred<Unit>();val release=CompletableDeferred<Unit>()
             account.onSignedIn={login,user->entered.complete(Unit);release.await();teams.refreshAfterSignIn(login,user)}
-            server.enqueue(userReply(a.copy(name="Updated A")));server.enqueue(teamReply());account.sessionRestore.start(scope)
+            server.teamUsers(3){userReply(a.copy(name="Updated A"))};server.enqueue(teamReply());account.sessionRestore.start(scope)
             try {
                 withTimeout(5000){entered.await()};assertEquals(original,account.sessionRestore.identity())
                 assertTrue(teams.isCurrent(old));assertTrue(teams.allowsContinuation(proof));release.complete(Unit)
@@ -102,7 +102,7 @@ class NativeTeamIdentityRuntimeTest {
             seed(server);val account=account(server);val teams=controller(server,account);val (old,proof)=establish(server,teams)
             val original=checkNotNull(account.sessionRestore.identity());account.sessionRestore.publishedSignIn(a)
             assertFalse(account.sessionRestore.isIdentityCurrent(original));assertFalse(teams.isCurrent(old));assertFalse(teams.allowsContinuation(proof))
-            server.enqueue(teamReply());val fresh=checkNotNull(teams.refreshAfterSignIn("same-login",a).scope)
+            server.teamUsers(2){userReply(a)};server.enqueue(teamReply());val fresh=checkNotNull(teams.refreshAfterSignIn("same-login",a).scope)
             assertNotEquals(old.generation,fresh.generation);assertTrue(teams.isCurrent(fresh));assertFalse(teams.allowsContinuation(proof))
             record("same-user-new-publication",JSONObject().put("controlledVerifiedPublication",true).put("newGenerationRequired",true).put("oldProofNeverRevived",true))
         }
@@ -126,17 +126,17 @@ class NativeTeamIdentityRuntimeTest {
                 assertNull(account.sessionRestore.identity());assertNull(teams.state.value.scope);release.countDown()
                 assertNotNull(restoring.await().scope)
             } finally {release.countDown();restoring.cancel()}
-            assertEquals(a.id,account.sessionRestore.identity()?.userId);assertNotNull(teams.state.value.scope);assertEquals(2,server.requestCount)
+            assertEquals(a.id,account.sessionRestore.identity()?.userId);assertNotNull(teams.state.value.scope);assertEquals(4,server.requestCount)
             record("raw-credentials",JSONObject().put("noRawTokenAuthority",true).put("noPrematureMembership",true)
                 .put("privateBackgroundRestoration",true).put("actualUserThenMembershipAdmitted",true).put("httpRequests",server.requestCount))
         }
     }
     @Test fun aBackendUserMismatchRetiresOldMembershipWithoutRequestingTheOtherUsersTeams()=runBlocking<Unit> {
         MockWebServer().use { server->
-            seed(server);val account=account(server);server.enqueue(userReply(a));account.sessionRestore.start(scope);account.sessionRestore.awaitBootstrapped()
+            seed(server);val account=account(server);server.teamUsers{userReply(a)};account.sessionRestore.start(scope);account.sessionRestore.awaitBootstrapped()
             val teams=controller(server,account);val (old,proof)=establish(server,teams)
-            server.enqueue(userReply(b));assertTrue(runCatching{teams.refresh()}.isFailure)
-            assertEquals(3,server.requestCount);assertEquals(a.id,account.sessionRestore.identity()?.userId)
+            server.teamUsers(2){userReply(b)};assertTrue(runCatching{teams.refresh()}.isFailure)
+            assertEquals(6,server.requestCount);assertEquals(a.id,account.sessionRestore.identity()?.userId)
             assertNull(teams.state.value.scope);assertFalse(teams.isCurrent(old));assertFalse(teams.allowsContinuation(proof))
             record("backend-user-mismatch",JSONObject().put("mismatchedUserNeverAdmitted",true).put("noOtherUserMembershipRequest",true).put("oldProofRetired",true))
         }
@@ -145,15 +145,15 @@ class NativeTeamIdentityRuntimeTest {
         MockWebServer().use {server->
             seed(server);val account=account(server);val teams=controller(server,account)
             assertTrue(account.sessionRestore.needsIdentityValidation);assertEquals(a.id,account.sessionRestore.identity()?.userId)
-            server.enqueue(MockResponse().setResponseCode(503))
+            server.teamUsers{MockResponse().setResponseCode(503)}
             assertTrue(runCatching {teams.refresh()}.isFailure);assertEquals(1,server.requestCount)
             assertNull(teams.state.value.scope);assertTrue(account.sessionRestore.needsIdentityValidation)
             assertEquals(a.id,account.sessionRestore.identity()?.userId)
-            server.enqueue(userReply(b));server.enqueue(teamReply());val fresh=teams.refresh()
+            server.teamUsers(3){userReply(b)};server.enqueue(teamReply());val fresh=teams.refresh()
             assertFalse(account.sessionRestore.needsIdentityValidation);assertEquals(b.id,account.sessionRestore.identity()?.userId)
-            assertEquals(b.id,fresh.userId);assertTrue(teams.isCurrent(checkNotNull(fresh.scope)));assertEquals(3,server.requestCount)
+            assertEquals(b.id,fresh.userId);assertTrue(teams.isCurrent(checkNotNull(fresh.scope)));assertEquals(5,server.requestCount)
             record("cold-cached-background",JSONObject().put("cachedUserRevalidated",true).put("membershipMatchesPublishedUser",true)
-                .put("failedValidationPreservedCacheWithoutGrantingAuthority",true).put("noSecondUserFetchAfterSuccess",true).put("httpRequests",server.requestCount))
+                .put("failedValidationPreservedCacheWithoutGrantingAuthority",true).put("freshUserAndSelectionReadsAfterValidation",true).put("httpRequests",server.requestCount))
         }
     }
 }

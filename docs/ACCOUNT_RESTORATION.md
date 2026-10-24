@@ -44,9 +44,13 @@ Restoring a cache never establishes live
 authority or starts a native endpoint. The connection owner preserves the cache
 during initial login observation rather than clearing it before refresh.
 
-Fresh membership reconciles the server-selected team, or the same user's saved
-choice if the server supplies none. A removed choice falls back to the first
-current membership; an empty membership list produces no team scope. A changed
+[Fresh membership and selected-team reads](TEAM_REFRESH_READS.md) now run separately
+in parallel, including after a user is already published. An absent/failed selected
+read preserves the current remembered choice. A removed choice falls back to the
+first current member; successful empty membership keeps the explicit choice but
+produces no team scope. Production team reads retain the authoritative published
+profile, and same-owner user cache publication preserves the remembered choice.
+Complete independent choice-store/new-login lifetime remains open. A changed
 server user ID immediately retires the old scope and cached profile, even if the
 subsequent membership request fails.
 

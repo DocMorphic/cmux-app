@@ -35,6 +35,7 @@ class NativeTeamRecoveryRuntimeTest {
         val owner=NativeAccountTeamRecovery(scope,account,teams,store.accountStateLock,jitter={.5}).also {owners+=it}
         return Binding(account,teams,owner.coordinator)
     }
+    private fun MockWebServer.refreshReply(reply:MockResponse){teamUsers(3){userReply()};enqueue(reply)}
     private suspend fun boot(b:Binding) {b.account.sessionRestore.start(scope);withTimeout(5000){b.account.sessionRestore.awaitBootstrapped()}}
     private suspend fun recovered(b:Binding) {withTimeout(8000){while(!b.teams.hasLoadedMembership || b.recovery.hasPendingRecovery)delay(25)}}
     private fun record(case:String,data:JSONObject) {
@@ -51,54 +52,54 @@ class NativeTeamRecoveryRuntimeTest {
         store.clear();context.deleteSharedPreferences(name);KeyStore.getInstance("AndroidKeyStore").apply{load(null)}.deleteEntry(alias)}
     @Test fun missingMembershipRetriesUserAndTeamsWithoutUiPollingThenStopsWhenHealthy()=runBlocking<Unit> {
         MockWebServer().use {server->val b=binding(server)
-            server.enqueue(userReply());server.enqueue(MockResponse().setResponseCode(503));server.enqueue(userReply());server.enqueue(teamReply())
+            server.refreshReply(MockResponse().setResponseCode(503));server.refreshReply(teamReply())
             val start=android.os.SystemClock.elapsedRealtime();boot(b);assertTrue(b.recovery.hasPendingRecovery)
             recovered(b);val elapsed=android.os.SystemClock.elapsedRealtime()-start
-            assertTrue(elapsed>=1900);assertNotNull(b.teams.state.value.scope);assertEquals(4,server.requestCount)
-            delay(2200);assertEquals(4,server.requestCount)
-            record("ordinary-recovery",JSONObject().put("httpRequests",4).put("elapsedMillis",elapsed).put("healthyExtraRequests",0))}
+            assertTrue(elapsed>=1900);assertNotNull(b.teams.state.value.scope);assertEquals(8,server.requestCount)
+            delay(2200);assertEquals(8,server.requestCount)
+            record("ordinary-recovery",JSONObject().put("httpRequests",8).put("elapsedMillis",elapsed).put("healthyExtraRequests",0))}
     }
     @Test fun oversizedTeamThrottleBlocksSignalsThenTheOwningLoopRecovers()=runBlocking<Unit> {
         MockWebServer().use {server->val b=binding(server)
-            server.enqueue(userReply());server.enqueue(rate());server.enqueue(userReply());server.enqueue(teamReply())
-            boot(b);assertTrue(b.recovery.hasRateLimit);repeat(10){b.recovery.recoverIfNeeded()};assertEquals(2,server.requestCount)
-            recovered(b);assertEquals(4,server.requestCount);assertFalse(b.recovery.hasRateLimit)
-            record("membership-throttle",JSONObject().put("suppressedSignals",10).put("httpRequests",4).put("oversizedHtmlClassified",true))}
+            server.refreshReply(rate());server.refreshReply(teamReply())
+            boot(b);assertTrue(b.recovery.hasRateLimit);repeat(10){b.recovery.recoverIfNeeded()};assertEquals(4,server.requestCount)
+            recovered(b);assertEquals(8,server.requestCount);assertFalse(b.recovery.hasRateLimit)
+            record("membership-throttle",JSONObject().put("suppressedSignals",10).put("httpRequests",8).put("oversizedHtmlClassified",true))}
     }
     @Test fun oversizedUserThrottlePreservesEncryptedCacheAndRecoversThroughTheSameBinding()=runBlocking<Unit> {
         MockWebServer().use {server->val b=binding(server);val cipher=context.getSharedPreferences(name,0).getString("state",null)
-            server.enqueue(rate());server.enqueue(userReply());server.enqueue(teamReply());boot(b)
+            server.teamUsers{rate()};server.refreshReply(teamReply());boot(b)
             assertTrue(b.account.sessionRestore.state.value.authenticated);assertTrue(b.recovery.hasPendingRecovery);assertTrue(b.recovery.hasRateLimit)
             assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null))
-            b.recovery.recoverIfNeeded();assertEquals(1,server.requestCount);recovered(b);assertEquals(3,server.requestCount)
-            record("user-throttle",JSONObject().put("ciphertextPreservedDuringFailure",true).put("httpRequests",3))}
+            b.recovery.recoverIfNeeded();assertEquals(1,server.requestCount);recovered(b);assertEquals(5,server.requestCount)
+            record("user-throttle",JSONObject().put("ciphertextPreservedDuringFailure",true).put("httpRequests",5))}
     }
     @Test fun successfulEmptyMembershipCountsAsLoadedWithoutStartingARecoveryLoop()=runBlocking<Unit> {
-        MockWebServer().use {server->val b=binding(server);server.enqueue(userReply());server.enqueue(MockResponse().setBody("{\"items\":[]}"))
+        MockWebServer().use {server->val b=binding(server);server.refreshReply(MockResponse().setBody("{\"items\":[]}"))
             boot(b);assertTrue(b.teams.hasLoadedMembership);assertNull(b.teams.state.value.scope);assertFalse(b.recovery.hasPendingRecovery)
-            b.recovery.recoverIfNeeded();delay(2200);assertEquals(2,server.requestCount)
+            b.recovery.recoverIfNeeded();delay(2200);assertEquals(4,server.requestCount)
             record("empty-loaded",JSONObject().put("loaded",true).put("scopeIsNil",true).put("extraRequests",0))}
     }
     @Test fun localSignOutRetiresThePendingLoopBeforeItCanMakeAnotherRequest()=runBlocking<Unit> {
-        MockWebServer().use {server->val b=binding(server);server.enqueue(userReply());server.enqueue(MockResponse().setResponseCode(503))
+        MockWebServer().use {server->val b=binding(server);server.refreshReply(MockResponse().setResponseCode(503))
             boot(b);assertTrue(b.recovery.hasPendingRecovery);assertTrue(b.account.signOut());assertFalse(b.recovery.hasPendingRecovery)
-            delay(2200);assertEquals(2,server.requestCount);assertNull(store.taskSession())
+            delay(2200);assertEquals(4,server.requestCount);assertNull(store.taskSession())
             record("signout",JSONObject().put("pendingRetired",true).put("extraRequests",0))}
     }
     @Test fun freshVerifiedPublicationResetsAnOldThrottleBeforeNewMembershipRecovery()=runBlocking<Unit> {
-        MockWebServer().use {server->val b=binding(server);server.enqueue(userReply());server.enqueue(rate().setHeader("Retry-After","900"))
+        MockWebServer().use {server->val b=binding(server);server.refreshReply(rate().setHeader("Retry-After","900"))
             boot(b);assertTrue(b.recovery.hasRateLimit);val old=b.account.sessionRestore.identity()
             b.account.sessionRestore.publishedSignIn(user);assertFalse(b.recovery.hasRateLimit);assertNotEquals(old,b.account.sessionRestore.identity())
-            server.enqueue(MockResponse().setResponseCode(503));assertTrue(runCatching{b.teams.refreshAfterSignIn("login",user)}.isFailure)
-            server.enqueue(userReply());server.enqueue(teamReply());val start=android.os.SystemClock.elapsedRealtime();recovered(b)
-            val elapsed=android.os.SystemClock.elapsedRealtime()-start;assertTrue(elapsed>=1850);assertEquals(5,server.requestCount)
-            record("fresh-generation",JSONObject().put("oldThrottleReset",true).put("providerNotExercised",true).put("elapsedMillis",elapsed).put("httpRequests",5))}
+            server.teamUsers(2){userReply()};server.enqueue(MockResponse().setResponseCode(503));assertTrue(runCatching{b.teams.refreshAfterSignIn("login",user)}.isFailure)
+            server.refreshReply(teamReply());val start=android.os.SystemClock.elapsedRealtime();recovered(b)
+            val elapsed=android.os.SystemClock.elapsedRealtime()-start;assertTrue(elapsed>=1850);assertEquals(11,server.requestCount)
+            record("fresh-generation",JSONObject().put("oldThrottleReset",true).put("providerNotExercised",true).put("elapsedMillis",elapsed).put("httpRequests",11))}
     }
     @Test fun defaultNetworkCallbackRechecksAHealthyBindingWithoutSendingAccountHttp()=runBlocking<Unit> {
-        MockWebServer().use {server->val b=binding(server);server.enqueue(userReply());server.enqueue(teamReply());boot(b)
+        MockWebServer().use {server->val b=binding(server);server.refreshReply(teamReply());boot(b)
             val signalled=CompletableDeferred<Unit>()
             NativeTeamRecoveryNetwork(context,scope){b.recovery.recoverIfNeeded();signalled.complete(Unit)}.use {
-                withTimeout(10000){signalled.await()};assertEquals(2,server.requestCount);assertFalse(b.recovery.hasPendingRecovery)
+                withTimeout(10000){signalled.await()};assertEquals(4,server.requestCount);assertFalse(b.recovery.hasPendingRecovery)
             }
             record("network-registration",JSONObject().put("validatedDefaultCallbackObserved",true).put("healthyExtraHttp",0).put("networkLossNotExercised",true))}
     }

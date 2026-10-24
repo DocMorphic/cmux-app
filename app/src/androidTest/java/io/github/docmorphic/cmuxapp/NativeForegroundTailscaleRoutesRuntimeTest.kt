@@ -52,7 +52,7 @@ class NativeForegroundTailscaleRoutesRuntimeTest {
             override fun close() { input.close() }
         }
         try { MockWebServer().use { server ->
-            server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"original"}}"""))
+            server.teamUsers(2){MockResponse().setBody("""{"id":"user","selected_team":{"id":"original"}}""")}
             server.enqueue(MockResponse().setBody("""{"items":[{"id":"original","display_name":"Original"},{"id":"picker","display_name":"Picker"}]}"""))
             store.update { it.put("task_session", "fixture-login").put("refresh_token", "fixture-refresh") }
             NativeAccountTeams({ "fixture-access" }, store::taskSession, server.url("/api/v1/"), lock = store.accountStateLock).use { teams ->
@@ -68,7 +68,7 @@ class NativeForegroundTailscaleRoutesRuntimeTest {
                     val access = NativeForegroundComputerDetailAccess(original, mac, root, management) {
                         screenOwnsRoot && authority.scopeFor(mac, root) == original
                     }
-                    repeat(2){server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}"""))}
+                    server.teamSelection{MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}""")}
                     teams.select("picker"); val selected = checkNotNull(teams.state.value.scope)
                     assertTrue(access.current())
                     val saved = TailscaleGrantStore(store::load, store::update)

@@ -55,7 +55,7 @@ class NativeComputerDetailsLifetimeRuntimeTest {
         var lifecycle: Application.ActivityLifecycleCallbacks? = null
         val application = context.applicationContext as Application
         try { MockWebServer().use { server ->
-            server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"original"}}"""))
+            server.teamUsers(2){MockResponse().setBody("""{"id":"user","selected_team":{"id":"original"}}""")}
             server.enqueue(MockResponse().setBody("""{"items":[{"id":"original","display_name":"Original"},{"id":"picker","display_name":"Picker"}]}"""))
             store.update { it.put("task_session", "fixture-login").put("refresh_token", "fixture-refresh") }
             NativeAccountTeams({ "fixture" }, store::taskSession, server.url("/api/v1/"), lock = store.accountStateLock).use { teams ->
@@ -79,7 +79,7 @@ class NativeComputerDetailsLifetimeRuntimeTest {
                         feed.computerDetailsState.value = NativeComputerDetailsPresentation(original, access.target, foreground = access)
                     }
                     val page = checkNotNull(feed.computerDetailsState.value)
-                    repeat(2){server.enqueue(MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}"""))}
+                    server.teamSelection{MockResponse().setBody("""{"id":"user","selected_team":{"id":"picker"}}""")}
                     teams.select("picker"); val selected = checkNotNull(teams.state.value.scope)
                     val picker = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(mac.code, mac.deviceId, "Picker Mac", "default"), selected)
                     store.update { it.put("pairings", JSONArray().put(NativePairingRecords.encode(mac)).put(NativePairingRecords.encode(picker)))
