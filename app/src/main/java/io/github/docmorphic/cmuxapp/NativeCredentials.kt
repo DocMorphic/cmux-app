@@ -480,6 +480,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     internal var onSignedIn: suspend (String, NativeSignInUser) -> Unit = { _, _ -> }
     internal var onSignedOut: suspend (String?,String?) -> Unit = { _,_ -> }
     internal var signOutTeardownTimeoutMillis: Long = 5_000
+    internal var snapshotTimeoutMillis:Long = 60_000
     private val completion = NativeSignInCompletion(store::load, store::update, {access->oauthClient.currentUser(access,store.load()?.opt("refresh_token") as? String)},
         oauthClient.accountEnvironment, store.accountStateLock, onPublished = { login, user -> onSignedIn(login, user) },
         refreshAccess = oauthClient::refreshAccess, work = authWork,
@@ -900,14 +901,17 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         }
     }
 
+    private fun publishedAuthenticatedOwner():NativeAuthenticatedOwner? = synchronized(store.accountStateLock) {
+        val identity=sessionRestore.identity() ?: return@synchronized null
+        val login=publishedOwner.get() ?: return@synchronized null
+        val epoch=store.authSessionEpoch.get()
+        if(observedAuthEpoch.get()!=epoch)return@synchronized null
+        NativeAuthenticatedOwner(identity,login,epoch)
+    }
     private fun storedAuthenticatedSession(): NativeStoredAuthSession = synchronized(store.accountStateLock) {
         val root = store.requireReadable()
-        val identity = sessionRestore.identity()
-        val epoch = store.authSessionEpoch.get()
         val login = root?.optString("task_session")?.takeIf(String::isNotBlank)
-        val owner = if (identity != null && login != null && publishedOwner.get() == login &&
-            observedAuthEpoch.get() == epoch && !NativeSignInCompletion.isPending(root))
-            NativeAuthenticatedOwner(identity,login,epoch) else null
+        val owner = publishedAuthenticatedOwner()?.takeIf{it.login==login && !NativeSignInCompletion.isPending(root)}
         NativeStoredAuthSession(owner,root?.optString("access_token")?.takeIf(String::isNotBlank),
             root?.optString("refresh_token")?.takeIf(String::isNotBlank),NativeSignInCompletion.isPending(root))
     }
@@ -915,7 +919,8 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         { authWork.storedSessionCaptureBlocked },
         { authWork.sessionWriteInProgress || sessionRestore.revalidating.value &&
             (sessionRestore.state.value.authenticated || sessionRestore.state.value.restoring) },
-        sessionRestore::awaitBootstrapped, { resolvedAccessToken() }) }
+        sessionRestore::awaitBootstrapped, { nativeSdkResolvedAccess(ordinaryTokens(false,null)) },
+        ::publishedAuthenticatedOwner,{NativeSignInCompletion.isPending(store.load())},authWork,snapshotTimeoutMillis) }
     internal suspend fun authenticatedSessionSnapshot(): NativeAuthenticatedSessionSnapshot =
         withContext(Dispatchers.IO) { authenticatedSnapshots.session() }
     internal suspend fun authenticatedRefreshTokenSnapshot(): NativeAuthenticatedRefreshSnapshot =

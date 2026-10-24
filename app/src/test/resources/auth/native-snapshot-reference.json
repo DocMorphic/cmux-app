@@ -1,0 +1,9041 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+Tokens.swift": "5dbaf5875603f6ce4c27e56685954403c5c7ef2c0443346fe8a587d7ab92824a",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed"
+  },
+  "executedDeclarationsSha256": [
+    "132dbce70d1e46cc47bd7281746cb6a7412cb729425de166a40ac3f066a7f9a7",
+    "dee86cbb8a68f277cd5478d9b20c4335b0a778077369ee9199448b9657632c0a",
+    "7600f1173e395e22065d045a1619f877899a551fe9c51d58b2a0a3615b1560fa",
+    "8bd9c937696b3d0c8c520c249d6880cbfa8b660a2e9b95cd1c04bd561a0111b3",
+    "db85eb6103de08d6f516ae4042057a4ec1b2c7089fe87c0e8b20f52cf2ee67a8",
+    "19af352dadb14d8d9ea48b13b7d1ee5d358455fd12f48f2fa020ebda46fbdcfc",
+    "fb757d02516999f289d0acd186223ec0dc2b6e04f7cb9d7d2c57aa917222afa1"
+  ],
+  "seams": "Seven complete unchanged release declarations: authenticated session/refresh snapshots, stored fast path, coherent public/inner pair, empty-read classifier and transition property. Storage availability, SDK token reads/resolution, bootstrap and mutations at await boundaries are inert MainActor fixtures. The phase seam calls the complete original coherent operation once; it does not run the timer/admission/finish/high-water machinery. No original cache, Keychain/Android storage, SDK transport, real scheduler race or iOS-runtime equivalence is established. Android atomic document reads may combine separate original SDK reads; compare credential outcomes and semantic resolution/phase/bootstrap counts, not SDK read-call counts.",
+  "cases": [
+    {
+      "bootstraps": 0,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": "stored",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": "stored",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": "stored",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "session",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "session",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "session",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": null,
+        "method": "refresh",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "missingRefresh"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "empty"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "none",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "signIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "staleSignIn",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationAuthenticated",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "validationRestoring",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": false,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "clear": true,
+        "identity": "",
+        "method": "refresh",
+        "role": "capture",
+        "state": "transient"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "user",
+        "clear": false,
+        "event": "resolved",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "generation",
+        "clear": false,
+        "event": "resolved",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "transition",
+        "clear": false,
+        "event": "resolved",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh",
+        "refresh"
+      ],
+      "input": {
+        "action": "dropRefresh",
+        "clear": false,
+        "event": "resolved",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh",
+        "refresh"
+      ],
+      "input": {
+        "action": "unavailable",
+        "clear": false,
+        "event": "resolved",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "rotate",
+        "clear": false,
+        "event": "resolved",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "rotation-1"
+      },
+      "phases": 1,
+      "resolutions": 2
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh",
+        "refresh",
+        "resolved",
+        "refresh",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "churn",
+        "clear": false,
+        "event": "resolved",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 3
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "user",
+        "clear": false,
+        "event": "storedAccess",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-b",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "generation",
+        "clear": false,
+        "event": "storedAccess",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 4,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "refresh",
+        "bootstrap"
+      ],
+      "input": {
+        "action": "transition",
+        "clear": false,
+        "event": "storedAccess",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "rotate",
+        "clear": false,
+        "event": "storedAccess",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "rotation-0"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "dropRefresh",
+        "clear": false,
+        "event": "storedAccess",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "unavailable",
+        "clear": false,
+        "event": "storedAccess",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "unavailable",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "unavailable",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "dropRefresh",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "dropRefresh",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "restore",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": "restored",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "restored-refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "restore",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "restored-refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "user",
+        "clear": false,
+        "event": "refreshCapture",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "generation",
+        "clear": false,
+        "event": "refreshCapture",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "transition",
+        "clear": false,
+        "event": "refreshCapture",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "rotate",
+        "clear": false,
+        "event": "refreshCapture",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "dropRefresh",
+        "clear": false,
+        "event": "refreshCapture",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "unavailable",
+        "clear": false,
+        "event": "refreshCapture",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "complete"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "user",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-b",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "user",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-b",
+        "error": null,
+        "generation": 3,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "generation",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": "resolved",
+        "account": "account-a",
+        "error": null,
+        "generation": 4,
+        "refresh": "refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "generation",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 4,
+        "refresh": "refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap"
+      ],
+      "input": {
+        "action": "transition",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap"
+      ],
+      "input": {
+        "action": "transition",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "restore",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": "restored",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "restored-refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "restore",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "restored-refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "storedAccess",
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "unavailable",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "unavailable",
+        "clear": false,
+        "event": "bootstrap",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "missingAccess"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh",
+        "resolved",
+        "refresh"
+      ],
+      "input": {
+        "action": "restore",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "access": "restored",
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "restored-refresh"
+      },
+      "phases": 1,
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "refresh",
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "transition",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "session",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 1,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "restore",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "access": null,
+        "account": "account-a",
+        "error": null,
+        "generation": 3,
+        "refresh": "restored-refresh"
+      },
+      "phases": 0,
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "calls": [
+        "bootstrap",
+        "availability",
+        "refresh"
+      ],
+      "input": {
+        "action": "transition",
+        "clear": false,
+        "event": "availability",
+        "identity": "account-a",
+        "method": "refresh",
+        "role": "none",
+        "state": "unavailable"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "phases": 0,
+      "resolutions": 0
+    }
+  ],
+  "foundation": {
+    "coreFoundationVersion": 5026.5,
+    "os": "Version 26.5.2 (Build 25F84)"
+  }
+}

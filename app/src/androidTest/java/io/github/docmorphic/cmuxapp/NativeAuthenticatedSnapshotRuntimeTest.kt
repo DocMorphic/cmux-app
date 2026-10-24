@@ -157,9 +157,137 @@ class NativeAuthenticatedSnapshotRuntimeTest {
                 KeyStore.getInstance("AndroidKeyStore").apply {load(null)}.getKey(alias,null) as SecretKey}
             val account=account(server,reader);val owner=account.authenticatedSessionSnapshot().owner
             val cipher=context.getSharedPreferences(name,0).getString("state",null);unavailable=true
-            assertTrue(runCatching {account.authenticatedSessionSnapshot()}.exceptionOrNull() is NativeCredentialReadException)
+            assertTrue(runCatching {reader.requireReadable()}.exceptionOrNull() is NativeCredentialReadException)
+            assertEquals(NativeSignInError.NETWORK_ERROR,(runCatching {account.authenticatedSessionSnapshot()}.exceptionOrNull() as NativeSignInFailure).reason)
+            assertEquals(NativeSignInError.NETWORK_ERROR,(runCatching {account.authenticatedRefreshTokenSnapshot()}.exceptionOrNull() as NativeSignInFailure).reason)
             assertFalse(account.isAuthenticatedSessionCurrent(owner));assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null))
             unavailable=false;assertEquals(owner,account.authenticatedSessionSnapshot().owner);assertEquals(0,server.requestCount)
-            record("unavailable-storage",JSONObject().put("noSnapshotWhileUnavailable",true).put("ciphertextPreserved",true).put("restoredSameIdentity",true))}
+            record("unavailable-storage",JSONObject().put("noSnapshotWhileUnavailable",true).put("strictStoreFailureRetained",true)
+                .put("applicationPairAndRefreshRetryable",true).put("ciphertextPreserved",true).put("restoredSameIdentity",true))}
+    }
+    @Test fun completeOriginalReleaseSnapshotsRunOnArt()=runBlocking<Unit> {
+        val asset=InstrumentationRegistry.getInstrumentation().context.assets.open("native-snapshot-reference.json").bufferedReader().use{it.readText()}
+        record("original-reference",JSONObject().put("cases",checkNativeSnapshotReference(asset)))
+    }
+    @Test fun unavailableRefreshReadKeepsItsCapturedClassificationWhenATransitionStarts()=runBlocking<Unit> {
+        MockWebServer().use {server->seed(server);var unavailable=false
+            val reader=NativeCredentialStore.withKeyProvider(context,name,alias){if(unavailable)throw KeyStoreException("Fixture unavailable")
+                KeyStore.getInstance("AndroidKeyStore").apply{load(null)}.getKey(alias,null) as SecretKey}
+            val account=account(server,reader);val owner=account.authenticatedSessionSnapshot().owner
+            val cipher=context.getSharedPreferences(name,0).getString("state",null);unavailable=true
+            var finish:()->Unit={}
+            val snapshots=NativeAuthenticatedSnapshots(read={reader.requireReadable();error("Unavailable read cannot return tokens")},
+                storedCaptureBlocked={false},transitionActive={store.authWork.isCapturingSignOutCredentials},
+                awaitBootstrapped={},accessToken={error("Refresh-only capture cannot resolve access")},publishedOwner={owner},availability={
+                    assertTrue(runCatching{reader.requireReadable()}.exceptionOrNull() is NativeCredentialReadException)
+                    finish=store.authWork.beginSignOutCapture();false
+                })
+            try {
+                assertEquals(NativeSignInError.NETWORK_ERROR,(runCatching{snapshots.refresh()}.exceptionOrNull() as NativeSignInFailure).reason)
+                assertTrue(store.authWork.isCapturingSignOutCredentials)
+                assertEquals(owner.identity,account.sessionRestore.identity());assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null))
+                assertEquals(0,server.requestCount)
+            }finally{finish();unavailable=false}
+            record("unavailable-transition",JSONObject().put("capturedUnavailableReadWinsBeforeFinalTransitionGuard",true)
+                .put("strictStoreFailureRetained",true).put("ciphertextPreserved",true).put("identityPreserved",true).put("httpRequests",0))
+        }
+    }
+    @Test fun absentIdentityWinsOverUnavailableStorageAndSignOutCapture()=runBlocking<Unit> {
+        MockWebServer().use {server->seed(server);var unavailable=false
+            val reader=NativeCredentialStore.withKeyProvider(context,name,alias){if(unavailable)throw KeyStoreException("Fixture unavailable")
+                KeyStore.getInstance("AndroidKeyStore").apply{load(null)}.getKey(alias,null) as SecretKey}
+            val account=account(server,reader);account.sessionRestore.clear(clearCachedUser=false)
+            val cipher=context.getSharedPreferences(name,0).getString("state",null);unavailable=true
+            val finish=store.authWork.beginSignOutCapture()
+            try {
+                for(refreshOnly in listOf(false,true)) {
+                    val failure=runCatching{if(refreshOnly)account.authenticatedRefreshTokenSnapshot() else account.authenticatedSessionSnapshot()}.exceptionOrNull()
+                    assertEquals(NativeSignInError.UNAUTHORIZED,(failure as NativeSignInFailure).reason)
+                }
+                assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null));assertEquals(0,server.requestCount)
+            }finally{finish();unavailable=false}
+            record("absent-identity",JSONObject().put("identityGuardBeforeTransitionAndStorage",true).put("ciphertextPreserved",true).put("httpRequests",0))
+        }
+    }
+    @Test fun oneCaptureDeadlineReturnsBeforeTheRetainedSharedHttpRefresh()=runBlocking<Unit> {
+        val rows=org.json.JSONArray()
+        for(budget in listOf(1000L,60_000L))MockWebServer().use {server->
+            val entered=CountDownLatch(1);val release=CountDownLatch(1);val fresh=token()
+            server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                check(request.path=="/api/v1/auth/oauth/token");entered.countDown();check(release.await(75,TimeUnit.SECONDS))
+                return MockResponse().setBody(JSONObject().put("access_token",fresh).toString())
+            }}
+            seed(server,null)
+            // Keep the fixture's transport and SDK attempt alive beyond the production capture budget.
+            val http=okhttp3.OkHttpClient.Builder().callTimeout(80,TimeUnit.SECONDS).readTimeout(80,TimeUnit.SECONDS).build()
+            val sdk=NativeTokenRefresh(timeoutMillis=90_000)
+            try {
+                val account=NativeAccount(store,NativeOAuthClient("fixture-project","fixture-key",server.url("/"),http),NativeOAuthBrowser(),refreshCoordinatorOverride=sdk)
+                if(budget!=60_000L)account.snapshotTimeoutMillis=budget
+                val identity=account.sessionRestore.identity();val started=android.os.SystemClock.elapsedRealtime()
+                val capture=scope.async{runCatching{account.authenticatedSessionSnapshot()}.exceptionOrNull()}
+                var keeper:Deferred<String?>?=null
+                try {
+                    assertTrue(withContext(Dispatchers.IO){entered.await(5,TimeUnit.SECONDS)})
+                    keeper=scope.async{account.sdkAccessToken()}
+                    withTimeout(1000){while(sdk.waiterCount<2)delay(1)}
+                    assertEquals(NativeSignInError.TIMED_OUT,(withTimeout(budget+3000){capture.await()} as NativeSignInFailure).reason)
+                    val elapsed=android.os.SystemClock.elapsedRealtime()-started
+                    assertTrue(elapsed>=budget);assertTrue(elapsed<budget+3000)
+                    assertTrue(store.authWork.activeCount>0);assertEquals(identity,account.sessionRestore.identity())
+                    assertEquals("",store.requireReadable()!!.getString("access_token"))
+                    release.countDown();assertEquals(fresh,withTimeout(5000){checkNotNull(keeper).await()})
+                    withTimeout(5000){while(store.authWork.activeCount>0)delay(5)}
+                    // A separate SDK waiter keeps this shared attempt alive after the capture waiter times out.
+                    assertEquals(fresh,store.requireReadable()!!.getString("access_token"))
+                    assertEquals(identity,account.sessionRestore.identity());assertEquals(1,server.requestCount)
+                    assertEquals("retain",store.requireReadable()!!.getString("fixture_pairing_marker"))
+                    assertEquals(fresh,account.authenticatedSessionSnapshot().accessToken)
+                    rows.put(JSONObject().put("configuredMillis",budget).put("elapsedMillis",elapsed)
+                        .put("waiterReturnedBeforeActualSdkWork",true).put("lateSnapshotNotPublished",true)
+                        .put("anotherSdkWaiterRetainedAttempt",true)
+                        .put("sharedRefreshPersistedForSurvivingOwner",true).put("httpRequests",1))
+                }finally{release.countDown();capture.cancelAndJoin();keeper?.cancelAndJoin();withTimeout(5000){while(store.authWork.activeCount>0)delay(5)}}
+            }finally{sdk.close();http.dispatcher.executorService.shutdown();http.connectionPool.evictAll()}
+        }
+        record("aggregate-deadline",JSONObject().put("rows",rows).put("encryptedStoreUsed",true).put("pairingPreserved",true))
+    }
+    @Test fun cancelingTheLastSnapshotWaiterRetiresTheSdkAttemptWithoutClearingTheAccount()=runBlocking<Unit> {
+        MockWebServer().use {server->
+            val entered=CountDownLatch(1);val release=CountDownLatch(1);val fresh=token()
+            server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                entered.countDown();check(release.await(10,TimeUnit.SECONDS));return MockResponse().setBody(JSONObject().put("access_token",fresh).toString())}}
+            seed(server,null);val account=account(server);val identity=account.sessionRestore.identity()
+            val cipher=context.getSharedPreferences(name,0).getString("state",null)
+            val task=scope.async{account.authenticatedSessionSnapshot()}
+            try {
+                assertTrue(withContext(Dispatchers.IO){entered.await(5,TimeUnit.SECONDS)})
+                task.cancel();withTimeout(1000){task.join()}
+                withTimeout(5000){while(store.authWork.activeCount>0)delay(5)}
+                assertEquals(identity,account.sessionRestore.identity());release.countDown()
+                assertEquals("",store.requireReadable()!!.getString("access_token"));assertEquals(identity,account.sessionRestore.identity())
+                assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null))
+                assertEquals("retain",store.requireReadable()!!.getString("fixture_pairing_marker"));assertEquals(1,server.requestCount)
+                record("canceled-http",JSONObject().put("lastWaiterRetiredActualSdkWork",true).put("ciphertextPreserved",true)
+                    .put("lateHttpResultCannotWrite",true).put("identityPreserved",true).put("pairingPreserved",true))
+            }finally{release.countDown();task.cancelAndJoin();withTimeout(5000){while(store.authWork.activeCount>0)delay(5)}}
+        }
+    }
+    @Test fun identityReplacementDuringRealRefreshCannotReturnTheOldSnapshot()=runBlocking<Unit> {
+        MockWebServer().use {server->
+            val entered=CountDownLatch(1);val release=CountDownLatch(1)
+            server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                entered.countDown();check(release.await(10,TimeUnit.SECONDS));return MockResponse().setBody(JSONObject().put("access_token",token()).toString())}}
+            seed(server,null);val account=account(server);val old=account.sessionRestore.identity()
+            val task=scope.async{runCatching{account.authenticatedSessionSnapshot()}.exceptionOrNull()}
+            try {
+                assertTrue(withContext(Dispatchers.IO){entered.await(5,TimeUnit.SECONDS)})
+                account.sessionRestore.publishedSignIn(b);release.countDown()
+                assertEquals(NativeSignInError.UNAUTHORIZED,(withTimeout(5000){task.await()} as NativeSignInFailure).reason)
+                assertNotEquals(old,account.sessionRestore.identity());assertEquals(b.id,account.sessionRestore.identity()!!.userId)
+                assertEquals("retain",store.requireReadable()!!.getString("fixture_pairing_marker"));assertEquals(1,server.requestCount)
+                record("identity-during-http",JSONObject().put("oldSnapshotRejected",true).put("replacementIdentityPreserved",true).put("pairingPreserved",true))
+            }finally{release.countDown();task.cancelAndJoin();withTimeout(5000){while(store.authWork.activeCount>0)delay(5)}}
+        }
     }
 }

@@ -1,3 +1,44 @@
+## Authenticated snapshot capture reconciled — 2026-10-25
+
+Initial control connections now receive a retryable network error when encrypted
+credentials are unavailable and an account identity is present. The fallback
+checks identity before transition and captures a coherent pair under one
+60-second deadline across all refresh brackets. Stored pairs still bypass
+read-only validation; refresh-only snapshots keep their separate contract and
+allow same-owner token rotation. Strict store/SDK reads remain strict, orphaned
+pending pairs remain private, and snapshot failures do not clear presentation.
+
+Full JVM: 3,491 total in 468 suites, 3,487 passed, four existing SSH skips, zero
+failures/errors. Owned API36: 270/270 in 451.604 seconds, including six new methods
+and 264 regressions. Seven complete original release declarations execute across
+471 cases on both JVM and ART; independent regeneration is byte-identical. Actual
+encrypted-store/HTTP checks cover unavailable storage, absent identity,
+replacement and cancellation. The default 60-second snapshot capture returned
+at 60008ms while a separate SDK waiter retained the shared refresh; canceling
+the last waiter retired its attempt without a late write. Its fixture extends
+only transport/SDK limits to 80/90 seconds. Production defaults are unchanged.
+
+Crash log empty, no preflight ANR, settings/window restored, owned emulator exit
+0. Final full build-v5 and runtime-v2 bind this checkpoint. The earlier run was
+deliberately stopped after review found an extra refresh-only transition guard;
+it is retained as incomplete evidence and is not counted as a pass. The final
+reference and an encrypted-store case verify the corrected combined
+unavailable-storage/transition ordering.
+
+Full parity remains active. The new reference uses inert IO/bootstrap/phase
+seams; it does not execute original phase admission/finish/high-water or iOS
+scheduling. Cloud still needs its original fresh coherent context, team routing
+and nil/error composition; deletion storage projection and complete route-family
+behavior remain open. Authentication-project reset/scoping, remaining
+callback/form/backend/reporting, metadata/image/demo/identity/worker/diagnostic UI,
+actual OS/locked storage/death, physical Pixel/Mac/provider/helper/Firebase,
+matched complete UI/accessibility and signed delivery remain open. Real account,
+pairing and signing data, global pins and frozen signed722 remain unchanged.
+
+Details: [Snapshot capture](SNAPSHOT_CAPTURE.md).
+Evidence: `captures/recovery-20261024/snapshot-checkpoint.json`.
+Historical checkpoints below retain their original scope and open items.
+
 ## Access-only local session authority reconciled — 2026-10-25
 
 Successful live access-only user validation now establishes a fenced encrypted

@@ -187,6 +187,8 @@ android {
     sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/terminal")
     sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/browser")
     sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/auth")
+    sourceSets.getByName("test").kotlin.directories.add("src/testShared/java")
+    sourceSets.getByName("androidTest").kotlin.directories.add("src/testShared/java")
 
     packaging.resources {
         merges += "META-INF/LICENSE.md"

@@ -1,3 +1,13 @@
+Current snapshot follow-up: [Snapshot capture](SNAPSHOT_CAPTURE.md) records the
+2026-10-25 application storage-error projection, one aggregate coherent deadline,
+refresh-only ordering and 270/270 owned-emulator checkpoint. The historical
+checkpoint below keeps its earlier scope; full parity and physical/UI acceptance
+remain open.
+
+The initial checkpoint below retained a typed storage failure at the snapshot
+boundary. That application projection is superseded by the linked follow-up;
+the encrypted store and SDK boundaries still retain strict unavailable reads.
+
 # Authenticated account and credential snapshots
 
 The original AuthCoordinator captures a published user/session generation with a

@@ -1,3 +1,9 @@
+Current snapshot follow-up: [Snapshot capture](SNAPSHOT_CAPTURE.md) records the
+2026-10-25 application storage-error projection, one aggregate coherent deadline,
+refresh-only ordering and 270/270 owned-emulator checkpoint. The historical
+checkpoint below keeps its earlier scope; full parity and physical/UI acceptance
+remain open.
+
 # Access-only account and local session authority
 
 At audited upstream `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`, the launch

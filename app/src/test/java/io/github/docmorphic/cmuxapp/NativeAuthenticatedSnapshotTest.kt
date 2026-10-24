@@ -9,13 +9,14 @@ import org.junit.Test
 class NativeAuthenticatedSnapshotTest {
     private val a = NativeAuthenticatedOwner(NativeAuthIdentity(1,"account-a"),"login-a",1)
     private val b = NativeAuthenticatedOwner(NativeAuthIdentity(2,"account-b"),"login-a",1)
-    private class Fixture(var view: NativeStoredAuthSession) {
+    private class Fixture(var view: NativeStoredAuthSession,work:NativeAuthWork=NativeAuthWork(),timeout:Long=60_000) {
         var storedBlocked=false;var transition=false;var resolutions=0;var bootstraps=0
+        var available=true
         var resolve:suspend ()->String?={ "resolved" }
         var bootstrap:suspend ()->Unit={}
-        var reader:()->NativeStoredAuthSession={ view }
+        var reader:()->NativeStoredAuthSession={ if(!available)throw NativeCredentialReadException();view }
         val snapshots=NativeAuthenticatedSnapshots({reader()},{storedBlocked},{transition},
-            {bootstraps++;bootstrap()},{resolutions++;resolve()})
+            {bootstraps++;bootstrap()},{resolutions++;resolve()},{view.owner},{view.pending},work,timeout,{available})
     }
     private fun fixture(access:String?="stored",refresh:String?="refresh")=Fixture(NativeStoredAuthSession(a,access,refresh))
     private suspend fun failure(reason:NativeSignInError,body:suspend ()->Unit) {
@@ -85,10 +86,13 @@ class NativeAuthenticatedSnapshotTest {
         assertEquals(a,result.owner);assertEquals("refresh",result.refreshToken);assertEquals(1,f.bootstraps);assertEquals(0,f.resolutions)
         f.transition=true;failure(NativeSignInError.UNAUTHORIZED){f.snapshots.refresh()}
     }
-    @Test fun refreshOnlyCaptureRejectsRotationOrIdentityReplacement()=runTest {
-        val f=fixture(access=null);var reads=0
-        f.reader={if(++reads==1)f.view else NativeStoredAuthSession(b,null,"replacement")}
+    @Test fun refreshOnlyCaptureRejectsIdentityReplacementButAllowsSameOwnerRotation()=runTest {
+        val f=fixture(access=null)
+        f.reader={f.view.also{f.view=NativeStoredAuthSession(b,null,"replacement")}}
         failure(NativeSignInError.UNAUTHORIZED){f.snapshots.refresh()}
+        f.view=NativeStoredAuthSession(a,null,"original")
+        f.reader={f.view.also{f.view=NativeStoredAuthSession(a,null,"rotated")}}
+        assertEquals("original",f.snapshots.refresh().refreshToken)
     }
     @Test fun currentChecksUseIdentityAndEpochRatherThanExactTokenStrings() {
         val f=fixture();assertTrue(f.snapshots.isCurrent(a))
@@ -110,5 +114,57 @@ class NativeAuthenticatedSnapshotTest {
         lease.finish();lease.finish();assertFalse(work.storedSessionCaptureBlocked);assertFalse(work.sessionWriteInProgress)
         val capture=work.beginSignOutCapture();assertTrue(work.storedSessionCaptureBlocked);assertTrue(work.sessionWriteInProgress)
         capture();capture();assertFalse(work.sessionWriteInProgress)
+    }
+    @Test fun unavailableStorageIsRetryableOnlyAfterThePublishedIdentityGuard()=runTest {
+        val f=fixture();f.available=false
+        failure(NativeSignInError.NETWORK_ERROR){f.snapshots.session()}
+        failure(NativeSignInError.NETWORK_ERROR){f.snapshots.refresh()}
+        assertEquals(a,f.view.owner);assertEquals(0,f.resolutions)
+        f.view=NativeStoredAuthSession(null,null,null);f.transition=true
+        failure(NativeSignInError.UNAUTHORIZED){f.snapshots.session()}
+        failure(NativeSignInError.UNAUTHORIZED){f.snapshots.refresh()}
+    }
+    @Test fun identityReplacementWinsOverATransitionAfterSuccessfulCoherentCapture()=runTest {
+        val f=fixture(access=null)
+        f.resolve={f.transition=true;f.view=NativeStoredAuthSession(b,"new","refresh");"new"}
+        failure(NativeSignInError.UNAUTHORIZED){f.snapshots.session()}
+        f.view=NativeStoredAuthSession(a,null,"refresh");f.transition=false
+        f.resolve={f.transition=true;"resolved"}
+        failure(NativeSignInError.NETWORK_ERROR){f.snapshots.session()}
+    }
+    @Test fun threeRotationAttemptsShareOneAbsoluteCaptureDeadline()=runTest {
+        val work=NativeAuthWork(nowMillis={testScheduler.currentTime})
+        val f=Fixture(NativeStoredAuthSession(a,null,"refresh"),work,1000)
+        f.resolve={delay(400);f.view=NativeStoredAuthSession(a,null,"rotation-${f.resolutions}");"resolved"}
+        failure(NativeSignInError.TIMED_OUT){f.snapshots.session()}
+        assertEquals(1000,testScheduler.currentTime);assertEquals(3,f.resolutions);runCurrent()
+        assertEquals(0,work.activeCount);assertEquals(a,f.view.owner)
+    }
+    @Test fun bootstrapPrecedesTheSingleTokenCaptureBudget()=runTest {
+        val work=NativeAuthWork(nowMillis={testScheduler.currentTime})
+        val f=Fixture(NativeStoredAuthSession(a,null,"refresh"),work,100)
+        f.bootstrap={delay(1500)};f.resolve={delay(101);"resolved"}
+        failure(NativeSignInError.TIMED_OUT){f.snapshots.session()}
+        assertEquals(1600,testScheduler.currentTime);assertEquals(1,f.resolutions);runCurrent();assertEquals(0,work.activeCount)
+    }
+    @Test fun aLateSuccessOrFailureCannotOutliveTheCaptureDeadline()=runTest {
+        for(throws in listOf(false,true)) {
+            var elapsed=0L;val work=NativeAuthWork(nowMillis={elapsed})
+            val f=Fixture(NativeStoredAuthSession(a,null,"refresh"),work)
+            f.resolve={elapsed=60_001;if(throws)throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED);"resolved"}
+            failure(NativeSignInError.TIMED_OUT){f.snapshots.session()};assertEquals(a,f.view.owner);assertEquals(0,work.activeCount)
+        }
+    }
+    @Test fun canceledCaptureWaiterLeavesBlockedActualStorageTrackedUntilItRetires()=runBlocking<Unit> {
+        val entered=java.util.concurrent.CountDownLatch(1);val release=java.util.concurrent.CountDownLatch(1)
+        val work=NativeAuthWork();val f=Fixture(NativeStoredAuthSession(a,null,"refresh"),work);f.storedBlocked=true
+        f.reader={entered.countDown();check(release.await(5,java.util.concurrent.TimeUnit.SECONDS));f.view}
+        val task=launch(Dispatchers.IO){f.snapshots.session()}
+        try {
+            assertTrue(withContext(Dispatchers.IO){entered.await(2,java.util.concurrent.TimeUnit.SECONDS)})
+            task.cancel();withTimeout(1000){task.join()};assertTrue(work.activeCount>0)
+            release.countDown();withTimeout(2000){while(work.activeCount>0)delay(1)}
+            assertEquals(a,f.view.owner);assertEquals(0,f.resolutions)
+        }finally{release.countDown();task.cancelAndJoin()}
     }
 }
