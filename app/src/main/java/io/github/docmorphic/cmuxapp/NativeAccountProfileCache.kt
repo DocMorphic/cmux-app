@@ -21,6 +21,13 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
     fun remove(login: String) = update { root ->
         if (owns(root, login)) root.remove(KEY)
     }
+    /** An explicit selection is separate from cached membership and never verifies saved rows. */
+    fun updateSelection(login:String,environment:String,user:String,selected:String?)=update {root->
+        if(!owns(root,login))return@update
+        val saved=root.optJSONObject(KEY) ?: return@update
+        if(saved.opt("version")!=1 || saved.opt("login")!=login || saved.opt("environment")!=environment || saved.opt("user")!=user)return@update
+        saved.put("selected",selected ?: JSONObject.NULL)
+    }
 
     companion object {
         const val KEY = "account_profile_cache"
@@ -62,7 +69,8 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
             }
             require(teams.map { it.id }.distinct().size == teams.size)
             val selected = optional("selected", 128)
-            require(if (teams.isEmpty()) selected == null else teams.any { it.id == selected })
+            // The coordinator persists explicit selection independently; its effective
+            // member falls back separately. Cached rows still grant no connection proof.
             NativeAccountTeamsState(userId = user, teams = teams, selectedTeamId = selected,
                 displayName = optional("name", 512), email = optional("email", 512), cached = true)
         }.getOrNull()

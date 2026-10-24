@@ -35,7 +35,12 @@ explanation. Cached team rows cannot select a connection owner. The existing
 Android create dialog enables after fresh user publication even if membership
 fails. The shared creation API can also use a primed cached owner through backend
 authorization, without granting loaded membership or connection scope; see
-[the current creation and selection contract](TEAM_MUTATIONS.md). Restoring a cache never establishes live
+[the current creation and selection contract](TEAM_MUTATIONS.md). The
+[phase/publication follow-up](TEAM_OPERATION_DEADLINES.md) persists explicit
+selection separately from cached rows, including nil or stale ids, while keeping
+cached-only nil selection read-only after its fresh HTTP validation. It also
+publishes membership proofs, scope and profile atomically before cache writing.
+Restoring a cache never establishes live
 authority or starts a native endpoint. The connection owner preserves the cache
 during initial login observation rather than clearing it before refresh.
 

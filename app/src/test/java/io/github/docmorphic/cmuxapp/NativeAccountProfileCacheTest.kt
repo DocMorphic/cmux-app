@@ -157,7 +157,7 @@ class NativeAccountProfileCacheTest {
             assertNull(store.cache.read("login", environment)!!.scope); assertTrue(store.cache.read("login", environment)!!.cached)
             val original = store.load()
             for (change in listOf<(JSONObject) -> Unit>(
-                { it.put("version", 2) }, { it.put("selected", "not-a-member") },
+                { it.put("version", 2) }, { it.put("selected", JSONObject().put("id","not-a-member")) },
                 { it.put("name", "x".repeat(513)) },
                 { it.getJSONArray("teams").put(it.getJSONArray("teams").getJSONObject(0)) })) {
                 store.value = JSONObject(original.toString())
@@ -180,6 +180,31 @@ class NativeAccountProfileCacheTest {
             }
             store.fail = false; store.update { it.put("task_session", "other-login") }
             store.cache.save("login", "server", NativeAccountTeamsState(userId = "old-user"))
+            assertFalse(store.load().has(NativeAccountProfileCache.KEY))
+        }
+    }
+    @Test fun explicitSelectionPersistsSeparatelyFromReadonlyCachedMembership()=runBlocking<Unit> {
+        MockWebServer().use{server->val store=Store();seed(server,store)
+            val environment="${server.url("/api/v1/")}#${NativeAccount.PROJECT_ID}"
+            for(selected in listOf(null,"not-a-member","one")) {
+                store.cache.updateSelection("login",environment,"user",selected)
+                val card=checkNotNull(store.cache.read("login",environment));assertEquals(selected,card.selectedTeamId)
+                assertTrue(card.cached);assertNull(card.scope);assertEquals(listOf("one","two"),card.teams.map{it.id})
+                assertEquals("fixture-refresh",store.load().getString("refresh_token"))
+            }
+            store.cache.save("login",environment,NativeAccountTeamsState("user",emptyList(),"remembered"))
+            assertEquals("remembered",store.cache.read("login",environment)!!.selectedTeamId)
+            assertNull(store.cache.read("login",environment)!!.scope)
+        }
+    }
+    @Test fun cachedSelectionUpdatesCannotCrossLoginEnvironmentOrUser()=runBlocking<Unit> {
+        MockWebServer().use{server->val store=Store();seed(server,store)
+            val environment="${server.url("/api/v1/")}#${NativeAccount.PROJECT_ID}";val before=store.load().toString()
+            for((owner,env,user) in listOf(Triple("other",environment,"user"),Triple("login","other","user"),Triple("login",environment,"other"))) {
+                store.cache.updateSelection(owner,env,user,null);assertEquals(before,store.load().toString())
+            }
+            store.update{it.put("task_session","replacement")};val replacement=store.load().toString()
+            store.cache.updateSelection("login",environment,"user",null);assertEquals(replacement,store.load().toString())
             assertFalse(store.load().has(NativeAccountProfileCache.KEY))
         }
     }

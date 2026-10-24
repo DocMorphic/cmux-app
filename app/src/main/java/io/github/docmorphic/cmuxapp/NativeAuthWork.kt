@@ -3,7 +3,7 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
-internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, REFRESH, FORCE_REFRESH, REFRESH_EXCHANGE, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, ACCOUNT_DELETION, SIGN_OUT, CLEANUP }
+internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, TEAM_LIST, TEAM_SELECTION, REFRESH, FORCE_REFRESH, REFRESH_EXCHANGE, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, ACCOUNT_DELETION, SIGN_OUT, CLEANUP }
 internal class NativeAuthDeadlineCancellation : CancellationException("The account request timed out. Please try again.")
 
 /** A phase wait may end before its operation does. Keep the actual job, not its waiter. */
@@ -12,7 +12,7 @@ internal class NativeAuthWork(
     private val retryResetMillis: Long = 30_000,
     private val teardownDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    internal enum class Admission { EXCLUSIVE, TOKEN, SHARED_REFRESH, CLEANUP }
+    internal enum class Admission { EXCLUSIVE, TOKEN, SHARED_REFRESH, PHASE, CLEANUP }
     private class Entry(val phase: NativeAuthPhase, val owner: String?, val admission: Admission, val job: Job) {
         var timedOutAt: Long? = null
         var blocksAdmission = true
@@ -48,22 +48,50 @@ internal class NativeAuthWork(
             synchronized(lock) { active -= entry }
             lifetime.cancel()
         }
-        task.start()
         try {
-            // task is owned by lifetime, not this timeout scope. Awaiting it
-            // is cancellable without joining a cancellation-ignoring operation.
-            return withTimeout(timeoutMillis) { task.await() }
+            return awaitPhaseWinner(scope, task, entry, timeoutMillis)
         } catch (failure: Exception) {
-            if (failure is CancellationException) {
+            if (failure is PhaseTimeout || failure is CancellationException) {
                 synchronized(lock) { if (entry in active) entry.timedOutAt = nowMillis() }
-                task.cancel(if (failure is TimeoutCancellationException && context.isActive)
+                task.cancel(if ((failure is PhaseTimeout || failure is TimeoutCancellationException) && context.isActive)
                     NativeAuthDeadlineCancellation() else CancellationException("Account work cancelled"))
             }
             // Preserve cancellation of the caller; only our deadline is a UI error.
             context.ensureActive()
-            if (failure is TimeoutCancellationException) throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
+            if (failure is PhaseTimeout || failure is TimeoutCancellationException) throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
             throw failure
         }
+    }
+
+    private class PhaseTimeout : Exception()
+
+    /** Settle the race before dispatching the caller; delayed delivery cannot change its winner. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun <T> awaitPhaseWinner(scope: CoroutineScope, task: Deferred<T>, entry: Entry,
+        timeoutMillis: Long): T = suspendCancellableCoroutine { continuation ->
+        val settled = java.util.concurrent.atomic.AtomicBoolean(false)
+        val timer = scope.launch(start = CoroutineStart.LAZY) {
+            delay(timeoutMillis)
+            if (settled.compareAndSet(false, true)) {
+                synchronized(lock) { if (entry in active) entry.timedOutAt = nowMillis() }
+                task.cancel(NativeAuthDeadlineCancellation())
+                continuation.resumeWith(Result.failure(PhaseTimeout()))
+            }
+        }
+        continuation.invokeOnCancellation {
+            if (settled.compareAndSet(false, true)) {
+                timer.cancel()
+                task.cancel(CancellationException("Account work cancelled"))
+            }
+        }
+        task.invokeOnCompletion { failure ->
+            if (settled.compareAndSet(false, true)) {
+                timer.cancel()
+                continuation.resumeWith(if (failure != null) Result.failure(failure) else runCatching { task.getCompleted() })
+            }
+        }
+        timer.start()
+        task.start()
     }
 
     @Volatile private var signOutCaptures = 0
@@ -103,7 +131,7 @@ internal class NativeAuthWork(
         val lifetime=SupervisorJob()
         val task=CoroutineScope(teardownDispatcher+lifetime).async(start=CoroutineStart.LAZY) {
             try {
-                val hooks=synchronized(lock) { active.filter { it.phase in setOf(NativeAuthPhase.TEAMS,NativeAuthPhase.POST_SIGN_IN) }.map { it.job } }
+                val hooks=synchronized(lock) { active.filter { it.phase in setOf(NativeAuthPhase.TEAMS,NativeAuthPhase.TEAM_LIST,NativeAuthPhase.POST_SIGN_IN) }.map { it.job } }
                 withTimeoutOrNull(timeoutMillis) { hooks.forEach { it.join() } }
                 ensureActive()
                 withTimeout(timeoutMillis) { operation() }
@@ -141,7 +169,9 @@ internal class NativeAuthWork(
         val entries = synchronized(lock) { active.filter { it.phase != NativeAuthPhase.SEND_CODE }.toList() }
         // Captured-session teardown gets its own bounded attempt; a fresh login joins it.
         entries.filter { it.phase != NativeAuthPhase.SIGN_OUT }.forEach { it.job.cancel() }
-        try { withTimeout(timeoutMillis) { entries.forEach { it.job.join() } } }
+        // Plain team-selection/backend requests cannot publish after retirement.
+        // Their token-refresh children remain separately tracked and joined.
+        try { withTimeout(timeoutMillis) { entries.filter {it.admission!=Admission.PHASE}.forEach { it.job.join() } } }
         catch (failure: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
             throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
@@ -171,6 +201,7 @@ internal class NativeAuthWork(
             Admission.EXCLUSIVE -> true
             Admission.TOKEN -> old.timedOutAt != null
             Admission.SHARED_REFRESH -> false // The shared registry fences retired writes; retain actual jobs for sign-in joining.
+            Admission.PHASE -> false // A plain source phase permits another attempt while a retired operation finishes.
             Admission.CLEANUP -> false
         } }
         if (conflict) false else { active += entry; true }

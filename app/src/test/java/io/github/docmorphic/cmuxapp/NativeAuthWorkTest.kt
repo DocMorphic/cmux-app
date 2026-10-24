@@ -8,6 +8,54 @@ import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeAuthWorkTest {
+    @Test fun completedPlainPhaseKeepsItsWinWhenThePublicContinuationIsDelayed() {
+        val dispatcher = object : CoroutineDispatcher() {
+            val queue = java.util.concurrent.LinkedBlockingQueue<Runnable>()
+            override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) { queue.add(block) }
+            fun step() { checkNotNull(queue.poll(2, java.util.concurrent.TimeUnit.SECONDS)) { "Missing queued continuation" }.run() }
+        }
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
+        val work = NativeAuthWork()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val result = scope.async {
+            runCatching {
+                work.run(NativeAuthPhase.TEAM_SELECTION, 500, admission = NativeAuthWork.Admission.PHASE) {
+                    entered.complete(Unit)
+                    release.await()
+                    42
+                }
+            }
+        }
+        try {
+            while (!entered.isCompleted) dispatcher.step()
+            release.complete(Unit)
+            while (work.activeCount != 0) dispatcher.step()
+            assertFalse(result.isCompleted)
+            Thread.sleep(650)
+            while (!result.isCompleted) dispatcher.step()
+            assertEquals(42, result.getCompleted().getOrThrow())
+        } finally {
+            release.complete(Unit)
+            scope.cancel()
+            work.cancelAll()
+            while (true) (dispatcher.queue.poll() ?: break).run()
+            assertEquals(0, work.activeCount)
+        }
+    }
+
+    @Test fun plainTeamPhasesRemainTrackedWithoutBlockingRetryOrTokenQuiescence()=runTest {
+        val work=NativeAuthWork({testScheduler.currentTime});val gate=CompletableDeferred<Unit>()
+        val first=async{runCatching{work.run(NativeAuthPhase.TEAM_SELECTION,10,admission=NativeAuthWork.Admission.PHASE){
+            withContext(NonCancellable){gate.await()}
+        }}}
+        try {
+            runCurrent();advanceTimeBy(11);runCurrent();assertTrue(first.await().isFailure);assertEquals(1,work.activeCount)
+            assertEquals(2,work.run(NativeAuthPhase.TEAM_SELECTION,10,admission=NativeAuthWork.Admission.PHASE){2})
+            work.quiesce(10);assertEquals(1,work.activeCount)
+            gate.complete(Unit);runCurrent();assertEquals(0,work.activeCount)
+        } finally {gate.complete(Unit);first.cancelAndJoin();runCurrent()}
+    }
     @Test fun deadlineEndsTheWaitButRetainsTheCancellationIgnoringOperationUntilTerminal() = runTest {
         val work = NativeAuthWork({ testScheduler.currentTime }); val release = CompletableDeferred<Int>()
         val waiting = async { runCatching { work.run(NativeAuthPhase.USER, 50) { withContext(NonCancellable) { release.await() } } } }

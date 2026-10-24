@@ -1,0 +1,22 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthTimeouts.swift": "045370674e60eecaf1a0d2e27f1c65e30a408f607545cfdbcfbae6e5d6b1c709"
+  },
+  "default": {
+    "interactiveMillis": 300000,
+    "networkMillis": 60000,
+    "restoreMillis": 8000
+  },
+  "explicit": {
+    "interactiveMillis": 42000,
+    "networkMillis": 17000,
+    "restoreMillis": 5000
+  },
+  "fallback": {
+    "interactiveMillis": 42000,
+    "networkMillis": 1234,
+    "restoreMillis": 1234
+  },
+  "foundationRequestDefaultMillis": 60000
+}

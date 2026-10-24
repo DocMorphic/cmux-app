@@ -1,3 +1,33 @@
+## Team network deadlines and publication races reconciled — 2026-10-24
+
+Selection's fresh-user read and PATCH share one network phase; backend creation,
+post-create membership and final selection have separate 60-second budgets.
+Cancellation-ignoring actual tasks remain tracked after the public wait ends;
+plain retries and token retry gates follow their separate source contracts.
+Concurrent membership calls no longer wait in the old serializer. A completed
+operation keeps its result if caller dispatch is delayed past the timer.
+
+Publication changes membership proofs, scope and profile atomically before cache
+persistence. Selection and failed-create fallback use current membership/profile,
+so they cannot restore a removed team or older profile. Explicit cached selection
+is independent from saved rows, including nil/stale ids; cached-only nil selection
+still grants no loaded membership or connection authority.
+
+Full JVM: 3,405 total, 3,401 passed, four existing SSH skips, zero failures in 454
+suites. Owned API 36: 158/158 in 331.848s, including eight new cases and 150 prior
+regressions. The real production deadline fired at 60,010ms on a progressing body,
+with fixture ciphertext/pairing preserved and no PATCH. Crash log empty, no
+preflight ANR, restored settings/window, owned exit0. Two before-fix invariant
+failures, 19 local inputs, 35 whole original files and platform source/header
+bindings support the checkpoint. Full parity remains active: callback fresh-user
+and separate selected-team reads, full startup projection/SDK models, blocked
+storage/real OS behavior, physical/provider/helper, complete UI/accessibility and
+signed-release gates remain open. No phone/Mac install, global pin or frozen 722
+change.
+
+Details: [team operation deadlines and publication](TEAM_OPERATION_DEADLINES.md).
+Evidence: `captures/recovery-20261023/team-phase-checkpoint.json`.
+
 ## Team selection and creation source behavior aligned — 2026-10-24
 
 Selection now reads an eligible user before PATCH, accepts successful optional

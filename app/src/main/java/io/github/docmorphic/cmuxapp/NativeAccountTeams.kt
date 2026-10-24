@@ -6,8 +6,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl
@@ -21,6 +19,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal data class NativeTeam(val id: String, val name: String)
 internal fun nativeResolvedTeamId(selected:String?,teams:List<NativeTeam>):String? =
@@ -56,26 +55,38 @@ internal class NativeAccountTeams(
     private val sessionIdentity:(()->NativeAuthIdentity?)?=null,
     private val restoreUser:(suspend ()->NativeSignInUser?)?=null,
     private val needsRestoration:()->Boolean={false},
+    private val phaseNowMillis:()->Long={System.nanoTime()/1_000_000},
+    private val phaseWork:NativeAuthWork=NativeAuthWork(nowMillis=phaseNowMillis),
+    private val networkTimeoutMillis:Long=NETWORK_TIMEOUT_MILLIS,
 ) : AutoCloseable {
     constructor(account: NativeAccount, store: NativeCredentialStore,
         origin:HttpUrl="https://api.stack-auth.com/api/v1/".toHttpUrl(),base:OkHttpClient=OkHttpClient(),
-        backendOrigin:HttpUrl="https://cmux.com/".toHttpUrl()) : this(
+        backendOrigin:HttpUrl="https://cmux.com/".toHttpUrl(),networkTimeoutMillis:Long=NETWORK_TIMEOUT_MILLIS) : this(
         { force -> account.accessToken(force) }, { store.taskSession() },
         origin=origin,base=base,backendOrigin=backendOrigin,
         refreshCredential = { store.load()?.optString("refresh_token") },
         cache = NativeAccountProfileCache(store::load, store::update), lock = store.accountStateLock,
         sessionIdentity=account.sessionRestore::identity,restoreUser=account.sessionRestore::restoreIdentityIfNeeded,
-        needsRestoration={account.sessionRestore.needsIdentityValidation})
+        needsRestoration={account.sessionRestore.needsIdentityValidation},phaseNowMillis={android.os.SystemClock.elapsedRealtime()},phaseWork=store.authWork,
+        networkTimeoutMillis=networkTimeoutMillis)
 
     private class StackFailure(val status: Int) : IOException("Account request failed ($status)")
     private val client = base.newBuilder().followRedirects(false).followSslRedirects(false)
-        .retryOnConnectionFailure(false).callTimeout(20, TimeUnit.SECONDS).build()
-    private val operations = Mutex()
+        .retryOnConnectionFailure(false).callTimeout(0,TimeUnit.SECONDS)
+        .connectTimeout(30,TimeUnit.SECONDS).readTimeout(30,TimeUnit.SECONDS).writeTimeout(30,TimeUnit.SECONDS).build()
+    private val backendClient=client.newBuilder().connectTimeout(60,TimeUnit.SECONDS)
+        .readTimeout(60,TimeUnit.SECONDS).writeTimeout(60,TimeUnit.SECONDS).build()
     private var membershipReads=0
     private var teamMutation=0L
     private var creatingTeam=false
     private var selectingTeams=0
-    private data class Operation(val run:Long,val identity:NativeAuthIdentity?,val mutation:Long?)
+    private class PhaseLease(val deadline:Long?) {val retired=AtomicBoolean(false)}
+    private data class Operation(val run:Long,val identity:NativeAuthIdentity?,val mutation:Long?,val phase:PhaseLease?=null)
+    private data class Membership(val user:NativeSignInUser,val teams:List<NativeTeam>)
+    private class MembershipReadFailure(val user:String,val failure:Exception):Exception("Could not read account membership") {
+        override fun toString()="MembershipReadFailure"
+    }
+    private class PrincipalChanged:CancellationException("Account identity changed")
     val activeMembershipReads get()=synchronized(lock){membershipReads}
     val hasLoadedMembership get()=synchronized(lock) {
         !closed && verifiedLogin!=null && verifiedLogin==login() && membershipUser!=null &&
@@ -97,6 +108,7 @@ internal class NativeAccountTeams(
     val state = mutableState.asStateFlow()
 
     init {
+        require(networkTimeoutMillis>0)
         require(backendOrigin.username.isEmpty() && backendOrigin.password.isEmpty() && backendOrigin.query == null && backendOrigin.fragment == null)
         require(backendOrigin.encodedPath == "/")
         require(backendOrigin.isHttps || backendOrigin.host in setOf("localhost", "127.0.0.1", "::1"))
@@ -146,46 +158,12 @@ internal class NativeAccountTeams(
             // The process owner may already have refreshed membership in its verified-user callback.
             return restored ?: refreshAfterSignIn(owner,user)
         }
-        return membership { owner, epoch ->
-        // Stack's getUser(.throw) excludes anonymous/restricted users. It reports
-        // that miss as unavailable; it does not revoke a previously loaded team list.
-        val user = eligibleUser(owner,epoch)
-        val userId = user.id
-        requirePrincipal(userId)
-        synchronized(lock) {
-            checkCurrent(owner, epoch)
-            if (mutableState.value.userId?.let { it != userId } == true) {
-                // The authenticated identity changed even if local credentials
-                // retained their incarnation. Old teams must not survive a
-                // subsequent failed membership request for the new principal.
-                clearVerification()
-                mutableState.value = NativeAccountTeamsState(loading = true)
-                runCatching { cache?.remove(owner) }
-            }
-        }
-        val selected = user.selectedTeam
-        val displayName = user.name
-        val email = user.email
-        val teams = listTeams(owner, epoch)
-        val remembered = synchronized(lock) {
-            checkCurrent(owner, epoch)
-            mutableState.value.takeIf { it.userId == userId }?.selectedTeamId
-        }
-        // Keep the same user's saved choice only while it remains a verified membership.
-        publish(owner, epoch, userId, teams, (selected ?: remembered)?.takeIf { id -> teams.any { it.id == id } } ?: teams.firstOrNull()?.id)
-            .copy(displayName = displayName, email = email)
-        }
+        return membership()
     }
 
     /** Completion already fetched this user; membership failure cannot undo that publication. */
-    suspend fun refreshAfterSignIn(expectedLogin: String, user: NativeSignInUser): NativeAccountTeamsState = membership(publishedUser = user) { owner, epoch ->
-        if (owner != expectedLogin) throw CancellationException("Account changed")
-        requirePrincipal(user.id)
-        val teams = listTeams(owner, epoch)
-        publish(owner, epoch, user.id, teams,
-            user.selectedTeam?.takeIf { selected -> teams.any { it.id == selected } } ?: teams.firstOrNull()?.id)
-            .copy(displayName = user.name, email = user.email)
-    }
+    suspend fun refreshAfterSignIn(expectedLogin:String,user:NativeSignInUser):NativeAccountTeamsState =
+        membership(user,expectedLogin)
 
     private suspend fun listTeams(owner: String, epoch: Operation): List<NativeTeam> {
         val items = request("teams?user_id=me", owner, epoch).getJSONArray("items")
@@ -222,8 +200,8 @@ internal class NativeAccountTeams(
     }
     private suspend fun persistSelection(owner:String,epoch:Operation,userId:String,id:String?) {
         val fresh=eligibleUser(owner,epoch)
-        requirePrincipal(fresh.id)
-        if(fresh.id!=userId)throw CancellationException("Account identity changed")
+        checkPrincipal(owner,epoch,fresh.id)
+        if(fresh.id!=userId)throw PrincipalChanged()
         // CurrentUser.update accepts a successful response even when its optional JSON is absent.
         // The SDK omits selected_team_id for nil; the coordinator still projects nil locally.
         request("users/me",owner,epoch,JSONObject().apply {if(id!=null)put("selected_team_id",id)},discardBody=true)
@@ -240,54 +218,66 @@ internal class NativeAccountTeams(
                 requirePrincipal(checkNotNull(mutableState.value.userId))
                 mutableState.value.copy(createdTeam = null).also { mutableState.value = it }
             }
-            val created = try {
+            val created = try {phase(epoch,NativeAuthPhase.TEAM_SELECTION,NativeAuthWork.Admission.PHASE) {child->
+                checkCurrent(owner,child)
                 val access = credential(token(false))
                 val refresh = credential(refreshCredential())
-                checkCurrent(owner, epoch)
+                checkCurrent(owner, child)
                 val request = Request.Builder().url(checkNotNull(backendOrigin.resolve("api/subrouter/teams")))
                     .header("Accept", "application/json").header("Authorization", "Bearer $access")
                     .header("X-Stack-Refresh-Token", refresh)
                     .post(JSONObject().put("displayName", name).toString()
                         .toRequestBody("application/json; charset=utf-8".toMediaType())).build()
                 // The backend can create the team before a later error. Never replay this POST.
-                val team = exchange(request, owner, epoch).getJSONObject("team")
+                val team = exchange(request, owner, child,backend=true).getJSONObject("team")
                 NativeTeam(identifier(team.getString("id")), team.getString("name").also {
                     if (it.isBlank() || it.length > 512) throw IOException("Invalid team name")
                 })
-            } catch (failure: Exception) {
+            }} catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
+                if(failure is NativeSignInFailure && failure.reason==NativeSignInError.TIMED_OUT)throw failure
                 throw IOException("Team creation was not confirmed. Refresh your account before trying again.", failure)
             }
             synchronized(lock) {
                 checkCurrent(owner, epoch)
-                mutableState.value = before.copy(teams = before.teams.filterNot { it.id == created.id } + created,
-                    createdTeam = created)
+                mutableState.value = mutableState.value.copy(createdTeam=created)
             }
             try {
-                val listed=try {
-                    val fresh=eligibleUser(owner,epoch);requirePrincipal(fresh.id)
-                    if(fresh.id!=before.userId)throw CancellationException("Account identity changed")
-                    listTeams(owner,epoch)
-                } catch(failure:Exception) {
+                val listed=try {phase(epoch,NativeAuthPhase.TEAM_LIST,NativeAuthWork.Admission.TOKEN) {child->
+                    val fresh=eligibleUser(owner,child);checkPrincipal(owner,child,fresh.id)
+                    if(fresh.id!=before.userId)throw PrincipalChanged()
+                    listTeams(owner,child)
+                }} catch(failure:Exception) {
                     currentCoroutineContext().ensureActive()
                     if(failure is CancellationException)throw failure
                     // A completed create must not be retried because its subsequent list failed.
                     // Stale owner/mutation cancellation still stops before another HTTP request.
                     checkCurrent(owner,epoch)
-                    before.teams
+                    synchronized(lock){checkCurrent(owner,epoch);mutableState.value.takeUnless{it.cached}?.teams.orEmpty()}
                 }
                 val teams = listed.let { listed ->
                     if (listed.any { it.id == created.id }) listed else listed + created
                 }
                 synchronized(lock) {
-                    mutableState.value=publish(owner,epoch,checkNotNull(before.userId),teams,before.selectedTeamId,membershipRead=false)
-                        .copy(createdTeam=created,displayName=before.displayName,email=before.email,loading=true)
+                    checkCurrent(owner,epoch)
+                    val current=mutableState.value
+                    if(current.userId!=before.userId)throw PrincipalChanged()
+                    publish(owner,epoch,checkNotNull(before.userId),teams,current.selectedTeamId,membershipRead=false,
+                        created=created,displayName=current.displayName,email=current.email,loading=true)
                 }
-                persistSelection(owner,epoch,checkNotNull(before.userId),created.id)
-                publish(owner, epoch, checkNotNull(before.userId), teams, created.id,membershipRead=false)
-                    .copy(createdTeam = created, displayName = before.displayName, email = before.email)
+                phase(epoch,NativeAuthPhase.TEAM_SELECTION,NativeAuthWork.Admission.PHASE) {child->
+                    persistSelection(owner,child,checkNotNull(before.userId),created.id)
+                }
+                synchronized(lock) {
+                    checkCurrent(owner,epoch)
+                    val current=mutableState.value
+                    if(current.userId!=before.userId)throw PrincipalChanged()
+                    publish(owner,epoch,checkNotNull(before.userId),current.teams,created.id,membershipRead=false,
+                        created=created,displayName=current.displayName,email=current.email)
+                }
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
+                if(failure is NativeSignInFailure && failure.reason==NativeSignInError.TIMED_OUT)throw failure
                 throw IOException("Team created, but switching was not confirmed. Select it from Team or refresh your account.", failure)
             }
         }} finally {releaseMutation(create=true)}
@@ -299,26 +289,75 @@ internal class NativeAccountTeams(
             check(id==null || mutableState.value.teams.any {it.id==id}){"Refresh your account first"}
             claimMutation(create=false)
         }
-        try {return perform(expectedMutation=mutation,serialized=false) { owner, epoch ->
+        try {return perform(expectedMutation=mutation) { owner, epoch ->
         val before = synchronized(lock) { mutableState.value }
-        check((id==null || before.teams.any { it.id == id }) && before.userId != null && !before.cached) { "Refresh your account first" }
-        persistSelection(owner,epoch,checkNotNull(before.userId),id)
-        publish(owner, epoch, before.userId, before.teams, id,membershipRead=false).copy(displayName = before.displayName, email = before.email)
+        check((id==null || before.teams.any { it.id == id }) && before.userId != null && (!before.cached || id==null)) { "Refresh your account first" }
+        phase(epoch,NativeAuthPhase.TEAM_SELECTION,NativeAuthWork.Admission.PHASE) {child->
+            persistSelection(owner,child,checkNotNull(before.userId),id)
+        }
+        synchronized(lock) {
+            checkCurrent(owner,epoch)
+            val current=mutableState.value
+            if(current.userId!=before.userId)throw PrincipalChanged()
+            publish(owner,epoch,checkNotNull(before.userId),current.teams,id,membershipRead=false,
+                displayName=current.displayName,email=current.email,cached=current.cached)
+        }
         }} finally {releaseMutation(create=false)}
     }
 
-    private suspend fun membership(publishedUser:NativeSignInUser?=null,action:suspend (String,Operation)->NativeAccountTeamsState):NativeAccountTeamsState {
+    private suspend fun membership(publishedUser:NativeSignInUser?=null,expectedLogin:String?=null):NativeAccountTeamsState {
         val identity=synchronized(lock){membershipReads++;sessionIdentity?.invoke()}
         var failure:Exception?=null
-        try {return perform(publishedUser,identity,action=action)}
-        catch(error:Exception){failure=error;throw error}
+        try {return perform(publishedUser,identity) {owner,epoch->
+            if(expectedLogin!=null && owner!=expectedLogin)throw CancellationException("Account changed")
+            val value=phase(epoch,NativeAuthPhase.TEAM_LIST,NativeAuthWork.Admission.TOKEN) {child->
+                val user=publishedUser ?: eligibleUser(owner,child)
+                checkPrincipal(owner,child,user.id)
+                val teams=try {listTeams(owner,child)} catch(error:Exception) {
+                    if(error is CancellationException)throw error
+                    throw MembershipReadFailure(user.id,error)
+                }
+                Membership(user,teams)
+            }
+            synchronized(lock) {
+                checkCurrent(owner,epoch)
+                if(mutableState.value.userId?.let{it!=value.user.id}==true) {
+                    clearVerification();mutableState.value=NativeAccountTeamsState(loading=true)
+                    runCatching{cache?.remove(owner)}
+                }
+            }
+            val remembered=synchronized(lock){mutableState.value.takeIf{it.userId==value.user.id}?.selectedTeamId}
+            val selected=if(publishedUser!=null)value.user.selectedTeam else value.user.selectedTeam ?: remembered
+            publish(owner,epoch,value.user.id,value.teams,
+                selected?.takeIf{id->value.teams.any{it.id==id}} ?: value.teams.firstOrNull()?.id,
+                displayName=value.user.name,email=value.user.email)
+        }} catch(error:Exception){failure=error;throw error}
         finally {synchronized(lock){membershipReads--};onMembershipCompleted(identity,failure)}
     }
+
+    /** The waiter owns retirement; a losing operation cannot start more HTTP or publish state. */
+    private suspend fun <T> phase(epoch:Operation,label:NativeAuthPhase,admission:NativeAuthWork.Admission,
+        action:suspend (Operation)->T):T {
+        val lease=PhaseLease(if(admission==NativeAuthWork.Admission.TOKEN)phaseNowMillis()+networkTimeoutMillis else null)
+        val child=epoch.copy(phase=lease)
+        try {return phaseWork.run(label,networkTimeoutMillis,admission=admission) {
+            try {action(child)} catch(error:Exception) {
+                currentCoroutineContext().ensureActive()
+                if(lease.deadline?.let{phaseNowMillis()>=it}==true)throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
+                throw error
+            }
+        }} catch(_:NativeAuthDeadlineCancellation) {throw NativeSignInFailure(NativeSignInError.TIMED_OUT)}
+        finally {lease.retired.set(true)}
+    }
+    private fun checkPrincipal(owner:String,epoch:Operation,user:String)=synchronized(lock) {
+        checkCurrent(owner,epoch)
+        if(sessionIdentity!=null && sessionIdentity.invoke()?.userId!=user)throw PrincipalChanged()
+    }
+
     private suspend fun perform(publishedUser: NativeSignInUser? = null,expectedIdentity:NativeAuthIdentity?=sessionIdentity?.invoke(),
-                                expectedMutation:Long?=null,serialized:Boolean=true,
+                                expectedMutation:Long?=null,
                                 action: suspend (String, Operation) -> NativeAccountTeamsState): NativeAccountTeamsState =
-        if(serialized)operations.withLock {performNow(publishedUser,expectedIdentity,expectedMutation,action)}
-        else performNow(publishedUser,expectedIdentity,expectedMutation,action)
+        performNow(publishedUser,expectedIdentity,expectedMutation,action)
 
     private suspend fun performNow(publishedUser:NativeSignInUser?,expectedIdentity:NativeAuthIdentity?,expectedMutation:Long?,
         action:suspend (String,Operation)->NativeAccountTeamsState):NativeAccountTeamsState {
@@ -346,29 +385,44 @@ internal class NativeAccountTeams(
             val result = action(owner, epoch)
             synchronized(lock) {
                 checkCurrent(owner, epoch)
+                // Another valid publication may have completed after this action.
+                // Persistence and loading/error decoration must keep that newer state.
+                val current=mutableState.value
                 var cacheError: String? = null
-                try { cache?.save(owner, cacheEnvironment, result) }
+                try {
+                    if(current.cached)cache?.updateSelection(owner,cacheEnvironment,checkNotNull(current.userId),current.selectedTeamId)
+                    else cache?.save(owner, cacheEnvironment, current)
+                }
                 catch (failure: Exception) {
                     if (failure is CancellationException) throw failure
                     cacheError = "Account refreshed, but details could not be saved for offline use."
                 }
                 checkCurrent(owner, epoch)
                 val otherMutations=if(expectedMutation==null)creatingTeam || selectingTeams>0 else !creatingTeam && selectingTeams>1
-                mutableState.value = result.copy(loading = otherMutations, error = cacheError)
+                val error=cacheError ?: if(current===result)null else current.error
+                mutableState.value = current.copy(loading=otherMutations,error=error)
             }
             mutableState.value
-        } catch (failure: Exception) {
+        } catch (caught: Exception) {
+            val failure=(caught as? MembershipReadFailure)?.failure ?: caught
             synchronized(lock) {
                 if (!closed && run == epoch.run && (epoch.mutation==null || epoch.mutation==teamMutation) &&
                     (sessionIdentity==null || sessionIdentity.invoke()==epoch.identity)) {
-                    if (login() != owner) {
+                    if(failure is PrincipalChanged || caught is MembershipReadFailure &&
+                        mutableState.value.userId?.let {it!=caught.user}==true) {
+                        ++run;clearVerification();runCatching{cache?.remove(owner)}
+                        mutableState.value=NativeAccountTeamsState(error="Your account changed. Refresh your account.")
+                    } else if (login() != owner) {
                         clearVerification()
                         runCatching { cache?.remove(owner) }
                         mutableState.value = NativeAccountTeamsState(error = "Sign in to refresh your account")
                     } else {
                         // A failed list does not mean empty membership. Match the
                         // coordinator by retaining only this generation's loaded proof.
-                        val message=if(failure is org.json.JSONException)"Could not load account teams"
+                        val message=if(creatingTeam && failure is NativeSignInFailure && failure.reason==NativeSignInError.TIMED_OUT)
+                            if(mutableState.value.createdTeam==null)"Team creation timed out and was not confirmed. Refresh your account before trying again."
+                            else "Team created, but switching timed out. Select it from Team or refresh your account."
+                            else if(failure is org.json.JSONException)"Could not load account teams"
                             else failure.message ?: "Could not load account teams"
                         val retained=mutableState.value.copy(loading=false,error=message)
                         if(publishedUser!=null)runCatching { cache?.save(owner,cacheEnvironment,retained) }
@@ -380,11 +434,14 @@ internal class NativeAccountTeams(
         }
     }
 
-    private fun publish(owner: String, epoch: Operation, user: String, teams: List<NativeTeam>, selected: String?,membershipRead:Boolean=true): NativeAccountTeamsState = synchronized(lock) {
-        checkCurrent(owner, epoch)
+    private fun publish(owner:String,epoch:Operation,user:String,teams:List<NativeTeam>,selected:String?,membershipRead:Boolean=true,
+        displayName:String?=null,email:String?=null,created:NativeTeam?=null,loading:Boolean=false,cached:Boolean=false):NativeAccountTeamsState = synchronized(lock) {
+        checkCurrent(owner,epoch)
         requirePrincipal(user)
+        val marker=created ?: mutableState.value.createdTeam.takeIf{creatingTeam}
         if(!membershipRead && !(verifiedLogin==owner && membershipUser==user && verifiedIdentity==epoch.identity))
-            return@synchronized NativeAccountTeamsState(user,teams,selected)
+            return@synchronized NativeAccountTeamsState(user,teams,selected,displayName=displayName,email=email,
+                createdTeam=marker,loading=loading,cached=cached).also{mutableState.value=it}
         if(verifiedIdentity!=epoch.identity)clearVerification()
         if (verifiedLogin != owner || membershipUser != user) clearVerification()
         verifiedLogin = owner
@@ -399,7 +456,8 @@ internal class NativeAccountTeams(
             if (previous?.login == owner && previous.userId == user && previous.teamId == resolved) previous
             else NativeTeamScope(owner, user, resolved, ++scopeGeneration)
         }
-        NativeAccountTeamsState(user, teams, selected, scope)
+        NativeAccountTeamsState(user,teams,selected,scope,displayName=displayName,email=email,
+            createdTeam=marker,loading=loading,cached=cached).also{mutableState.value=it}
     }
 
     private suspend fun request(path: String, owner: String, epoch: Operation, body: JSONObject? = null,discardBody:Boolean=false): JSONObject {
@@ -430,8 +488,8 @@ internal class NativeAccountTeams(
         throw IOException("Sign in to cmux")
     }
 
-    private suspend fun exchange(request: Request, owner: String, epoch: Operation,parseBody:Boolean=true): JSONObject = suspendCancellableCoroutine { continuation ->
-        val call = client.newCall(request)
+    private suspend fun exchange(request: Request, owner: String, epoch: Operation,parseBody:Boolean=true,backend:Boolean=false): JSONObject = suspendCancellableCoroutine { continuation ->
+        val call = (if(backend)backendClient else client).newCall(request)
         synchronized(lock) { checkCurrent(owner, epoch); calls += call }
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
@@ -464,6 +522,8 @@ internal class NativeAccountTeams(
     }
 
     private fun checkCurrent(owner: String, epoch: Operation) = synchronized(lock) {
+        if(epoch.phase?.retired?.get()==true)throw CancellationException("Account team request retired")
+        if(epoch.phase?.deadline?.let{phaseNowMillis()>=it}==true)throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
         if (closed || run != epoch.run || login() != owner || sessionIdentity!=null && sessionIdentity.invoke()!=epoch.identity ||
             epoch.mutation?.let {it!=teamMutation}==true)
             throw CancellationException("Account changed")
@@ -515,5 +575,8 @@ internal class NativeAccountTeams(
     } ?: throw IOException("Sign in to cmux")
 
     private fun identifier(value: String) = value.also { if (it.isBlank() || it.length > 128) throw IOException("Invalid account identity") }
-    private companion object { const val MAX_REPLY = 2 * 1024 * 1024 }
+    companion object {
+        internal const val NETWORK_TIMEOUT_MILLIS=60_000L
+        private const val MAX_REPLY=2*1024*1024
+    }
 }

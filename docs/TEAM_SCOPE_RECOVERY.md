@@ -87,13 +87,13 @@ signed 722 artifact is unchanged.
 ## Remaining limits
 
 This does not finish full app parity. Private-worker retry/rate integration,
-noncooperative encrypted IO and public-phase versus actual-operation membership
-counting, actual device sleep/Doze/network reconnection and process death remain
-open. A noncooperative operation can hold the Android membership mutex beyond a
-public phase deadline; deterministic timers alone do not demonstrate recovery
-from that case. [The mutation/picker checkpoint](TEAM_MUTATIONS.md) adds fresh
-selection eligibility and failure-tolerant backend creation. Complete mutation
-public-phase/cached admission, separate/parallel selected-team reads and SDK
+locked encrypted IO, actual device sleep/Doze/network reconnection and process
+death remain open. [The phase/publication follow-up](TEAM_OPERATION_DEADLINES.md)
+removes the membership serializer, separates public counts from actual task
+handles, bounds network phases and tests the real default 60-second wait. Injected
+noncooperative token faults run outside the encrypted-store monitor; these checks
+do not prove recovery from a thread blocked while holding that monitor. [The mutation/picker checkpoint](TEAM_MUTATIONS.md) adds fresh
+selection eligibility and failure-tolerant backend creation. Full load-time selection projection, separate/parallel selected-team reads and SDK
 malformed-list/default-model semantics,
 full user metadata and profile bounds also remain open.
 

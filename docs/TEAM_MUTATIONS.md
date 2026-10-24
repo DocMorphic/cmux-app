@@ -17,7 +17,8 @@ cannot overwrite the newer selection, cache or error state. Unknown choices are
 rejected before taking a mutation claim. Creation is excluded while any selection
 is active, including a superseded request still in flight. Selection and a second
 create are refused throughout the first create, including its final selection.
-Refresh/create serialization remains separate from independent selection calls.
+Concurrent membership reads no longer wait in the former refresh/create serializer;
+see [the phase and publication follow-up](TEAM_OPERATION_DEADLINES.md).
 
 ## Creation and membership authority
 
@@ -110,17 +111,15 @@ is retained separately; the 150-case result binds the final code.
 
 ## Remaining acceptance
 
-This is not full app parity. The shared coordinator's complete public phase
-budgets and noncooperative IO lifetime/counting still need reconciliation; the
-Android HTTP calls retain their current individual deadlines. Actual 60-second
-phase/default-deadline, OS sleep/Doze/network loss and process-death acceptance
-remain open. Team list/selected-team parallel reads, malformed-list/default-model
+This is not full app parity. [The phase/publication follow-up](TEAM_OPERATION_DEADLINES.md)
+adds source network budgets, actual/public lifetime accounting, a real default
+60-second phase check, idle-versus-call timeout mapping and readonly cached nil
+selection. Locked encrypted storage, OS sleep/Doze/network loss and process-death
+acceptance remain open. Team list/selected-team parallel reads, malformed-list/default-model
 semantics, complete user metadata/profile bounds, consent-aware telemetry and
 worker retry/rate integration remain open. The SDK-only create fallback without
-the configured cmux backend is not an Android production route. Optional-id
-selection on a cached-only account and full load-time selection projection remain
-part of that admission/model audit; the nil path verified here starts with loaded
-membership. Current Android row-size and body bounds are not claimed equivalent
+the configured cmux backend is not an Android production route. Readonly cached nil selection is covered in that follow-up; full load-time
+selection projection remains part of the admission/model audit. Current Android row-size and body bounds are not claimed equivalent
 to every SDK default.
 
 Raw-token/access-only consumers, complete backend/identity adoption, live provider,
