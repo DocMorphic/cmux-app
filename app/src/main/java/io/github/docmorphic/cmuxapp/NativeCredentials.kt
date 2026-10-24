@@ -175,6 +175,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     /** A login incarnation, independent of access-token refresh and Activity recreation. */
     internal fun taskSession(): String? = synchronized(storageLock) {
         val state = load() ?: return@synchronized null
+        if (NativeSignInCompletion.isPending(state)) return@synchronized null
         if (state.optString("refresh_token").isBlank()) return@synchronized null
         state.optString("task_session").takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString().also { session ->
             update { it.put("task_session", session) }
@@ -285,18 +286,13 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     internal constructor(store: NativeCredentialStore, oauthClientOverride: NativeOAuthClient, oauthBrowser: NativeOAuthBrowser) :
         this(store, null, oauthClientOverride, oauthBrowser)
     private val refreshMutex = Mutex()
-    private val emailSignIn = NativeEmailSignIn(::request) { access, refresh ->
-        store.update {
-            it.put("access_token", access).put("refresh_token", refresh).put("task_session", UUID.randomUUID().toString())
-            it.remove("task_drafts")
-        }
-    }
-    private val oauthSignIn = NativeOAuthSignIn(oauthClient::prepare, oauthBrowser::authorize, oauthClient::exchange, publish = { access, refresh ->
-        store.update {
-            it.put("access_token", access).put("refresh_token", refresh).put("task_session", UUID.randomUUID().toString())
-            it.remove("task_drafts")
-        }
-    })
+    internal var onSignedIn: suspend (String, NativeSignInUser) -> Unit = { _, _ -> }
+    private val completion = NativeSignInCompletion(store::load, store::update, oauthClient::currentUser,
+        oauthClient.accountEnvironment, store.accountStateLock, onPublished = { login, user -> onSignedIn(login, user) },
+        refreshAccess = oauthClient::refreshAccess)
+    private val emailSignIn = NativeEmailSignIn(::request) { _, _ -> error("Sign-in completion receipt required") }
+    private val oauthSignIn = NativeOAuthSignIn(oauthClient::prepare, oauthBrowser::authorize, oauthClient::exchange,
+        publish = { _, _ -> error("Sign-in completion receipt required") })
 
     suspend fun sendCode(email: String) {
         oauthSignIn.clear()
@@ -305,21 +301,23 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
 
     suspend fun signIn(code: String) {
         oauthSignIn.clear()
-        withContext(Dispatchers.IO) { emailSignIn.signIn(code) }
+        completion.signIn { write -> withContext(Dispatchers.IO) { emailSignIn.signIn(code, write) } }
     }
     internal suspend fun signInWithProvider(provider: NativeOAuthProvider) {
         emailSignIn.clear()
-        oauthSignIn.signIn(provider)
+        completion.signIn(exchangeTimeoutMillis = 300_000) { write -> oauthSignIn.signIn(provider, write) }
     }
 
     private val emailRecovery = NativeEmailRecoveryClient()
     suspend fun requestEmailVerification(email: String) = emailRecovery.verification(email)
     suspend fun requestBillingRecovery(email: String) = emailRecovery.billing(email)
 
-    internal fun cancelPendingSignIn() { emailSignIn.clear(); oauthSignIn.clear() }
+    internal fun cancelPendingSignIn() { emailSignIn.clear(); oauthSignIn.clear(); completion.clearIf { true } }
+    internal suspend fun restorePendingSignIn() = completion.restorePending()
 
     suspend fun accessToken(forceRefresh: Boolean = false): String? = refreshMutex.withLock {
         val state = store.load() ?: return@withLock null
+        if (NativeSignInCompletion.isPending(state)) return@withLock null
         val current = state.optString("access_token").takeIf { it.isNotBlank() }
         if (current != null && !forceRefresh && !expiresSoon(current)) return@withLock current
         val refresh = state.optString("refresh_token").takeIf { it.isNotBlank() }
@@ -345,7 +343,9 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         }
     }
 
-    fun isSignedIn(): Boolean = store.load()?.optString("refresh_token")?.isNotBlank() == true
+    fun isSignedIn(): Boolean = store.load()?.let {
+        !NativeSignInCompletion.isPending(it) && it.optString("refresh_token").isNotBlank()
+    } == true
 
     suspend fun userId(): String? = withContext(Dispatchers.IO) {
         val token = accessToken() ?: return@withContext null
@@ -396,16 +396,17 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     }
 
     fun signOut(expectedLogin: String? = null): Boolean {
-        val applied = emailSignIn.clearIf { oauthSignIn.clearIf {
+        val applied = emailSignIn.clearIf { oauthSignIn.clearIf { completion.clearIf(includePublished = true) {
             var retired = false
             store.update {
                 if (expectedLogin != null && it.optString("task_session") != expectedLogin) return@update
                 it.put("access_token", "").put("refresh_token", "")
                 it.remove("task_session"); it.remove("task_drafts")
+                it.remove(NativeSignInCompletion.PENDING)
                 retired = true
             }
             retired
-        } }
+        } } }
         if (applied) TaskDraftRepository.clearMemory()
         return applied
     }

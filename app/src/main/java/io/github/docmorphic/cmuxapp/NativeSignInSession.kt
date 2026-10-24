@@ -18,7 +18,8 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
     private val requestBilling: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
     private val verificationTimeoutMillis: Long = 60_000,
     private val authenticateProvider: suspend (NativeOAuthProvider) -> Unit = { throw NativeSignInFailure(NativeSignInError.BROWSER_SIGN_IN_FAILED) },
-    private val interactiveTimeoutMillis: Long = 300_000) : AutoCloseable {
+    private val interactiveTimeoutMillis: Long = 300_000,
+    private val authenticationOwnsDeadlines: Boolean = false) : AutoCloseable {
     init { require(verificationTimeoutMillis > 0 && interactiveTimeoutMillis > 0) }
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
@@ -79,7 +80,10 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
                     exchanges.add(exchange)
                     exchange.invokeOnCompletion { exchanges.remove(exchange) }
                     exchange.start()
-                    try { withTimeout(if (provider != null) interactiveTimeoutMillis else verificationTimeoutMillis) { exchange.await() } }
+                    try {
+                        if (authenticationOwnsDeadlines) exchange.await()
+                        else withTimeout(if (provider != null) interactiveTimeoutMillis else verificationTimeoutMillis) { exchange.await() }
+                    }
                     finally { exchange.cancel() }
                 } else send(form.email)
                 ensureActive()

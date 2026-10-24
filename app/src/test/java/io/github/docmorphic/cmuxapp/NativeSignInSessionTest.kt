@@ -7,6 +7,16 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeSignInSessionTest {
+    @Test fun productionCompletionOwnsSeparatePhaseDeadlinesRatherThanTimingOutTheWholeLogin() = runTest {
+        val release = CompletableDeferred<Unit>()
+        val model = NativeSignInSession(this, {}, { release.await() }, verificationTimeoutMillis = 50,
+            authenticationOwnsDeadlines = true)
+        try {
+            model.editEmail("fixture@example.test"); model.requestCode(); runCurrent(); model.editCode("ABC123"); runCurrent()
+            advanceTimeBy(200); runCurrent(); assertTrue(model.state.value.busy); assertNull(model.state.value.error)
+            release.complete(Unit); runCurrent(); assertNotNull(model.state.value.completion); assertFalse(model.state.value.busy)
+        } finally { model.close() }
+    }
     @Test fun oneRetainedRequestOwnsTheFormAndCompletionIsConsumedOnce() = runTest {
         val codeGate = CompletableDeferred<Unit>(); val authGate = CompletableDeferred<Unit>()
         val emails = mutableListOf<String>(); val codes = mutableListOf<String>()

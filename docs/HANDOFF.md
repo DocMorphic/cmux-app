@@ -1,3 +1,32 @@
+## Verified-user sign-in completion advanced — 2026-10-24
+
+Email and provider exchanges now share a completion owner. A stored token pair
+stays pending until the captured access token verifies an allowed current user;
+account/session/token getters cannot publish or authorize that pending session.
+Writer receipts make cancellation cleanup conditional, protecting a newer login.
+Verified identity/cache publication precedes the fallible membership phase, which
+preserves the user without granting a team scope on failure. Sign-out cancels the
+tracked phase. Pending sessions can restore through a fresh account owner,
+refreshing expired access without repeating the credential exchange. Anonymous
+and restricted users are rejected with the original Foundation Bool semantics.
+
+Final full app JVM suite:3216 total,3212 pass,4 skipped SSH cases,0 failures;
+107 focused auth cases included. Final owned API36 cohort:17/17 in65.482s,
+including actual encrypted fixture-store publication gates, user-request sign-out,
+fresh-owner restore/refresh and restricted-user rejection. Existing recreation,
+code/recovery and36+18 controlled UI profiles pass. Pairing fixtures preserved,
+crash empty, no preflight ANR, settings/window restored, emulator exit0. Actual
+Swift Bool conversion checked;13 whole originals are identical at detected79.
+Bindings/limits: [SIGN_IN.md](SIGN_IN.md) and
+recovery-20261023/native-signin-completion-checkpoint.json.
+
+Full acceptance remains open: registration/quiescence of ordinary token refresh
+and validation, exact queued/deadline/late-work behavior, access-only responses,
+full cached/restoring auth state and user metadata, post-sign-in side effects,
+real browser/provider behavior, original methods UI and physical Pixel/Mac/
+accessibility/full-app gates. No new signed delivery or physical/personal-account
+action. Candidate722/last known physical712/global pins unchanged. Goal active.
+
 ## Provider authentication wired — 2026-10-24
 
 Apple/Google/GitHub controls now invoke the retained owner and source Stack JSON

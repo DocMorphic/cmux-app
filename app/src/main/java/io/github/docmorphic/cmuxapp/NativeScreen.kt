@@ -158,7 +158,10 @@ internal fun NativeScreen(
     val scope = rememberCoroutineScope()
     val terminalFocusRequester = remember { FocusRequester() }
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
-    LaunchedEffect(signedIn, sharedConnections) { if (signedIn) sharedConnections?.signIn?.clear() }
+    val signInBusy = sharedConnections?.signIn?.state?.collectAsState()?.value?.busy == true
+    LaunchedEffect(signedIn, signInBusy, sharedConnections) {
+        if (signedIn && !signInBusy) sharedConnections?.signIn?.clear()
+    }
     val accountDeletion = remember(sharedConnections, account, store) {
         sharedConnections?.accountDeletion ?: NativeAccountDeletionController(scope, store::load, store::update) { login ->
             NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
@@ -4042,7 +4045,8 @@ internal fun NativeScreen(
                             onLicenses = { showLicenses = true }, macPolicy = displayPolicy, onSignedIn = { signedIn = true; error = null },
                             retained = sharedConnections?.signIn,
                             requestEmailVerification = account::requestEmailVerification, requestBillingRecovery = account::requestBillingRecovery,
-                            clearChallenge = account::cancelPendingSignIn, signInProvider = account::signInWithProvider)
+                            clearChallenge = account::cancelPendingSignIn, signInProvider = account::signInWithProvider,
+                            authenticationOwnsDeadlines = true)
                         showOnboarding -> onboardingContent()
                         showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
                         showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
@@ -4490,7 +4494,8 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
                          requestEmailVerification: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
                          requestBillingRecovery: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
                          clearChallenge: () -> Unit = {},
-                         signInProvider: suspend (NativeOAuthProvider) -> Unit = { throw NativeSignInFailure(NativeSignInError.BROWSER_SIGN_IN_FAILED) }) {
+                         signInProvider: suspend (NativeOAuthProvider) -> Unit = { throw NativeSignInFailure(NativeSignInError.BROWSER_SIGN_IN_FAILED) },
+                         authenticationOwnsDeadlines: Boolean = false) {
     val scope = rememberCoroutineScope()
     val send by rememberUpdatedState(sendCode)
     val authenticate by rememberUpdatedState(signIn)
@@ -4501,7 +4506,7 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
     val completed by rememberUpdatedState(onSignedIn)
     val local = remember(retained) { if (retained == null) NativeSignInSession(scope, { send(it) }, { authenticate(it) }, { clearCurrentChallenge() },
         requestVerification = { verification(it) }, requestBilling = { recovery(it) },
-        authenticateProvider = { providerSignIn(it) }) else null }
+        authenticateProvider = { providerSignIn(it) }, authenticationOwnsDeadlines = authenticationOwnsDeadlines) else null }
     val session = retained ?: checkNotNull(local)
     DisposableEffect(local) { onDispose { local?.close() } }
     val form by session.state.collectAsState()

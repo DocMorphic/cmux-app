@@ -1,5 +1,66 @@
 # Native sign-in
 
+## Verified-user completion and conditional pending-session cleanup — 2026-10-24
+
+NativeAccount now routes email/OAuth token writers through NativeSignInCompletion.
+The receipt is the actual encrypted store writer's task_session plus a persisted
+sign_in_pending marker. Until users/me succeeds, isSignedIn(), accessToken() and
+taskSession() expose no authenticated session, including through a fresh account
+owner. The source getUser(.throw) rejects anonymous/restricted users; the Android
+decoder now does too. Actual Foundation JSONSerialization/as?Bool output verifies
+true/false, numeric0/1 (including decimal forms), other numbers, strings and null.
+Thirteen whole coordinator/SDK/model/test originals remain identical at detected79;
+completion-reference.json and the scoped comparison bind the reference.
+
+Exchange cancellation after a real write or across a dispatcher return clears
+only that pending receipt. A newer writer is protected before its UI publishes;
+a newer attempt that never wrote cannot steal cleanup ownership. User-validation
+failure/deadline retains pending credentials for later restore. A fresh owner can
+verify them or refresh rejected access using the captured refresh token; a late
+refresh cannot overwrite a replacement writer. Transport/server/malformed-refresh
+failures preserve the pending session; definitive credential rejection conditionally
+clears it. Existing already-published legacy sessions are not reclassified by the
+new marker.
+
+Verified identity/cache publication is atomic with removing the pending marker.
+The retained owner's membership hook uses the fetched user and verifies teams;
+team failure preserves the user while granting no scope. Completed-form cleanup
+waits for the busy owner and does not cancel its published membership phase;
+sign-out does cancel it. Periodic refresh avoids overlapping the active sign-in.
+Exchange, user and membership phases have separate guards (network60s,
+interactive300s); orphan refresh probe8s. The real HTTP transports cooperate with
+cancellation. Exact independent deadlines against cancellation-ignoring work,
+ordinary token-refresh/session-validation preflight registration, and complete
+post-sign-in side effects remain open; this is not full coordinator acceptance.
+
+Final build succeeds in71s. Full app JVM suite:3216 total,3212 passed,4 skipped
+SSH integration cases and0 failures;107 focused auth cases included. Final owned
+API36 run passes17/17 in65.482s. Eight controlled OAuth cases cover the production
+client/account/encrypted fixture store/retained form/ActivityResult and actual
+exported callback Activity, including stored-token/user-request gates, production account
+sign-out API against a fixture store, fresh-owner restore, expired-access refresh
+without a second credential exchange, and both restricted flags. The other nine
+cases preserve code/recovery/lifecycle behavior and36 code-card plus18 error
+profiles. Fixture pairing records survive. One final pending-provider frame
+reviewed, crash empty, no preflight ANR, settings/window restored, emulator exit0.
+Browser results and HTTP are controlled: no real account/provider/browser session
+or physical phone/Mac action. Earlier15-case run passed but its host expected13;
+the count guard was fixed. Earlier16-case run is superseded. A new JUnit method's
+inferred non-Unit return was fixed before the final full unit run. Diagnostic logs
+remain retained.
+
+Bindings: recovery-20261023/native-signin-completion-checkpoint.json,
+signin-completion-full-jvm-v2/, native-signin-completion-runtime-v3/ and
+signin-completion-source-audit/. Debug app SHA256:
+a021470e9450482cb0ead87d260424cc964781321483f219fa421c370336e78a.
+Test SHA256:b8178c91c7f5fb3c1d3fc576e7b70c058f7e659f35e6f5e335cf4d11e71e0319.
+No new signed delivery; frozen722/last known physical712/global pins/personal
+account/pairing/signing data unchanged. Access-only token responses, complete
+cached/restoring auth state and original metadata, exact queue/validation/late-work
+semantics, real browser/provider behavior and all methods UI/Pixel/Mac/TalkBack/
+full-app gates remain open. The full goal remains active.
+
+
 ## Provider authentication wired — 2026-10-24
 
 Apple, Google and GitHub buttons now invoke the retained authentication owner.

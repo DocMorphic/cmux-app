@@ -14,6 +14,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     val store = NativeCredentialStore(context)
     val account = NativeAccount(store)
     val teams = NativeAccountTeams(account, store)
+    init { account.onSignedIn = { login, user -> teams.refreshAfterSignIn(login, user) } }
     private val activityLock = Any()
     private val activityOwners = mutableSetOf<Any>()
     private val applicationActive = MutableStateFlow(IrxProbeActivity(false))
@@ -45,7 +46,12 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val signIn = NativeSignInSession(CoroutineScope(scope.coroutineContext + Dispatchers.Main.immediate),
         account::sendCode, account::signIn, account::cancelPendingSignIn,
-        account::requestEmailVerification, account::requestBillingRecovery, authenticateProvider = account::signInWithProvider)
+        account::requestEmailVerification, account::requestBillingRecovery, authenticateProvider = account::signInWithProvider,
+        authenticationOwnsDeadlines = true)
+    init { scope.launch {
+        try { account.restorePendingSignIn() }
+        catch (failure: Exception) { currentCoroutineContext().ensureActive() }
+    } }
     val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
         NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
@@ -228,7 +234,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
                     nextRefresh = 0
                 }
                 val time = System.nanoTime() / 1_000_000
-                if (login != null && time >= nextRefresh) {
+                if (login != null && time >= nextRefresh && !signIn.state.value.authenticating) {
                     nextRefresh = time + try { teams.refresh(); 60_000 } catch (failure: Exception) {
                         currentCoroutineContext().ensureActive()
                         15_000

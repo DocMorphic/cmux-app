@@ -133,6 +133,15 @@ internal class NativeAccountTeams(
             .copy(displayName = displayName, email = email)
     }
 
+    /** Completion already fetched this user; membership failure cannot undo that publication. */
+    suspend fun refreshAfterSignIn(expectedLogin: String, user: NativeSignInUser): NativeAccountTeamsState = perform(publishedUser = user) { owner, epoch ->
+        if (owner != expectedLogin) throw CancellationException("Account changed")
+        val teams = listTeams(owner, epoch)
+        publish(owner, epoch, user.id, teams,
+            user.selectedTeam?.takeIf { selected -> teams.any { it.id == selected } } ?: teams.firstOrNull()?.id)
+            .copy(displayName = user.name, email = user.email)
+    }
+
     private suspend fun listTeams(owner: String, epoch: Long): List<NativeTeam> {
         val items = request("teams?user_id=me", owner, epoch).getJSONArray("items")
         if (items.length() > 4096) throw IOException("Too many account teams")
@@ -204,7 +213,7 @@ internal class NativeAccountTeams(
         publish(owner, epoch, before.userId, before.teams, id).copy(displayName = before.displayName, email = before.email)
     }
 
-    private suspend fun perform(clearOnForbidden: Boolean = true,
+    private suspend fun perform(clearOnForbidden: Boolean = true, publishedUser: NativeSignInUser? = null,
                                 action: suspend (String, Long) -> NativeAccountTeamsState): NativeAccountTeamsState = operations.withLock {
         val owner = login() ?: throw IOException("Sign in to cmux")
         val epoch = synchronized(lock) {
@@ -239,8 +248,17 @@ internal class NativeAccountTeams(
                         clearVerification()
                         // Clear only this login's display cache. A late rejection
                         // must not erase the replacement account's snapshot.
-                        runCatching { cache?.remove(owner) }
-                        mutableState.value = NativeAccountTeamsState(error = "Sign in to refresh your account")
+                        if (login() == owner && publishedUser != null) {
+                            // The user was verified before membership was read.
+                            // Keep that identity, while granting no team scope.
+                            val identity = NativeAccountTeamsState(userId = publishedUser.id, displayName = publishedUser.name,
+                                email = publishedUser.email, error = "Could not load account teams")
+                            runCatching { cache?.save(owner, cacheEnvironment, identity) }
+                            mutableState.value = identity
+                        } else {
+                            runCatching { cache?.remove(owner) }
+                            mutableState.value = NativeAccountTeamsState(error = "Sign in to refresh your account")
+                        }
                     } else mutableState.value = mutableState.value.copy(loading = false, error = failure.message ?: "Could not load account teams")
                 }
             }

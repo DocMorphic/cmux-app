@@ -18,6 +18,54 @@ class NativeOAuthSignInTest {
     private fun fields(value: String) = value.split('&').associate { part ->
         val pair = part.split('=', limit = 2); URLDecoder.decode(pair[0], "UTF-8") to URLDecoder.decode(pair[1], "UTF-8") }
 
+    @Test fun fetchedAnonymousAndRestrictedUsersAreRejectedLikeTheOriginalSdk(): Unit = runBlocking {
+        MockWebServer().use { server ->
+            val client = NativeOAuthClient("fixture-project", "fixture-key", server.url("/"))
+            for (flag in listOf("is_anonymous", "is_restricted")) {
+                // Actual Foundation JSONSerialization + `as? Bool` reference.
+                for ((raw, rejected) in listOf("true" to true, "false" to false, "1" to true, "1.0" to true,
+                    "0" to false, "0.0" to false, "2" to false, "-1" to false, "\"true\"" to false, "null" to false)) {
+                    server.enqueue(MockResponse().setBody("{\"id\":\"user\",\"$flag\":$raw}"))
+                    if (rejected) {
+                        val failure = runCatching { client.currentUser("captured-access") }.exceptionOrNull() as Exception
+                        assertEquals(NativeSignInError.UNAUTHORIZED, nativeSignInError(failure))
+                    } else assertEquals("user", client.currentUser("captured-access").id)
+                    server.takeRequest()
+                }
+            }
+        }
+    }
+    @Test fun orphanRefreshUsesTheSourceFormAndOnlyDefinitiveCredentialRejectionBecomesUnauthorized() = runBlocking {
+        MockWebServer().use { server ->
+            val client = NativeOAuthClient("fixture-project", "fixture-key", server.url("/"))
+            server.enqueue(MockResponse().setBody("{\"access_token\":\"fresh\"}")); assertEquals("fresh", client.refreshAccess("stored-refresh"))
+            val request = server.takeRequest(); assertEquals("/api/v1/auth/oauth/token", request.path)
+            assertEquals(mapOf("grant_type" to "refresh_token", "refresh_token" to "stored-refresh", "client_id" to "fixture-project", "client_secret" to "fixture-key"), fields(request.body.readUtf8()))
+            for ((response, role) in listOf(MockResponse().setResponseCode(400).setBody("{}") to NativeSignInError.UNAUTHORIZED,
+                MockResponse().setResponseCode(503).setBody("{}") to NativeSignInError.SERVER_ERROR,
+                MockResponse().setBody("{}") to NativeSignInError.SERVER_ERROR)) {
+                server.enqueue(response); val failure = runCatching { client.refreshAccess("stored-refresh") }.exceptionOrNull() as Exception
+                assertEquals(role, nativeSignInError(failure)); server.takeRequest()
+            }
+        }
+    }
+    @Test fun userVerificationUsesTheCapturedAccessTokenAndRejectsHttp200ApplicationErrorsOrMissingUsers() = runBlocking {
+        MockWebServer().use { server ->
+            val client = NativeOAuthClient("fixture-project", "fixture-key", server.url("/"))
+            server.enqueue(MockResponse().setBody("{\"id\":\"user\",\"primary_email\":\"fixture@example.test\"}"))
+            assertEquals("user", client.currentUser("captured-access").id)
+            val request = server.takeRequest(); assertEquals("/api/v1/users/me", request.path)
+            assertEquals("captured-access", request.getHeader("x-stack-access-token")); assertEquals("fixture-project", request.getHeader("x-stack-project-id"))
+            assertNull(request.getHeader("Authorization")); assertEquals("GET", request.method)
+            server.enqueue(MockResponse().setHeader("x-stack-actual-status", "401").setBody("{}"))
+            val rejected = runCatching { client.currentUser("captured-access") }.exceptionOrNull() as Exception
+            assertEquals(NativeSignInError.UNAUTHORIZED, nativeSignInError(rejected)); server.takeRequest()
+            server.enqueue(MockResponse().setBody("{}"))
+            val missing = runCatching { client.currentUser("captured-access") }.exceptionOrNull() as Exception
+            assertEquals(NativeSignInError.UNAUTHORIZED, nativeSignInError(missing)); server.takeRequest()
+            assertEquals(3, server.requestCount)
+        }
+    }
     @Test fun actualHttpUsesOriginalAuthorizeAndPkceTokenContractsForAllProviders() = runBlocking {
         MockWebServer().use { server ->
             val client = NativeOAuthClient("fixture project", "public+key", server.url("/"))

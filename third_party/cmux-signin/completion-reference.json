@@ -1,0 +1,42 @@
+{
+  "reference": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "files": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+ExchangeTimeout.swift": "d291bbe5a208313e762fd21e4cdc3f7fbe9a7df7a90f9aad2f70095ad9f29528",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+SessionPriming.swift": "ef486f14d9784aaa92930ecc155a5ef8b2cae497bb4223848a54de881107f188",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+PostSignInTimeout.swift": "58e28bf8836622ed7abfdecb265eb02498c4429cc3f6ee6173ed2a36b7594fc3",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorCancellationTests.swift": "69159dc15181e906c7346c0c7518fd559d8bf34dd2ff6310596cbd9419154c28",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorPostSignInTimeoutTests.swift": "f83a3b9911058dd4fca230ee1ff74daf977f47a360769b6b3f3bbd9a7eb228ff",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorStaleClearTests.swift": "8c6fdbbd5feec5d7e13c901d88862adcefc9e0611147295df0ed903d1a00c3c0",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSignInPreflightTests.swift": "6fbb9b4548dc82ee34b00c67c95897c67854d46897899159398ede96b008cda1",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSignInExchangePreflightTests.swift": "3e45a97ff062b668ec82649ab6e8677d20ca39789accba63d13cd85c3666cb3a",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/TokenStoreCompareAndSetTests.swift": "7a1a3628916ceeb79542d44e1740ef417ff862482b77583fb14a57fe79797edf",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/StackClientApp.swift": "1013bedc8099496b006660e5e5e01095631acd69cd86fd2d96dd1ee44edb01b4",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift": "5b9c73c8b2b66c91ed994e7b4881a8771812c551604dd261d418bcd41696c76f",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/User.swift": "a9a6a06f7e04ca7a6c3f3ce0edbb88e59aae8e9d0c2758aac0b54dc138a3c33e"
+  },
+  "identicalAtDetected79d982f9": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+ExchangeTimeout.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+SessionPriming.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+PostSignInTimeout.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorCancellationTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorPostSignInTimeoutTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorStaleClearTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSignInPreflightTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSignInExchangePreflightTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/TokenStoreCompareAndSetTests.swift": true,
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/StackClientApp.swift": true,
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/CurrentUser.swift": true,
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/User.swift": true
+  },
+  "scope": "Whole originals for completion ordering, conditional exchange rollback, fetched-user publication before tolerated team refresh, token-write ownership, signout fencing and validation/restore boundaries. Android adapter adds a persisted pending-writer marker to its single encrypted credential document; this is not an original SDK field or full auth acceptance. Original getUser(.throw) also excludes anonymous and restricted users by Bool flags; Android applies that gate before publishing.",
+  "remaining": [
+    "Exact multi-queued scheduling and preflight registration of normal token refresh/session validation",
+    "Access-only token responses",
+    "Full existing-session restore/cached-auth presentation and all original user metadata",
+    "Cancellation-ignoring phase deadlines and complete post-sign-in side effects",
+    "Real provider/browser and physical-device acceptance",
+    "All application parity gates"
+  ]
+}

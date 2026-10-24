@@ -18,6 +18,8 @@ import androidx.test.uiautomator.UiDevice
 import kotlinx.coroutines.*
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
+import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.*
@@ -83,6 +85,7 @@ class NativeOAuthRuntimeTest {
     }
     private fun enqueueAuthorization() = server!!.enqueue(MockResponse().setBody("{\"location\":\"https://provider.example/authorize\"}"))
     private fun enqueueTokens() = server!!.enqueue(MockResponse().setBody("{\"access_token\":\"fixture-access\",\"refresh_token\":\"fixture-refresh\"}"))
+    private fun enqueueUser() = server!!.enqueue(MockResponse().setBody("{\"id\":\"fixture-user\",\"primary_email\":\"fixture@example.test\",\"display_name\":\"Fixture\"}"))
     private fun tap(provider: String, count: Int) {
         compose.onNodeWithTag("signin.$provider").performScrollTo().performClick()
         compose.waitUntil(10_000) { registry.launches.size == count }
@@ -109,8 +112,26 @@ class NativeOAuthRuntimeTest {
         compose.waitForIdle(); assertTrue(UiDevice.getInstance(instrumentation).takeScreenshot(File(folder, "$name.png")))
     }
 
+    @Test fun restrictedAndAnonymousHttpUsersCannotPublishAStoredCredentialSession() {
+        start()
+        for ((index, flag) in listOf("is_restricted", "is_anonymous").withIndex()) {
+            enqueueAuthorization(); enqueueTokens(); server!!.enqueue(MockResponse().setBody("{\"id\":\"fixture-user\",\"$flag\":true}"))
+            tap(if (index == 0) "apple" else "google", index + 1); val authorization = server!!.takeRequest()
+            dispatch(index, AuthTabIntent.RESULT_OK, callback(authorization))
+            compose.waitUntil(10_000) { !session!!.state.value.busy }
+            assertEquals(NativeSignInError.UNAUTHORIZED, session!!.state.value.error)
+            assertFalse(account!!.isSignedIn()); assertNull(store!!.taskSession()); assertEquals(0, completions.get())
+            assertTrue(NativeSignInCompletion.isPending(store!!.load())); assertFalse(store!!.load()!!.has(NativeAccountProfileCache.KEY))
+            server!!.takeRequest(); server!!.takeRequest(); preservedPairing()
+            instrumentation.runOnMainSync { assertTrue(account!!.signOut()) }
+        }
+        assertEquals(6, server!!.requestCount)
+        File(folder, "restricted-users-result.json").writeText(JSONObject().put("anonymousAndRestrictedRejected", true)
+            .put("httpRequests", server!!.requestCount).put("completionCalls", completions.get()).put("pairingPreserved", true).toString(2))
+    }
+
     @Test fun googleFallbackRedirectSurvivesTwoRecreationsAndPublishesIntoTheRealFixtureStoreOnce() {
-        start(); enqueueAuthorization(); enqueueTokens(); tap("google", 1)
+        start(); enqueueAuthorization(); enqueueTokens(); enqueueUser(); tap("google", 1)
         val authorization = server!!.takeRequest(); assertTrue(authorization.path!!.startsWith("/api/v1/auth/oauth/authorize/google"))
         capture("google-pending")
         scenario!!.recreate(); scenario!!.recreate(); compose.waitForIdle(); assertEquals(1, registry.launches.size)
@@ -132,6 +153,10 @@ class NativeOAuthRuntimeTest {
         assertFalse(contains(verifier.toByteArray())); assertFalse(contains(verifier.toByteArray(Charsets.UTF_16LE)))
         assertTrue(account!!.isSignedIn()); assertEquals("fixture-access", store!!.load()!!.getString("access_token"))
         assertNotNull(store!!.taskSession()); assertEquals(1, completions.get()); preservedPairing()
+        val verification = server!!.takeRequest(); assertEquals("/api/v1/users/me", verification.requestUrl!!.encodedPath)
+        assertEquals("fixture-access", verification.getHeader("x-stack-access-token")); assertNull(verification.getHeader("Authorization"))
+        assertEquals(3, server!!.requestCount); assertFalse(NativeSignInCompletion.isPending(store!!.load()))
+        assertEquals("fixture-user", store!!.load()!!.getJSONObject(NativeAccountProfileCache.KEY).getString("user"))
         assertFalse(NativeOAuthRedirectCallbacks.deliver(link)); assertTrue(browser!!.presentations.value.isEmpty())
         File(folder, "recreation-result.json").writeText(JSONObject().put("actualActivityRecreations", 2).put("browserLaunches", registry.launches.size)
             .put("httpRequests", server!!.requestCount).put("completionCalls", completions.get()).put("savedStateBytes", bytes.size)
@@ -142,13 +167,13 @@ class NativeOAuthRuntimeTest {
     @Test fun oldAuthTabCancellationCannotRetireTheRetryAfterAnInteractiveTimeout() {
         start(deadline = 2_000); enqueueAuthorization(); tap("apple", 1); val first = server!!.takeRequest()
         compose.waitUntil(10_000) { session!!.state.value.error == NativeSignInError.TIMED_OUT }
-        enqueueAuthorization(); enqueueTokens(); tap("github", 2); val second = server!!.takeRequest()
+        enqueueAuthorization(); enqueueTokens(); enqueueUser(); tap("github", 2); val second = server!!.takeRequest()
         dispatch(0, AuthTabIntent.RESULT_CANCELED); compose.waitForIdle()
         assertEquals(NativeOAuthProvider.GITHUB, session!!.state.value.provider); assertTrue(session!!.state.value.busy)
         assertFalse(NativeOAuthRedirectCallbacks.deliver(callback(first)))
         dispatch(1, AuthTabIntent.RESULT_OK, callback(second))
         compose.waitUntil(10_000) { completions.get()==1 }; assertTrue(account!!.isSignedIn()); preservedPairing()
-        assertEquals(3, server!!.requestCount); assertTrue(browser!!.presentations.value.isEmpty())
+        assertEquals(4, server!!.requestCount); assertTrue(browser!!.presentations.value.isEmpty())
         File(folder, "retry-result.json").writeText(JSONObject().put("browserLaunches", registry.launches.size)
             .put("fixtureDeadlineMillis", 2_000).put("httpRequests", server!!.requestCount).put("completionCalls", completions.get())
             .put("oldNativeCancelAndFallbackIgnored", true).put("pairingPreserved", true).toString(2))
@@ -177,4 +202,63 @@ class NativeOAuthRuntimeTest {
         File(folder, "reattachment-result.json").writeText(JSONObject().put("browserLaunches", registry.launches.size)
             .put("httpRequests", server!!.requestCount).put("pendingResultConsumed", true).put("pairingPreserved", true).toString(2))
     }
+
+    @Test fun aStoredTokenPairCannotPublishOrAuthorizeWorkWhileUserVerificationIsPendingAndSignOutWins() {
+        start(); enqueueAuthorization(); enqueueTokens(); server!!.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        tap("google", 1); val authorization = server!!.takeRequest()
+        dispatch(0, AuthTabIntent.RESULT_OK, callback(authorization))
+        assertEquals("/api/v1/auth/oauth/token", server!!.takeRequest(10, TimeUnit.SECONDS)!!.requestUrl!!.encodedPath)
+        assertEquals("/api/v1/users/me", server!!.takeRequest(10, TimeUnit.SECONDS)!!.requestUrl!!.encodedPath)
+        assertEquals("fixture-refresh", store!!.load()!!.getString("refresh_token"))
+        assertTrue(NativeSignInCompletion.isPending(store!!.load())); assertFalse(account!!.isSignedIn()); assertNull(store!!.taskSession())
+        runBlocking { assertNull(account!!.accessToken()) }
+        assertEquals(0, completions.get()); assertTrue(session!!.state.value.busy); preservedPairing()
+        instrumentation.runOnMainSync { assertTrue(account!!.signOut()) }
+        compose.waitUntil(10_000) { !session!!.state.value.busy }
+        assertFalse(account!!.isSignedIn()); assertFalse(NativeSignInCompletion.isPending(store!!.load()))
+        assertFalse(store!!.load()!!.optString("refresh_token").isNotBlank()); assertEquals(0, completions.get()); preservedPairing()
+        File(folder, "pending-verification-signout-result.json").writeText(JSONObject()
+            .put("storedTokensDidNotPublish", true).put("pendingTokensDidNotAuthorizeBackgroundWork", true)
+            .put("signOutWonDuringActualUserRequest", true).put("httpRequests", server!!.requestCount)
+            .put("completionCalls", completions.get()).put("pairingPreserved", true).toString(2))
+    }
+
+    @Test fun failedUserVerificationStaysSignedOutAndAFreshAccountOwnerRestoresTheStoredPendingSession() = restoreAfterFailedUserFetch(false)
+    @Test fun aFreshOwnerRefreshesAnExpiredPendingAccessTokenBeforeRestoringTheVerifiedUser() = restoreAfterFailedUserFetch(true)
+    private fun restoreAfterFailedUserFetch(expired: Boolean) {
+        start(); enqueueAuthorization(); enqueueTokens(); server!!.enqueue(MockResponse().setResponseCode(503).setBody("{}"))
+        tap("github", 1); val authorization = server!!.takeRequest()
+        dispatch(0, AuthTabIntent.RESULT_OK, callback(authorization))
+        compose.waitUntil(10_000) { !session!!.state.value.busy }
+        assertEquals(NativeSignInError.SERVER_ERROR, session!!.state.value.error)
+        assertFalse(account!!.isSignedIn()); assertNull(store!!.taskSession()); assertEquals(0, completions.get())
+        assertTrue(NativeSignInCompletion.isPending(store!!.load())); assertFalse(store!!.load()!!.has(NativeAccountProfileCache.KEY))
+        server!!.takeRequest(); server!!.takeRequest()
+        if (expired) {
+            server!!.enqueue(MockResponse().setResponseCode(401).setBody("{}"))
+            server!!.enqueue(MockResponse().setBody("{\"access_token\":\"refreshed-access\"}"))
+        }
+        enqueueUser()
+        val restored = NativeAccount(store!!, NativeOAuthClient("fixture-project", "fixture-public-key", server!!.url("/")), NativeOAuthBrowser())
+        runBlocking { restored.restorePendingSignIn() }
+        val request = server!!.takeRequest(); assertEquals("/api/v1/users/me", request.requestUrl!!.encodedPath)
+        assertEquals("fixture-access", request.getHeader("x-stack-access-token"))
+        if (expired) {
+            val refresh = server!!.takeRequest(); assertEquals("/api/v1/auth/oauth/token", refresh.requestUrl!!.encodedPath)
+            val form = refresh.body.readUtf8().split('&').associate { field ->
+                val pair = field.split('=', limit = 2); URLDecoder.decode(pair[0], "UTF-8") to URLDecoder.decode(pair[1], "UTF-8") }
+            assertEquals("refresh_token", form["grant_type"]); assertEquals("fixture-refresh", form["refresh_token"])
+            assertEquals("fixture-project", form["client_id"])
+            val verified = server!!.takeRequest(); assertEquals("/api/v1/users/me", verified.requestUrl!!.encodedPath)
+            assertEquals("refreshed-access", verified.getHeader("x-stack-access-token"))
+        }
+        assertEquals(if (expired) 6 else 4, server!!.requestCount)
+        assertTrue(restored.isSignedIn()); assertNotNull(store!!.taskSession()); preservedPairing()
+        assertEquals("fixture-user", store!!.load()!!.getJSONObject(NativeAccountProfileCache.KEY).getString("user"))
+        File(folder, if (expired) "orphan-refresh-restoration-result.json" else "orphan-restoration-result.json").writeText(JSONObject().put("failedUserFetchDidNotPublish", true)
+            .put("freshOwnerRestoredStoredPendingSession", true).put("noSecondCredentialExchange", true)
+            .put("refreshedExpiredAccessBeforePublication", expired)
+            .put("httpRequests", server!!.requestCount).put("pairingPreserved", true).toString(2))
+    }
+
 }

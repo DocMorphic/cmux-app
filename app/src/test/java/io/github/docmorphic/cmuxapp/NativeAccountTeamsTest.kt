@@ -14,6 +14,36 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 class NativeAccountTeamsTest {
+    @Test fun failedMembershipAfterSignInKeepsTheVerifiedUserCacheWithoutGrantingAnyScope() = runBlocking<Unit> {
+        MockWebServer().use { server ->
+            var root = JSONObject().put("task_session", "login").put("refresh_token", "fixture-refresh")
+            val cache = NativeAccountProfileCache({ root }, { transform -> root = JSONObject(root.toString()).also(transform) })
+            val environment = "${server.url("/api/v1/")}#${NativeAccount.PROJECT_ID}"
+            val user = NativeSignInUser("verified-user", "Verified name", "fixture@example.test", "one")
+            NativeAccountProfileCache.writeVerifiedUser(root, "login", environment, user)
+            NativeAccountTeams({ "fixture-token" }, { "login" }, server.url("/api/v1/"), cache = cache).use { account ->
+                repeat(2) { server.enqueue(MockResponse().setResponseCode(401).setBody("{}")) }
+                assertTrue(runCatching { account.refreshAfterSignIn("login", user) }.isFailure)
+                assertEquals(user.id, account.state.value.userId); assertEquals(user.name, account.state.value.displayName)
+                assertNull(account.state.value.scope); assertTrue(account.state.value.teams.isEmpty())
+                val retained = cache.read("login", environment)!!
+                assertEquals(user.id, retained.userId); assertEquals(user.email, retained.email); assertNull(retained.scope)
+            }
+        }
+    }
+    @Test fun signInMembershipUsesTheAlreadyVerifiedUserAndFencesTheCapturedLogin() = runBlocking<Unit> {
+        MockWebServer().use { server -> controller(server).use { account ->
+            server.reply(teams("one", "two"))
+            val user = NativeSignInUser("signed-in-user", "Name", "fixture@example.test", "two")
+            val result = account.refreshAfterSignIn("login", user)
+            assertEquals("/api/v1/teams?user_id=me", server.takeRequest().path); assertEquals(1, server.requestCount)
+            assertEquals("signed-in-user", result.userId); assertEquals("two", result.scope!!.teamId)
+            assertEquals(user.name, result.displayName); assertEquals(user.email, result.email)
+            assertTrue(account.isCurrent(result.scope))
+            assertTrue(runCatching { account.refreshAfterSignIn("retired-login", user) }.isFailure)
+            assertEquals(1, server.requestCount); assertEquals(result.scope, account.state.value.scope)
+        } }
+    }
     @Test fun admittedContinuationSurvivesSelectionWithoutRevivingOldAdmissionGeneration() = runBlocking<Unit> {
         MockWebServer().use { server -> controller(server).use { account ->
             server.profile()

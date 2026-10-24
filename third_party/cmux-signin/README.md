@@ -34,3 +34,13 @@ Apple's original ASAuthorizationController sheet is unavailable on Android;
 the existing Stack project also configures its web provider. Endpoint preflight
 does not establish an actual provider login, browser isolation/dismissal, the full
 auth coordinator or final UI parity. Those gates remain explicit in SIGN_IN.md.
+
+`completion-reference.json` adds thirteen whole coordinator/SDK/model/test sources
+for token-write ownership, fetched-user publication, tolerated membership failure
+and restoration. A shared Android owner stages credentials under a pending writer
+receipt, verifies the captured account and rejects anonymous/restricted users
+before publication. A source-compatible Foundation Bool reference includes numeric
+0/1 conversion. Conditional cleanup protects newer writers; an orphan can refresh
+expired access before verifying its user. Scoped checks and remaining coordinator,
+metadata, browser, UI and device gates remain in `docs/SIGN_IN.md`; no full auth
+or application parity is asserted by the reference manifest.

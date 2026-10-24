@@ -31,7 +31,7 @@ internal class NativeEmailSignIn(
         }
     }
 
-    suspend fun signIn(code: String) {
+    suspend fun signIn(code: String, storeTokens: (String, String) -> Unit = publish) {
         val prefix = code.trim().lowercase(Locale.ROOT)
         if (!prefix.matches(Regex("[a-z0-9]{6}"))) throw NativeSignInFailure(NativeSignInError.INVALID_CODE_SHORT)
         val (attempt, challenge) = synchronized(lock) {
@@ -45,7 +45,7 @@ internal class NativeEmailSignIn(
             ?: error("Sign-in returned no session. Request a new email code.")
         synchronized(lock) {
             check(generation == attempt && nonce == challenge) { "This sign-in request was replaced. Request a new email code." }
-            publish(access, refresh)
+            storeTokens(access, refresh)
             nonce = null
             generation++
         }

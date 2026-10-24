@@ -112,7 +112,27 @@ internal class NativeOAuthClient(private val project: String, private val publis
         if (access == null || refresh == null) throw NativeSignInFailure(NativeSignInError.BROWSER_SIGN_IN_FAILED)
         return access to refresh
     }
-    private suspend fun request(request: Request, successStatus: Int? = null): JSONObject = suspendCancellableCoroutine { continuation ->
+    val accountEnvironment: String get() = "${origin.newBuilder().encodedPath("/api/v1/").build()}#$project"
+    suspend fun refreshAccess(refresh: String): String {
+        val body = FormBody.Builder().add("grant_type", "refresh_token").add("refresh_token", refresh)
+            .add("client_id", project).add("client_secret", publishableKey).build()
+        val result = request(Request.Builder().url(origin.newBuilder().encodedPath("/api/v1/auth/oauth/token").build())
+            .header("x-stack-project-id", project).header("x-stack-publishable-client-key", publishableKey)
+            .header("x-stack-access-type", "client").post(body).build(), successStatus = 200,
+            accountRequest = true, unauthorizedStatuses = setOf(400, 401))
+        return (result.opt("access_token") as? String)?.takeIf { it.isNotBlank() }
+            ?: throw NativeSignInFailure(NativeSignInError.SERVER_ERROR)
+    }
+    suspend fun currentUser(access: String): NativeSignInUser {
+        val result = request(Request.Builder().url(origin.newBuilder().encodedPath("/api/v1/users/me").build())
+            .header("x-stack-project-id", project).header("x-stack-publishable-client-key", publishableKey)
+            .header("x-stack-access-type", "client").header("x-stack-client-version", "cmux-android@0.2.0")
+            .header("x-stack-access-token", access).header("x-stack-override-error-status", "true")
+            .header("x-stack-random-nonce", java.util.UUID.randomUUID().toString()).build(), accountRequest = true)
+        return NativeSignInUser.decode(result)
+    }
+    private suspend fun request(request: Request, successStatus: Int? = null, accountRequest: Boolean = false,
+        unauthorizedStatuses: Set<Int> = setOf(401)): JSONObject = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
@@ -126,7 +146,7 @@ internal class NativeOAuthClient(private val project: String, private val publis
                         val bytes = ByteArray(8192)
                         while (true) {
                             val size = stream.read(bytes); if (size < 0) break
-                            if (buffer.size() + size > 262_144) throw NativeSignInFailure(NativeSignInError.BROWSER_SIGN_IN_FAILED)
+                            if (buffer.size() + size > 262_144) throw NativeSignInFailure(if (accountRequest) NativeSignInError.SERVER_ERROR else NativeSignInError.BROWSER_SIGN_IN_FAILED)
                             buffer.write(bytes, 0, size)
                         }
                     }
@@ -135,10 +155,12 @@ internal class NativeOAuthClient(private val project: String, private val publis
                     val known = response.header("x-hexclave-known-error") ?: response.header("x-stack-known-error")
                     if (status !in 200..299 || (successStatus != null && status != successStatus) || !known.isNullOrBlank()) {
                         val parsed = runCatching { JSONObject(raw) }.getOrNull()
-                        val code = known ?: (parsed?.opt("error") as? String) ?: (parsed?.opt("code") as? String) ?: if (status == 429) "RATE_LIMITED" else "OAUTH_ERROR"
+                        if (accountRequest && status in unauthorizedStatuses) throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
+                        val code = known ?: (parsed?.opt("error") as? String) ?: (parsed?.opt("code") as? String)
+                            ?: if (status == 429) "RATE_LIMITED" else if (accountRequest) "SERVER_ERROR" else "OAUTH_ERROR"
                         throw NativeAccountRequestFailure(code, false, "OAuth request failed")
                     }
-                    runCatching { JSONObject(raw) }.getOrElse { throw NativeSignInFailure(NativeSignInError.BROWSER_SIGN_IN_FAILED) }
+                    runCatching { JSONObject(raw) }.getOrElse { throw NativeSignInFailure(if (accountRequest) NativeSignInError.SERVER_ERROR else NativeSignInError.BROWSER_SIGN_IN_FAILED) }
                 } }
                 if (continuation.isActive) result.fold(continuation::resume, continuation::resumeWithException)
             }
@@ -155,7 +177,7 @@ internal class NativeOAuthSignIn(private val prepare: suspend (NativeOAuthProvid
     private val lock = Any()
     private var generation = 0L
     private val active = mutableMapOf<Long, Job>()
-    suspend fun signIn(provider: NativeOAuthProvider): Unit = coroutineScope {
+    suspend fun signIn(provider: NativeOAuthProvider, storeTokens: (String, String) -> Unit = publish): Unit = coroutineScope {
         val operation = currentCoroutineContext().job
         val admitted: Long
         val retired: List<Job>
@@ -172,7 +194,7 @@ internal class NativeOAuthSignIn(private val prepare: suspend (NativeOAuthProvid
             withContext(Dispatchers.IO) { synchronized(lock) {
                 operation.ensureActive()
                 if (generation != admitted) throw CancellationException("Sign-in retired")
-                publish(tokens.first, tokens.second)
+                storeTokens(tokens.first, tokens.second)
             } }
         } finally { synchronized(lock) { active.remove(admitted) } }
     }

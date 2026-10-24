@@ -24,6 +24,14 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
 
     companion object {
         const val KEY = "account_profile_cache"
+        /** User publication precedes the fallible membership phase; empty teams grant no authority. */
+        fun writeVerifiedUser(root: JSONObject, login: String, environment: String, user: NativeSignInUser) {
+            check(owns(root, login))
+            root.put(KEY, JSONObject().put("version", 1).put("login", login).put("environment", environment)
+                .put("user", user.id).put("selected", JSONObject.NULL)
+                .put("name", user.name ?: JSONObject.NULL).put("email", user.email ?: JSONObject.NULL)
+                .put("teams", JSONArray()))
+        }
         private fun owns(root: JSONObject, login: String) = login.isNotBlank() &&
             root.optString("task_session") == login && root.optString("refresh_token").isNotBlank()
 
