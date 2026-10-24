@@ -41,6 +41,7 @@ class NativeLocalLogoutRuntimeTest {
             root.put("access_token","old-access").put("refresh_token","old-refresh").put("task_session","old-login")
                 .put("pairings",JSONArray().put(NativePairingRecords.encode(pairing))).put("fixture_marker","retain")
             NativeAccountProfileCache.writeVerifiedUser(root,"old-login",client(server).accountEnvironment,user)
+            NativeTeamSelectionStore.write(root,client(server).accountEnvironment,"remembered-team")
         }
         writer.setAuthTokenHint(client(server).accountEnvironment,true)
     }
@@ -52,6 +53,7 @@ class NativeLocalLogoutRuntimeTest {
         val root=reader.requireReadable()!!
         assertEquals("",root.getString("access_token"));assertEquals("",root.getString("refresh_token"))
         assertFalse(root.has("task_session"));assertFalse(root.has(NativeAuthUserCache.KEY));assertFalse(root.has(NativeAccountProfileCache.KEY))
+        assertFalse(root.has(NativeTeamSelectionStore.KEY))
         assertFalse(reader.localLogoutPending);assertEquals(listOf(pairing),reader.pairedMacs())
         assertEquals("retain",root.getString("fixture_marker"))
     }

@@ -50,7 +50,9 @@ read preserves the current remembered choice. A removed choice falls back to the
 first current member; successful empty membership keeps the explicit choice but
 produces no team scope. Production team reads retain the authoritative published
 profile, and same-owner user cache publication preserves the remembered choice.
-Complete independent choice-store/new-login lifetime remains open. A changed
+[The independent choice store](TEAM_SELECTION_LIFETIME.md) now retains preference
+across new receipts and principal publication while discarding old member rows.
+Actual locked-storage/death and complete auth-project reset remain open. A changed
 server user ID immediately retires the old scope and cached profile, even if the
 subsequent membership request fails.
 

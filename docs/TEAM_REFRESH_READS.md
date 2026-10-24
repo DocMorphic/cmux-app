@@ -40,12 +40,11 @@ Publishing a verified user for the same login, environment and user retains the
 remembered choice while clearing the saved member rows. Cached rows and choices
 continue to grant no membership proof or connection scope.
 
-This is not complete selection-store lifetime parity. The Android card still
-combines choice and presentation storage. A new local login receipt prunes that
-card before the next verified user, whereas the original selection store has an
-independent lifetime. New-receipt, cross-principal and interrupted-publication
-storage reconciliation remains open, along with actual process-death and locked
-Keystore acceptance. This checkpoint must not be used to close those gates.
+At this checkpoint the Android card still combined choice and presentation
+storage. [The selection-lifetime follow-up](TEAM_SELECTION_LIFETIME.md) separates
+them and covers new receipts, changed principals and interrupted publication.
+Actual process-death and locked Keystore acceptance remain open; neither
+checkpoint substitutes for those gates.
 
 ## Original evidence
 
@@ -114,7 +113,8 @@ cooldown, account replacement, cancellation and private WorkManager notices.
 
 The primary user and membership decoder's complete SDK malformed/default models,
 row/body/id/profile/metadata bounds, complete SDK transport/error/retry behavior
-and full selection-store lifetime remain open.
+remain open. Choice-versus-card lifetime is covered in the linked follow-up;
+actual OS/storage acceptance and complete auth-project reset remain open.
 The endpoint-routed runtime fixture separates GET-user and other reply queues so
 parallel calls cannot consume a teams response; unscripted user requests fail the
 fixture on shutdown. It is local evidence, not a live provider, backend or phone.

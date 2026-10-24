@@ -124,8 +124,9 @@ do not establish actual sleep/Doze/wake equivalence with the source clock.
 
 [The independent-refresh follow-up](TEAM_REFRESH_READS.md) adds the fresh callback
 user and separate parallel selection read, empty-membership remembered choice and
-published-profile projection. Complete independent selection-store/new-login
-lifetime, primary SDK malformed/default models, profile/metadata bounds, complete
+published-profile projection. [Independent selection lifetime](TEAM_SELECTION_LIFETIME.md)
+covers receipt/publication storage, with actual locked-storage/death and full
+project reset still open. Primary SDK malformed/default models, profile/metadata bounds, complete
 transport/retry semantics, worker retry/rate consumers, complete identity/backend
 adoption and consent-aware reporting remain open.
 Physical Pixel/Mac, actual provider/helper/Firebase, signed-release and matched

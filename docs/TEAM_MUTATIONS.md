@@ -120,8 +120,10 @@ parallel user/list and selected-team requests, remembered choice and profile
 projection. Malformed-list/default-model semantics, complete user metadata/profile
 bounds, consent-aware telemetry and
 worker retry/rate integration remain open. The SDK-only create fallback without
-the configured cmux backend is not an Android production route. Readonly cached nil selection is covered in that follow-up; complete independent choice-store/new-login
-lifetime remains part of the admission/model audit. Current Android row-size and body bounds are not claimed equivalent
+the configured cmux backend is not an Android production route. Readonly cached nil selection is covered in that follow-up;
+[independent selection lifetime](TEAM_SELECTION_LIFETIME.md) now covers new receipts
+and publication. Actual locked-storage/death and full project reset remain open.
+Current Android row-size and body bounds are not claimed equivalent
 to every SDK default.
 
 Raw-token/access-only consumers, complete backend/identity adoption, live provider,

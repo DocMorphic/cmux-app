@@ -8,6 +8,6 @@ internal object NativeLocalLogout {
     fun retire(root: JSONObject) {
         root.put("access_token", "").put("refresh_token", "")
         for (key in listOf("task_session", "task_drafts", NativeSignInCompletion.PENDING,
-            NativeAuthUserCache.KEY, NativeAccountProfileCache.KEY, NativeAccountDeletionRecord.KEY)) root.remove(key)
+            NativeAuthUserCache.KEY, NativeAccountProfileCache.KEY, NativeTeamSelectionStore.KEY, NativeAccountDeletionRecord.KEY)) root.remove(key)
     }
 }

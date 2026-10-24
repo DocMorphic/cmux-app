@@ -588,9 +588,11 @@ internal class NativeAccountTeams(
     }
 
     private fun restore(owner: String?,identity:NativeAuthIdentity?): NativeAccountTeamsState {
+        val selected=runCatching{cache?.rememberedSelection(cacheEnvironment)}.getOrNull()
         val cached=owner?.let { runCatching { cache?.read(it, cacheEnvironment) }.getOrNull() }
-        if(sessionIdentity==null)return cached ?: NativeAccountTeamsState()
-        return cached?.takeIf { identity!=null && it.userId==identity.userId } ?: NativeAccountTeamsState(userId=identity?.userId)
+        val value=if(sessionIdentity==null)cached ?: NativeAccountTeamsState()
+            else cached?.takeIf { identity!=null && it.userId==identity.userId } ?: NativeAccountTeamsState(userId=identity?.userId)
+        return value.copy(selectedTeamId=selected)
     }
 
     private fun credential(value: String?): String = value?.takeIf {

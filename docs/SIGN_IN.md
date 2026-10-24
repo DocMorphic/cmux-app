@@ -1,3 +1,32 @@
+## Independent remembered team choice reconciled — 2026-10-24
+
+The remembered team choice now lives separately from cached account/member rows
+inside the existing encrypted document. New sign-in receipts, changed principals
+and interrupted publication keep the preference while discarding old membership.
+It grants no connection scope or continuation proof. Migration precedes card
+pruning; explicit nil cannot be resurrected from a legacy card. Local logout and
+readable empty-token restore clear it while preserving saved Macs. Choice-only
+project reset is covered; complete auth-project token/backend reset remains open.
+
+Full JVM: 3,434 total in 456 suites, 3,430 passed, four existing SSH skips, zero
+failures/errors. Owned API 36: 189/189 in 365 seconds, six new encrypted-store/
+completion cases plus 183 prior regressions. Existing unavailable-key logout
+cases now assert independent-choice retirement and saved-Mac retention. The real
+60-second phase returned at 60,010ms with fixture ciphertext/pairing intact and
+no PATCH. Crash log empty, no preflight ANR, restored settings/window, owned
+emulator exit0. Ten cases execute ten complete original lifecycle declarations
+and regenerate identically. The receipt binds 51 local inputs and 40 originals.
+
+Full parity remains active: primary SDK default/malformed models and metadata/
+bounds/transport, full auth-project/backend/identity adoption, worker retry/rate/
+reporting integration, actual locked storage/OS sleep/network loss/process death,
+physical Pixel/Mac/provider/helper/Firebase, matched full UI/accessibility and
+final signed release remain open. No real account/pairing/signing material,
+physical install, global source pin or frozen signed 722 changed.
+
+Details: [remembered team selection lifetime](TEAM_SELECTION_LIFETIME.md).
+Evidence: `captures/recovery-20261023/team-choice-checkpoint.json`.
+
 ## Independent team refresh reads reconciled — 2026-10-24
 
 Membership now fetches a fresh eligible user even after sign-in publication, and

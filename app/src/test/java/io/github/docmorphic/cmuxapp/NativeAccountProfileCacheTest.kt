@@ -30,7 +30,9 @@ class NativeAccountProfileCacheTest {
         val saved=checkNotNull(store.cache.read("login","fixture-env"))
         assertEquals("remembered",saved.selectedTeamId);assertTrue(saved.teams.isEmpty());assertNull(saved.scope);assertTrue(saved.cached)
         store.update{NativeAccountProfileCache.writeVerifiedUser(it,"login","fixture-env",user.copy(id="replacement"))}
-        assertNull(store.cache.read("login","fixture-env")!!.selectedTeamId)
+        val replacement=store.cache.read("login","fixture-env")!!
+        assertEquals("remembered",replacement.selectedTeamId);assertEquals("replacement",replacement.userId)
+        assertTrue(replacement.teams.isEmpty());assertNull(replacement.scope)
     }
     private class Store {
         var value = JSONObject().put("task_session", "login").put("refresh_token", "fixture-refresh")
@@ -179,7 +181,7 @@ class NativeAccountProfileCacheTest {
             assertNull(store.cache.read("login", environment)!!.scope); assertTrue(store.cache.read("login", environment)!!.cached)
             val original = store.load()
             for (change in listOf<(JSONObject) -> Unit>(
-                { it.put("version", 2) }, { it.put("selected", JSONObject().put("id","not-a-member")) },
+                { it.put("version", 2) },
                 { it.put("name", "x".repeat(513)) },
                 { it.getJSONArray("teams").put(it.getJSONArray("teams").getJSONObject(0)) })) {
                 store.value = JSONObject(original.toString())

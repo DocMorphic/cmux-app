@@ -22,7 +22,7 @@ class NativeAccountTeamsTest {
             val user = NativeSignInUser("verified-user", "Verified name", "fixture@example.test", "one")
             NativeAccountProfileCache.writeVerifiedUser(root, "login", environment, user)
             NativeAccountTeams({ "fixture-token" }, { "login" }, server.url("/api/v1/"), cache = cache).use { account ->
-                repeat(4) { server.enqueue(MockResponse().setResponseCode(401).setBody("{}")) }
+                server.teamUsers(4) { MockResponse().setResponseCode(401).setBody("{}") }
                 assertTrue(runCatching { account.refreshAfterSignIn("login", user) }.isFailure)
                 assertEquals(user.id, account.state.value.userId); assertEquals(user.name, account.state.value.displayName)
                 assertNull(account.state.value.scope); assertTrue(account.state.value.teams.isEmpty())
@@ -91,10 +91,10 @@ class NativeAccountTeamsTest {
         for (status in listOf(401, 403)) MockWebServer().use { server -> controller(server).use { account ->
             server.profile(); val first = checkNotNull(account.refresh().scope)
             val proof = checkNotNull(account.captureContinuation(first))
-            repeat(2){server.enqueue(MockResponse().setResponseCode(503))}
+            server.teamUsers(2){MockResponse().setResponseCode(503)}
             assertTrue(runCatching { account.refresh() }.isFailure)
             assertTrue(account.allowsContinuation(proof)); assertTrue(account.isCurrent(first))
-            repeat(if(status==401)4 else 2){server.enqueue(MockResponse().setResponseCode(status))}
+            server.teamUsers(if(status==401)4 else 2){MockResponse().setResponseCode(status)}
             assertTrue(runCatching { account.refresh() }.isFailure)
             assertTrue(account.allowsContinuation(proof)); assertNotNull(account.captureContinuation(first))
             server.profile(); account.refresh()
@@ -176,8 +176,11 @@ class NativeAccountTeamsTest {
     private fun teams(vararg ids: String) = JSONObject().put("items", JSONArray(ids.map {
         JSONObject().put("id", it).put("display_name", "Team $it")
     }))
-    private fun MockWebServer.reply(value: JSONObject) = enqueue(MockResponse().setBody(value.toString()))
-    private fun MockWebServer.selection(selected:String) {reply(user());reply(user(selected))}
+    private fun MockWebServer.reply(value: JSONObject) {
+        if(value.has("id"))teamUsers{MockResponse().setBody(value.toString())}
+        else enqueue(MockResponse().setBody(value.toString()))
+    }
+    private fun MockWebServer.selection(selected:String) {reply(user());enqueue(MockResponse().setBody(user(selected).toString()))}
     private fun MockWebServer.profile(selected: String? = "one", vararg ids: String = arrayOf("one", "two")) {
         repeat(2){reply(user(selected))}; reply(teams(*ids))
     }

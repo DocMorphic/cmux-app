@@ -487,10 +487,10 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         try {
             val root = store.requireReadable() ?: return
             if (root.optString("access_token").isNotBlank() || root.optString("refresh_token").isNotBlank() ||
-                !root.has(NativeAuthUserCache.KEY) && !root.has(NativeAccountProfileCache.KEY)) return
+                !root.has(NativeAuthUserCache.KEY) && !root.has(NativeAccountProfileCache.KEY) && !root.has(NativeTeamSelectionStore.KEY)) return
             store.update { value ->
                 if (value.optString("access_token").isBlank() && value.optString("refresh_token").isBlank()) {
-                    value.remove(NativeAuthUserCache.KEY);value.remove(NativeAccountProfileCache.KEY)
+                    value.remove(NativeAuthUserCache.KEY);value.remove(NativeAccountProfileCache.KEY);NativeTeamSelectionStore.clear(value)
                 }
             }
         } catch (_: NativeCredentialReadException) { /* Keep unreadable encrypted data. */ }
@@ -543,7 +543,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
             if (!sameOwner || expectedRefresh != null && refresh != expectedRefresh) return@update
             value.put("access_token", "").put("refresh_token", "")
             value.remove("task_session"); value.remove("task_drafts"); value.remove(NativeSignInCompletion.PENDING)
-            value.remove(NativeAccountProfileCache.KEY); value.remove(NativeAuthUserCache.KEY); cleared = true
+            value.remove(NativeAccountProfileCache.KEY); value.remove(NativeAuthUserCache.KEY);NativeTeamSelectionStore.clear(value); cleared = true
         } } catch (_: NativeCredentialReadException) { return@withContext false }
         cleared
     }

@@ -7,35 +7,48 @@ import org.json.JSONObject
 internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
                                          private val update: ((JSONObject) -> Unit) -> Unit) {
     fun read(login: String, environment: String): NativeAccountTeamsState? = decode(load(), login, environment)
+    /** Configuration selection happens before exposing any remembered team. Reads stay display-only. */
+    fun rememberedSelection(environment:String):String? {
+        val before=load()
+        if(!NativeTeamSelectionStore.hasForeignEnvironment(before,environment))return NativeTeamSelectionStore.read(before,environment)
+        var selected:String?=null
+        update {root->
+            if(NativeTeamSelectionStore.hasForeignEnvironment(root,environment))NativeTeamSelectionStore.write(root,environment,null)
+            selected=NativeTeamSelectionStore.read(root,environment)
+        }
+        return selected
+    }
 
     fun save(login: String, environment: String, state: NativeAccountTeamsState) = update { root ->
         if (!owns(root, login)) return@update
         check(!state.cached && state.userId != null)
+        NativeTeamSelectionStore.write(root,environment,state.selectedTeamId)
         val value = JSONObject().put("version", 1).put("login", login).put("environment", environment)
-            .put("user", state.userId).put("selected", normalizedSelection(state.selectedTeamId) ?: JSONObject.NULL)
+            .put("user", state.userId).put("selected", NativeTeamSelectionStore.normalized(state.selectedTeamId) ?: JSONObject.NULL)
             .put("name", state.displayName ?: JSONObject.NULL).put("email", state.email ?: JSONObject.NULL)
             .put("teams", JSONArray(state.teams.map { JSONObject().put("id", it.id).put("name", it.name) }))
         root.put(KEY, value)
     }
 
     fun remove(login: String) = update { root ->
-        if (owns(root, login)) root.remove(KEY)
+        if (owns(root, login)) {NativeTeamSelectionStore.migrate(root);root.remove(KEY)}
     }
     /** An explicit selection is separate from cached membership and never verifies saved rows. */
     fun updateSelection(login:String,environment:String,user:String,selected:String?)=update {root->
         if(!owns(root,login))return@update
-        val saved=root.optJSONObject(KEY) ?: return@update
-        if(saved.opt("version")!=1 || saved.opt("login")!=login || saved.opt("environment")!=environment || saved.opt("user")!=user)return@update
-        saved.put("selected",normalizedSelection(selected) ?: JSONObject.NULL)
+        val saved=root.optJSONObject(KEY)
+        if(saved!=null && (saved.opt("version")!=1 || saved.opt("login")!=login || saved.opt("environment")!=environment || saved.opt("user")!=user))return@update
+        NativeTeamSelectionStore.write(root,environment,selected)
+        saved?.put("selected",NativeTeamSelectionStore.normalized(selected) ?: JSONObject.NULL)
     }
 
     companion object {
         const val KEY = "account_profile_cache"
-        private fun normalizedSelection(value:String?)=value?.let(NativeChiefTextPolicy::trim)?.takeIf(String::isNotEmpty)
         /** User publication precedes the fallible membership phase; empty teams grant no authority. */
         fun writeVerifiedUser(root: JSONObject, login: String, environment: String, user: NativeSignInUser) {
             check(owns(root, login))
-            val selected=decode(root,login,environment)?.takeIf{it.userId==user.id}?.selectedTeamId
+            NativeTeamSelectionStore.migrate(root)
+            val selected=NativeTeamSelectionStore.read(root,environment)
             NativeAuthUserCache.write(root, environment, user)
             root.put(KEY, JSONObject().put("version", 1).put("login", login).put("environment", environment)
                 .put("user", user.id).put("selected", selected ?: JSONObject.NULL)
@@ -46,6 +59,7 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
             root.optString("task_session") == login && root.optString("refresh_token").isNotBlank()
 
         fun prune(root: JSONObject) {
+            NativeTeamSelectionStore.migrate(root)
             val saved = root.optJSONObject(KEY) ?: return
             if (!owns(root, saved.optString("login"))) root.remove(KEY)
         }
@@ -70,7 +84,7 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
                 NativeTeam(id(item.opt("id")), name)
             }
             require(teams.map { it.id }.distinct().size == teams.size)
-            val selected = normalizedSelection(optional("selected", 128))
+            val selected = NativeTeamSelectionStore.read(root,environment)
             // The coordinator persists explicit selection independently; its effective
             // member falls back separately. Cached rows still grant no connection proof.
             NativeAccountTeamsState(userId = user, teams = teams, selectedTeamId = selected,

@@ -95,7 +95,9 @@ noncooperative token faults run outside the encrypted-store monitor; these check
 do not prove recovery from a thread blocked while holding that monitor. [The mutation/picker checkpoint](TEAM_MUTATIONS.md) adds fresh
 selection eligibility and failure-tolerant backend creation. [Independent refresh](TEAM_REFRESH_READS.md)
 adds fresh callback user/selected reads, preserved empty-list choice and account
-profile projection. Complete choice-store/new-login lifetime, SDK malformed-list/
+profile projection. [Independent choice lifetime](TEAM_SELECTION_LIFETIME.md) now
+covers receipt/publication storage; actual locked-storage/death and full project
+reset remain open. SDK malformed-list/
 default-model semantics, full user metadata/profile bounds and complete transport/
 retry behavior remain open.
 
