@@ -1,3 +1,34 @@
+## Authenticated snapshots and Cloud/web capture advanced — 2026-10-24
+
+Cloud and mobile web handoff now capture published account identity, session
+generation and a coherent access/refresh pair. A complete saved pair returns
+without waiting for launch/foreground validation or refreshing over the network.
+Shared sign-in/signout capture guards reject writer windows across account
+objects. Fallback capture brackets refresh rotation; current checks retire on
+identity/epoch replacement while ordinary same-session token rotation stays valid.
+Refresh-only capture has a separate contract. Legacy missing-login receipts now
+bind to the restored owner; orphan pending credentials remain retryable.
+
+Full JVM: 3,321 total, 3,317 passed, four existing SSH skips, zero failures in448
+suites. Owned API36:107/107 in189.023s, empty crash log, no preflight ANR, restored
+settings/window and emulator exit0. Eight new encrypted/local-HTTP cases accompany
+prior99 regressions. A stale saved pair returned in10ms while launch refresh was
+blocked, with zero additional requests. Seventeen new JVM cases cover the policy.
+Nine implementation/test files and nine whole original files bind the evidence.
+The existing original auth reference passed198 tests, including snapshot suites.
+
+This is snapshot foundation and Cloud/mobile-web adoption. Account deletion still
+needs identity pinned at confirmation and durable result handling with coherent
+resolved tokens; legacy raw-token/access-only consumers, complete backend/team
+recovery/eligibility and signout identity-stream timing remain open. Refresh-only
+capture has no new Android browser consumer. Physical Pixel/Mac/provider, actual
+OS/device, signed release and broader source/UI/accessibility gates remain open.
+Phone/Mac installs, account/pairing/signing data, source pins and frozen signed722
+are unchanged. Full parity remains active.
+
+Details: [authenticated account snapshots](AUTHENTICATED_SNAPSHOTS.md).
+Evidence: `captures/recovery-20261023/authenticated-snapshot-checkpoint.json`.
+
 ## Published account identity now fences team authority — 2026-10-24
 
 A published user/session generation now gates team admission and already-admitted

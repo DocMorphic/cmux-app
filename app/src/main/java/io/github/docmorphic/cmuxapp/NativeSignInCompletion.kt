@@ -51,7 +51,8 @@ internal class NativeSignInCompletion(
     private val onVerified: (String, NativeSignInUser) -> Unit = { _, _ -> },
     private val sessionEpoch: () -> Long = { 0 },
 ) {
-    private class Flow(val id: String, val generation: Long, val operation: Job, var epoch: Long) {
+    private class Flow(val id: String, val generation: Long, val operation: Job, var epoch: Long,
+        val lease: NativeAuthWork.SignInLease) {
         var access: String? = null
         @Volatile var published = false
     }
@@ -65,7 +66,7 @@ internal class NativeSignInCompletion(
         val operation = currentCoroutineContext().job
         val (flow, previous) = work.afterSignOutCapture { synchronized(flowLock) {
             val previous = active.map { it.operation }
-            Flow(UUID.randomUUID().toString(), ++generation, operation, sessionEpoch()).also { active += it } to previous
+            Flow(UUID.randomUUID().toString(), ++generation, operation, sessionEpoch(), work.beginSignIn()).also { active += it } to previous
         } }
         previous.forEach { it.cancel() }
         var exchangeComplete = false
@@ -109,6 +110,7 @@ internal class NativeSignInCompletion(
                 // or a tolerated team-refresh failure must not undo the login.
                 flow.published = true
                 onVerified(flow.id, user)
+                flow.lease.publish()
             } }
             try { work.run(NativeAuthPhase.TEAMS, networkTimeoutMillis, flow.id) { onPublished(flow.id, user) } }
             catch (failure: Exception) { currentCoroutineContext().ensureActive() }
@@ -126,7 +128,7 @@ internal class NativeSignInCompletion(
                 }
             }
             throw failure
-        } finally { synchronized(flowLock) { active -= flow } }
+        } finally { flow.lease.finish();synchronized(flowLock) { active -= flow } }
     }
 
     fun hasLivePending(receipt: String): Boolean = synchronized(flowLock) {
@@ -150,7 +152,7 @@ internal class NativeSignInCompletion(
             access = (root.opt("access_token") as? String)?.takeIf { it.isNotBlank() }
             refresh = (root.opt("refresh_token") as? String)?.takeIf { it.isNotBlank() }
             if (access == null && (refresh == null || refreshAccess == null)) return@coroutineScope
-            flow = Flow(id, ++generation, operation, expectedEpoch)
+            flow = Flow(id, ++generation, operation, expectedEpoch, work.beginSignIn())
             active += flow
         }
         try {
@@ -184,13 +186,15 @@ internal class NativeSignInCompletion(
                     root.remove(PENDING)
                 }
                 flow.published = true
+                onVerified(flow.id, user)
+                flow.lease.publish()
             } }
         } catch (failure: Exception) {
             if (nativeSignInError(failure) == NativeSignInError.UNAUTHORIZED) withContext(Dispatchers.IO) {
                 synchronized(lock) { clearPending(flow.id) }
             }
             throw failure
-        } finally { synchronized(flowLock) { active -= flow } }
+        } finally { flow.lease.finish();synchronized(flowLock) { active -= flow } }
     }
 
     /** Form retirement must not wait for credential IO. */

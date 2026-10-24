@@ -12,7 +12,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** Sensitive values intentionally have no generated data-class toString/copy/component methods. */
-internal class NativeWebSessionSnapshot(val login: String, val accessToken: String, val refreshToken: String) {
+internal class NativeWebSessionSnapshot(val login: String, val accessToken: String, val refreshToken: String,
+    val owner: NativeAuthenticatedOwner? = null) {
     override fun toString() = "NativeWebSessionSnapshot(redacted)"
 }
 
@@ -36,7 +37,9 @@ internal class NativeWebSessionBroker(
         try {
             val session = snapshot() ?: return emptyList()
             currentCoroutineContext().ensureActive()
-            if (session.accessToken.isBlank() || session.refreshToken.isBlank() || !isCurrent(session)) return emptyList()
+            // The capture already guards writers. A complete saved pair may be
+            // served during revalidation; accept cookies only after the current-session check below.
+            if (session.accessToken.isBlank() || session.refreshToken.isBlank()) return emptyList()
             val endpoint = target.newBuilder().encodedPath(HANDOFF_PATH).query(null).fragment(null).build()
             val after = target.encodedPath + (target.encodedQuery?.let { "?$it" } ?: "")
             val body = FormBody.Builder().add("access_token", session.accessToken)

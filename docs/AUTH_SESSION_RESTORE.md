@@ -88,3 +88,8 @@ final instrumentation build: `session-restore-build-v8.log` in that folder.
 Runtime: `session-restore-runtime-v3`; aggregate hashes, tested source bindings,
 prior attempts and open gates: `session-restore-checkpoint.json` in that folder.
 The source reference is [GitHub run40060677846](https://github.com/DocMorphic/cmux-app/actions/runs/40060677846).
+
+The [authenticated snapshot checkpoint](AUTHENTICATED_SNAPSHOTS.md) now binds
+published identity/epoch to coherent pairs and serves complete saved pairs during
+validation. Cloud/mobile-web adoption is verified in controlled scope; deletion,
+access-only consumers and complete backend/identity-stream adoption remain open.

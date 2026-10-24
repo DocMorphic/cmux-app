@@ -15,9 +15,10 @@ internal fun nativeCloudApi(account: NativeAccount, teams: NativeAccountTeams, s
             if (!teams.isCurrent(scope)) throw CancellationException("Cloud account changed")
             // Reuse the account's coherent snapshot across refresh. Never combine an
             // access token from one login with a refresh token from its replacement.
-            val snapshot = account.webSessionSnapshot(scope.login)
-            if (!teams.isCurrent(scope)) throw CancellationException("Cloud account changed")
-            snapshot?.let { CloudCredentials(owner, it.accessToken, it.refreshToken) }
+            val snapshot = account.authenticatedSessionSnapshot()
+            if (!teams.isCurrent(scope) || snapshot.owner.login != scope.login || snapshot.owner.identity.userId != scope.userId)
+                throw CancellationException("Cloud account changed")
+            CloudCredentials(owner, snapshot.accessToken, snapshot.refreshToken)
         }
     }, isCurrent = { it == owner && teams.isCurrent(scope) })
 }

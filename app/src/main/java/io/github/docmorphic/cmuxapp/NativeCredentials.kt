@@ -470,6 +470,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
                             NativeAuthUserCache.write(value, oauthClient.accountEnvironment, user)
                             if(value.optString("refresh_token").isNotBlank() && restoredOwner.get()!=null)
                                 NativeAccountProfileCache.writeVerifiedUser(value, checkNotNull(restoredOwner.get()), oauthClient.accountEnvironment, user)
+                            publishedOwner.set(restoredOwner.get());observedAuthEpoch.set(store.authSessionEpoch.get())
                         }
                     }
                 }
@@ -669,23 +670,37 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         return NativeDeletionCredentials(access, state.optString("refresh_token"))
     }
 
-    /** Same captured account before token refresh, after it, and after the web exchange. */
+    private fun storedAuthenticatedSession(): NativeStoredAuthSession = synchronized(store.accountStateLock) {
+        val root = store.requireReadable()
+        val identity = sessionRestore.identity()
+        val epoch = store.authSessionEpoch.get()
+        val login = root?.optString("task_session")?.takeIf(String::isNotBlank)
+        val owner = if (identity != null && login != null && publishedOwner.get() == login &&
+            observedAuthEpoch.get() == epoch && !NativeSignInCompletion.isPending(root))
+            NativeAuthenticatedOwner(identity,login,epoch) else null
+        NativeStoredAuthSession(owner,root?.optString("access_token")?.takeIf(String::isNotBlank),
+            root?.optString("refresh_token")?.takeIf(String::isNotBlank),NativeSignInCompletion.isPending(root))
+    }
+    private val authenticatedSnapshots by lazy { NativeAuthenticatedSnapshots(::storedAuthenticatedSession,
+        { authWork.storedSessionCaptureBlocked },
+        { authWork.sessionWriteInProgress || sessionRestore.revalidating.value &&
+            (sessionRestore.state.value.authenticated || sessionRestore.state.value.restoring) },
+        sessionRestore::awaitBootstrapped, { accessToken() }) }
+    internal suspend fun authenticatedSessionSnapshot(): NativeAuthenticatedSessionSnapshot =
+        withContext(Dispatchers.IO) { authenticatedSnapshots.session() }
+    internal suspend fun authenticatedRefreshTokenSnapshot(): NativeAuthenticatedRefreshSnapshot =
+        withContext(Dispatchers.IO) { authenticatedSnapshots.refresh() }
+    internal fun isAuthenticatedSessionCurrent(owner: NativeAuthenticatedOwner) = authenticatedSnapshots.isCurrent(owner)
+
+    /** The mobile cookie exchange uses a full pair; refresh-only browser auth has its own contract. */
     internal suspend fun webSessionSnapshot(login: String): NativeWebSessionSnapshot? {
         if (store.taskSession() != login) throw kotlinx.coroutines.CancellationException("Account changed")
-        val access = accessToken() ?: return null
-        val state = store.load() ?: return null
-        if (state.optString("task_session") != login || state.optString("access_token") != access)
-            throw kotlinx.coroutines.CancellationException("Account changed")
-        val refresh = state.optString("refresh_token").takeIf { it.isNotBlank() } ?: return null
-        return NativeWebSessionSnapshot(login, access, refresh)
+        val snapshot = authenticatedSessionSnapshot()
+        if (snapshot.owner.login != login) throw kotlinx.coroutines.CancellationException("Account changed")
+        return NativeWebSessionSnapshot(login,snapshot.accessToken,snapshot.refreshToken,snapshot.owner)
     }
-
-    internal fun isWebSessionCurrent(snapshot: NativeWebSessionSnapshot): Boolean {
-        val state = store.load() ?: return false
-        return state.optString("task_session") == snapshot.login &&
-            state.optString("refresh_token") == snapshot.refreshToken &&
-            state.optString("access_token") == snapshot.accessToken
-    }
+    internal fun isWebSessionCurrent(snapshot: NativeWebSessionSnapshot): Boolean =
+        snapshot.owner?.let { it.login == snapshot.login && isAuthenticatedSessionCurrent(it) } == true
 
     fun signOut(expectedLogin: String? = null): Boolean = signOutLocal(expectedLogin,false)
     internal fun signOutAndRevoke(expectedLogin: String? = null): Boolean = signOutLocal(expectedLogin,true)

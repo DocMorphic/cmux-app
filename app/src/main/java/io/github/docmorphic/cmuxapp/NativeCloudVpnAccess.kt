@@ -6,6 +6,8 @@ import io.github.docmorphic.cmuxapp.iroh.IrohInstallationStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /** Capture a coherent token pair while the owner is admitted. Only the revocation
  * closure can use that old pair after retirement; enrollment always rechecks current
@@ -14,7 +16,9 @@ internal suspend fun nativeCloudVpnAccess(context: Context, account: NativeAccou
     teams: NativeAccountTeams, scope: NativeTeamScope): CloudVpnAccess = withContext(Dispatchers.IO) {
     fun admitted() { if (!teams.isCurrent(scope)) throw CancellationException("Cloud VPN account changed") }
     admitted()
-    val snapshot = account.webSessionSnapshot(scope.login) ?: throw CloudNotSignedIn()
+    val snapshot = account.authenticatedSessionSnapshot()
+    if (snapshot.owner.login != scope.login || snapshot.owner.identity.userId != scope.userId)
+        throw CancellationException("Cloud VPN account changed")
     admitted()
     val application = context.applicationContext
     val apiOwner = CloudAccountScope(scope.login, scope.userId, scope.teamId, scope.generation)
@@ -37,8 +41,9 @@ internal suspend fun nativeCloudVpnAccess(context: Context, account: NativeAccou
         // Long-lived VPNs may outlive an access token. Refresh only while this exact
         // owner is still admitted, then retain the coherent pair for later retirement.
         if (teams.isCurrent(scope)) withContext(Dispatchers.IO) {
-            val fresh = account.webSessionSnapshot(scope.login)
-            if (fresh != null && teams.isCurrent(scope))
+            val fresh = try { account.authenticatedSessionSnapshot() }
+                catch (_: Exception) { currentCoroutineContext().ensureActive();null }
+            if (fresh != null && fresh.owner == snapshot.owner && teams.isCurrent(scope))
                 cleanupCredentials.set(CloudCredentials(apiOwner, fresh.accessToken, fresh.refreshToken))
         }
         // Restrict this retained capability to DELETE browser peer for the captured

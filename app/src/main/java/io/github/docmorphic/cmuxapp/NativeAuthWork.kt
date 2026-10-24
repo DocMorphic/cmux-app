@@ -66,7 +66,22 @@ internal class NativeAuthWork(
         }
     }
 
-    private var signOutCaptures = 0
+    @Volatile private var signOutCaptures = 0
+    private val signInFlows = java.util.concurrent.atomic.AtomicInteger(0)
+    private val unpublishedSignIns = java.util.concurrent.atomic.AtomicInteger(0)
+    /** These reads never acquire the work monitor while a credential transaction is held. */
+    val storedSessionCaptureBlocked get() = signOutCaptures > 0 || signInFlows.get() > 0 || unpublishedSignIns.get() > 0
+    val sessionWriteInProgress get() = signOutCaptures > 0 || unpublishedSignIns.get() > 0
+    internal class SignInLease(private val published: () -> Unit, private val finished: () -> Unit) {
+        private val didPublish = java.util.concurrent.atomic.AtomicBoolean(false)
+        private val didFinish = java.util.concurrent.atomic.AtomicBoolean(false)
+        fun publish() { if (didPublish.compareAndSet(false,true)) published() }
+        fun finish() { publish();if (didFinish.compareAndSet(false,true)) finished() }
+    }
+    fun beginSignIn(): SignInLease {
+        unpublishedSignIns.incrementAndGet();signInFlows.incrementAndGet()
+        return SignInLease({ unpublishedSignIns.decrementAndGet() }, { signInFlows.decrementAndGet() })
+    }
     private var captureFinished = CompletableDeferred<Unit>().apply { complete(Unit) }
     fun beginSignOutCapture(): () -> Unit {
         synchronized(lock) { if(signOutCaptures++ == 0) captureFinished = CompletableDeferred() }
