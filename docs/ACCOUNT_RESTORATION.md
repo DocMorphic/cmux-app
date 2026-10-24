@@ -1,3 +1,7 @@
+Follow-up: [Ordinary SDK token consumers](ORDINARY_TOKEN_CONSUMERS.md) records
+the later optional/resolved adapter separation, live request headers and ordinary
+shared-resolver adoption. The earlier checkpoint below keeps its original scope.
+
 Follow-up: [Token resolution and pending shared refresh](TOKEN_RESOLUTION.md)
 records the later proactive/forced selection and private pending-owner integration.
 The checkpoint and remaining work below describe their earlier scope.

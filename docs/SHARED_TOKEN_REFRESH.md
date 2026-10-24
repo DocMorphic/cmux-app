@@ -1,3 +1,7 @@
+Follow-up: [Ordinary SDK token consumers](ORDINARY_TOKEN_CONSUMERS.md) records
+the later optional/resolved adapter separation, live request headers and ordinary
+shared-resolver adoption. The earlier checkpoint below keeps its original scope.
+
 # Shared token refresh ownership and cooldown
 
 The pinned original SDK uses one TokenRefreshCoordinator attempt per token store,

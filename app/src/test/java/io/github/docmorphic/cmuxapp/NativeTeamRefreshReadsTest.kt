@@ -30,8 +30,16 @@ class NativeTeamRefreshReadsTest {
         private val cache=initial?.let {state->NativeAccountProfileCache({root},{update->root=JSONObject(root.toString()).also(update)}).also {
             it.save("login","${server.url("/api/v1/")}#${NativeAccount.PROJECT_ID}",state)
         }}
+        val events=java.util.concurrent.ConcurrentLinkedQueue<String>()
+        private fun trace(event:String){if(events.size<128)events.add("${System.nanoTime()} $event")}
+        private val transport=okhttp3.OkHttpClient.Builder().eventListener(object:okhttp3.EventListener(){
+            override fun callStart(call:okhttp3.Call){trace("start ${call.request().method} ${call.request().url.encodedPath}")}
+            override fun responseHeadersEnd(call:okhttp3.Call,response:okhttp3.Response){trace("headers ${call.request().url.encodedPath} ${response.code}")}
+            override fun responseBodyEnd(call:okhttp3.Call,byteCount:Long){trace("body ${call.request().url.encodedPath} $byteCount")}
+            override fun callFailed(call:okhttp3.Call,ioe:java.io.IOException){trace("failed ${call.request().url.encodedPath} ${ioe.javaClass.simpleName}")}
+        }).build()
         val teams=NativeAccountTeams({tokenRead(currentCoroutineContext()[CoroutineName]?.name ?: "other")},{"login"},server.url("/api/v1/"),
-            sessionIdentity=identity::get,phaseWork=work,networkTimeoutMillis=timeout,cache=cache)
+            sessionIdentity=identity::get,phaseWork=work,networkTimeoutMillis=timeout,cache=cache,base=transport)
         init {server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse=when {
             request.path=="/api/v1/teams?user_id=me"->list()
             request.path=="/api/v1/users/me" && request.getHeader("x-hexclave-access-token")=="team-selection-read"->selection()
@@ -86,9 +94,11 @@ class NativeTeamRefreshReadsTest {
     }
     @Test fun emptyMembershipKeepsServerSelectedIdsButNonemptyMembershipResolvesAnUnavailableSelection()=runBlocking<Unit> {
         MockWebServer().use{server->Fixture(server).use{f->f.list={members(emptyList())};f.selection={profile("unavailable")}
-            assertEquals("unavailable",f.teams.refreshAfterSignIn("login",published).selectedTeamId)
-            f.list={members()};val loaded=f.teams.refreshAfterSignIn("login",published)
-            assertEquals("one",loaded.selectedTeamId);assertEquals("one",loaded.scope?.teamId)
+            try {
+                assertEquals("unavailable",f.teams.refreshAfterSignIn("login",published).selectedTeamId)
+                f.list={members()};val loaded=f.teams.refreshAfterSignIn("login",published)
+                assertEquals("one",loaded.selectedTeamId);assertEquals("one",loaded.scope?.teamId)
+            } catch(failure:Exception){throw AssertionError("Fixture transport (${server.requestCount} requests): ${f.events.joinToString()}",failure)}
         }}
     }
     @Test fun selectedProjectionUsesSdkTeamDefaultsAndIgnoresUnrelatedProfileFieldTypes()=runBlocking<Unit> {

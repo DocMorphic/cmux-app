@@ -1,5 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 
@@ -35,4 +36,16 @@ internal suspend fun nativeSdkResolveTokens(force:Boolean,rejected:String?,refre
     if(result.failure==null && result.refresh!=null && result.access==null && !force && !expired(observedAccess))
         return NativeSdkTokens(observedRefresh,observedAccess)
     return result
+}
+
+/** Optional SDK access omits classified refresh failures. */
+internal fun nativeSdkAccess(tokens:NativeSdkTokens):String?=tokens.access
+/** Resolved access retains the original adapter's cancellation/deadline failures. */
+internal suspend fun nativeSdkResolvedAccess(tokens:NativeSdkTokens):String? {
+    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+    return when(tokens.failure) {
+    NativeSdkTokenFailure.CANCELLED,NativeSdkTokenFailure.SESSION_CHANGED->throw kotlinx.coroutines.CancellationException("Token resolution retired")
+    NativeSdkTokenFailure.TIMED_OUT->throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
+    null->tokens.access
+    }
 }

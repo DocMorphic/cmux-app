@@ -462,7 +462,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
                 val owner = if (snapshot?.optString("refresh_token")?.isNotBlank() == true && !NativeSignInCompletion.isPending(snapshot))
                     store.requireReadableTaskSession() else snapshot?.optString("task_session")?.takeIf(String::isNotBlank)
                 restoredOwner.set(owner)
-                val access = accessToken()
+                val access = sdkAccessToken()
                 val refresh = store.requireReadable()?.optString("refresh_token")?.takeIf(String::isNotBlank)
                 access != null || refresh != null
             },
@@ -527,8 +527,15 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
             }
             return user
         }
-        val token = accessToken() ?: throw NativeSessionUserUnavailable()
-        return oauthClient.restoredCurrentUser(token,root.opt("refresh_token") as? String) {failed->accessToken(forceRefresh=true,rejectedAccess=failed)}
+        val epoch=store.authSessionEpoch.get();val receipt=root.opt("task_session") as? String
+        sdkAccessToken() ?: throw NativeSessionUserUnavailable()
+        val headers=withContext(Dispatchers.IO) {synchronized(store.accountStateLock) {
+            val latest=store.requireReadable()
+            if(store.authSessionEpoch.get()!=epoch || NativeSignInCompletion.isPending(latest) ||
+                (latest?.opt("task_session") as? String)!=receipt)throw kotlinx.coroutines.CancellationException("Account changed")
+            sdkStoredTokens()
+        }}
+        return oauthClient.restoredCurrentUser(headers.access,headers.refresh) {failed->sdkAccessToken(forceRefresh=true,rejectedAccess=failed)}
     }
 
     private fun pendingSnapshot(receipt:String,epoch:Long,check:()->Unit):JSONObject=synchronized(store.accountStateLock) {
@@ -559,26 +566,30 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
                 fresh={nativeCapturedAccessIsFresh(it,tokenNowMillis(),tokenRefreshLeadMillis)},
                 expired={nativeAccessTokenIsExpired(it,tokenNowMillis())}) {refresh,observed->
                 val owner=NativeRefreshOwner(receipt,refresh,epoch,pending=true)
-                val outcome=try {refreshCoordinator.resolve(owner,observed,authWork,::view,
-                    apply={expected,access,fence->store.applyRefresh(expected,access,fence,refreshCoordinator)},
-                    exchange={refreshOverride?.invoke(refresh) ?: oauthClient.refreshAccess(refresh)},
-                    expired={nativeAccessTokenIsExpired(it,tokenNowMillis())})}
-                catch(failure:kotlinx.coroutines.CancellationException){NativeRefreshResult.Cancelled}
-                when(outcome) {
-                    is NativeRefreshResult.Success->NativeSdkTokens(refresh,outcome.access)
-                    NativeRefreshResult.Rejected->NativeSdkTokens(null,null)
-                    NativeRefreshResult.Changed->NativeSdkTokens(null,null,NativeSdkTokenFailure.SESSION_CHANGED)
-                    NativeRefreshResult.Cancelled->NativeSdkTokens(null,null,NativeSdkTokenFailure.CANCELLED)
-                    NativeRefreshResult.TimedOut->NativeSdkTokens(null,null,NativeSdkTokenFailure.TIMED_OUT)
-                    is NativeRefreshResult.Failure->{
-                        if(outcome.error is NativeCredentialReadException)throw outcome.error
-                        NativeSdkTokens(refresh,null)
-                    }
-                }
+                refreshTokens(owner,observed,::view)
             }
             kotlinx.coroutines.currentCoroutineContext().ensureActive();check()
             result
         }
+    private suspend fun refreshTokens(owner:NativeRefreshOwner,observed:String?,read:()->NativeRefreshView):NativeSdkTokens {
+        val outcome=try {refreshCoordinator.resolve(owner,observed,authWork,read,
+            apply={expected,access,fence->store.applyRefresh(expected,access,fence,refreshCoordinator)},
+            exchange={refreshOverride?.invoke(owner.refresh) ?: oauthClient.refreshAccess(owner.refresh)},
+            expired={nativeAccessTokenIsExpired(it,tokenNowMillis())})}
+        catch(failure:kotlinx.coroutines.CancellationException){NativeRefreshResult.Cancelled}
+        return when(outcome) {
+            is NativeRefreshResult.Success->NativeSdkTokens(owner.refresh,outcome.access)
+            NativeRefreshResult.Rejected->NativeSdkTokens(null,null)
+            NativeRefreshResult.Changed->NativeSdkTokens(null,null,NativeSdkTokenFailure.SESSION_CHANGED)
+            NativeRefreshResult.Cancelled->NativeSdkTokens(null,null,NativeSdkTokenFailure.CANCELLED)
+            NativeRefreshResult.TimedOut->NativeSdkTokens(null,null,NativeSdkTokenFailure.TIMED_OUT)
+            is NativeRefreshResult.Failure->{
+                if(outcome.error is NativeCredentialReadException)throw outcome.error
+                NativeSdkTokens(owner.refresh,null)
+            }
+        }
+    }
+
     private suspend fun clearSavedSession(expectedRefresh: String?): Boolean = withContext(Dispatchers.IO) {
         var cleared = false
         try { store.update { value ->
@@ -634,55 +645,78 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     internal suspend fun restorePendingSignIn() = completion.restorePending()
     internal fun supersedeTimedOutAuthPhases() = authWork.supersedeTimedOutPhases()
 
-    suspend fun accessToken(forceRefresh: Boolean = false,rejectedAccess:String?=null): String? = authWork.run(
-        if (forceRefresh) NativeAuthPhase.FORCE_REFRESH else NativeAuthPhase.REFRESH, 60_000) {
+    /** SDK-style access reads collapse a classified refresh failure to an absent access token. */
+    internal suspend fun sdkAccessToken(forceRefresh:Boolean=false,rejectedAccess:String?=null):String? =
+        nativeSdkAccess(ordinaryTokens(forceRefresh,rejectedAccess))
+
+    /** StackAuthClient.resolvedAccessToken adds typed cancellation/deadline projection. */
+    internal suspend fun resolvedAccessToken(forceRefresh:Boolean=false,rejectedAccess:String?=null):String? = authWork.run(
+        if(forceRefresh)NativeAuthPhase.FORCE_REFRESH else NativeAuthPhase.REFRESH,60_000) {
+        nativeSdkResolvedAccess(ordinaryTokens(forceRefresh,rejectedAccess))
+    }
+
+    /** Application connection callers retain a retryable error while refresh credentials survive. */
+    suspend fun accessToken(forceRefresh:Boolean=false,rejectedAccess:String?=null):String? = authWork.run(
+        if(forceRefresh)NativeAuthPhase.FORCE_REFRESH else NativeAuthPhase.REFRESH,60_000) {
         withContext(Dispatchers.IO) {
-            val (state,epoch) = synchronized(store.accountStateLock) {
-                store.requireReadable() to store.authSessionEpoch.get()
-            }
-            if(state==null) return@withContext null
-            if (NativeSignInCompletion.isPending(state)) return@withContext null
-            val current = state.optString("access_token").takeIf { it.isNotBlank() }
-            val refresh = state.optString("refresh_token").takeIf { it.isNotBlank() }
-            fun unchanged() = synchronized(store.accountStateLock) {
-                val latest=store.requireReadable()
-                store.authSessionEpoch.get()==epoch && latest?.optString("task_session")==state.optString("task_session") &&
-                    latest.optString("access_token")==state.optString("access_token") && latest.optString("refresh_token")==state.optString("refresh_token") &&
-                    !NativeSignInCompletion.isPending(latest)
-            }
-            // A later 401 for an old request reuses the token installed by the first waiter.
-            if(forceRefresh && refresh!=null && rejectedAccess!=null && current!=null && current!=rejectedAccess &&
-                !nativeAccessTokenIsExpired(current,tokenNowMillis()))return@withContext current.takeIf{unchanged()}
-            if (refresh == null) return@withContext current?.takeIf {
-                !forceRefresh && !nativeAccessTokenIsExpired(it, tokenNowMillis()) && unchanged()
-            }
-            if (!forceRefresh && nativeCapturedAccessIsFresh(current,tokenNowMillis(),tokenRefreshLeadMillis))
-                return@withContext current?.takeIf { unchanged() }
-            val session = synchronized(store.accountStateLock) {
-                if(unchanged()) store.requireReadableTaskSession() else null
-            } ?: return@withContext null
-            val owner=NativeRefreshOwner(session,refresh,epoch)
-            val result=refreshCoordinator.resolve(owner,current,authWork,store::refreshView,
-                apply={ expected,access,fence->store.applyRefresh(expected,access,fence,refreshCoordinator) },
-                exchange={ refreshOverride?.invoke(refresh) ?: oauthClient.refreshAccess(refresh) },
-                expired={ nativeAccessTokenIsExpired(it,tokenNowMillis()) })
-            kotlinx.coroutines.currentCoroutineContext().ensureActive()
-            return@withContext when(result) {
-                is NativeRefreshResult.Success -> result.access.takeIf { store.refreshView()==NativeRefreshView(owner,it) }
-                NativeRefreshResult.Rejected,NativeRefreshResult.Changed -> null
-                NativeRefreshResult.Cancelled -> throw kotlinx.coroutines.CancellationException("Refresh cancelled")
-                else -> {
-                    if(result is NativeRefreshResult.Failure && result.error is NativeCredentialReadException)throw result.error
-                    val latest=store.refreshView()
-                    if (!forceRefresh && latest==NativeRefreshView(owner,current) && !nativeAccessTokenIsExpired(current,tokenNowMillis())) current
-                    else when(result) {
-                        is NativeRefreshResult.Failure -> throw result.error
-                        NativeRefreshResult.TimedOut -> throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
-                        else -> null
-                    }
-                }
-            }
+            val token=nativeSdkResolvedAccess(ordinaryTokens(forceRefresh,rejectedAccess))
+            if(token==null && sdkStoredTokens().refresh!=null)throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
+            token
         }
+    }
+
+    /** Stored SDK request headers are a fresh snapshot after any presence preflight. */
+    internal fun sdkStoredTokens():NativeSdkTokens=synchronized(store.accountStateLock) {
+        val root=store.requireReadable()
+        if(NativeSignInCompletion.isPending(root))NativeSdkTokens(null,null)
+        else NativeSdkTokens((root?.opt("refresh_token") as? String)?.takeIf(String::isNotBlank),
+            (root?.opt("access_token") as? String)?.takeIf(String::isNotBlank))
+    }
+
+    private suspend fun ordinaryTokens(force:Boolean,rejected:String?):NativeSdkTokens=withContext(Dispatchers.IO) {
+        val (initial,epoch)=synchronized(store.accountStateLock) {
+            var root=store.requireReadable()
+            if(!NativeSignInCompletion.isPending(root) && (root?.opt("refresh_token") as? String)?.isNotBlank()==true &&
+                (root.opt("task_session") as? String).isNullOrBlank()) {
+                store.requireReadableTaskSession();root=store.requireReadable()
+            }
+            root to store.authSessionEpoch.get()
+        }
+        if(initial==null || NativeSignInCompletion.isPending(initial))return@withContext NativeSdkTokens(null,null)
+        val login=initial.opt("task_session") as? String
+        fun snapshot():JSONObject?=synchronized(store.accountStateLock) {
+            val root=store.requireReadable()
+            root?.takeIf{store.authSessionEpoch.get()==epoch && !NativeSignInCompletion.isPending(it) &&
+                it.opt("task_session").let{value->value==null || value===JSONObject.NULL || value is String} &&
+                (it.opt("task_session") as? String)==login}
+        }
+        fun view():NativeRefreshView {
+            val root=snapshot()
+            return NativeRefreshView(NativeRefreshOwner.from(root,epoch),
+                (root?.opt("access_token") as? String)?.takeIf(String::isNotBlank))
+        }
+        var exchanged=false
+        val pair=nativeSdkResolveTokens(force,rejected,
+            refresh={(snapshot()?.opt("refresh_token") as? String)?.takeIf(String::isNotBlank)},access={view().access},
+            fresh={nativeCapturedAccessIsFresh(it,tokenNowMillis(),tokenRefreshLeadMillis)},
+            expired={nativeAccessTokenIsExpired(it,tokenNowMillis())}) {refresh,observed->
+            exchanged=true
+            val owner=login?.let{NativeRefreshOwner(it,refresh,epoch)}
+                ?: return@nativeSdkResolveTokens NativeSdkTokens(null,null,NativeSdkTokenFailure.SESSION_CHANGED)
+            refreshTokens(owner,observed,::view)
+        }
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        val after=snapshot()
+        val matchedClear=if(after==null && pair.failure==null && pair.access==null && pair.refresh==null)synchronized(store.accountStateLock) {
+            val latest=store.requireReadable()
+            store.authSessionEpoch.get()==epoch && !NativeSignInCompletion.isPending(latest) &&
+                listOf("task_session","access_token","refresh_token").all{key->latest?.opt(key).let{value->
+                    value==null || value===JSONObject.NULL || value is String && value.isBlank()}}
+        } else false
+        val ownerChanged=after==null && pair.failure==null && !matchedClear
+        val fastReadChanged=after!=null && !exchanged && pair.access!=null &&
+            ((after.opt("access_token") as? String)!=pair.access || (after.opt("refresh_token") as? String)?.takeIf(String::isNotBlank)!=pair.refresh)
+        if(ownerChanged || fastReadChanged)NativeSdkTokens(null,null,NativeSdkTokenFailure.SESSION_CHANGED) else pair
     }
 
     fun isSignedIn(): Boolean = store.load()?.let {
@@ -721,7 +755,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
                     val before=store.requireReadable()
                     val refresh=before?.optString("refresh_token")?.takeIf(String::isNotBlank)
                         ?: throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
-                    val access=accessToken()
+                    val access=resolvedAccessToken()
                     kotlinx.coroutines.currentCoroutineContext().ensureActive();admitted()
                     val after=store.requireReadable()
                     if(access.isNullOrBlank())throw NativeSignInFailure(if(after?.optString("refresh_token").isNullOrBlank())
@@ -750,7 +784,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         { authWork.storedSessionCaptureBlocked },
         { authWork.sessionWriteInProgress || sessionRestore.revalidating.value &&
             (sessionRestore.state.value.authenticated || sessionRestore.state.value.restoring) },
-        sessionRestore::awaitBootstrapped, { accessToken() }) }
+        sessionRestore::awaitBootstrapped, { resolvedAccessToken() }) }
     internal suspend fun authenticatedSessionSnapshot(): NativeAuthenticatedSessionSnapshot =
         withContext(Dispatchers.IO) { authenticatedSnapshots.session() }
     internal suspend fun authenticatedRefreshTokenSnapshot(): NativeAuthenticatedRefreshSnapshot =

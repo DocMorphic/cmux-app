@@ -35,11 +35,11 @@ class NativeSdkAccountTransportRuntimeTest {
         MockWebServer().use{server->val old=access("old");val next=access("new");seed(old)
             val exchanges=AtomicInteger();val account=NativeAccount(store,NativeOAuthClient("p","k",server.url("/")),NativeOAuthBrowser(),
                 refreshOverride={assertEquals("fixture-refresh",it);exchanges.incrementAndGet();next})
-            assertEquals(next,account.accessToken(forceRefresh=true,rejectedAccess=old))
-            assertEquals(next,account.accessToken(forceRefresh=true,rejectedAccess=old))
+            assertEquals(next,account.resolvedAccessToken(forceRefresh=true,rejectedAccess=old))
+            assertEquals(next,account.resolvedAccessToken(forceRefresh=true,rejectedAccess=old))
             assertEquals(1,exchanges.get());assertStored(next)
             // A rejection of the current access still needs a fresh exchange.
-            assertEquals(next,account.accessToken(forceRefresh=true,rejectedAccess=next))
+            assertEquals(next,account.resolvedAccessToken(forceRefresh=true,rejectedAccess=next))
             assertEquals(2,exchanges.get());assertStored(next)
         }
     }
@@ -49,9 +49,9 @@ class NativeSdkAccountTransportRuntimeTest {
             val entered=CompletableDeferred<Unit>();val release=java.util.concurrent.CountDownLatch(1)
             val account=NativeAccount(store,NativeOAuthClient("p","k",server.url("/")),NativeOAuthBrowser(),refreshOverride={
                 entered.complete(Unit);check(release.await(5,java.util.concurrent.TimeUnit.SECONDS));next})
-            val result=async(Dispatchers.IO){account.accessToken(forceRefresh=true,rejectedAccess=old)}
+            val result=async(Dispatchers.IO){runCatching{account.resolvedAccessToken(forceRefresh=true,rejectedAccess=old)}}
             try {withTimeout(3000){entered.await()};store.update{it.put("task_session","replacement").put("refresh_token","replacement-refresh")}
-                release.countDown();assertNull(result.await())
+                release.countDown();assertTrue(result.await().exceptionOrNull() is CancellationException)
                 val root=store.requireReadable()!!;assertEquals("replacement",root.getString("task_session"))
                 assertEquals(old,root.getString("access_token"));assertEquals("replacement-refresh",root.getString("refresh_token"))
                 assertEquals("preserve",root.getString("fixture_pairing_marker"))

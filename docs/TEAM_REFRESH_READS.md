@@ -1,3 +1,7 @@
+Follow-up: [Ordinary SDK token consumers](ORDINARY_TOKEN_CONSUMERS.md) records
+the later optional/resolved adapter separation, live request headers and ordinary
+shared-resolver adoption. The earlier checkpoint below keeps its original scope.
+
 # Independent team refresh reads
 
 The production refresh callback now performs the same two client reads as the

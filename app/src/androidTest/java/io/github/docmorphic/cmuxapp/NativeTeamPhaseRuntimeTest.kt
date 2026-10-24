@@ -21,7 +21,7 @@ class NativeTeamPhaseRuntimeTest {
     private lateinit var name:String;private lateinit var alias:String;private lateinit var store:NativeCredentialStore
     private val owners=mutableListOf<NativeAccountTeams>()
     private val gates=mutableListOf<CompletableDeferred<Unit>>()
-    private var token:suspend (Boolean,NativeAccount)->String?={force,account->account.accessToken(force)}
+    private var token:suspend (Boolean,NativeAccount)->String?={force,account->account.sdkAccessToken(force)}
     private val user=NativeSignInUser("user","Original",null,"one")
     private fun client(server:MockWebServer)=NativeOAuthClient("fixture-project","fixture-key",server.url("/"))
     private fun profile()=MockResponse().setBody("{\"id\":\"user\",\"display_name\":\"Original\",\"selected_team\":{\"id\":\"one\"}}")
@@ -30,11 +30,12 @@ class NativeTeamPhaseRuntimeTest {
     private fun created()=MockResponse().setBody("{\"team\":{\"id\":\"new\",\"name\":\"New\"}}")
     private fun controller(server:MockWebServer,account:NativeAccount,timeout:Long=NativeAccountTeams.NETWORK_TIMEOUT_MILLIS,fault:Boolean=false):NativeAccountTeams {
         val result=if(!fault)NativeAccountTeams(account,store,server.url("/api/v1/"),backendOrigin=server.url("/"),networkTimeoutMillis=timeout)
-        else NativeAccountTeams({token(it,account)},store::taskSession,server.url("/api/v1/"),refreshCredential={store.load()?.optString("refresh_token")},
+        else NativeAccountTeams({token(it,account)},store::taskSession,server.url("/api/v1/"),refreshCredential={account.sdkStoredTokens().refresh},
             backendOrigin=server.url("/"),cache=NativeAccountProfileCache(store::load,store::update),lock=store.accountStateLock,
             sessionIdentity=account.sessionRestore::identity,restoreUser=account.sessionRestore::restoreIdentityIfNeeded,
             needsRestoration={account.sessionRestore.needsIdentityValidation},phaseNowMillis={android.os.SystemClock.elapsedRealtime()},
-            phaseWork=store.authWork,networkTimeoutMillis=timeout,accountUser={account.sessionRestore.state.value.user})
+            phaseWork=store.authWork,networkTimeoutMillis=timeout,accountUser={account.sessionRestore.state.value.user},
+            storedTokens=account::sdkStoredTokens)
         return result.also{owners+=it}
     }
     private suspend fun binding(server:MockWebServer,timeout:Long=NativeAccountTeams.NETWORK_TIMEOUT_MILLIS,fault:Boolean=false):Pair<NativeAccount,NativeAccountTeams> {
@@ -79,37 +80,37 @@ class NativeTeamPhaseRuntimeTest {
             record("three-budgets",JSONObject().put("configuredEachMillis",300).put("elapsedMillis",elapsed).put("createPosts",1))}
     }
     @Test fun cancellationIgnoringSelectionReadReleasesUiAndANewerSelectionWinsBeforeActualRetirement()=runBlocking<Unit> {
-        MockWebServer().use{server->val(_,teams)=binding(server,timeout=250,fault=true);val entered=CompletableDeferred<Unit>();val release=gate()
+        MockWebServer().use{server->val(_,teams)=binding(server,timeout=1000,fault=true);val entered=CompletableDeferred<Unit>();val release=gate()
             token={_,_->entered.complete(Unit);withContext(NonCancellable){release.await()};"retired-fixture"}
             val old=scope.async{runCatching{teams.select("two")}}
             try{entered.await();timedOut(withTimeout(3000){old.await()}.exceptionOrNull());assertFalse(teams.state.value.loading)
-                assertEquals(1,store.authWork.activeCount);token={force,account->account.accessToken(force)}
+                assertEquals(1,store.authWork.activeCount);token={force,account->account.sdkAccessToken(force)}
                 server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204));assertEquals("two",teams.select("two").scope?.teamId)
                 val requests=server.requestCount;release.complete(Unit);drained();assertEquals(requests,server.requestCount)
-                record("plain-retirement",JSONObject().put("actualWorkRetainedAfterPublicTimeout",true).put("newSelectionCompleted",true).put("lateHttpRequests",0))
+                record("plain-retirement",JSONObject().put("configuredPhaseMillis",1000).put("actualWorkRetainedAfterPublicTimeout",true).put("newSelectionCompleted",true).put("lateHttpRequests",0))
             }finally{release.complete(Unit);old.cancelAndJoin()}}
     }
     @Test fun membershipCountEndsAtDeadlineWhileActualTokenWorkStillGatesNewReads()=runBlocking<Unit> {
-        MockWebServer().use{server->val(_,teams)=binding(server,timeout=250,fault=true);val release=gate();val entered=CompletableDeferred<Unit>()
+        MockWebServer().use{server->val(_,teams)=binding(server,timeout=1000,fault=true);val release=gate();val entered=CompletableDeferred<Unit>()
             token={_,_->entered.complete(Unit);withContext(NonCancellable){release.await()};"retired-fixture"}
             val old=scope.async{runCatching{teams.refresh()}}
             try{entered.await();timedOut(withTimeout(3000){old.await()}.exceptionOrNull());assertEquals(0,teams.activeMembershipReads)
                 assertEquals(1,store.authWork.activeCount);val requests=server.requestCount
-                token={force,account->account.accessToken(force)};timedOut(runCatching{teams.refresh()}.exceptionOrNull());assertEquals(requests,server.requestCount)
+                token={force,account->account.sdkAccessToken(force)};timedOut(runCatching{teams.refresh()}.exceptionOrNull());assertEquals(requests,server.requestCount)
                 release.complete(Unit);drained();assertEquals(requests,server.requestCount);server.teamUsers(2){profile()};server.enqueue(members())
                 assertNotNull(teams.refresh().scope)
-                record("token-retirement",JSONObject().put("publicMembershipReads",0).put("actualWorkRetained",true).put("gatedRetryHttp",0).put("lateHttpRequests",0))
+                record("token-retirement",JSONObject().put("configuredPhaseMillis",1000).put("publicMembershipReads",0).put("actualWorkRetained",true).put("gatedRetryHttp",0).put("lateHttpRequests",0))
             }finally{release.complete(Unit);old.cancelAndJoin()}}
     }
     @Test fun postCreateListTimeoutStillSelectsTheConfirmedTeamAndRetiredReadCannotResumeHttp()=runBlocking<Unit> {
-        MockWebServer().use{server->val(_,teams)=binding(server,timeout=250,fault=true);val release=gate();val tokens=AtomicInteger()
-            token={force,account->if(tokens.incrementAndGet()==2)withContext(NonCancellable){release.await()};account.accessToken(force)}
+        MockWebServer().use{server->val(_,teams)=binding(server,timeout=1000,fault=true);val release=gate();val tokens=AtomicInteger()
+            token={force,account->if(tokens.incrementAndGet()==2)withContext(NonCancellable){release.await()};account.sdkAccessToken(force)}
             server.enqueue(created());server.teamUsers{profile()};server.enqueue(MockResponse().setResponseCode(204))
             val create=scope.async{teams.create("New")}
             try{assertEquals("new",withTimeout(5000){create.await()}.scope?.teamId);assertEquals(1,store.authWork.activeCount)
                 val requests=server.requestCount;release.complete(Unit);drained();assertEquals(requests,server.requestCount)
                 assertEquals(1,(1..requests).count{server.takeRequest().method=="POST"})
-                record("list-fallback",JSONObject().put("selectedAfterListTimeout",true).put("createPosts",1).put("lateHttpRequests",0))
+                record("list-fallback",JSONObject().put("configuredPhaseMillis",1000).put("selectedAfterListTimeout",true).put("createPosts",1).put("lateHttpRequests",0))
             }finally{release.complete(Unit);create.cancelAndJoin()}}
     }
     @Test fun selectionAfterFreshMembershipRemovalKeepsTheNewProfileAndCannotReviveOldProof()=runBlocking<Unit> {

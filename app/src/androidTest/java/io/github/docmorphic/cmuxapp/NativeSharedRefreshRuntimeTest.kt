@@ -52,7 +52,7 @@ class NativeSharedRefreshRuntimeTest {
             assertSame(shared,second.refreshCoordinator(client(server).accountEnvironment))
             val entered=CountDownLatch(1);val release=CountDownLatch(1)
             block(server,entered,release,MockResponse().setBody("{\"access_token\":\"minted\"}"))
-            val readers=List(6) { index->async(Dispatchers.IO) { (if(index%2==0)a else b).accessToken(true) } }
+            val readers=List(6) { index->async(Dispatchers.IO) { (if(index%2==0)a else b).resolvedAccessToken(true) } }
             try {
                 assertTrue(entered.await(5,TimeUnit.SECONDS));waitFor { shared.waiterCount==6 };assertEquals(1,server.requestCount)
                 release.countDown();assertEquals(List(6){"minted"},readers.awaitAll());waitFor { store.authWork.activeCount==0 }
@@ -66,10 +66,10 @@ class NativeSharedRefreshRuntimeTest {
             val a=owner(server);val b=owner(server);val shared=store.refreshCoordinator(client(server).accountEnvironment)
             val entered=CountDownLatch(1);val release=CountDownLatch(1);val old=token()
             block(server,entered,release,MockResponse().setResponseCode(503))
-            val normal=async(Dispatchers.IO) { a.accessToken() };val forced=async(Dispatchers.IO) { runCatching {b.accessToken(true)} }
+            val normal=async(Dispatchers.IO) { a.resolvedAccessToken() };val forced=async(Dispatchers.IO) { b.resolvedAccessToken(true) }
             try {
                 assertTrue(entered.await(5,TimeUnit.SECONDS));waitFor { shared.waiterCount==2 };release.countDown()
-                assertEquals(old,normal.await());assertTrue(forced.await().isFailure);assertEquals(1,server.requestCount)
+                assertEquals(old,normal.await());assertNull(forced.await());assertEquals(1,server.requestCount)
                 assertEquals(old,store.requireReadable()!!.getString("access_token"))
                 record("shared-failure",JSONObject().put("httpRequests",1).put("callerSpecificFallback",true).put("credentialsPreserved",true))
             } finally { release.countDown();normal.cancel();forced.cancel() }
@@ -80,13 +80,13 @@ class NativeSharedRefreshRuntimeTest {
             val a=owner(server);val b=owner(server);val shared=store.refreshCoordinator(client(server).accountEnvironment)
             val entered=CountDownLatch(1);val release=CountDownLatch(1)
             block(server,entered,release,MockResponse().setBody("{\"access_token\":\"minted\"}"))
-            val one=async(Dispatchers.IO) { a.accessToken(true) };val two=async(Dispatchers.IO) { b.accessToken(true) }
+            val one=async(Dispatchers.IO) { a.resolvedAccessToken(true) };val two=async(Dispatchers.IO) { b.resolvedAccessToken(true) }
             try {
                 assertTrue(entered.await(5,TimeUnit.SECONDS));waitFor { shared.waiterCount==2 };one.cancelAndJoin()
                 waitFor { shared.waiterCount==1 };assertFalse(two.isCompleted);release.countDown();assertEquals("minted",two.await())
                 server.dispatcher=QueueDispatcher();server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
                 server.takeRequest() // First completed request.
-                val last=launch(Dispatchers.IO) { a.accessToken(true) }
+                val last=launch(Dispatchers.IO) { a.resolvedAccessToken(true) }
                 assertNotNull(withContext(Dispatchers.IO) { server.takeRequest(3,TimeUnit.SECONDS) });last.cancelAndJoin()
                 waitFor { shared.waiterCount==0 && store.authWork.activeCount==0 }
                 assertEquals("minted",store.requireReadable()!!.getString("access_token"))
@@ -99,7 +99,7 @@ class NativeSharedRefreshRuntimeTest {
             val coordinator=core();val account=owner(server,core=coordinator)
             val before=target.getSharedPreferences(name,0).getString("state",null)
             server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));val started=SystemClock.elapsedRealtime()
-            val failure=withTimeout(40_000) { runCatching { account.accessToken(true) }.exceptionOrNull() as Exception }
+            val failure=withTimeout(40_000) { runCatching { account.resolvedAccessToken(true) }.exceptionOrNull() as Exception }
             val elapsed=SystemClock.elapsedRealtime()-started
             assertEquals(NativeSignInError.TIMED_OUT,nativeSignInError(failure));assertTrue(elapsed in 29_000..38_000)
             assertEquals(1,server.requestCount)
@@ -121,7 +121,7 @@ class NativeSharedRefreshRuntimeTest {
             }
             val account=owner(server,reader,coordinator);val before=target.getSharedPreferences(name,0).getString("state",null)
             block=true;server.enqueue(MockResponse().setBody("{\"access_token\":\"obsolete\"}"))
-            val pending=async(Dispatchers.IO) { runCatching { account.accessToken(true) } }
+            val pending=async(Dispatchers.IO) { runCatching { account.resolvedAccessToken(true) } }
             var quiesce:Deferred<Unit>?=null
             try {
                 assertTrue(entered.await(5,TimeUnit.SECONDS))
@@ -148,11 +148,11 @@ class NativeSharedRefreshRuntimeTest {
             val a=owner(server,core=coordinator);val b=owner(server,core=coordinator)
             try {
                 server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After","1").setHeader("Content-Type","text/html").setBody("<private>never report</private>"))
-                assertEquals(token(),a.accessToken());assertTrue(runCatching {b.accessToken(true)}.isFailure)
+                assertEquals(token(),a.resolvedAccessToken());assertNull(b.resolvedAccessToken(true))
                 assertEquals(1,server.requestCount);assertEquals(1,signals.size);assertEquals("html",signals.single().bodyKind)
                 assertEquals(1.0,signals.single().backoffSeconds,0.0);assertFalse(signals.single().toString().contains("never report"))
                 elapsed.set(1000);server.enqueue(MockResponse().setBody("{\"access_token\":\"minted\"}"))
-                assertEquals("minted",b.accessToken(true));assertEquals(1,recovered);assertEquals(2,server.requestCount)
+                assertEquals("minted",b.resolvedAccessToken(true));assertEquals(1,recovered);assertEquals(2,server.requestCount)
                 record("rate-limit",JSONObject().put("cooldownPreventedSecondHttp",true).put("safeObservationCount",signals.size).put("recoveryCount",recovered))
             } finally { NativeRefreshReporting.observer=previous }
         }
@@ -168,11 +168,11 @@ class NativeSharedRefreshRuntimeTest {
                     return MockResponse().setBody("{\"access_token\":\"new-minted\"}")
                 }
             }
-            val a=owner(server);val b=owner(server);val old=async(Dispatchers.IO) { a.accessToken(true) }
+            val a=owner(server);val b=owner(server);val old=async(Dispatchers.IO) { runCatching{a.resolvedAccessToken(true)} }
             try {
                 assertTrue(entered.await(5,TimeUnit.SECONDS));store.update { it.put("task_session","new-login").put("refresh_token","new-refresh").put("access_token","new-old") }
-                assertNull(withTimeout(2000) { old.await() })
-                assertEquals("new-minted",b.accessToken(true));release.countDown();waitFor { store.authWork.activeCount==0 }
+                assertTrue(withTimeout(2000) { old.await() }.exceptionOrNull() is CancellationException)
+                assertEquals("new-minted",b.resolvedAccessToken(true));release.countDown();waitFor { store.authWork.activeCount==0 }
                 assertEquals("new-minted",store.requireReadable()!!.getString("access_token"));assertEquals("new-refresh",store.requireReadable()!!.getString("refresh_token"))
                 record("owner-replacement",JSONObject().put("newOwnerMinted",true).put("oldWaiterRetired",true).put("oldRejectionCouldNotClear",true))
             } finally { release.countDown();old.cancel() }

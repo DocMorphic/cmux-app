@@ -1,3 +1,43 @@
+## Ordinary SDK token consumers reconciled — 2026-10-24
+
+Ordinary verified and token-only reads now share the executed SDK resolver with
+pending reads. Optional SDK access, typed resolved access and the application
+retry bridge have separate outcomes. User/team preflights use SDK access;
+coherent/deletion captures use resolved access and retain their own guards.
+User HTTP reads headers after preflight; SDK list/PATCH requests read stored
+headers without an extra freshness check. New header reads run on IO. Epoch,
+receipt and fast-read fences remain, including cancellation when replacement
+lands immediately after definitive refresh rejection. Pending credentials remain
+excluded from ordinary and worker views.
+
+Full JVM: 3,474 total in 464 suites, 3,470 passed, four existing SSH skips, zero
+failures/errors. Owned API36: 239/239 in 373.973 seconds, nine new methods and
+230 regressions. The 64-case reference executes three complete unchanged
+StackAuthClient adapters with inert Stack results and real child cancellation;
+it runs on ART beside the prior110-case resolver reference. Regeneration is
+byte-identical. Actual encrypted-store/HTTP checks cover nil versus typed
+failure, shared timeout/replacement, token-only ownership, restored-user probes,
+application retry and post-rejection replacement. Stored-header checks cover
+preflight versus HTTP snapshots and request counts. The real 60-second phase
+returned at 60007ms with ciphertext/pairing intact and no PATCH. Crash log
+empty, no preflight ANR, settings/window restored, owned exit0. Earlier fixture
+failures and the unreproduced two-second JVM fixture timeout remain separate
+evidence; its budget/assertions are unchanged and transport diagnostics were
+added. Final full build-v7 and runtime-v2 bind the delivered development sources.
+
+Full parity remains active. Complete application absent-token/unavailable-storage
+projection and winning-owner state/cache clearing, access-only account/team/
+terminal authority, callback/form/backend/reporting and caller-budget paths,
+metadata/image/demo/reset/identity/worker and diagnostic/team-error UI, iOS-runtime
+proof, actual OS/locked storage/death, physical Pixel/Mac/provider/helper/Firebase,
+matched full UI/accessibility and signed delivery remain open. Source reference
+host: macOS26.5.2/CoreFoundation5026.5; no whole original coordinator or iOS proof.
+No physical install, real account/pairing/signing data, global pin or frozen
+signed722 changed.
+
+Details: [Ordinary token consumers](ORDINARY_TOKEN_CONSUMERS.md).
+Evidence: `captures/recovery-20261024/ordinary-token-checkpoint.json`.
+
 ## Pending token resolution and shared refresh reconciled — 2026-10-24
 
 Interactive and orphaned pending-user validation now applies the original SDK's

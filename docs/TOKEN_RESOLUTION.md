@@ -1,3 +1,7 @@
+Follow-up: [Ordinary SDK token consumers](ORDINARY_TOKEN_CONSUMERS.md) records
+the later optional/resolved adapter separation, live request headers and ordinary
+shared-resolver adoption. The earlier checkpoint below keeps its original scope.
+
 # SDK token resolution and pending-session refresh
 
 The audited resolver at `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`

@@ -1,0 +1,1042 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift": "f207a5d02577cc89e1e34ad08a019f200a5bdd96817ba08f9695f10415461845"
+  },
+  "executedDeclarationsSha256": [
+    "44bc2766ae61a0413676b12af910143ecdfa4a7035786de4f11e05a5237678f0",
+    "b7993a7328f85ff27c166035ce9d920f6c2e7018e1b4f6f4b9990c7e1686cefe",
+    "928a4f7275147244b93b732d44018a994936888f6d2b23012a677ed11c4fd4ab"
+  ],
+  "seams": "Three complete unchanged StackAuthClient accessToken, forceRefreshAccessToken and resolvedAccessToken declarations execute. Stack optional access/pair results are inert; real child task cancellation executes. The corpus proves wrapper routing and nil/cancellation/timeout projections, not underlying refresh, transport, original coordinator/public-state clearing, storage or iOS behavior.",
+  "cases": [
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": null,
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": null,
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": null,
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": null,
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "cancelled",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "cancelled",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "cancelled",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "cancelled",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "sessionChanged",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "sessionChanged",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "sessionChanged",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "sessionChanged",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "timedOut",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "timedOut",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "timedOut",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "ordinary"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "timedOut",
+        "force": false,
+        "mode": "ordinary"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": null,
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": null,
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": null,
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": null,
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "cancelled",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "cancelled",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "cancelled",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "cancelled",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "sessionChanged",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "sessionChanged",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "sessionChanged",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "sessionChanged",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "timedOut",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "timedOut",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "timedOut",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "timedOut",
+        "force": true,
+        "mode": "forced"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": null,
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": null,
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": null,
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": null,
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "cancelled",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "cancelled",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "cancelled",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "cancelled",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "sessionChanged",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "sessionChanged",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "sessionChanged",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "sessionChanged",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "timedOut",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "timedOut"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "timedOut",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "timedOut",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "timedOut"
+      }
+    },
+    {
+      "calls": [
+        "resolved-proactive"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "timedOut",
+        "force": false,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": null,
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": null,
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": null,
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": "access",
+        "error": null
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": null,
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "cancelled",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "cancelled",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "cancelled",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "cancelled",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "sessionChanged",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "sessionChanged",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "sessionChanged",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "sessionChanged",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": false,
+        "failure": "timedOut",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "timedOut"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": null,
+        "cancelBefore": true,
+        "failure": "timedOut",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": false,
+        "failure": "timedOut",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "timedOut"
+      }
+    },
+    {
+      "calls": [
+        "resolved-forced"
+      ],
+      "input": {
+        "access": "access",
+        "cancelBefore": true,
+        "failure": "timedOut",
+        "force": true,
+        "mode": "resolved"
+      },
+      "outcome": {
+        "access": null,
+        "error": "cancelled"
+      }
+    }
+  ],
+  "foundation": {
+    "coreFoundationVersion": 5026.5,
+    "os": "Version 26.5.2 (Build 25F84)"
+  }
+}

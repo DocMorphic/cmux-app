@@ -65,19 +65,21 @@ internal class NativeAccountTeams(
     private val sessionGeneration:(()->Long)?=null,
     private val refreshRejected:(suspend (String?)->String?)?=null,
     private val retrySleep:suspend(Long)->Unit=nativeSdkRetrySleep,
+    private val storedTokens:(()->NativeSdkTokens)?=null,
 ) : AutoCloseable {
     constructor(account: NativeAccount, store: NativeCredentialStore,
         origin:HttpUrl="https://api.stack-auth.com/api/v1/".toHttpUrl(),base:OkHttpClient=OkHttpClient(),
         backendOrigin:HttpUrl="https://cmux.com/".toHttpUrl(),networkTimeoutMillis:Long=NETWORK_TIMEOUT_MILLIS) : this(
-        { force -> account.accessToken(force) }, { store.taskSession() },
+        { force -> account.sdkAccessToken(force) }, { store.taskSession() },
         origin=origin,base=base,backendOrigin=backendOrigin,
-        refreshCredential = { store.load()?.optString("refresh_token") },
+        refreshCredential = { account.sdkStoredTokens().refresh },
         cache = NativeAccountProfileCache(store::load, store::update), lock = store.accountStateLock,
         sessionIdentity=account.sessionRestore::identity,restoreUser=account.sessionRestore::restoreIdentityIfNeeded,
         needsRestoration={account.sessionRestore.needsIdentityValidation},phaseNowMillis={android.os.SystemClock.elapsedRealtime()},phaseWork=store.authWork,
         networkTimeoutMillis=networkTimeoutMillis,accountUser={account.sessionRestore.state.value.user},
         sessionUser=account.sessionRestore::verifiedUser,sessionGeneration={account.sessionRestore.sessionGeneration},
-        refreshRejected={failed->account.accessToken(forceRefresh=true,rejectedAccess=failed)})
+        refreshRejected={failed->account.sdkAccessToken(forceRefresh=true,rejectedAccess=failed)},
+        storedTokens=account::sdkStoredTokens)
 
     private class StackFailure(val status: Int) : IOException("Account request failed ($status)")
     private val client = base.newBuilder().followRedirects(false).followSslRedirects(false)
@@ -240,7 +242,7 @@ internal class NativeAccountTeams(
             val created = try {phase(epoch,NativeAuthPhase.TEAM_SELECTION,NativeAuthWork.Admission.PHASE) {child->
                 checkCurrent(owner,child)
                 val access = credential(token(false))
-                val refresh = credential(refreshCredential())
+                val refresh = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){credential(refreshCredential())}
                 checkCurrent(owner, child)
                 val request = Request.Builder().url(checkNotNull(backendOrigin.resolve("api/subrouter/teams")))
                     .header("Accept", "application/json").header("Authorization", "Bearer $access")
@@ -494,10 +496,18 @@ internal class NativeAccountTeams(
     private suspend fun request(path: String, owner: String, epoch: Operation, body: JSONObject? = null,discardBody:Boolean=false,
         emptyObjectOnInvalidJson:Boolean=false): JSONObject {
         checkCurrent(owner,epoch)
-        val access=token(false)?.takeIf{it.isNotBlank()} ?: throw IOException("Sign in to cmux")
+        val headers=if(storedTokens!=null) {
+            // getUser preflights presence; CurrentUser's other SDK methods snapshot the store directly.
+            if(path=="users/me" && body==null && token(false)==null)throw NativeSdkUserNotSignedIn()
+            checkCurrent(owner,epoch)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){storedTokens.invoke()}
+        } else {
+            val access=token(false)?.takeIf{it.isNotBlank()} ?: throw IOException("Sign in to cmux")
+            NativeSdkTokens(refreshCredential(),access)
+        }
         checkCurrent(owner,epoch)
         val initial=nativeSdkRequest(checkNotNull(origin.resolve(path)),NativeAccount.PROJECT_ID,NativeAccount.PUBLISHABLE_KEY,
-            method=if(body==null)"GET" else "PATCH",body=body,access=access,refresh=refreshCredential())
+            method=if(body==null)"GET" else "PATCH",body=body,access=headers.access,refresh=headers.refresh)
         return nativeSdkSend(initial,true,refreshRejected={failed->refreshRejected?.invoke(failed) ?: if(refreshRejected==null)token(true) else null},
             checkCurrent={checkCurrent(owner,epoch)},sleep=retrySleep) {request->
             exchange(request,owner,epoch,parseBody=!discardBody,emptyObjectOnInvalidJson=emptyObjectOnInvalidJson)
