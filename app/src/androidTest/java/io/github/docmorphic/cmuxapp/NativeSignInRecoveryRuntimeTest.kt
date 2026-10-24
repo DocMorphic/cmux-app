@@ -64,6 +64,7 @@ class NativeSignInRecoveryRuntimeTest {
                 finally { image.recycle() }
             }
             compose.onNodeWithTag("signin.email").performTextInput("PERSON@Example.test")
+            awaitNativeSignInIme(compose.activity)
             tap("signin.request"); awaitIdleRecovery()
             compose.onNodeWithTag("signin.recovery.error").assertTextEquals(compose.activity.getString(R.string.cmux_signin_recovery_unavailable))
             compose.onNodeWithTag("signin.code").assertDoesNotExist()

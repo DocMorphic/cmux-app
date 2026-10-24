@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalog": {
+    "path": "ios/cmux/Resources/Localizable.xcstrings",
+    "sha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd"
+  },
+  "strings": [
+    {
+      "key": "mobile.signIn.apple",
+      "resource": "cmux_signin_provider_apple",
+      "translations": {
+        "en": "Sign in with Apple",
+        "ar": "تسجيل الدخول مع أبل",
+        "de": "Melden Sie sich bei Apple an",
+        "es": "Iniciar sesión con Apple",
+        "fr": "Connectez-vous avec Apple",
+        "ja": "Apple でサインイン",
+        "ko": "Apple로 로그인",
+        "zh-Hans": "使用 Apple 登录",
+        "zh-Hant": "使用 Apple 登入"
+      }
+    },
+    {
+      "key": "mobile.signIn.google",
+      "resource": "cmux_signin_provider_google",
+      "translations": {
+        "en": "Sign in with Google",
+        "ar": "قم بتسجيل الدخول باستخدام جوجل",
+        "de": "Melden Sie sich mit Google an",
+        "es": "Iniciar sesión con Google",
+        "fr": "Connectez-vous avec Google",
+        "ja": "Google でサインイン",
+        "ko": "Google로 로그인",
+        "zh-Hans": "使用 Google 登录",
+        "zh-Hant": "使用 Google 登入"
+      }
+    },
+    {
+      "key": "mobile.signIn.github",
+      "resource": "cmux_signin_provider_github",
+      "translations": {
+        "en": "Sign in with GitHub",
+        "ar": "قم بتسجيل الدخول باستخدام جيثب",
+        "de": "Melden Sie sich mit GitHub an",
+        "es": "Iniciar sesión con GitHub",
+        "fr": "Connectez-vous avec GitHub",
+        "ja": "GitHub でサインイン",
+        "ko": "GitHub로 로그인",
+        "zh-Hans": "使用 GitHub 登录",
+        "zh-Hant": "使用 GitHub 登入"
+      }
+    },
+    {
+      "key": "mobile.signIn.emailDivider",
+      "resource": "cmux_signin_provider_divider",
+      "translations": {
+        "en": "or continue with email",
+        "ar": "أو الاستمرار مع البريد الإلكتروني",
+        "de": "oder weiter per E-Mail",
+        "es": "o continuar con el correo electrónico",
+        "fr": "ou continuez avec l'e-mail",
+        "ja": "またはメールで続行",
+        "ko": "아니면 이메일로 계속하세요",
+        "zh-Hans": "或继续使用电子邮件",
+        "zh-Hant": "或繼續使用電子郵件"
+      }
+    },
+    {
+      "key": "mobile.signIn.emailCode",
+      "resource": "cmux_signin_provider_email_code",
+      "translations": {
+        "en": "Email me a code",
+        "ar": "أرسل لي رمزًا عبر البريد الإلكتروني",
+        "de": "Schicken Sie mir einen Code per E-Mail",
+        "es": "Envíame un código por correo electrónico",
+        "fr": "Envoyez-moi un code",
+        "ja": "コードをメールで受け取る",
+        "ko": "이메일로 코드 받기",
+        "zh-Hans": "通过电子邮件给我发送代码",
+        "zh-Hant": "透過電子郵件給我發送代碼"
+      }
+    }
+  ]
+}

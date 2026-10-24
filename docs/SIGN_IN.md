@@ -1,5 +1,72 @@
 # Native sign-in
 
+## Provider authentication wired — 2026-10-24
+
+Apple, Google and GitHub buttons now invoke the retained authentication owner.
+The client follows the original Stack JSON authorization-location preflight,
+legacy scope,32-character random state,64-character verifier, S256 challenge and
+form-encoded code exchange. Authorization/token requests have30-second network
+bounds; token success requires HTTP200. The owner has the original300-second
+interactive bound and existing60-second preflight/quiescence bound. Cancellation
+is checked before the credential transaction; sign-out conditionally retires the
+OAuth generation under the same writer lock. Storage writes run off the UI thread.
+
+AndroidX Browser1.10.0 supplies Auth Tab with ephemeral browsing requested and
+Custom-Tab fallback routing. Callback paths include the application ID to separate
+debug/release installations, and cmux_flow binds errors even when the backend
+omits OAuth state. Success also requires the matching state; wrong origins,
+paths, duplicate fields, mixed outcomes and stale callbacks cannot start an
+exchange. The exported redirect Activity consumes only an already-admitted,
+memory-only flow and clears its Intent. Per-presentation registry keys survive
+recreation and temporary host removal; an old browser result cannot target the
+new request. The existing NativeAccount constructor remains source-compatible.
+
+Apple's original native ASAuthorizationController is unavailable on Android;
+the existing project also configures Apple's web provider. Fresh public API
+preflights returned200 and provider locations at accounts.google.com, github.com
+and appleid.apple.com, accepting the debug callback path/nonce. No actual provider
+login, code exchange or personal account was used for that preflight. Seven whole
+original provider/coordinator/client/SDK/composition sources are identical at
+detected79d982f9; hashes, AndroidX artifact and official API references are in
+third_party/cmux-signin/oauth-reference.json. Five original UI keys contribute45
+exact values across nine locales, including the fixed email-button label so an
+OAuth request no longer incorrectly says “Sending code…”.
+
+All53 focused JVM tests and22 localization checks pass. Final owned API36 cohort
+passes13 cases in57.345s. Four new cases exercise the production client/account/
+encrypted fixture store/retained owner/Compose/Android ActivityResult contract:
+two actual Activity recreations keep one browser launch and two HTTP requests;
+the actual exported fallback Activity completes once; a776-byte saved state omits
+the actual verifier; an old native cancellation/fallback cannot retire a timeout
+retry; sign-out rejects late callbacks; and a detached host consumes its pending
+result after reattachment without relaunching. Fixture pairing rows remain intact.
+Browser results and HTTP are controlled, so these are not real provider sessions.
+
+Existing code/paste/replacement/timeout/recovery/recreation and36 code-card plus18
+error locale profiles pass. Earlier runs each failed a different email-request
+wait. Native IME/touch timing was inferred; the final harness waits for native
+keyboard geometry to settle before pointer taps without weakening request-count
+assertions. Diagnostic attempts remain retained. A passing13-case v3 is superseded
+by v4's original email-button copy and fixture Surface/inset placement repair.
+Three final frames reviewed, crash empty, no preflight ANR, settings/window
+restored, owned emulator exit0. Exact bindings:
+recovery-20261023/native-oauth-checkpoint.json and native-oauth-runtime-v4/.
+App SHA256:646f1ef771ee3530bf425f015db2be3d20adbac5b12a36d81b0bfbf1c4333aab.
+Test SHA256:d953d3e4b7cb84936192dc9526ccdf8992829e8ac0526befcbb419c88b9e411a.
+
+Full acceptance remains open. The current provider operation completes after a
+token pair is stored; it does not yet run the original fetched-user/team-publication
+and conditional post-write rollback phases. Deadline/sign-out during and after
+storage writes, user fetch and newer-flow interleavings need that full coordinator
+contract. Android currently requires both access and refresh tokens; the original
+SDK callback permits optional refresh. Real browser/provider sign-in, cancellation,
+timeout dismissal, cookie isolation and unsupported-browser fallback are unproven.
+The methods page still uses the earlier scaffold and lacks source provider artwork;
+restore status, typography/glass/transitions/motion, OS/window variants, real
+Pixel/Mac/autofill/TalkBack and every full-app gate remain open. No new signed
+delivery or physical action;722/physical712/global pins/account/pairing/signing
+unchanged. Full goal remains active.
+
 ## Separate challenge screens and source code card — 2026-10-24
 
 Code and email-verification states now replace the methods form instead of stacking

@@ -1,3 +1,30 @@
+## Provider authentication wired — 2026-10-24
+
+Apple/Google/GitHub controls now invoke the retained owner and source Stack JSON
+preflight/S256 PKCE/form exchange. Android Auth Tab requests ephemeral browsing;
+variant-specific callback paths/flow binding and stable per-presentation registry
+keys protect retries/recreation/reattachment. Existing account constructor remains
+compatible; credential transactions run off the UI thread. Five original keys
+provide45 exact translations. All three public endpoints accepted the debug
+callback and returned expected provider hosts; no actual login was performed.
+
+All53 focused JVM/22 localization checks pass; final owned API36 cohort passes13
+cases in57.345s. Four new controlled-browser/local-HTTP cases use the production
+encrypted fixture account store, preserve pairing, cover two actual recreations,
+verifier absence from776-byte saved state, exported fallback routing, timeout
+retry, sign-out and detached-host result delivery. Existing code/recovery and
+36+18 controlled profiles pass. Final frames reviewed, crash empty, settings/
+window restored, emulator exit0. Earlier touch-wait failures and superseded
+frames remain recorded; native IME settlement now precedes pointer taps.
+Bindings/scope: [SIGN_IN.md](SIGN_IN.md), recovery-20261023/native-oauth-checkpoint.json.
+
+Real provider/browser login/isolation/dismissal, full fetched-user/team and
+conditional post-write rollback coordinator contract (including post-write timeout
+races/access-only responses), original methods scaffold/artwork/restore UI,
+OS/window variants, physical Pixel/Mac/autofill/TalkBack and full-app gates remain
+open. No new signed delivery or physical/personal-account action;722/physical712/
+global pins/account/pairing/signing unchanged. Full goal active.
+
 ## Sign-in challenge screens separated — 2026-10-24
 
 Code and verification states now replace the email methods form. The code card

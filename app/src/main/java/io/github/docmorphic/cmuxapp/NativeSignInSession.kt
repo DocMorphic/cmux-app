@@ -8,15 +8,18 @@ internal data class NativeSignInState(val email: String = "", val code: String =
     val busy: Boolean = false, val error: NativeSignInError? = null, val completion: Long? = null,
     val verificationRequired: Boolean = false, val recoveryError: NativeSignInRecoveryError? = null,
     val billingRecoveryAccepted: Boolean = false, val authenticating: Boolean = false,
-    val codeFocusRequest: Long? = null, val emailFocusRequest: Long? = null)
+    val codeFocusRequest: Long? = null, val emailFocusRequest: Long? = null,
+    val provider: NativeOAuthProvider? = null)
 
 /** Owner-confined, memory-only form and requests. Configuration changes do not retire this owner. */
 internal class NativeSignInSession(parent: CoroutineScope, private val send: suspend (String) -> Unit,
     private val authenticate: suspend (String) -> Unit, private val clearChallenge: () -> Unit = {},
     private val requestVerification: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
     private val requestBilling: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
-    private val verificationTimeoutMillis: Long = 60_000) : AutoCloseable {
-    init { require(verificationTimeoutMillis > 0) }
+    private val verificationTimeoutMillis: Long = 60_000,
+    private val authenticateProvider: suspend (NativeOAuthProvider) -> Unit = { throw NativeSignInFailure(NativeSignInError.BROWSER_SIGN_IN_FAILED) },
+    private val interactiveTimeoutMillis: Long = 300_000) : AutoCloseable {
+    init { require(verificationTimeoutMillis > 0 && interactiveTimeoutMillis > 0) }
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
     private val mutable = MutableStateFlow(NativeSignInState())
@@ -46,42 +49,48 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
     fun requestCode() = request(signingIn = false)
     fun requestCodeFromEmail(focused: Boolean) = request(signingIn = false, focusCodeOnSuccess = focused)
     fun submitCode() = request(signingIn = true)
-    private fun request(signingIn: Boolean, automatic: Boolean = false, focusCodeOnSuccess: Boolean = false) {
+    fun signInProvider(provider: NativeOAuthProvider) = request(signingIn = false, provider = provider)
+    private fun request(signingIn: Boolean, automatic: Boolean = false, focusCodeOnSuccess: Boolean = false,
+        provider: NativeOAuthProvider? = null) {
         val form = state.value
-        val valid = if (signingIn) form.codeSent && form.code.length == 6 else form.email.isNotBlank()
+        val authenticating = signingIn || provider != null
+        val valid = if (provider != null) !form.codeSent && !form.verificationRequired
+            else if (signingIn) form.codeSent && form.code.length == 6 else form.email.isNotBlank()
         if (!job.isActive || (form.busy && !(automatic && form.authenticating)) || form.completion != null || !valid) return
         val admitted = ++generation
-        val previous = if (signingIn) exchanges.toList() else emptyList()
-        if (signingIn) {
+        val previous = if (authenticating) exchanges.toList() else emptyList()
+        if (authenticating) {
             previous.forEach { it.cancel() }
             pending?.cancel()
         }
         mutable.value = form.copy(busy = true, error = null, recoveryError = null, completion = null, codeSent = if (signingIn) form.codeSent else false,
-            code = if (signingIn) form.code else "", authenticating = signingIn)
+            code = if (signingIn) form.code else "", authenticating = authenticating, provider = provider)
         val task = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                if (signingIn) {
+                if (authenticating) {
                     // Original beginSignInFlow cancels/joins older token work
                     // with the60s network bound before starting a new exchange.
                     withTimeout(verificationTimeoutMillis) { previous.forEach { it.join() } }
                     ensureActive()
                     if (generation != admitted) return@launch
-                    val exchange = scope.async(start = CoroutineStart.LAZY) { authenticate(form.code) }
+                    val exchange = scope.async(start = CoroutineStart.LAZY) {
+                        if (provider != null) authenticateProvider(provider) else authenticate(form.code)
+                    }
                     exchanges.add(exchange)
                     exchange.invokeOnCompletion { exchanges.remove(exchange) }
                     exchange.start()
-                    try { withTimeout(verificationTimeoutMillis) { exchange.await() } }
+                    try { withTimeout(if (provider != null) interactiveTimeoutMillis else verificationTimeoutMillis) { exchange.await() } }
                     finally { exchange.cancel() }
                 } else send(form.email)
                 ensureActive()
                 if (generation != admitted) return@launch
-                mutable.value = if (signingIn) NativeSignInState(completion = admitted)
+                mutable.value = if (authenticating) NativeSignInState(completion = admitted)
                     else mutable.value.copy(codeSent = true, verificationRequired = false,
                         codeFocusRequest = if (!form.verificationRequired && focusCodeOnSuccess) admitted else null)
             } catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
                 if (generation != admitted) return@launch
-                if (!signingIn && failure is NativeAccountRequestFailure && failure.requiresEmailVerification) {
+                if (!authenticating && failure is NativeAccountRequestFailure && failure.requiresEmailVerification) {
                     // Enter recovery even if its email provider is unavailable.
                     mutable.value = mutable.value.copy(verificationRequired = true, codeSent = false, code = "")
                     if (form.verificationRequired) mutable.value = mutable.value.copy(recoveryError = NativeSignInRecoveryError.PENDING)
@@ -101,7 +110,7 @@ internal class NativeSignInSession(parent: CoroutineScope, private val send: sus
                     error = display)
                 }
             } finally {
-                if (job.isActive && generation == admitted) mutable.value = mutable.value.copy(busy = false, authenticating = false)
+                if (job.isActive && generation == admitted) mutable.value = mutable.value.copy(busy = false, authenticating = false, provider = null)
             }
         }
         pending = task

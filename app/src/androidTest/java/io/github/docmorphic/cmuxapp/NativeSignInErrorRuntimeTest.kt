@@ -62,6 +62,7 @@ class NativeSignInErrorRuntimeTest {
             }
         } }
         compose.onNodeWithTag("signin.email").performTextInput("person@example.test")
+        awaitNativeSignInIme(compose.activity)
         compose.onNodeWithTag("signin.request").performScrollTo().performClick()
         compose.waitUntil(5_000) { model!!.state.value.error == NativeSignInError.SERVER_ERROR }
         val folder = File(compose.activity.getExternalFilesDir(null), "signin-error").apply { mkdirs() }

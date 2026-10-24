@@ -1,5 +1,17 @@
 # Attribution
 
+Native provider sign-in follows the pinned cmux OAuthSignInProvider,
+AuthCoordinator, StackAuthClient, MobileAuthComposition and vendored StackClientApp
+PKCE/authorization-location/token-exchange contracts. Exact whole-source hashes
+and scope are in `third_party/cmux-signin/oauth-reference.json`. Provider/divider/
+email-button labels retain45 original catalog values across nine locales.
+Android adds a variant-specific callback path and flow nonce for Intent routing;
+Apple uses the configured web provider. This is not a claim of full original
+authentication coordinator, browser or UI parity.
+AndroidX Browser 1.10.0 is used without modification, copyright Google LLC,
+Apache License 2.0. The full Apache 2.0 license is included in the app's existing
+license viewer. Source: https://android.googlesource.com/platform/frameworks/support/+/androidx-main/browser/
+
 Native sign-in code normalization/completion and reviewed focus, editable-code,
 Back, preflight and timeout behavior follow the original cmux mobile sign-in and
 shared authentication sources at `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`.

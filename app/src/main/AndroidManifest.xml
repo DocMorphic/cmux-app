@@ -99,5 +99,15 @@
                 <data android:scheme="cmux-ios-dev.cmux.app.demo" android:host="attach" />
             </intent-filter>
         </activity>
+        <activity android:name=".NativeOAuthRedirectActivity" android:exported="true"
+            android:noHistory="true" android:excludeFromRecents="true" android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="stack-auth-mobile-oauth-url" android:host="success" android:path="/${applicationId}" />
+                <data android:host="error" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

@@ -80,6 +80,7 @@ class NativeSignInCardRuntimeTest {
             }
         } }
         compose.onNodeWithTag("signin.email").performTextInput("person@example.test")
+        awaitNativeSignInIme(compose.activity)
         compose.onNodeWithTag("signin.request").performScrollTo().performClick()
         compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("signin.code").assertIsFocused(); true }.getOrDefault(false) }
         compose.onNodeWithTag("signin.code").performTextInput("BAD123")

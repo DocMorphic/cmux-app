@@ -139,6 +139,7 @@ internal fun NativeScreen(
     val toolbarStore = rememberTerminalToolbar(displayPreferences)
     val store = remember(context, sharedConnections) { sharedConnections?.store ?: NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { sharedConnections?.account ?: NativeAccount(store) }
+    NativeOAuthBrowserHost(account.oauthBrowser)
     val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
     val feedSession = remember(runtimeOwner) {
         ViewModelProvider(runtimeOwner, NativeFeedSession.Factory(connection, account, store, sharedConnections?.teams,
@@ -4041,7 +4042,7 @@ internal fun NativeScreen(
                             onLicenses = { showLicenses = true }, macPolicy = displayPolicy, onSignedIn = { signedIn = true; error = null },
                             retained = sharedConnections?.signIn,
                             requestEmailVerification = account::requestEmailVerification, requestBillingRecovery = account::requestBillingRecovery,
-                            clearChallenge = account::cancelPendingSignIn)
+                            clearChallenge = account::cancelPendingSignIn, signInProvider = account::signInWithProvider)
                         showOnboarding -> onboardingContent()
                         showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
                         showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
@@ -4488,16 +4489,19 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
                          onSignedIn: () -> Unit, retained: NativeSignInSession? = null,
                          requestEmailVerification: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
                          requestBillingRecovery: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
-                         clearChallenge: () -> Unit = {}) {
+                         clearChallenge: () -> Unit = {},
+                         signInProvider: suspend (NativeOAuthProvider) -> Unit = { throw NativeSignInFailure(NativeSignInError.BROWSER_SIGN_IN_FAILED) }) {
     val scope = rememberCoroutineScope()
     val send by rememberUpdatedState(sendCode)
     val authenticate by rememberUpdatedState(signIn)
     val verification by rememberUpdatedState(requestEmailVerification)
     val recovery by rememberUpdatedState(requestBillingRecovery)
     val clearCurrentChallenge by rememberUpdatedState(clearChallenge)
+    val providerSignIn by rememberUpdatedState(signInProvider)
     val completed by rememberUpdatedState(onSignedIn)
     val local = remember(retained) { if (retained == null) NativeSignInSession(scope, { send(it) }, { authenticate(it) }, { clearCurrentChallenge() },
-        requestVerification = { verification(it) }, requestBilling = { recovery(it) }) else null }
+        requestVerification = { verification(it) }, requestBilling = { recovery(it) },
+        authenticateProvider = { providerSignIn(it) }) else null }
     val session = retained ?: checkNotNull(local)
     DisposableEffect(local) { onDispose { local?.close() } }
     val form by session.state.collectAsState()
@@ -4526,7 +4530,7 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
             }
         }
     }
-    val email = form.email; val codeSent = form.codeSent; val busy = form.busy; val signInError = form.error
+    val email = form.email; val busy = form.busy; val signInError = form.error
     LaunchedEffect(session, form.completion) { form.completion?.let { if (session.consumeCompletion(it)) completed() } }
     var showPairingHelp by rememberSaveable { mutableStateOf(false) }
     if (showPairingHelp) NativePairingHelp(macPolicy, signedIn = false,
@@ -4544,12 +4548,13 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
             Text("Set up cmux on your Mac")
         }
         Spacer(Modifier.height(24.dp))
+        NativeOAuthButtons(form, session)
         OutlinedTextField(email, session::editEmail,
             Modifier.fillMaxWidth().focusRequester(emailFocus).onFocusChanged { emailHasFocus = it.isFocused }.testTag("signin.email"), label = { Text("Email") }, singleLine = true, enabled = !busy,
             keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email))
         Spacer(Modifier.height(12.dp))
         Button(onClick = { session.requestCodeFromEmail(emailHasFocus) }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth().testTag("signin.request")) {
-            Text(if (busy && !codeSent) "Sending code…" else if (codeSent) "Send a new code" else "Email me a sign-in code")
+            Text(stringResource(R.string.cmux_signin_provider_email_code))
         }
         signInError?.let { Text(stringResource(it.resource), Modifier.fillMaxWidth().padding(vertical = 12.dp)
             .testTag("signin.error").semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },

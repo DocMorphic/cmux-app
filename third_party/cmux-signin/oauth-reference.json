@@ -1,0 +1,30 @@
+{
+  "reference": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "files": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift": "f207a5d02577cc89e1e34ad08a019f200a5bdd96817ba08f9695f10415461845",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthConfig.swift": "69cabd8929c1bca9d243c8e610935c1093335b4117896a5f25f297bbb32e1ab9",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/StackClientApp.swift": "1013bedc8099496b006660e5e5e01095631acd69cd86fd2d96dd1ee44edb01b4",
+    "vendor/stack-auth-swift-sdk-prerelease/Tests/StackAuthTests/OAuthTests.swift": "ffaba45c211d641233e43f832b924b19d1ff2ca4ebf5707f05039aeb7d80ea51",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/OAuthSignInProvider.swift": "a8bf0f8ce09b01fa3d0d45e3cca58e0aa8f268e1bcced4de21c005d309e714ca",
+    "ios/cmuxPackage/Sources/cmuxFeature/MobileAuthComposition.swift": "7c040d9c590014ee4bd84f77f4c85f36b64bf6d9c4777f9cabbdd0fc905a3488"
+  },
+  "identicalAtDetected79d982f9": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Client/StackAuthClient.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthConfig.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": true,
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/StackClientApp.swift": true,
+    "vendor/stack-auth-swift-sdk-prerelease/Tests/StackAuthTests/OAuthTests.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/OAuthSignInProvider.swift": true,
+    "ios/cmuxPackage/Sources/cmuxFeature/MobileAuthComposition.swift": true
+  },
+  "exactProviderCatalogValues": 45,
+  "androidBrowser": {
+    "coordinate": "androidx.browser:browser:1.10.0",
+    "aarSha256": "fb40d1ee5fd910c9d112200868a9534156a7a999abc28fbb3c6815a2e3ac5150",
+    "releaseReference": "https://developer.android.com/jetpack/androidx/releases/browser",
+    "authTabReference": "https://developer.chrome.com/docs/android/custom-tabs/guide-auth-tab",
+    "ephemeralReference": "https://developer.android.com/reference/androidx/browser/auth/AuthTabIntent.Builder"
+  },
+  "scope": "Original provider/PKCE/JSON preflight/form exchange/cancellation/publication and configured ephemeral browser review. Android variant callback path/flow binding is additional routing protection; Apple uses configured web provider because the original native Apple framework is unavailable. No full original coordinator/rendering/real-provider session acceptance."
+}

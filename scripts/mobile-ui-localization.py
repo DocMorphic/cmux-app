@@ -19,6 +19,7 @@ MARKDOWN_DATA = ROOT / 'third_party/cmux-localization/markdown-strings.json'
 SIGNIN_RECOVERY_DATA = ROOT / 'third_party/cmux-localization/sign-in-recovery-strings.json'
 SIGNIN_ERROR_DATA = ROOT / 'third_party/cmux-localization/sign-in-error-strings.json'
 SIGNIN_CODE_DATA = ROOT / 'third_party/cmux-localization/sign-in-code-strings.json'
+SIGNIN_PROVIDER_DATA = ROOT / 'third_party/cmux-localization/sign-in-provider-strings.json'
 LANGUAGES = ('en', 'ar', 'de', 'es', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant')
 FOLDERS = {'en': 'values', 'zh-Hans': 'values-b+zh+Hans', 'zh-Hant': 'values-b+zh+Hant'}
 NAME = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
@@ -375,6 +376,23 @@ def load_signin_code_rows(path=SIGNIN_CODE_DATA):
     return rows
 
 
+def load_signin_provider_rows(path=SIGNIN_PROVIDER_DATA):
+    data = json.loads(path.read_text())
+    if data['version'] != 1 or data['upstream'] != 'a5911a1f92f3eeb11c4d7f3e2ef89204718c5009' or data['catalog'] != {
+        'path': 'ios/cmux/Resources/Localizable.xcstrings',
+        'sha256': '9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd'}:
+        raise ValueError('Unreviewed sign-in provider catalog')
+    expected = {'apple': 'apple', 'google': 'google', 'github': 'github', 'emailDivider': 'divider', 'emailCode': 'email_code'}
+    if len(data['strings']) != len(expected) or {r['key'] for r in data['strings']} != {'mobile.signIn.'+k for k in expected}:
+        raise ValueError('Incomplete sign-in providers')
+    for row in data['strings']:
+        if row['resource'] != 'cmux_signin_provider_'+expected[row['key'].removeprefix('mobile.signIn.')] or set(row['translations']) != set(LANGUAGES):
+            raise ValueError('Unbound sign-in provider resource/locale')
+        if any(not isinstance(v, str) or not v or '%' in v for v in row['translations'].values()):
+            raise ValueError('Invalid sign-in provider copy')
+    return data['strings']
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--migrate', action='store_true')
@@ -389,6 +407,7 @@ def main():
     signin_rows = load_signin_recovery_rows()
     signin_error_rows = load_signin_error_rows()
     signin_code_rows = load_signin_code_rows()
+    signin_provider_rows = load_signin_provider_rows()
     if args.migrate:
         if args.check: parser.error('--migrate and --check are exclusive')
         changes = 0
@@ -457,7 +476,13 @@ def main():
             if not code_path.is_file() or code_path.read_bytes() != encoded: raise ValueError(f'Generated sign-in code resources differ: {folder}')
         else:
             code_path.write_bytes(encoded)
-    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog, {len(cloud_lifecycle_rows)} Cloud lifecycle, {len(cloud_onboarding_rows)} Cloud onboarding, {len(markdown_rows)} Markdown, {len(signin_rows)} sign-in recovery, {len(signin_code_rows)} sign-in code and {len(signin_error_rows)} sign-in error roles / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
+        provider_path = path.with_name('cmux_signin_provider_strings.xml')
+        encoded = resource_xml(signin_provider_rows, language, 'from pinned original native provider labels and email divider')
+        if args.check:
+            if not provider_path.is_file() or provider_path.read_bytes() != encoded: raise ValueError(f'Generated sign-in provider resources differ: {folder}')
+        else:
+            provider_path.write_bytes(encoded)
+    print(f'{len(rows)} general, {len(billing_rows)} billing, {len(browser_dialog_rows)} browser dialog, {len(cloud_lifecycle_rows)} Cloud lifecycle, {len(cloud_onboarding_rows)} Cloud onboarding, {len(markdown_rows)} Markdown, {len(signin_rows)} sign-in recovery, {len(signin_code_rows)} sign-in code, {len(signin_provider_rows)} sign-in provider and {len(signin_error_rows)} sign-in error roles / {len(LANGUAGES)} locales {"verified" if args.check else "generated"}; full localization remains separate')
 
 
 if __name__ == '__main__':

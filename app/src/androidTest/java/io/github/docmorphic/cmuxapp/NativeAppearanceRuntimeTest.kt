@@ -114,6 +114,8 @@ class NativeAppearanceRuntimeTest {
         }
         form = ActivityScenario.launch(NativeSignInLifecycleTestActivity::class.java)
         compose.onNodeWithTag("signin.email").performTextInput("fixture@example.test")
+        var pendingActivity: NativeSignInLifecycleTestActivity? = null
+        form!!.onActivity { pendingActivity = it }; awaitNativeSignInIme(checkNotNull(pendingActivity))
         compose.onNodeWithTag("signin.request").performScrollTo().performClick()
         compose.waitUntil(5_000) { sends.get() == 1 }
         form!!.recreate()
@@ -164,8 +166,20 @@ class NativeAppearanceRuntimeTest {
         form = ActivityScenario.launch(NativeSignInLifecycleTestActivity::class.java)
         val email = "recovery-lifecycle@example.test"
         compose.onNodeWithTag("signin.email").performTextInput(email)
+        var recoveryActivity: NativeSignInLifecycleTestActivity? = null
+        form!!.onActivity { recoveryActivity = it }; awaitNativeSignInIme(checkNotNull(recoveryActivity))
         compose.onNodeWithTag("signin.request").performScrollTo().performClick()
-        compose.waitUntil(5_000) { verifications.get() == 1 }; recreate()
+        try { compose.waitUntil(5_000) { verifications.get() == 1 } }
+        catch (failure: Throwable) {
+            val folder = File(instrumentation.targetContext.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+            File(folder, "recovery-request-failure.json").writeText(JSONObject().put("sends", sends.get())
+                .put("verifications", verifications.get()).put("busy", model!!.state.value.busy)
+                .put("provider", model!!.state.value.provider?.name).put("error", model!!.state.value.error?.name)
+                .put("email", model!!.state.value.email).toString(2))
+            device.takeScreenshot(File(folder, "recovery-request-failure.png"))
+            throw failure
+        }
+        recreate()
         compose.onNodeWithTag("signin.emailVerification").assertExists()
         compose.onNodeWithTag("signin.emailVerificationContinue").assertIsNotEnabled()
         compose.onNodeWithTag("signin.emailVerificationResend").assertIsNotEnabled()

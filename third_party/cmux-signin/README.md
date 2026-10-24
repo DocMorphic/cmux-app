@@ -22,3 +22,15 @@ The Android capsule paint and system typeface do not execute UIKit Liquid Glass
 or establish exact source rendering. Original provider methods, entry scaffold,
 restore status, transitions, window/keyboard variants and real accessibility
 remain open. Scoped runtime evidence and remaining requirements: `docs/SIGN_IN.md`.
+
+`oauth-reference.json` adds seven whole original provider/coordinator/client/
+composition/SDK sources, their identity at detected79d982f9 and the unmodified
+AndroidX Browser1.10.0 artifact hash. The implementation uses the original JSON
+authorization-location preflight, S256 PKCE, legacy scope and form token exchange.
+Android callback paths include the application ID and a flow nonce so release/
+debug builds and retired flows remain separate. The pinned provider labels,
+email divider and fixed email-button label contribute45 exact localized values.
+Apple's original ASAuthorizationController sheet is unavailable on Android;
+the existing Stack project also configures its web provider. Endpoint preflight
+does not establish an actual provider login, browser isolation/dismissal, the full
+auth coordinator or final UI parity. Those gates remain explicit in SIGN_IN.md.

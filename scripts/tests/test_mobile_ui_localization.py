@@ -13,6 +13,21 @@ ROWS = {'Cancel': {'resource': 'cmux_ui_cancel'}, 'Done': {'resource': 'cmux_ui_
 
 
 class MobileUiLocalization(unittest.TestCase):
+    def test_signin_provider_inventory_and_locales_cannot_be_mixed_or_omitted(self):
+        rows = UI.load_signin_provider_rows()
+        self.assertEqual(5, len(rows))
+        for language in UI.LANGUAGES:
+            self.assertEqual(5, len(ET.fromstring(UI.resource_xml(rows, language)).findall('string')))
+        data = json.loads(UI.SIGNIN_PROVIDER_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'providers.json'
+            altered = copy.deepcopy(data); altered['strings'][0]['resource'] = 'cmux_signin_provider_google'; path.write_text(json.dumps(altered))
+            with self.assertRaises(ValueError): UI.load_signin_provider_rows(path)
+            altered = copy.deepcopy(data); del altered['strings'][0]['translations']['ar']; path.write_text(json.dumps(altered))
+            with self.assertRaises(ValueError): UI.load_signin_provider_rows(path)
+            altered = copy.deepcopy(data); altered['strings'].pop(); path.write_text(json.dumps(altered))
+            with self.assertRaises(ValueError): UI.load_signin_provider_rows(path)
+
     def test_signin_code_email_format_and_locales_remain_bound(self):
         rows = UI.load_signin_code_rows()
         self.assertEqual(5, len(rows))

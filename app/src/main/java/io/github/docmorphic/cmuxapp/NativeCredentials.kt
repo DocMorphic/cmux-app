@@ -278,7 +278,12 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
 }
 
 /** The same production Stack project and OTP endpoints used by cmux iOS. */
-class NativeAccount(private val store: NativeCredentialStore, private val refreshOverride: ((String) -> String)? = null) {
+class NativeAccount private constructor(private val store: NativeCredentialStore, private val refreshOverride: ((String) -> String)?,
+    private val oauthClient: NativeOAuthClient, internal val oauthBrowser: NativeOAuthBrowser) {
+    constructor(store: NativeCredentialStore, refreshOverride: ((String) -> String)? = null) :
+        this(store, refreshOverride, NativeOAuthClient(PROJECT_ID, PUBLISHABLE_KEY), NativeOAuthBrowser())
+    internal constructor(store: NativeCredentialStore, oauthClientOverride: NativeOAuthClient, oauthBrowser: NativeOAuthBrowser) :
+        this(store, null, oauthClientOverride, oauthBrowser)
     private val refreshMutex = Mutex()
     private val emailSignIn = NativeEmailSignIn(::request) { access, refresh ->
         store.update {
@@ -286,16 +291,32 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
             it.remove("task_drafts")
         }
     }
+    private val oauthSignIn = NativeOAuthSignIn(oauthClient::prepare, oauthBrowser::authorize, oauthClient::exchange, publish = { access, refresh ->
+        store.update {
+            it.put("access_token", access).put("refresh_token", refresh).put("task_session", UUID.randomUUID().toString())
+            it.remove("task_drafts")
+        }
+    })
 
-    suspend fun sendCode(email: String): Unit = withContext(Dispatchers.IO) { emailSignIn.sendCode(email) }
+    suspend fun sendCode(email: String) {
+        oauthSignIn.clear()
+        withContext(Dispatchers.IO) { emailSignIn.sendCode(email) }
+    }
 
-    suspend fun signIn(code: String): Unit = withContext(Dispatchers.IO) { emailSignIn.signIn(code) }
+    suspend fun signIn(code: String) {
+        oauthSignIn.clear()
+        withContext(Dispatchers.IO) { emailSignIn.signIn(code) }
+    }
+    internal suspend fun signInWithProvider(provider: NativeOAuthProvider) {
+        emailSignIn.clear()
+        oauthSignIn.signIn(provider)
+    }
 
     private val emailRecovery = NativeEmailRecoveryClient()
     suspend fun requestEmailVerification(email: String) = emailRecovery.verification(email)
     suspend fun requestBillingRecovery(email: String) = emailRecovery.billing(email)
 
-    internal fun cancelPendingSignIn() = emailSignIn.clear()
+    internal fun cancelPendingSignIn() { emailSignIn.clear(); oauthSignIn.clear() }
 
     suspend fun accessToken(forceRefresh: Boolean = false): String? = refreshMutex.withLock {
         val state = store.load() ?: return@withLock null
@@ -375,7 +396,7 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
     }
 
     fun signOut(expectedLogin: String? = null): Boolean {
-        val applied = emailSignIn.clearIf {
+        val applied = emailSignIn.clearIf { oauthSignIn.clearIf {
             var retired = false
             store.update {
                 if (expectedLogin != null && it.optString("task_session") != expectedLogin) return@update
@@ -384,7 +405,7 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
                 retired = true
             }
             retired
-        }
+        } }
         if (applied) TaskDraftRepository.clearMemory()
         return applied
     }

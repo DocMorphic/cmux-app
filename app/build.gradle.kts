@@ -215,6 +215,7 @@ dependencies {
     implementation("androidx.core:core:1.12.0")
     implementation("androidx.collection:collection:1.5.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("androidx.browser:browser:1.10.0")
     implementation("org.commonmark:commonmark:0.30.0")
     implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.30.0")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
