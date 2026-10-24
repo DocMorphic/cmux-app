@@ -60,15 +60,15 @@ internal class NativeSessionRestore(
         if (synchronized(lock) { !mutable.value.authenticated && !mutable.value.restoring && !hint }) return
         checkExisting()
     }
-    fun clear() { clearIfCurrent(null) }
-    private fun clearIfCurrent(context: Context?) {
+    fun clear(clearCachedUser: Boolean = true) { clearIfCurrent(null, clearCachedUser) }
+    private fun clearIfCurrent(context: Context?, clearCachedUser: Boolean = true) {
         val cleared = synchronized(lock) {
             if (context != null && !clearIsCurrent(context)) false else {
                 generation++; hint = false; mutable.value = NativeAuthState()
                 runCatching { setHint(false) }; true
             }
         }
-        if (cleared) runCatching(onCleared)
+        if (cleared && clearCachedUser) runCatching(onCleared)
     }
     /** Called only after the interactive completion has committed its verified user. */
     fun publishedSignIn(user: NativeSignInUser) { publish(user, signIn = true) }

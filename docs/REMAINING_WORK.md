@@ -1,3 +1,31 @@
+## Durable local logout and shared sign-in fences advanced — 2026-10-24
+
+Explicit Sign out now records a non-secret durable intent before encrypted IO,
+clears the auth model without its encrypted-cache callback, and preserves the
+ciphertext if storage is unavailable. Reads/writers replay retirement before
+exposing old credentials; new ciphertext and intent removal commit together.
+Saved Mac records and the existing key alias remain. Failed replay can retry;
+a fresh verified login cannot be erased by an old retry. Conditional deletion
+callbacks still require a readable matching owner. Shared account epochs now
+fence parked exchanges/user results across account objects and reentrant writes.
+Optional UI cleanup failure does not reverse the successful local logout verdict.
+
+Final full JVM:3256 total,3252 passed,4 existing SSH skips,0 failures in441 suites.
+Owned API36 cohort:62/62 in141.508s; crash empty, no preflight ANR, settings/window
+restored, emulator exit0. New cases cover unavailable/reconstructed accounts,
+failed encryption replay, malformed/empty intent metadata, actual fresh OAuth
+completion, reentrant snapshot retirement, primary helper cleanup-key retention,
+conditional deletion and root Sign out UI. One setup attempt was intentionally
+stopped to correct the test browser-host claim; its app APK was unchanged.
+These fixtures do not prove actual protected-data unlock, process death or a
+real provider/server revoke. Source5-second server teardown, captured credentials,
+push hook ordering/joining, hanging crypto/UI cleanup bounds and unavailable-store
+FCM callbacks remain open. Full parity remains active; physical installs, global
+source pins and frozen signed722 are unchanged.
+
+Details: [local logout semantics and remaining source/device gates](LOCAL_LOGOUT.md).
+Evidence: `captures/recovery-20261023/local-logout-checkpoint.json`.
+
 ## Cached session startup and foreground restoration advanced — 2026-10-24
 
 Normal cached-user/token-hint priming, coalesced launch/foreground validation,

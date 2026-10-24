@@ -39,13 +39,21 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
         readStates.getOrPut(documentKey) { kotlinx.coroutines.flow.MutableStateFlow(NativeCredentialReadStatus.UNCHECKED) }
     }
     internal fun authTokenHint(environment: String, fallback: Boolean): Boolean = synchronized(storageLock) {
-        runCatching { preferences.getBoolean(authHintKey(environment), fallback) }.getOrDefault(fallback)
+        runCatching { if (localLogoutPending) false else preferences.getBoolean(authHintKey(environment), fallback) }.getOrDefault(fallback)
     }
     internal fun setAuthTokenHint(environment: String, value: Boolean) {
-        preferences.edit().putBoolean(authHintKey(environment), value).apply()
+        synchronized(storageLock) { preferences.edit().putBoolean(authHintKey(environment), value && !localLogoutPending).apply() }
     }
     private fun authHintKey(environment: String) = "auth_tokens_" + java.security.MessageDigest.getInstance("SHA-256")
         .digest(environment.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    internal val localLogoutPending: Boolean get() = try { preferences.getBoolean(NativeLocalLogout.PENDING, false) }
+        catch (_: Exception) { throw NativeCredentialReadException() }
+    /** Persist intent before touching Keystore. Every credential mutation must replay it first. */
+    internal fun requestLocalLogout() = synchronized(storageLock) {
+        check(preferences.edit().putBoolean(NativeLocalLogout.PENDING, true).commit()) { "Could not save local logout" }
+        authSessionEpoch.incrementAndGet()
+        changeState.value++
+    }
     /** An unreadable encrypted document is distinct from an absent document. */
     internal val readability: kotlinx.coroutines.flow.StateFlow<NativeCredentialReadStatus> get() = readStatus
     private val changeState = synchronized(storageLock) {
@@ -217,7 +225,24 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
         }
     }
 
-    private fun readState(): JSONObject? {
+    private fun readState(): JSONObject? = try {
+        val value = readEncryptedState()
+        if (localLogoutPending) {
+            if (value == null) {
+                check(preferences.edit().remove(NativeLocalLogout.PENDING).commit()) { "Could not finish local logout" }
+                changeState.value++
+            } else {
+                NativeLocalLogout.retire(value)
+                save(value, retiringAuth = true)
+            }
+        }
+        value
+    } catch (_: Exception) {
+        readStatus.value = NativeCredentialReadStatus.UNAVAILABLE
+        throw NativeCredentialReadException()
+    }
+
+    private fun readEncryptedState(): JSONObject? {
         return try {
             val encoded = preferences.getString("state", null) ?: run {
                 readStatus.value = NativeCredentialReadStatus.EMPTY
@@ -240,15 +265,19 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
     }
 
     fun update(transform: (JSONObject) -> Unit): Unit = synchronized(storageLock) {
+        val epoch = authSessionEpoch.get()
         val value = readState() ?: JSONObject()
         transform(value)
+        if (authSessionEpoch.get() != epoch) throw kotlinx.coroutines.CancellationException("Account changed")
         save(value)
     }
 
     /** The maintenance ledger already committed this projection; do not re-import deliberately retired keys. */
     internal fun updateFromMaintenance(transform: (JSONObject) -> Unit): Unit = synchronized(storageLock) {
+        val epoch = authSessionEpoch.get()
         val value = readState() ?: JSONObject()
         transform(value)
+        if (authSessionEpoch.get() != epoch) throw kotlinx.coroutines.CancellationException("Account changed")
         save(value, preserveHelpers = false)
     }
 
@@ -265,8 +294,10 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
     }
 
     /** Caller holds storageLock. */
-    private fun save(value: JSONObject, preserveHelpers: Boolean = true) {
-        if (primaryAccount && preserveHelpers) PhoneHelperMaintenanceWork.preserve(applicationContext, readState())
+    private fun save(value: JSONObject, preserveHelpers: Boolean = true, retiringAuth: Boolean = false) {
+        if (!retiringAuth && localLogoutPending) throw NativeCredentialReadException()
+        if (primaryAccount && preserveHelpers) PhoneHelperMaintenanceWork.preserve(applicationContext,
+            if (retiringAuth) readEncryptedState() else readState())
         NativeAttachTicketStore.prune(value)
         NativeAccountDeletionRecord.prune(value)
         NativeAccountProfileCache.prune(value)
@@ -285,7 +316,9 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key(createIfMissing = true))
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(value.toString().toByteArray()), Base64.NO_WRAP)
-        check(preferences.edit().putString("state", encoded).commit()) { "Could not save account" }
+        val edit = preferences.edit().putString("state", encoded)
+        if (retiringAuth) edit.remove(NativeLocalLogout.PENDING)
+        check(edit.commit()) { "Could not save account" }
         readStatus.value = NativeCredentialReadStatus.AVAILABLE
         changeState.value++
     }
@@ -295,7 +328,7 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
             PhoneHelperMaintenanceWork.preserve(applicationContext, readState())
             PhoneHelperMaintenanceWork.preserve(applicationContext, JSONObject(), stageRetirement = true)
         }
-        val edit = preferences.edit().remove("state")
+        val edit = preferences.edit().remove("state").remove(NativeLocalLogout.PENDING)
         preferences.all.keys.filter { it.startsWith("auth_tokens_") }.forEach(edit::remove)
         check(edit.commit()) { "Could not clear account" }
         readStatus.value = NativeCredentialReadStatus.EMPTY
@@ -346,7 +379,8 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         oauthClient.accountEnvironment, store.accountStateLock, onPublished = { login, user -> onSignedIn(login, user) },
         refreshAccess = oauthClient::refreshAccess, work = authWork,
         onCredentialsWritten = { sessionRestore.noteCredentialWrite(); store.authSessionEpoch.incrementAndGet() },
-        onVerified = { owner, user -> publishedOwner.set(owner); observedAuthEpoch.set(store.authSessionEpoch.get()); sessionRestore.publishedSignIn(user) })
+        onVerified = { owner, user -> publishedOwner.set(owner); observedAuthEpoch.set(store.authSessionEpoch.get()); sessionRestore.publishedSignIn(user) },
+        sessionEpoch = { store.authSessionEpoch.get() })
     private val emailSignIn = NativeEmailSignIn(::request) { _, _ -> error("Sign-in completion receipt required") }
     private val oauthSignIn = NativeOAuthSignIn(oauthClient::prepare, oauthBrowser::authorize, oauthClient::exchange,
         publish = { _, _ -> error("Sign-in completion receipt required") })
@@ -462,7 +496,10 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         cleared
     }
     internal suspend fun reconcileStoredSession() = withContext(Dispatchers.IO) { synchronized(store.accountStateLock) {
-        val root = try { store.requireReadable() } catch (_: NativeCredentialReadException) { return@synchronized }
+        val root = try {
+            if (store.localLogoutPending) sessionRestore.clear(clearCachedUser = false)
+            store.requireReadable()
+        } catch (_: NativeCredentialReadException) { return@synchronized }
         if (root?.optString("access_token").isNullOrBlank() && root?.optString("refresh_token").isNullOrBlank()) sessionRestore.clear()
         else if (!NativeSignInCompletion.isPending(root)) {
             val owner = root?.optString("task_session")?.takeIf(String::isNotBlank)
@@ -594,20 +631,34 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
             authWork.cancelAll()
         }
         val applied = completion.clearIf(includePublished = true) {
-            var retired = false
-            store.update {
-                if (expectedLogin != null && it.optString("task_session") != expectedLogin) return@update
-                it.put("access_token", "").put("refresh_token", "")
-                it.remove("task_session"); it.remove("task_drafts")
-                it.remove(NativeSignInCompletion.PENDING)
-                it.remove(NativeAuthUserCache.KEY)
-                retired = true
+            if (expectedLogin == null) {
+                // User intent survives process death and unavailable encrypted storage.
+                // A conditional deletion callback must still prove its captured owner.
+                store.requestLocalLogout()
+                sessionRestore.clear(clearCachedUser = false)
+                try { store.requireReadable() } catch (_: NativeCredentialReadException) { /* Replay on the next readable transaction. */ }
+                true
+            } else {
+                var retired = false
+                store.update {
+                    if (it.optString("task_session") != expectedLogin) return@update
+                    NativeLocalLogout.retire(it)
+                    retired = true
+                }
+                if (retired) { store.authSessionEpoch.incrementAndGet(); sessionRestore.clear() }
+                retired
             }
-            if (retired) { store.authSessionEpoch.incrementAndGet(); sessionRestore.clear() }
-            retired
         }
         if (applied) { emailSignIn.clear(); oauthSignIn.clear(); TaskDraftRepository.clearMemory() }
         return applied
+    }
+
+    internal fun retryLocalLogout() {
+        try {
+            if (!store.localLogoutPending) return
+            sessionRestore.clear(clearCachedUser = false)
+            store.requireReadable()
+        } catch (_: NativeCredentialReadException) { /* Keep durable intent and ciphertext. */ }
     }
 
     private fun expiresSoon(token: String): Boolean = runCatching {

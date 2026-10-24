@@ -49,7 +49,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         account::requestEmailVerification, account::requestBillingRecovery, authenticateProvider = account::signInWithProvider,
         authenticationOwnsDeadlines = true)
     init { account.sessionRestore.start(scope) }
-    fun revalidateAccount() = scope.launch { account.sessionRestore.revalidate() }
+    fun revalidateAccount() = scope.launch { account.retryLocalLogout(); account.sessionRestore.revalidate() }
 
     val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->

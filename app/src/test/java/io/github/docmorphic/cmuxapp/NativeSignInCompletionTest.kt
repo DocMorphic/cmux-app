@@ -257,4 +257,45 @@ class NativeSignInCompletionTest {
         assertEquals(user, NativeSignInUser.decode(JSONObject().put("id", user.id).put("display_name", user.name).put("primary_email", user.email)
             .put("selected_team", JSONObject().put("id", user.selectedTeam))))
     }
+    @Test fun sharedLogoutEpochRejectsAnOtherwiseActiveExchangeAndLetsTheNextLoginPublish()=runBlocking {
+        val store=Store();val epoch=java.util.concurrent.atomic.AtomicLong();val entered=CompletableDeferred<Unit>();val release=CompletableDeferred<Unit>()
+        var fetches=0
+        val flow=NativeSignInCompletion(store::load,store::update,{fetches++;user},environment,store.lock,
+            onCredentialsWritten={epoch.incrementAndGet()},sessionEpoch={epoch.get()})
+        val old=async { runCatching { flow.signIn { write -> entered.complete(Unit);release.await();write("old","old-refresh") } } }
+        entered.await();synchronized(store.lock) { epoch.incrementAndGet();store.clearSession() }
+        release.complete(Unit);assertTrue(old.await().exceptionOrNull() is CancellationException)
+        assertEquals(0,fetches);assertCleared(store)
+        val fresh=NativeSignInCompletion(store::load,store::update,{user},environment,store.lock,
+            onCredentialsWritten={epoch.incrementAndGet()},sessionEpoch={epoch.get()})
+        fresh.signIn { it("fresh","fresh-refresh") }
+        assertEquals("fresh-refresh",store.load().getString("refresh_token"));assertFalse(NativeSignInCompletion.isPending(store.load()))
+    }
+    @Test fun sharedLogoutEpochDropsALateUserWithoutPublishingOrRefreshingTeams()=runBlocking {
+        val store=Store();val epoch=java.util.concurrent.atomic.AtomicLong();val entered=CompletableDeferred<Unit>();val release=CompletableDeferred<Unit>()
+        var verified=0;var memberships=0
+        val flow=NativeSignInCompletion(store::load,store::update,{entered.complete(Unit);release.await();user},environment,store.lock,
+            onPublished={_,_->memberships++},onCredentialsWritten={epoch.incrementAndGet()},onVerified={_,_->verified++},sessionEpoch={epoch.get()})
+        val old=async { runCatching { flow.signIn { it("old","old-refresh") } } }
+        entered.await();assertTrue(NativeSignInCompletion.isPending(store.load()))
+        synchronized(store.lock) { epoch.incrementAndGet();store.clearSession() }
+        release.complete(Unit);assertTrue(old.await().exceptionOrNull() is CancellationException)
+        assertEquals(0,verified);assertEquals(0,memberships);assertCleared(store)
+    }
+    @Test fun sharedLogoutWhileWaitingForOldTokenWorkPreventsLaunchingAnotherExchange()=runBlocking {
+        val store=Store();val work=NativeAuthWork();val epoch=java.util.concurrent.atomic.AtomicLong()
+        val entered=CompletableDeferred<Unit>();val release=CompletableDeferred<Unit>();var exchanges=0
+        val blocker=launch { runCatching { work.run(NativeAuthPhase.REFRESH,5000) {
+            withContext(NonCancellable) { entered.complete(Unit);release.await() }
+        } } }
+        entered.await()
+        val flow=NativeSignInCompletion(store::load,store::update,{user},environment,store.lock,work=work,sessionEpoch={epoch.get()})
+        val waiting=async { runCatching { flow.signIn { exchanges++;it("old","old-refresh") } } }
+        try {
+            withTimeout(2000) { while(work.cancelledCount==0)delay(1) }
+            epoch.incrementAndGet();release.complete(Unit)
+            assertTrue(waiting.await().exceptionOrNull() is CancellationException);assertEquals(0,exchanges);assertCleared(store)
+        } finally { release.complete(Unit);blocker.join();waiting.join() }
+    }
+
 }

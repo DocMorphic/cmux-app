@@ -83,6 +83,29 @@ class PhoneHelperMaintenanceStorageTest {
         }
     }
 
+    @Test fun deferredExplicitLogoutRetainsItsCleanupProofBeforePruningTheReadableAccount() {
+        IsolatedContext(InstrumentationRegistry.getInstrumentation().targetContext).use { context ->
+            val seeded=seed(context);val unavailable=java.util.concurrent.atomic.AtomicBoolean(false)
+            val reader=NativeCredentialStore.withKeyProvider(context,"native_cmux","cmux_native_v1") {
+                if(unavailable.get()) throw java.security.KeyStoreException("Fixture provider unavailable")
+                java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.getKey("cmux_native_v1",null) as javax.crypto.SecretKey
+            }
+            val account=NativeAccount(reader)
+            val before=context.getSharedPreferences("native_cmux",Context.MODE_PRIVATE).getString("state",null)
+            unavailable.set(true);assertTrue(account.signOut());assertTrue(reader.localLogoutPending)
+            assertEquals(before,context.getSharedPreferences("native_cmux",Context.MODE_PRIVATE).getString("state",null))
+            unavailable.set(false);account.retryLocalLogout()
+            assertFalse(reader.localLogoutPending);assertNull(reader.taskSession())
+            assertEquals(listOf(seeded.mac),reader.pairedMacs())
+            val queue=PhoneHelperMaintenanceQueue(ledger(context).requireReadable()!!)
+            queue.reconcile(JSONObject(),null,null)
+            val revoke=queue.pending().single();assertEquals("revoke",revoke.action)
+            assertEquals(seeded.receipt.getString("registration"),revoke.receipt.getString("registration"))
+            assertArrayEquals(seeded.phone.privateKey,revoke.phone.privateKey)
+            assertEquals(NativeAuthState(),account.sessionRestore.state.value)
+        }
+    }
+
     @Test fun removingPairingCapturesCleanupBeforeNormalPruningRemovesPins() {
         IsolatedContext(InstrumentationRegistry.getInstrumentation().targetContext).use { context ->
             val seeded = seed(context); val store = NativeCredentialStore(context)

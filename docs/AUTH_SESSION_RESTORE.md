@@ -43,9 +43,10 @@ never supplies membership or connection authority. The warning triangle is an
 Android vector analogue of the original SF Symbol; native font, glass, shadow,
 button paint, sizing and accessibility still require platform comparison.
 
-Still open: local-first signout and durable retirement intent when storage is
-unreadable; actual protected-data/unlock response and bounded initial cache
-reads; durable FCM callbacks during unavailable storage; full original user
+Local-authority retirement during unreadable storage now has a durable intent
+and replay path; see [local logout](LOCAL_LOGOUT.md). Full original signout's
+bounded server tail and real post-sign-in joining remain open, as do actual
+protected-data/unlock response and bounded initial cache reads; durable FCM callbacks during unavailable storage; full original user
 metadata/profile image/demo state; complete SDK retry/backoff/rate-limit behavior;
 process-wide coordinator/authorization ownership across background consumers;
 exact access-only session snapshots, team loading/recovery and real post-sign-in

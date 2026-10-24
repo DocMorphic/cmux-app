@@ -145,4 +145,12 @@ class NativeSessionRestoreTest {
         gate.complete(Unit);runCurrent();assertEquals(live,f.model.state.value.user)
     }
 
+    @Test fun localLogoutCanPublishItsVerdictWithoutCallingEncryptedCacheStorage()=runTest {
+        var cacheReads=0
+        val model=NativeSessionRestore(true,cached,{}, {cached},{true},{true},{live},{"refresh"},{true},{},{},
+            onCleared={cacheReads++})
+        model.clear(clearCachedUser=false)
+        assertEquals(NativeAuthState(),model.state.value);assertEquals(0,cacheReads)
+    }
+
 }

@@ -2506,19 +2506,26 @@ internal fun NativeScreen(
 
                 if (signedIn && sshSession != null) key(sshSession) { SshPromptHost(sshSession) }
 
-                fun signOutCurrentAccount(owner: String? = null): Boolean = try {
-                    if (account.signOut(owner)) {
-                        sharedConnections?.signIn?.clear()
-                        // Retire credentials first: service/connection teardown cannot leave a
-                        // deleted account admitted if stopping a background component fails.
+                fun signOutCurrentAccount(owner: String? = null): Boolean {
+                    val applied = try { account.signOut(owner) } catch (_: Exception) {
+                        error = "Could not sign out on this device"
+                        return false
+                    }
+                    if (applied) {
+                        // The durable local verdict wins even when optional teardown fails.
+                        signedIn = false
+                        val previousClient = client; client = null
+                        runCatching { previousClient?.close() }
+                        runCatching { sharedConnections?.signIn?.clear() }
                         runCatching { NativeNotificationService.setEnabled(context, false) }
                         backgroundNotifications = NativeNotificationService.isEnabled(context)
-                        drafts.clear(); accountTeams.clear(); TaskDraftRepository.clearAttachments(context)
-                        signedIn = false; client?.close(); client = null
+                        runCatching { drafts.clear() }
+                        accountTeams.clear()
+                        runCatching { TaskDraftRepository.clearAttachments(context) }
                     }
-                    accountDeletion.reconcile()
-                    true // A different login is intentionally untouched.
-                } catch (failure: Exception) { error = "Could not sign out on this device"; false }
+                    runCatching { accountDeletion.reconcile() }
+                    return true // A different login is intentionally untouched.
+                }
 
                 NativeAccountDeletionAlerts(deletionReceipt, ::signOutCurrentAccount, accountDeletion::acknowledge)
 

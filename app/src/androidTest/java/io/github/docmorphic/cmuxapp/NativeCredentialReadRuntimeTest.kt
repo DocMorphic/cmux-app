@@ -92,6 +92,7 @@ class NativeCredentialReadRuntimeTest {
         unreadable { reader.updateFromMaintenance { transforms++;it.remove(PhonePushKeyState.KEY) } }
         unreadable { reader.requireReadable() }
         unreadable { NativeAccount(reader).signOut(login) }
+        assertFalse(reader.localLogoutPending)
         assertEquals(0,transforms);assertEquals(encoded,cipherValue());assertEquals(revision,reader.revisions.value)
         assertRecovered(store())
         records.put("transformCalls",transforms).put("ciphertextUnchanged",true).put("conditionalClearBlocked",true)

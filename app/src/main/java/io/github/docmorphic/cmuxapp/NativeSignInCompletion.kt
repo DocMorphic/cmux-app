@@ -49,8 +49,9 @@ internal class NativeSignInCompletion(
     private val work: NativeAuthWork = NativeAuthWork(),
     private val onCredentialsWritten: () -> Unit = {},
     private val onVerified: (String, NativeSignInUser) -> Unit = { _, _ -> },
+    private val sessionEpoch: () -> Long = { 0 },
 ) {
-    private class Flow(val id: String, val generation: Long, val operation: Job) {
+    private class Flow(val id: String, val generation: Long, val operation: Job, var epoch: Long) {
         var access: String? = null
         @Volatile var published = false
     }
@@ -64,14 +65,16 @@ internal class NativeSignInCompletion(
         val operation = currentCoroutineContext().job
         val (flow, previous) = synchronized(flowLock) {
             val previous = active.map { it.operation }
-            Flow(UUID.randomUUID().toString(), ++generation, operation).also { active += it } to previous
+            Flow(UUID.randomUUID().toString(), ++generation, operation, sessionEpoch()).also { active += it } to previous
         }
         previous.forEach { it.cancel() }
         var exchangeComplete = false
         try {
             withTimeout(networkTimeoutMillis) { previous.forEach { it.join() } }
             work.quiesce(networkTimeoutMillis)
+            synchronized(lock) { checkCurrent(flow) }
             work.run(exchangePhase, exchangeTimeoutMillis, flow.id, NativeAuthWork.Admission.EXCLUSIVE) {
+                synchronized(lock) { checkCurrent(flow) }
                 val writer = currentCoroutineContext().job
                 try { exchange { access, refresh -> synchronized(lock) {
                     writer.ensureActive()
@@ -83,6 +86,7 @@ internal class NativeSignInCompletion(
                     }
                     flow.access = access
                     onCredentialsWritten()
+                    flow.epoch = sessionEpoch()
                 } } }
                 finally {
                     if (!writer.isActive) withContext(NonCancellable + Dispatchers.IO) {
@@ -113,7 +117,7 @@ internal class NativeSignInCompletion(
             // later restore, but cannot expose an unverified signed-in shell.
             // Cancellation/deadline cleanup is conditional on this receipt.
             if (failure is CancellationException || (failure is NativeSignInFailure && failure.reason == NativeSignInError.TIMED_OUT)) {
-                val mustClear = !flow.published && (!exchangeComplete || generation != flow.generation)
+                val mustClear = !flow.published && (!exchangeComplete || generation != flow.generation || flow.epoch != sessionEpoch())
                 if (mustClear) work.cleanup(currentCoroutineContext(), flow.id) {
                     withContext(Dispatchers.IO) { synchronized(lock) {
                         // A fetchUser deadline alone does not destroy the session.
@@ -145,11 +149,12 @@ internal class NativeSignInCompletion(
             access = (root.opt("access_token") as? String)?.takeIf { it.isNotBlank() }
             refresh = (root.opt("refresh_token") as? String)?.takeIf { it.isNotBlank() }
             if (access == null && (refresh == null || refreshAccess == null)) return@coroutineScope
-            flow = Flow(id, ++generation, operation)
+            flow = Flow(id, ++generation, operation, sessionEpoch())
             active += flow
         }
         try {
             work.quiesce(networkTimeoutMillis)
+            synchronized(lock) { checkCurrent(flow) }
             suspend fun refreshUser(): NativeSignInUser {
                 val exchange = refreshAccess ?: throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
                 val credential = refresh ?: throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
@@ -213,7 +218,7 @@ internal class NativeSignInCompletion(
 
     private fun checkCurrent(flow: Flow) {
         flow.operation.ensureActive()
-        if (flow.generation != generation) throw CancellationException("Sign-in retired")
+        if (flow.generation != generation || flow.epoch != sessionEpoch()) throw CancellationException("Sign-in retired")
     }
     private fun clearPending(id: String) {
         if (!ownsPending(load(), id)) return
