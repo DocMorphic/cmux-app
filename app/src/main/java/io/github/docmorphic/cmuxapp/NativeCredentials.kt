@@ -336,7 +336,7 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
 
     /** Caller holds storageLock. */
     private fun save(value: JSONObject, preserveHelpers: Boolean = true, retiringAuth: Boolean = false, appliedFcmCallback: String? = null,
-        commitFence:((()->Boolean)->Boolean)?=null,refreshOwner:NativeTokenRefresh?=null) {
+        commitFence:((()->Boolean)->Boolean)?=null,refreshOwner:NativeTokenRefresh?=null,resetAuthHint:String?=null) {
         if (!retiringAuth && localLogoutPending) throw NativeCredentialReadException()
         if (pendingFcmCallback() != appliedFcmCallback) throw NativeCredentialReadException()
         if (primaryAccount && preserveHelpers) PhoneHelperMaintenanceWork.preserve(applicationContext,
@@ -360,6 +360,7 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
         cipher.init(Cipher.ENCRYPT_MODE, key(createIfMissing = true))
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(value.toString().toByteArray()), Base64.NO_WRAP)
         val edit = preferences.edit().putString("state", encoded)
+        if(resetAuthHint!=null)edit.putBoolean(authHintKey(resetAuthHint),false)
         if (retiringAuth) edit.remove(NativeLocalLogout.PENDING)
         if (appliedFcmCallback != null) edit.putString(PhoneFcmTokenCallback.APPLIED,appliedFcmCallback)
         val commit={ commitFence?.invoke { edit.commit() } ?: edit.commit() }
@@ -369,6 +370,32 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
         refreshOwnersChanged(value,refreshOwner)
         readStatus.value = NativeCredentialReadStatus.AVAILABLE
         changeState.value++
+    }
+
+    /** Presentation-only retirement; tokens, pending code, pairings and drafts are not sign-out targets here. */
+    internal fun clearAuthPresentation(environment:String,revision:Long,checkOwner:()->Unit,
+        commit:((()->Boolean)->Boolean)):Unit=synchronized(storageLock) {
+        fun check(){checkOwner();if(changeState.value!=revision)throw kotlinx.coroutines.CancellationException("Account document changed")}
+        try {
+        check()
+        val root=readState();check()
+        if(NativeSignInCompletion.isPending(root))throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
+        val keys=listOf(NativeAuthUserCache.KEY,NativeAccountProfileCache.KEY,NativeTeamSelectionStore.KEY)
+        if(keys.any{key->(root?.optJSONObject(key)?.opt("environment") as? String)?.let{it!=environment}==true})
+            throw NativeCredentialReadException()
+        val fence:((()->Boolean)->Boolean)={write->check();commit{check();write()}}
+        if(root!=null && keys.any(root::has)) {
+            root.remove(NativeAuthUserCache.KEY);root.remove(NativeAccountProfileCache.KEY);NativeTeamSelectionStore.clear(root)
+            save(root,commitFence=fence,resetAuthHint=environment)
+        } else {
+            val edit=preferences.edit().putBoolean(authHintKey(environment),false)
+            check(fence{edit.commit()}){"Could not retire account presentation"}
+            changeState.value++
+        }
+        } catch(failure:Exception) {
+            if(failure is kotlinx.coroutines.CancellationException || failure is NativeSignInFailure || failure is NativeCredentialReadException)throw failure
+            throw NativeCredentialReadException()
+        }
     }
 
     fun clear(): Unit = synchronized(storageLock) {
@@ -655,13 +682,64 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         nativeSdkResolvedAccess(ordinaryTokens(forceRefresh,rejectedAccess))
     }
 
-    /** Application connection callers retain a retryable error while refresh credentials survive. */
-    suspend fun accessToken(forceRefresh:Boolean=false,rejectedAccess:String?=null):String? = authWork.run(
-        if(forceRefresh)NativeAuthPhase.FORCE_REFRESH else NativeAuthPhase.REFRESH,60_000) {
-        withContext(Dispatchers.IO) {
-            val token=nativeSdkResolvedAccess(ordinaryTokens(forceRefresh,rejectedAccess))
-            if(token==null && sdkStoredTokens().refresh!=null)throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
-            token
+    private data class TokenClearOwner(val epoch:Long,val generation:Long,val revision:Long,val login:String?)
+    private fun applicationTransitionActive():Boolean {
+        val state=sessionRestore.state.value
+        return nativeApplicationTransition(authWork.currentSignInOwnsStore,sessionRestore.revalidating.value,
+            state.restoring,state.authenticated,authWork.isCapturingSignOutCredentials)
+    }
+
+    /** Application token misses distinguish retryable storage/session transitions from a genuinely absent session. */
+    suspend fun accessToken(forceRefresh:Boolean=false,rejectedAccess:String?=null):String {
+        val caller=kotlinx.coroutines.currentCoroutineContext();caller.ensureActive()
+        val epoch=store.authSessionEpoch.get();val generation=sessionRestore.generationSnapshot
+        var clearOwner:TokenClearOwner?=null
+        fun checkCurrent(){caller.ensureActive()
+            if(store.authSessionEpoch.get()!=epoch || sessionRestore.generationSnapshot!=generation)
+                throw kotlinx.coroutines.CancellationException("Account changed")
+        }
+        try {return nativeApplicationAccess(resolve={
+            authWork.run(if(forceRefresh)NativeAuthPhase.FORCE_REFRESH else NativeAuthPhase.REFRESH,60_000,finish=::checkCurrent) {withContext(Dispatchers.IO) {
+                checkCurrent()
+                val login=synchronized(store.accountStateLock) {
+                    var initial=store.requireReadable();checkCurrent()
+                    if(!NativeSignInCompletion.isPending(initial) && (initial?.opt("refresh_token") as? String)?.isNotBlank()==true &&
+                        (initial.opt("task_session") as? String).isNullOrBlank()) {
+                        store.requireReadableTaskSession();initial=store.requireReadable();checkCurrent()
+                    }
+                    initial?.opt("task_session") as? String
+                }
+                val token=nativeSdkResolvedAccess(ordinaryTokens(forceRefresh,rejectedAccess));checkCurrent()
+                if(token!=null)return@withContext token
+                synchronized(store.accountStateLock) {
+                    val root=store.requireReadable();checkCurrent()
+                    if(NativeSignInCompletion.isPending(root))throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
+                    val nowLogin=root?.opt("task_session") as? String
+                    val empty=root?.let{listOf("task_session","access_token","refresh_token").all{key->
+                        it.opt(key).let{v->v==null || v===JSONObject.NULL || v is String && v.isBlank()}}} ?: true
+                    if(nowLogin!=login && !empty)throw kotlinx.coroutines.CancellationException("Account changed")
+                    clearOwner=TokenClearOwner(epoch,generation,store.revisions.value,nowLogin)
+                    nativeApplicationTokenResult(null,(root?.opt("refresh_token") as? String)?.takeIf(String::isNotBlank),true)
+                }
+            }}
+        },transitioning=::applicationTransitionActive,clear={
+            val expected=checkNotNull(clearOwner)
+            authWork.clearState(expected.login){producerActive->
+                fun check(){producerActive();checkCurrent()
+                    if(applicationTransitionActive())throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
+                }
+                store.clearAuthPresentation(oauthClient.accountEnvironment,expected.revision,::check) {write->
+                    authWork.commitSessionRead {
+                        check()
+                        write().also{committed->if(committed) {
+                            // The final preference commit and model publication win together against writer registration.
+                            sessionRestore.clear(clearCachedUser=false);publishedOwner.set(null);restoredOwner.set(null)
+                        }}
+                    }
+                }
+            }
+        })} catch(failure:NativeCredentialReadException) {
+            caller.ensureActive();throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
         }
     }
 

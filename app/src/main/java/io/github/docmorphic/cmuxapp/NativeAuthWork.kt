@@ -3,7 +3,7 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
-internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, TEAM_LIST, TEAM_SELECTION, REFRESH, FORCE_REFRESH, REFRESH_EXCHANGE, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, ACCOUNT_DELETION, SIGN_OUT, CLEANUP }
+internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, TEAM_LIST, TEAM_SELECTION, REFRESH, FORCE_REFRESH, REFRESH_EXCHANGE, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, ACCOUNT_DELETION, SIGN_OUT, CLEANUP, STATE_CLEAR }
 internal class NativeAuthDeadlineCancellation : CancellationException("The account request timed out. Please try again.")
 
 /** A phase wait may end before its operation does. Keep the actual job, not its waiter. */
@@ -23,7 +23,7 @@ internal class NativeAuthWork(
     internal val cancelledCount: Int get() = synchronized(lock) { active.count { it.job.isCancelled } }
 
     suspend fun <T> run(phase: NativeAuthPhase, timeoutMillis: Long, owner: String? = null,
-        admission: Admission = Admission.TOKEN, operation: suspend () -> T): T {
+        admission: Admission = Admission.TOKEN, finish:()->Unit={}, operation: suspend () -> T): T {
         require(timeoutMillis > 0)
         val context = currentCoroutineContext()
         context.ensureActive()
@@ -31,13 +31,14 @@ internal class NativeAuthWork(
         val lifetime = SupervisorJob()
         val scope = CoroutineScope(context.minusKey(Job) + lifetime)
         val task = scope.async(start = CoroutineStart.LAZY) {
-            val value = operation()
+            val result:Result<T> = try {Result.success(operation())} catch(failure:Exception){Result.failure(failure)}
+            finish()
             ensureActive()
             // Token phases carry an absolute deadline; prompt/exchange phases
             // follow the original race winner without an extra expiry verdict.
             if (admission in setOf(Admission.TOKEN,Admission.SHARED_REFRESH) && nowMillis() - started >= timeoutMillis)
                 throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
-            value
+            result.getOrThrow()
         }
         val entry = Entry(phase, owner, admission, task)
         if (!register(entry)) {
@@ -94,6 +95,15 @@ internal class NativeAuthWork(
         task.start()
     }
 
+    // Order is transitionGate -> work monitor; registration callbacks may reenter their already-held gate.
+    // Final clear commits may hold the credential monitor, but encryption happens before entering this gate.
+    private val transitionGate=Any()
+    private val currentSignIns=mutableMapOf<Any,()->Boolean>()
+    internal val currentSignInOwnsStore get()=synchronized(transitionGate){currentSignIns.values.any{it()}}
+    internal val isCapturingSignOutCredentials get()=signOutCaptures>0
+    internal fun <T> registerSessionTransition(operation:()->T):T=synchronized(transitionGate){operation()}
+    internal fun <T> commitSessionRead(operation:()->T):T=synchronized(transitionGate){operation()}
+
     @Volatile private var signOutCaptures = 0
     private val signInFlows = java.util.concurrent.atomic.AtomicInteger(0)
     private val unpublishedSignIns = java.util.concurrent.atomic.AtomicInteger(0)
@@ -106,22 +116,29 @@ internal class NativeAuthWork(
         fun publish() { if (didPublish.compareAndSet(false,true)) published() }
         fun finish() { publish();if (didFinish.compareAndSet(false,true)) finished() }
     }
-    fun beginSignIn(): SignInLease {
+    /** ownsStore must read only the flow's volatile generation and atomic epoch, without credential IO. */
+    fun beginSignIn(ownsStore:()->Boolean={true}): SignInLease=synchronized(transitionGate) {
+        val id=Any();currentSignIns[id]=ownsStore
         unpublishedSignIns.incrementAndGet();signInFlows.incrementAndGet()
-        return SignInLease({ unpublishedSignIns.decrementAndGet() }, { signInFlows.decrementAndGet() })
+        SignInLease({ synchronized(transitionGate){unpublishedSignIns.decrementAndGet()} }, {
+            synchronized(transitionGate){currentSignIns.remove(id);signInFlows.decrementAndGet()}
+        })
     }
     private var captureFinished = CompletableDeferred<Unit>().apply { complete(Unit) }
     fun beginSignOutCapture(): () -> Unit {
-        synchronized(lock) { if(signOutCaptures++ == 0) captureFinished = CompletableDeferred() }
+        synchronized(transitionGate){synchronized(lock) { if(signOutCaptures++ == 0) captureFinished = CompletableDeferred() }}
         val finished=java.util.concurrent.atomic.AtomicBoolean(false)
-        return { if(finished.compareAndSet(false,true)) synchronized(lock) {
-            if(--signOutCaptures == 0) captureFinished.complete(Unit)
-        };Unit }
+        return {
+            val wake=if(finished.compareAndSet(false,true))synchronized(transitionGate){synchronized(lock) {
+                if(--signOutCaptures==0)captureFinished else null
+            }} else null
+            wake?.complete(Unit);Unit
+        }
     }
     /** Snapshot ownership atomically with the capture gate, without credential IO under this monitor. */
     suspend fun <T> afterSignOutCapture(snapshot:()->T):T {
         while(true) {
-            val wait=synchronized(lock) { if(signOutCaptures == 0) return snapshot();captureFinished }
+            val wait=synchronized(transitionGate){synchronized(lock) { if(signOutCaptures == 0) return snapshot();captureFinished }}
             wait.await()
         }
     }
@@ -162,6 +179,21 @@ internal class NativeAuthWork(
         }
         task.start()
         return task
+    }
+
+    /** A caller can stop waiting; actual encrypted clear work stays tracked until its guarded commit finishes. */
+    suspend fun <T> clearState(owner:String?,operation:suspend(()->Unit)->T):T {
+        val caller=currentCoroutineContext();caller.ensureActive()
+        val lifetime=SupervisorJob()
+        val task=CoroutineScope(caller.minusKey(Job)+Dispatchers.IO+lifetime).async(start=CoroutineStart.LAZY) {
+            val producer=currentCoroutineContext()
+            withContext(NonCancellable){operation {caller.ensureActive();producer.ensureActive()}}
+        }
+        val entry=Entry(NativeAuthPhase.STATE_CLEAR,owner,Admission.CLEANUP,task)
+        synchronized(lock){active+=entry}
+        task.invokeOnCompletion{synchronized(lock){active-=entry};lifetime.cancel()}
+        task.start()
+        try{return task.await()}finally{if(!caller.isActive)task.cancel()}
     }
 
     /** Cancel a snapshot and join the operations, including those whose UI wait already ended. */

@@ -1,3 +1,42 @@
+## Application token misses and state clearing reconciled — 2026-10-24
+
+Application token reads now distinguish a recoverable miss from an absent
+session. Surviving refresh credentials, unavailable storage and current
+transitions produce retryable errors. A winning unauthorized result clears
+cached account presentation and its hint while preserving pairing, keys,
+tokens, drafts and the email challenge. Definitive refresh rejection retains
+its separate credential cleanup. Caller cancellation, session generation,
+document revision and writer-registration fences prevent an old encrypted clear
+from publishing over a new account. Token phases check their deadline after
+both successful and failed operations.
+
+Full JVM: 3,478 total in 466 suites, 3,474 passed, four existing SSH skips, zero
+failures/errors. Owned API36: 254/254 in 388.728 seconds, 14 new methods, one
+existing draft-ownership race and 239 regressions. The new reference executes
+13 complete unchanged release declarations across 464 cases; independent
+regeneration is byte-identical. Real encrypted-store tests cover cold clearing,
+blocked encryption, cancellation, current/stale transitions, actual OAuth
+replacement, sign-out capture, same-epoch revision replacement, preserved email
+challenge and foreign-environment preservation. The real 60-second phase
+returned at 60012ms with ciphertext/pairing intact and no PATCH. Crash log empty,
+no preflight ANR, settings/window restored, owned emulator exit 0. Full JVM
+build-v4 and final debug APK build-v6 bind this checkpoint; earlier fixture
+failure and its queue repair remain recorded.
+
+Full parity remains active. The original timer race, full phase-finish/high-water
+cleanup and original cache backends are not executed by this reference. Complete
+caller/phase admission, authentication-project reset/scoping, access-only account/
+team/terminal authority, callback/form/backend/reporting, metadata/image/demo/
+identity/worker and diagnostic/team-error UI, actual OS/locked storage/death,
+physical Pixel/Mac/provider/helper/Firebase, matched full UI/accessibility and
+signed delivery remain open. Reference host is macOS26.5.2/CoreFoundation5026.5,
+not iOS. No physical install, real account/pairing/signing data, global pin or
+frozen signed722 changed.
+
+Details: [Application token state](APPLICATION_TOKEN_STATE.md).
+Evidence: `captures/recovery-20261024/application-token-checkpoint.json`.
+Historical checkpoints below retain their original scope and open items.
+
 ## Ordinary SDK token consumers reconciled — 2026-10-24
 
 Ordinary verified and token-only reads now share the executed SDK resolver with

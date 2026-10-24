@@ -253,7 +253,7 @@ class NativeOAuthRuntimeTest {
         assertEquals("/api/v1/users/me", server!!.takeRequest(10, TimeUnit.SECONDS)!!.requestUrl!!.encodedPath)
         assertEquals("fixture-refresh", store!!.load()!!.getString("refresh_token"))
         assertTrue(NativeSignInCompletion.isPending(store!!.load())); assertFalse(account!!.isSignedIn()); assertNull(store!!.taskSession())
-        runBlocking { assertNull(account!!.accessToken()) }
+        runBlocking { assertEquals(NativeSignInError.NETWORK_ERROR,nativeSignInError(runCatching{account!!.accessToken()}.exceptionOrNull() as Exception)) }
         assertEquals(0, completions.get()); assertTrue(session!!.state.value.busy); preservedPairing()
         instrumentation.runOnMainSync { assertTrue(account!!.signOut()) }
         compose.waitUntil(10_000) { !session!!.state.value.busy }

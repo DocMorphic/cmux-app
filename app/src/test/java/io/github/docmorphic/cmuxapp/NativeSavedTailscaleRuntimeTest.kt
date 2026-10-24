@@ -15,7 +15,7 @@ import okhttp3.mockwebserver.MockResponse
 
 class NativeSavedTailscaleRuntimeTest {
     private fun MockWebServer.profile(selected: String, vararg members: String) {
-        repeat(2){enqueue(MockResponse().setBody(JSONObject().put("id", "user").put("selected_team", JSONObject().put("id", selected)).toString()))}
+        teamUsers(2){MockResponse().setBody(JSONObject().put("id", "user").put("selected_team", JSONObject().put("id", selected)).toString())}
         enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray(members.map {
             JSONObject().put("id", it).put("display_name", it)
         })).toString()))
@@ -23,7 +23,7 @@ class NativeSavedTailscaleRuntimeTest {
     private suspend fun continuation(block: suspend (Fixture, NativeAccountTeams, MockWebServer) -> Unit) {
         MockWebServer().use { server ->
             NativeAccountTeams({ "fixture-token" }, { "login" }, server.url("/api/v1/")).use { account ->
-                server.profile("team", "team", "other"); account.refresh()
+                server.profile("team", "team", "other"); assertNotNull(account.refresh().scope)
                 Fixture(manualTickets = true, continuation = account::allowsContinuation).use { f ->
                     f.teams.value = account.state.value
                     block(f, account, server)
@@ -32,8 +32,8 @@ class NativeSavedTailscaleRuntimeTest {
         }
     }
     private suspend fun select(f: Fixture, account: NativeAccountTeams, server: MockWebServer, id: String): NativeTeamScope {
-        repeat(2){server.enqueue(MockResponse().setBody(JSONObject().put("id", "user")
-            .put("selected_team", JSONObject().put("id", id)).toString()))}
+        server.teamSelection{MockResponse().setBody(JSONObject().put("id", "user")
+            .put("selected_team", JSONObject().put("id", id)).toString())}
         val result = account.select(id); f.teams.value = result
         val scope = checkNotNull(result.scope)
         withTimeout(2000) { f.local.state.first { it.account == scope } }

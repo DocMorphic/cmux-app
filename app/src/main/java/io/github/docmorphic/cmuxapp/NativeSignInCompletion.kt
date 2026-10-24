@@ -53,7 +53,7 @@ internal class NativeSignInCompletion(
     private val fetchUserWithRefresh:(suspend(String,suspend(String?)->String?)->NativeSignInUser)?=null,
     private val fetchPendingUser:(suspend(String,()->Unit)->NativeSignInUser)?=null,
 ) {
-    private class Flow(val id: String, val generation: Long, val operation: Job, var epoch: Long,
+    private class Flow(val id: String, val generation: Long, val operation: Job, @Volatile var epoch: Long,
         val lease: NativeAuthWork.SignInLease) {
         var access: String? = null
         @Volatile var published = false
@@ -68,7 +68,11 @@ internal class NativeSignInCompletion(
         val operation = currentCoroutineContext().job
         val (flow, previous) = work.afterSignOutCapture { synchronized(flowLock) {
             val previous = active.map { it.operation }
-            Flow(UUID.randomUUID().toString(), ++generation, operation, sessionEpoch(), work.beginSignIn()).also { active += it } to previous
+            lateinit var flow:Flow
+            val lease=work.beginSignIn{flow.generation==generation && flow.epoch==sessionEpoch()}
+            flow=Flow(UUID.randomUUID().toString(), ++generation, operation, sessionEpoch(), lease)
+            active+=flow
+            flow to previous
         } }
         previous.forEach { it.cancel() }
         var exchangeComplete = false
@@ -140,23 +144,22 @@ internal class NativeSignInCompletion(
     /** Resume only an orphaned pending exchange, never overlap a live sign-in. */
     suspend fun restorePending(timeoutMillis: Long = 8_000): Unit = coroutineScope {
         val operation = currentCoroutineContext().job
-        val flow: Flow
-        val access: String?
-        val refresh: String?
         val expectedEpoch = work.afterSignOutCapture { sessionEpoch() }
         val expectedGeneration = generation
         val root = load() ?: return@coroutineScope
-        synchronized(flowLock) {
-            if (generation != expectedGeneration) return@coroutineScope
-            if (active.isNotEmpty()) return@coroutineScope
-            val id = root.opt(PENDING) as? String ?: return@coroutineScope
-            if (!ownsPending(root, id)) return@coroutineScope
-            access = (root.opt("access_token") as? String)?.takeIf { it.isNotBlank() }
-            refresh = (root.opt("refresh_token") as? String)?.takeIf { it.isNotBlank() }
-            if (access == null && (refresh == null || refreshAccess == null)) return@coroutineScope
-            flow = Flow(id, ++generation, operation, expectedEpoch, work.beginSignIn())
-            active += flow
-        }
+        val pending=work.registerSessionTransition {synchronized(flowLock) {
+            if(generation!=expectedGeneration || active.isNotEmpty())return@synchronized null
+            val id=root.opt(PENDING) as? String ?: return@synchronized null
+            if(!ownsPending(root,id))return@synchronized null
+            val access=(root.opt("access_token") as? String)?.takeIf(String::isNotBlank)
+            val refresh=(root.opt("refresh_token") as? String)?.takeIf(String::isNotBlank)
+            if(access==null && (refresh==null || refreshAccess==null))return@synchronized null
+            lateinit var flow:Flow
+            val lease=work.beginSignIn{flow.generation==generation && flow.epoch==sessionEpoch()}
+            flow=Flow(id,++generation,operation,expectedEpoch,lease);active+=flow
+            Triple(flow,access,refresh)
+        }} ?: return@coroutineScope
+        val(flow,access,refresh)=pending
         try {
             work.quiesce(networkTimeoutMillis)
             synchronized(lock) { checkCurrent(flow) }

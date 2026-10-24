@@ -176,13 +176,13 @@ class NativeTaskDraftsTest {
                 if (rejected) throw NativeAccount.InvalidRefreshToken()
                 "stale-access-token"
             }
-            val refresh = async(Dispatchers.IO) { account.accessToken() }
+            val refresh = async(Dispatchers.IO) { runCatching{account.accessToken()} }
             try {
                 assertTrue(started.await(10, TimeUnit.SECONDS))
                 store.update { it.put("refresh_token", "new-refresh").put("access_token", "new-access")
                     .put("task_session", UUID.randomUUID().toString()).put("task_drafts", JSONObject().put("sentinel", "new-account")) }
                 release.countDown()
-                assertNull(refresh.await())
+                assertTrue(refresh.await().exceptionOrNull() is CancellationException)
                 val current = store.load()!!
                 assertEquals("new-access", current.getString("access_token"))
                 assertEquals("new-refresh", current.getString("refresh_token"))

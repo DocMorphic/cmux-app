@@ -38,6 +38,10 @@ class NativePendingTokenRuntimeTest {
         File(context.getExternalFilesDir(null),"pending-token").apply{mkdirs()}.resolve("$case.json")
             .writeText(value.put("fixtureOnly",true).put("encryptedStoreUsed",true).put("pairingMarkerPreserved",true).toString(2))}
 
+    private suspend fun retryablePending(owner:NativeAccount) {
+        val failure=runCatching{owner.accessToken()}.exceptionOrNull() as NativeSignInFailure
+        assertEquals(NativeSignInError.NETWORK_ERROR,failure.reason)
+    }
     @Test fun expiredOrphanRefreshesBeforeUserHttpAndMetadataWritesDoNotRetireItsPendingOwner()=runBlocking<Unit> {
         MockWebServer().use{server->val old=token(-1);val next=token(3600,"new");seed(old)
             val entered=CompletableDeferred<Unit>();val release=CountDownLatch(1)
@@ -46,7 +50,7 @@ class NativePendingTokenRuntimeTest {
                 return user()
             }}
             val owner=account(server);val restore=async(Dispatchers.IO){owner.restorePendingSignIn()}
-            try {withTimeout(4000){entered.await()};assertNull(owner.accessToken());assertFalse(owner.isSignedIn());assertNull(store.taskSession())
+            try {withTimeout(4000){entered.await()};retryablePending(owner);assertFalse(owner.isSignedIn());assertNull(store.taskSession())
                 assertNull(store.refreshView().owner);assertTrue(store.pendingRefreshView("pending",store.authSessionEpoch.get()).owner!!.pending)
                 store.update{it.put("fixture_metadata","retained")};release.countDown();withTimeout(4000){restore.await()}
                 assertEquals(next,store.requireReadable()!!.getString("access_token"));assertEquals("retained",store.requireReadable()!!.getString("fixture_metadata"))
@@ -113,7 +117,7 @@ class NativePendingTokenRuntimeTest {
             val first=async(Dispatchers.IO){runCatching{a.sessionRestore.restoreIdentityIfNeeded()}}
             val second=async(Dispatchers.IO){runCatching{b.sessionRestore.restoreIdentityIfNeeded()}}
             try {withTimeout(4000){refreshEntered.await();while(core.waiterCount<2)delay(5)}
-                assertNull(a.accessToken());assertNull(b.accessToken());release.countDown()
+                retryablePending(a);retryablePending(b);release.countDown()
                 val results=withTimeout(5000){listOf(first.await(),second.await())}
                 assertTrue(results.any{it.getOrNull()?.id=="user"});assertEquals(1,refreshes.get());assertEquals(0L,bothUsers.count)
                 val root=store.requireReadable()!!;assertFalse(NativeSignInCompletion.isPending(root));assertEquals(next,root.getString("access_token"))
@@ -136,7 +140,7 @@ class NativePendingTokenRuntimeTest {
             try {withTimeout(4000){entered.await()}
                 val background=account(server,NativeCredentialStore.withKeyProvider(context,name,alias))
                 assertNull(withTimeout(2000){background.sessionRestore.restoreIdentityIfNeeded()})
-                assertNull(background.accessToken());assertEquals(3,server.requestCount)
+                retryablePending(background);assertEquals(3,server.requestCount)
                 assertTrue(NativeSignInCompletion.isPending(store.requireReadable()))
                 release.countDown();withTimeout(4000){signing.await()};assertTrue(interactive.isSignedIn())
                 record("interactive-owner",JSONObject().put("backgroundUserRequests",0).put("interactivePublished",true))

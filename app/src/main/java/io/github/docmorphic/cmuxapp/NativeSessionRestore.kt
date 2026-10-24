@@ -41,7 +41,8 @@ internal class NativeSessionRestore(
     private val externalEpoch: () -> Long = { 0 },
     private val lock: Any = Any(),
 ) {
-    private var generation = 0L
+    @Volatile private var generation = 0L
+    internal val generationSnapshot get()=generation
     val sessionGeneration get()=synchronized(lock){generation}
     @Volatile internal var recoveryObserver:NativeSessionRecoveryObserver?=null
     private var credentialWrites = 0L

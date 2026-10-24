@@ -1,3 +1,8 @@
+Current application-layer follow-up: [Application token state](APPLICATION_TOKEN_STATE.md)
+records the 2026-10-24 miss classification, presentation clearing, writer fences
+and 254/254 owned-emulator checkpoint. The evidence below retains its earlier
+scope; full parity and live-device acceptance remain open.
+
 Follow-up: [Ordinary SDK token consumers](ORDINARY_TOKEN_CONSUMERS.md) records
 the later optional/resolved adapter separation, live request headers and ordinary
 shared-resolver adoption. The earlier checkpoint below keeps its original scope.

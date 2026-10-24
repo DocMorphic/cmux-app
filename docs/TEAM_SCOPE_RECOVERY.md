@@ -1,3 +1,8 @@
+Current application-layer follow-up: [Application token state](APPLICATION_TOKEN_STATE.md)
+records the 2026-10-24 miss classification, presentation clearing, writer fences
+and 254/254 owned-emulator checkpoint. The evidence below retains its earlier
+scope; full parity and live-device acceptance remain open.
+
 # Team-scope recovery and rate limits
 
 The process account now owns one recovery loop for an authenticated session whose
