@@ -1,0 +1,51 @@
+{
+  "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "files": {
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SignInView.swift": "56bcbb3b2902fa0517c219a06faa4e0f9c01b9c1a305f0668e0fb903887ba134",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/OAuthSignInProvider.swift": "a8bf0f8ce09b01fa3d0d45e3cca58e0aa8f268e1bcced4de21c005d309e714ca",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SignInAuthRestoreStatusView.swift": "0aa5b002c6863959eb32112c1ca7d467eb01ebf756e22a277bc526b14e197282",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/GlassInputPill.swift": "910d42cb1e2cb9a3942ae4048f3473681973d508f5cbed23291300befb71bfc8",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/DividerLabel.swift": "08ff5bc3757fc38ebfe74b9ecaee91c9fcdf959ef627c48c1ed5d019fb61b60c",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/PlatformPalette.swift": "ced833b99f8d9988cbabfc301da4d1e2d082591a71deba5691637f8f70ee8a25",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/GameOfLifeHeader.swift": "99770330839fa778ef8f426fee24e5cb6694794a0b6f42af0a9a2841390594a1",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/GameOfLifeGrid.swift": "c94d73117b0107044e48d374a90adb2af0c8a0e50c0d8a0c1b416b2a3d1e33be",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/View+MobileTextInput.swift": "d2aab98ed036b985a6dc105626d50791d043f822ee49873646485da7a65f282e",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/View+MobileNavigationChrome.swift": "76b9b2b80cb9dc9c7047d3b4b9abd6d21591d626bf5814f4dad2bfaaf35cd4cf",
+    "ios/cmux/Assets.xcassets/CmuxSignInMark.imageset/Contents.json": "cee58dcbb7ce9345211f0a87feea81660523655080471ce5522af741db8da70b",
+    "ios/cmux/Assets.xcassets/CmuxSignInMark.imageset/cmux-sign-in-mark.svg": "098a67fec7d1e9bb7b607fff19feb9911f4332c5f5049ad2cfebd587b9a16cc0",
+    "ios/cmux/Assets.xcassets/GoogleLogo.imageset/Contents.json": "a4e88853c86211a6c846091299f569933a787c90d39d25caf9862e83644fa15c",
+    "ios/cmux/Assets.xcassets/GoogleLogo.imageset/google-logo.svg": "4e595e5e7fae16a8ded1e12f819e917a5cdba84fd99033c7509ab08ac500b4de",
+    "ios/cmux/Assets.xcassets/GitHubLogo.imageset/Contents.json": "00ac3ce8c85d8c3eef4943fb97cc21ad77ae1a2df301e4d1a11e8faba4382588",
+    "ios/cmux/Assets.xcassets/GitHubLogo.imageset/github-logo.svg": "28101cb7dbd2224f00327fb963faa11a1846aaf110bfe886725ff3922f0ee0b1",
+    "ios/cmux/Resources/Localizable.xcstrings": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd",
+    "web/app/[locale]/components/apple-mark.tsx": "c17a08ca6b365daf0f49fe6bae006c00b2175d5de1911a0c523e656b53798f0f",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/View+MobileButtonLoading.swift": "027f8e48dbe578d9f1facf22520f302b4b2922674bcec33e4fddb1ed2e73149e"
+  },
+  "packageTrees": {
+    "Packages/iOS/CmuxMobileSupport": "2ae9ec3865c593fa81b5f17aa45b73d9da15f3a1",
+    "Packages/Shared/CMUXMobileCore": "15186d054362d2ea639647d78978ac9e3bccc87a"
+  },
+  "identicalAtDetected79d982f9": {
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SignInView.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/OAuthSignInProvider.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SignInAuthRestoreStatusView.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/GlassInputPill.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/DividerLabel.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/PlatformPalette.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/GameOfLifeHeader.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/GameOfLifeGrid.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/View+MobileTextInput.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/View+MobileNavigationChrome.swift": true,
+    "ios/cmux/Assets.xcassets/CmuxSignInMark.imageset/Contents.json": true,
+    "ios/cmux/Assets.xcassets/CmuxSignInMark.imageset/cmux-sign-in-mark.svg": true,
+    "ios/cmux/Assets.xcassets/GoogleLogo.imageset/Contents.json": true,
+    "ios/cmux/Assets.xcassets/GoogleLogo.imageset/google-logo.svg": true,
+    "ios/cmux/Assets.xcassets/GitHubLogo.imageset/Contents.json": true,
+    "ios/cmux/Assets.xcassets/GitHubLogo.imageset/github-logo.svg": true,
+    "ios/cmux/Resources/Localizable.xcstrings": true,
+    "web/app/[locale]/components/apple-mark.tsx": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/View+MobileButtonLoading.swift": true
+  },
+  "navigationSource": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/View+MobileNavigationChrome.swift",
+  "scope": "Unchanged original methods/body/card/brand/provider/restore declarations and original helper leaves execute in an authored offline SwiftUI host. Fixture auth service and methods-only state switcher do not prove auth/backend/full app behavior. Android Apple artwork comes from the upstream web mark; iOS still uses native apple.logo. Android app-only options menu is separately attributed."
+}

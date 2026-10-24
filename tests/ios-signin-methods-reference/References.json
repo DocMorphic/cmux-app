@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "scenes": [
+    {
+      "id": "phone-en-light-idle",
+      "language": "en",
+      "style": "light",
+      "mode": "idle",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-en-dark-idle",
+      "language": "en",
+      "style": "dark",
+      "mode": "idle",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-en-dark-google",
+      "language": "en",
+      "style": "dark",
+      "mode": "google",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-en-dark-error",
+      "language": "en",
+      "style": "dark",
+      "mode": "error",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-de-dark-idle",
+      "language": "de",
+      "style": "dark",
+      "mode": "idle",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-ar-dark-idle",
+      "language": "ar",
+      "style": "dark",
+      "mode": "idle",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-en-light-keyboard",
+      "language": "en",
+      "style": "light",
+      "mode": "keyboard",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-en-dark-restoring",
+      "language": "en",
+      "style": "dark",
+      "mode": "restoring",
+      "category": "large",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "phone-en-dark-enlarged",
+      "language": "en",
+      "style": "dark",
+      "mode": "idle",
+      "category": "accessibilityMedium",
+      "orientation": "portrait",
+      "device": "phone"
+    },
+    {
+      "id": "tablet-en-dark",
+      "language": "en",
+      "style": "dark",
+      "mode": "idle",
+      "category": "large",
+      "orientation": "landscape",
+      "device": "tablet"
+    }
+  ],
+  "labels": {
+    "en": {
+      "apple": "Sign in with Apple",
+      "google": "Sign in with Google",
+      "github": "Sign in with GitHub",
+      "emailCode": "Email me a code",
+      "emailPlaceholder": "Email address"
+    },
+    "ar": {
+      "apple": "تسجيل الدخول مع أبل",
+      "google": "قم بتسجيل الدخول باستخدام جوجل",
+      "github": "قم بتسجيل الدخول باستخدام جيثب",
+      "emailCode": "أرسل لي رمزًا عبر البريد الإلكتروني",
+      "emailPlaceholder": "عنوان البريد الإلكتروني"
+    },
+    "de": {
+      "apple": "Melden Sie sich bei Apple an",
+      "google": "Melden Sie sich mit Google an",
+      "github": "Melden Sie sich mit GitHub an",
+      "emailCode": "Schicken Sie mir einen Code per E-Mail",
+      "emailPlaceholder": "E-Mail-Adresse"
+    }
+  }
+}

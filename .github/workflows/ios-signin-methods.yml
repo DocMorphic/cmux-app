@@ -1,0 +1,127 @@
+name: Pinned iOS sign-in methods references
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-signin-methods
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cmux-app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          path: upstream
+          sparse-checkout: |
+            Packages/iOS/CmuxMobileShellUI
+            Packages/iOS/CmuxMobileSupport
+            Packages/Shared/CMUXMobileCore
+            ios/cmux/Assets.xcassets
+            web/app/[locale]/components
+            ios/cmux/Resources
+            scripts
+          persist-credentials: false
+      - name: Select the upstream Xcode SDK family
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
+          xcodebuild -version
+      - name: Check evidence guards and prepare immutable offline host
+        run: |
+          python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_signin_methods.py
+          python3 cmux-app/scripts/prepare-ios-signin-methods-reference.py --upstream upstream --output "$RUNNER_TEMP/signin-reference"
+      - name: Select disposable runner simulators
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/simulators.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          available = [d for group in json.load(open(os.environ['RUNNER_TEMP'] + '/simulators.json'))['devices'].values() for d in group if d.get('isAvailable')]
+          selected = {}
+          for kind, prefix in [('PHONE', 'iPhone'), ('TABLET', 'iPad')]:
+              candidates = [d for d in available if d['name'].startswith(prefix)]
+              if not candidates: raise RuntimeError('No installed ' + prefix + ' simulator')
+              device = sorted(candidates, key=lambda d: (d['name'] != 'iPhone 17 Pro', '13-inch' not in d['name'], d['name']))[0]
+              selected[kind] = device
+              with open(os.environ['GITHUB_ENV'], 'a') as f: f.write('REFERENCE_' + kind + '=' + device['udid'] + '\n')
+          Path(os.environ['RUNNER_TEMP'] + '/selected-simulators.json').write_text(json.dumps(selected, indent=2) + '\n')
+          print(selected)
+          PY
+      - name: Disable runner hardware keyboard for the actual software-keyboard scene
+        run: defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+      - name: Capture source phone pages with actual standard text
+        timeout-minutes: 16
+        run: |
+          set -euo pipefail
+          xcrun simctl boot "$REFERENCE_PHONE" || xcrun simctl bootstatus "$REFERENCE_PHONE" -b
+          xcrun simctl bootstatus "$REFERENCE_PHONE" -b
+          xcrun simctl ui "$REFERENCE_PHONE" content_size large
+          xcodebuild test -project "$RUNNER_TEMP/signin-reference/SignInMethodsReference.xcodeproj" \
+            -scheme SignInMethodsReference -destination "platform=iOS Simulator,id=$REFERENCE_PHONE" \
+            -destination-timeout 90 -parallel-testing-enabled NO \
+            -only-testing:SignInMethodsUITests/SignInMethodsUITests/testCapturePhoneStandard \
+            -resultBundlePath "$RUNNER_TEMP/signin-standard.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/signin-standard-build.log"
+      - name: Capture source pages with actual accessibility text
+        timeout-minutes: 6
+        run: |
+          set -euo pipefail
+          xcrun simctl ui "$REFERENCE_PHONE" content_size accessibility-medium
+          xcodebuild test -project "$RUNNER_TEMP/signin-reference/SignInMethodsReference.xcodeproj" \
+            -scheme SignInMethodsReference -destination "platform=iOS Simulator,id=$REFERENCE_PHONE" \
+            -destination-timeout 90 -parallel-testing-enabled NO \
+            -only-testing:SignInMethodsUITests/SignInMethodsUITests/testCapturePhoneEnlarged \
+            -resultBundlePath "$RUNNER_TEMP/signin-accessibility.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/signin-accessibility-build.log"
+          xcrun simctl shutdown "$REFERENCE_PHONE"
+      - name: Capture source tablet pages
+        timeout-minutes: 6
+        run: |
+          set -euo pipefail
+          xcrun simctl boot "$REFERENCE_TABLET" || xcrun simctl bootstatus "$REFERENCE_TABLET" -b
+          xcrun simctl bootstatus "$REFERENCE_TABLET" -b
+          xcrun simctl ui "$REFERENCE_TABLET" content_size large
+          xcodebuild test -project "$RUNNER_TEMP/signin-reference/SignInMethodsReference.xcodeproj" \
+            -scheme SignInMethodsReference -destination "platform=iOS Simulator,id=$REFERENCE_TABLET" \
+            -destination-timeout 90 -parallel-testing-enabled NO \
+            -only-testing:SignInMethodsUITests/SignInMethodsUITests/testCaptureTabletStandard \
+            -resultBundlePath "$RUNNER_TEMP/signin-tablet.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/signin-tablet-build.log"
+      - name: Export actual source attachments
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/signin-exported"
+          for kind in standard accessibility tablet; do
+            if test -d "$RUNNER_TEMP/signin-$kind.xcresult"; then
+              xcrun xcresulttool export attachments --path "$RUNNER_TEMP/signin-$kind.xcresult" --output-path "$RUNNER_TEMP/signin-exported/$kind"
+            fi
+          done
+      - name: Verify source attachment associations
+        run: |
+          python3 cmux-app/scripts/verify-ios-signin-methods.py --exported "$RUNNER_TEMP/signin-exported" --provenance "$RUNNER_TEMP/signin-reference/Provenance.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-signin-methods-reference
+          path: |
+            ${{ runner.temp }}/signin-reference/Provenance.json
+            ${{ runner.temp }}/signin-reference/ReferencePackage/Sources
+            ${{ runner.temp }}/signin-exported
+            ${{ runner.temp }}/signin-*-build.log
+            ${{ runner.temp }}/selected-simulators.json
+          retention-days: 14
