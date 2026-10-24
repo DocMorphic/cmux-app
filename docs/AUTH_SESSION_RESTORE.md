@@ -43,17 +43,19 @@ never supplies membership or connection authority. The warning triangle is an
 Android vector analogue of the original SF Symbol; native font, glass, shadow,
 button paint, sizing and accessibility still require platform comparison.
 
-Local-authority retirement during unreadable storage now has a durable intent
-and replay path; see [local logout](LOCAL_LOGOUT.md). The production bounded server tail and tracked-effect joining now follow
-[signout teardown](SIGN_OUT_TEARDOWN.md); live helper/backend and untracked effects
-remain open, as do actual
-protected-data/unlock response and bounded initial cache reads; live Firebase SDK
-callback/rotation acceptance after the [durable callback recovery](FCM_CALLBACK_RECOVERY.md)
-fixture checkpoint; full original user
-metadata/profile image/demo state; complete SDK retry/backoff/rate-limit behavior;
-process-wide coordinator/authorization ownership across background consumers;
-exact access-only session snapshots, team loading/recovery and real post-sign-in
-side effects. The model's optional hook tests do not prove those app effects.
+Local-authority retirement during unreadable storage has a durable intent and
+replay path; see [local logout](LOCAL_LOGOUT.md). The bounded server tail and
+tracked-effect joining follow [signout teardown](SIGN_OUT_TEARDOWN.md). Live
+helper/backend and untracked effects remain open, along with actual protected-data
+unlock, bounded initial cache reads, real Firebase callback/rotation acceptance,
+complete user metadata/profile image/demo state and full SDK behavior.
+
+The [published-identity/team checkpoint](TEAM_IDENTITY_AUTHORITY.md) now fences
+team admission and retained connection proofs by account generation, with cold
+private-owner restoration. Broader coordinator/backend ownership across consumers,
+exact access-only session snapshots, source team recovery and real post-sign-in
+side effects remain open. Optional hook tests do not prove those app effects.
+
 Token-only expiry, forced-refresh refusal and proactive valid-token fallback now
 follow the [access-token reader checkpoint](ACCESS_TOKEN_RESOLUTION.md). This does
 not close access-only backend admission. Shared refresh ownership/cooldown now

@@ -48,12 +48,19 @@ internal class NativeAccountTeams(
     private val refreshCredential: () -> String? = { null },
     private val backendOrigin: HttpUrl = "https://cmux.com/".toHttpUrl(),
     private val cache: NativeAccountProfileCache? = null,
-    private val lock: Any = Any()
+    private val lock: Any = Any(),
+    private val sessionIdentity:(()->NativeAuthIdentity?)?=null,
+    private val restoreUser:(suspend ()->NativeSignInUser?)?=null,
+    private val needsRestoration:()->Boolean={false},
 ) : AutoCloseable {
-    constructor(account: NativeAccount, store: NativeCredentialStore) : this(
+    constructor(account: NativeAccount, store: NativeCredentialStore,
+        origin:HttpUrl="https://api.stack-auth.com/api/v1/".toHttpUrl(),base:OkHttpClient=OkHttpClient()) : this(
         { force -> account.accessToken(force) }, { store.taskSession() },
+        origin=origin,base=base,
         refreshCredential = { store.load()?.optString("refresh_token") },
-        cache = NativeAccountProfileCache(store::load, store::update), lock = store.accountStateLock)
+        cache = NativeAccountProfileCache(store::load, store::update), lock = store.accountStateLock,
+        sessionIdentity=account.sessionRestore::identity,restoreUser=account.sessionRestore::restoreIdentityIfNeeded,
+        needsRestoration={account.sessionRestore.needsIdentityValidation})
 
     private class StackFailure(val status: Int) : IOException("Account request failed ($status)")
     private val client = base.newBuilder().followRedirects(false).followSslRedirects(false)
@@ -67,6 +74,9 @@ internal class NativeAccountTeams(
     private var membershipUser: String? = null
     private val membershipStamps = mutableMapOf<String, Any>()
     private var presentationLogin: String? = null
+    private var presentationIdentity:NativeAuthIdentity?=null
+    private var verifiedIdentity:NativeAuthIdentity?=null
+    private var operationIdentity:NativeAuthIdentity?=null
     private val cacheEnvironment = "$origin#${NativeAccount.PROJECT_ID}"
     private val mutableState = MutableStateFlow(NativeAccountTeamsState())
     val state = mutableState.asStateFlow()
@@ -79,11 +89,12 @@ internal class NativeAccountTeams(
         require(origin.encodedPath.endsWith('/'))
         require(origin.isHttps || origin.host in setOf("localhost", "127.0.0.1", "::1"))
         presentationLogin = login()
-        mutableState.value = restore(presentationLogin)
+        presentationIdentity=sessionIdentity?.invoke()
+        mutableState.value = restore(presentationLogin,presentationIdentity)
     }
 
     fun isCurrent(captured: NativeTeamScope): Boolean = synchronized(lock) {
-        !closed && captured == mutableState.value.scope && login() == captured.login
+        !closed && captured == mutableState.value.scope && login() == captured.login && principalCurrent(captured.userId)
     }
 
     /** Capture only while this scope can admit a connection, after online verification. */
@@ -97,18 +108,33 @@ internal class NativeAccountTeams(
     fun allowsContinuation(proof: NativeTeamContinuation): Boolean = synchronized(lock) {
         val admitted = proof.admittedScope
         !closed && login() == admitted.login && verifiedLogin == admitted.login && membershipUser == admitted.userId &&
-            membershipStamps[admitted.teamId] === proof.stamp
+            principalCurrent(admitted.userId) && membershipStamps[admitted.teamId] === proof.stamp
     }
 
     private fun clearVerification() {
         verifiedLogin = null
         membershipUser = null
         membershipStamps.clear()
+        verifiedIdentity=null
     }
+    private fun principalCurrent(user:String):Boolean=sessionIdentity==null ||
+        sessionIdentity.invoke()?.let { it==verifiedIdentity && it.userId==user }==true
 
-    suspend fun refresh(): NativeAccountTeamsState = perform { owner, epoch ->
+    suspend fun refresh(): NativeAccountTeamsState {
+        if(sessionIdentity!=null && (sessionIdentity.invoke()==null || needsRestoration()) && restoreUser!=null) {
+            val user=restoreUser.invoke() ?: throw CancellationException("Account identity unavailable")
+            val owner=login() ?: throw CancellationException("Account changed")
+            val restored=synchronized(lock) {
+                mutableState.value.takeIf { verifiedIdentity==sessionIdentity.invoke() && verifiedLogin==owner && membershipUser==user.id &&
+                    !it.cached && !it.loading && it.error==null }
+            }
+            // The process owner may already have refreshed membership in its verified-user callback.
+            return restored ?: refreshAfterSignIn(owner,user)
+        }
+        return perform { owner, epoch ->
         val user = request("users/me", owner, epoch)
         val userId = identifier(user.getString("id"))
+        requirePrincipal(userId)
         synchronized(lock) {
             checkCurrent(owner, epoch)
             if (mutableState.value.userId?.let { it != userId } == true) {
@@ -131,11 +157,13 @@ internal class NativeAccountTeams(
         // Keep the same user's saved choice only while it remains a verified membership.
         publish(owner, epoch, userId, teams, (selected ?: remembered)?.takeIf { id -> teams.any { it.id == id } } ?: teams.firstOrNull()?.id)
             .copy(displayName = displayName, email = email)
+        }
     }
 
     /** Completion already fetched this user; membership failure cannot undo that publication. */
     suspend fun refreshAfterSignIn(expectedLogin: String, user: NativeSignInUser): NativeAccountTeamsState = perform(publishedUser = user) { owner, epoch ->
         if (owner != expectedLogin) throw CancellationException("Account changed")
+        requirePrincipal(user.id)
         val teams = listTeams(owner, epoch)
         publish(owner, epoch, user.id, teams,
             user.selectedTeam?.takeIf { selected -> teams.any { it.id == selected } } ?: teams.firstOrNull()?.id)
@@ -218,11 +246,16 @@ internal class NativeAccountTeams(
         val owner = login() ?: throw IOException("Sign in to cmux")
         val epoch = synchronized(lock) {
             check(!closed) { "Account team session closed" }
-            if (presentationLogin != owner) {
+            val identity=sessionIdentity?.invoke()
+            if(sessionIdentity!=null && identity==null)throw CancellationException("Account identity unavailable")
+            if (presentationLogin != owner || presentationIdentity!=identity) {
+                ++run
                 clearVerification()
                 presentationLogin = owner
-                mutableState.value = restore(owner)
+                presentationIdentity=identity
+                mutableState.value = restore(owner,identity)
             }
+            operationIdentity=identity
             mutableState.value = mutableState.value.copy(loading = true, error = null)
             run
         }
@@ -268,9 +301,12 @@ internal class NativeAccountTeams(
 
     private fun publish(owner: String, epoch: Long, user: String, teams: List<NativeTeam>, selected: String?): NativeAccountTeamsState = synchronized(lock) {
         checkCurrent(owner, epoch)
+        requirePrincipal(user)
+        if(verifiedIdentity!=operationIdentity)clearVerification()
         if (verifiedLogin != owner || membershipUser != user) clearVerification()
         verifiedLogin = owner
         membershipUser = user
+        verifiedIdentity=operationIdentity
         val memberIds = teams.map { it.id }.toSet()
         membershipStamps.keys.retainAll(memberIds)
         memberIds.forEach { membershipStamps.getOrPut(it) { Any() } }
@@ -341,7 +377,15 @@ internal class NativeAccountTeams(
     }
 
     private fun checkCurrent(owner: String, epoch: Long) = synchronized(lock) {
-        if (closed || run != epoch || login() != owner) throw CancellationException("Account changed")
+        if (closed || run != epoch || login() != owner || sessionIdentity!=null && sessionIdentity.invoke()!=operationIdentity)
+            throw CancellationException("Account changed")
+    }
+    private fun requirePrincipal(user:String)=synchronized(lock) {
+        if(sessionIdentity!=null && sessionIdentity.invoke()?.userId!=user) {
+            ++run;clearVerification()
+            mutableState.value=NativeAccountTeamsState(error="Your account changed. Refresh your account.")
+            throw CancellationException("Account identity changed")
+        }
     }
 
     fun clear() {
@@ -349,6 +393,7 @@ internal class NativeAccountTeams(
             ++run
             clearVerification()
             presentationLogin = null
+            presentationIdentity=null;operationIdentity=null
             mutableState.value = NativeAccountTeamsState()
             calls.toList().also { calls.clear() }
         }
@@ -362,16 +407,20 @@ internal class NativeAccountTeams(
         val old = synchronized(lock) {
             if (closed) return
             val owner = login()
-            if (presentationLogin == owner) return
-            ++run; clearVerification(); presentationLogin = owner
-            mutableState.value = restore(owner)
+            val identity=sessionIdentity?.invoke()
+            if (presentationLogin == owner && presentationIdentity==identity) return
+            ++run; clearVerification(); presentationLogin = owner;presentationIdentity=identity
+            mutableState.value = restore(owner,identity)
             calls.toList().also { calls.clear() }
         }
         old.forEach { it.cancel() }
     }
 
-    private fun restore(owner: String?): NativeAccountTeamsState =
-        owner?.let { runCatching { cache?.read(it, cacheEnvironment) }.getOrNull() } ?: NativeAccountTeamsState()
+    private fun restore(owner: String?,identity:NativeAuthIdentity?): NativeAccountTeamsState {
+        val cached=owner?.let { runCatching { cache?.read(it, cacheEnvironment) }.getOrNull() }
+        if(sessionIdentity==null)return cached ?: NativeAccountTeamsState()
+        return cached?.takeIf { identity!=null && it.userId==identity.userId } ?: NativeAccountTeamsState(userId=identity?.userId)
+    }
 
     private fun profileText(user: JSONObject, key: String): String? {
         val value = user.opt(key)

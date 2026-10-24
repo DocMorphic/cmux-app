@@ -13,6 +13,11 @@ internal data class NativeAuthState(val authenticated: Boolean = false, val user
     }
 }
 
+/** Credential-free published account incarnation. Profile edits and same-user revalidation keep it stable. */
+internal data class NativeAuthIdentity(val generation:Long,val userId:String) {
+    override fun toString()="NativeAuthIdentity(generation=$generation, user=<redacted>)"
+}
+
 /** SDK getUser(.throw) collapses most request failures into USER_NOT_SIGNED_IN. */
 internal class NativeSessionUserUnavailable : IllegalStateException("The saved account could not be verified")
 
@@ -41,8 +46,17 @@ internal class NativeSessionRestore(
     private var hint = hasTokensHint
     private var validation: CompletableDeferred<Unit>? = null
     private var bootstrap: Job? = null
+    private var initialValidationAttempted=false
+    val needsIdentityValidation get()=synchronized(lock) { !initialValidationAttempted || publishedIdentity.value!=verifiedIdentity }
     private val mutable = MutableStateFlow(NativeAuthState.primed(hasTokensHint, cachedUser))
     val state = mutable.asStateFlow()
+    private val publishedIdentity=MutableStateFlow(identityFrom(mutable.value))
+    private var verifiedIdentity:NativeAuthIdentity?=null
+    val identities=publishedIdentity.asStateFlow()
+    private fun identityFrom(value:NativeAuthState)=value.user?.id?.takeIf { value.authenticated && it.isNotBlank() }
+        ?.let { NativeAuthIdentity(generation,it) }
+    fun identity():NativeAuthIdentity?=synchronized(lock) { publishedIdentity.value }
+    fun isIdentityCurrent(identity:NativeAuthIdentity)=synchronized(lock) { publishedIdentity.value==identity }
     private val checking = MutableStateFlow(false)
     val revalidating = checking.asStateFlow()
     private data class Context(val generation: Long, val writes: Long, val external: Long)
@@ -56,6 +70,11 @@ internal class NativeSessionRestore(
         if (bootstrap == null) bootstrap = scope.launch(start = CoroutineStart.LAZY) { checkExisting() }.also { it.start() }
     }
     suspend fun awaitBootstrapped() { synchronized(lock) { bootstrap }?.join() }
+    /** Private background account owners have no Activity bootstrap; join or run the same validation. */
+    suspend fun restoreIdentityIfNeeded():NativeSignInUser? {
+        if(identity()==null || needsIdentityValidation)checkExisting()
+        return synchronized(lock) { mutable.value.user?.takeIf { mutable.value.authenticated && verifiedIdentity!=null && verifiedIdentity==publishedIdentity.value } }
+    }
     suspend fun revalidate() {
         if (synchronized(lock) { !mutable.value.authenticated && !mutable.value.restoring && !hint }) return
         checkExisting()
@@ -64,7 +83,7 @@ internal class NativeSessionRestore(
     private fun clearIfCurrent(context: Context?, clearCachedUser: Boolean = true) {
         val cleared = synchronized(lock) {
             if (context != null && !clearIsCurrent(context)) false else {
-                generation++; hint = false; mutable.value = NativeAuthState()
+                generation++; hint = false; verifiedIdentity=null;publishedIdentity.value=null;mutable.value = NativeAuthState()
                 runCatching { setHint(false) }; true
             }
         }
@@ -77,7 +96,10 @@ internal class NativeSessionRestore(
             if (context != null && !current(context)) return null
             val transition = signIn || !mutable.value.authenticated || mutable.value.user?.id != user.id
             if (transition) generation++
-            hint = true; mutable.value = NativeAuthState(true, user, false)
+            initialValidationAttempted=true
+            hint = true
+            val value=NativeAuthState(true,user,false)
+            verifiedIdentity=identityFrom(value);publishedIdentity.value=verifiedIdentity;mutable.value=value
             runCatching { setHint(true) }
             generation to transition
         }
@@ -87,7 +109,9 @@ internal class NativeSessionRestore(
         val cached = state.value.user ?: runCatching(loadCachedUser).getOrNull()
         synchronized(lock) {
             if (generation != context.generation || externalEpoch() != context.external) false else {
-                hint = true; mutable.value = NativeAuthState(cached != null, cached, false)
+                hint = true
+                val value=NativeAuthState(cached != null,cached,false)
+                publishedIdentity.value=identityFrom(value);mutable.value=value
                 runCatching { setHint(true) };true
             }
         }
@@ -100,7 +124,7 @@ internal class NativeSessionRestore(
         // The source's checked-continuation waiters complete with the owning run.
         if (!leader) { withContext(NonCancellable) { done.await() }; return }
         try { body(retryStorage = true) }
-        finally { synchronized(lock) { validation = null; checking.value = false; done.complete(Unit) } }
+        finally { synchronized(lock) { initialValidationAttempted=true;validation = null; checking.value = false; done.complete(Unit) } }
     }
     private suspend fun body(retryStorage: Boolean) {
         val context = capture()

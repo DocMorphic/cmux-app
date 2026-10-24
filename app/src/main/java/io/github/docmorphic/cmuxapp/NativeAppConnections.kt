@@ -226,6 +226,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             }
         }
         scope.launch { teams.state.collect { tailscale.retireInvalid() } }
+        scope.launch { account.sessionRestore.identities.collect { teams.reconcileLogin() } }
         scope.launch {
             var observedLogin: String? = null
             var nextRefresh = 0L

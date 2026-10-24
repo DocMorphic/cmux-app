@@ -1,5 +1,33 @@
 # Native sign-in
 
+## Published account identity now fences team authority — 2026-10-24
+
+A published user/session generation now gates team admission and already-admitted
+connection proofs. Account changes invalidate old authority before membership
+finishes; returning to the same user id cannot revive old proofs. Ordinary
+same-user revalidation keeps existing connections. Request/response guards and
+cache projection reject mismatched principals. The process owner observes identity
+changes, while direct authority checks do not wait for stream delivery.
+
+Cold notification/reply owners now join initial user validation before membership,
+including when a display cache exists. Failed validation preserves presentation
+without granting fresh background authority; retry can verify the user and load
+membership without a duplicate user fetch.
+
+Full JVM: 3,304 total, 3,300 passed, four existing SSH skips, zero failures.
+Owned API 36: 99/99 in 177.661s, empty crash log, no preflight ANR, restored
+settings/window and emulator exit 0. Seven new identity cases plus two encrypted
+notification/reply worker regressions accompany the previous 90 cases. Existing
+original auth reference passed 198 tests; ten whole source/test files match the pin.
+
+Raw-token consumers, authenticated snapshots, full backend/user eligibility and
+team-recovery policy, actual OS/device/provider and broader source/UI/accessibility
+acceptance remain open. Phone/Mac installs, signing data, global source pins and
+frozen signed722 are unchanged. Full parity remains active.
+
+Details: [published identity and team authority](TEAM_IDENTITY_AUTHORITY.md).
+Evidence: `captures/recovery-20261023/team-identity-checkpoint.json`.
+
 ## Shared refresh ownership and rate-limit cooldown advanced — 2026-10-24
 
 Refresh callers now share one exchange/result per encrypted document/environment.
