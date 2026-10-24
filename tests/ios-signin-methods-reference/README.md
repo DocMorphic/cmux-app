@@ -12,3 +12,10 @@ controls. Paired exports require exact PNG hashes, traits, languages, original
 source/template/generator hashes and a clean capture commit. Android uses the
 upstream web Apple mark rather than redistributing a system symbol. The reference
 does not establish whole-app, account, browser, device or final visual parity.
+
+Raw compositor PNGs remain unrotated. The host records actual screen native pixels,
+fixed/current screen point spaces and window interface orientation; XCTest records
+UIImage orientation/size/scale and CGImage pixels. Verification binds the PNG to
+those actual native pixels and independently checks the full-screen point geometry.
+It does not infer orientation from a swapped width/height or claim that landscape
+UIKit control frames already use raw PNG coordinates.

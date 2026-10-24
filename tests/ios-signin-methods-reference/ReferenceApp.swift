@@ -100,12 +100,21 @@ private func selected() -> SignInReferenceScene {
         }
         let expected: UIContentSizeCategory = scene.category == "large" ? .large : .accessibilityMedium
         let category = UIApplication.shared.preferredContentSizeCategory
+        let orientation = window.windowScene?.interfaceOrientation ?? .unknown
+        let orientationMatches = orientation != .unknown && orientation.isLandscape == (scene.orientation == "landscape")
+        let windowOnScreen = window.convert(window.bounds, to: window.screen.coordinateSpace)
         let payload: [String: Any] = [
             "schema": 1, "referenceKind": "signinMethods", "scene": scene.id, "provenance": provenance,
             "platform": "iOS", "runtimeVersion": UIDevice.current.systemVersion,
             "preferredLanguages": Locale.preferredLanguages, "currentLocale": Locale.current.identifier,
             "bundleLocalizations": Bundle.main.preferredLocalizations,
             "viewport": [window.bounds.width, window.bounds.height], "scale": window.screen.scale,
+            "screenPoints": [window.screen.bounds.width, window.screen.bounds.height],
+            "windowOnScreen": [windowOnScreen.minX, windowOnScreen.minY, windowOnScreen.width, windowOnScreen.height],
+            "screenFixedPoints": [window.screen.fixedCoordinateSpace.bounds.width, window.screen.fixedCoordinateSpace.bounds.height],
+            "screenNativePixels": [window.screen.nativeBounds.width, window.screen.nativeBounds.height],
+            "nativeScale": window.screen.nativeScale,
+            "interfaceOrientation": orientation.rawValue, "orientationMatches": orientationMatches,
             "safeArea": [window.safeAreaInsets.top, window.safeAreaInsets.left, window.safeAreaInsets.bottom, window.safeAreaInsets.right],
             "category": category.rawValue, "categoryMatches": category == expected,
             "swiftUIAccessibilitySize": state.swiftUIAccessibilitySize as Any? ?? NSNull(),
@@ -116,7 +125,7 @@ private func selected() -> SignInReferenceScene {
             "style": traits.userInterfaceStyle == .dark ? "dark" : "light",
             "mode": scene.mode, "fixtureAuthService": true,
             "sourceSessionCreated": false, "sourceVPNControllerCreated": false,
-            "ready": UIApplication.shared.applicationState == .active && !window.isHidden && window.alpha == 1 && category == expected && state.swiftUIAccessibilitySize != nil,
+            "ready": UIApplication.shared.applicationState == .active && !window.isHidden && window.alpha == 1 && category == expected && state.swiftUIAccessibilitySize != nil && orientationMatches,
             "fonts": ["body": UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).pointSize,
                 "largeTitle": UIFont.preferredFont(forTextStyle: .largeTitle, compatibleWith: traits).pointSize,
                 "subheadline": UIFont.preferredFont(forTextStyle: .subheadline, compatibleWith: traits).pointSize],

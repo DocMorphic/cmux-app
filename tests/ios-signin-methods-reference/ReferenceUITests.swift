@@ -39,6 +39,10 @@ final class SignInMethodsUITests: XCTestCase {
             value["keyboardVisible"]=app.keyboards.firstMatch.exists
             value["captureMethod"]="XCUIScreen.main.screenshot"
             let screenshot=XCUIScreen.main.screenshot();let name="signin-"+id
+            let nativeImage=screenshot.image;let pixels=try XCTUnwrap(nativeImage.cgImage)
+            value["captureImage"]=["cgPixels":[pixels.width,pixels.height],
+                "size":[nativeImage.size.width,nativeImage.size.height],"scale":nativeImage.scale,
+                "orientation":nativeImage.imageOrientation.rawValue] as [String:Any]
             value["imageSha256"]=SHA256.hash(data:screenshot.pngRepresentation).map{String(format:"%02x",$0)}.joined()
             let image=XCTAttachment(screenshot:screenshot);image.name=name;image.lifetime = .keepAlways;add(image)
             let json=XCTAttachment(data:try JSONSerialization.data(withJSONObject:value,options:[.sortedKeys]),uniformTypeIdentifier:"public.json")
