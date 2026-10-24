@@ -54,6 +54,24 @@ jobs:
         run: |
           set -euo pipefail
           swift test --jobs 2 --force-resolved-versions --filter 'AuthCoordinator|PushRegistrationServiceTests' 2>&1 | tee "$RUNNER_TEMP/original-auth-tests.log"
+      - name: Run original SDK refresh and rate-limit tests
+        working-directory: upstream/vendor/stack-auth-swift-sdk-prerelease
+        run: |
+          set -euo pipefail
+          cp ../../Packages/Shared/CmuxAuthRuntime/Package.resolved Package.resolved
+          swift test --jobs 2 --force-resolved-versions --filter 'TokenRefreshAlgorithmTests|RefreshLifecycleTests|RefreshDeadlineTests|RefreshTransportTimingTests|RateLimitRetryTests' 2>&1 | tee "$RUNNER_TEMP/original-sdk-refresh-tests.log"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          source=Path('../../Packages/Shared/CmuxAuthRuntime/Package.resolved')
+          actual=Path('Package.resolved')
+          original=json.loads(source.read_text());resolved=json.loads(actual.read_text())
+          assert original['pins']==resolved['pins']
+          Path(os.environ['RUNNER_TEMP']+'/original-sdk-refresh-lock.json').write_text(json.dumps(dict(
+              seededFrom='Packages/Shared/CmuxAuthRuntime/Package.resolved',
+              sourceSha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+              resolvedSha256=hashlib.sha256(actual.read_bytes()).hexdigest(),pins=resolved['pins']),indent=2)+'\n')
+          PY
       - name: Verify source remains unchanged
         working-directory: upstream
         run: git diff --exit-code
@@ -65,4 +83,6 @@ jobs:
             ${{ runner.temp }}/original-auth-source.json
             ${{ runner.temp }}/original-auth-build.log
             ${{ runner.temp }}/original-auth-tests.log
+            ${{ runner.temp }}/original-sdk-refresh-tests.log
+            ${{ runner.temp }}/original-sdk-refresh-lock.json
           retention-days: 14
