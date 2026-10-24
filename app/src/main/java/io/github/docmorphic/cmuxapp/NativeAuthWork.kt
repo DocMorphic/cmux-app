@@ -3,7 +3,7 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
-internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, REFRESH, FORCE_REFRESH, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, SIGN_OUT, CLEANUP }
+internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, REFRESH, FORCE_REFRESH, REFRESH_EXCHANGE, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, SIGN_OUT, CLEANUP }
 internal class NativeAuthDeadlineCancellation : CancellationException("The account request timed out. Please try again.")
 
 /** A phase wait may end before its operation does. Keep the actual job, not its waiter. */
@@ -12,7 +12,7 @@ internal class NativeAuthWork(
     private val retryResetMillis: Long = 30_000,
     private val teardownDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    internal enum class Admission { EXCLUSIVE, TOKEN, CLEANUP }
+    internal enum class Admission { EXCLUSIVE, TOKEN, SHARED_REFRESH, CLEANUP }
     private class Entry(val phase: NativeAuthPhase, val owner: String?, val admission: Admission, val job: Job) {
         var timedOutAt: Long? = null
         var blocksAdmission = true
@@ -35,7 +35,7 @@ internal class NativeAuthWork(
             ensureActive()
             // Token phases carry an absolute deadline; prompt/exchange phases
             // follow the original race winner without an extra expiry verdict.
-            if (admission == Admission.TOKEN && nowMillis() - started >= timeoutMillis)
+            if (admission in setOf(Admission.TOKEN,Admission.SHARED_REFRESH) && nowMillis() - started >= timeoutMillis)
                 throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
             value
         }
@@ -155,6 +155,7 @@ internal class NativeAuthWork(
         val conflict = active.any { old -> old.phase == entry.phase && old.blocksAdmission && when (entry.admission) {
             Admission.EXCLUSIVE -> true
             Admission.TOKEN -> old.timedOutAt != null
+            Admission.SHARED_REFRESH -> false // The shared registry fences retired writes; retain actual jobs for sign-in joining.
             Admission.CLEANUP -> false
         } }
         if (conflict) false else { active += entry; true }

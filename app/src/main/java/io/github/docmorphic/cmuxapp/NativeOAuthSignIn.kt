@@ -193,6 +193,19 @@ internal class NativeOAuthClient(private val project: String, private val publis
             }
             override fun onResponse(call: Call, response: Response) {
                 val result = runCatching { response.use {
+                    if(rawHttpStatus && response.code==429) {
+                        val type=response.header("Content-Type")
+                        val prefix=ByteArrayOutputStream()
+                        if(nativeRefreshBodyKind(type,byteArrayOf())=="other") {
+                            // Throttle bodies are never JSON payloads to decode; retain at most the classifier prefix.
+                            try {
+                                val stream=response.body?.byteStream()
+                                while(prefix.size()<64) { val byte=stream?.read() ?: -1;if(byte<0)break;prefix.write(byte) }
+                            } catch(_:IOException) { /* The HTTP status and headers still describe the throttle. */ }
+                        }
+                        throw NativeRefreshRateLimited(nativeRefreshRetryAfter(response.header("Retry-After"),System.currentTimeMillis()),
+                            nativeRefreshBodyKind(type,prefix.toByteArray()))
+                    }
                     val buffer = ByteArrayOutputStream()
                     response.body?.byteStream()?.use { stream ->
                         val bytes = ByteArray(8192)

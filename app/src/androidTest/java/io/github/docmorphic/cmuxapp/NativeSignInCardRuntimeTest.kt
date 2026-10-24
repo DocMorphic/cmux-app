@@ -145,8 +145,11 @@ class NativeSignInCardRuntimeTest {
         compose.onNodeWithTag("signin.code").assertIsNotFocused()
         assertNull(model!!.state.value.codeFocusRequest)
         compose.onNodeWithTag("signin.code").performClick().assertIsFocused()
+        // Settle the real IME resize before scrolling/tapping the returning-email control.
+        awaitNativeSignInIme(compose.activity);compose.waitForIdle()
         compose.onNodeWithTag("signin.code.useDifferentEmail").performScrollTo().performClick()
-        compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("signin.email").assertIsFocused(); true }.getOrDefault(false) }
+        try { compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("signin.email").assertIsFocused(); true }.getOrDefault(false) } }
+        catch(failure:Exception) { capture("email-focus-timeout");throw failure }
         compose.onNodeWithTag("signin.request").performScrollTo().performClick()
         compose.waitUntil(10_000) { runCatching { compose.onNodeWithTag("signin.code").assertIsFocused(); true }.getOrDefault(false) }
         assertEquals(2, sends.get())

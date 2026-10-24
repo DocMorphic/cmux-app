@@ -27,8 +27,9 @@ predicates, including numeric/absent expiry and short token lifetimes. A forced
 read without a refresh token declines the stored access token. Proactive
 transport/server failures preserve a still-valid observed token; forced refresh
 and actual expiry cannot use that fallback. HTTP 400/401 are definitive refresh
-rejections; other failures preserve credentials. The existing per-account mutex
-still serializes that object's reads.
+rejections; other failures preserve credentials. Refresh ownership now follows the
+[shared registry checkpoint](SHARED_TOKEN_REFRESH.md), replacing that per-account
+mutex while keeping reader-specific proactive/forced fallback decisions.
 
 Refresh now uses the account's existing injected NativeOAuthClient and its
 cancellation-aware OkHttp request. It no longer calls a separate hard-coded
@@ -51,11 +52,11 @@ boundary cases test actual expiry separately from proactive lead time.
 ## Remaining requirements
 
 This ports token-reader decisions and refresh transport, not the entire SDK or
-auth coordinator. The source's shared per-store refresh attempt/waiter registry,
-30-second shared elapsed deadline, cancellation ownership, rate-limit cooldown
-and reporting still require reconciliation. The current per-account mutex does
-not establish coalescing across NativeAccount objects or sharing one failed
-exchange across forced callers. Source backend admission/session snapshots,
+auth coordinator. The [shared registry checkpoint](SHARED_TOKEN_REFRESH.md) now
+covers per-document/environment attempts, waiters, shared elapsed deadline,
+cancellation and cooldown with a safe in-memory observation producer. Actual OS
+wake/Doze behavior and full app reporting/consent integration remain open.
+Source backend admission/session snapshots,
 access-only account/team/terminal flows, complete metadata and real post-sign-in
 effects remain open. A token-reader result alone is not membership authority.
 

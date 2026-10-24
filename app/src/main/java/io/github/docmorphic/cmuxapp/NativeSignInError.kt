@@ -36,6 +36,7 @@ internal fun nativeSignInError(failure: Exception): NativeSignInError? = when (f
     is TimeoutCancellationException -> NativeSignInError.TIMED_OUT
     is CancellationException -> null
     is NativeSignInFailure -> failure.reason
+    is NativeRefreshRateLimited, is NativeRefreshCoolingDown -> NativeSignInError.RATE_LIMIT
     is NativeAccountRequestFailure -> when (failure.code.uppercase(Locale.ROOT)) {
         "OAUTH_CANCELLED" -> null
         "SCHEMA_ERROR" -> NativeSignInError.INVALID_EMAIL

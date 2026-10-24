@@ -74,6 +74,20 @@ class NativeOAuthSignInTest {
             assertEquals(NativeSignInError.SERVER_ERROR,nativeSignInError(runCatching {client.refreshAccess("refresh")}.exceptionOrNull() as Exception))
         }
     }
+    @Test fun refreshRateLimitKeepsOnlyRetryMetadataAndBodyKind()=runBlocking {
+        MockWebServer().use { server ->
+            val client=NativeOAuthClient("fixture","public",server.url("/"))
+            server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After","42")
+                .setHeader("Content-Type","text/html").setBody("<private token='never-report'>edge</private>"))
+            val failure=runCatching {client.refreshAccess("refresh")}.exceptionOrNull() as NativeRefreshRateLimited
+            assertEquals(42.0,failure.retryAfterSeconds);assertEquals("html",failure.bodyKind)
+            assertFalse(failure.toString().contains("never-report"))
+            server.enqueue(MockResponse().setResponseCode(429).setHeader("Content-Type","text/html").setBody("x".repeat(300_000)))
+            assertTrue(runCatching {client.refreshAccess("refresh")}.exceptionOrNull() is NativeRefreshRateLimited)
+            server.enqueue(MockResponse().setResponseCode(429).setBody(" \n<edge>"))
+            assertEquals("html",(runCatching {client.refreshAccess("refresh")}.exceptionOrNull() as NativeRefreshRateLimited).bodyKind)
+        }
+    }
     @Test fun userVerificationUsesTheCapturedAccessTokenAndRejectsHttp200ApplicationErrorsOrMissingUsers() = runBlocking {
         MockWebServer().use { server ->
             val client = NativeOAuthClient("fixture-project", "fixture-key", server.url("/"))

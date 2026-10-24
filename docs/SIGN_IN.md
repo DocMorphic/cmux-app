@@ -1,5 +1,31 @@
 # Native sign-in
 
+## Shared refresh ownership and rate-limit cooldown advanced — 2026-10-24
+
+Refresh callers now share one exchange/result per encrypted document/environment.
+One cancelled waiter leaves peers running; the last retires the attempt. Saved
+owner changes retire old waiters immediately. Actual work stays tracked through
+encryption, while a final-commit fence rejects retired or late writes. The default
+shared deadline is 30 seconds. OAuth 429s use the original Retry-After/backoff rules
+and expose only safe in-memory metadata; oversized HTML cannot bypass cooldown.
+
+Full JVM: 3,290 total, 3,286 passed, four existing SSH skips, zero failures.
+Owned API 36: 90/90 in 189.034s, empty crash log, no preflight ANR, restored
+settings/window and emulator exit 0. Actual default deadline: 30032ms,
+one HTTP request drained, ciphertext preserved. Original reference: 198 auth/push
+and 33 selected SDK tests passed; two backend-dependent original signup methods
+remain separate open acceptance. Eleven whole original files match the pin.
+
+The first Android run had four harness failures; actual waiter/producer lifetime
+and IME-settlement checks were corrected. Final runtime uses the identical app APK.
+This does not close complete coordinator/backend admission, app telemetry/consent,
+actual OS sleep/unlock/process death, physical Pixel/Mac/provider or broader
+source/UI/accessibility gates. Full parity remains active.
+
+Details: [shared ownership, cooldown and acceptance limits](SHARED_TOKEN_REFRESH.md).
+Evidence: `captures/recovery-20261023/shared-refresh-checkpoint.json`.
+Phone/Mac installs, global source pins and frozen signed722 remain unchanged.
+
 ## Access-token expiry and refresh decisions advanced — 2026-10-24
 
 The account reader now declines expired access-only tokens and refuses to reuse

@@ -137,7 +137,8 @@ class NativeOAuthRuntimeTest {
         compose.onNodeWithTag("signin.google").performScrollTo().performClick()
         compose.waitUntil(10_000) { authWork!!.cancelledCount > 0 }
         assertTrue(session!!.state.value.busy); assertEquals(1L, release.count); assertEquals(0, server!!.requestCount)
-        assertFalse(old.isCompleted); assertEquals("old-access", store!!.load()!!.getString("access_token"))
+        // The public waiter may detach promptly; the real shared exchange must remain tracked until it returns.
+        assertTrue(authWork!!.activeCount>0); assertEquals("old-access", store!!.load()!!.getString("access_token"))
         release.countDown(); compose.waitUntil(10_000) { registry.launches.size == 1 }
         val authorization = server!!.takeRequest(); assertEquals("old-access", store!!.load()!!.getString("access_token"))
         dispatch(0, AuthTabIntent.RESULT_OK, callback(authorization)); compose.waitUntil(10_000) { completions.get() == 1 }
