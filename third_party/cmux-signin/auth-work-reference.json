@@ -1,0 +1,51 @@
+{
+  "reference": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "files": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+Phase.swift": "8cc3d52795194487a14b2e8c6fb6e745adf6bf61828234faf7fc245caac3253e",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+SignInTokenWorkPreflight.swift": "35a758ae972c399d153b9a8d354647966abf47ef2f4e659fec4141ee2bbca6be",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TokenTouchingPhaseTimeout.swift": "056072b0bd92c02fcf0b9720973498f27af3297a76baf6e560edc4227e61c47e",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthPhase.swift": "0fcb255d68f7434c4d9cf4bae6b39fcb26835fd45dcc8686200eb7f78b89b790",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthPhaseTimedOutState.swift": "61b26b6505d56a6671739c26a03ecb13a0a3e214e31c8440eab7602c1fc93a01",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthPhaseTimeout.swift": "0f295178d27a41bb5c8fc4a86af1fc1ccfa1f9da8743103866e9019f67e2e90e",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthPhaseTimeoutRegistry.swift": "1c4032d5b89f67301f30d7ca2059ca375f58cb89d9c9bfae58b98dff7754a60d",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthTrackedTokenWork.swift": "02452907663694132b0a9bce51bc000c1843a028768ced6c65258e59912e2152",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+Tokens.swift": "5dbaf5875603f6ce4c27e56685954403c5c7ef2c0443346fe8a587d7ab92824a",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+ExchangeTimeout.swift": "d291bbe5a208313e762fd21e4cdc3f7fbe9a7df7a90f9aad2f70095ad9f29528",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorTokenTouchingPhaseCancellationTests.swift": "cee524cc2d305efce5c5e795df5e26311aace8176be374fd8aa4c56d982141f5",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSignInPreflightTests.swift": "6fbb9b4548dc82ee34b00c67c95897c67854d46897899159398ede96b008cda1",
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSignInExchangePreflightTests.swift": "3e45a97ff062b668ec82649ab6e8677d20ca39789accba63d13cd85c3666cb3a",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/CMUXMobileRootView.swift": "67d194eeec2950ed8f12a5bfdafba6104a031c118284e8f4ce2819c0a3a74f28"
+  },
+  "identicalAtDetected79d982f9": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+Phase.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+SignInTokenWorkPreflight.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TokenTouchingPhaseTimeout.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthPhase.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthPhaseTimedOutState.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthPhaseTimeout.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthPhaseTimeoutRegistry.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthTrackedTokenWork.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+Tokens.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+ExchangeTimeout.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorTokenTouchingPhaseCancellationTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSignInPreflightTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Tests/CmuxAuthRuntimeTests/AuthCoordinatorSignInExchangePreflightTests.swift": true,
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": true,
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/CMUXMobileRootView.swift": true
+  },
+  "contracts": [
+    "Phase wait ends independently of operation termination; actual work remains tracked until terminal.",
+    "Sign-in preflight cancels/joins token work, not prompt-only send-code work.",
+    "Automatic reset cannot reclaim a timed-out token phase while actual work remains. An explicit user reset can release both dampers without forgetting actual jobs; sign-in preflight still joins them.",
+    "Token phases reject an absolutely overdue result even if timer scheduling is delayed. Prompt/exchange phases use the original race winner without the extra absolute-expiry check.",
+    "Cancellation/receipt guards precede actual token writes and compare-clear rollback."
+  ],
+  "open": [
+    "Full source queued admission, session restore/validation and token-result classification",
+    "Original membership/cache publication boundary and UI loading semantics",
+    "All explicit-interaction supersession callsites and post-sign-in push side effects",
+    "Access-only responses and complete source user metadata",
+    "Real provider/browser, Pixel/Mac, terminal/notification/accessibility and full-app acceptance"
+  ]
+}

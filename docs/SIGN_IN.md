@@ -1,5 +1,66 @@
 # Native sign-in
 
+## Tracked phase waits and shared token-work preflight — 2026-10-24
+
+NativeAuthWork owns actual operation jobs independently of UI waiters. Deadline
+or caller cancellation can finish the wait while cancellation-ignoring work stays
+registered to true termination. Token operations reject an absolutely overdue
+result even if timer scheduling is delayed; prompt/exchange operations follow the
+original race winner. Exclusive slots have the original30-second automatic reset.
+Timed-out token work remains automatically damped while active; an explicit user
+reset may release both dampers, preserving actual handles. Manual pairing proposal
+now invokes that reset. Sign-in preflight still cancels/joins its token-work
+snapshot, excluding prompt-only send-code work. Fifteen whole originals in
+auth-work-reference.json are identical at detected79; global pins are unchanged.
+
+The registry is keyed by the encrypted credential document, so independently
+constructed foreground/background NativeAccount and NativeCredentialStore objects
+share ownership. Normal and forced access phases are distinct; credential reads,
+refreshes and conditional writes/clears run off the caller's UI dispatcher. Worker
+cancellation is checked at both successful-refresh and invalid-refresh store
+transactions. Unconditional sign-out cancels registered work before local clear;
+conditional retirement still compares the captured login before retiring others.
+
+Completion now uses a separate flow monitor, so deadline/error bookkeeping cannot
+wait behind a blocked credential writer. Challenge/browser locks cover their
+state rather than storage IO. Conditional cleanup runs as independently owned,
+tracked work: a deadline can return before storage finishes, and a retry must
+wait for that true completion before its next exchange. Late exchange/user
+results cannot publish a session. Failed user verification retains its pending
+credentials for the existing refresh-aware restore path. These checks do not
+establish the complete root UI's response during blocked storage: it has other
+synchronous storage reads. The original membership/cache publication and loading
+boundaries remain an explicit source gate; no new deferral policy is accepted.
+
+Final build passes in71s. Full app JVM suite:3229 total,3225 pass,4 skipped SSH
+integration cases and0 failures, including120 focused authentication cases. New
+model gates cover cancellation-ignoring exchange/user/membership work, deadline
+return during a parked credential write, retry preflight, late-user rejection,
+actual cleanup joins, source-specific reset/expiry policies and nonblocking
+challenge retirement. Only the final full report in auth-work-jvm-v9/ is accepted.
+
+Final owned API36 cohort passes19/19 in64.419s. Two new cases use the production
+account/access APIs and separate store/account objects for one real encrypted
+fixture document. A background ordinary or forced refresh is parked; a new
+provider request cancels it but sends no HTTP until its actual termination.
+Cancelled success cannot store stale access, and cancelled definitive rejection
+cannot clear the session. Both then complete one controlled provider exchange,
+verify the user and preserve pairing records. Existing17 cases and36 code-card/
+18 error profiles pass. Browser results and HTTP remain controlled; there is no
+real account/provider/browser login or phone/Mac use. Crash empty, no preflight
+ANR, settings/window restored, owned emulator exit0. Earlier passing cohorts are
+superseded. Development failures/assertion corrections remain retained in logs.
+
+Exact bindings: recovery-20261023/native-auth-work-checkpoint.json,
+auth-work-jvm-v9/, native-auth-work-runtime-v4/ and auth-work-source-audit/.
+No new signed delivery; frozen722/last known physical712/personal account,
+pairing/signing data and global pins unchanged. Full queued/cross-owner publication,
+existing-session validation/restoring UI, token-result classification, membership/
+cache boundaries, remaining explicit-entry resets, post-sign-in push hooks,
+access-only responses, original metadata/UI and all real browser/Pixel/Mac/
+TalkBack/full-app gates remain open. The goal stays active.
+
+
 ## Verified-user completion and conditional pending-session cleanup — 2026-10-24
 
 NativeAccount now routes email/OAuth token writers through NativeSignInCompletion.

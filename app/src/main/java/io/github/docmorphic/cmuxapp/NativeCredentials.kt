@@ -5,6 +5,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -31,6 +32,10 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         changes.getOrPut(context.applicationInfo.dataDir + "/" + storageName) { kotlinx.coroutines.flow.MutableStateFlow(0L) }
     }
     internal val revisions: kotlinx.coroutines.flow.StateFlow<Long> get() = changeState
+    // Background workers construct separate account/store objects for this same document.
+    internal val authWork = synchronized(storageLock) {
+        accountWork.getOrPut(context.applicationInfo.dataDir + "/" + storageName) { NativeAuthWork() }
+    }
 
     data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null,
                          val accountUserId: String? = null, val accountTeamId: String? = null, val stableOrigin: String? = null,
@@ -261,6 +266,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         // Keystore key. Serialize read-modify-write and initial key creation.
         private val storageLock = Any()
         private val changes = mutableMapOf<String, kotlinx.coroutines.flow.MutableStateFlow<Long>>()
+        private val accountWork = mutableMapOf<String, NativeAuthWork>()
     }
 
     private fun key(): SecretKey {
@@ -280,23 +286,27 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
 
 /** The same production Stack project and OTP endpoints used by cmux iOS. */
 class NativeAccount private constructor(private val store: NativeCredentialStore, private val refreshOverride: ((String) -> String)?,
-    private val oauthClient: NativeOAuthClient, internal val oauthBrowser: NativeOAuthBrowser) {
+    private val oauthClient: NativeOAuthClient, internal val oauthBrowser: NativeOAuthBrowser,
+    private val authWork: NativeAuthWork = store.authWork) {
     constructor(store: NativeCredentialStore, refreshOverride: ((String) -> String)? = null) :
         this(store, refreshOverride, NativeOAuthClient(PROJECT_ID, PUBLISHABLE_KEY), NativeOAuthBrowser())
-    internal constructor(store: NativeCredentialStore, oauthClientOverride: NativeOAuthClient, oauthBrowser: NativeOAuthBrowser) :
-        this(store, null, oauthClientOverride, oauthBrowser)
+    internal constructor(store: NativeCredentialStore, oauthClientOverride: NativeOAuthClient, oauthBrowser: NativeOAuthBrowser,
+        refreshOverride: ((String) -> String)? = null, authWorkOverride: NativeAuthWork? = null) :
+        this(store, refreshOverride, oauthClientOverride, oauthBrowser, authWorkOverride ?: store.authWork)
     private val refreshMutex = Mutex()
     internal var onSignedIn: suspend (String, NativeSignInUser) -> Unit = { _, _ -> }
     private val completion = NativeSignInCompletion(store::load, store::update, oauthClient::currentUser,
         oauthClient.accountEnvironment, store.accountStateLock, onPublished = { login, user -> onSignedIn(login, user) },
-        refreshAccess = oauthClient::refreshAccess)
+        refreshAccess = oauthClient::refreshAccess, work = authWork)
     private val emailSignIn = NativeEmailSignIn(::request) { _, _ -> error("Sign-in completion receipt required") }
     private val oauthSignIn = NativeOAuthSignIn(oauthClient::prepare, oauthBrowser::authorize, oauthClient::exchange,
         publish = { _, _ -> error("Sign-in completion receipt required") })
 
     suspend fun sendCode(email: String) {
         oauthSignIn.clear()
-        withContext(Dispatchers.IO) { emailSignIn.sendCode(email) }
+        authWork.run(NativeAuthPhase.SEND_CODE, 60_000, admission = NativeAuthWork.Admission.EXCLUSIVE) {
+            withContext(Dispatchers.IO) { emailSignIn.sendCode(email) }
+        }
     }
 
     suspend fun signIn(code: String) {
@@ -305,41 +315,51 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     }
     internal suspend fun signInWithProvider(provider: NativeOAuthProvider) {
         emailSignIn.clear()
-        completion.signIn(exchangeTimeoutMillis = 300_000) { write -> oauthSignIn.signIn(provider, write) }
+        completion.signIn(exchangeTimeoutMillis = 300_000, exchangePhase = NativeAuthPhase.OAUTH_EXCHANGE) { write -> oauthSignIn.signIn(provider, write) }
     }
 
     private val emailRecovery = NativeEmailRecoveryClient()
     suspend fun requestEmailVerification(email: String) = emailRecovery.verification(email)
     suspend fun requestBillingRecovery(email: String) = emailRecovery.billing(email)
 
-    internal fun cancelPendingSignIn() { emailSignIn.clear(); oauthSignIn.clear(); completion.clearIf { true } }
+    internal fun cancelPendingSignIn() { completion.cancelPending(); emailSignIn.clear(); oauthSignIn.clear() }
     internal suspend fun restorePendingSignIn() = completion.restorePending()
+    internal fun supersedeTimedOutAuthPhases() = authWork.supersedeTimedOutPhases()
 
-    suspend fun accessToken(forceRefresh: Boolean = false): String? = refreshMutex.withLock {
-        val state = store.load() ?: return@withLock null
-        if (NativeSignInCompletion.isPending(state)) return@withLock null
-        val current = state.optString("access_token").takeIf { it.isNotBlank() }
-        if (current != null && !forceRefresh && !expiresSoon(current)) return@withLock current
-        val refresh = state.optString("refresh_token").takeIf { it.isNotBlank() }
-            ?: return@withLock current
-        val session = store.taskSession() ?: return@withLock null
-        try {
-            val newToken = withContext(Dispatchers.IO) { refreshOverride?.invoke(refresh) ?: refresh(refresh) }
-            var applied = false
-            store.update {
-                if (it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
-                    it.put("access_token", newToken); applied = true
+    suspend fun accessToken(forceRefresh: Boolean = false): String? = authWork.run(
+        if (forceRefresh) NativeAuthPhase.FORCE_REFRESH else NativeAuthPhase.REFRESH, 60_000) {
+        withContext(Dispatchers.IO) {
+            refreshMutex.withLock {
+                val state = store.load() ?: return@withLock null
+                if (NativeSignInCompletion.isPending(state)) return@withLock null
+                val current = state.optString("access_token").takeIf { it.isNotBlank() }
+                if (current != null && !forceRefresh && !expiresSoon(current)) return@withLock current
+                val refresh = state.optString("refresh_token").takeIf { it.isNotBlank() }
+                    ?: return@withLock current
+                val session = store.taskSession() ?: return@withLock null
+                val writer = kotlinx.coroutines.currentCoroutineContext()
+                try {
+                    val newToken = withContext(Dispatchers.IO) { refreshOverride?.invoke(refresh) ?: refresh(refresh) }
+                    writer.ensureActive()
+                    var applied = false
+                    store.update {
+                        writer.ensureActive()
+                        if (it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
+                            it.put("access_token", newToken); applied = true
+                        }
+                    }
+                    newToken.takeIf { applied }
+                } catch (error: InvalidRefreshToken) {
+                    store.update {
+                        writer.ensureActive()
+                        if (it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
+                            it.put("access_token", "").put("refresh_token", "")
+                            it.remove("task_session"); it.remove("task_drafts")
+                        }
+                    }
+                    null
                 }
             }
-            newToken.takeIf { applied }
-        } catch (error: InvalidRefreshToken) {
-            store.update {
-                if (it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
-                    it.put("access_token", "").put("refresh_token", "")
-                    it.remove("task_session"); it.remove("task_drafts")
-                }
-            }
-            null
         }
     }
 
@@ -396,7 +416,11 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     }
 
     fun signOut(expectedLogin: String? = null): Boolean {
-        val applied = emailSignIn.clearIf { oauthSignIn.clearIf { completion.clearIf(includePublished = true) {
+        if (expectedLogin == null) {
+            completion.cancelPending()
+            authWork.cancelAll()
+        }
+        val applied = completion.clearIf(includePublished = true) {
             var retired = false
             store.update {
                 if (expectedLogin != null && it.optString("task_session") != expectedLogin) return@update
@@ -406,8 +430,8 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
                 retired = true
             }
             retired
-        } } }
-        if (applied) TaskDraftRepository.clearMemory()
+        }
+        if (applied) { emailSignIn.clear(); oauthSignIn.clear(); TaskDraftRepository.clearMemory() }
         return applied
     }
 

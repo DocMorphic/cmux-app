@@ -1607,6 +1607,7 @@ internal fun NativeScreen(
             }
 
             fun proposePairingFrom(value: String, entry: NativePairingEntry) {
+                account.supersedeTimedOutAuthPhases()
                 pendingPairingCode = null
                 ticketPairing.dismiss()
                 PairingCodeParser.parse(value).fold(

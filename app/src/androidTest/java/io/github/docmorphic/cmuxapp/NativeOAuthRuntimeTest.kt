@@ -40,9 +40,12 @@ class NativeOAuthRuntimeTest {
     private var scope: CoroutineScope? = null
     private var session: NativeSignInSession? = null
     private var store: NativeCredentialStore? = null
+    private var storeName: String? = null
     private var account: NativeAccount? = null
     private var browser: NativeOAuthBrowser? = null
     private var server: MockWebServer? = null
+    private var authWork: NativeAuthWork? = null
+    private var refreshRelease: java.util.concurrent.CountDownLatch? = null
     private val completions = AtomicInteger()
     private val pairing = NativeCredentialStore.PairedMac("fixture-pairing-code", "fixture-mac", "Fixture Mac")
     private class Registry : ActivityResultRegistry(), ActivityResultRegistryOwner {
@@ -56,6 +59,7 @@ class NativeOAuthRuntimeTest {
     private val registry = Registry()
     @Before fun emulatorOnly() { check(android.os.Build.MODEL.contains("sdk") || android.os.Build.FINGERPRINT.contains("generic")) }
     @After fun cleanup() {
+        refreshRelease?.countDown()
         instrumentation.runOnMainSync {
             session?.close(); scope?.cancel()
             browser?.presentations?.value?.forEach { browser!!.finishPresentation(it.id) }
@@ -65,13 +69,16 @@ class NativeOAuthRuntimeTest {
         NativeSignInLifecycleTestActivity.oauthBrowser = null; NativeSignInLifecycleTestActivity.oauthRegistryOwner = null
         NativeSignInLifecycleTestActivity.oauthHostVisible.value = true
     }
-    private fun start(deadline: Long = 300_000) {
+    private fun start(deadline: Long = 300_000, refresh: ((String) -> String)? = null) {
         server = MockWebServer().apply { start() }
-        store = NativeCredentialStore(context, "oauth-runtime-"+UUID.randomUUID()).apply { update {
+        storeName = "oauth-runtime-"+UUID.randomUUID()
+        store = NativeCredentialStore(context, storeName!!).apply { update {
             it.put("pairings", JSONArray().put(NativePairingRecords.encode(pairing))).put("fixture_sentinel", "preserve")
         } }
         browser = NativeOAuthBrowser()
-        account = NativeAccount(store!!, oauthClientOverride = NativeOAuthClient("fixture-project", "fixture-public-key", server!!.url("/")), oauthBrowser = browser!!)
+        authWork = store!!.authWork
+        account = NativeAccount(store!!, oauthClientOverride = NativeOAuthClient("fixture-project", "fixture-public-key", server!!.url("/")), oauthBrowser = browser!!,
+            refreshOverride = refresh, authWorkOverride = authWork)
         instrumentation.runOnMainSync {
             scope = CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
             session = NativeSignInSession(scope!!, account!!::sendCode, account!!::signIn, account!!::cancelPendingSignIn,
@@ -110,6 +117,38 @@ class NativeOAuthRuntimeTest {
     }
     private fun capture(name: String) {
         compose.waitForIdle(); assertTrue(UiDevice.getInstance(instrumentation).takeScreenshot(File(folder, "$name.png")))
+    }
+
+    @Test fun providerPreflightJoinsAParkedOrdinaryRefreshBeforeStartingItsActualHttpExchange() = refreshPreflight(false)
+    @Test fun cancelledForcedRefreshRejectionCannotClearTheSessionDuringProviderPreflight() = refreshPreflight(true)
+    private fun refreshPreflight(rejected: Boolean) {
+        val entered = java.util.concurrent.CountDownLatch(1); val release = java.util.concurrent.CountDownLatch(1); refreshRelease = release
+        val refresher: (String) -> String = { entered.countDown(); check(release.await(15, TimeUnit.SECONDS));
+            if (rejected) throw NativeAccount.InvalidRefreshToken()
+            "stale-refreshed-access" }
+        start()
+        val backgroundStore = NativeCredentialStore(context, storeName!!)
+        val backgroundAccount = NativeAccount(backgroundStore, NativeOAuthClient("fixture-project", "fixture-public-key", server!!.url("/")),
+            NativeOAuthBrowser(), refreshOverride = refresher)
+        assertSame(authWork, backgroundStore.authWork)
+        store!!.update { it.put("access_token", "old-access").put("refresh_token", "old-refresh").put("task_session", "old-login") }
+        val old = scope!!.launch(Dispatchers.IO) { runCatching { backgroundAccount.accessToken(forceRefresh = rejected) } }
+        assertTrue(entered.await(5, TimeUnit.SECONDS)); enqueueAuthorization(); enqueueTokens(); enqueueUser()
+        compose.onNodeWithTag("signin.google").performScrollTo().performClick()
+        compose.waitUntil(10_000) { authWork!!.cancelledCount > 0 }
+        assertTrue(session!!.state.value.busy); assertEquals(1L, release.count); assertEquals(0, server!!.requestCount)
+        assertFalse(old.isCompleted); assertEquals("old-access", store!!.load()!!.getString("access_token"))
+        release.countDown(); compose.waitUntil(10_000) { registry.launches.size == 1 }
+        val authorization = server!!.takeRequest(); assertEquals("old-access", store!!.load()!!.getString("access_token"))
+        dispatch(0, AuthTabIntent.RESULT_OK, callback(authorization)); compose.waitUntil(10_000) { completions.get() == 1 }
+        runBlocking { withTimeout(5000) { old.join() } }
+        compose.waitUntil(5000) { authWork!!.activeCount == 0 }
+        assertEquals("fixture-access", store!!.load()!!.getString("access_token")); assertNotEquals("old-login", store!!.taskSession())
+        assertEquals(3, server!!.requestCount); assertTrue(account!!.isSignedIn()); preservedPairing()
+        File(folder, if (rejected) "refresh-rejection-preflight-result.json" else "refresh-preflight-result.json").writeText(JSONObject().put("newHttpWaitedForActualRefreshTermination", true)
+            .put("separateAccountAndStoreObjectsShareWorkOwnership", true)
+            .put("cancelledRefreshDidNotWriteStaleAccess", true).put("cancelledRejectionDidNotClearSession", rejected).put("httpRequests", server!!.requestCount)
+            .put("completionCalls", completions.get()).put("pairingPreserved", true).toString(2))
     }
 
     @Test fun restrictedAndAnonymousHttpUsersCannotPublishAStoredCredentialSession() {

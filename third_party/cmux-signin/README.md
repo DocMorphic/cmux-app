@@ -44,3 +44,11 @@ before publication. A source-compatible Foundation Bool reference includes numer
 expired access before verifying its user. Scoped checks and remaining coordinator,
 metadata, browser, UI and device gates remain in `docs/SIGN_IN.md`; no full auth
 or application parity is asserted by the reference manifest.
+
+`auth-work-reference.json` records fifteen whole original phase/token/preflight/
+root sources and tests. The Android adapter tracks true operation completion
+separately from deadline waits, shares work ownership by credential document,
+fences cancelled refresh writes/clears and joins owned token work before sign-in.
+Token absolute expiry, exclusive races, automatic dampers and explicit user
+supersession retain their distinct source rules. It does not establish complete
+coordinator, cache/loading, browser, UI or device parity; see `docs/SIGN_IN.md`.

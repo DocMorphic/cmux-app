@@ -8,6 +8,19 @@ import org.junit.Test
 class NativeEmailSignInTest {
     private fun session() = JSONObject().put("access_token", "fixture-access").put("refresh_token", "fixture-refresh")
 
+    @Test fun retiringTheChallengeDoesNotWaitBehindTheCredentialWriter() = runBlocking {
+        val entered = CompletableDeferred<Unit>(); val release = java.util.concurrent.CountDownLatch(1)
+        val flow = NativeEmailSignIn({ path, _ -> if (path.endsWith("send-sign-in-code")) JSONObject().put("nonce", "fixture") else session() }) { _, _ ->
+            entered.complete(Unit); check(release.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        }
+        flow.sendCode("fixture@example.test")
+        val exchange = launch(Dispatchers.IO) { flow.signIn("ABC123") }
+        try {
+            entered.await(); withTimeout(2000) { async(Dispatchers.Default) { flow.clear() }.await() }
+            assertEquals(1L, release.count)
+        } finally { exchange.cancel(); release.countDown(); exchange.join() }
+    }
+
     @Test fun emailCodeUsesReturnedNonceAndNormalizesOnlyVisiblePrefix() = runBlocking {
         val requests = mutableListOf<Pair<String, JSONObject>>()
         var saved: Pair<String, String>? = null

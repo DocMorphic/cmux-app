@@ -45,15 +45,18 @@ internal class NativeEmailSignIn(
             ?: error("Sign-in returned no session. Request a new email code.")
         synchronized(lock) {
             check(generation == attempt && nonce == challenge) { "This sign-in request was replaced. Request a new email code." }
-            storeTokens(access, refresh)
             nonce = null
             generation++
         }
+        // The completion owner's writer checks cancellation/receipt under the
+        // credential monitor. Do not hold the challenge lock across storage IO.
+        currentCoroutineContext().ensureActive()
+        storeTokens(access, refresh)
     }
 
     fun clear() = synchronized(lock) { nonce = null; generation++ }
 
-    /** Same lock order as signIn's publish: challenge lock, then credential transaction. */
+    /** Invalidate the challenge only when the caller-owned retirement applies. */
     fun clearIf(retireSession: () -> Boolean): Boolean = synchronized(lock) {
         retireSession().also { if (it) { nonce = null; generation++ } }
     }

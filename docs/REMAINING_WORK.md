@@ -1,3 +1,35 @@
+## Tracked auth deadlines and token preflight advanced — 2026-10-24
+
+Phase waits now end independently of late operations, whose actual jobs and
+conditional cleanup remain registered until terminal. Sign-in preflight cancels/
+joins the token-work snapshot. A credential document shares this registry across
+foreground/background account and store objects. Normal/forced access work runs
+off the UI dispatcher with cancelled-write/clear fences. Flow retirement and
+challenge locks do not wait across credential IO. Token phases use absolute
+expiry; prompt/exchange phases keep the original race rule. Automatic dampers
+and explicit user reset differ as in source; manual pairing invokes that reset
+without forgetting late jobs.
+
+Final full app JVM suite:3229 total,3225 passed,4 skipped SSH cases,0 failures;
+120 focused auth cases included. Final owned API36 cohort:19/19 in64.419s.
+Two production-account cases use separate account/store objects for the same
+encrypted fixture document: new provider HTTP waits for parked ordinary/forced
+refresh termination, and cancelled success/rejection cannot write or clear the
+session. Fixture pairings survive. Existing auth/recreation/recovery and36+18
+controlled UI profiles pass. Crash empty, no preflight ANR, settings/window
+restored, emulator exit0. Fifteen whole originals are identical at detected79.
+Bindings/limits: [SIGN_IN.md](SIGN_IN.md) and
+recovery-20261023/native-auth-work-checkpoint.json.
+
+This does not accept the full coordinator/app: queued and cross-owner session
+publication, existing-session validation/restore/token classification, membership/
+cache publication boundaries and loading UI, all explicit-entry resets, post-sign-in
+side effects, access-only responses, metadata and real browser/provider/device/
+accessibility/full-app gates remain open. Blocked-write model tests do not prove
+the complete root UI can repaint while storage is blocked. No personal account,
+phone/Mac action or new signed delivery;722/physical712/global pins unchanged.
+Goal active.
+
 ## Verified-user sign-in completion advanced — 2026-10-24
 
 Email and provider exchanges now share a completion owner. A stored token pair

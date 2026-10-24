@@ -18,6 +18,17 @@ class NativeOAuthSignInTest {
     private fun fields(value: String) = value.split('&').associate { part ->
         val pair = part.split('=', limit = 2); URLDecoder.decode(pair[0], "UTF-8") to URLDecoder.decode(pair[1], "UTF-8") }
 
+    @Test fun clearingTheBrowserExchangeDoesNotWaitBehindItsCredentialWriter() = runBlocking {
+        val entered = CompletableDeferred<Unit>(); val release = java.util.concurrent.CountDownLatch(1)
+        val flow = NativeOAuthSignIn({ _, _ -> "https://fixture.example/" }, { _, _ -> "fixture-callback" }, { _, _ -> "access" to "refresh" },
+            publish = { _, _ -> entered.complete(Unit); check(release.await(5, java.util.concurrent.TimeUnit.SECONDS)) })
+        val exchange = launch { flow.signIn(NativeOAuthProvider.GOOGLE) }
+        try {
+            entered.await(); withTimeout(2000) { async(Dispatchers.Default) { flow.clear() }.await() }
+            assertEquals(1L, release.count)
+        } finally { release.countDown(); exchange.join() }
+    }
+
     @Test fun fetchedAnonymousAndRestrictedUsersAreRejectedLikeTheOriginalSdk(): Unit = runBlocking {
         MockWebServer().use { server ->
             val client = NativeOAuthClient("fixture-project", "fixture-key", server.url("/"))

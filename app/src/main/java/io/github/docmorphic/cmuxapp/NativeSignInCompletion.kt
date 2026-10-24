@@ -46,18 +46,21 @@ internal class NativeSignInCompletion(
     private val networkTimeoutMillis: Long = 60_000,
     private val onPublished: suspend (String, NativeSignInUser) -> Unit = { _, _ -> },
     private val refreshAccess: (suspend (String) -> String)? = null,
+    private val work: NativeAuthWork = NativeAuthWork(),
 ) {
     private class Flow(val id: String, val generation: Long, val operation: Job) {
         var access: String? = null
-        var published = false
+        @Volatile var published = false
     }
-    private var generation = 0L
+    // Deadline/error delivery must never wait behind a blocked credential write.
+    private val flowLock = Any()
+    @Volatile private var generation = 0L
     private val active = mutableSetOf<Flow>()
 
-    suspend fun signIn(exchangeTimeoutMillis: Long = networkTimeoutMillis,
+    suspend fun signIn(exchangeTimeoutMillis: Long = networkTimeoutMillis, exchangePhase: NativeAuthPhase = NativeAuthPhase.EMAIL_EXCHANGE,
         exchange: suspend ((String, String) -> Unit) -> Unit): Unit = coroutineScope {
         val operation = currentCoroutineContext().job
-        val (flow, previous) = synchronized(lock) {
+        val (flow, previous) = synchronized(flowLock) {
             val previous = active.map { it.operation }
             Flow(UUID.randomUUID().toString(), ++generation, operation).also { active += it } to previous
         }
@@ -65,19 +68,29 @@ internal class NativeSignInCompletion(
         var exchangeComplete = false
         try {
             withTimeout(networkTimeoutMillis) { previous.forEach { it.join() } }
-            withTimeout(exchangeTimeoutMillis) { exchange { access, refresh -> synchronized(lock) {
-                checkCurrent(flow)
-                update { root ->
-                    root.put("access_token", access).put("refresh_token", refresh).put("task_session", flow.id)
-                        .put(PENDING, flow.id)
-                    root.remove("task_drafts")
+            work.quiesce(networkTimeoutMillis)
+            work.run(exchangePhase, exchangeTimeoutMillis, flow.id, NativeAuthWork.Admission.EXCLUSIVE) {
+                val writer = currentCoroutineContext().job
+                try { exchange { access, refresh -> synchronized(lock) {
+                    writer.ensureActive()
+                    checkCurrent(flow)
+                    update { root ->
+                        root.put("access_token", access).put("refresh_token", refresh).put("task_session", flow.id)
+                            .put(PENDING, flow.id)
+                        root.remove("task_drafts")
+                    }
+                    flow.access = access
+                } } }
+                finally {
+                    if (!writer.isActive) withContext(NonCancellable + Dispatchers.IO) {
+                        synchronized(lock) { if (!flow.published) clearPending(flow.id) }
+                    }
                 }
-                flow.access = access
-            } } }
+            }
             exchangeComplete = true
             checkCurrent(flow)
             val access = checkNotNull(flow.access) { "Sign-in returned without credentials" }
-            val user = withTimeout(networkTimeoutMillis) { fetchUser(access) }
+            val user = work.run(NativeAuthPhase.USER, networkTimeoutMillis, flow.id) { fetchUser(access) }
             withContext(Dispatchers.IO) { synchronized(lock) {
                 checkCurrent(flow)
                 update { root ->
@@ -89,22 +102,23 @@ internal class NativeSignInCompletion(
                 // or a tolerated team-refresh failure must not undo the login.
                 flow.published = true
             } }
-            try { withTimeout(networkTimeoutMillis) { onPublished(flow.id, user) } }
+            try { work.run(NativeAuthPhase.TEAMS, networkTimeoutMillis, flow.id) { onPublished(flow.id, user) } }
             catch (failure: Exception) { currentCoroutineContext().ensureActive() }
         } catch (failure: Exception) {
             // User-fetch failures retain the SDK's stored credentials for a
             // later restore, but cannot expose an unverified signed-in shell.
             // Cancellation/deadline cleanup is conditional on this receipt.
-            if (failure is CancellationException) withContext(NonCancellable + Dispatchers.IO) {
-                synchronized(lock) {
-                    // runExchange rolls back a cancelled/late exchange. After
-                    // it succeeds, a fetchUser deadline is a validation failure,
-                    // not proof that the stored session should be destroyed.
-                    if (!flow.published && (!exchangeComplete || generation != flow.generation)) clearPending(flow.id)
+            if (failure is CancellationException || (failure is NativeSignInFailure && failure.reason == NativeSignInError.TIMED_OUT)) {
+                val mustClear = !flow.published && (!exchangeComplete || generation != flow.generation)
+                if (mustClear) work.cleanup(currentCoroutineContext(), flow.id) {
+                    withContext(Dispatchers.IO) { synchronized(lock) {
+                        // A fetchUser deadline alone does not destroy the session.
+                        if (!flow.published) clearPending(flow.id)
+                    } }
                 }
             }
             throw failure
-        } finally { synchronized(lock) { active -= flow } }
+        } finally { synchronized(flowLock) { active -= flow } }
     }
 
     /** Resume only an orphaned pending exchange, never overlap a live sign-in. */
@@ -113,9 +127,11 @@ internal class NativeSignInCompletion(
         val flow: Flow
         val access: String?
         val refresh: String?
-        synchronized(lock) {
+        val expectedGeneration = generation
+        val root = load() ?: return@coroutineScope
+        synchronized(flowLock) {
+            if (generation != expectedGeneration) return@coroutineScope
             if (active.isNotEmpty()) return@coroutineScope
-            val root = load() ?: return@coroutineScope
             val id = root.opt(PENDING) as? String ?: return@coroutineScope
             if (!ownsPending(root, id)) return@coroutineScope
             access = (root.opt("access_token") as? String)?.takeIf { it.isNotBlank() }
@@ -125,10 +141,11 @@ internal class NativeSignInCompletion(
             active += flow
         }
         try {
+            work.quiesce(networkTimeoutMillis)
             suspend fun refreshUser(): NativeSignInUser {
                 val exchange = refreshAccess ?: throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
                 val credential = refresh ?: throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
-                val next = withTimeout(timeoutMillis) { exchange(credential) }
+                val next = work.run(NativeAuthPhase.RESTORE_REFRESH, timeoutMillis, flow.id) { exchange(credential) }
                 withContext(Dispatchers.IO) { synchronized(lock) {
                     checkCurrent(flow)
                     update { root ->
@@ -137,10 +154,10 @@ internal class NativeSignInCompletion(
                         root.put("access_token", next)
                     }
                 } }
-                return withTimeout(networkTimeoutMillis) { fetchUser(next) }
+                return work.run(NativeAuthPhase.USER, networkTimeoutMillis, flow.id) { fetchUser(next) }
             }
             val user = if (access == null) refreshUser() else try {
-                withTimeout(networkTimeoutMillis) { fetchUser(access) }
+                work.run(NativeAuthPhase.USER, networkTimeoutMillis, flow.id) { fetchUser(access) }
             } catch (failure: Exception) {
                 if (nativeSignInError(failure) != NativeSignInError.UNAUTHORIZED || refreshAccess == null || refresh == null) throw failure
                 refreshUser()
@@ -159,22 +176,34 @@ internal class NativeSignInCompletion(
                 synchronized(lock) { clearPending(flow.id) }
             }
             throw failure
-        } finally { synchronized(lock) { active -= flow } }
+        } finally { synchronized(flowLock) { active -= flow } }
     }
 
-    /** Same credential monitor as the writer. Cancel jobs only after releasing it. */
+    /** Form retirement must not wait for credential IO. */
+    fun cancelPending() {
+        val flows = synchronized(flowLock) { ++generation; active.filterNot { it.published } }
+        work.cancelOwners(flows.map { it.id }.toSet())
+        flows.forEach { it.operation.cancel() }
+    }
+
+    /** Conditional session retirement is atomic with credential writers. */
     fun clearIf(includePublished: Boolean = false, retire: () -> Boolean): Boolean {
         val retired: List<Job>
+        val owners: Set<String>
         val applied = synchronized(lock) {
             val result = retire()
-            retired = if (result) { ++generation; active.filter { includePublished || !it.published }.map { it.operation } } else emptyList()
+            val flows = synchronized(flowLock) {
+                if (result) { ++generation; active.filter { includePublished || !it.published } } else emptyList()
+            }
+            retired = flows.map { it.operation }; owners = flows.map { it.id }.toSet()
             result
         }
+        if (applied && includePublished) work.cancelAll() else if (applied) work.cancelOwners(owners)
         retired.forEach { it.cancel() }
         return applied
     }
 
-    private fun checkCurrent(flow: Flow) = synchronized(lock) {
+    private fun checkCurrent(flow: Flow) {
         flow.operation.ensureActive()
         if (flow.generation != generation) throw CancellationException("Sign-in retired")
     }

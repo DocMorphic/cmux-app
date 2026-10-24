@@ -168,7 +168,7 @@ internal class NativeOAuthClient(private val project: String, private val publis
     }
 }
 
-/** Own one generation through browser + exchange; clearing wins against late token writes. */
+/** Own browser/exchange cancellation; the completion receipt guards credential writes. */
 internal class NativeOAuthSignIn(private val prepare: suspend (NativeOAuthProvider, NativeOAuthChallenge) -> String,
     private val browser: suspend (String, String) -> String,
     private val exchange: suspend (String, NativeOAuthChallenge) -> Pair<String, String>,
@@ -191,11 +191,14 @@ internal class NativeOAuthSignIn(private val prepare: suspend (NativeOAuthProvid
             ensureActive()
             val tokens = exchange(callback, material)
             ensureActive()
-            withContext(Dispatchers.IO) { synchronized(lock) {
+            withContext(Dispatchers.IO) {
+                synchronized(lock) {
+                    operation.ensureActive()
+                    if (generation != admitted) throw CancellationException("Sign-in retired")
+                }
                 operation.ensureActive()
-                if (generation != admitted) throw CancellationException("Sign-in retired")
                 storeTokens(tokens.first, tokens.second)
-            } }
+            }
         } finally { synchronized(lock) { active.remove(admitted) } }
     }
     fun clear() { clearIf { true } }

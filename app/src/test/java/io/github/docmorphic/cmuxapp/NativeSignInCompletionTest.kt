@@ -23,11 +23,60 @@ class NativeSignInCompletionTest {
         fun clearSession() = update { it.remove("access_token"); it.remove("refresh_token"); it.remove("task_session"); it.remove(NativeSignInCompletion.PENDING) }
     }
     private fun completion(store: Store, fetch: suspend (String) -> NativeSignInUser,
-        timeout: Long = 60_000, hook: suspend (String, NativeSignInUser) -> Unit = { _, _ -> }) =
-        NativeSignInCompletion(store::load, store::update, fetch, environment, store.lock, timeout, hook)
+        timeout: Long = 60_000, hook: suspend (String, NativeSignInUser) -> Unit = { _, _ -> }, work: NativeAuthWork = NativeAuthWork()) =
+        NativeSignInCompletion(store::load, store::update, fetch, environment, store.lock, timeout, hook, work = work)
     private fun assertCleared(store: Store) {
         assertFalse(store.load().optString("refresh_token").isNotBlank())
         assertFalse(store.load().has("task_session")); assertFalse(NativeSignInCompletion.isPending(store.load())); store.preserved()
+    }
+
+    @Test fun aBlockedCredentialWriteCannotHoldTheDeadlineOrLetARetrySkipActualCleanup() = runBlocking {
+        val store = Store(); val work = NativeAuthWork(); val written = CompletableDeferred<Unit>(); val release = CountDownLatch(1)
+        var firstWrite = true; var exchanges = 0
+        val flow = NativeSignInCompletion(store::load, { transform ->
+            store.update(transform)
+            if (firstWrite) { firstWrite = false; written.complete(Unit); check(release.await(5, TimeUnit.SECONDS)) }
+        }, { user }, environment, store.lock, networkTimeoutMillis = 100, work = work)
+        try {
+            val old = async(Dispatchers.Default) { runCatching { flow.signIn { write -> exchanges++; withContext(Dispatchers.IO) { write("old", "old-refresh") } } } }
+            written.await()
+            val failure = withTimeout(2000) { old.await() }.exceptionOrNull() as Exception
+            assertEquals(NativeSignInError.TIMED_OUT, nativeSignInError(failure)); assertEquals(1L, release.count)
+            assertTrue(work.activeCount > 0)
+            val retry = async(Dispatchers.Default) { runCatching { flow.signIn { exchanges++; it("too-early", "too-early-refresh") } } }
+            assertEquals(NativeSignInError.TIMED_OUT, nativeSignInError(withTimeout(2000) { retry.await() }.exceptionOrNull() as Exception))
+            assertEquals(1, exchanges)
+        } finally { release.countDown() }
+        work.quiesce(5000); assertCleared(store)
+        flow.signIn { it("new", "new-refresh") }; assertEquals("new-refresh", store.load().getString("refresh_token")); store.preserved()
+    }
+
+    @Test fun userDeadlineReturnsBeforeAnUncooperativeFetchAndDiscardsItsLateUser() = runBlocking {
+        val store = Store(); val work = NativeAuthWork(); val fetching = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        val flow = NativeSignInCompletion(store::load, store::update, { withContext(NonCancellable) { fetching.complete(Unit); release.await(); user } },
+            environment, store.lock, networkTimeoutMillis = 100, work = work)
+        try {
+            val attempt = async { runCatching { flow.signIn { it("access", "refresh") } } }; fetching.await()
+            val failure = withTimeout(2000) { attempt.await() }.exceptionOrNull() as Exception
+            assertEquals(NativeSignInError.TIMED_OUT, nativeSignInError(failure)); assertFalse(release.isCompleted)
+            assertTrue(NativeSignInCompletion.isPending(store.load())); assertFalse(store.load().has(NativeAccountProfileCache.KEY))
+        } finally { release.complete(Unit) }
+        work.quiesce(5000); assertTrue(NativeSignInCompletion.isPending(store.load()))
+        assertFalse(store.load().has(NativeAccountProfileCache.KEY)); store.preserved()
+    }
+
+    @Test fun toleratedMembershipTimeoutKeepsTheUserButItsLateWorkStillBlocksANewExchange() = runBlocking {
+        val store = Store(); val work = NativeAuthWork(); val hook = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        val flow = NativeSignInCompletion(store::load, store::update, { user }, environment, store.lock, networkTimeoutMillis = 100,
+            onPublished = { _, _ -> withContext(NonCancellable) { hook.complete(Unit); release.await() } }, work = work)
+        try {
+            val attempt = async { flow.signIn { it("access", "refresh") } }; hook.await(); withTimeout(2000) { attempt.await() }
+            assertFalse(NativeSignInCompletion.isPending(store.load())); assertTrue(work.activeCount > 0)
+            var exchanged = false
+            val retry = runCatching { flow.signIn { exchanged = true } }
+            assertEquals(NativeSignInError.TIMED_OUT, nativeSignInError(retry.exceptionOrNull() as Exception)); assertFalse(exchanged)
+        } finally { release.complete(Unit) }
+        work.quiesce(5000); assertEquals("refresh", store.load().getString("refresh_token")); store.preserved()
     }
 
     @Test fun orphanRestoreRefreshesARejectedAccessTokenWithoutReplacingItsLoginReceipt() = runBlocking {
@@ -105,22 +154,22 @@ class NativeSignInCompletionTest {
     }
 
     @Test fun cancellationAfterTheActualStoreWriteRollsBackOnlyThePendingReceipt() = runBlocking {
-        val store = Store(); val fetching = CompletableDeferred<Unit>()
-        val flow = completion(store, { fetching.complete(Unit); awaitCancellation() })
+        val store = Store(); val fetching = CompletableDeferred<Unit>(); val work = NativeAuthWork()
+        val flow = completion(store, { fetching.complete(Unit); awaitCancellation() }, work = work)
         val task = launch { flow.signIn { it("access", "refresh") } }
-        fetching.await(); assertTrue(store.load().has("task_session")); flow.clearIf { true }; task.join(); assertCleared(store)
+        fetching.await(); assertTrue(store.load().has("task_session")); flow.cancelPending(); task.join(); work.quiesce(5000); assertCleared(store)
     }
 
     @Test fun cancellationThatRacesPastTheWriterCheckAndDispatcherReturnStillClearsItsWrite() = runBlocking {
-        val store = Store(); val written = CompletableDeferred<Unit>(); val release = CountDownLatch(1)
+        val store = Store(); val written = CompletableDeferred<Unit>(); val release = CountDownLatch(1); val work = NativeAuthWork()
         var firstWrite = true
         val flow = NativeSignInCompletion(store::load, { transform ->
             store.update(transform)
             if (firstWrite) { firstWrite = false; written.complete(Unit); check(release.await(5, TimeUnit.SECONDS)) }
-        }, { fail("A cancelled write must not fetch the user"); user }, environment, store.lock)
+        }, { fail("A cancelled write must not fetch the user"); user }, environment, store.lock, work = work)
         val task = launch(Dispatchers.Default) { flow.signIn { write -> withContext(Dispatchers.IO) { write("access", "refresh") } } }
         try { written.await(); task.cancel() } finally { release.countDown() }
-        task.join(); assertCleared(store)
+        task.join(); work.quiesce(5000); assertCleared(store)
     }
 
     @Test fun signOutDuringAnUncooperativeUserFetchWinsEvenWhenTheResponseArrivesLate() = runBlocking {
@@ -159,7 +208,7 @@ class NativeSignInCompletionTest {
         val store = Store()
         val flow = completion(store, { awaitCancellation() }, timeout = 100)
         val error = runCatching { flow.signIn { it("access", "refresh") } }.exceptionOrNull()
-        assertTrue(error is TimeoutCancellationException); assertEquals(NativeSignInError.TIMED_OUT, nativeSignInError(error as Exception))
+        assertEquals(NativeSignInError.TIMED_OUT, nativeSignInError(error as Exception))
         assertTrue(NativeSignInCompletion.isPending(store.load())); assertEquals("refresh", store.load().getString("refresh_token"))
         assertFalse(store.load().has(NativeAccountProfileCache.KEY)); store.preserved()
     }
