@@ -93,13 +93,14 @@ class NativeAccountProfileCacheTest {
         }
     }
 
-    @Test fun definitiveRejectionEvictsCacheButLateOldResponseCannotClearNewLogin() = runBlocking<Unit> {
+    @Test fun failedUserReadKeepsDisplayCacheAndLateOldResponseCannotClearNewLogin() = runBlocking<Unit> {
         MockWebServer().use { server ->
             val store = Store(); seed(server, store)
             controller(server, store).use { account ->
                 server.enqueue(MockResponse().setResponseCode(403))
                 assertTrue(runCatching { account.refresh() }.isFailure)
-                assertNull(account.state.value.userId); assertFalse(store.load().has(NativeAccountProfileCache.KEY))
+                assertEquals("user",account.state.value.userId);assertTrue(account.state.value.cached)
+                assertNull(account.state.value.scope);assertTrue(store.load().has(NativeAccountProfileCache.KEY))
             }
             seed(server, store)
             controller(server, store).use { account ->

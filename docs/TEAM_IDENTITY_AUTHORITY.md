@@ -110,3 +110,9 @@ Evidence under `captures/recovery-20261023`: `team-identity-build-v4.log`,
 `team-identity-jvm-v4`, `team-identity-runtime-v1` and aggregate
 `team-identity-checkpoint.json`. The aggregate binds six tested implementation/
 test files, both APKs, ten whole original source/test files and open gates.
+
+The later [team-refresh eligibility checkpoint](TEAM_REFRESH_ELIGIBILITY.md)
+checks anonymous/restricted flags and aligns failed-read continuity with the
+original coordinator. Broad HTTP rejection no longer erases loaded same-session
+membership by itself. Full recovery/backoff, mutation eligibility and SDK shape
+semantics remain open alongside the broader gates above.

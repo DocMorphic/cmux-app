@@ -1,0 +1,324 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "source": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Models/User.swift",
+  "sourceSha256": "a9a6a06f7e04ca7a6c3f3ce0edbb88e59aae8e9d0c2758aac0b54dc138a3c33e",
+  "rows": [
+    {
+      "anonymous": false,
+      "case": "is_anonymous:absent",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user"
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": true,
+      "case": "is_anonymous:true",
+      "eligible": false,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": true
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:false",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": false
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": true,
+      "case": "is_anonymous:one",
+      "eligible": false,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": 1
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:zero",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": 0
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:two",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": 2
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:negative",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": -1
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": true,
+      "case": "is_anonymous:decimal-one",
+      "eligible": false,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": 1
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:decimal-half",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": 0.5
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:null",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": null
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:string-true",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": "true"
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:string-one",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": "1"
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:array",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": []
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_anonymous:object",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_anonymous": {}
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:absent",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user"
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:true",
+      "eligible": false,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": true
+      },
+      "restricted": true
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:false",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": false
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:one",
+      "eligible": false,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": 1
+      },
+      "restricted": true
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:zero",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": 0
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:two",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": 2
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:negative",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": -1
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:decimal-one",
+      "eligible": false,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": 1
+      },
+      "restricted": true
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:decimal-half",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": 0.5
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:null",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": null
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:string-true",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": "true"
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:string-one",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": "1"
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:array",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": []
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": false,
+      "case": "is_restricted:object",
+      "eligible": true,
+      "payload": {
+        "display_name": "Fixture User",
+        "id": "fixture-user",
+        "is_restricted": {}
+      },
+      "restricted": false
+    },
+    {
+      "anonymous": true,
+      "case": "both",
+      "eligible": false,
+      "payload": {
+        "id": "fixture-user",
+        "is_anonymous": true,
+        "is_restricted": true
+      },
+      "restricted": true
+    }
+  ]
+}

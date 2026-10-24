@@ -1,6 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -132,8 +134,15 @@ internal class NativeAccountTeams(
             return restored ?: refreshAfterSignIn(owner,user)
         }
         return perform { owner, epoch ->
-        val user = request("users/me", owner, epoch)
-        val userId = identifier(user.getString("id"))
+        // Stack's getUser(.throw) excludes anonymous/restricted users. It reports
+        // that miss as unavailable; it does not revoke a previously loaded team list.
+        val user = try { NativeSignInUser.decode(request("users/me", owner, epoch)) }
+            catch (failure: Exception) {
+                currentCoroutineContext().ensureActive()
+                if(failure is CancellationException || failure is StackFailure && failure.status==429)throw failure
+                throw NativeSessionUserUnavailable()
+            }
+        val userId = user.id
         requirePrincipal(userId)
         synchronized(lock) {
             checkCurrent(owner, epoch)
@@ -146,9 +155,9 @@ internal class NativeAccountTeams(
                 runCatching { cache?.remove(owner) }
             }
         }
-        val selected = user.optJSONObject("selected_team")?.let { identifier(it.getString("id")) }
-        val displayName = profileText(user, "display_name")
-        val email = profileText(user, "primary_email")
+        val selected = user.selectedTeam
+        val displayName = user.name
+        val email = user.email
         val teams = listTeams(owner, epoch)
         val remembered = synchronized(lock) {
             checkCurrent(owner, epoch)
@@ -186,7 +195,7 @@ internal class NativeAccountTeams(
     suspend fun create(displayName: String): NativeAccountTeamsState {
         val name = displayName.trim()
         require(name.isNotEmpty() && name.length <= 120) { "Enter a team name of 1–120 characters" }
-        return perform(clearOnForbidden = false) { owner, epoch ->
+        return perform { owner, epoch ->
             val before = synchronized(lock) {
                 checkCurrent(owner, epoch)
                 check(verifiedLogin == owner && mutableState.value.userId != null) { "Refresh your account teams first" }
@@ -231,7 +240,7 @@ internal class NativeAccountTeams(
         }
     }
 
-    suspend fun select(id: String): NativeAccountTeamsState = perform(clearOnForbidden = false) { owner, epoch ->
+    suspend fun select(id: String): NativeAccountTeamsState = perform { owner, epoch ->
         val before = synchronized(lock) { mutableState.value }
         check(before.teams.any { it.id == id } && before.userId != null && verifiedLogin == owner) { "Refresh your account teams first" }
         if (id == before.selectedTeamId) return@perform before.copy(loading = false)
@@ -241,7 +250,7 @@ internal class NativeAccountTeams(
         publish(owner, epoch, before.userId, before.teams, id).copy(displayName = before.displayName, email = before.email)
     }
 
-    private suspend fun perform(clearOnForbidden: Boolean = true, publishedUser: NativeSignInUser? = null,
+    private suspend fun perform(publishedUser: NativeSignInUser? = null,
                                 action: suspend (String, Long) -> NativeAccountTeamsState): NativeAccountTeamsState = operations.withLock {
         val owner = login() ?: throw IOException("Sign in to cmux")
         val epoch = synchronized(lock) {
@@ -256,7 +265,10 @@ internal class NativeAccountTeams(
                 mutableState.value = restore(owner,identity)
             }
             operationIdentity=identity
-            mutableState.value = mutableState.value.copy(loading = true, error = null)
+            val before=mutableState.value
+            mutableState.value = if(publishedUser!=null)before.copy(userId=publishedUser.id,
+                displayName=publishedUser.name,email=publishedUser.email,cached=false,loading=true,error=null)
+                else before.copy(loading = true, error = null)
             run
         }
         try {
@@ -275,24 +287,20 @@ internal class NativeAccountTeams(
             mutableState.value
         } catch (failure: Exception) {
             synchronized(lock) {
-                if (!closed && run == epoch) {
-                    if (login() != owner || (failure is StackFailure &&
-                            (failure.status == 401 || (failure.status == 403 && clearOnForbidden)))) {
+                if (!closed && run == epoch && (sessionIdentity==null || sessionIdentity.invoke()==operationIdentity)) {
+                    if (login() != owner) {
                         clearVerification()
-                        // Clear only this login's display cache. A late rejection
-                        // must not erase the replacement account's snapshot.
-                        if (login() == owner && publishedUser != null) {
-                            // The user was verified before membership was read.
-                            // Keep that identity, while granting no team scope.
-                            val identity = NativeAccountTeamsState(userId = publishedUser.id, displayName = publishedUser.name,
-                                email = publishedUser.email, error = "Could not load account teams")
-                            runCatching { cache?.save(owner, cacheEnvironment, identity) }
-                            mutableState.value = identity
-                        } else {
-                            runCatching { cache?.remove(owner) }
-                            mutableState.value = NativeAccountTeamsState(error = "Sign in to refresh your account")
-                        }
-                    } else mutableState.value = mutableState.value.copy(loading = false, error = failure.message ?: "Could not load account teams")
+                        runCatching { cache?.remove(owner) }
+                        mutableState.value = NativeAccountTeamsState(error = "Sign in to refresh your account")
+                    } else {
+                        // A failed list does not mean empty membership. Match the
+                        // coordinator by retaining only this generation's loaded proof.
+                        val message=if(failure is org.json.JSONException)"Could not load account teams"
+                            else failure.message ?: "Could not load account teams"
+                        val retained=mutableState.value.copy(loading=false,error=message)
+                        if(publishedUser!=null)runCatching { cache?.save(owner,cacheEnvironment,retained) }
+                        mutableState.value=retained
+                    }
                 }
             }
             throw failure
@@ -420,13 +428,6 @@ internal class NativeAccountTeams(
         val cached=owner?.let { runCatching { cache?.read(it, cacheEnvironment) }.getOrNull() }
         if(sessionIdentity==null)return cached ?: NativeAccountTeamsState()
         return cached?.takeIf { identity!=null && it.userId==identity.userId } ?: NativeAccountTeamsState(userId=identity?.userId)
-    }
-
-    private fun profileText(user: JSONObject, key: String): String? {
-        val value = user.opt(key)
-        if (value == null || value === JSONObject.NULL) return null
-        if (value !is String || value.length > 512) throw IOException("Invalid account profile")
-        return value.trim().takeIf { it.isNotEmpty() }
     }
 
     private fun credential(value: String?): String = value?.takeIf {

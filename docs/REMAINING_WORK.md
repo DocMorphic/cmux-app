@@ -1,3 +1,33 @@
+## Team-refresh eligibility and failure continuity aligned — 2026-10-24
+
+Direct team refresh now checks anonymous/restricted flags through the common user
+decoder before fetching membership. Most user-read failures become unavailable;
+cancellation and 429 remain distinct. The original coordinator retains a loaded
+same-session team list when refresh fails, so broad HTTP 401/403 no longer erase
+that authority or cached display. Successful removal, actual credential-session
+loss, identity replacement and logout still retire old proofs. New-generation
+membership failure retains the verified profile without its predecessor's proof,
+and late user errors cannot overwrite a replacement profile/cache.
+
+The complete pinned SDK User.swift was executed to derive 29 flag cases; Android
+matches them and the generator reproduces the fixture byte-for-byte. Full JVM:
+3,344 total, 3,340 passed, four existing SSH skips, zero failures in 450 suites. Ten new
+JVM cases and seven account/Keystore/local-HTTP cases passed. Owned API 36: 123/123
+in 193.491s, empty crash log, no preflight ANR, restored settings/window, exit0.
+The previous 116 regressions also pass. Eleven local implementation/test/reference/
+dependency files and twelve whole original files bind the evidence.
+
+Full parity remains active. Full team recovery scheduling, Retry-After/backoff/
+reporting, mutation eligibility, separate selected-team reads and malformed-list/
+default-model semantics remain open; the bounded parser is not claimed equivalent
+to every SDK fallback. Raw-token/access-only consumers, full backend/metadata/
+identity adoption, actual OS/provider/physical Pixel/Mac, signed release and
+broader source/UI/accessibility acceptance remain open. No phone/Mac install,
+account/pairing/signing data, source pin or frozen signed722 was changed.
+
+Details: [team-refresh source mapping and limits](TEAM_REFRESH_ELIGIBILITY.md).
+Evidence: `captures/recovery-20261023/team-eligibility-checkpoint.json`.
+
 ## Account deletion now binds confirmation and results to identity — 2026-10-24
 
 The dialog pins the published account, session generation and credential epoch.

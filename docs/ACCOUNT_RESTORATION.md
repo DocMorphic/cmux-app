@@ -42,8 +42,11 @@ current membership; an empty membership list produces no team scope. A changed
 server user ID immediately retires the old scope and cached profile, even if the
 subsequent membership request fails.
 
-Transient HTTP/network failures preserve cached display. Definitive account
-rejection clears this login's cache and authority. Sign-out/account replacement
+Failed user/team reads preserve cached display and already-loaded membership for
+the same published session, including broad HTTP401/403 failures. Anonymous or
+restricted users cannot obtain a fresh team list. Actual credential-session loss,
+account replacement and successful membership removal still retire authority;
+see [the source policy reconciliation](TEAM_REFRESH_ELIGIBILITY.md). Sign-out/account replacement
 prunes the cache in the same encrypted transaction as credential changes. Late
 responses cannot clear a replacement login's cache or publish its predecessor's
 profile. Closing a controller releases requests without erasing the durable

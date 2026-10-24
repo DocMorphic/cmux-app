@@ -87,7 +87,7 @@ class NativeAccountTeamsTest {
         } }
     }
 
-    @Test fun continuationRetainsVerifiedAuthorityOnTransientFailureButNotAuthenticationRejection() = runBlocking<Unit> {
+    @Test fun failedRefreshKeepsLoadedMembershipUntilTheSessionOrMembershipActuallyChanges() = runBlocking<Unit> {
         for (status in listOf(401, 403)) MockWebServer().use { server -> controller(server).use { account ->
             server.profile(); val first = checkNotNull(account.refresh().scope)
             val proof = checkNotNull(account.captureContinuation(first))
@@ -97,9 +97,10 @@ class NativeAccountTeamsTest {
             server.enqueue(MockResponse().setResponseCode(status))
             if (status == 401) server.enqueue(MockResponse().setResponseCode(401))
             assertTrue(runCatching { account.refresh() }.isFailure)
-            assertFalse(account.allowsContinuation(proof)); assertNull(account.captureContinuation(first))
+            assertTrue(account.allowsContinuation(proof)); assertNotNull(account.captureContinuation(first))
             server.profile(); account.refresh()
-            assertFalse(account.allowsContinuation(proof))
+            assertTrue(account.allowsContinuation(proof))
+            account.clear();assertFalse(account.allowsContinuation(proof))
         } }
     }
 
@@ -363,7 +364,7 @@ class NativeAccountTeamsTest {
         }
     }
 
-    @Test fun lostMembershipAccessClearsPreviouslyResolvedScope() = runBlocking<Unit> {
+    @Test fun failedMembershipReadCannotBePublishedAsAnEmptyTeamList() = runBlocking<Unit> {
         MockWebServer().use { server ->
             controller(server).use { account ->
                 server.profile()
@@ -371,8 +372,8 @@ class NativeAccountTeamsTest {
                 server.reply(user())
                 server.enqueue(MockResponse().setResponseCode(403))
                 assertTrue(runCatching { account.refresh() }.isFailure)
-                assertNull(account.state.value.scope)
-                assertFalse(account.isCurrent(original))
+                assertEquals(original,account.state.value.scope)
+                assertTrue(account.isCurrent(original))
             }
         }
     }
