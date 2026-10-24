@@ -61,7 +61,7 @@ class NativeTeamEligibilityTest {
             val(scope,proof)=establish(server,c);server.enqueue(MockResponse().setResponseCode(status))
             if(status==401)server.enqueue(MockResponse().setResponseCode(status))
             val failure=runCatching {c.refresh()}.exceptionOrNull();assertNotNull(failure)
-            if(status==429) {assertFalse(failure is NativeSessionUserUnavailable);assertTrue(failure!!.message!!.contains("429"))}
+            if(status==429)assertTrue(failure is NativeAccountRateLimited)
             else assertTrue(failure is NativeSessionUserUnavailable)
             assertEquals(scope,c.state.value.scope);assertTrue(c.allowsContinuation(proof))
             assertEquals(if(status==401)3 else 2,server.requestCount)

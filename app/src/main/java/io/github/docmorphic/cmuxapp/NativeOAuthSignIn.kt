@@ -177,7 +177,7 @@ internal class NativeOAuthClient(private val project: String, private val publis
         } catch (_: NativeMissingUserPayload) { null }
         catch (failure: Exception) {
             kotlinx.coroutines.currentCoroutineContext().ensureActive()
-            if (failure is NativeAccountRequestFailure && failure.code == "RATE_LIMITED") throw failure
+            if (nativeSessionCheckLimit(failure)!=null) throw failure
             throw NativeSessionUserUnavailable()
         }
     }
@@ -205,6 +205,12 @@ internal class NativeOAuthClient(private val project: String, private val publis
                         }
                         throw NativeRefreshRateLimited(nativeRefreshRetryAfter(response.header("Retry-After"),System.currentTimeMillis()),
                             nativeRefreshBodyKind(type,prefix.toByteArray()))
+                    }
+                    if(!rawHttpStatus) {
+                        val actual=(response.header("x-hexclave-actual-status") ?: response.header("x-stack-actual-status"))?.toIntOrNull() ?: response.code
+                        val known=response.header("x-hexclave-known-error") ?: response.header("x-stack-known-error")
+                        if(response.code==429 || actual==429 || known?.uppercase(Locale.ROOT) in setOf("RATE_LIMITED","RATE_LIMIT"))
+                            throw nativeAccountRateLimit(response)
                     }
                     val buffer = ByteArrayOutputStream()
                     response.body?.byteStream()?.use { stream ->

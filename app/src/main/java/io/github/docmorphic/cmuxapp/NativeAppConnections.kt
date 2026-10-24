@@ -52,8 +52,10 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         account::sendCode, account::signIn, account::cancelPendingSignIn,
         account::requestEmailVerification, account::requestBillingRecovery, authenticateProvider = account::signInWithProvider,
         authenticationOwnsDeadlines = true)
+    private val teamRecovery=NativeAccountTeamRecovery(scope,account,teams,store.accountStateLock)
     init { account.sessionRestore.start(scope) }
-    fun revalidateAccount() = scope.launch { account.retryLocalLogout(); account.sessionRestore.revalidate() }
+    private val teamRecoveryNetwork=NativeTeamRecoveryNetwork(context,scope,teamRecovery.coordinator::recoverIfNeeded)
+    fun revalidateAccount() = scope.launch {teamRecovery.coordinator.wakeClock();account.retryLocalLogout();account.sessionRestore.revalidate()}
 
     val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
     val accountDeletion = nativeAccountDeletionController(scope,account,store)
@@ -226,23 +228,8 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         scope.launch { teams.state.collect { tailscale.retireInvalid() } }
         scope.launch { account.sessionRestore.identities.collect { teams.reconcileLogin();accountDeletion.reconcile() } }
         scope.launch {
-            var observedLogin: String? = null
-            var nextRefresh = 0L
             while (isActive) {
                 tailscale.retireInvalid()
-                val login = store.taskSession()
-                if (login != observedLogin) {
-                    teams.reconcileLogin()
-                    observedLogin = login
-                    nextRefresh = 0
-                }
-                val time = System.nanoTime() / 1_000_000
-                if (login != null && account.sessionRestore.state.value.authenticated && !account.sessionRestore.revalidating.value && time >= nextRefresh && !signIn.state.value.authenticating) {
-                    nextRefresh = time + try { teams.refresh(); 60_000 } catch (failure: Exception) {
-                        currentCoroutineContext().ensureActive()
-                        15_000
-                    }
-                }
                 delay(2000)
             }
         }
@@ -262,6 +249,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             activityOwners.clear()
             applicationActive.value = IrxProbeActivity(false, applicationActive.value.revision + 1)
         }
+        teamRecoveryNetwork.close();teamRecovery.close()
         signIn.close(); cloudVpn.close(); compatibility.close(); presence.close(); ssh.close(); scope.cancel(); tailscale.close(); native.close(); teams.close()
     }
 

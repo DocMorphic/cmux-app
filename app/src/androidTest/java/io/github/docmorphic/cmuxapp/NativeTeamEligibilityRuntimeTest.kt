@@ -73,7 +73,7 @@ class NativeTeamEligibilityRuntimeTest {
         MockWebServer().use {server->seed(server);val account=account(server);val c=teams(server,account);val(owner,proof)=establish(server,account,c)
             server.enqueue(MockResponse().setResponseCode(403));assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
             server.enqueue(MockResponse().setResponseCode(429));val rate=runCatching {c.refresh()}.exceptionOrNull()
-            assertNotNull(rate);assertFalse(rate is NativeSessionUserUnavailable);assertTrue(rate!!.message!!.contains("429"))
+            assertTrue(rate is NativeAccountRateLimited)
             assertEquals(owner,c.state.value.scope);assertTrue(c.allowsContinuation(proof));assertEquals(4,server.requestCount);retained()
             record("failed-user-reads",JSONObject().put("loadedProofPreserved",true).put("rateLimitNotCollapsedIntoMissingUser",true).put("pairingPreserved",true))}
     }

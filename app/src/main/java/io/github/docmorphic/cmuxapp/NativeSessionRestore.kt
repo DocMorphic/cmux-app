@@ -42,6 +42,8 @@ internal class NativeSessionRestore(
     private val lock: Any = Any(),
 ) {
     private var generation = 0L
+    val sessionGeneration get()=synchronized(lock){generation}
+    @Volatile internal var recoveryObserver:NativeSessionRecoveryObserver?=null
     private var credentialWrites = 0L
     private var hint = hasTokensHint
     private var validation: CompletableDeferred<Unit>? = null
@@ -79,18 +81,25 @@ internal class NativeSessionRestore(
         if (synchronized(lock) { !mutable.value.authenticated && !mutable.value.restoring && !hint }) return
         checkExisting()
     }
+    /** Recovery admission is checked atomically before a new validation; existing runs still coalesce. */
+    internal suspend fun revalidateIf(admit:()->Boolean) {
+        if(synchronized(lock){!mutable.value.authenticated && !mutable.value.restoring && !hint})return
+        checkExisting(admit)
+    }
     fun clear(clearCachedUser: Boolean = true) { clearIfCurrent(null, clearCachedUser) }
     private fun clearIfCurrent(context: Context?, clearCachedUser: Boolean = true) {
         val cleared = synchronized(lock) {
             if (context != null && !clearIsCurrent(context)) false else {
                 generation++; hint = false; verifiedIdentity=null;publishedIdentity.value=null;mutable.value = NativeAuthState()
-                runCatching { setHint(false) }; true
+                runCatching { setHint(false) }; recoveryObserver?.cleared();true
             }
         }
         if (cleared && clearCachedUser) runCatching(onCleared)
     }
     /** Called only after the interactive completion has committed its verified user. */
-    fun publishedSignIn(user: NativeSignInUser) { publish(user, signIn = true) }
+    fun publishedSignIn(user: NativeSignInUser) = synchronized(lock) {
+        recoveryObserver?.signedIn();publish(user, signIn = true);Unit
+    }
     private fun publish(user: NativeSignInUser, signIn: Boolean, context: Context? = null): Pair<Long, Boolean>? {
         val publication = synchronized(lock) {
             if (context != null && !current(context)) return null
@@ -107,7 +116,7 @@ internal class NativeSessionRestore(
     }
     private fun preserve(context: Context) {
         val cached = state.value.user ?: runCatching(loadCachedUser).getOrNull()
-        synchronized(lock) {
+        val preserved=synchronized(lock) {
             if (generation != context.generation || externalEpoch() != context.external) false else {
                 hint = true
                 val value=NativeAuthState(cached != null,cached,false)
@@ -116,15 +125,22 @@ internal class NativeSessionRestore(
             }
         }
         // Both the hint and snapshot were committed under the session monitor.
+        if(preserved)recoveryObserver?.preserved(context.generation)
     }
-    private suspend fun checkExisting() {
+    private suspend fun checkExisting(admit:()->Boolean={true}) {
         val (done, leader) = synchronized(lock) {
-            validation?.let { it to false } ?: (CompletableDeferred<Unit>().also { validation = it; checking.value = true } to true)
+            validation?.let { it to false } ?: run {
+                if(!admit())return
+                CompletableDeferred<Unit>().also { validation = it; checking.value = true } to true
+            }
         }
         // The source's checked-continuation waiters complete with the owning run.
         if (!leader) { withContext(NonCancellable) { done.await() }; return }
         try { body(retryStorage = true) }
-        finally { synchronized(lock) { initialValidationAttempted=true;validation = null; checking.value = false; done.complete(Unit) } }
+        finally {
+            recoveryObserver?.validationCompleted()
+            synchronized(lock) { initialValidationAttempted=true;validation = null; checking.value = false; done.complete(Unit) }
+        }
     }
     private suspend fun body(retryStorage: Boolean) {
         val context = capture()
@@ -175,7 +191,7 @@ internal class NativeSessionRestore(
             if (!current(context)) return
             if (surviving == null || failure is NativeSignInFailure && failure.reason == NativeSignInError.UNAUTHORIZED)
                 clearStale(context, surviving)
-            else preserve(context)
+            else {recoveryObserver?.validationFailed(context.generation,failure);preserve(context)}
         }
     }
     private suspend fun clearStale(context: Context, expectedRefresh: String?) {

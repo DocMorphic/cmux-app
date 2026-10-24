@@ -13,7 +13,7 @@ a failed read is different from a successful empty membership list.
 | --- | --- |
 | User.swift decodes anonymous/restricted flags with Foundation Bool casts | The common NativeSignInUser decoder is exercised against 29 rows from executing the entire pinned User.swift |
 | getUser(.throw) excludes those users before listTeams | Direct refresh wraps decoding/user-read failures as unavailable before requesting teams |
-| Most getUser errors collapse into user-unavailable; rate limiting is special | Cancellation is preserved and 429 remains distinct; full rate-limit metadata/recovery remains open |
+| Most getUser errors collapse into user-unavailable; rate limiting is special | Cancellation is preserved and 429 remains distinct; bounded process recovery now follows [the source policy](TEAM_SCOPE_RECOVERY.md); the reporting consumer remains open |
 | AuthCoordinator.refreshTeams retains already-loaded teams on failure | Same-session scope and continuation stamps remain loaded after failed user or team reads |
 | Failed sign-in membership cannot revive an older session's loaded teams | New published identity resets verification before its fallible membership call |
 | A published user survives membership failure | The verified profile is retained and cached without inventing a team scope |
@@ -63,10 +63,12 @@ passed 198 tests in 19 suites; the new 29-row model
 reference is a separate local execution. Global implemented/reviewed pins remain
 unchanged.
 
-This aligns eligibility and the failed-refresh continuity policy. Full source
-team recovery scheduling, Retry-After/backoff/reporting, fresh-user checks in
+This checkpoint aligns eligibility and the failed-refresh continuity policy.
+[The later recovery checkpoint](TEAM_SCOPE_RECOVERY.md) adds process-owned
+scheduling and Retry-After/backoff metadata. Noncooperative IO/public-phase
+counting and the reporting consumer remain open, alongside fresh-user checks in
 mutation paths, exact separate/parallel selected-team reads and SDK malformed-list
-/default-model semantics still need reconciliation. The bounded Android parser
+/default-model semantics. The bounded Android parser
 can reject malformed lists that the SDK would decode as empty; this checkpoint
 does not call that behavior equivalent. Profile shape/id/size bounds and complete
 user metadata remain part of the broader audit.

@@ -68,6 +68,13 @@ internal class NativeAccountTeams(
     private val client = base.newBuilder().followRedirects(false).followSslRedirects(false)
         .retryOnConnectionFailure(false).callTimeout(20, TimeUnit.SECONDS).build()
     private val operations = Mutex()
+    private var membershipReads=0
+    val activeMembershipReads get()=synchronized(lock){membershipReads}
+    val hasLoadedMembership get()=synchronized(lock) {
+        !closed && verifiedLogin!=null && verifiedLogin==login() && membershipUser!=null &&
+            (sessionIdentity==null || sessionIdentity.invoke()?.let {it==verifiedIdentity && it.userId==membershipUser}==true)
+    }
+    @Volatile internal var onMembershipCompleted:(NativeAuthIdentity?,Exception?)->Unit={_,_->}
     private val calls = mutableSetOf<Call>()
     private var closed = false
     private var run = 0L
@@ -133,13 +140,13 @@ internal class NativeAccountTeams(
             // The process owner may already have refreshed membership in its verified-user callback.
             return restored ?: refreshAfterSignIn(owner,user)
         }
-        return perform { owner, epoch ->
+        return membership { owner, epoch ->
         // Stack's getUser(.throw) excludes anonymous/restricted users. It reports
         // that miss as unavailable; it does not revoke a previously loaded team list.
         val user = try { NativeSignInUser.decode(request("users/me", owner, epoch)) }
             catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
-                if(failure is CancellationException || failure is StackFailure && failure.status==429)throw failure
+                if(failure is CancellationException || nativeSessionCheckLimit(failure)!=null)throw failure
                 throw NativeSessionUserUnavailable()
             }
         val userId = user.id
@@ -170,7 +177,7 @@ internal class NativeAccountTeams(
     }
 
     /** Completion already fetched this user; membership failure cannot undo that publication. */
-    suspend fun refreshAfterSignIn(expectedLogin: String, user: NativeSignInUser): NativeAccountTeamsState = perform(publishedUser = user) { owner, epoch ->
+    suspend fun refreshAfterSignIn(expectedLogin: String, user: NativeSignInUser): NativeAccountTeamsState = membership(publishedUser = user) { owner, epoch ->
         if (owner != expectedLogin) throw CancellationException("Account changed")
         requirePrincipal(user.id)
         val teams = listTeams(owner, epoch)
@@ -250,12 +257,20 @@ internal class NativeAccountTeams(
         publish(owner, epoch, before.userId, before.teams, id).copy(displayName = before.displayName, email = before.email)
     }
 
-    private suspend fun perform(publishedUser: NativeSignInUser? = null,
+    private suspend fun membership(publishedUser:NativeSignInUser?=null,action:suspend (String,Long)->NativeAccountTeamsState):NativeAccountTeamsState {
+        val identity=synchronized(lock){membershipReads++;sessionIdentity?.invoke()}
+        var failure:Exception?=null
+        try {return perform(publishedUser,identity,action)}
+        catch(error:Exception){failure=error;throw error}
+        finally {synchronized(lock){membershipReads--};onMembershipCompleted(identity,failure)}
+    }
+    private suspend fun perform(publishedUser: NativeSignInUser? = null,expectedIdentity:NativeAuthIdentity?=sessionIdentity?.invoke(),
                                 action: suspend (String, Long) -> NativeAccountTeamsState): NativeAccountTeamsState = operations.withLock {
         val owner = login() ?: throw IOException("Sign in to cmux")
         val epoch = synchronized(lock) {
             check(!closed) { "Account team session closed" }
             val identity=sessionIdentity?.invoke()
+            if(sessionIdentity!=null && identity!=expectedIdentity)throw CancellationException("Account identity changed")
             if(sessionIdentity!=null && identity==null)throw CancellationException("Account identity unavailable")
             if (presentationLogin != owner || presentationIdentity!=identity) {
                 ++run
@@ -366,7 +381,9 @@ internal class NativeAccountTeams(
             override fun onResponse(call: Call, response: Response) {
                 val result = runCatching {
                     response.use {
-                        val status = it.header("x-stack-actual-status")?.toIntOrNull() ?: it.code
+                        val status = (it.header("x-hexclave-actual-status") ?: it.header("x-stack-actual-status"))?.toIntOrNull() ?: it.code
+                        val known=it.header("x-hexclave-known-error") ?: it.header("x-stack-known-error")
+                        if(it.code==429 || status==429 || known?.uppercase() in setOf("RATE_LIMITED","RATE_LIMIT"))throw nativeAccountRateLimit(it)
                         if (!it.isSuccessful || status !in 200..299) throw StackFailure(if (it.isSuccessful) status else it.code)
                         val body = it.body ?: throw IOException("Missing account response")
                         if (body.contentLength() > MAX_REPLY) throw IOException("Account response too large")

@@ -1,0 +1,403 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TeamScopeRecovery.swift": "890fa58f54b34187c9704aa2a48bb931901450804aaa1b104b1258c51dc1a3ea",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/APIClient.swift": "477c288e5721a60169a4d4b87a4a97605efe3c9efd279ea3a2d4e1528932bc48"
+  },
+  "executedDeclarationSha256": [
+    "db48bf68f8258db4ab4c99fa0ceeac6c0259aff892bdcabdaf75fbdbec90829f",
+    "86dbf8f33829df913759aabebf9d6cdd80c03475288b70829a4b7772f11fb1d5",
+    "4193a5c43f4ce9c562bbfc3a6bf3dcd726221fd3216ffc82331f83b57eb8ee72"
+  ],
+  "nowMillis": 1700000000000,
+  "headers": [
+    {
+      "header": null,
+      "seconds": null
+    },
+    {
+      "header": "",
+      "seconds": null
+    },
+    {
+      "header": " 1 ",
+      "seconds": 1
+    },
+    {
+      "header": "0",
+      "seconds": 0
+    },
+    {
+      "header": "1.2345",
+      "seconds": 1.2345
+    },
+    {
+      "header": "999999",
+      "seconds": 86400
+    },
+    {
+      "header": "-1",
+      "seconds": null
+    },
+    {
+      "header": "NaN",
+      "seconds": null
+    },
+    {
+      "header": "Infinity",
+      "seconds": null
+    },
+    {
+      "header": "nonsense",
+      "seconds": null
+    },
+    {
+      "header": "Tue, 14 Nov 2023 22:13:30 GMT",
+      "seconds": 10
+    },
+    {
+      "header": "Tue, 14 Nov 2023 22:13:00 GMT",
+      "seconds": 0
+    },
+    {
+      "header": "Thu, 01 Jan 2037 00:00:00 GMT",
+      "seconds": 86400
+    },
+    {
+      "header": "2026-01-01",
+      "seconds": null
+    }
+  ],
+  "normal": [
+    {
+      "attempt": -2147483648,
+      "milliseconds": 2000
+    },
+    {
+      "attempt": -1,
+      "milliseconds": 2000
+    },
+    {
+      "attempt": 0,
+      "milliseconds": 2000
+    },
+    {
+      "attempt": 1,
+      "milliseconds": 4000
+    },
+    {
+      "attempt": 2,
+      "milliseconds": 8000
+    },
+    {
+      "attempt": 3,
+      "milliseconds": 16000
+    },
+    {
+      "attempt": 4,
+      "milliseconds": 32000
+    },
+    {
+      "attempt": 5,
+      "milliseconds": 60000
+    },
+    {
+      "attempt": 6,
+      "milliseconds": 60000
+    },
+    {
+      "attempt": 2147483647,
+      "milliseconds": 60000
+    }
+  ],
+  "rate": [
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": null,
+      "seconds": 15,
+      "streak": -1
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": null,
+      "seconds": 22.5,
+      "streak": -1
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": null,
+      "seconds": 30,
+      "streak": -1
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": null,
+      "seconds": 15,
+      "streak": 0
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": null,
+      "seconds": 22.5,
+      "streak": 0
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": null,
+      "seconds": 30,
+      "streak": 0
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": null,
+      "seconds": 15,
+      "streak": 1
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": null,
+      "seconds": 22.5,
+      "streak": 1
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": null,
+      "seconds": 30,
+      "streak": 1
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": null,
+      "seconds": 30,
+      "streak": 2
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": null,
+      "seconds": 45,
+      "streak": 2
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": null,
+      "seconds": 60,
+      "streak": 2
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": null,
+      "seconds": 60,
+      "streak": 3
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": null,
+      "seconds": 90,
+      "streak": 3
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": null,
+      "seconds": 120,
+      "streak": 3
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": null,
+      "seconds": 240,
+      "streak": 5
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": null,
+      "seconds": 360,
+      "streak": 5
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": null,
+      "seconds": 480,
+      "streak": 5
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": null,
+      "seconds": 450,
+      "streak": 6
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": null,
+      "seconds": 675,
+      "streak": 6
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": null,
+      "seconds": 900,
+      "streak": 6
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": null,
+      "seconds": 450,
+      "streak": 20
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": null,
+      "seconds": 675,
+      "streak": 20
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": null,
+      "seconds": 900,
+      "streak": 20
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": null,
+      "seconds": 450,
+      "streak": 2147483647
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": null,
+      "seconds": 675,
+      "streak": 2147483647
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": null,
+      "seconds": 900,
+      "streak": 2147483647
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": 0,
+      "seconds": 1,
+      "streak": 8
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": 0,
+      "seconds": 1.25,
+      "streak": 8
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": 0,
+      "seconds": 1.5,
+      "streak": 8
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": 0.5,
+      "seconds": 1,
+      "streak": 8
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": 0.5,
+      "seconds": 1.25,
+      "streak": 8
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": 0.5,
+      "seconds": 1.5,
+      "streak": 8
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": 1,
+      "seconds": 1,
+      "streak": 8
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": 1,
+      "seconds": 1.25,
+      "streak": 8
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": 1,
+      "seconds": 1.5,
+      "streak": 8
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": 1.234,
+      "seconds": 1.234,
+      "streak": 8
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": 1.234,
+      "seconds": 1.5425,
+      "streak": 8
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": 1.234,
+      "seconds": 1.851,
+      "streak": 8
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": 600,
+      "seconds": 600,
+      "streak": 8
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": 600,
+      "seconds": 750,
+      "streak": 8
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": 600,
+      "seconds": 900,
+      "streak": 8
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": 900,
+      "seconds": 900,
+      "streak": 8
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": 900,
+      "seconds": 900,
+      "streak": 8
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": 900,
+      "seconds": 900,
+      "streak": 8
+    },
+    {
+      "jitter": 0.5,
+      "retryAfterSeconds": 86400,
+      "seconds": 900,
+      "streak": 8
+    },
+    {
+      "jitter": 0.75,
+      "retryAfterSeconds": 86400,
+      "seconds": 900,
+      "streak": 8
+    },
+    {
+      "jitter": 1,
+      "retryAfterSeconds": 86400,
+      "seconds": 900,
+      "streak": 8
+    }
+  ]
+}

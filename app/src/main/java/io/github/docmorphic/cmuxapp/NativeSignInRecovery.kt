@@ -12,7 +12,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** Retain the typed refusal needed by the original email-verification policy. */
-internal class NativeAccountRequestFailure(val code: String, val requiresEmailVerification: Boolean,
+internal open class NativeAccountRequestFailure(val code: String, val requiresEmailVerification: Boolean,
     message: String) : IOException(message)
 
 internal fun nativeAccountResponse(status: Int, knownError: String?, raw: String): JSONObject {

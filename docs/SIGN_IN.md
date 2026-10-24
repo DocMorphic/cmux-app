@@ -1,3 +1,28 @@
+## Team-scope recovery follows upstream backoff — 2026-10-24
+
+The process account now retries an unloaded team list at 2, 4, 8, 16, 32 and
+then 60 seconds, with the separate source Retry-After/jitter policy for 429.
+Successful empty membership counts as loaded. Recovery-only network signals
+cannot bypass throttles; ordinary foreground validation still follows the iOS
+route. Fresh sign-in/sign-out retire the old budget, stale failures cannot
+throttle replacement accounts, and recovery ends after owning validation hooks.
+The old periodic membership polling is removed.
+
+JVM: 3,368 total, 3,364 passed, four existing SSH skips, zero failures, 452 suites.
+Owned API 36: 130/130 in 217.104s, seven new account/Keystore/local-HTTP cases plus
+123 regressions; empty crash log, no preflight ANR, restored settings/window,
+emulator exit0. Complete original pure declarations supply 10 delay, 48 rate and
+14 header reference rows, independently reproduced byte-for-byte. This closes
+the bounded process recovery policy gap described in the older entry below;
+it does not close full parity. Noncooperative IO/public-phase counting,
+private-worker retry integration, real sleep/network loss, mutation eligibility,
+SDK fallback/metadata, consent-aware reporting, physical/provider/helper/OS and
+matched UI/accessibility/release gates remain open. Source pins and frozen
+signed 722 are unchanged; no physical phone or Mac install was changed.
+
+Details: [recovery source mapping and limits](TEAM_SCOPE_RECOVERY.md).
+Evidence: `captures/recovery-20261023/team-recovery-checkpoint.json`.
+
 ## Team-refresh eligibility and failure continuity aligned — 2026-10-24
 
 Direct team refresh now checks anonymous/restricted flags through the common user
