@@ -58,7 +58,7 @@ class NativeAgentFeedRuntimeTest {
         fun awaitMethod(method: String) = compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == method } }
         try {
             preferences.edit().remove(NativeDisplayPreferences.feedReplacesNotificationsKey).commit()
-            store.clear(); store.update { it.put("refresh_token", "agent-feed-emulator-fixture").put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
+            store.clear(); store.update { it.withNativeAuthPresentationFixture().put("refresh_token", "agent-feed-emulator-fixture").put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
             compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
                 NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
                     MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }

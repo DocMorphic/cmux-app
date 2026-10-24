@@ -30,7 +30,7 @@ class NativeConnectionRecoveryTest {
         started = true; peer = NativeFixturePeer()
         NativeCredentialStore(context).clear()
         NativeCredentialStore(context).update {
-            it.put("refresh_token", "timeout-emulator-fixture")
+            it.withNativeAuthPresentationFixture().put("refresh_token", "timeout-emulator-fixture")
             it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465")
         }
     }

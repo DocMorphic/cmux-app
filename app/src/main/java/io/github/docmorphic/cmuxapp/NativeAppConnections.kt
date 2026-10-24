@@ -48,10 +48,9 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         account::sendCode, account::signIn, account::cancelPendingSignIn,
         account::requestEmailVerification, account::requestBillingRecovery, authenticateProvider = account::signInWithProvider,
         authenticationOwnsDeadlines = true)
-    init { scope.launch {
-        try { account.restorePendingSignIn() }
-        catch (failure: Exception) { currentCoroutineContext().ensureActive() }
-    } }
+    init { account.sessionRestore.start(scope) }
+    fun revalidateAccount() = scope.launch { account.sessionRestore.revalidate() }
+
     val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
         NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
@@ -203,6 +202,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             }
         }
         scope.launch { store.revisions.collect {
+            account.reconcileStoredSession()
             teams.reconcileLogin()
             accountDeletion.reconcile()
             try { PhoneReplyNotices(context.applicationContext).sync() }
@@ -234,7 +234,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
                     nextRefresh = 0
                 }
                 val time = System.nanoTime() / 1_000_000
-                if (login != null && time >= nextRefresh && !signIn.state.value.authenticating) {
+                if (login != null && account.sessionRestore.state.value.authenticated && !account.sessionRestore.revalidating.value && time >= nextRefresh && !signIn.state.value.authenticating) {
                     nextRefresh = time + try { teams.refresh(); 60_000 } catch (failure: Exception) {
                         currentCoroutineContext().ensureActive()
                         15_000
@@ -248,8 +248,10 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     fun setProbeActive(owner: Any, active: Boolean) = synchronized(activityLock) {
         if (active) activityOwners.add(owner) else activityOwners.remove(owner)
         val enabled = activityOwners.isNotEmpty()
-        if (applicationActive.value.active != enabled)
+        if (applicationActive.value.active != enabled) {
             applicationActive.value = IrxProbeActivity(enabled, applicationActive.value.revision + 1)
+            if (enabled) revalidateAccount()
+        }
     }
 
     override fun close() {

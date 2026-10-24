@@ -23,7 +23,7 @@ class WorkspaceDefaultRoutingTest {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")) { "Emulator-only account fixture" }
         store = NativeCredentialStore(InstrumentationRegistry.getInstrumentation().targetContext)
         store.clear()
-        store.update { it.put("refresh_token", "workspace-selection-emulator-fixture")
+        store.update { it.withNativeAuthPresentationFixture().put("refresh_token", "workspace-selection-emulator-fixture")
             .put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
         peer = NativeFixturePeer()
     }

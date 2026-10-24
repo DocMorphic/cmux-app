@@ -27,6 +27,7 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
         /** User publication precedes the fallible membership phase; empty teams grant no authority. */
         fun writeVerifiedUser(root: JSONObject, login: String, environment: String, user: NativeSignInUser) {
             check(owns(root, login))
+            NativeAuthUserCache.write(root, environment, user)
             root.put(KEY, JSONObject().put("version", 1).put("login", login).put("environment", environment)
                 .put("user", user.id).put("selected", JSONObject.NULL)
                 .put("name", user.name ?: JSONObject.NULL).put("email", user.email ?: JSONObject.NULL)

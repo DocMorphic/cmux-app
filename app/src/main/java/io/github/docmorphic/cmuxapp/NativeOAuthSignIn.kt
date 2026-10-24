@@ -123,16 +123,33 @@ internal class NativeOAuthClient(private val project: String, private val publis
         return (result.opt("access_token") as? String)?.takeIf { it.isNotBlank() }
             ?: throw NativeSignInFailure(NativeSignInError.SERVER_ERROR)
     }
-    suspend fun currentUser(access: String): NativeSignInUser {
-        val result = request(Request.Builder().url(origin.newBuilder().encodedPath("/api/v1/users/me").build())
-            .header("x-stack-project-id", project).header("x-stack-publishable-client-key", publishableKey)
-            .header("x-stack-access-type", "client").header("x-stack-client-version", "cmux-android@0.2.0")
-            .header("x-stack-access-token", access).header("x-stack-override-error-status", "true")
-            .header("x-stack-random-nonce", java.util.UUID.randomUUID().toString()).build(), accountRequest = true)
-        return NativeSignInUser.decode(result)
+    private fun userRequest(access: String) = Request.Builder().url(origin.newBuilder().encodedPath("/api/v1/users/me").build())
+        .header("x-stack-project-id", project).header("x-stack-publishable-client-key", publishableKey)
+        .header("x-stack-access-type", "client").header("x-stack-client-version", "cmux-android@0.2.0")
+        .header("x-stack-access-token", access).header("x-stack-override-error-status", "true")
+        .header("x-stack-random-nonce", java.util.UUID.randomUUID().toString()).build()
+    suspend fun currentUser(access: String): NativeSignInUser = NativeSignInUser.decode(request(userRequest(access), accountRequest = true))
+
+    /** Match getUser(.throw): invalid JSON is nil, most errors are USER_NOT_SIGNED_IN. */
+    suspend fun restoredCurrentUser(access: String, refreshRejectedAccess: suspend () -> String?): NativeSignInUser? {
+        suspend fun read(token: String) = request(userRequest(token), accountRequest = true,
+            unauthorizedStatuses = emptySet(), missingUserJson = true)
+        return try {
+            val payload = try { read(access) } catch (failure: NativeAccountRequestFailure) {
+                if (failure.code != "invalid_access_token") throw failure
+                read(refreshRejectedAccess() ?: throw NativeSessionUserUnavailable())
+            }
+            NativeSignInUser.decode(payload)
+        } catch (_: NativeMissingUserPayload) { null }
+        catch (failure: Exception) {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (failure is NativeAccountRequestFailure && failure.code == "RATE_LIMITED") throw failure
+            throw NativeSessionUserUnavailable()
+        }
     }
+    private class NativeMissingUserPayload : Exception()
     private suspend fun request(request: Request, successStatus: Int? = null, accountRequest: Boolean = false,
-        unauthorizedStatuses: Set<Int> = setOf(401)): JSONObject = suspendCancellableCoroutine { continuation ->
+        unauthorizedStatuses: Set<Int> = setOf(401), missingUserJson: Boolean = false): JSONObject = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
@@ -160,7 +177,7 @@ internal class NativeOAuthClient(private val project: String, private val publis
                             ?: if (status == 429) "RATE_LIMITED" else if (accountRequest) "SERVER_ERROR" else "OAUTH_ERROR"
                         throw NativeAccountRequestFailure(code, false, "OAuth request failed")
                     }
-                    runCatching { JSONObject(raw) }.getOrElse { throw NativeSignInFailure(if (accountRequest) NativeSignInError.SERVER_ERROR else NativeSignInError.BROWSER_SIGN_IN_FAILED) }
+                    runCatching { JSONObject(raw) }.getOrElse { if (missingUserJson) throw NativeMissingUserPayload(); throw NativeSignInFailure(if (accountRequest) NativeSignInError.SERVER_ERROR else NativeSignInError.BROWSER_SIGN_IN_FAILED) }
                 } }
                 if (continuation.isActive) result.fold(continuation::resume, continuation::resumeWithException)
             }

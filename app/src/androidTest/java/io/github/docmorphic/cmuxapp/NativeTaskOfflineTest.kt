@@ -29,7 +29,7 @@ class NativeTaskOfflineTest {
 
     @Before fun setup() {
         store = NativeCredentialStore(context)
-        store.clear(); store.update { it.put("refresh_token", "offline-fixture-only") }
+        store.clear(); store.update { it.withNativeAuthPresentationFixture().put("refresh_token", "offline-fixture-only") }
         TaskDraftRepository.clearMemory()
         repository = TaskDraftRepository.get(context, store.taskSession()!!)
         peer = NativeFixturePeer()

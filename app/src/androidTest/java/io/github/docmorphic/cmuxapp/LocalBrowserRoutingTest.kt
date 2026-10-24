@@ -32,7 +32,7 @@ class LocalBrowserRoutingTest {
     @Before fun setup() {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")) { "Emulator-only account fixture" }
         store = NativeCredentialStore(context); store.clear()
-        store.update { it.put("refresh_token", "local-browser-emulator-fixture").put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
+        store.update { it.withNativeAuthPresentationFixture().put("refresh_token", "local-browser-emulator-fixture").put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
         peer = NativeFixturePeer()
         peer.customWorkspaceListing = JSONObject("""{"workspaces":[
             {"id":"workspace-1","title":"Browser workspace","terminals":[{"id":"terminal-1","title":"Shell"}]},

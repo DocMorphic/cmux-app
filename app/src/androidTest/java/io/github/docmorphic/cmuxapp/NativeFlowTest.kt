@@ -75,7 +75,7 @@ class NativeFlowTest {
         NativeCredentialStore(context, "native_terminal_drafts").clear()
         TerminalDraftRepository.get(context).drafts.clear()
         NativeCredentialStore(context).update {
-            it.put("refresh_token", "emulator-fixture-only")
+            it.withNativeAuthPresentationFixture().put("refresh_token", "emulator-fixture-only")
             it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465")
         }
     }

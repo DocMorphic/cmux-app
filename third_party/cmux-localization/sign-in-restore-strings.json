@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalog": {
+    "path": "ios/cmux/Resources/Localizable.xcstrings",
+    "sha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd"
+  },
+  "strings": [
+    {
+      "key": "mobile.signIn.restoring",
+      "resource": "cmux_signin_restore_title",
+      "translations": {
+        "en": "Restoring session",
+        "ar": "استعادة الجلسة",
+        "de": "Sitzung wird wiederhergestellt",
+        "es": "Restaurando sesión",
+        "fr": "Session de restauration",
+        "ja": "セッションを復元しています",
+        "ko": "세션 복원 중",
+        "zh-Hans": "正在恢复会话",
+        "zh-Hant": "正在恢復會話"
+      }
+    },
+    {
+      "key": "mobile.signIn.restoringMessage",
+      "resource": "cmux_signin_restore_message",
+      "translations": {
+        "en": "Checking your saved session. Sign-in options are paused until this finishes.",
+        "ar": "التحقق من جلستك المحفوظة. يتم إيقاف خيارات تسجيل الدخول مؤقتًا حتى ينتهي هذا.",
+        "de": "Überprüfen Sie Ihre gespeicherte Sitzung. Die Anmeldeoptionen werden angehalten, bis dieser Vorgang abgeschlossen ist.",
+        "es": "Comprobando su sesión guardada. Las opciones de inicio de sesión están en pausa hasta que esto finalice.",
+        "fr": "Vérification de votre session enregistrée. Les options de connexion sont suspendues jusqu'à la fin.",
+        "ja": "保存済みセッションを確認しています。完了するまでサインイン操作は一時停止されます。",
+        "ko": "저장된 세션을 확인하는 중입니다. 이 작업이 완료될 때까지 로그인 옵션이 일시중지됩니다.",
+        "zh-Hans": "检查您保存的会话。登录选项将暂停，直至完成。",
+        "zh-Hant": "檢查您儲存的會話。登入選項將暫停，直至完成。"
+      }
+    },
+    {
+      "key": "mobile.signIn.restoreTimeoutTitle",
+      "resource": "cmux_signin_restore_timeout_title",
+      "translations": {
+        "en": "Still restoring session",
+        "ar": "لا تزال استعادة الجلسة",
+        "de": "Sitzung wird immer noch wiederhergestellt",
+        "es": "Todavía restaurando la sesión.",
+        "fr": "Toujours en train de restaurer la session",
+        "ja": "まだセッションを復元しています",
+        "ko": "아직 세션을 복원 중입니다.",
+        "zh-Hans": "仍在恢复会话",
+        "zh-Hant": "仍在恢復會話"
+      }
+    },
+    {
+      "key": "mobile.signIn.restoreTimeoutMessage",
+      "resource": "cmux_signin_restore_timeout_message",
+      "translations": {
+        "en": "cmux could not finish checking your saved session. Check your connection, then retry.",
+        "ar": "تعذر على cmux إنهاء فحص الجلسة المحفوظة. تحقق من اتصالك، ثم أعد المحاولة.",
+        "de": "cmux konnte die Überprüfung Ihrer gespeicherten Sitzung nicht abschließen. Überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "es": "cmux no pudo terminar de verificar su sesión guardada. Verifique su conexión y luego vuelva a intentarlo.",
+        "fr": "cmux n'a pas pu terminer la vérification de votre session enregistrée. Vérifiez votre connexion, puis réessayez.",
+        "ja": "cmux は保存済みセッションの確認を完了できませんでした。接続を確認してから再試行してください。",
+        "ko": "cmux가 저장된 세션 확인을 완료할 수 없습니다. 연결을 확인한 후 다시 시도하세요.",
+        "zh-Hans": "cmux 无法完成检查您保存的会话。检查您的连接，然后重试。",
+        "zh-Hant": "cmux 無法完成檢查您已儲存的會話。檢查您的連接，然後重試。"
+      }
+    },
+    {
+      "key": "mobile.common.retry",
+      "resource": "cmux_signin_restore_retry",
+      "translations": {
+        "en": "Retry",
+        "ar": "أعد المحاولة",
+        "de": "Wiederholen",
+        "es": "Rever",
+        "fr": "Réessayer",
+        "ja": "再試行",
+        "ko": "다시 해 보다",
+        "zh-Hans": "重试",
+        "zh-Hant": "重試"
+      }
+    }
+  ]
+}

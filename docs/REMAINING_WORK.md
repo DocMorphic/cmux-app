@@ -1,3 +1,32 @@
+## Cached session startup and foreground restoration advanced — 2026-10-24
+
+Normal cached-user/token-hint priming, coalesced launch/foreground validation,
+8-second probe/user deadlines, live-refresh clear/preserve policy and stale
+writer fences now drive the root signed-in state. Orphaned pending exchanges
+resume through the real bootstrap path. Verified identity publishes before
+membership; a saved display cache never supplies team or connection authority.
+The production methods screen now shows the original10-second warning/Retry
+and pauses sign-in methods while keeping email editable. Five original labels
+match all45 catalog values across nine locales.
+
+Final full JVM:3251 total,3247 pass,4 existing SSH skips,0 failures. Owned API36
+cohort:50/50 in133.967s; crash empty, no preflight ANR, settings/window restored,
+emulator exit0. Two earlier runs each failed only the keyboard UI harness;
+resize/insets/frame handling were corrected, with the production app APK unchanged.
+Original Xcode auth reference run40060677846 passed146 tests in18 suites on
+untouched pinned libraries. Four Android normal priming rows match execution
+of whole original Swift declarations;64 launch combinations remain reference-only.
+Neither source CI nor emulator fixtures establish whole-app parity.
+
+Local-first signout/unlock recovery, unavailable-storage FCM callbacks, complete
+SDK/user metadata, backend/coordinator admission, exact team recovery and real
+post-sign-in effects remain open. So do native paint/window/TalkBack, physical
+Pixel/Mac/provider acceptance and every broader parity gate. Global source pins,
+phone712 and frozen signed722 are unchanged. Goal remains active.
+
+Details: [saved-session behavior and remaining gates](AUTH_SESSION_RESTORE.md).
+Evidence/bindings: `captures/recovery-20261023/session-restore-checkpoint.json`.
+
 ## Encrypted read preservation and complete source references advanced — 2026-10-24
 
 NativeCredentialStore no longer deletes its encrypted document after a read,

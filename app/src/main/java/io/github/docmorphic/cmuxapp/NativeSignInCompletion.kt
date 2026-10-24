@@ -47,6 +47,8 @@ internal class NativeSignInCompletion(
     private val onPublished: suspend (String, NativeSignInUser) -> Unit = { _, _ -> },
     private val refreshAccess: (suspend (String) -> String)? = null,
     private val work: NativeAuthWork = NativeAuthWork(),
+    private val onCredentialsWritten: () -> Unit = {},
+    private val onVerified: (String, NativeSignInUser) -> Unit = { _, _ -> },
 ) {
     private class Flow(val id: String, val generation: Long, val operation: Job) {
         var access: String? = null
@@ -80,6 +82,7 @@ internal class NativeSignInCompletion(
                         root.remove("task_drafts")
                     }
                     flow.access = access
+                    onCredentialsWritten()
                 } } }
                 finally {
                     if (!writer.isActive) withContext(NonCancellable + Dispatchers.IO) {
@@ -101,6 +104,7 @@ internal class NativeSignInCompletion(
                 // Once the verified user is published, cancellation of the form
                 // or a tolerated team-refresh failure must not undo the login.
                 flow.published = true
+                onVerified(flow.id, user)
             } }
             try { work.run(NativeAuthPhase.TEAMS, networkTimeoutMillis, flow.id) { onPublished(flow.id, user) } }
             catch (failure: Exception) { currentCoroutineContext().ensureActive() }
@@ -119,6 +123,10 @@ internal class NativeSignInCompletion(
             }
             throw failure
         } finally { synchronized(flowLock) { active -= flow } }
+    }
+
+    fun hasLivePending(receipt: String): Boolean = synchronized(flowLock) {
+        active.any { it.id == receipt && !it.published }
     }
 
     /** Resume only an orphaned pending exchange, never overlap a live sign-in. */

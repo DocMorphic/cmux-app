@@ -38,7 +38,8 @@ import androidx.compose.ui.unit.sp
 /** Pinned source card structure; Android scrolling, menu, font and capsule paint are adaptations. */
 @Composable internal fun NativeSignInMethodsScreen(form: NativeSignInState, session: NativeSignInSession,
     emailFocus: FocusRequester, emailFocused: (Boolean) -> Unit, requestCode: () -> Unit,
-    onSetup: () -> Unit, onMacSetup: () -> Unit, onUseHelper: () -> Unit, onLicenses: () -> Unit) {
+    onSetup: () -> Unit, onMacSetup: () -> Unit, onUseHelper: () -> Unit, onLicenses: () -> Unit,
+    restoring: Boolean = false, revalidateSession: () -> Unit = {}) {
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = LocalFocusManager.current
     BoxWithConstraints(Modifier.fillMaxSize().testTag("signin.methods.screen")) {
@@ -55,6 +56,7 @@ import androidx.compose.ui.unit.sp
                 .testTag("signin.methods.card"), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 NativeSignInBrand()
+                if (restoring) NativeSignInRestoreStatus(revalidateSession)
                 NativeOAuthButtons(form, session)
                 NativeSignInEmailDivider()
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {

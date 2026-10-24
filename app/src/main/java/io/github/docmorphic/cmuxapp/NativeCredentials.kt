@@ -32,9 +32,20 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
     internal val accountStateLock: Any get() = storageLock
     private val preferences = context.getSharedPreferences(storageName, Context.MODE_PRIVATE)
     private val documentKey = context.applicationInfo.dataDir + "/" + storageName
+    internal val authSessionEpoch = synchronized(storageLock) {
+        authEpochs.getOrPut(documentKey) { java.util.concurrent.atomic.AtomicLong(0) }
+    }
     private val readStatus = synchronized(storageLock) {
         readStates.getOrPut(documentKey) { kotlinx.coroutines.flow.MutableStateFlow(NativeCredentialReadStatus.UNCHECKED) }
     }
+    internal fun authTokenHint(environment: String, fallback: Boolean): Boolean = synchronized(storageLock) {
+        runCatching { preferences.getBoolean(authHintKey(environment), fallback) }.getOrDefault(fallback)
+    }
+    internal fun setAuthTokenHint(environment: String, value: Boolean) {
+        preferences.edit().putBoolean(authHintKey(environment), value).apply()
+    }
+    private fun authHintKey(environment: String) = "auth_tokens_" + java.security.MessageDigest.getInstance("SHA-256")
+        .digest(environment.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     /** An unreadable encrypted document is distinct from an absent document. */
     internal val readability: kotlinx.coroutines.flow.StateFlow<NativeCredentialReadStatus> get() = readStatus
     private val changeState = synchronized(storageLock) {
@@ -284,7 +295,9 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
             PhoneHelperMaintenanceWork.preserve(applicationContext, readState())
             PhoneHelperMaintenanceWork.preserve(applicationContext, JSONObject(), stageRetirement = true)
         }
-        check(preferences.edit().remove("state").commit()) { "Could not clear account" }
+        val edit = preferences.edit().remove("state")
+        preferences.all.keys.filter { it.startsWith("auth_tokens_") }.forEach(edit::remove)
+        check(edit.commit()) { "Could not clear account" }
         readStatus.value = NativeCredentialReadStatus.EMPTY
         changeState.value++
     }
@@ -296,6 +309,7 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
         private val changes = mutableMapOf<String, kotlinx.coroutines.flow.MutableStateFlow<Long>>()
         private val accountWork = mutableMapOf<String, NativeAuthWork>()
         private val readStates = mutableMapOf<String, kotlinx.coroutines.flow.MutableStateFlow<NativeCredentialReadStatus>>()
+        private val authEpochs = mutableMapOf<String, java.util.concurrent.atomic.AtomicLong>()
         internal fun withKeyProvider(context: Context, storageName: String, keyAlias: String,
             provider: (() -> SecretKey)? = null) = NativeCredentialStore(context, storageName, keyAlias, provider)
     }
@@ -330,10 +344,136 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     internal var onSignedIn: suspend (String, NativeSignInUser) -> Unit = { _, _ -> }
     private val completion = NativeSignInCompletion(store::load, store::update, oauthClient::currentUser,
         oauthClient.accountEnvironment, store.accountStateLock, onPublished = { login, user -> onSignedIn(login, user) },
-        refreshAccess = oauthClient::refreshAccess, work = authWork)
+        refreshAccess = oauthClient::refreshAccess, work = authWork,
+        onCredentialsWritten = { sessionRestore.noteCredentialWrite(); store.authSessionEpoch.incrementAndGet() },
+        onVerified = { owner, user -> publishedOwner.set(owner); observedAuthEpoch.set(store.authSessionEpoch.get()); sessionRestore.publishedSignIn(user) })
     private val emailSignIn = NativeEmailSignIn(::request) { _, _ -> error("Sign-in completion receipt required") }
     private val oauthSignIn = NativeOAuthSignIn(oauthClient::prepare, oauthBrowser::authorize, oauthClient::exchange,
         publish = { _, _ -> error("Sign-in completion receipt required") })
+
+    private val restoredOwner = java.util.concurrent.atomic.AtomicReference<String?>(null)
+    private val publishedOwner = java.util.concurrent.atomic.AtomicReference<String?>(null)
+    private val observedAuthEpoch = java.util.concurrent.atomic.AtomicLong(0)
+    internal val sessionRestore: NativeSessionRestore by lazy {
+        val root = store.load()
+        val cached = cachedSessionUser(root)
+        publishedOwner.set(root?.optString("task_session")?.takeIf(String::isNotBlank))
+        observedAuthEpoch.set(store.authSessionEpoch.get())
+        val hasTokens = root?.let { it.optString("access_token").isNotBlank() || it.optString("refresh_token").isNotBlank() } == true
+        NativeSessionRestore(store.authTokenHint(oauthClient.accountEnvironment, hasTokens), cached,
+            setHint = { store.setAuthTokenHint(oauthClient.accountEnvironment, it) },
+            loadCachedUser = { cachedSessionUser(store.load()) },
+            storageAvailable = { store.readability.value != NativeCredentialReadStatus.UNAVAILABLE },
+            hasStoredTokens = {
+                // The token probe, including storage and refresh, is phase-bounded.
+                val snapshot = store.requireReadable()
+                val owner = if (snapshot?.optString("refresh_token")?.isNotBlank() == true && !NativeSignInCompletion.isPending(snapshot))
+                    store.requireReadableTaskSession() else snapshot?.optString("task_session")?.takeIf(String::isNotBlank)
+                restoredOwner.set(owner)
+                val access = accessToken()
+                val refresh = store.requireReadable()?.optString("refresh_token")?.takeIf(String::isNotBlank)
+                access != null || refresh != null
+            },
+            currentUser = { savedSessionUser() },
+            refreshToken = { store.requireReadable()?.optString("refresh_token")?.takeIf(String::isNotBlank) },
+            clearPersisted = { expected -> clearSavedSession(expected) },
+            saveCachedUser = { user ->
+                withContext(Dispatchers.IO) {
+                    store.update { value ->
+                        if (value.optString("task_session").takeIf(String::isNotBlank) == restoredOwner.get() &&
+                            (value.optString("access_token").isNotBlank() || value.optString("refresh_token").isNotBlank())) {
+                            NativeAuthUserCache.write(value, oauthClient.accountEnvironment, user)
+                            if(value.optString("refresh_token").isNotBlank() && restoredOwner.get()!=null)
+                                NativeAccountProfileCache.writeVerifiedUser(value, checkNotNull(restoredOwner.get()), oauthClient.accountEnvironment, user)
+                        }
+                    }
+                }
+            },
+            refreshTeams = { user ->
+                val owner = store.requireReadableTaskSession()
+                if (owner != null && owner == restoredOwner.get()) onSignedIn(owner, user)
+            }, work = authWork, onCleared = ::clearCachedSessionUser,
+            externalEpoch = { store.authSessionEpoch.get() }, lock = store.accountStateLock)
+    }
+    init { sessionRestore }
+    private fun cachedSessionUser(root: JSONObject?) = NativeAuthUserCache.read(root, oauthClient.accountEnvironment)
+    private fun clearCachedSessionUser() {
+        try {
+            val root = store.requireReadable() ?: return
+            if (root.optString("access_token").isNotBlank() || root.optString("refresh_token").isNotBlank() ||
+                !root.has(NativeAuthUserCache.KEY) && !root.has(NativeAccountProfileCache.KEY)) return
+            store.update { value ->
+                if (value.optString("access_token").isBlank() && value.optString("refresh_token").isBlank()) {
+                    value.remove(NativeAuthUserCache.KEY);value.remove(NativeAccountProfileCache.KEY)
+                }
+            }
+        } catch (_: NativeCredentialReadException) { /* Keep unreadable encrypted data. */ }
+    }
+    private suspend fun savedSessionUser(): NativeSignInUser? {
+        val root = store.requireReadable() ?: throw NativeSessionUserUnavailable()
+        if (NativeSignInCompletion.isPending(root)) {
+            val receipt = root.optString("task_session")
+            if (completion.hasLivePending(receipt)) throw kotlinx.coroutines.CancellationException("Interactive sign-in owns validation")
+            suspend fun refreshPending(): String? {
+                val refresh = root.optString("refresh_token").takeIf(String::isNotBlank) ?: return null
+                val next = try { oauthClient.refreshAccess(refresh) } catch (failure: NativeSignInFailure) {
+                    if (failure.reason == NativeSignInError.UNAUTHORIZED) clearSavedSession(refresh)
+                    throw failure
+                }
+                val caller = kotlinx.coroutines.currentCoroutineContext()
+                store.update { value ->
+                    caller.ensureActive()
+                    if (value.optString("task_session") != receipt || value.optString(NativeSignInCompletion.PENDING) != receipt)
+                        throw kotlinx.coroutines.CancellationException("Account changed")
+                    value.put("access_token", next)
+                }
+                return next
+            }
+            val access = root.optString("access_token").takeIf { it.isNotBlank() && !expiresSoon(it) } ?: refreshPending()
+                ?: throw NativeSessionUserUnavailable()
+            val user = oauthClient.restoredCurrentUser(access) { refreshPending() }
+            if (user != null) {
+                val caller = kotlinx.coroutines.currentCoroutineContext()
+                store.update { value ->
+                    caller.ensureActive()
+                    if (value.optString("task_session") != receipt || value.optString(NativeSignInCompletion.PENDING) != receipt)
+                        throw kotlinx.coroutines.CancellationException("Account changed")
+                    NativeAccountProfileCache.writeVerifiedUser(value, receipt, oauthClient.accountEnvironment, user)
+                    value.remove(NativeSignInCompletion.PENDING)
+                }
+            }
+            return user
+        }
+        val token = accessToken() ?: throw NativeSessionUserUnavailable()
+        return oauthClient.restoredCurrentUser(token) { accessToken(forceRefresh = true) }
+    }
+    private suspend fun clearSavedSession(expectedRefresh: String?): Boolean = withContext(Dispatchers.IO) {
+        var cleared = false
+        try { store.update { value ->
+            val owner = value.optString("task_session").takeIf(String::isNotBlank)
+            val refresh = value.optString("refresh_token").takeIf(String::isNotBlank)
+            val access = value.optString("access_token").takeIf(String::isNotBlank)
+            val sameOwner = owner == restoredOwner.get() || owner == null && access == null && refresh == null
+            if (!sameOwner || expectedRefresh != null && refresh != expectedRefresh) return@update
+            value.put("access_token", "").put("refresh_token", "")
+            value.remove("task_session"); value.remove("task_drafts"); value.remove(NativeSignInCompletion.PENDING)
+            value.remove(NativeAccountProfileCache.KEY); value.remove(NativeAuthUserCache.KEY); cleared = true
+        } } catch (_: NativeCredentialReadException) { return@withContext false }
+        cleared
+    }
+    internal suspend fun reconcileStoredSession() = withContext(Dispatchers.IO) { synchronized(store.accountStateLock) {
+        val root = try { store.requireReadable() } catch (_: NativeCredentialReadException) { return@synchronized }
+        if (root?.optString("access_token").isNullOrBlank() && root?.optString("refresh_token").isNullOrBlank()) sessionRestore.clear()
+        else if (!NativeSignInCompletion.isPending(root)) {
+            val owner = root?.optString("task_session")?.takeIf(String::isNotBlank)
+            val user = cachedSessionUser(root)
+            val model = sessionRestore
+            if (owner != null && user != null && observedAuthEpoch.get() != store.authSessionEpoch.get() &&
+                root?.optJSONObject(NativeAuthUserCache.KEY)?.optString("verified_for_login") == owner) {
+                observedAuthEpoch.set(store.authSessionEpoch.get());publishedOwner.set(owner);model.publishedSignIn(user)
+            }
+        }
+    } }
 
     suspend fun sendCode(email: String) {
         oauthSignIn.clear()
@@ -460,8 +600,10 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
                 it.put("access_token", "").put("refresh_token", "")
                 it.remove("task_session"); it.remove("task_drafts")
                 it.remove(NativeSignInCompletion.PENDING)
+                it.remove(NativeAuthUserCache.KEY)
                 retired = true
             }
+            if (retired) { store.authSessionEpoch.incrementAndGet(); sessionRestore.clear() }
             retired
         }
         if (applied) { emailSignIn.clear(); oauthSignIn.clear(); TaskDraftRepository.clearMemory() }

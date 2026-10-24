@@ -13,6 +13,22 @@ ROWS = {'Cancel': {'resource': 'cmux_ui_cancel'}, 'Done': {'resource': 'cmux_ui_
 
 
 class MobileUiLocalization(unittest.TestCase):
+    def test_restore_labels_remain_bound_to_the_original_catalog_and_all_locales(self):
+        rows=UI.load_signin_restore_rows()
+        self.assertEqual(5,len(rows))
+        data=json.loads(UI.SIGNIN_RESTORE_DATA.read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'restore.json'
+            variants=[]
+            altered=copy.deepcopy(data);altered['catalog']['sha256']='0'*64;variants.append(altered)
+            altered=copy.deepcopy(data);altered['strings'].pop();variants.append(altered)
+            altered=copy.deepcopy(data);altered['strings'][0]['resource']='cmux_signin_restore_retry';variants.append(altered)
+            altered=copy.deepcopy(data);del altered['strings'][0]['translations']['ar'];variants.append(altered)
+            altered=copy.deepcopy(data);altered['strings'][0]['translations']['en']='%s';variants.append(altered)
+            for altered in variants:
+                path.write_text(json.dumps(altered))
+                with self.assertRaises(ValueError):UI.load_signin_restore_rows(path)
+
     def test_signin_provider_inventory_and_locales_cannot_be_mixed_or_omitted(self):
         rows = UI.load_signin_provider_rows()
         self.assertEqual(6, len(rows))

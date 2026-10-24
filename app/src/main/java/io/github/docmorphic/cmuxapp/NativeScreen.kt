@@ -157,7 +157,9 @@ internal fun NativeScreen(
     val terminalSizingStates by terminalSizing.state.collectAsState()
     val scope = rememberCoroutineScope()
     val terminalFocusRequester = remember { FocusRequester() }
-    var signedIn by remember { mutableStateOf(account.isSignedIn()) }
+    val restoredAuth by account.sessionRestore.state.collectAsState()
+    var signedIn by remember { mutableStateOf(restoredAuth.authenticated) }
+    LaunchedEffect(restoredAuth) { signedIn = restoredAuth.authenticated }
     val signInBusy = sharedConnections?.signIn?.state?.collectAsState()?.value?.busy == true
     LaunchedEffect(signedIn, signInBusy, sharedConnections) {
         if (signedIn && !signInBusy) sharedConnections?.signIn?.clear()
@@ -169,7 +171,7 @@ internal fun NativeScreen(
     }
     val deletionReceipt by accountDeletion.state.collectAsState()
     LaunchedEffect(store, accountDeletion) {
-        store.revisions.collect { accountDeletion.reconcile(); signedIn = account.isSignedIn() }
+        store.revisions.collect { accountDeletion.reconcile(); account.reconcileStoredSession() }
     }
     val teamState by accountTeams.state.collectAsState()
     val cloudModel = remember(runtimeOwner, connector, accountTeams) {
@@ -4047,7 +4049,8 @@ internal fun NativeScreen(
                             retained = sharedConnections?.signIn,
                             requestEmailVerification = account::requestEmailVerification, requestBillingRecovery = account::requestBillingRecovery,
                             clearChallenge = account::cancelPendingSignIn, signInProvider = account::signInWithProvider,
-                            authenticationOwnsDeadlines = true)
+                            authenticationOwnsDeadlines = true, restoring = restoredAuth.restoring,
+                            revalidateSession = { sharedConnections?.revalidateAccount() ?: scope.launch(kotlinx.coroutines.Dispatchers.IO) { account.sessionRestore.revalidate() } })
                         showOnboarding -> onboardingContent()
                         showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
                         showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
@@ -4496,7 +4499,8 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
                          requestBillingRecovery: suspend (String) -> Unit = { throw NativeSignInRecoveryFailure(NativeSignInRecoveryError.UNAVAILABLE) },
                          clearChallenge: () -> Unit = {},
                          signInProvider: suspend (NativeOAuthProvider) -> Unit = { throw NativeSignInFailure(NativeSignInError.BROWSER_SIGN_IN_FAILED) },
-                         authenticationOwnsDeadlines: Boolean = false) {
+                         authenticationOwnsDeadlines: Boolean = false, restoring: Boolean = false,
+                         revalidateSession: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val send by rememberUpdatedState(sendCode)
     val authenticate by rememberUpdatedState(signIn)
@@ -4547,10 +4551,11 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
     } else {
         var showSetupHelp by rememberSaveable { mutableStateOf(false) }
         if (showSetupHelp) NativeSetupHelp(macPolicy, NativeSetupGuidance.NOT_SIGNED_IN) { showSetupHelp = false }
-        NativeSignInMethodsScreen(form, session, emailFocus, { emailHasFocus = it },
+        NativeSignInMethodsScreen(form.copy(busy = form.busy || restoring), session, emailFocus, { emailHasFocus = it },
             requestCode = { session.requestCodeFromEmail(emailHasFocus) },
             onSetup = { showSetupHelp = true }, onMacSetup = { showPairingHelp = true },
-            onUseHelper = { session.clear(); onUseHelper() }, onLicenses = onLicenses)
+            onUseHelper = { session.clear(); onUseHelper() }, onLicenses = onLicenses,
+            restoring = restoring, revalidateSession = revalidateSession)
     }
 }
 

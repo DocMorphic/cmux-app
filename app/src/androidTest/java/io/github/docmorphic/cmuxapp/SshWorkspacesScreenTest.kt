@@ -133,7 +133,7 @@ class SshWorkspacesScreenTest {
         val store = NativeCredentialStore(compose.activity)
         val peer = NativeFixturePeer().also(configure)
         store.clear(); store.update {
-            it.put("refresh_token", "emulator-ssh-feed-fixture")
+            it.withNativeAuthPresentationFixture().put("refresh_token", "emulator-ssh-feed-fixture")
             it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465")
         }
         val restoration = StateRestorationTester(compose)
@@ -492,7 +492,7 @@ class SshWorkspacesScreenTest {
         val peer = if (withMac) NativeFixturePeer() else null
         store.clear()
         store.update {
-            it.put("refresh_token", "emulator-ssh-main-fixture")
+            it.withNativeAuthPresentationFixture().put("refresh_token", "emulator-ssh-main-fixture")
             if (withMac) it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465")
         }
         val restoration = StateRestorationTester(compose)

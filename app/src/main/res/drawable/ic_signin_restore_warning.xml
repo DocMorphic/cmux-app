@@ -1,0 +1,7 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- Android triangle analogue for the original exclamationmark.triangle.fill status symbol. -->
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+        android:pathData="M1,21 L12,2 L23,21 Z M11,8 H13 V14 H11 Z M11,16 H13 V18 H11 Z" />
+</vector>
