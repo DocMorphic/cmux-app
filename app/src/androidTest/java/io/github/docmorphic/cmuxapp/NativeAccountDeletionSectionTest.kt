@@ -44,8 +44,8 @@ class NativeAccountDeletionSectionTest {
         CmuxTheme { Surface(Modifier.fillMaxSize()) { Column(Modifier.statusBarsPadding()) {
             Text(if (signedIn) "Fixture signed in" else "Fixture signed out")
             NativeAccountDeletionButton(if (signedIn) store.taskSession() else null, receipt, controller::begin)
-            NativeAccountDeletionAlerts(receipt, { login ->
-                NativeAccount(store).signOut(login); controller.reconcile(); true
+            NativeAccountDeletionAlerts(receipt, { result ->
+                NativeAccount(store).signOut(result.login); controller.reconcile(); true
             }, controller::acknowledge)
         } } }
     }
@@ -139,6 +139,8 @@ class NativeAccountDeletionSectionTest {
         val account = NativeAccount(store) { refresh ->
             assertEquals("fixture-refresh", refresh); refreshes++; "refreshed-fixture"
         }
+        // This account-level request now requires an explicit published principal.
+        account.sessionRestore.publishedSignIn(NativeSignInUser("fixture-user",null,null,null))
         val credentials = account.deletionCredentials("fixture-login")!!
         assertEquals("refreshed-fixture", credentials.access); assertEquals("fixture-refresh", credentials.refresh)
         assertEquals(1, refreshes)

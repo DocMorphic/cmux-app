@@ -6,23 +6,34 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 import java.util.UUID
 
-internal data class NativeAccountDeletionReceipt(val id: String, val login: String, val result: NativeAccountDeletionResult)
+internal data class NativeAccountDeletionReceipt(val id: String, val login: String, val result: NativeAccountDeletionResult,
+    val binding: NativeDeletionBinding? = null) {
+    override fun toString() = "NativeAccountDeletionReceipt(result=$result, owner=<redacted>)"
+}
+private class NativeDeletionAdmissionChanged : CancellationException("Account changed")
 
 /** Content-free encrypted receipt. A process restart cannot resubmit a destructive request. */
 internal object NativeAccountDeletionRecord {
     const val KEY = "account_deletion"
     fun read(state: JSONObject?): NativeAccountDeletionReceipt? = runCatching {
         val root = state ?: return null
-        if (root.optString("refresh_token").isBlank()) return null
         val value = root.optJSONObject(KEY) ?: return null
-        if (value.getInt("version") != 1 || value.getString("login") != root.optString("task_session")) return null
+        val version = value.getInt("version"); if (version !in 1..2) return null
+        val binding = if (version == 2) NativeDeletionBinding(value.getString("user").also { require(it.isNotBlank() && it.length <= 128) },
+            value.getLong("generation").also { require(it >= 0) },value.getLong("epoch").also { require(it >= 0) },
+            value.getString("process").also { require(UUID.fromString(it).toString() == it) }) else null
+        val login = value.getString("login").also { require(it.isNotBlank()) }
+        val empty = root.optString("task_session").isBlank() && root.optString("access_token").isBlank() && root.optString("refresh_token").isBlank()
+        if (!(binding != null && empty) && (root.optString("refresh_token").isBlank() || login != root.optString("task_session"))) return null
         val id = value.getString("id"); require(UUID.fromString(id).toString() == id)
-        NativeAccountDeletionReceipt(id, value.getString("login").also { require(it.isNotBlank()) },
-            NativeAccountDeletionResult.valueOf(value.getString("result")))
+        NativeAccountDeletionReceipt(id,login,NativeAccountDeletionResult.valueOf(value.getString("result")),binding)
     }.getOrNull()
     fun write(state: JSONObject, receipt: NativeAccountDeletionReceipt) {
-        check(state.optString("task_session") == receipt.login && state.optString("refresh_token").isNotBlank())
-        state.put(KEY, JSONObject().put("version", 1).put("id", receipt.id).put("login", receipt.login).put("result", receipt.result.name))
+        val empty = state.optString("task_session").isBlank() && state.optString("access_token").isBlank() && state.optString("refresh_token").isBlank()
+        check(receipt.binding != null && empty || state.optString("task_session") == receipt.login && state.optString("refresh_token").isNotBlank())
+        val value = JSONObject().put("version",if(receipt.binding == null)1 else 2).put("id",receipt.id).put("login",receipt.login).put("result",receipt.result.name)
+        receipt.binding?.let { value.put("user",it.user).put("generation",it.generation).put("epoch",it.epoch).put("process",it.process) }
+        state.put(KEY,value)
     }
     fun prune(state: JSONObject) { if (read(state) == null) state.remove(KEY) }
 }
@@ -32,6 +43,7 @@ internal class NativeAccountDeletionController(
     private val scope: CoroutineScope,
     private val load: () -> JSONObject?,
     private val update: ((JSONObject) -> Unit) -> Unit,
+    private val authority: NativeDeletionAuthority? = null,
     private val delete: suspend (login: String) -> NativeAccountDeletionResult
 ) {
     private val lock = Any()
@@ -40,28 +52,37 @@ internal class NativeAccountDeletionController(
     private val mutableState = MutableStateFlow(restored())
     val state = mutableState.asStateFlow()
 
-    fun begin(login: String): Boolean = synchronized(lock) {
+    val requiresIdentity get() = authority != null
+    fun confirmationOwner(login: String): NativeDeletionBinding? = authority?.capture(login)
+    fun begin(login: String, binding: NativeDeletionBinding? = authority?.capture(login)): Boolean = synchronized(lock) {
         if (job?.isActive == true || mutableState.value != null) return false
-        val receipt = NativeAccountDeletionReceipt(UUID.randomUUID().toString(), login, NativeAccountDeletionResult.PROCESSING)
+        if (authority != null && (binding == null || authority.requestOwner(login,binding) == null)) return false
+        val receipt = NativeAccountDeletionReceipt(UUID.randomUUID().toString(), login, NativeAccountDeletionResult.PROCESSING,binding)
         try {
             update { root ->
-                check(NativeAccountDeletionRecord.read(root) == null) { "A deletion result needs acknowledgement" }
+                if (authority != null && authority.requestOwner(login,checkNotNull(binding)) == null) throw NativeDeletionAdmissionChanged()
+                NativeAccountDeletionRecord.read(root)?.let { previous ->
+                    if (authority?.status(previous) != NativeDeletionReceiptStatus.STALE) throw NativeDeletionAdmissionChanged()
+                }
                 NativeAccountDeletionRecord.write(root, receipt)
             }
+        } catch (_: NativeDeletionAdmissionChanged) { return false
         } catch (_: Exception) {
-            if (current(login)) mutableState.value = receipt.copy(result = NativeAccountDeletionResult.STORAGE)
+            if (current(receipt)) mutableState.value = receipt.copy(result = NativeAccountDeletionResult.STORAGE)
             return false
         }
         running = receipt.id
         mutableState.value = receipt
         job = scope.launch(start = CoroutineStart.LAZY) {
-            val result = try { withTimeout(65_000) { delete(login) } }
+            val result = try { withTimeout(125_000) {
+                if (authority != null) authority.delete(login,checkNotNull(binding)) else delete(login)
+            } }
             catch (_: TimeoutCancellationException) { NativeAccountDeletionResult.TIMED_OUT }
             catch (_: CancellationException) { NativeAccountDeletionResult.UNKNOWN }
             catch (_: Exception) { NativeAccountDeletionResult.UNKNOWN }
             synchronized(lock) {
                 try { update { root ->
-                    if (NativeAccountDeletionRecord.read(root)?.let { it.id == receipt.id && it.login == login } == true)
+                    if (current(receipt) && NativeAccountDeletionRecord.read(root)?.let { it.id == receipt.id && it.binding == binding } == true)
                         NativeAccountDeletionRecord.write(root, receipt.copy(result = result))
                 } } catch (_: Exception) { /* Retained PROCESSING restores as unknown, never success. */ }
                 if (running == receipt.id) { running = null; mutableState.value = restored() }
@@ -72,9 +93,9 @@ internal class NativeAccountDeletionController(
 
     fun reconcile() = synchronized(lock) {
         val saved = NativeAccountDeletionRecord.read(load())
-        if (saved?.id == running && job?.isActive == true) return
+        if (saved != null && saved.id == running && current(saved) && job?.isActive == true) return
         if (running != null) { job?.cancel(); running = null }
-        val ephemeral = mutableState.value?.takeIf { it.result == NativeAccountDeletionResult.STORAGE && current(it.login) }
+        val ephemeral = mutableState.value?.takeIf { it.result == NativeAccountDeletionResult.STORAGE && current(it) }
         mutableState.value = restored() ?: ephemeral
     }
 
@@ -87,10 +108,21 @@ internal class NativeAccountDeletionController(
         mutableState.value = null
         true
     }
-    private fun current(login: String): Boolean = load()?.let {
-        it.optString("task_session") == login && it.optString("refresh_token").isNotBlank()
-    } == true
+    /** No asynchronous check may authorize local logout of a replacement session. */
+    fun signOut(receipt: NativeAccountDeletionReceipt, apply: (NativeAuthenticatedOwner?) -> Boolean): Boolean = synchronized(lock) {
+        if (mutableState.value != receipt || !receipt.result.signsOut) return false
+        if (authority == null) return apply(null)
+        val owner = authority.signOutOwner(receipt)
+        if (owner == null) { reconcile();return true }
+        apply(owner)
+    }
+    private fun current(receipt: NativeAccountDeletionReceipt): Boolean = if (authority != null)
+        authority.status(receipt) == NativeDeletionReceiptStatus.CURRENT else load()?.let {
+            it.optString("task_session") == receipt.login && it.optString("refresh_token").isNotBlank()
+        } == true
     private fun restored(): NativeAccountDeletionReceipt? = NativeAccountDeletionRecord.read(load())?.let {
-        if (it.result == NativeAccountDeletionResult.PROCESSING) it.copy(result = NativeAccountDeletionResult.UNKNOWN) else it
+        if (!current(it)) null
+        else if (it.result == NativeAccountDeletionResult.PROCESSING || authority != null && it.binding == null)
+            it.copy(result = NativeAccountDeletionResult.UNKNOWN) else it
     }
 }

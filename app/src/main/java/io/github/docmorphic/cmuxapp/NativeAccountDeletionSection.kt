@@ -10,35 +10,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun NativeAccountDeletionButton(login: String?, receipt: NativeAccountDeletionReceipt?, begin: (String) -> Boolean) {
-    // A confirmation never survives recreation or a different login.
-    var confirming by remember(login) { mutableStateOf(false) }
+internal fun NativeAccountDeletionButton(login: String?, receipt: NativeAccountDeletionReceipt?, begin: (String, NativeDeletionBinding?) -> Boolean,
+    identity: NativeAuthIdentity? = null, capture: (String) -> NativeDeletionBinding? = { null }, requiresIdentity: Boolean = false) {
+    // Capture at presentation, then validate again even if a stale dialog click beats recomposition.
+    var confirming by remember(login,identity) { mutableStateOf(false) }
+    var binding by remember(login,identity) { mutableStateOf<NativeDeletionBinding?>(null) }
     val pending = receipt?.result == NativeAccountDeletionResult.PROCESSING
     val destructive = NativeAppColors.error
-    TextButton(onClick = { confirming = true }, enabled = login != null && receipt == null,
+    TextButton(onClick = { binding=login?.let(capture);confirming=!requiresIdentity || binding!=null }, enabled = login != null && receipt == null,
         modifier = Modifier.padding(horizontal = 14.dp)) {
         Text(if (pending) "Deleting Account…" else "Delete Account", color = destructive)
     }
     if (confirming && login != null) NativeAlertDialog(onDismissRequest = { confirming = false },
         title = { Text("Delete Account?") },
         text = { Text("This permanently deletes your cmux account and cmux data. You will be signed out on this device.") },
-        confirmButton = { TextButton(onClick = { confirming = false; begin(login) }) { Text("Delete Account", color = destructive) } },
+        confirmButton = { TextButton(onClick = { confirming = false; begin(login,binding) }) { Text("Delete Account", color = destructive) } },
         dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cmux_ui_mobile_common_cancel_fa7c525e)) } })
 }
 
 /** Lives outside the Settings branch, so navigation cannot swallow a completed deletion. */
 @Composable
-internal fun NativeAccountDeletionAlerts(receipt: NativeAccountDeletionReceipt?, onSignOut: (String) -> Boolean,
+internal fun NativeAccountDeletionAlerts(receipt: NativeAccountDeletionReceipt?, onSignOut: (NativeAccountDeletionReceipt) -> Boolean,
                                         onAcknowledge: (NativeAccountDeletionReceipt) -> Boolean) {
     val currentSignOut by rememberUpdatedState(onSignOut)
     var localFailure by remember(receipt) { mutableStateOf(false) }
     LaunchedEffect(receipt) {
-        if (receipt?.result == NativeAccountDeletionResult.COMPLETED) localFailure = !currentSignOut(receipt.login)
+        if (receipt?.result == NativeAccountDeletionResult.COMPLETED) localFailure = !currentSignOut(receipt)
     }
     if (receipt != null && receipt.result != NativeAccountDeletionResult.PROCESSING &&
         (receipt.result != NativeAccountDeletionResult.COMPLETED || localFailure)) {
         val acknowledge = {
-            localFailure = !(if (receipt.result.signsOut) onSignOut(receipt.login) else onAcknowledge(receipt))
+            localFailure = !(if (receipt.result.signsOut) onSignOut(receipt) else onAcknowledge(receipt))
         }
         NativeAlertDialog(onDismissRequest = acknowledge,
             title = { Text(if (receipt.result == NativeAccountDeletionResult.COMPLETED) "Account Deleted" else receipt.result.title) },

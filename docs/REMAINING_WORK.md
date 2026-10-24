@@ -1,3 +1,39 @@
+## Account deletion now binds confirmation and results to identity — 2026-10-24
+
+The dialog pins the published account, session generation and credential epoch.
+Controller admission, live token resolution, DELETE completion and local sign-out
+all verify that binding. A stale dialog callback or late response cannot act on
+a replacement account, including a new same-user generation. Both application
+entry points use the bound controller. Orphan pending credentials cannot authorize
+confirmation. Version2 receipts contain encrypted authority metadata, preserve
+uncertainty without resubmission and wait for verified user restoration in a new
+process. Legacy unbound receipts cannot trigger sign-out. Explicit logout removes
+the receipt while preserving pairing records.
+
+Credential capture joins bootstrap outside token work and resolves a coherent
+live pair under one 60-second budget; HTTP retains its separate 60-second deadline.
+The controller permits both within 125 seconds. Pre-request auth failures follow
+the original generic/timeout/unauthorized presentation; DELETE transport failures
+keep their separate classification. No automatic DELETE retry was added.
+
+Full JVM: 3,334 total, 3,330 passed, four existing SSH skips, zero failures in 449 suites.
+Owned API 36: 116/116 in 182.774s; crash log empty, no preflight ANR, settings/window
+restored, emulator exit0. Thirteen new JVM cases and nine encrypted/local-HTTP/
+Compose cases cover bindings, stale callbacks/results, resolved headers, definitive
+refresh rejection, bootstrap joining, prior-process verification, legacy receipt
+handling and pending tokens. The prior 107 regressions passed. Dialog captures were
+inspected for presence/dismissal; the plain fixture host is not full NativeScreen
+layout evidence. Fourteen local files and twelve whole original files are bound.
+
+Full parity remains active. Direct membership eligibility/error handling, team
+recovery, raw-token/access-only consumers, full backend/metadata/identity adoption,
+actual default deadline/noncooperative IO and OS death/unlock, exact response/UI/
+localization, physical Pixel/Mac/provider and signed-release acceptance remain open.
+No live account deletion, phone/Mac install, signing/source-pin or signed722 change.
+
+Details: [account deletion ownership and acceptance limits](ACCOUNT_DELETION.md).
+Evidence: `captures/recovery-20261023/deletion-identity-checkpoint.json`.
+
 ## Authenticated snapshots and Cloud/web capture advanced — 2026-10-24
 
 Cloud and mobile web handoff now capture published account identity, session

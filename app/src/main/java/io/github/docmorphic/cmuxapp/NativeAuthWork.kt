@@ -3,7 +3,7 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
-internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, REFRESH, FORCE_REFRESH, REFRESH_EXCHANGE, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, SIGN_OUT, CLEANUP }
+internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, REFRESH, FORCE_REFRESH, REFRESH_EXCHANGE, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, ACCOUNT_DELETION, SIGN_OUT, CLEANUP }
 internal class NativeAuthDeadlineCancellation : CancellationException("The account request timed out. Please try again.")
 
 /** A phase wait may end before its operation does. Keep the actual job, not its waiter. */

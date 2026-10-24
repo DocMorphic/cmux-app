@@ -34,12 +34,18 @@ Settings does not hide the eventual outcome: completion/failure presentation
 lives outside the Settings branch. Controls cannot submit a second request while
 one is active or its result is awaiting acknowledgement.
 
-The request uses a current access/refresh pair from one captured login, refreshing
-the access token when needed. Account
-changes during credential acquisition or the HTTP exchange cannot publish for or
-sign out the replacement login. The client requires HTTPS outside loopback tests,
+The request pins the published user, session generation, shared credential epoch
+and login when the confirmation opens. The same binding must still be current
+when confirmation is accepted, when the process-owned operation starts, across
+credential resolution, and after HTTP completion. A stale callback is rejected
+even before recomposition or identity-stream delivery. Current tokens resolve
+the live access/refresh pair with up to three refresh-rotation brackets; this path
+does not reuse the saved-pair fast path intended for Cloud/web authentication. The client requires HTTPS outside loopback tests,
 disables redirects and automatic connection retries, bounds responses to 64 KiB,
-and uses a 60-second HTTP deadline inside a 65-second overall operation. A 401
+and uses separate 60-second credential-capture and HTTP deadlines inside a
+125-second controller bound. The absolute capture deadline includes bootstrap;
+that read-only wait remains outside the token-work registry to avoid joining
+itself during sign-in quiescence. A 401
 is never transparently resent as another DELETE. Error response text is not
 shown, and tokens are never persisted in the deletion receipt or diagnostics.
 
@@ -63,22 +69,33 @@ restart, account refresh and WorkManager never issue deletion requests.
 ## Persistence and teardown
 
 Before acquiring credentials or starting HTTP, the controller commits an
-account-encrypted receipt containing only a random operation ID, login incarnation,
-version and status. If this write fails, no request starts. Results update only
-the same operation and login. Unknown completion survives process restart;
+account-encrypted version2 receipt containing a random operation ID, login,
+user id, session generation, shared epoch, process incarnation and result. These
+are authority metadata; access/refresh tokens are never recorded. Descriptions
+redact the account and login. Version1 records remain readable, but production
+projects their unbound outcome as UNKNOWN and never signs out from them. If this write fails, no request starts. Results update only
+the same operation and bound account incarnation. Unknown completion survives process restart;
 `PROCESSING` restored without its live owner becomes `UNKNOWN`, not a resend.
 If result persistence fails after sending, the retained processing receipt also
 restores as unknown. Confirmed completion and incomplete-cleanup results are
-retained for the UI to handle after restart.
+retained for the UI to handle after restart. A different process first verifies
+the published user against the receipt user and retained login; it cannot reuse
+process-local generation/epoch numbers. Pending verification preserves the raw
+receipt and prevents resubmission. A verified different user cannot consume it.
 
-Sign-out compares the captured login inside the credential transaction. The email
-challenge lock surrounds that transaction, using the same lock order as sign-in
-publication. An in-flight email-code exchange cannot restore credentials between
-session retirement and challenge invalidation; a rejected stale sign-out leaves
-the replacement account’s challenge intact. Credentials retire before stopping
+Sign-out compares the captured published identity, epoch and login inside the
+credential transaction. A check made before entering the transaction cannot
+authorize clearing a replacement account. Definitive SDK rejection may have
+already removed both tokens and the stored login; a bound receipt survives that
+removal long enough to retire only its still-published old account. Explicit
+local logout removes the receipt while preserving pairing records. The sign-in completion owner retires credential writers under that transaction,
+fencing later writes by generation/epoch before clearing pending email/OAuth
+state. A rejected stale conditional sign-out returns without clearing the
+replacement account’s challenge. Credentials retire before stopping
 notification/connection owners and clearing drafts.
-An old result cannot sign out a later login. Account replacement/sign-out prunes
-old deletion receipts. A local acknowledgement/sign-out storage failure offers a
+An old result cannot sign out a later login or a new same-user generation. Stored login replacement and explicit sign-out prune old receipts. A same-login
+generation change retires result authority and presentation; a new explicit
+confirmation may replace that stale record only after validating its new binding. A local acknowledgement/sign-out storage failure offers a
 retry of local cleanup; it does not send another DELETE.
 
 ## Acceptance boundary
@@ -157,3 +174,80 @@ Ignored evidence: `captures/runtime/account-deletion/` contains JVM XML, both
 Android logs, build/alignment logs, device receipts and inspected captures. The
 single existing AVD was reused and stopped. No real account was deleted, no
 production DELETE was sent, no phone was installed, and no signed release changed.
+
+## Identity-bound deletion checkpoint — 2026-10-24
+
+Both production front doors (NativeAppConnections and injected NativeScreen)
+construct nativeAccountDeletionController with NativeDeletionAuthority. The
+raw controller constructor remains the local fixture seam, including the older
+debug process harness. Old process-kill evidence above does not establish actual
+OS process-death behavior for the new account binding. New controlled restoration
+cases must be distinguished from a real process kill.
+
+The dialog captures its binding at presentation and keys local confirmation state
+by the identity stream. Controller admission checks that binding again inside the
+receipt transaction. Request capture joins bootstrap outside token work, then
+resolves credentials under one remaining deadline. Credential timeout and
+definitive rejection retain their distinct source roles.
+Other pre-request auth/network or credential-read failures use the original
+generic presentation. The connection message is reserved for a definite local
+transport failure of the DELETE itself. Receipt-write failure retains its
+specific Android storage presentation; these pre-request failures send no DELETE.
+A fresh generation retires queued requests, late completions, result
+presentation and local signout authority. Orphaned pending tokens cannot authorize
+a deletion confirmation even without a live sign-in lease. Existing same-session
+rotation remains
+admitted. NativeLocalLogout explicitly retires the version2 receipt.
+
+Whole source hashes are in
+captures/recovery-20261023/deletion-identity-source-bindings.json at audit candidate
+a5911a1f92f3eeb11c4d7f3e2ef89204718c5009. Twelve whole original files include
+currentTokens, coordinator/client/result/error contracts, original tests and the
+Settings account section and failure presentation. The prior [original auth
+reference run](https://github.com/DocMorphic/cmux-app/actions/runs/40072945627) passed
+198 tests, including currentTokens return/missing-refresh/transient-failure cases;
+compilation of AccountDeletionClientTests is not claimed as execution of that
+suite. Global implemented/reviewed pins remain unchanged.
+
+Full account metadata, raw-token/access-only backend consumers, source team
+recovery/eligibility, signout identity-stream capture timing and broader
+source/UI/accessibility acceptance remain open. Real provider/helper HTTPS,
+physical Pixel/Mac and actual OS death/unlock require separate evidence. No live
+account deletion, phone/Mac install or signed-release change is part of this
+checkpoint. The user's account/pairing/signing data and signed722 are preserved.
+
+### Checkpoint verification
+
+Final debug app/test APKs build. Full JVM:3,334 total,3,330 passed,four existing SSH
+skips,zero failures in449 suites. Thirteen new cases exercise stale confirmation,
+queued dispatch, noncooperative late completion, same-user generation replacement,
+prior-process verification, different-user refusal, legacy uncertainty, definitive
+SDK clearing, storage failure/races, redaction, rotation and credential-error
+presentation with no DELETE. Existing controller/HTTP regressions also pass.
+
+Final owned API36 runtime:116/116 in 182.774s. Nine new account/Keystore/local-HTTP/
+Compose cases exercise resolved headers, identity replacement during refresh,
+definitive refresh rejection and conditional model retirement, late DELETE and
+atomic stale sign-out refusal, controlled encrypted prior-process restoration
+without resubmission, stale dialog callbacks, actual identity-stream dismissal,
+bootstrap joining and orphan pending tokens. The previous107 regressions pass.
+Published identity changes and prior-process receipts are controlled fixtures;
+this is not actual external service deletion or OS process death.
+
+Crash log empty, no preflight ANR, restored settings/window, emulator exit0.
+The confirmation text/actions are legible and the retired dialog is absent in
+inspected images. The plain component host overlaps system bars and is not a
+NativeScreen layout acceptance result. No original/native UI equivalence is
+inferred from these component captures. The full default 60-second capture and
+combined 120-second budget are implemented but have no exhaustive hang/sleep/default
+expiry acceptance in this checkpoint. Exact response bridge/localization, full
+NativeScreen/physical confirmation and broader gates remain open.
+
+Evidence under captures/recovery-20261023: deletion-identity-build-v8.log,
+deletion-identity-jvm-v8, deletion-identity-runtime-v2 and aggregate
+deletion-identity-checkpoint.json. The first 116-case runtime passed in 193.459s;
+final source review then corrected generic pre-request auth-failure presentation.
+Final rebuilt source passed JVM and the entire 116-case cohort again. Initial
+compile failures and subsequent edge-case additions remain in attempt logs.
+Fourteen implementation/test/debug-fixture files, both installed APKs, twelve
+whole original files and the unchanged signed722 hash bind the aggregate.

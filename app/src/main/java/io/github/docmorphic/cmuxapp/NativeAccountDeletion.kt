@@ -52,7 +52,16 @@ internal class NativeAccountDeletionClient(
     }
     suspend fun delete(): NativeAccountDeletionResult {
         checkCurrent()
-        val tokens = credentials() ?: return NativeAccountDeletionResult.UNAUTHORIZED
+        val tokens = try { credentials() } catch (failure: NativeSignInFailure) {
+            checkCurrent()
+            return when(failure.reason) {
+                NativeSignInError.UNAUTHORIZED -> NativeAccountDeletionResult.UNAUTHORIZED
+                NativeSignInError.TIMED_OUT -> NativeAccountDeletionResult.TIMED_OUT
+                else -> NativeAccountDeletionResult.REJECTED
+            }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { checkCurrent();return NativeAccountDeletionResult.REJECTED }
+            ?: return NativeAccountDeletionResult.UNAUTHORIZED
         checkCurrent()
         if (!valid(tokens.access) || !valid(tokens.refresh)) return NativeAccountDeletionResult.UNAUTHORIZED
         val request = Request.Builder().url(endpoint).delete()

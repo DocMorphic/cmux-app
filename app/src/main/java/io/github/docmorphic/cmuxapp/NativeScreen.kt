@@ -158,6 +158,7 @@ internal fun NativeScreen(
     val scope = rememberCoroutineScope()
     val terminalFocusRequester = remember { FocusRequester() }
     val restoredAuth by account.sessionRestore.state.collectAsState()
+    val publishedAuthIdentity by account.sessionRestore.identities.collectAsState()
     var signedIn by remember { mutableStateOf(restoredAuth.authenticated) }
     LaunchedEffect(restoredAuth) { signedIn = restoredAuth.authenticated }
     val signInBusy = sharedConnections?.signIn?.state?.collectAsState()?.value?.busy == true
@@ -165,11 +166,10 @@ internal fun NativeScreen(
         if (signedIn && !signInBusy) sharedConnections?.signIn?.clear()
     }
     val accountDeletion = remember(sharedConnections, account, store) {
-        sharedConnections?.accountDeletion ?: NativeAccountDeletionController(scope, store::load, store::update) { login ->
-            NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
-        }
+        sharedConnections?.accountDeletion ?: nativeAccountDeletionController(scope,account,store)
     }
     val deletionReceipt by accountDeletion.state.collectAsState()
+    LaunchedEffect(accountDeletion,publishedAuthIdentity) { accountDeletion.reconcile() }
     LaunchedEffect(store, accountDeletion) {
         store.revisions.collect { accountDeletion.reconcile(); account.reconcileStoredSession() }
     }
@@ -2506,8 +2506,9 @@ internal fun NativeScreen(
 
                 if (signedIn && sshSession != null) key(sshSession) { SshPromptHost(sshSession) }
 
-                fun signOutCurrentAccount(owner: String? = null): Boolean {
-                    val applied = try { sharedConnections?.signOut(owner) ?: account.signOut(owner) } catch (_: Exception) {
+                fun signOutCurrentAccount(owner: String? = null, expectedIdentity: NativeAuthenticatedOwner? = null): Boolean {
+                    val applied = try { sharedConnections?.signOut(owner,expectedIdentity) ?:
+                        if(expectedIdentity!=null)account.signOutDeletion(expectedIdentity) else account.signOut(owner) } catch (_: Exception) {
                         error = "Could not sign out on this device"
                         return false
                     }
@@ -2527,7 +2528,9 @@ internal fun NativeScreen(
                     return true // A different login is intentionally untouched.
                 }
 
-                NativeAccountDeletionAlerts(deletionReceipt, ::signOutCurrentAccount, accountDeletion::acknowledge)
+                NativeAccountDeletionAlerts(deletionReceipt, { receipt ->
+                    accountDeletion.signOut(receipt) { owner -> signOutCurrentAccount(receipt.login,owner) }
+                }, accountDeletion::acknowledge)
 
                 fun retireHiddenForeground() {
                     if (!NativeComputerVisibility.hidesForeground(NativeComputerVisibility.hiddenOrigins(store.load()),
@@ -2802,7 +2805,8 @@ internal fun NativeScreen(
                     }, afterAccount = {
                     TextButton(onClick = { signOutCurrentAccount() },
                         modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
-                    NativeAccountDeletionButton(browserLogin, deletionReceipt, accountDeletion::begin)
+                    NativeAccountDeletionButton(browserLogin, deletionReceipt, accountDeletion::begin,
+                        publishedAuthIdentity,accountDeletion::confirmationOwner,accountDeletion.requiresIdentity)
                     if (connector == null) NativeAccountPlanSettings(account, accountTeams, teamState.scope)
                     if (whatsNewState?.archive?.isNotEmpty() == true) TextButton(onClick = { showWhatsNew = true },
                         modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.whatsnew")) { Text("What's New") }

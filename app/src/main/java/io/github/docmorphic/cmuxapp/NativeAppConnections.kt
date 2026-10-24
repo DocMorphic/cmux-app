@@ -18,7 +18,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         account.onSignedIn = { login, user -> teams.refreshAfterSignIn(login, user) }
         account.onSignedOut = { _,_ -> PhoneHelperMaintenanceWork.run(context.applicationContext);Unit }
     }
-    fun signOut(expectedLogin:String?=null) = account.signOutAndRevoke(expectedLogin)
+    fun signOut(expectedLogin:String?=null, expectedOwner:NativeAuthenticatedOwner?=null) = account.signOutAndRevoke(expectedLogin,expectedOwner)
     private val activityLock = Any()
     private val activityOwners = mutableSetOf<Any>()
     private val applicationActive = MutableStateFlow(IrxProbeActivity(false))
@@ -56,9 +56,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     fun revalidateAccount() = scope.launch { account.retryLocalLogout(); account.sessionRestore.revalidate() }
 
     val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
-    val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
-        NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
-    }
+    val accountDeletion = nativeAccountDeletionController(scope,account,store)
     val presence = NativeMacPresenceRuntime(teams.state, applicationActive, teams::isCurrent, account::accessToken,
         audience = compatibility.audience)
     val ssh = NativeSshRuntime(context.applicationContext, store, scope)
@@ -226,7 +224,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             }
         }
         scope.launch { teams.state.collect { tailscale.retireInvalid() } }
-        scope.launch { account.sessionRestore.identities.collect { teams.reconcileLogin() } }
+        scope.launch { account.sessionRestore.identities.collect { teams.reconcileLogin();accountDeletion.reconcile() } }
         scope.launch {
             var observedLogin: String? = null
             var nextRefresh = 0L

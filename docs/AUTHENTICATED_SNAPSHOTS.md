@@ -100,3 +100,8 @@ under captures/recovery-20261023. Nine implementation/test files, both installed
 APKs and nine whole original files are bound in the aggregate. V1 rejected helper
 return-type inference at compile time; V2/V3 built and passed JVM checks, then
 legacy/pending edge cases were added before the final source-bound build/run.
+
+The later [identity-bound deletion checkpoint](ACCOUNT_DELETION.md#identity-bound-deletion-checkpoint--2026-10-24)
+now pins confirmation, dispatch, resolved credentials, receipt results and local
+signout to an account incarnation. This extends consumer adoption; the remaining
+backend, raw-token, metadata, OS/device and UI gates above remain open.

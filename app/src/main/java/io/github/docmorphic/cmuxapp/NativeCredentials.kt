@@ -662,12 +662,47 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     }
 
     internal suspend fun deletionCredentials(login: String): NativeDeletionCredentials? {
-        if (store.taskSession() != login) throw kotlinx.coroutines.CancellationException("Account changed")
-        val access = accessToken() ?: return null
-        val state = store.load() ?: return null
-        if (state.optString("task_session") != login || state.optString("access_token") != access)
-            throw kotlinx.coroutines.CancellationException("Account changed")
-        return NativeDeletionCredentials(access, state.optString("refresh_token"))
+        return deletionCredentials(deletionOwner(login) ?: throw kotlinx.coroutines.CancellationException("Account changed"))
+    }
+    /** Published authority survives a definitive refresh rejection long enough to retire that old model. */
+    internal fun deletionOwner(login: String): NativeAuthenticatedOwner? = synchronized(store.accountStateLock) {
+        val root=store.requireReadable();val identity=sessionRestore.identity() ?: return@synchronized null
+        if(NativeSignInCompletion.isPending(root))return@synchronized null
+        val epoch=store.authSessionEpoch.get()
+        if(publishedOwner.get()!=login || observedAuthEpoch.get()!=epoch)return@synchronized null
+        val empty=root?.optString("task_session").isNullOrBlank() && root?.optString("access_token").isNullOrBlank() && root?.optString("refresh_token").isNullOrBlank()
+        if(!empty && root?.optString("task_session")!=login)return@synchronized null
+        NativeAuthenticatedOwner(identity,login,epoch)
+    }
+    internal fun isDeletionOwnerCurrent(owner: NativeAuthenticatedOwner): Boolean =
+        !authWork.storedSessionCaptureBlocked && runCatching { deletionOwner(owner.login)==owner }.getOrDefault(false)
+    /** currentTokens resolves the live pair, including bootstrap, under one absolute capture deadline. */
+    internal suspend fun deletionCredentials(owner: NativeAuthenticatedOwner): NativeDeletionCredentials = withContext(Dispatchers.IO) {
+        val started=android.os.SystemClock.elapsedRealtime()
+        try { kotlinx.coroutines.withTimeout(60_000) {
+            // Bootstrap may join token work itself; never register this read-only wait as token work.
+            sessionRestore.awaitBootstrapped()
+            val remaining=60_000-(android.os.SystemClock.elapsedRealtime()-started)
+            if(remaining<=0)throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
+            authWork.run(NativeAuthPhase.ACCOUNT_DELETION,remaining,owner.login) {
+                fun admitted() { if(!isDeletionOwnerCurrent(owner))throw kotlinx.coroutines.CancellationException("Account changed") }
+                repeat(3) {
+                    admitted()
+                    val before=store.requireReadable()
+                    val refresh=before?.optString("refresh_token")?.takeIf(String::isNotBlank)
+                        ?: throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
+                    val access=accessToken()
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive();admitted()
+                    val after=store.requireReadable()
+                    if(access.isNullOrBlank())throw NativeSignInFailure(if(after?.optString("refresh_token").isNullOrBlank())
+                        NativeSignInError.UNAUTHORIZED else NativeSignInError.NETWORK_ERROR)
+                    if(after?.optString("refresh_token")==refresh)return@run NativeDeletionCredentials(access,refresh)
+                }
+                throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
+            }
+        } } catch(failure:kotlinx.coroutines.TimeoutCancellationException) {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive();throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
+        }
     }
 
     private fun storedAuthenticatedSession(): NativeStoredAuthSession = synchronized(store.accountStateLock) {
@@ -703,9 +738,10 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         snapshot.owner?.let { it.login == snapshot.login && isAuthenticatedSessionCurrent(it) } == true
 
     fun signOut(expectedLogin: String? = null): Boolean = signOutLocal(expectedLogin,false)
-    internal fun signOutAndRevoke(expectedLogin: String? = null): Boolean = signOutLocal(expectedLogin,true)
+    internal fun signOutAndRevoke(expectedLogin: String? = null, expectedOwner: NativeAuthenticatedOwner? = null): Boolean = signOutLocal(expectedLogin,true,expectedOwner)
+    internal fun signOutDeletion(owner: NativeAuthenticatedOwner): Boolean = signOutLocal(owner.login,false,owner)
     internal suspend fun awaitSignOutTeardown() = authWork.awaitSignOutTeardown()
-    private fun signOutLocal(expectedLogin: String?, revoke: Boolean): Boolean {
+    private fun signOutLocal(expectedLogin: String?, revoke: Boolean, expectedOwner: NativeAuthenticatedOwner? = null): Boolean {
         val finishCapture=authWork.beginSignOutCapture()
         try {
         var captured=NativeCapturedSession(null,null)
@@ -714,6 +750,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
             authWork.cancelAll()
         }
         val applied = completion.clearIf(includePublished = true) {
+            if(expectedOwner!=null && deletionOwner(expectedOwner.login)!=expectedOwner)return@clearIf false
             if (expectedLogin == null) {
                 // User intent survives process death and unavailable encrypted storage.
                 // A conditional deletion callback must still prove its captured owner.
@@ -725,7 +762,8 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
             } else {
                 var retired = false
                 store.update {
-                    if (it.optString("task_session") != expectedLogin) return@update
+                    val empty=it.optString("task_session").isBlank() && it.optString("access_token").isBlank() && it.optString("refresh_token").isBlank()
+                    if (it.optString("task_session") != expectedLogin && !(expectedOwner!=null && empty)) return@update
                     if(revoke) captured=NativeCapturedSession.from(it)
                     NativeLocalLogout.retire(it)
                     retired = true

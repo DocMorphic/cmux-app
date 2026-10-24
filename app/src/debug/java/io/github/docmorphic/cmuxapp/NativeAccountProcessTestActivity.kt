@@ -57,7 +57,7 @@ class NativeAccountProcessTestActivity : ComponentActivity() {
             }
             // Defer presentation only to test death after durable completion but before UI acknowledgement.
             if (!intent.getBooleanExtra("deferOutcome", false)) NativeAccountDeletionAlerts(receipt,
-                onSignOut = { owner -> account.signOut(owner).also { if (it) { teams.reconcileLogin(); deletion.reconcile() } } },
+                onSignOut = { receipt -> account.signOut(receipt.login).also { if (it) { teams.reconcileLogin(); deletion.reconcile() } } },
                 onAcknowledge = deletion::acknowledge)
         } } }
         File(filesDir, "account-process-$id-pid").writeText(Process.myPid().toString())

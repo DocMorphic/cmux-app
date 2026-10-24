@@ -11,6 +11,18 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class NativeAccountDeletionTest {
+    @Test fun credentialFailuresKeepTimeoutUncertaintyAndDefinitiveRejectionDistinctWithoutDelete() = runBlocking<Unit> {
+        MockWebServer().use { server ->
+            for ((reason,result) in listOf(NativeSignInError.TIMED_OUT to NativeAccountDeletionResult.TIMED_OUT,
+                NativeSignInError.NETWORK_ERROR to NativeAccountDeletionResult.REJECTED,
+                NativeSignInError.UNAUTHORIZED to NativeAccountDeletionResult.UNAUTHORIZED)) {
+                assertEquals(result,client(server,tokens={throw NativeSignInFailure(reason)}).delete())
+            }
+            assertEquals(NativeAccountDeletionResult.REJECTED,client(server,tokens={throw NativeCredentialReadException()}).delete())
+            assertEquals(NativeAccountDeletionResult.REJECTED,client(server,tokens={throw java.io.IOException("Fixture auth transport")}).delete())
+            assertEquals(0,server.requestCount)
+        }
+    }
     private fun client(server: MockWebServer, current: () -> Boolean = { true }, timeout: Long = 3000,
                        tokens: suspend () -> NativeDeletionCredentials? = { NativeDeletionCredentials("fixture-access", "fixture-refresh") }) =
         NativeAccountDeletionClient(tokens, current, server.url("/"), timeoutMillis = timeout)
