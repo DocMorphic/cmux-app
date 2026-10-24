@@ -49,11 +49,11 @@ jobs:
         run: |
           set -euo pipefail
           swift build --jobs 2 --force-resolved-versions 2>&1 | tee "$RUNNER_TEMP/original-auth-build.log"
-      - name: Run original coordinator tests
+      - name: Run original coordinator and push-registration tests
         working-directory: upstream/Packages/Shared/CmuxAuthRuntime
         run: |
           set -euo pipefail
-          swift test --jobs 2 --force-resolved-versions --filter AuthCoordinator 2>&1 | tee "$RUNNER_TEMP/original-auth-tests.log"
+          swift test --jobs 2 --force-resolved-versions --filter 'AuthCoordinator|PushRegistrationServiceTests' 2>&1 | tee "$RUNNER_TEMP/original-auth-tests.log"
       - name: Verify source remains unchanged
         working-directory: upstream
         run: git diff --exit-code
