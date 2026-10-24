@@ -107,4 +107,31 @@ class PhoneHelperHttpTest {
             }
         }
     }
+    @Test fun unreadableStorageAndPendingSdkChecksPauseWithoutSendingOrRetiringTheAttempt()=runBlocking {
+        Fixture().use { f ->
+            var unavailable=true;val now=1_800_000_000_000L
+            for(pending in listOf(false,true)) {
+                PhoneHelperHttp(f.endpoint,{ if(unavailable) { if(pending)throw PhoneFcmTokenCheckPending() else throw NativeCredentialReadException() };true },f.base,{now}).use { http ->
+                    unavailable=true
+                    assertEquals(PhoneHelperHttpResult.Retry(now+5000),http.send("begin",JSONObject()))
+                    assertEquals(0,f.server.requestCount)
+                }
+            }
+            unavailable=false;f.server.enqueue(json())
+            PhoneHelperHttp(f.endpoint,{true},f.base).use { assertTrue(it.send("begin",JSONObject()) is PhoneHelperHttpResult.Success) }
+            assertEquals(1,f.server.requestCount)
+        }
+    }
+    @Test fun storageBecomingUnreadableDuringResponseReturnsRetryInsteadOfADeletionSignal()=runBlocking {
+        Fixture().use { f ->
+            val unavailable=AtomicBoolean(false);val now=1_800_000_000_000L
+            f.server.enqueue(json().setBodyDelay(200,TimeUnit.MILLISECONDS))
+            PhoneHelperHttp(f.endpoint,{if(unavailable.get())throw NativeCredentialReadException();true},f.base,{now}).use { http ->
+                val response=async(Dispatchers.IO) { http.send("begin",JSONObject()) }
+                assertNotNull(withContext(Dispatchers.IO){f.server.takeRequest(2,TimeUnit.SECONDS)})
+                unavailable.set(true);assertEquals(PhoneHelperHttpResult.Retry(now+5000),response.await())
+            }
+        }
+    }
+
 }

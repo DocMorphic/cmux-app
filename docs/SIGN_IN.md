@@ -1,5 +1,27 @@
 # Native sign-in
 
+## Durable Firebase callback recovery advanced — 2026-10-24
+
+Token callbacks now persist an opaque wakeup before entering encrypted storage.
+Replay preserves ciphertext on failure and rejects a stale SDK result if a newer
+callback arrives during encryption. A separate read generation keeps consent,
+revision and helper proof stable for duplicate tokens; confirmed rotation renews
+through the existing helper protocol. Unknown storage at the helper HTTP guard
+now retries rather than removing the pending enrollment checkpoint. No-consent
+callbacks do not create a token lifecycle, encrypted record or Keystore key.
+
+Full JVM: 3,273 total, 3,269 passed, four existing SSH skips, zero failures.
+Owned API 36 runtime: 75/75 in 153.922s, empty crash log, no preflight ANR,
+settings/window restored and emulator exit 0. Original pinned auth/push reference:
+198 tests in 19 suites passed. SDK results in Android callback cases are injected;
+these checks do not establish actual Firebase callback/rotation, live helper HTTPS,
+OS process death/unlock or physical Pixel/Mac acceptance. Full SDK/metadata,
+source/UI/accessibility and all broader parity gates remain open.
+
+Details: [callback recovery and verification limits](FCM_CALLBACK_RECOVERY.md).
+Evidence: `captures/recovery-20261023/fcm-callback-checkpoint.json`.
+No phone/Mac install, global source pin or frozen signed722 changed. Goal remains active.
+
 ## Captured-session bounded signout teardown advanced — 2026-10-24
 
 The production process-owned Sign out path now captures its old token pair,

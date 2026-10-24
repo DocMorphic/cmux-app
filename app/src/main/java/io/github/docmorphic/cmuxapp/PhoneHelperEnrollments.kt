@@ -41,7 +41,7 @@ internal object PhoneHelperEnrollments {
         if (store.load()?.has(PhoneHelperEnrollmentState.KEY) != true) return@withContext
         var pending = false
         synchronized(store.accountStateLock) {
-            val token = PhoneFcmTokens.snapshot(context)
+            val token = PhoneFcmTokens.snapshot(context, requireFresh = false)
             store.update { PhoneHelperEnrollmentState(it).apply { retainForToken(token); pending = pending().isNotEmpty() } }
         }
         if (!pending) return@withContext
@@ -55,7 +55,7 @@ internal object PhoneHelperEnrollments {
         withContext(Dispatchers.IO) {
             val store = NativeCredentialStore(context)
             fun access(write: Boolean, action: (JSONObject, PhoneFcmTokenSnapshot?) -> Unit) = synchronized(store.accountStateLock) {
-                val token = PhoneFcmTokens.snapshot(context)
+                val token = PhoneFcmTokens.snapshot(context, requireFresh = false)
                 if (write) store.update { action(it, token) }
                 else action(store.requireReadable() ?: JSONObject(), token)
             }

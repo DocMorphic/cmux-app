@@ -79,7 +79,9 @@ This is not full signout or app parity acceptance. The real private helper HTTPS
 revoke, Firebase token/unregistration behavior and post-sign-in side effects
 outside the tracked registry still require integration proof. Native APNs push
 unregister is not an Android backend contract; Android uses its existing private
-helper proof protocol, whose live phone/backend acceptance remains open. Complete
+helper proof protocol, whose live phone/backend acceptance remains open. Durable
+unavailable-storage callback replay now has a separate [recovery checkpoint](FCM_CALLBACK_RECOVERY.md);
+actual Firebase SDK callback/rotation and physical acceptance remain open. Complete
 SDK rate-limit/backoff and metadata equivalence, hanging local crypto/filesystem
 bounds, actual OS unlock/process death, full UI/accessibility/source adoption and
 physical Pixel/Mac/provider acceptance remain open. The network deadline assumes

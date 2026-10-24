@@ -12,6 +12,7 @@ internal data class PhoneFcmProject(val project: String, val application: String
     }
 }
 internal data class PhoneFcmTokenGrant(val login: String, val project: PhoneFcmProject, val epoch: String)
+internal data class PhoneFcmTokenRead(val grant: PhoneFcmTokenGrant, val callbackEpoch: String?)
 internal data class PhoneFcmTokenSnapshot(val grant: PhoneFcmTokenGrant, val token: String, val revision: String)
 
 /** Stored in a separate Keystore-encrypted record so logout cannot erase a pending provider deletion. */
@@ -27,7 +28,20 @@ internal class PhoneFcmTokenState(private val state: JSONObject) {
     val snapshot: PhoneFcmTokenSnapshot? get() = grant?.let { owner ->
         root?.optString("token")?.takeIf(String::isNotBlank)?.let { PhoneFcmTokenSnapshot(owner, it, root!!.getString("revision")) }
     }
+    val readTicket get() = grant?.let { PhoneFcmTokenRead(it, callbackEpoch) }
+    private val callbackEpoch get() = root?.optString("callback_epoch")?.takeIf(String::isNotBlank)
+    val callbackCheckPending get() = callbackEpoch != null && root?.optString("checked_callback_epoch") != callbackEpoch
     val hasWork get() = grant != null || deletion != null
+    fun currentSnapshot(requireFresh:Boolean=true):PhoneFcmTokenSnapshot? {
+        if(requireFresh && callbackCheckPending) throw PhoneFcmTokenCheckPending()
+        return snapshot
+    }
+
+    /** Fence SDK reads without rotating consent or invalidating an unchanged token registration. */
+    fun providerChanged(event: String) {
+        if (grant == null) return
+        root!!.put("callback_epoch", PhoneFcmTokenCallback.checked(event))
+    }
 
     /** Called only after explicit push consent; ordinary background alerts do not grant FCM consent. */
     fun authorize(login: String, project: PhoneFcmProject): PhoneFcmTokenGrant {
@@ -42,6 +56,7 @@ internal class PhoneFcmTokenState(private val state: JSONObject) {
     fun revoke() {
         val value = root ?: return
         value.remove("login"); value.remove("epoch"); value.remove("token"); value.remove("revision")
+        value.remove("callback_epoch"); value.remove("checked_callback_epoch")
         if (value.optBoolean("touched") && deletion == null) value.put("deletion", UUID.randomUUID().toString())
         if (deletion == null) state.remove(KEY)
     }
@@ -49,17 +64,20 @@ internal class PhoneFcmTokenState(private val state: JSONObject) {
         grant?.let { if (!allowed || it.login != login || it.project != installed) revoke() }
     }
     /** Persist BEFORE asking the SDK: process death can happen after it creates a token. */
-    fun beginFetch(owner: PhoneFcmTokenGrant): Boolean {
-        if (grant != owner || deletion != null) return false
+    fun beginFetch(owner: PhoneFcmTokenGrant): Boolean = beginFetch(PhoneFcmTokenRead(owner, null))
+    fun beginFetch(ticket: PhoneFcmTokenRead): Boolean {
+        if (readTicket != ticket || deletion != null) return false
         root!!.put("touched", true)
         return true
     }
-    fun accept(owner: PhoneFcmTokenGrant, token: String): Boolean {
+    fun accept(owner: PhoneFcmTokenGrant, token: String): Boolean = accept(PhoneFcmTokenRead(owner, null), token)
+    fun accept(ticket: PhoneFcmTokenRead, token: String): Boolean {
         require(validToken(token))
-        if (grant != owner || deletion != null) return false
+        if (readTicket != ticket || deletion != null) return false
         val value = root!!
         if (value.optString("token") != token) value.put("revision", UUID.randomUUID().toString())
         value.put("token", token)
+        ticket.callbackEpoch?.let { value.put("checked_callback_epoch", it) }
         return true
     }
     /** Callback payloads are not trusted as current: fence an in-flight fetch and re-read the SDK. */
@@ -68,6 +86,7 @@ internal class PhoneFcmTokenState(private val state: JSONObject) {
         if (grant == null) return
         value.put("epoch", UUID.randomUUID().toString())
         value.remove("token"); value.remove("revision")
+        value.remove("callback_epoch"); value.remove("checked_callback_epoch")
     }
     fun deleted(id: String): Boolean {
         if (deletion != id) return false
@@ -96,10 +115,10 @@ internal class PhoneFcmTokenReconciler(
     /** false means settled or awaiting configuration; true requests another bounded worker pass. */
     suspend fun runPass(): Boolean {
         repeat(3) {
-            var owner: PhoneFcmTokenGrant? = null; var deletion: String? = null; var project: PhoneFcmProject? = null
+            var ticket: PhoneFcmTokenRead? = null; var deletion: String? = null; var project: PhoneFcmProject? = null
             transaction { state ->
                 state.reconcile(login(), allowed(), provider?.project)
-                owner = state.grant; deletion = state.deletion; project = state.project
+                ticket = state.readTicket; deletion = state.deletion; project = state.project
             }
             val sdk = provider ?: return false
             if (project != sdk.project) return false // Never delete a different project's token.
@@ -108,7 +127,7 @@ internal class PhoneFcmTokenReconciler(
                 sdk.delete()
                 transaction { it.deleted(retiring) }
             } else {
-                val fetching = owner ?: return false
+                val fetching = ticket ?: return false
                 var started = false
                 transaction { state ->
                     state.reconcile(login(), allowed(), sdk.project)

@@ -128,4 +128,58 @@ class PhoneFcmTokenStateTest {
             assertThrows(IllegalArgumentException::class.java) { state.accept(state.grant!!, invalid) }
         assertFalse(state.accept(old, "obsolete"))
     }
+    @Test fun repeatedProviderCallbacksPreserveConsentAndRegistrationButFenceOlderSdkReads() {
+        val state=PhoneFcmTokenState(JSONObject());val owner=state.authorize("login",project)
+        state.beginFetch(owner);state.accept(owner,"accepted-token")
+        val registered=state.snapshot!!;val old=state.readTicket!!;val event=PhoneFcmTokenCallback.next()
+        state.providerChanged(event)
+        assertEquals(owner,state.grant);assertEquals(registered,state.snapshot);assertTrue(state.callbackCheckPending)
+        assertEquals(registered,state.currentSnapshot(requireFresh=false))
+        assertThrows(PhoneFcmTokenCheckPending::class.java) { state.currentSnapshot() }
+        assertFalse(state.accept(old,"obsolete"));assertFalse(state.accept(owner,"obsolete"))
+        assertTrue(state.accept(state.readTicket!!,"accepted-token"));assertFalse(state.callbackCheckPending)
+        assertEquals(registered,state.snapshot)
+        state.providerChanged(event);assertFalse(state.callbackCheckPending)
+        state.providerChanged(PhoneFcmTokenCallback.next());assertTrue(state.callbackCheckPending)
+        state.accept(state.readTicket!!,"accepted-token");assertEquals(registered,state.snapshot)
+    }
+    @Test fun confirmedRotationChangesOnlyTokenRevisionAndOldCallbackTicketsCannotReplayAfterAck() {
+        val state=PhoneFcmTokenState(JSONObject());val owner=state.authorize("login",project)
+        state.beginFetch(owner);state.accept(owner,"first");val old=state.readTicket!!;val before=state.snapshot!!
+        state.providerChanged(PhoneFcmTokenCallback.next());val current=state.readTicket!!
+        assertTrue(state.accept(current,"rotated"));assertEquals(owner,state.grant)
+        assertNotEquals(before.revision,state.snapshot!!.revision);assertFalse(state.callbackCheckPending)
+        assertFalse(state.accept(old,"first"));assertEquals("rotated",state.snapshot!!.token)
+        state.revoke();val replacement=state.authorize("new-login",project)
+        assertFalse(state.accept(current,"late"));assertNotEquals(owner,replacement)
+    }
+    @Test fun providerCallbacksCannotCreateConsentOrReplaceTheProject() {
+        val raw=JSONObject();val state=PhoneFcmTokenState(raw)
+        state.providerChanged(PhoneFcmTokenCallback.next());assertEquals("{}",raw.toString())
+        val owner=state.authorize("login",project);state.beginFetch(owner);state.revoke()
+        val retired=raw.toString();state.providerChanged(PhoneFcmTokenCallback.next())
+        assertEquals(retired,raw.toString());assertNull(state.grant);assertNotNull(state.deletion)
+    }
+    @Test fun providerEventDuringFetchDiscardsThatReadAndFetchesTheSdkCurrentValue()=runTest {
+        val state=PhoneFcmTokenState(JSONObject());state.authorize("login",project);var reads=0
+        val provider=object:PhoneFcmTokenProvider {
+            override val project=this@PhoneFcmTokenStateTest.project
+            override suspend fun token():String { reads++;if(reads==1) { state.providerChanged(PhoneFcmTokenCallback.next());return "obsolete" };return "current" }
+            override suspend fun delete()=error("No deletion")
+        }
+        assertFalse(PhoneFcmTokenReconciler({it(state)},{"login"},{true},provider).runPass())
+        assertEquals(2,reads);assertEquals("current",state.snapshot!!.token);assertFalse(state.callbackCheckPending)
+    }
+    @Test fun aCallbackStormUsesTheBoundedPassAndLeavesARecoverableReadGeneration()=runTest {
+        val state=PhoneFcmTokenState(JSONObject());val grant=state.authorize("login",project);var reads=0;var rotating=true
+        val provider=object:PhoneFcmTokenProvider {
+            override val project=this@PhoneFcmTokenStateTest.project
+            override suspend fun token():String { reads++;if(rotating)state.providerChanged(PhoneFcmTokenCallback.next());return "sdk-current" }
+            override suspend fun delete()=error("No deletion")
+        }
+        val reconciler=PhoneFcmTokenReconciler({it(state)},{"login"},{true},provider)
+        assertTrue(reconciler.runPass());assertEquals(3,reads);assertEquals(grant,state.grant);assertTrue(state.callbackCheckPending)
+        rotating=false;assertFalse(reconciler.runPass());assertEquals(4,reads);assertFalse(state.callbackCheckPending)
+    }
+
 }

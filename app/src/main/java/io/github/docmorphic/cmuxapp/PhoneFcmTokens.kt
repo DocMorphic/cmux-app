@@ -91,11 +91,11 @@ internal object PhoneFcmTokens {
         }
     }
     /** Snapshot for authenticated helper enrollment; consumers must recheck it before and after I/O. */
-    fun snapshot(context: Context): PhoneFcmTokenSnapshot? {
+    fun snapshot(context: Context, requireFresh: Boolean = true): PhoneFcmTokenSnapshot? {
         val value = store(context).requireReadable() ?: return null
         val state = PhoneFcmTokenState(value)
         state.reconcile(NativeCredentialStore(context).requireReadableTaskSession(), allowed(context), installed(context))
-        return state.snapshot
+        return state.currentSnapshot(requireFresh)
     }
     fun setup(context: Context): PhonePushSetupProvider {
         val credentials = NativeCredentialStore(context)
@@ -110,10 +110,14 @@ internal object PhoneFcmTokens {
     }
     fun revisions(context: Context) = store(context).revisions
     fun onTokenChanged(context: Context): Job? {
-        val tokens = store(context)
-        if (tokens.load()?.has(PhoneFcmTokenState.KEY) != true) return null
-        tokens.update { PhoneFcmTokenState(it).invalidate() }
+        PhoneFcmTokenCallback.record(context)
         return recover(context)
+    }
+    private suspend fun enqueueTokenWorker(context: Context) {
+        WorkManager.getInstance(context).enqueueUniqueWork(NAME, ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequestBuilder<PhoneFcmTokenWorker>()
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build()).await()
     }
     @Synchronized fun observe(context: Context) {
         if (observing) return
@@ -131,6 +135,9 @@ internal object PhoneFcmTokens {
         val app = context.applicationContext
         return scope.launch {
             try {
+                // Queue the wakeup before constructing a credential store or entering its crypto monitor.
+                val callback = PhoneFcmTokenCallback.pending(app) != null
+                if (callback) enqueueTokenWorker(app)
                 val tokens = store(app)
                 if (tokens.requireReadable()?.has(PhoneFcmTokenState.KEY) != true) {
                     retainHelpers(app)
@@ -147,9 +154,7 @@ internal object PhoneFcmTokens {
                 if (!pending) { manager.cancelUniqueWork(PERIODIC); return@launch }
                 val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
                 // A callback while a pass finishes must leave a successor, not be lost behind KEEP.
-                manager.enqueueUniqueWork(NAME, ExistingWorkPolicy.REPLACE,
-                    OneTimeWorkRequestBuilder<PhoneFcmTokenWorker>().setConstraints(constraints)
-                        .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build()).await()
+                if (!callback) enqueueTokenWorker(app)
                 manager.enqueueUniquePeriodicWork(PERIODIC, ExistingPeriodicWorkPolicy.KEEP,
                     PeriodicWorkRequestBuilder<PhoneFcmTokenWorker>(24, TimeUnit.HOURS)
                         .setConstraints(constraints).build()).await()
@@ -164,7 +169,7 @@ internal object PhoneFcmTokens {
         withContext(Dispatchers.IO + NonCancellable) {
             val tokens = store(context)
             val provider = installed(context)?.let(::InstalledPhoneFcmProvider)
-            val retry = try { PhoneFcmTokenReconciler(
+            val retry = try { if(tokens.requireReadable()?.has(PhoneFcmTokenState.KEY) != true) false else PhoneFcmTokenReconciler(
                 transaction = { action -> tokens.update { action(PhoneFcmTokenState(it)) } },
                 login = { NativeCredentialStore(context).requireReadableTaskSession() }, allowed = { allowed(context) }, provider = provider
             ).runPass() } finally {

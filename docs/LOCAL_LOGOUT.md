@@ -69,8 +69,9 @@ preferences but is not an Android process-kill test.
 
 The native helper ledger test proves retained encrypted cleanup key/proof and
 a staged revoke action, not successful live HTTPS revocation. Full SDK/backoff,
-account/backend admission, complete user metadata, unavailable-storage FCM
-callbacks, source adoption, native UI/accessibility and real Pixel/Mac/provider
+account/backend admission, complete user metadata, live Firebase SDK callback/rotation
+acceptance after the [durable callback recovery](FCM_CALLBACK_RECOVERY.md) fixture
+checkpoint, source adoption, native UI/accessibility and real Pixel/Mac/provider
 acceptance remain open alongside every broader PARITY.md/REMAINING_WORK.md gate.
 No phone/Mac install, live account or frozen signed release is changed here.
 

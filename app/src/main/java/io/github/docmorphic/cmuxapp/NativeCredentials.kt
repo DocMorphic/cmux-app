@@ -27,6 +27,7 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
     constructor(context: Context, storageName: String = "native_cmux") : this(context, storageName, "cmux_native_v1", null)
     private val applicationContext = context.applicationContext
     private val primaryAccount = storageName == "native_cmux"
+    private val fcmTokenDocument = storageName == "phone_fcm_tokens"
     // Team admission is called both inside credential transactions and before
     // credential reads. Share their monitor to avoid reversing two lock orders.
     internal val accountStateLock: Any get() = storageLock
@@ -54,6 +55,9 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
         authSessionEpoch.incrementAndGet()
         changeState.value++
     }
+    private fun pendingFcmCallback(): String? = if (!fcmTokenDocument) null else PhoneFcmTokenCallback.pending(preferences)
+    internal val hasPendingFcmCallback: Boolean get() = pendingFcmCallback() != null
+    internal fun recordFcmCallback() { check(fcmTokenDocument);PhoneFcmTokenCallback.record(preferences) }
     /** Only the logout capture path bypasses pending-intent projection, under the account transaction. */
     internal fun capturedLogoutSession(): NativeCapturedSession = synchronized(storageLock) { NativeCapturedSession.from(readEncryptedState()) }
     /** An unreadable encrypted document is distinct from an absent document. */
@@ -229,13 +233,21 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
 
     private fun readState(): JSONObject? = try {
         val value = readEncryptedState()
-        if (localLogoutPending) {
+        val retiring = localLogoutPending
+        val callback = pendingFcmCallback()
+        if (retiring || callback != null) {
             if (value == null) {
-                check(preferences.edit().remove(NativeLocalLogout.PENDING).commit()) { "Could not finish local logout" }
+                val edit = preferences.edit()
+                if (retiring) edit.remove(NativeLocalLogout.PENDING)
+                if (callback != null) edit.putString(PhoneFcmTokenCallback.APPLIED,callback)
+                if (fcmTokenDocument) PhoneFcmTokenCallback.commit(preferences,callback) {
+                    check(edit.commit()) { "Could not acknowledge saved intent" }
+                } else check(edit.commit()) { "Could not acknowledge saved intent" }
                 changeState.value++
             } else {
-                NativeLocalLogout.retire(value)
-                save(value, retiringAuth = true)
+                if (retiring) NativeLocalLogout.retire(value)
+                if (callback != null) PhoneFcmTokenState(value).providerChanged(callback)
+                save(value, retiringAuth = retiring, appliedFcmCallback = callback)
             }
         }
         value
@@ -296,8 +308,9 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
     }
 
     /** Caller holds storageLock. */
-    private fun save(value: JSONObject, preserveHelpers: Boolean = true, retiringAuth: Boolean = false) {
+    private fun save(value: JSONObject, preserveHelpers: Boolean = true, retiringAuth: Boolean = false, appliedFcmCallback: String? = null) {
         if (!retiringAuth && localLogoutPending) throw NativeCredentialReadException()
+        if (pendingFcmCallback() != appliedFcmCallback) throw NativeCredentialReadException()
         if (primaryAccount && preserveHelpers) PhoneHelperMaintenanceWork.preserve(applicationContext,
             if (retiringAuth) readEncryptedState() else readState())
         NativeAttachTicketStore.prune(value)
@@ -320,7 +333,10 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(value.toString().toByteArray()), Base64.NO_WRAP)
         val edit = preferences.edit().putString("state", encoded)
         if (retiringAuth) edit.remove(NativeLocalLogout.PENDING)
-        check(edit.commit()) { "Could not save account" }
+        if (appliedFcmCallback != null) edit.putString(PhoneFcmTokenCallback.APPLIED,appliedFcmCallback)
+        if (fcmTokenDocument) PhoneFcmTokenCallback.commit(preferences,appliedFcmCallback) {
+            check(edit.commit()) { "Could not save account" }
+        } else check(edit.commit()) { "Could not save account" }
         readStatus.value = NativeCredentialReadStatus.AVAILABLE
         changeState.value++
     }
@@ -330,7 +346,7 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
             PhoneHelperMaintenanceWork.preserve(applicationContext, readState())
             PhoneHelperMaintenanceWork.preserve(applicationContext, JSONObject(), stageRetirement = true)
         }
-        val edit = preferences.edit().remove("state").remove(NativeLocalLogout.PENDING)
+        val edit = preferences.edit().remove("state").remove(NativeLocalLogout.PENDING).remove(PhoneFcmTokenCallback.LATEST).remove(PhoneFcmTokenCallback.APPLIED)
         preferences.all.keys.filter { it.startsWith("auth_tokens_") }.forEach(edit::remove)
         check(edit.commit()) { "Could not clear account" }
         readStatus.value = NativeCredentialReadStatus.EMPTY

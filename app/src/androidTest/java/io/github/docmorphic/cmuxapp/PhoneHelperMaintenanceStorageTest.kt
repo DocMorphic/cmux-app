@@ -106,6 +106,27 @@ class PhoneHelperMaintenanceStorageTest {
         }
     }
 
+    @Test fun duplicateSdkCallbackKeepsHelperProofAndConfirmedRotationQueuesRenewal() {
+        IsolatedContext(InstrumentationRegistry.getInstrumentation().targetContext).use { context ->
+            val seeded=seed(context);val account=NativeCredentialStore(context).requireReadable()!!
+            val token=PhoneFcmTokenState(JSONObject().put(PhoneFcmTokenState.KEY,JSONObject()
+                .put("project",PhoneFcmProject("fixture-project","fixture-app","fixture-sender").json())
+                .put("login",seeded.team.login).put("epoch","fixture-grant").put("touched",true)
+                .put("token","fixture-token").put("revision","fixture-revision")))
+            val original=token.snapshot!!;val queue=PhoneHelperMaintenanceQueue(ledger(context).requireReadable()!!)
+            queue.reconcile(account,token.grant,token.snapshot);assertTrue(queue.pending().isEmpty())
+            token.providerChanged(PhoneFcmTokenCallback.next())
+            queue.reconcile(account,token.grant,token.currentSnapshot(false));assertTrue(queue.pending().isEmpty())
+            assertTrue(token.accept(token.readTicket!!,"fixture-token"));assertEquals(original,token.snapshot)
+            queue.reconcile(account,token.grant,token.snapshot);assertTrue(queue.pending().isEmpty())
+            token.providerChanged(PhoneFcmTokenCallback.next());assertTrue(token.accept(token.readTicket!!,"rotated-token"))
+            queue.reconcile(account,token.grant,token.snapshot)
+            assertEquals("renew",queue.pending().single().action)
+            assertNotNull(PhonePushHelperState(account).binding(seeded.team,seeded.mac.origin))
+            assertArrayEquals(seeded.phone.privateKey,PhonePushKeyState(account).existingIdentity(seeded.team.login)!!.privateKey)
+        }
+    }
+
     @Test fun removingPairingCapturesCleanupBeforeNormalPruningRemovesPins() {
         IsolatedContext(InstrumentationRegistry.getInstrumentation().targetContext).use { context ->
             val seeded = seed(context); val store = NativeCredentialStore(context)

@@ -47,7 +47,9 @@ Local-authority retirement during unreadable storage now has a durable intent
 and replay path; see [local logout](LOCAL_LOGOUT.md). The production bounded server tail and tracked-effect joining now follow
 [signout teardown](SIGN_OUT_TEARDOWN.md); live helper/backend and untracked effects
 remain open, as do actual
-protected-data/unlock response and bounded initial cache reads; durable FCM callbacks during unavailable storage; full original user
+protected-data/unlock response and bounded initial cache reads; live Firebase SDK
+callback/rotation acceptance after the [durable callback recovery](FCM_CALLBACK_RECOVERY.md)
+fixture checkpoint; full original user
 metadata/profile image/demo state; complete SDK retry/backoff/rate-limit behavior;
 process-wide coordinator/authorization ownership across background consumers;
 exact access-only session snapshots, team loading/recovery and real post-sign-in

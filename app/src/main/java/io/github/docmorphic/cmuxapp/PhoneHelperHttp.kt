@@ -33,8 +33,15 @@ internal class PhoneHelperHttp(endpoint: String, private val permits: () -> Bool
     private var closed = false
     private var retryAt = 0L
     private fun gate(): PhoneHelperHttpResult? = synchronized(lock) {
+        if (closed) return@synchronized PhoneHelperHttpResult.Retired
+        val allowed = try { permits() } catch (failure: Exception) {
+            // Unknown local state pauses a durable attempt; it does not retire consent or its checkpoint.
+            if (failure is NativeCredentialReadException || failure is PhoneFcmTokenCheckPending)
+                return@synchronized PhoneHelperHttpResult.Retry(now() + 5000)
+            false
+        }
         when {
-            closed || !runCatching(permits).getOrDefault(false) -> PhoneHelperHttpResult.Retired
+            !allowed -> PhoneHelperHttpResult.Retired
             now() < retryAt -> PhoneHelperHttpResult.Retry(retryAt)
             else -> null
         }
