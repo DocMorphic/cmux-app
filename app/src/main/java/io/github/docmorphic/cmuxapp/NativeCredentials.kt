@@ -54,6 +54,8 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
         authSessionEpoch.incrementAndGet()
         changeState.value++
     }
+    /** Only the logout capture path bypasses pending-intent projection, under the account transaction. */
+    internal fun capturedLogoutSession(): NativeCapturedSession = synchronized(storageLock) { NativeCapturedSession.from(readEncryptedState()) }
     /** An unreadable encrypted document is distinct from an absent document. */
     internal val readability: kotlinx.coroutines.flow.StateFlow<NativeCredentialReadStatus> get() = readStatus
     private val changeState = synchronized(storageLock) {
@@ -375,6 +377,8 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         this(store, refreshOverride, oauthClientOverride, oauthBrowser, authWorkOverride ?: store.authWork)
     private val refreshMutex = Mutex()
     internal var onSignedIn: suspend (String, NativeSignInUser) -> Unit = { _, _ -> }
+    internal var onSignedOut: suspend (String?,String?) -> Unit = { _,_ -> }
+    internal var signOutTeardownTimeoutMillis: Long = 5_000
     private val completion = NativeSignInCompletion(store::load, store::update, oauthClient::currentUser,
         oauthClient.accountEnvironment, store.accountStateLock, onPublished = { login, user -> onSignedIn(login, user) },
         refreshAccess = oauthClient::refreshAccess, work = authWork,
@@ -625,7 +629,13 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
             state.optString("access_token") == snapshot.accessToken
     }
 
-    fun signOut(expectedLogin: String? = null): Boolean {
+    fun signOut(expectedLogin: String? = null): Boolean = signOutLocal(expectedLogin,false)
+    internal fun signOutAndRevoke(expectedLogin: String? = null): Boolean = signOutLocal(expectedLogin,true)
+    internal suspend fun awaitSignOutTeardown() = authWork.awaitSignOutTeardown()
+    private fun signOutLocal(expectedLogin: String?, revoke: Boolean): Boolean {
+        val finishCapture=authWork.beginSignOutCapture()
+        try {
+        var captured=NativeCapturedSession(null,null)
         if (expectedLogin == null) {
             completion.cancelPending()
             authWork.cancelAll()
@@ -636,12 +646,14 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
                 // A conditional deletion callback must still prove its captured owner.
                 store.requestLocalLogout()
                 sessionRestore.clear(clearCachedUser = false)
+                if(revoke) captured=try { store.capturedLogoutSession() } catch(_:NativeCredentialReadException) { NativeCapturedSession(null,null) }
                 try { store.requireReadable() } catch (_: NativeCredentialReadException) { /* Replay on the next readable transaction. */ }
                 true
             } else {
                 var retired = false
                 store.update {
                     if (it.optString("task_session") != expectedLogin) return@update
+                    if(revoke) captured=NativeCapturedSession.from(it)
                     NativeLocalLogout.retire(it)
                     retired = true
                 }
@@ -649,8 +661,14 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
                 retired
             }
         }
-        if (applied) { emailSignIn.clear(); oauthSignIn.clear(); TaskDraftRepository.clearMemory() }
+        if (applied) {
+            emailSignIn.clear(); oauthSignIn.clear(); TaskDraftRepository.clearMemory()
+            if(revoke) authWork.launchSignOutTeardown(signOutTeardownTimeoutMillis) {
+                nativeSignOutTeardown(captured,oauthClient::freshCapturedAccess,onSignedOut,oauthClient::revokeCapturedSession)
+            }
+        }
         return applied
+        } finally { finishCapture() }
     }
 
     internal fun retryLocalLogout() {

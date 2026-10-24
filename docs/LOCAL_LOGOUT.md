@@ -56,10 +56,11 @@ contains a boolean, never account tokens, identity or pairing material.
 
 ## Remaining source and device gates
 
-This is the local-authority/storage portion of signout, not full original
-signout equivalence. The original five-second, cancellation-aware server tail,
-captured/ephemeral teardown credentials, push hook ordering and joining of real
-post-sign-in effects remain open. Native account signout is still synchronous;
+This describes the local-authority/storage primitive, not full original signout
+equivalence. The production process-owned path now adds the captured/ephemeral
+server tail and tracked-effect joining described in [signout teardown](SIGN_OUT_TEARDOWN.md).
+Live helper/backend and effects outside that registry remain open. Local account
+retirement is still synchronous;
 metadata commit, encrypted replay and optional UI teardown do not yet have a
 proved bound for a provider or filesystem operation that hangs instead of
 throwing. Actual OS protected-data/unlock, process death and physical-device

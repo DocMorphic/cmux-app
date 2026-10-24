@@ -44,8 +44,9 @@ Android vector analogue of the original SF Symbol; native font, glass, shadow,
 button paint, sizing and accessibility still require platform comparison.
 
 Local-authority retirement during unreadable storage now has a durable intent
-and replay path; see [local logout](LOCAL_LOGOUT.md). Full original signout's
-bounded server tail and real post-sign-in joining remain open, as do actual
+and replay path; see [local logout](LOCAL_LOGOUT.md). The production bounded server tail and tracked-effect joining now follow
+[signout teardown](SIGN_OUT_TEARDOWN.md); live helper/backend and untracked effects
+remain open, as do actual
 protected-data/unlock response and bounded initial cache reads; durable FCM callbacks during unavailable storage; full original user
 metadata/profile image/demo state; complete SDK retry/backoff/rate-limit behavior;
 process-wide coordinator/authorization ownership across background consumers;

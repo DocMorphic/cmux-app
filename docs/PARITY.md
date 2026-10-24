@@ -1,3 +1,32 @@
+## Captured-session bounded signout teardown advanced — 2026-10-24
+
+The production process-owned Sign out path now captures its old token pair,
+keeps local logout effective first, joins tracked teams/post-sign-in effects,
+then attempts helper cleanup and Stack session revocation under a separate
+five-second network budget. Refresh-only/stale access resolves ephemerally;
+DELETE authenticates only with captured credentials, never a later live account,
+and retries exact rejected access once. The shared capture gate and actual-job
+registry make fresh exchanges join the old bounded attempt. Injected connector
+fixtures keep their local-only lifecycle and do not send synthetic credentials
+to the production account service.
+
+Final full JVM:3266 total,3262 passed,4 existing SSH skips,0 failures in443 suites.
+Owned API36 cohort:67/67 in151.144s; crash empty, no preflight ANR, settings/window
+restored, emulator exit0. The real default5000ms deadline completed in5017ms with
+HTTP calls drained; fresh login joined the old attempt for4999ms before exchange.
+Two focused disconnect tests initially failed because localhost retries selected
+an unbound IPv6 mock route; explicit IPv4 loopback fixed the fixture without
+changing the product deadline. Four whole original source files match the pin.
+
+This does not close real helper HTTPS/Firebase, untracked post-sign-in effects,
+full SDK/backoff/metadata, hanging local crypto/UI cleanup, actual OS unlock/
+process death or physical Pixel/Mac/provider acceptance. All broader source/UI/
+accessibility gates remain open. No phone/Mac install or frozen signed722 changed;
+global source pins and the full parity goal remain active.
+
+Details: [captured-session teardown and remaining gates](SIGN_OUT_TEARDOWN.md).
+Evidence: `captures/recovery-20261023/signout-teardown-checkpoint.json`.
+
 ## Durable local logout and shared sign-in fences advanced — 2026-10-24
 
 Explicit Sign out now records a non-secret durable intent before encrypted IO,

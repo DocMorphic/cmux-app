@@ -2507,7 +2507,7 @@ internal fun NativeScreen(
                 if (signedIn && sshSession != null) key(sshSession) { SshPromptHost(sshSession) }
 
                 fun signOutCurrentAccount(owner: String? = null): Boolean {
-                    val applied = try { account.signOut(owner) } catch (_: Exception) {
+                    val applied = try { sharedConnections?.signOut(owner) ?: account.signOut(owner) } catch (_: Exception) {
                         error = "Could not sign out on this device"
                         return false
                     }

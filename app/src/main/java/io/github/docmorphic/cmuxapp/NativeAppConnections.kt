@@ -14,7 +14,11 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     val store = NativeCredentialStore(context)
     val account = NativeAccount(store)
     val teams = NativeAccountTeams(account, store)
-    init { account.onSignedIn = { login, user -> teams.refreshAfterSignIn(login, user) } }
+    init {
+        account.onSignedIn = { login, user -> teams.refreshAfterSignIn(login, user) }
+        account.onSignedOut = { _,_ -> PhoneHelperMaintenanceWork.run(context.applicationContext);Unit }
+    }
+    fun signOut(expectedLogin:String?=null) = account.signOutAndRevoke(expectedLogin)
     private val activityLock = Any()
     private val activityOwners = mutableSetOf<Any>()
     private val applicationActive = MutableStateFlow(IrxProbeActivity(false))

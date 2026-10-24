@@ -63,10 +63,10 @@ internal class NativeSignInCompletion(
     suspend fun signIn(exchangeTimeoutMillis: Long = networkTimeoutMillis, exchangePhase: NativeAuthPhase = NativeAuthPhase.EMAIL_EXCHANGE,
         exchange: suspend ((String, String) -> Unit) -> Unit): Unit = coroutineScope {
         val operation = currentCoroutineContext().job
-        val (flow, previous) = synchronized(flowLock) {
+        val (flow, previous) = work.afterSignOutCapture { synchronized(flowLock) {
             val previous = active.map { it.operation }
             Flow(UUID.randomUUID().toString(), ++generation, operation, sessionEpoch()).also { active += it } to previous
-        }
+        } }
         previous.forEach { it.cancel() }
         var exchangeComplete = false
         try {
@@ -139,6 +139,7 @@ internal class NativeSignInCompletion(
         val flow: Flow
         val access: String?
         val refresh: String?
+        val expectedEpoch = work.afterSignOutCapture { sessionEpoch() }
         val expectedGeneration = generation
         val root = load() ?: return@coroutineScope
         synchronized(flowLock) {
@@ -149,7 +150,7 @@ internal class NativeSignInCompletion(
             access = (root.opt("access_token") as? String)?.takeIf { it.isNotBlank() }
             refresh = (root.opt("refresh_token") as? String)?.takeIf { it.isNotBlank() }
             if (access == null && (refresh == null || refreshAccess == null)) return@coroutineScope
-            flow = Flow(id, ++generation, operation, sessionEpoch())
+            flow = Flow(id, ++generation, operation, expectedEpoch)
             active += flow
         }
         try {
