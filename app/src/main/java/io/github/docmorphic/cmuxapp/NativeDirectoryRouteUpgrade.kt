@@ -6,8 +6,7 @@ import org.json.JSONObject
 /** An authenticated account directory can enrich an existing pairing, never create a raw address grant. */
 internal object NativeDirectoryRouteUpgrade {
     fun retain(state: JSONObject, team: NativeTeamScope, directory: NativeComputersState): Boolean {
-        if (directory.account != team || !directory.ready || state.optString("task_session") != team.login ||
-            state.optString("refresh_token").isBlank()) return false
+        if (directory.account != team || !directory.ready || !nativeSessionOwns(state,team.login)) return false
         val previous = state.optJSONArray("pairings") ?: return false
         val grants = TailscaleGrantStore({ state }, { error("Read-only grant lookup") })
         val computers = directory.computers.distinct().groupBy {

@@ -31,7 +31,7 @@ internal object NativePairingPersistence {
             }
         }
         if (team == null) return rememberUnscoped(state, incoming.copy(nativeRouteCode = null))
-        check(state.optString("task_session") == team.login && state.optString("refresh_token").isNotBlank()) {
+        check(nativeSessionOwns(state,team.login)) {
             "Account session changed. Reconnect to the Mac."
         }
         val pairing = PairingCodeParser.parse(incoming.code).getOrThrow()

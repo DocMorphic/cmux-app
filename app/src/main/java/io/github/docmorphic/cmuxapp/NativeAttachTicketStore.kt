@@ -77,7 +77,7 @@ internal object NativeAttachTicketStore {
     }
 
     private fun requireOwner(state: JSONObject, team: NativeTeamScope, mac: NativeCredentialStore.PairedMac) {
-        check(state.optString("task_session") == team.login && state.optString("refresh_token").isNotBlank()) { "Account session changed" }
+        check(nativeSessionOwns(state,team.login)) { "Account session changed" }
         check(mac.accountUserId == team.userId && mac.accountTeamId == team.teamId && mac.stableOrigin != null &&
             NativeComputerMenuPairing.isCurrent(mac, rows(state))) { "Saved pairing or account changed" }
         NativeComputerVisibility.requireVisibleHandshake(state, mac)

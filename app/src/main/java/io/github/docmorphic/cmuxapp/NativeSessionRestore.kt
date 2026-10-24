@@ -40,6 +40,7 @@ internal class NativeSessionRestore(
     private val onCleared: () -> Unit = {},
     private val externalEpoch: () -> Long = { 0 },
     private val lock: Any = Any(),
+    private val restoreDispatcher:CoroutineDispatcher?=null,
 ) {
     @Volatile private var generation = 0L
     internal val generationSnapshot get()=generation
@@ -133,6 +134,10 @@ internal class NativeSessionRestore(
         if(preserved)recoveryObserver?.preserved(context.generation)
     }
     private suspend fun checkExisting(admit:()->Boolean={true}) {
+        if(restoreDispatcher==null)checkExistingOwned(admit)
+        else withContext(restoreDispatcher){checkExistingOwned(admit)}
+    }
+    private suspend fun checkExistingOwned(admit:()->Boolean) {
         val (done, leader) = synchronized(lock) {
             validation?.let { it to false } ?: run {
                 if(!admit())return
@@ -141,11 +146,11 @@ internal class NativeSessionRestore(
         }
         // The source's checked-continuation waiters complete with the owning run.
         if (!leader) { withContext(NonCancellable) { done.await() }; return }
-        try { body(retryStorage = true) }
-        finally {
-            recoveryObserver?.validationCompleted()
-            synchronized(lock) { initialValidationAttempted=true;validation = null; checking.value = false; done.complete(Unit) }
-        }
+        work.restoreSession(restoreDispatcher,onFinished={
+            try {recoveryObserver?.validationCompleted()} finally {
+                synchronized(lock) { initialValidationAttempted=true;validation = null; checking.value = false; done.complete(Unit) }
+            }
+        }) {body(retryStorage=true)}
     }
     private suspend fun body(retryStorage: Boolean) {
         val context = capture()

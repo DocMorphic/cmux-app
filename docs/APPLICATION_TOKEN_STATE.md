@@ -1,3 +1,8 @@
+Current local-authority follow-up: [Access-only session authority](ACCESS_ONLY_SESSION.md)
+records the 2026-10-25 live-verification receipt, restoration cancellation and
+initial v2 control credential split. The earlier evidence below retains its
+scope; full parity and live-device acceptance remain open.
+
 # Application token misses and presentation clearing
 
 The application accessors now distinguish an absent session from a recoverable

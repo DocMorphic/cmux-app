@@ -1,3 +1,8 @@
+Current local-authority follow-up: [Access-only session authority](ACCESS_ONLY_SESSION.md)
+records the 2026-10-25 live-verification receipt, restoration cancellation and
+initial v2 control credential split. The earlier evidence below retains its
+scope; full parity and live-device acceptance remain open.
+
 Current application-layer follow-up: [Application token state](APPLICATION_TOKEN_STATE.md)
 records the 2026-10-24 miss classification, presentation clearing, writer fences
 and 254/254 owned-emulator checkpoint. The evidence below retains its earlier

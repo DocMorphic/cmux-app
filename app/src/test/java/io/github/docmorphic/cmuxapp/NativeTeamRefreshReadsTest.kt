@@ -106,7 +106,8 @@ class NativeTeamRefreshReadsTest {
         for(i in 0 until rows.length()) {val row=rows.getJSONObject(i);val payload=row.getJSONObject("payload")
             val expected=row.opt("selected").takeUnless{it===JSONObject.NULL}
             MockWebServer().use{server->Fixture(server).use{f->f.list={members(emptyList())};f.selection={MockResponse().setBody(JSONObject(payload.toString()).put("id","user").toString())}
-                assertEquals(expected,f.teams.refreshAfterSignIn("login",published).selectedTeamId)
+                try {assertEquals(expected,f.teams.refreshAfterSignIn("login",published).selectedTeamId)}
+                catch(failure:Exception){throw AssertionError("Selected projection row $i (${server.requestCount} requests): ${f.events.joinToString()}",failure)}
             }}
         }
     }

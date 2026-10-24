@@ -14,8 +14,7 @@ internal object NativeMacVersionHistory {
     }
 
     fun readDisplay(state: JSONObject?, owner: NativeComputerDisplayOwner): Map<NativeMacIdentity, String?> {
-        if (state == null || owner.login.isBlank() || state.optString("task_session") != owner.login ||
-            state.optString("refresh_token").isBlank()) return emptyMap()
+        if (state == null || !nativeSessionOwns(state,owner.login)) return emptyMap()
         val eligible = eligible(state)
         return decode(state).filterKeys { it.user == owner.user && it.team == owner.team && it in eligible }
             .mapKeys { it.key.identity }
@@ -47,8 +46,7 @@ internal object NativeMacVersionHistory {
         write(state, decode(state).filterKeys { it in allowed })
     }
 
-    private fun owns(state: JSONObject, owner: NativeTeamScope) = owner.login.isNotBlank() &&
-        state.optString("task_session") == owner.login && state.optString("refresh_token").isNotBlank()
+    private fun owns(state: JSONObject, owner: NativeTeamScope) = nativeSessionOwns(state,owner.login)
 
     private fun eligible(state: JSONObject): Set<Key> {
         val grants = TailscaleGrantStore({ state }, { error("read only") })

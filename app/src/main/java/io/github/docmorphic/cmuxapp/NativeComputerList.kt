@@ -20,8 +20,7 @@ internal data class NativeComputerListRow(
 
 internal object NativeComputerList {
     fun tailscaleRoutes(state: JSONObject?, team: NativeTeamScope?, targets: List<NativeComputerTarget>): Map<NativeMacIdentity, String> {
-        if (state == null || team == null || state.optString("task_session") != team.login ||
-            state.optString("refresh_token").isBlank()) return emptyMap()
+        if (state == null || team == null || !nativeSessionOwns(state,team.login)) return emptyMap()
         val grants = TailscaleGrantStore({ state }, { error("Display-only grant snapshot") })
         return targets.mapNotNull { target ->
             grants.computer(team, target).firstOrNull()?.route?.let { route ->

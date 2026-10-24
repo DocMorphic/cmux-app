@@ -60,10 +60,19 @@ class NativeTeamEligibilityRuntimeTest {
     @Test fun anonymousAndRestrictedDirectReadsKeepOnlyLoadedAuthorityAndNeverFetchNewTeams()=runBlocking<Unit> {
         MockWebServer().use {server->seed(server);val account=account(server);val c=teams(server,account)
             val(owner,proof)=establish(server,account,c);val identity=account.sessionRestore.identity()
-            for(flag in listOf("is_anonymous","is_restricted")) {
-                server.teamUsers(2){userReply(flag)};assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
+            val routed=server.dispatcher
+            try {for(flag in listOf("is_anonymous","is_restricted")) {
+                // An immediate primary failure can cancel its optional peer before HTTP.
+                // Admit both independent reads before replying so the exact-count assertion is deterministic.
+                val entered=CountDownLatch(2)
+                server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                    check(request.method=="GET" && request.path=="/api/v1/users/me")
+                    entered.countDown();check(entered.await(3,TimeUnit.SECONDS)){"Both user reads must start before the ineligible reply"}
+                    return userReply(flag)
+                }}
+                assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
                 assertEquals(owner,c.state.value.scope);assertTrue(c.allowsContinuation(proof))
-            }
+            }}finally{server.dispatcher=routed}
             assertEquals(8,server.requestCount);assertEquals(identity,account.sessionRestore.identity())
             server.teamUsers(2){userReply()};server.enqueue(teamReply());assertEquals(owner,c.refresh().scope);assertTrue(c.allowsContinuation(proof));retained()
             record("loaded-ineligible",JSONObject().put("ineligibleUserReads",2).put("newMembershipRequestsForIneligibleUsers",0)

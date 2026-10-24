@@ -17,8 +17,7 @@ internal class NativeForegroundTailscaleRoutes(private val access: NativeForegro
             check(allowed()) { "Computer route owner changed" }
             update { value ->
                 // Production teams and credentials share accountStateLock; no authority registry lock is entered here.
-                check(allowed() && value.optString("task_session") == access.team.login &&
-                    value.optString("refresh_token").isNotBlank()) { "Computer route owner changed" }
+                check(allowed() && nativeSessionOwns(value,access.team.login)) { "Computer route owner changed" }
                 action(value)
                 check(allowed()) { "Computer route owner changed" }
                 beforeCommit()

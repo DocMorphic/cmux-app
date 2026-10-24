@@ -55,8 +55,9 @@ internal class NativeAccountProfileCache(private val load: () -> JSONObject?,
                 .put("name", user.name ?: JSONObject.NULL).put("email", user.email ?: JSONObject.NULL)
                 .put("teams", JSONArray()))
         }
-        private fun owns(root: JSONObject, login: String) = login.isNotBlank() &&
-            root.optString("task_session") == login && root.optString("refresh_token").isNotBlank()
+        // Interactive completion stages this cache before removing its pending receipt.
+        private fun owns(root: JSONObject, login: String) = nativeSessionOwns(root,login) ||
+            login.isNotBlank() && root.opt("task_session")==login && (root.opt("refresh_token") as? String)?.isNotBlank()==true
 
         fun prune(root: JSONObject) {
             NativeTeamSelectionStore.migrate(root)

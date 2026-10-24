@@ -13,7 +13,7 @@ internal object NativeMacLastSeen {
 
     fun record(state: JSONObject, login: String?, mac: NativeCredentialStore.PairedMac, time: Long,
         permits: () -> Boolean): Boolean {
-        if (login.isNullOrBlank() || state.optString("task_session") != login || state.optString("refresh_token").isBlank() ||
+        if (!nativeSessionOwns(state,login) ||
             timestamp(time) == null || !permits()) return false
         val rows = saved(state)
         if (!NativeComputerMenuPairing.isCurrent(mac, rows)) return false

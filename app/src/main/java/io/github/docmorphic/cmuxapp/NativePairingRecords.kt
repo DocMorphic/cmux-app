@@ -87,7 +87,7 @@ internal object NativePairingRecords {
     }
 
     fun removeLocal(state: JSONObject, code: String, team: NativeTeamScope? = null) {
-        if (team != null) check(state.optString("task_session") == team.login && state.optString("refresh_token").isNotBlank()) {
+        if (team != null) check(nativeSessionOwns(state,team.login)) {
             "Account session changed"
         }
         val grants = TailscaleGrantStore({ state }, { error("read only") })

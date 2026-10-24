@@ -90,7 +90,7 @@ internal object NativeComputerForgetLocal {
         }
 
     fun remove(state: JSONObject, team: NativeTeamScope, captured: List<NativeCredentialStore.PairedMac>) {
-        check(state.optString("task_session") == team.login && state.optString("refresh_token").isNotBlank()) {
+        check(nativeSessionOwns(state,team.login)) {
             "Account session changed"
         }
         val previous = state.optJSONArray("pairings") ?: JSONArray()

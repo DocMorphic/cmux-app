@@ -171,7 +171,7 @@ internal class NativeIrohBackend(
                 val descriptor = IrohV2AndroidDevice.descriptor(key.identity(), key.endpointId,
                     version, Build.MODEL.take(118).ifBlank { "Android" }, IrohMobileWireProfile.IOS_COMPATIBILITY)
                 val control = IrohV2ControlSession(IrohV2SignedRequests(descriptor, key::sign),
-                    { force -> account.accessToken(force) ?: error("Sign in to cmux") }, current)
+                    { force -> account.controlAccessToken(force,current) }, current)
                 return NativeIrohBackend(key, control, current, applicationActive,
                     NativePrivatePathStore.create(application, key.identity()), NativeMacConnectionStore.create(application, team),
                     NativeTailscaleRoutes(application, NativeCredentialStore(application), team))

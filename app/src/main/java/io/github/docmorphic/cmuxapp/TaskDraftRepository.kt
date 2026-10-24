@@ -150,7 +150,7 @@ internal class TaskDraftRepository private constructor(
     /** Lifecycle flush does not depend on a disappearing composition's coroutine scope. */
     fun flush() { scope.launch { runCatching { persistNow() } } }
     private fun requireSession(state: org.json.JSONObject) {
-        check(!closed && state.optString("refresh_token").isNotBlank() && state.optString("task_session") == session) {
+        check(!closed && nativeSessionOwns(state,session)) {
             "Account changed while saving task drafts"
         }
     }

@@ -3,7 +3,7 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
-internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, TEAM_LIST, TEAM_SELECTION, REFRESH, FORCE_REFRESH, REFRESH_EXCHANGE, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, ACCOUNT_DELETION, SIGN_OUT, CLEANUP, STATE_CLEAR }
+internal enum class NativeAuthPhase { SEND_CODE, EMAIL_EXCHANGE, OAUTH_EXCHANGE, USER, TEAMS, TEAM_LIST, TEAM_SELECTION, REFRESH, FORCE_REFRESH, REFRESH_EXCHANGE, RESTORE_REFRESH, VALIDATE_SESSION, POST_SIGN_IN, ACCOUNT_DELETION, SIGN_OUT, CLEANUP, STATE_CLEAR, SESSION_RESTORE }
 internal class NativeAuthDeadlineCancellation : CancellationException("The account request timed out. Please try again.")
 
 /** A phase wait may end before its operation does. Keep the actual job, not its waiter. */
@@ -192,6 +192,27 @@ internal class NativeAuthWork(
         val entry=Entry(NativeAuthPhase.STATE_CLEAR,owner,Admission.CLEANUP,task)
         synchronized(lock){active+=entry}
         task.invokeOnCompletion{synchronized(lock){active-=entry};lifetime.cancel()}
+        task.start()
+        try{return task.await()}finally{if(!caller.isActive)task.cancel()}
+    }
+
+    /** Restoration may retire behind synchronous storage IO; its caller must still be able to cancel its wait. */
+    suspend fun <T> restoreSession(dispatcher:CoroutineDispatcher?=null,onFinished:()->Unit={},operation:suspend()->T):T {
+        val caller=currentCoroutineContext()
+        val lifetime=SupervisorJob()
+        val context=caller.minusKey(Job)+lifetime
+        val started=java.util.concurrent.atomic.AtomicBoolean(false)
+        val task=CoroutineScope(if(dispatcher==null)context else context+dispatcher).async(start=CoroutineStart.LAZY){
+            started.set(true)
+            try {caller.ensureActive();operation()} finally {onFinished()}
+        }
+        val entry=Entry(NativeAuthPhase.SESSION_RESTORE,null,Admission.CLEANUP,task)
+        synchronized(lock){active+=entry}
+        task.invokeOnCompletion{
+            // Cancellation before coroutine entry must still retire an admitted validation.
+            if(!started.get())runCatching(onFinished)
+            synchronized(lock){active-=entry};lifetime.cancel()
+        }
         task.start()
         try{return task.await()}finally{if(!caller.isActive)task.cancel()}
     }

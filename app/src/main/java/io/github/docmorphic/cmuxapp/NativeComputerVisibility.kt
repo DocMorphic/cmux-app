@@ -43,7 +43,7 @@ internal object NativeComputerVisibility {
 
     fun setVisible(state: JSONObject, login: String?, captured: NativeCredentialStore.PairedMac,
         visible: Boolean, permits: () -> Boolean): Boolean {
-        if (login.isNullOrBlank() || state.optString("task_session") != login || state.optString("refresh_token").isBlank() || !permits()) return false
+        if (!nativeSessionOwns(state,login) || !permits()) return false
         val saved = saved(state)
         if (!NativeComputerMenuPairing.isCurrent(captured, saved)) return false
         val targets = saved.filter { it.origin == captured.origin || sameComputer(it, captured, state) }

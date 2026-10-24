@@ -7,7 +7,7 @@ import org.json.JSONObject
 internal data class NativeLocalPairingRemoval(val login: String, val team: NativeTeamScope?,
     val mac: NativeCredentialStore.PairedMac?, val code: String) {
     fun remove(state: JSONObject, permits: () -> Boolean) {
-        check(state.optString("task_session") == login && state.optString("refresh_token").isNotBlank() && permits()) {
+        check(nativeSessionOwns(state,login) && permits()) {
             "Account or pairing changed. Reopen Settings."
         }
         val previous = state.optJSONArray("pairings") ?: JSONArray()

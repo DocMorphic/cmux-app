@@ -1,3 +1,47 @@
+## Access-only local session authority reconciled — 2026-10-25
+
+Successful live access-only user validation now establishes a fenced encrypted
+local session receipt. Account/team restoration and local workspace, draft,
+pairing, route and history guards can use that incarnation without inventing a
+refresh token. Bare SDK reads cannot establish it; fresh membership still gates
+team authority. Initial v2 control access retains the original authenticated-pair
+requirement; forced control access uses the public force accessor.
+
+Owning restoration callers can cancel their wait while synchronous encrypted
+storage retires in an independently tracked IO job. Late canceled, replaced or
+revision-stale verification cannot commit or publish. Coalesced continuation
+waiters retain the original owning-run completion behavior. This adds no hard
+bound to underlying synchronous storage IO.
+
+Full JVM: 3,484 total in 467 suites, 3,480 passed, four existing SSH skips, zero
+failures/errors. Owned API36: 264 unique methods pass across two bound cohorts.
+The full run completed 264 in 393.791 seconds with 262 passes and two fixture
+failures; after fixture-only corrections, all 17 methods in both affected classes
+passed in 14.46 seconds. The other 247 passes are retained from the full run;
+the main APK is byte-identical. This is not a single full green 264-method run.
+The corrections distinguish workspace keys per row and admit both user requests
+before ineligible replies, preserving exact counts and authority assertions.
+Full-v8 JVM XML is unchanged by the final test-APK build-v10. Earlier failures
+and the unreproduced two-second JVM HTTP fixture timeout remain recorded.
+
+The mounted team selector/PATCH, selected semantics and local terminal-input
+retirement were verified; terminal wire input/output remains open. The full run's
+real 60-second phase returned at 60017ms with ciphertext/pairing intact and no
+PATCH. Both runs have empty crash logs, no preflight ANR, restored settings/window
+and owned emulator exit 0. No new whole-original execution reference is claimed.
+
+Full parity remains active. Complete route-family and access-only background
+lifecycle, caller/phase admission/high-water reconciliation, snapshot storage-error
+classification/deadlines, authentication-project reset/scoping, remaining
+callback/form/backend/reporting, metadata/image/demo/identity/worker/diagnostic UI,
+actual OS/locked storage/death, physical Pixel/Mac/provider/helper/Firebase,
+matched full UI/accessibility and signed delivery remain open. No physical
+install, real account/pairing/signing data, global pin or frozen signed722 changed.
+
+Details: [Access-only session authority](ACCESS_ONLY_SESSION.md).
+Evidence: `captures/recovery-20261024/access-only-checkpoint.json`.
+Historical checkpoints below retain their original scope and open items.
+
 ## Application token misses and state clearing reconciled — 2026-10-24
 
 Application token reads now distinguish a recoverable miss from an absent

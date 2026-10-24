@@ -58,7 +58,7 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
     fun removeRoute(scope: NativeTeamScope, target: NativeComputerTarget, grant: TailscaleSavedGrant, permits: () -> Boolean) {
         check(permits()) { "Account or team changed. Reopen Computer Details." }
         update { state ->
-            check(state.optString("task_session") == scope.login && state.optString("refresh_token").isNotBlank())
+            check(nativeSessionOwns(state,scope.login))
             val values = decode(state)
             check(grant in values && grant.user == scope.userId && grant.team == scope.teamId &&
                 grant.device == canonicalMacDeviceId(target.deviceId) && grant.build == target.buildTag) { "The route changed. Reopen its menu." }
@@ -73,8 +73,7 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
         update { state ->
             // Check the login inside the atomic credential transaction. Do not acquire the
             // teams lock here; the opposite lock order is used by account refresh.
-            check(state.optString("task_session") == scope.login &&
-                state.optString("refresh_token").isNotBlank()) { "Account or team changed. Pair this Mac again." }
+            check(nativeSessionOwns(state,scope.login)) { "Account or team changed. Pair this Mac again." }
             require(grant.user == scope.userId && grant.team == scope.teamId)
             val previous = decode(state)
             if (deriving != null) check(deriving in previous && deriving.user == grant.user && deriving.team == grant.team &&
