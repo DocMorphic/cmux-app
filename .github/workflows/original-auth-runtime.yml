@@ -1,0 +1,68 @@
+name: Pinned original auth runtime
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: original-auth-runtime
+  cancel-in-progress: false
+jobs:
+  reference:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          path: upstream
+          sparse-checkout: |
+            Packages/Shared/CMUXAuthCore
+            Packages/Shared/CMUXMobileCore
+            Packages/Shared/CmuxAuthRuntime
+            vendor/stack-auth-swift-sdk-prerelease
+            scripts
+          persist-credentials: false
+      - name: Select pinned SDK family
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
+          xcodebuild -version
+          swift --version
+      - name: Record exact originals and locked dependencies
+        working-directory: upstream
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,os,subprocess
+          from pathlib import Path
+          paths=['Packages/Shared/CMUXAuthCore','Packages/Shared/CMUXMobileCore','Packages/Shared/CmuxAuthRuntime','vendor/stack-auth-swift-sdk-prerelease']
+          commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          assert commit=='a5911a1f92f3eeb11c4d7f3e2ef89204718c5009'
+          data=dict(upstream=commit,trees={p:subprocess.check_output(['git','rev-parse','HEAD:'+p],text=True).strip() for p in paths},
+              lockSha256=hashlib.sha256(Path('Packages/Shared/CmuxAuthRuntime/Package.resolved').read_bytes()).hexdigest())
+          Path(os.environ['RUNNER_TEMP']+'/original-auth-source.json').write_text(json.dumps(data,indent=2)+'\n')
+          PY
+      - name: Build original library
+        working-directory: upstream/Packages/Shared/CmuxAuthRuntime
+        run: |
+          set -euo pipefail
+          swift build --jobs 2 --force-resolved-versions 2>&1 | tee "$RUNNER_TEMP/original-auth-build.log"
+      - name: Run original coordinator tests
+        working-directory: upstream/Packages/Shared/CmuxAuthRuntime
+        run: |
+          set -euo pipefail
+          swift test --jobs 2 --force-resolved-versions --filter AuthCoordinator 2>&1 | tee "$RUNNER_TEMP/original-auth-tests.log"
+      - name: Verify source remains unchanged
+        working-directory: upstream
+        run: git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-auth-runtime
+          path: |
+            ${{ runner.temp }}/original-auth-source.json
+            ${{ runner.temp }}/original-auth-build.log
+            ${{ runner.temp }}/original-auth-tests.log
+          retention-days: 14
