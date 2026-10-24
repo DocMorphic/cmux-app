@@ -12,7 +12,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 import java.security.KeyStore
 import java.security.KeyStoreException
 import java.util.UUID
@@ -385,12 +384,17 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
 /** The same production Stack project and OTP endpoints used by cmux iOS. */
 class NativeAccount private constructor(private val store: NativeCredentialStore, private val refreshOverride: ((String) -> String)?,
     private val oauthClient: NativeOAuthClient, internal val oauthBrowser: NativeOAuthBrowser,
-    private val authWork: NativeAuthWork = store.authWork) {
+    private val authWork: NativeAuthWork = store.authWork,
+    private val tokenRefreshLeadMillis: Long = kotlin.random.Random.nextLong(60_000,120_001),
+    private val tokenNowMillis: () -> Long = System::currentTimeMillis) {
     constructor(store: NativeCredentialStore, refreshOverride: ((String) -> String)? = null) :
         this(store, refreshOverride, NativeOAuthClient(PROJECT_ID, PUBLISHABLE_KEY), NativeOAuthBrowser())
     internal constructor(store: NativeCredentialStore, oauthClientOverride: NativeOAuthClient, oauthBrowser: NativeOAuthBrowser,
-        refreshOverride: ((String) -> String)? = null, authWorkOverride: NativeAuthWork? = null) :
-        this(store, refreshOverride, oauthClientOverride, oauthBrowser, authWorkOverride ?: store.authWork)
+        refreshOverride: ((String) -> String)? = null, authWorkOverride: NativeAuthWork? = null,
+        tokenRefreshLeadMillis: Long = kotlin.random.Random.nextLong(60_000,120_001),
+        tokenNowMillis: () -> Long = System::currentTimeMillis) :
+        this(store, refreshOverride, oauthClientOverride, oauthBrowser, authWorkOverride ?: store.authWork,
+            tokenRefreshLeadMillis, tokenNowMillis)
     private val refreshMutex = Mutex()
     internal var onSignedIn: suspend (String, NativeSignInUser) -> Unit = { _, _ -> }
     internal var onSignedOut: suspend (String?,String?) -> Unit = { _,_ -> }
@@ -560,34 +564,61 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         if (forceRefresh) NativeAuthPhase.FORCE_REFRESH else NativeAuthPhase.REFRESH, 60_000) {
         withContext(Dispatchers.IO) {
             refreshMutex.withLock {
-                val state = store.load() ?: return@withLock null
+                val (state,epoch) = synchronized(store.accountStateLock) {
+                    store.requireReadable() to store.authSessionEpoch.get()
+                }
+                if(state==null) return@withLock null
                 if (NativeSignInCompletion.isPending(state)) return@withLock null
                 val current = state.optString("access_token").takeIf { it.isNotBlank() }
-                if (current != null && !forceRefresh && !expiresSoon(current)) return@withLock current
                 val refresh = state.optString("refresh_token").takeIf { it.isNotBlank() }
-                    ?: return@withLock current
-                val session = store.taskSession() ?: return@withLock null
+                fun unchanged() = synchronized(store.accountStateLock) {
+                    val latest=store.requireReadable()
+                    store.authSessionEpoch.get()==epoch && latest?.optString("task_session")==state.optString("task_session") &&
+                        latest.optString("access_token")==state.optString("access_token") && latest.optString("refresh_token")==state.optString("refresh_token") &&
+                        !NativeSignInCompletion.isPending(latest)
+                }
+                if (refresh == null) return@withLock current?.takeIf {
+                    !forceRefresh && !nativeAccessTokenIsExpired(it, tokenNowMillis()) && unchanged()
+                }
+                if (!forceRefresh && nativeCapturedAccessIsFresh(current,tokenNowMillis(),tokenRefreshLeadMillis))
+                    return@withLock current?.takeIf { unchanged() }
+                val session = synchronized(store.accountStateLock) {
+                    if(unchanged()) store.requireReadableTaskSession() else null
+                } ?: return@withLock null
                 val writer = kotlinx.coroutines.currentCoroutineContext()
                 try {
-                    val newToken = withContext(Dispatchers.IO) { refreshOverride?.invoke(refresh) ?: refresh(refresh) }
+                    val newToken = refreshOverride?.invoke(refresh) ?: oauthClient.refreshAccess(refresh)
                     writer.ensureActive()
+                    if(newToken.isBlank()) throw NativeSignInFailure(NativeSignInError.SERVER_ERROR)
                     var applied = false
                     store.update {
                         writer.ensureActive()
-                        if (it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
+                        if (store.authSessionEpoch.get() == epoch && it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
                             it.put("access_token", newToken); applied = true
                         }
                     }
                     newToken.takeIf { applied }
-                } catch (error: InvalidRefreshToken) {
-                    store.update {
-                        writer.ensureActive()
-                        if (it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
-                            it.put("access_token", "").put("refresh_token", "")
-                            it.remove("task_session"); it.remove("task_drafts")
+                } catch (error: Exception) {
+                    writer.ensureActive()
+                    if (error is NativeCredentialReadException) throw error
+                    val rejected = error is InvalidRefreshToken || error is NativeSignInFailure && error.reason == NativeSignInError.UNAUTHORIZED
+                    if (rejected) {
+                        store.update {
+                            writer.ensureActive()
+                            if (store.authSessionEpoch.get() == epoch && it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
+                                it.put("access_token", "").put("refresh_token", "")
+                                it.remove("task_session"); it.remove("task_drafts")
+                            }
                         }
+                        null
+                    } else {
+                        // Proactive refresh can use the observed token while it is actually valid.
+                        // A forced refresh must never reuse a credential the host just rejected.
+                        val latest = store.requireReadable()
+                        if (!forceRefresh && store.authSessionEpoch.get() == epoch && latest?.optString("refresh_token") == refresh &&
+                            latest.optString("task_session") == session && latest.optString("access_token") == current &&
+                            !nativeAccessTokenIsExpired(current,tokenNowMillis())) current else throw error
                     }
-                    null
                 }
             }
         }
@@ -695,36 +726,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         } catch (_: NativeCredentialReadException) { /* Keep durable intent and ciphertext. */ }
     }
 
-    private fun expiresSoon(token: String): Boolean = runCatching {
-        val payload = token.split('.')[1]
-        val data = Base64.decode(payload, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
-        val expires = JSONObject(String(data, Charsets.UTF_8)).getLong("exp")
-        expires <= System.currentTimeMillis() / 1000 + 60
-    }.getOrDefault(true)
-
-    private fun refresh(token: String): String {
-        val connection = URL("https://api.stack-auth.com/api/v1/auth/oauth/token").openConnection() as HttpURLConnection
-        try {
-            connection.requestMethod = "POST"
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 30_000
-            connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            connection.setRequestProperty("x-stack-project-id", PROJECT_ID)
-            connection.setRequestProperty("x-stack-publishable-client-key", PUBLISHABLE_KEY)
-            connection.setRequestProperty("x-stack-access-type", "client")
-            val body = mapOf(
-                "grant_type" to "refresh_token", "refresh_token" to token,
-                "client_id" to PROJECT_ID, "client_secret" to PUBLISHABLE_KEY
-            ).entries.joinToString("&") { (key, value) -> "$key=${URLEncoder.encode(value, "UTF-8")}" }
-            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            if (connection.responseCode == 400 || connection.responseCode == 401) throw InvalidRefreshToken()
-            check(connection.responseCode == 200) { "Account refresh failed: HTTP ${connection.responseCode}" }
-            return JSONObject(connection.inputStream.bufferedReader().use { it.readText() }).getString("access_token")
-        } finally {
-            connection.disconnect()
-        }
-    }
+    private fun expiresSoon(token: String): Boolean = !nativeCapturedAccessIsFresh(token,tokenNowMillis(),tokenRefreshLeadMillis)
 
     private fun request(path: String, body: JSONObject): JSONObject {
         val connection = URL("https://api.stack-auth.com/api/v1$path").openConnection() as HttpURLConnection

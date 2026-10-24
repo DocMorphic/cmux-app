@@ -54,6 +54,9 @@ metadata/profile image/demo state; complete SDK retry/backoff/rate-limit behavio
 process-wide coordinator/authorization ownership across background consumers;
 exact access-only session snapshots, team loading/recovery and real post-sign-in
 side effects. The model's optional hook tests do not prove those app effects.
+Token-only expiry, forced-refresh refusal and proactive valid-token fallback now
+follow the [access-token reader checkpoint](ACCESS_TOKEN_RESOLUTION.md). This does
+not close shared SDK refresh coalescing/backoff or access-only backend admission.
 The legacy raw-token `isSignedIn` API still has backend consumers; root UI now
 observes the restore model. Finish that ownership/admission audit before calling
 the complete auth coordinator equivalent.

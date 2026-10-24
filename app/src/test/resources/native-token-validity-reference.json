@@ -1,0 +1,137 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "source": "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/APIClient.swift",
+  "sourceSha256": "477c288e5721a60169a4d4b87a4a97605efe3c9efd279ea3a2d4e1528932bc48",
+  "declarationsSha256": "1150e6977d31545cfb820c0b4d7f0aa3a515070e70e962f2f659b6ddfb77baca",
+  "scope": "Original SDK expiry/freshness declarations executed with generated fixture tokens. No backend, refresh coordinator, Android runtime or full parity acceptance.",
+  "rows": [
+    {
+      "expired": true,
+      "fresh60": false,
+      "fresh120": false,
+      "id": "absent",
+      "nowMillis": 1792823884497.792,
+      "token": null
+    },
+    {
+      "expired": true,
+      "fresh60": false,
+      "fresh120": false,
+      "id": "malformed",
+      "nowMillis": 1792823884497.792,
+      "token": "bad"
+    },
+    {
+      "expired": true,
+      "fresh60": false,
+      "fresh120": false,
+      "id": "non-object",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.WzEsMl0.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": true,
+      "fresh120": true,
+      "id": "no-expiry",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.e30.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": true,
+      "fresh120": true,
+      "id": "string-expiry",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOiIxMDAifQ.fixture"
+    },
+    {
+      "expired": true,
+      "fresh60": false,
+      "fresh120": false,
+      "id": "expired",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOjE3OTI4MjAyODQuNDk3NzkyfQ.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": false,
+      "fresh120": false,
+      "id": "ten-seconds",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOjE3OTI4MjM4OTQuNDk3NzkyfQ.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": false,
+      "fresh120": false,
+      "id": "forty-seconds",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOjE3OTI4MjM5MjQuNDk3NzkyfQ.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": true,
+      "fresh120": false,
+      "id": "ninety-seconds",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOjE3OTI4MjM5NzQuNDk3NzkyfQ.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": true,
+      "fresh120": true,
+      "id": "long-lived",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOjE3OTI4Mjc0ODQuNDk3NzkyLCJpYXQiOjE3OTI4MTY2ODQuNDk3NzkyfQ.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": true,
+      "fresh120": true,
+      "id": "short-lived",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOjE3OTI4MjM5MjQuNDk3NzkyLCJpYXQiOjE3OTI4MjM4NjQuNDk3NzkyfQ.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": false,
+      "fresh120": false,
+      "id": "minimum-lead",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOjE3OTI4MjM4OTQuNDk3NzkyLCJpYXQiOjE3OTI4MjM4ODQuNDk3NzkyfQ.fixture"
+    },
+    {
+      "expired": true,
+      "fresh60": false,
+      "fresh120": false,
+      "id": "boolean-expiry",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOnRydWV9.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": true,
+      "fresh120": true,
+      "id": "null-expiry",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOm51bGx9.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": true,
+      "fresh120": false,
+      "id": "non-numeric-issue",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOjE3OTI4MjM5NzQuNDk3NzkyLCJpYXQiOiJvbGQifQ.fixture"
+    },
+    {
+      "expired": false,
+      "fresh60": true,
+      "fresh120": false,
+      "id": "future-issue",
+      "nowMillis": 1792823884497.792,
+      "token": "fixture.eyJleHAiOjE3OTI4MjM5NzQuNDk3NzkyLCJpYXQiOjE3OTI4MjM5ODQuNDk3NzkyfQ.fixture"
+    }
+  ]
+}

@@ -51,6 +51,8 @@ class NativeOAuthSignInTest {
             val client = NativeOAuthClient("fixture-project", "fixture-key", server.url("/"))
             server.enqueue(MockResponse().setBody("{\"access_token\":\"fresh\"}")); assertEquals("fresh", client.refreshAccess("stored-refresh"))
             val request = server.takeRequest(); assertEquals("/api/v1/auth/oauth/token", request.path)
+            assertEquals("fixture-project",request.getHeader("x-hexclave-project-id"))
+            assertEquals("fixture-key",request.getHeader("x-hexclave-publishable-client-key"))
             assertEquals(mapOf("grant_type" to "refresh_token", "refresh_token" to "stored-refresh", "client_id" to "fixture-project", "client_secret" to "fixture-key"), fields(request.body.readUtf8()))
             for ((response, role) in listOf(MockResponse().setResponseCode(400).setBody("{}") to NativeSignInError.UNAUTHORIZED,
                 MockResponse().setResponseCode(503).setBody("{}") to NativeSignInError.SERVER_ERROR,
@@ -58,6 +60,18 @@ class NativeOAuthSignInTest {
                 server.enqueue(response); val failure = runCatching { client.refreshAccess("stored-refresh") }.exceptionOrNull() as Exception
                 assertEquals(role, nativeSignInError(failure)); server.takeRequest()
             }
+        }
+    }
+    @Test fun oauthRefreshUsesRawHttpRejectionInsteadOfJsonApiStatusOverrides()=runBlocking {
+        MockWebServer().use { server ->
+            val client=NativeOAuthClient("fixture","public",server.url("/"))
+            server.enqueue(MockResponse().setHeader("x-stack-actual-status","401").setHeader("x-stack-known-error","invalid_grant")
+                .setBody("{\"access_token\":\"minted\"}"))
+            assertEquals("minted",client.refreshAccess("refresh"))
+            server.enqueue(MockResponse().setResponseCode(400).setHeader("x-stack-actual-status","200").setBody("{}"))
+            assertEquals(NativeSignInError.UNAUTHORIZED,nativeSignInError(runCatching {client.refreshAccess("refresh")}.exceptionOrNull() as Exception))
+            server.enqueue(MockResponse().setHeader("x-stack-actual-status","401").setBody("{}"))
+            assertEquals(NativeSignInError.SERVER_ERROR,nativeSignInError(runCatching {client.refreshAccess("refresh")}.exceptionOrNull() as Exception))
         }
     }
     @Test fun userVerificationUsesTheCapturedAccessTokenAndRejectsHttp200ApplicationErrorsOrMissingUsers() = runBlocking {

@@ -1,5 +1,26 @@
 # Native sign-in
 
+## Access-token expiry and refresh decisions advanced — 2026-10-24
+
+The account reader now declines expired access-only tokens and refuses to reuse
+an access token after a forced-refresh failure. Proactive refresh may keep the
+observed token while it is still valid. Original freshness lead/lifetime rules,
+strict unreadable-storage handling and account/epoch checks protect those reads.
+Refresh uses the injected cancellable account HTTP client, with raw OAuth status
+classification and conditional mint/rejection writes.
+
+Full JVM: 3,276 total, 3,272 passed, four existing SSH skips, zero failures.
+Owned API 36: 82/82 in 147.232s, empty crash log, no preflight ANR, restored
+settings/window and emulator exit 0. Sixteen rows from executing whole original
+SDK expiry declarations match Android for expiry and both refresh leads. These
+checks do not establish shared refresh coalescing/backoff, complete coordinator/
+backend admission, actual OS unlock/process death or physical Pixel/Mac/provider
+acceptance. Every broader source/UI/accessibility parity gate remains open.
+
+Details: [token-reader behavior and remaining requirements](ACCESS_TOKEN_RESOLUTION.md).
+Evidence: `captures/recovery-20261023/access-token-checkpoint.json`.
+Phone/Mac installs, global source pins and frozen signed722 remain unchanged.
+
 ## Durable Firebase callback recovery advanced — 2026-10-24
 
 Token callbacks now persist an opaque wakeup before entering encrypted storage.

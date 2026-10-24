@@ -118,9 +118,9 @@ internal class NativeOAuthClient(private val project: String, private val publis
         val body = FormBody.Builder().add("grant_type", "refresh_token").add("refresh_token", refresh)
             .add("client_id", project).add("client_secret", publishableKey).build()
         val result = request(Request.Builder().url(origin.newBuilder().encodedPath("/api/v1/auth/oauth/token").build())
-            .header("x-stack-project-id", project).header("x-stack-publishable-client-key", publishableKey)
-            .header("x-stack-access-type", "client").post(body).build(), successStatus = 200,
-            accountRequest = true, unauthorizedStatuses = setOf(400, 401))
+            .header("x-hexclave-project-id", project).header("x-hexclave-publishable-client-key", publishableKey)
+            .header("x-hexclave-access-type", "client").post(body).build(), successStatus = 200,
+            accountRequest = true, unauthorizedStatuses = setOf(400, 401), rawHttpStatus = true)
         return (result.opt("access_token") as? String)?.takeIf { it.isNotBlank() }
             ?: throw NativeSignInFailure(NativeSignInError.SERVER_ERROR)
     }
@@ -183,7 +183,8 @@ internal class NativeOAuthClient(private val project: String, private val publis
     }
     private class NativeMissingUserPayload : Exception()
     private suspend fun request(request: Request, successStatus: Int? = null, accountRequest: Boolean = false,
-        unauthorizedStatuses: Set<Int> = setOf(401), missingUserJson: Boolean = false, discardBody:Boolean=false): JSONObject = suspendCancellableCoroutine { continuation ->
+        unauthorizedStatuses: Set<Int> = setOf(401), missingUserJson: Boolean = false, discardBody:Boolean=false,
+        rawHttpStatus:Boolean=false): JSONObject = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
@@ -202,8 +203,9 @@ internal class NativeOAuthClient(private val project: String, private val publis
                         }
                     }
                     val raw = buffer.toString("UTF-8")
-                    val status = (response.header("x-hexclave-actual-status") ?: response.header("x-stack-actual-status"))?.toIntOrNull() ?: response.code
-                    val known = response.header("x-hexclave-known-error") ?: response.header("x-stack-known-error")
+                    val status = if(rawHttpStatus) response.code else
+                        (response.header("x-hexclave-actual-status") ?: response.header("x-stack-actual-status"))?.toIntOrNull() ?: response.code
+                    val known = if(rawHttpStatus) null else response.header("x-hexclave-known-error") ?: response.header("x-stack-known-error")
                     if (status !in 200..299 || (successStatus != null && status != successStatus) || !known.isNullOrBlank()) {
                         val parsed = runCatching { JSONObject(raw) }.getOrNull()
                         if (accountRequest && status in unauthorizedStatuses) throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)

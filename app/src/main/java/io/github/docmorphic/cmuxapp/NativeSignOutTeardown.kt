@@ -31,6 +31,18 @@ internal fun nativeCapturedAccessIsFresh(token: String?, nowMillis: Long, refres
     (exp*1000-nowMillis).toLong().coerceAtLeast(0)>lead
 }.getOrDefault(false)
 
+/** Token-only sessions use actual expiry, rather than the proactive refresh lead. */
+internal fun nativeAccessTokenIsExpired(token: String?, nowMillis: Long): Boolean = runCatching {
+    val part = token?.split('.')?.filter(String::isNotEmpty)?.getOrNull(1) ?: return true
+    val payload=JSONObject(String(Base64.getDecoder().decode(part.replace('-','+').replace('_','/')),Charsets.UTF_8))
+    val exp=when(val value=payload.opt("exp")) {
+        is Number -> value.toDouble()
+        is Boolean -> if(value)1.0 else 0.0
+        else -> return false
+    }
+    (exp*1000-nowMillis).toLong().coerceAtLeast(0)<=0
+}.getOrDefault(true)
+
 /** Cancellation is checked between every leg; no leg may fall back to a live account. */
 internal suspend fun nativeSignOutTeardown(captured:NativeCapturedSession,
     freshAccess:suspend (String?,String)->String?,
