@@ -134,3 +134,19 @@ Firebase/helper behavior, physical Pixel/Mac, signed release and matched UI/
 accessibility acceptance remain open. Fixtures and source alignment do not prove
 those gates. Source pins, signing material and frozen signed 722 are unchanged.
 No physical phone or Mac install or production account/pairing data changed.
+
+## Shared SDK transport checkpoint — 2026-10-24
+
+[SDK transport and pending-session refresh](SDK_TRANSPORT.md) now supplies the
+request/header/error/retry layer for SDK user/team paths, email and captured
+revocation. Body/list projections and existing owner/generation/deadline fences
+remain in place; backend creation and direct OAuth/form/refresh protocols retain
+their separate contracts. Exact invalid-access-token401 retries keep the nonce
+and refresh snapshot, including receipt-owned interactive/orphaned recovery.
+Completed429 and interrupted transfers follow different source branches.
+
+Full JVM: 3,463 passed, four skips. Owned API36: 215/215, including 14 new methods
+and 201 regressions. Complete getUser/adaptor error/freshness behavior, remaining
+transport/reporting/consumer/reset/UI work and real-device acceptance remain open.
+See the linked checkpoint for measured source seams, earlier failed attempts,
+remaining scope and exact evidence bindings. This does not establish full parity.

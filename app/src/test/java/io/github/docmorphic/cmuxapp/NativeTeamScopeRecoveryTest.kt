@@ -116,7 +116,8 @@ class NativeTeamScopeRecoveryTest {
         val e=NativeAccountRateLimited(999999.0,"https://private.test/users/private-user?token=secret","private-body")
         assertEquals("/unknown",e.endpoint);assertEquals("other",e.bodyKind);assertEquals(86400.0,e.retryAfterSeconds!!,0.0)
         assertFalse(e.toString().contains("private"));assertNull(nativeSessionCheckLimit(IOException("429")))
-        assertEquals("/unknown",nativeSessionCheckLimit(NativeAccountRequestFailure("rate_limit",false,"fixture"))!!.endpoint)
+        assertNull(nativeSessionCheckLimit(NativeAccountRequestFailure("rate_limit",false,"fixture")))
+        assertEquals("/unknown",nativeSessionCheckLimit(NativeAccountRequestFailure("RATE_LIMITED",false,"fixture"))!!.endpoint)
     }
     private inner class ModelFixture(val test:TestScope) {
         val lock=Any();val user=NativeSignInUser("account-a","A",null,null)

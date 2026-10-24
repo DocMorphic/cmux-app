@@ -87,7 +87,11 @@ internal class NativeOAuthClient(private val project: String, private val publis
     private val client: OkHttpClient = OkHttpClient.Builder().callTimeout(30, TimeUnit.SECONDS)
         .connectTimeout(30, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS)
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build(),
-    private val capturedRefreshLeadMillis:Long=kotlin.random.Random.nextLong(60_000,120_001)) {
+    private val capturedRefreshLeadMillis:Long=kotlin.random.Random.nextLong(60_000,120_001),
+    private val sdkRetrySleep:suspend(Long)->Unit=nativeSdkRetrySleep) {
+    private val sdkClient=client.newBuilder().callTimeout(0,TimeUnit.SECONDS).cache(null)
+        .connectTimeout(30,TimeUnit.SECONDS).readTimeout(30,TimeUnit.SECONDS).writeTimeout(30,TimeUnit.SECONDS)
+        .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build()
     fun authorizationUrl(provider: NativeOAuthProvider, challenge: NativeOAuthChallenge): HttpUrl =
         origin.newBuilder().encodedPath("/api/v1/auth/oauth/authorize/${provider.wire}")
             .addQueryParameter("client_id", project).addQueryParameter("client_secret", publishableKey)
@@ -130,56 +134,59 @@ internal class NativeOAuthClient(private val project: String, private val publis
             kotlinx.coroutines.currentCoroutineContext().ensureActive();null
         }
     }
-    /** DELETE uses only this ephemeral pair; a rejected access token can refresh it once. */
+    /** DELETE uses only the captured pair, including after a rejected access refresh. */
     suspend fun revokeCapturedSession(captured:NativeCapturedSession) {
-        if(captured.access==null && captured.refresh==null) return
-        var access=captured.access;var refreshed=false;var networkAttempt=0
-        val nonce=java.util.UUID.randomUUID().toString()
-        while(true) {
-            kotlinx.coroutines.currentCoroutineContext().ensureActive()
-            val builder=Request.Builder().url(origin.newBuilder().encodedPath("/api/v1/auth/sessions/current").build())
-                .delete().header("x-hexclave-project-id",project).header("x-hexclave-publishable-client-key",publishableKey)
-                .header("x-hexclave-access-type","client").header("x-hexclave-client-version","cmux-android@0.2.0")
-                .header("x-hexclave-override-error-status","true").header("x-hexclave-random-nonce",nonce)
-            access?.let { builder.header("x-hexclave-access-token",it) }
-            captured.refresh?.let { builder.header("x-hexclave-refresh-token",it) }
-            try {
-                request(builder.build(),accountRequest=true,unauthorizedStatuses=emptySet(),discardBody=true)
-                return
-            } catch(failure:NativeAccountRequestFailure) {
-                if(failure.code!="invalid_access_token" || refreshed || captured.refresh==null) throw failure
-                refreshed=true;access=refreshAccess(captured.refresh)
-            } catch(failure:IOException) {
-                kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                if(networkAttempt>=5) throw failure
-                kotlinx.coroutines.delay((1L shl networkAttempt++)*1000)
-            }
+        if(captured.access==null && captured.refresh==null)return
+        val initial=nativeSdkRequest(origin.newBuilder().encodedPath("/api/v1/auth/sessions/current").build(),
+            project,publishableKey,method="DELETE",access=captured.access,refresh=captured.refresh)
+        nativeSdkSend(initial,true,refreshRejected={
+            captured.refresh?.let {credential->try {refreshAccess(credential)} catch(_:Exception) {
+                currentCoroutineContext().ensureActive();null
+            }}
+        },sleep=sdkRetrySleep,exchange=::sdkWire)
+    }
+
+    suspend fun emailRequest(path:String,body:JSONObject):JSONObject {
+        val initial=nativeSdkRequest(origin.newBuilder().encodedPath("/api/v1$path").build(),project,publishableKey,
+            method="POST",body=body)
+        return NativeAuthJson.objectValue(nativeSdkSend(initial,false,sleep=sdkRetrySleep,exchange=::sdkWire))
+    }
+    private fun userRequest(access:String,refresh:String?)=nativeSdkRequest(
+        origin.newBuilder().encodedPath("/api/v1/users/me").build(),project,publishableKey,access=access,refresh=refresh)
+
+    suspend fun currentUser(access:String,refresh:String?=null,refreshRejectedAccess:(suspend(String?)->String?)?=null):NativeSignInUser {
+        val raw=nativeSdkSend(userRequest(access,refresh),true,refreshRejectedAccess,sleep=sdkRetrySleep,exchange=::sdkWire)
+        val payload=runCatching{NativeAuthJson.objectValue(raw)}.getOrElse{throw NativeSignInFailure(NativeSignInError.SERVER_ERROR)}
+        return NativeSignInUser.decode(payload)
+    }
+
+    /** Match getUser(.throw): invalid JSON is nil; non-rate failures do not verify a user. */
+    suspend fun restoredCurrentUser(access:String,refresh:String?=null,refreshRejectedAccess:suspend(String?)->String?):NativeSignInUser? {
+        return try {
+            val raw=nativeSdkSend(userRequest(access,refresh),true,refreshRejectedAccess,sleep=sdkRetrySleep,exchange=::sdkWire)
+            val payload=runCatching{NativeAuthJson.objectValue(raw)}.getOrNull() ?: return null
+            NativeSignInUser.decode(payload)
+        } catch(failure:Exception) {
+            currentCoroutineContext().ensureActive()
+            if(nativeSessionCheckLimit(failure)!=null)throw failure
+            throw NativeSessionUserUnavailable()
         }
     }
 
-    private fun userRequest(access: String) = Request.Builder().url(origin.newBuilder().encodedPath("/api/v1/users/me").build())
-        .header("x-stack-project-id", project).header("x-stack-publishable-client-key", publishableKey)
-        .header("x-stack-access-type", "client").header("x-stack-client-version", "cmux-android@0.2.0")
-        .header("x-stack-access-token", access).header("x-stack-override-error-status", "true")
-        .header("x-stack-random-nonce", java.util.UUID.randomUUID().toString()).build()
-    suspend fun currentUser(access: String): NativeSignInUser = NativeSignInUser.decode(request(userRequest(access), accountRequest = true,unboundedBody=true))
-
-    /** Match getUser(.throw): invalid JSON is nil, most errors are USER_NOT_SIGNED_IN. */
-    suspend fun restoredCurrentUser(access: String, refreshRejectedAccess: suspend () -> String?): NativeSignInUser? {
-        suspend fun read(token: String) = request(userRequest(token), accountRequest = true,
-            unauthorizedStatuses = emptySet(), missingUserJson = true,unboundedBody=true)
-        return try {
-            val payload = try { read(access) } catch (failure: NativeAccountRequestFailure) {
-                if (failure.code != "invalid_access_token") throw failure
-                read(refreshRejectedAccess() ?: throw NativeSessionUserUnavailable())
+    private suspend fun sdkWire(request:Request):ByteArray=suspendCancellableCoroutine {continuation->
+        val call=sdkClient.newCall(request)
+        continuation.invokeOnCancellation{call.cancel()}
+        call.enqueue(object:Callback {
+            override fun onFailure(call:Call,e:IOException) {if(continuation.isActive)continuation.resumeWithException(e)}
+            override fun onResponse(call:Call,response:Response) {
+                val result=runCatching{response.use {
+                    val bytes=it.body?.bytes() ?: byteArrayOf()
+                    nativeSdkCheckResponse(it,bytes)
+                    bytes
+                }}
+                if(continuation.isActive)result.fold(continuation::resume,continuation::resumeWithException)
             }
-            NativeSignInUser.decode(payload)
-        } catch (_: NativeMissingUserPayload) { null }
-        catch (failure: Exception) {
-            kotlinx.coroutines.currentCoroutineContext().ensureActive()
-            if (nativeSessionCheckLimit(failure)!=null) throw failure
-            throw NativeSessionUserUnavailable()
-        }
+        })
     }
     private class NativeMissingUserPayload : Exception()
     private suspend fun request(request: Request, successStatus: Int? = null, accountRequest: Boolean = false,

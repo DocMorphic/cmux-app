@@ -12,6 +12,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONObject
 import org.junit.*
 import org.junit.Assert.*
@@ -21,6 +22,14 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /** Actual production form/session/client/challenge; emulator-local provider, no real account. */
 class NativeSignInRecoveryRuntimeTest {
+    private fun sdkResponse(status:Int,known:String?,raw:String):JSONObject {
+        val request=okhttp3.Request.Builder().url("https://fixture.invalid/api/v1/auth/otp/send-sign-in-code").build()
+        val response=okhttp3.Response.Builder().request(request).protocol(okhttp3.Protocol.HTTP_1_1).message("fixture").code(status)
+            .body(raw.toByteArray().toResponseBody(null)).apply {known?.let{header("x-hexclave-known-error",it)}}.build()
+        response.use{nativeSdkCheckResponse(it,raw.toByteArray())}
+        return NativeAuthJson.objectValue(raw.toByteArray())
+    }
+
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     @Before fun emulatorOnly() { check(android.os.Build.MODEL.contains("sdk") || android.os.Build.FINGERPRINT.contains("generic")) }
     @After fun finish() { compose.activity.finish() }
@@ -34,11 +43,11 @@ class NativeSignInRecoveryRuntimeTest {
             val otp = NativeEmailSignIn({ path, body ->
                 if (path.endsWith("send-sign-in-code")) {
                     sends.incrementAndGet()
-                    if (!verified.get()) nativeAccountResponse(400, "USER_EMAIL_ALREADY_EXISTS",
+                    if (!verified.get()) sdkResponse(400, "USER_EMAIL_ALREADY_EXISTS",
                         "{\"details\":{\"would_work_if_email_was_verified\":true}}")
                     JSONObject().put("nonce", "FixtureChallenge")
                 } else {
-                    if (exchanges.incrementAndGet() == 1) nativeAccountResponse(400, "INVALID_OTP", "{}")
+                    if (exchanges.incrementAndGet() == 1) sdkResponse(400, "INVALID_OTP", "{}")
                     assertEquals("abc123FixtureChallenge", body.getString("code"))
                     JSONObject().put("access_token", "fixture-access").put("refresh_token", "fixture-refresh")
                 }

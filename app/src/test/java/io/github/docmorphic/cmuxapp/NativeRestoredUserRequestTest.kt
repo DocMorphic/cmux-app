@@ -14,8 +14,8 @@ class NativeRestoredUserRequestTest {
             server.enqueue(MockResponse().setBody("{\"id\":\"verified\"}"))
             assertEquals("verified",client.restoredCurrentUser("old") { refreshes++;"new" }?.id)
             assertEquals(1,refreshes)
-            assertEquals("old",server.takeRequest().getHeader("x-stack-access-token"))
-            assertEquals("new",server.takeRequest().getHeader("x-stack-access-token"))
+            assertEquals("old",server.takeRequest().getHeader("x-hexclave-access-token"))
+            assertEquals("new",server.takeRequest().getHeader("x-hexclave-access-token"))
             repeat(2) { server.enqueue(MockResponse().setResponseCode(401).setHeader("x-stack-known-error", "invalid_access_token").setBody("{}")) }
             assertTrue(runCatching { client.restoredCurrentUser("old") { refreshes++;"new" } }.exceptionOrNull() is NativeSessionUserUnavailable)
             assertEquals(2,refreshes);assertEquals(4,server.requestCount)

@@ -8,8 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.KeyStore
 import java.security.KeyStoreException
 import java.util.UUID
@@ -426,13 +424,14 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     internal var onSignedIn: suspend (String, NativeSignInUser) -> Unit = { _, _ -> }
     internal var onSignedOut: suspend (String?,String?) -> Unit = { _,_ -> }
     internal var signOutTeardownTimeoutMillis: Long = 5_000
-    private val completion = NativeSignInCompletion(store::load, store::update, oauthClient::currentUser,
+    private val completion = NativeSignInCompletion(store::load, store::update, {access->oauthClient.currentUser(access,store.load()?.opt("refresh_token") as? String)},
         oauthClient.accountEnvironment, store.accountStateLock, onPublished = { login, user -> onSignedIn(login, user) },
         refreshAccess = oauthClient::refreshAccess, work = authWork,
         onCredentialsWritten = { sessionRestore.noteCredentialWrite(); store.authSessionEpoch.incrementAndGet() },
         onVerified = { owner, user -> publishedOwner.set(owner); observedAuthEpoch.set(store.authSessionEpoch.get()); sessionRestore.publishedSignIn(user) },
-        sessionEpoch = { store.authSessionEpoch.get() })
-    private val emailSignIn = NativeEmailSignIn(::request) { _, _ -> error("Sign-in completion receipt required") }
+        sessionEpoch = { store.authSessionEpoch.get() },
+        fetchUserWithRefresh={access,refreshRejected->oauthClient.currentUser(access,store.requireReadable()?.opt("refresh_token") as? String,refreshRejected)})
+    private val emailSignIn = NativeEmailSignIn(oauthClient::emailRequest) { _, _ -> error("Sign-in completion receipt required") }
     private val oauthSignIn = NativeOAuthSignIn(oauthClient::prepare, oauthBrowser::authorize, oauthClient::exchange,
         publish = { _, _ -> error("Sign-in completion receipt required") })
 
@@ -517,7 +516,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
             }
             val access = root.optString("access_token").takeIf { it.isNotBlank() && !expiresSoon(it) } ?: refreshPending()
                 ?: throw NativeSessionUserUnavailable()
-            val user = oauthClient.restoredCurrentUser(access) { refreshPending() }
+            val user = oauthClient.restoredCurrentUser(access,root.opt("refresh_token") as? String) { refreshPending() }
             if (user != null) {
                 val caller = kotlinx.coroutines.currentCoroutineContext()
                 store.update { value ->
@@ -531,7 +530,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
             return user
         }
         val token = accessToken() ?: throw NativeSessionUserUnavailable()
-        return oauthClient.restoredCurrentUser(token) { accessToken(forceRefresh = true) }
+        return oauthClient.restoredCurrentUser(token,root.opt("refresh_token") as? String) {failed->accessToken(forceRefresh=true,rejectedAccess=failed)}
     }
     private suspend fun clearSavedSession(expectedRefresh: String?): Boolean = withContext(Dispatchers.IO) {
         var cleared = false
@@ -588,7 +587,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     internal suspend fun restorePendingSignIn() = completion.restorePending()
     internal fun supersedeTimedOutAuthPhases() = authWork.supersedeTimedOutPhases()
 
-    suspend fun accessToken(forceRefresh: Boolean = false): String? = authWork.run(
+    suspend fun accessToken(forceRefresh: Boolean = false,rejectedAccess:String?=null): String? = authWork.run(
         if (forceRefresh) NativeAuthPhase.FORCE_REFRESH else NativeAuthPhase.REFRESH, 60_000) {
         withContext(Dispatchers.IO) {
             val (state,epoch) = synchronized(store.accountStateLock) {
@@ -604,6 +603,9 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
                     latest.optString("access_token")==state.optString("access_token") && latest.optString("refresh_token")==state.optString("refresh_token") &&
                     !NativeSignInCompletion.isPending(latest)
             }
+            // A later 401 for an old request reuses the token installed by the first waiter.
+            if(forceRefresh && refresh!=null && rejectedAccess!=null && current!=null && current!=rejectedAccess &&
+                !nativeAccessTokenIsExpired(current,tokenNowMillis()))return@withContext current.takeIf{unchanged()}
             if (refresh == null) return@withContext current?.takeIf {
                 !forceRefresh && !nativeAccessTokenIsExpired(it, tokenNowMillis()) && unchanged()
             }
@@ -640,26 +642,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         !NativeSignInCompletion.isPending(it) && it.optString("refresh_token").isNotBlank()
     } == true
 
-    suspend fun userId(): String? = withContext(Dispatchers.IO) {
-        val token = accessToken() ?: return@withContext null
-        val connection = URL("https://api.stack-auth.com/api/v1/users/me").openConnection() as HttpURLConnection
-        try {
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 20_000
-            connection.setRequestProperty("x-stack-project-id", PROJECT_ID)
-            connection.setRequestProperty("x-stack-publishable-client-key", PUBLISHABLE_KEY)
-            connection.setRequestProperty("x-stack-client-version", "swift@1.0.0")
-            connection.setRequestProperty("x-stack-access-type", "client")
-            connection.setRequestProperty("x-stack-access-token", token)
-            connection.setRequestProperty("x-stack-override-error-status", "true")
-            connection.setRequestProperty("x-stack-random-nonce", UUID.randomUUID().toString())
-            val status = connection.getHeaderField("x-stack-actual-status")?.toIntOrNull() ?: connection.responseCode
-            check(status in 200..299) { "Could not verify your cmux account" }
-            JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                .optString("id").takeIf { it.isNotBlank() }
-        } finally { connection.disconnect() }
-    }
+    suspend fun userId():String? = sessionRestore.restoreIdentityIfNeeded()?.id?.takeIf{it.isNotEmpty()}
 
     internal suspend fun deletionCredentials(login: String): NativeDeletionCredentials? {
         return deletionCredentials(deletionOwner(login) ?: throw kotlinx.coroutines.CancellationException("Account changed"))
@@ -791,34 +774,6 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     }
 
     private fun expiresSoon(token: String): Boolean = !nativeCapturedAccessIsFresh(token,tokenNowMillis(),tokenRefreshLeadMillis)
-
-    private fun request(path: String, body: JSONObject): JSONObject {
-        val connection = URL("https://api.stack-auth.com/api/v1$path").openConnection() as HttpURLConnection
-        try {
-            connection.requestMethod = "POST"
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 30_000
-            connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("x-stack-project-id", PROJECT_ID)
-            connection.setRequestProperty("x-stack-publishable-client-key", PUBLISHABLE_KEY)
-            connection.setRequestProperty("x-stack-client-version", "swift@1.0.0")
-            connection.setRequestProperty("x-stack-access-type", "client")
-            connection.setRequestProperty("x-stack-override-error-status", "true")
-            connection.setRequestProperty("x-stack-random-nonce", UUID.randomUUID().toString())
-            connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-            val httpStatus = connection.responseCode
-            val status = (connection.getHeaderField("x-hexclave-actual-status")
-                ?: connection.getHeaderField("x-stack-actual-status"))?.toIntOrNull() ?: httpStatus
-            // Stack can carry an application error in an HTTP 200 response.
-            val stream = if (httpStatus in 200..299) connection.inputStream else connection.errorStream
-            return nativeAccountResponse(status, connection.getHeaderField("x-hexclave-known-error")
-                ?: connection.getHeaderField("x-stack-known-error"), stream?.bufferedReader()?.use { it.readText() }.orEmpty())
-        } finally {
-            connection.disconnect()
-        }
-    }
 
     internal class InvalidRefreshToken : Exception()
 

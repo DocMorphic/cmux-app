@@ -13,14 +13,14 @@ class NativeSessionRateLimitTest {
         MockWebServer().use {server->server.enqueue(throttle())
             val e=runCatching{client(server).restoredCurrentUser("fixture-token"){error("No refresh on429")}}.exceptionOrNull()
             assertTrue(e is NativeAccountRateLimited);e as NativeAccountRateLimited
-            assertEquals("/api/v1/users/me",e.endpoint);assertEquals("html",e.bodyKind);assertEquals(1.234,e.retryAfterSeconds!!,0.0)
+            assertEquals("/api/v1/users/me",e.endpoint);assertEquals("html",e.bodyKind);assertEquals(1.2345,e.retryAfterSeconds!!,0.0)
             assertFalse(e.toString().contains("private-response"));assertEquals(1,server.requestCount)
         }
     }
-    @Test fun actualStatusAndKnownErrorAliasesKeepTheSameThrottleMetadata()=runBlocking<Unit> {
-        for(header in listOf("x-stack-actual-status","x-hexclave-actual-status","x-stack-known-error","x-hexclave-known-error"))
+    @Test fun actualStatusAliasesKeepTheSameThrottleMetadata()=runBlocking<Unit> {
+        for(header in listOf("x-stack-actual-status","x-hexclave-actual-status"))
             MockWebServer().use {server->
-                server.enqueue(throttle().setResponseCode(200).setHeader(header,if(header.endsWith("actual-status"))"429" else "rate_limited"))
+                server.enqueue(throttle().setResponseCode(200).setHeader(header,"429"))
                 val e=runCatching{client(server).restoredCurrentUser("fixture-token"){null}}.exceptionOrNull()
                 assertTrue(header,e is NativeAccountRateLimited);assertEquals(1,server.requestCount)
             }

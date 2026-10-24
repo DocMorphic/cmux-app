@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.test.*
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -11,24 +12,32 @@ import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeSignInRecoveryTest {
+    private fun sdkResponse(status:Int,known:String?,raw:String):JSONObject {
+        val request=okhttp3.Request.Builder().url("https://fixture.invalid/api/v1/auth/otp/send-sign-in-code").build()
+        val response=okhttp3.Response.Builder().request(request).protocol(okhttp3.Protocol.HTTP_1_1).message("fixture").code(status)
+            .body(raw.toByteArray().toResponseBody(null)).apply {known?.let{header("x-hexclave-known-error",it)}}.build()
+        response.use{nativeSdkCheckResponse(it,raw.toByteArray())}
+        return NativeAuthJson.objectValue(raw.toByteArray())
+    }
+
     private fun refused() = NativeAccountRequestFailure("USER_EMAIL_ALREADY_EXISTS", true, "Fixture refusal")
 
     @Test fun typedWireRefusalRequiresTheOriginalCodeAndBooleanOrNumericDetail() {
         for (value in listOf<Any>(true, 1, 2, false, 0, "true", JSONObject.NULL)) {
             val body = JSONObject().put("details", JSONObject().put("would_work_if_email_was_verified", value))
-            val failure = runCatching { nativeAccountResponse(400, "user_email_already_exists", body.toString()) }.exceptionOrNull()
+            val failure = runCatching { sdkResponse(400, "USER_EMAIL_ALREADY_EXISTS", body.toString()) }.exceptionOrNull()
             assertTrue(failure is NativeAccountRequestFailure)
-            assertEquals(value == true || value == 1 || value == 2, (failure as NativeAccountRequestFailure).requiresEmailVerification)
+            assertEquals(value == true || value == 1, (failure as NativeAccountRequestFailure).requiresEmailVerification)
         }
-        val unrelated = runCatching { nativeAccountResponse(400, "OTHER_ERROR", "{\"details\":{\"would_work_if_email_was_verified\":true}}") }.exceptionOrNull()
+        val unrelated = runCatching { sdkResponse(400, "OTHER_ERROR", "{\"details\":{\"would_work_if_email_was_verified\":true}}") }.exceptionOrNull()
         assertFalse((unrelated as NativeAccountRequestFailure).requiresEmailVerification)
     }
 
     @Test fun knownErrorOnHttpSuccessIsStillARefusalAndHtmlRateLimitIsTyped() {
-        assertTrue(runCatching { nativeAccountResponse(200, "INVALID_OTP", "{}") }.exceptionOrNull() is NativeAccountRequestFailure)
-        val rate = runCatching { nativeAccountResponse(429, null, "<html>busy</html>") }.exceptionOrNull() as NativeAccountRequestFailure
+        assertTrue(runCatching { sdkResponse(200, "INVALID_OTP", "{}") }.exceptionOrNull() is NativeAccountRequestFailure)
+        val rate = runCatching { sdkResponse(429, null, "<html>busy</html>") }.exceptionOrNull() as NativeAccountRequestFailure
         assertEquals("RATE_LIMITED", rate.code); assertFalse(rate.requiresEmailVerification)
-        assertEquals("nonce", nativeAccountResponse(200, null, "{\"nonce\":\"nonce\"}").getString("nonce"))
+        assertEquals("nonce", sdkResponse(200, null, "{\"nonce\":\"nonce\"}").getString("nonce"))
     }
 
     @Test fun bothRecoveryEndpointsSendOnlyNormalizedEmailAndAcceptAnySuccessfulStatus() = runBlocking {
@@ -41,7 +50,7 @@ class NativeSignInRecoveryTest {
                 val request = checkNotNull(server.takeRequest(5, TimeUnit.SECONDS))
                 assertEquals(path, request.path); assertEquals("POST", request.method)
                 assertTrue(request.getHeader("Content-Type")!!.startsWith("application/json"))
-                assertNull(request.getHeader("Authorization")); assertNull(request.getHeader("x-stack-access-token"))
+                assertNull(request.getHeader("Authorization")); assertNull(request.getHeader("x-hexclave-access-token"))
                 val body = JSONObject(request.body.readUtf8()); assertEquals(setOf("email"), body.keys().asSequence().toSet())
                 assertEquals("person@example.test", body.getString("email"))
             }

@@ -58,12 +58,12 @@ class NativeTeamEligibilityTest {
     }
     @Test fun everyFailedUserReadPreservesLoadedMembershipButRateLimitRemainsDistinct()=runBlocking<Unit> {
         for(status in listOf(400,401,403,404,429,503))MockWebServer().use {server->controller(server).use {c->
-            val(scope,proof)=establish(server,c);repeat(if(status==401)4 else 2){server.teamUsers{MockResponse().setResponseCode(status)}}
+            val(scope,proof)=establish(server,c);repeat(2){server.teamUsers{MockResponse().setResponseCode(status)}}
             val failure=runCatching {c.refresh()}.exceptionOrNull();assertNotNull(failure)
             if(status==429)assertTrue(failure is NativeAccountRateLimited)
             else assertTrue(failure is NativeSessionUserUnavailable)
             assertEquals(scope,c.state.value.scope);assertTrue(c.allowsContinuation(proof))
-            assertTrue(server.requestCount in (if(status==401)5..7 else 4..5))
+            assertTrue(server.requestCount in (4..5))
         }}
     }
     @Test fun failedMembershipIsNotEmptyMembershipAndSuccessfulRemovalCannotReviveAnOldProof()=runBlocking<Unit> {
@@ -122,10 +122,15 @@ class NativeTeamEligibilityTest {
     }
     @Test fun malformedUserAndMembershipBodiesCannotLeakTheirContentsIntoPresentation()=runBlocking<Unit> {
         MockWebServer().use {server->controller(server).use {c->
-            val(_,proof)=establish(server,c)
-            repeat(2){server.teamUsers{MockResponse().setBody("private-user-body-canary")}};assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
+            val mode=AtomicReference("valid")
+            server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                if(request.path=="/api/v1/users/me")return if(mode.get()=="bad-user")MockResponse().setBody("private-user-body-canary") else reply(user())
+                return if(mode.get()=="bad-list")MockResponse().setBody("private-team-body-canary") else teams()
+            }}
+            val scope=checkNotNull(c.refreshAfterSignIn("login",a).scope);val proof=checkNotNull(c.captureContinuation(scope))
+            mode.set("bad-user");assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
             assertFalse(c.state.value.error.orEmpty().contains("private-user-body-canary"));assertTrue(c.allowsContinuation(proof))
-            repeat(2){server.teamUsers{reply(user())}};server.enqueue(MockResponse().setBody("private-team-body-canary"))
+            mode.set("bad-list")
             val empty=c.refresh();assertTrue(empty.teams.isEmpty());assertNull(empty.scope);assertTrue(c.hasLoadedMembership)
             assertFalse(c.state.value.error.orEmpty().contains("private-team-body-canary"));assertFalse(c.allowsContinuation(proof))
         }}

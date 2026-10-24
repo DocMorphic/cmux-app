@@ -42,7 +42,7 @@ class NativeTeamMutationTest {
             assertEquals("GET",server.takeRequest().method);val patch=server.takeRequest();val expected=row.getJSONObject("request")
             assertEquals("/api/v1"+expected.getString("path"),patch.path);assertEquals(expected.getString("method"),patch.method)
             assertEquals(expected.getJSONObject("body").toString(),JSONObject(patch.body.readUtf8()).toString())
-            assertTrue(expected.getBoolean("authenticated"));assertEquals("fixture-access",patch.getHeader("x-stack-access-token"))
+            assertTrue(expected.getBoolean("authenticated"));assertEquals("fixture-access",patch.getHeader("x-hexclave-access-token"))
         }}}
     }
     @Test fun selectionRevalidatesEligibilityBeforeSendingAnyPatchAndPreservesTheLoadedScopeOnFailure()=runBlocking<Unit> {

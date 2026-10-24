@@ -1,3 +1,39 @@
+## SDK transport and pending-session refresh reconciled — 2026-10-24
+
+Shared SDK requests now send Hexclave-only headers, snapshot both tokens and
+keep one nonce/body/refresh header through network and authentication retries.
+Only exact known invalid-access-token 401s refresh; bare 401s and other known
+errors do not. Effective status, empty known errors, source error details and
+idempotent network retries follow the executed original declarations. Completed
+429s return immediately; interrupted transfers follow network retry rules.
+Interactive/orphaned pending sessions refresh through a receipt/epoch/phase
+fence without granting unverified account authority. Delayed ordinary rejections
+reuse an already-installed token. The duplicate raw userId HTTP path is removed.
+
+Full JVM: 3,467 total in 460 suites, 3,463 passed, four existing SSH skips, zero
+failures/errors. Owned API 36: 215/215 in 363.715 seconds, 14 new methods plus
+201 prior regressions. The original 82-case transport reference runs on ART,
+alongside the prior 368-case byte corpus. Real isolated account/Keystore/HTTP
+cases exercise stable retries, interrupted responses, interactive and orphaned
+recovery and replaced receipts. The 60-second phase returned at 60,024ms with
+ciphertext/pairing intact and no PATCH. Crash log empty, no preflight ANR,
+settings/window restored, owned exit0. Receipt: 87 local inputs, 44 originals,
+exact installed APKs and source-reference asset hash. Regeneration is identical.
+
+Full parity remains active: complete getUser/adaptor error/freshness projection,
+teams/restore refresh-failure projection, direct OAuth/form/backend contracts,
+Retry-After parser edges, SDK observer/callerReports and consent-aware reporting,
+remaining JSON/metadata/token/mutation/identity/worker/reset work, image/demo UI,
+iOS-runtime equivalence, actual locked storage/OS/death, physical Pixel/Mac/
+provider/helper/Firebase, matched full UI/accessibility and signed delivery
+remain open. The oracle uses inert transport/refresh/clock seams on measured
+macOS26.5.2/CoreFoundation5026.5. The public unauthenticated probe did not
+reproduce the source comment's alias-triggered429 claim. No physical install,
+real account/pairing/signing data, global pin or frozen signed722 changed.
+
+Details: [SDK transport](SDK_TRANSPORT.md).
+Evidence: `captures/recovery-20261023/sdk-transport-checkpoint.json`.
+
 ## SDK response-byte decoding and cache extensions reconciled — 2026-10-24
 
 SDK response and error JSON now decode from bytes with measured Foundation

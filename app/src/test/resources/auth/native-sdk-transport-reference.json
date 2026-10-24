@@ -1,0 +1,4381 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/APIClient.swift": "477c288e5721a60169a4d4b87a4a97605efe3c9efd279ea3a2d4e1528932bc48",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/Errors.swift": "bde908319a1277e43a4e86398d1c05649a93300322326122f5d95297433a4bc5",
+    "vendor/stack-auth-swift-sdk-prerelease/Sources/StackAuth/RateLimitObservation.swift": "2562b90f13473d1477f5d436e7d9264edb667be50f26f06d76621499a785192f"
+  },
+  "executedDeclarationsSha256": [
+    "e37e0a4b9a7b5078eeab00374c6e6551dc33dda04f383d364c45955956f8a46f",
+    "d40bbb08cb947f7da0c45961f866c4f2c954dd88a1d9259fd11f38a88980864e",
+    "4193a5c43f4ce9c562bbfc3a6bf3dcd726221fd3216ffc82331f83b57eb8ee72",
+    "7627e678238b5c05038e53686e48667c027af339b84f09f63cfe8c7c6145f9b0"
+  ],
+  "seams": "Complete unchanged sendRequest/sendWithRetry/Retry-After/HTTPURLResponse helpers and whole Errors/RateLimitObservation sources. Inert session returns fixture Data/HTTPURLResponse or URLError/CancellationError; inert token store and refresh record the rejected token and supply a planned result. Nested Task.sleep records delays without waiting; it checks parent cancellation. This proves SDK control flow, not URLSession networking, real refresh coalescing, observer wiring, or iOS-runtime behavior.",
+  "cases": [
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "authenticated-get",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "authenticated": false,
+        "case": "unauthenticated-get",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "method-POST",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "POST"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "POST",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "method-PATCH",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "PATCH"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PATCH",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "method-PUT",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "PUT"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PUT",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "method-DELETE",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "DELETE"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "DELETE",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "method-HEAD",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "HEAD"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "HEAD",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "method-OPTIONS",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "OPTIONS"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "OPTIONS",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "body": {
+          "selected_team_id": "team"
+        },
+        "case": "explicit-body",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "PATCH"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{\"selected_team_id\":\"team\"}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PATCH",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "modern-success-overrides-physical-failure",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "201"
+            },
+            "status": 500
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 500,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "modern-success-overrides-physical-429",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "200"
+            },
+            "status": 429
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 429,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "legacy-status",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "http_error",
+        "details": {
+          "httpStatus": 503
+        },
+        "message": "HTTP 503",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "modern-status-precedence",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "202",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "actual-status-''",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "actual-status-'x'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "x",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "actual-status-' 401'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": " 401",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "actual-status-'401 '",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "401 ",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "actual-status-'9223372036854775808'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "9223372036854775808",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "actual-status-'-9223372036854775809'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "-9223372036854775809",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "actual-status-'+201'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "+201",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "actual-status-'-1'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "-1",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "http_error",
+        "details": {
+          "httpStatus": -1
+        },
+        "message": "HTTP -1",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "actual-status-'4294967296'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-actual-status": "4294967296",
+              "x-stack-actual-status": "503"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "http_error",
+        "details": {
+          "httpStatus": 4294967296
+        },
+        "message": "HTTP 4294967296",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "bare-401",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 401
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "http_error",
+        "details": {
+          "httpStatus": 401
+        },
+        "message": "HTTP 401",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "body-code-does-not-invent-known-error",
+        "events": [
+          {
+            "body": "{\"code\":\"invalid_access_token\",\"error\":\"other\"}",
+            "headers": {},
+            "status": 401
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "http_error",
+        "details": {
+          "httpStatus": 401
+        },
+        "message": "HTTP 401",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-200-'invalid_access_token'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "invalid_access_token"
+            },
+            "status": 200
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "invalid_access_token",
+        "details": {
+          "httpStatus": 200
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-401-'invalid_access_token'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "invalid_access_token"
+            },
+            "status": 401
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [
+        "old-access"
+      ],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "new-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-403-'invalid_access_token'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "invalid_access_token"
+            },
+            "status": 403
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "invalid_access_token",
+        "details": {
+          "httpStatus": 403
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-200-'INVALID_ACCESS_TOKEN'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "INVALID_ACCESS_TOKEN"
+            },
+            "status": 200
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "INVALID_ACCESS_TOKEN",
+        "details": {
+          "httpStatus": 200
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-401-'INVALID_ACCESS_TOKEN'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "INVALID_ACCESS_TOKEN"
+            },
+            "status": 401
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "INVALID_ACCESS_TOKEN",
+        "details": {
+          "httpStatus": 401
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-403-'INVALID_ACCESS_TOKEN'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "INVALID_ACCESS_TOKEN"
+            },
+            "status": 403
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "INVALID_ACCESS_TOKEN",
+        "details": {
+          "httpStatus": 403
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-200-''",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": ""
+            },
+            "status": 200
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "",
+        "details": {
+          "httpStatus": 200
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-401-''",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": ""
+            },
+            "status": 401
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "",
+        "details": {
+          "httpStatus": 401
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-403-''",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": ""
+            },
+            "status": 403
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "",
+        "details": {
+          "httpStatus": 403
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-200-'other'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "other"
+            },
+            "status": 200
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "other",
+        "details": {
+          "httpStatus": 200
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-401-'other'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "other"
+            },
+            "status": 401
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "other",
+        "details": {
+          "httpStatus": 401
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-403-'other'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "other"
+            },
+            "status": 403
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "other",
+        "details": {
+          "httpStatus": 403
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "authenticated": false,
+        "case": "refresh-unauthenticated",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "invalid_access_token"
+            },
+            "status": 401
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "invalid_access_token",
+        "details": {
+          "httpStatus": 401
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-unavailable",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "invalid_access_token"
+            },
+            "status": 401
+          }
+        ]
+      },
+      "outcome": {
+        "code": "invalid_access_token",
+        "details": {
+          "httpStatus": 401
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [
+        "old-access"
+      ],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "refresh-once",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-stack-known-error": "invalid_access_token"
+            },
+            "status": 401
+          },
+          {
+            "body": "{}",
+            "headers": {
+              "x-stack-known-error": "invalid_access_token"
+            },
+            "status": 401
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "invalid_access_token",
+        "details": {
+          "httpStatus": 401
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [
+        "old-access"
+      ],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "new-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "body": {
+          "selected_team_id": "team"
+        },
+        "case": "refresh-stable-patch",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "invalid_access_token"
+            },
+            "status": 401
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "PATCH",
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [
+        "old-access"
+      ],
+      "requests": [
+        {
+          "body": "{\"selected_team_id\":\"team\"}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PATCH",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": "{\"selected_team_id\":\"team\"}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "new-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PATCH",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "modern-empty-known-wins",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "",
+              "x-stack-known-error": "invalid_access_token"
+            },
+            "status": 401
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "code": "",
+        "details": {
+          "httpStatus": 401
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000
+      ],
+      "input": {
+        "case": "network-exhaustion-GET",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          }
+        ],
+        "method": "GET"
+      },
+      "outcome": {
+        "code": "network_error",
+        "details": null,
+        "message": "<platform network message>",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000
+      ],
+      "input": {
+        "case": "network-recovery-GET",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "GET"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000
+      ],
+      "input": {
+        "case": "network-exhaustion-HEAD",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          }
+        ],
+        "method": "HEAD"
+      },
+      "outcome": {
+        "code": "network_error",
+        "details": null,
+        "message": "<platform network message>",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "HEAD",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "HEAD",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "HEAD",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "HEAD",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "HEAD",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "HEAD",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000
+      ],
+      "input": {
+        "case": "network-recovery-HEAD",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "HEAD"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "HEAD",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "HEAD",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000
+      ],
+      "input": {
+        "case": "network-exhaustion-OPTIONS",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          }
+        ],
+        "method": "OPTIONS"
+      },
+      "outcome": {
+        "code": "network_error",
+        "details": null,
+        "message": "<platform network message>",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "OPTIONS",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "OPTIONS",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "OPTIONS",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "OPTIONS",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "OPTIONS",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "OPTIONS",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000
+      ],
+      "input": {
+        "case": "network-recovery-OPTIONS",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "OPTIONS"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "OPTIONS",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "OPTIONS",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000
+      ],
+      "input": {
+        "case": "network-exhaustion-PUT",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          }
+        ],
+        "method": "PUT"
+      },
+      "outcome": {
+        "code": "network_error",
+        "details": null,
+        "message": "<platform network message>",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PUT",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PUT",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PUT",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PUT",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PUT",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PUT",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000
+      ],
+      "input": {
+        "case": "network-recovery-PUT",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "PUT"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PUT",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PUT",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000
+      ],
+      "input": {
+        "case": "network-exhaustion-DELETE",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          }
+        ],
+        "method": "DELETE"
+      },
+      "outcome": {
+        "code": "network_error",
+        "details": null,
+        "message": "<platform network message>",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "DELETE",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "DELETE",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "DELETE",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "DELETE",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "DELETE",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "DELETE",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000
+      ],
+      "input": {
+        "case": "network-recovery-DELETE",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "DELETE"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "DELETE",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "DELETE",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "network-exhaustion-POST",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          }
+        ],
+        "method": "POST"
+      },
+      "outcome": {
+        "code": "network_error",
+        "details": null,
+        "message": "<platform network message>",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "POST",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "network-recovery-POST",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "POST"
+      },
+      "outcome": {
+        "code": "network_error",
+        "details": null,
+        "message": "<platform network message>",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "POST",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "network-exhaustion-PATCH",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          }
+        ],
+        "method": "PATCH"
+      },
+      "outcome": {
+        "code": "network_error",
+        "details": null,
+        "message": "<platform network message>",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PATCH",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "network-recovery-PATCH",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "method": "PATCH"
+      },
+      "outcome": {
+        "code": "network_error",
+        "details": null,
+        "message": "<platform network message>",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": "{}",
+          "headers": {
+            "content-type": "application/json",
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "PATCH",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [
+        1000,
+        2000,
+        1000,
+        2000,
+        4000,
+        8000,
+        16000
+      ],
+      "input": {
+        "case": "network-budget-resets-after-refresh",
+        "events": [
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "invalid_access_token"
+            },
+            "status": 401
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "network": true
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ],
+        "refresh": "new-access"
+      },
+      "outcome": {
+        "physicalStatus": 200,
+        "success": true
+      },
+      "rejectedAccess": [
+        "old-access"
+      ],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "new-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "new-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "new-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "new-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "new-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        },
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "new-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "cancellation-not-network-retry",
+        "events": [
+          {
+            "cancel": true
+          }
+        ]
+      },
+      "outcome": {
+        "cancelled": true,
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "http-failure-not-network-retry",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 503
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "http_error",
+        "details": {
+          "httpStatus": 503
+        },
+        "message": "HTTP 503",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-error-not-network-retry",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-stack-known-error": "other"
+            },
+            "status": 200
+          },
+          {
+            "body": "{}",
+            "headers": {},
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "other",
+        "details": {
+          "httpStatus": 200
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "effective-429-200",
+        "events": [
+          {
+            "body": "<html>fixture",
+            "headers": {
+              "Content-Type": "text/html",
+              "Retry-After": "1.2345",
+              "x-hexclave-actual-status": "429",
+              "x-stack-request-id": "request"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "RATE_LIMITED",
+        "details": {
+          "body_kind": "html",
+          "endpoint": "/api/v1/users/me",
+          "httpStatus": 429,
+          "requestId": "request",
+          "retry_after_seconds": 1.2345
+        },
+        "message": "Too many requests, please try again later",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "effective-429-429",
+        "events": [
+          {
+            "body": "<html>fixture",
+            "headers": {
+              "Content-Type": "text/html",
+              "Retry-After": "1.2345",
+              "x-hexclave-actual-status": "429",
+              "x-stack-request-id": "request"
+            },
+            "status": 429
+          }
+        ]
+      },
+      "outcome": {
+        "code": "RATE_LIMITED",
+        "details": {
+          "body_kind": "html",
+          "endpoint": "/api/v1/users/me",
+          "httpStatus": 429,
+          "requestId": "request",
+          "retry_after_seconds": 1.2345
+        },
+        "message": "Too many requests, please try again later",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-rate-'RATE_LIMITED'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "RATE_LIMITED"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "RATE_LIMITED",
+        "details": {
+          "httpStatus": 200
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-rate-'rate_limited'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "rate_limited"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "rate_limited",
+        "details": {
+          "httpStatus": 200
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-rate-'RATE_LIMIT'",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": "RATE_LIMIT"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "RATE_LIMIT",
+        "details": {
+          "httpStatus": 200
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-rate-''",
+        "events": [
+          {
+            "body": "{}",
+            "headers": {
+              "x-hexclave-known-error": ""
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "",
+        "details": {
+          "httpStatus": 200
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-message",
+        "events": [
+          {
+            "body": "{\"message\":\"source message\",\"error\":\"other\"}",
+            "headers": {
+              "x-hexclave-known-error": "USER_EMAIL_ALREADY_EXISTS",
+              "x-hexclave-request-id": "header-id"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "USER_EMAIL_ALREADY_EXISTS",
+        "details": {
+          "httpStatus": 200,
+          "requestId": "header-id"
+        },
+        "message": "source message",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-empty-message",
+        "events": [
+          {
+            "body": "{\"message\":\"\",\"error\":\"other\"}",
+            "headers": {
+              "x-hexclave-known-error": "USER_EMAIL_ALREADY_EXISTS",
+              "x-hexclave-request-id": "header-id"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "USER_EMAIL_ALREADY_EXISTS",
+        "details": {
+          "httpStatus": 200,
+          "requestId": "header-id"
+        },
+        "message": "",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-error",
+        "events": [
+          {
+            "body": "{\"message\":1,\"error\":\"source error\"}",
+            "headers": {
+              "x-hexclave-known-error": "USER_EMAIL_ALREADY_EXISTS",
+              "x-hexclave-request-id": "header-id"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "USER_EMAIL_ALREADY_EXISTS",
+        "details": {
+          "httpStatus": 200,
+          "requestId": "header-id"
+        },
+        "message": "source error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-unknown",
+        "events": [
+          {
+            "body": "{\"message\":1,\"error\":false}",
+            "headers": {
+              "x-hexclave-known-error": "USER_EMAIL_ALREADY_EXISTS",
+              "x-hexclave-request-id": "header-id"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "USER_EMAIL_ALREADY_EXISTS",
+        "details": {
+          "httpStatus": 200,
+          "requestId": "header-id"
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-invalid-json",
+        "events": [
+          {
+            "body": "bad",
+            "headers": {
+              "x-hexclave-known-error": "USER_EMAIL_ALREADY_EXISTS",
+              "x-hexclave-request-id": "header-id"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "USER_EMAIL_ALREADY_EXISTS",
+        "details": {
+          "httpStatus": 200,
+          "requestId": "header-id"
+        },
+        "message": "Unknown error",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "known-details",
+        "events": [
+          {
+            "body": "{\"message\":\"m\",\"details\":{\"httpStatus\":\"body\",\"requestId\":\"body-id\",\"would_work_if_email_was_verified\":true}}",
+            "headers": {
+              "x-hexclave-known-error": "USER_EMAIL_ALREADY_EXISTS",
+              "x-hexclave-request-id": "header-id"
+            },
+            "status": 200
+          }
+        ]
+      },
+      "outcome": {
+        "code": "USER_EMAIL_ALREADY_EXISTS",
+        "details": {
+          "httpStatus": "body",
+          "requestId": "body-id",
+          "would_work_if_email_was_verified": true
+        },
+        "message": "m",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-EMAIL_PASSWORD_MISMATCH",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "EMAIL_PASSWORD_MISMATCH"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "EMAIL_PASSWORD_MISMATCH",
+        "details": null,
+        "message": "The email and password combination is incorrect.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-PASSWORD_REQUIREMENTS_NOT_MET",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "PASSWORD_REQUIREMENTS_NOT_MET"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "PASSWORD_REQUIREMENTS_NOT_MET",
+        "details": null,
+        "message": "The password does not meet the project's requirements.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-USER_NOT_FOUND",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "USER_NOT_FOUND"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "USER_NOT_FOUND",
+        "details": null,
+        "message": "No user with this email address was found.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-VERIFICATION_CODE_ERROR",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "VERIFICATION_CODE_ERROR"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "VERIFICATION_CODE_ERROR",
+        "details": null,
+        "message": "The verification code is invalid or expired.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-INVALID_TOTP_CODE",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "INVALID_TOTP_CODE"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "INVALID_TOTP_CODE",
+        "details": null,
+        "message": "The MFA code is incorrect.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-REDIRECT_URL_NOT_WHITELISTED",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "REDIRECT_URL_NOT_WHITELISTED"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "REDIRECT_URL_NOT_WHITELISTED",
+        "details": null,
+        "message": "The callback URL is not in the project's trusted domains list.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-PASSKEY_AUTHENTICATION_FAILED",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "PASSKEY_AUTHENTICATION_FAILED"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "PASSKEY_AUTHENTICATION_FAILED",
+        "details": null,
+        "message": "Passkey authentication failed. Please try again.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-MULTI_FACTOR_AUTHENTICATION_REQUIRED",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "MULTI_FACTOR_AUTHENTICATION_REQUIRED"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "MULTI_FACTOR_AUTHENTICATION_REQUIRED",
+        "details": {
+          "attempt_code": "attempt"
+        },
+        "message": "Multi-factor authentication is required.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-PASSWORD_CONFIRMATION_MISMATCH",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "PASSWORD_CONFIRMATION_MISMATCH"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "PASSWORD_CONFIRMATION_MISMATCH",
+        "details": null,
+        "message": "The current password is incorrect.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "typed-OAUTH_PROVIDER_ACCOUNT_ID_ALREADY_USED_FOR_SIGN_IN",
+        "events": [
+          {
+            "body": "{\"message\":\"body\",\"details\":{\"attempt_code\":\"attempt\"}}",
+            "headers": {
+              "x-hexclave-known-error": "OAUTH_PROVIDER_ACCOUNT_ID_ALREADY_USED_FOR_SIGN_IN"
+            },
+            "status": 400
+          }
+        ]
+      },
+      "outcome": {
+        "code": "OAUTH_PROVIDER_ACCOUNT_ID_ALREADY_USED_FOR_SIGN_IN",
+        "details": null,
+        "message": "This OAuth account is already linked to another user for sign-in.",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    },
+    {
+      "delaysMillis": [],
+      "input": {
+        "case": "generic-diagnostics",
+        "events": [
+          {
+            "body": "{\"message\":\"ignored\"}",
+            "headers": {
+              "x-hexclave-request-id": "",
+              "x-stack-request-id": "legacy"
+            },
+            "status": 503
+          }
+        ]
+      },
+      "outcome": {
+        "code": "http_error",
+        "details": {
+          "httpStatus": 503,
+          "requestId": ""
+        },
+        "message": "HTTP 503",
+        "success": false
+      },
+      "rejectedAccess": [],
+      "requests": [
+        {
+          "body": null,
+          "headers": {
+            "x-hexclave-access-token": "old-access",
+            "x-hexclave-access-type": "client",
+            "x-hexclave-client-version": "swift@1.0.0",
+            "x-hexclave-override-error-status": "true",
+            "x-hexclave-project-id": "fixture-project",
+            "x-hexclave-publishable-client-key": "fixture-key",
+            "x-hexclave-random-nonce": "UUID",
+            "x-hexclave-refresh-token": "stored-refresh"
+          },
+          "method": "GET",
+          "reloadIgnoringCache": true,
+          "timeout": 30
+        }
+      ],
+      "stableNonce": true
+    }
+  ],
+  "foundation": {
+    "coreFoundationVersion": 5026.5,
+    "os": "Version 26.5.2 (Build 25F84)"
+  }
+}

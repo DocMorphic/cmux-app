@@ -94,11 +94,11 @@ class NativeOAuthSignInTest {
             server.enqueue(MockResponse().setBody("{\"id\":\"user\",\"primary_email\":\"fixture@example.test\"}"))
             assertEquals("user", client.currentUser("captured-access").id)
             val request = server.takeRequest(); assertEquals("/api/v1/users/me", request.path)
-            assertEquals("captured-access", request.getHeader("x-stack-access-token")); assertEquals("fixture-project", request.getHeader("x-stack-project-id"))
+            assertEquals("captured-access", request.getHeader("x-hexclave-access-token")); assertEquals("fixture-project", request.getHeader("x-hexclave-project-id"))
             assertNull(request.getHeader("Authorization")); assertEquals("GET", request.method)
             server.enqueue(MockResponse().setHeader("x-stack-actual-status", "401").setBody("{}"))
             val rejected = runCatching { client.currentUser("captured-access") }.exceptionOrNull() as Exception
-            assertEquals(NativeSignInError.UNAUTHORIZED, nativeSignInError(rejected)); server.takeRequest()
+            assertEquals("http_error",(rejected as NativeSdkRequestFailure).code); server.takeRequest()
             server.enqueue(MockResponse().setBody("{}"))
             val empty=client.currentUser("captured-access")
             assertEquals("",empty.id);assertNull(empty.name);assertNull(empty.email);server.takeRequest()

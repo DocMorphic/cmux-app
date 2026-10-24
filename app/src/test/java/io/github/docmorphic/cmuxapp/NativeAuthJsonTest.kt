@@ -96,12 +96,12 @@ class NativeAuthJsonTest {
             assertNull(client.restoredCurrentUser("fixture-access"){error("Unexpected refresh")})
         }
     }
-    @Test fun httpErrorCodeExtractionAlsoUsesBytesAndRejectsLenientJsonSyntax()=runBlocking<Unit> {
+    @Test fun knownErrorMessageUsesBytesAndBareHttpBodyCannotInventACode()=runBlocking<Unit> {
         MockWebServer().use{server->val client=NativeOAuthClient("fixture","public",server.url("/"))
-            server.enqueue(response("{\"error\":\"wire-error\"}".toByteArray(Charsets.UTF_16BE)).setResponseCode(400))
+            server.enqueue(response("{\"error\":\"wire-error\"}".toByteArray(Charsets.UTF_16BE)).setResponseCode(400).setHeader("x-hexclave-known-error","wire-error"))
             assertEquals("wire-error",(runCatching{client.currentUser("fixture-access")}.exceptionOrNull() as NativeAccountRequestFailure).code)
             server.enqueue(response("{error:'wire-error'}".toByteArray()).setResponseCode(400))
-            assertEquals("SERVER_ERROR",(runCatching{client.currentUser("fixture-access")}.exceptionOrNull() as NativeAccountRequestFailure).code)
+            assertEquals("http_error",(runCatching{client.currentUser("fixture-access")}.exceptionOrNull() as NativeAccountRequestFailure).code)
         }
     }
 }

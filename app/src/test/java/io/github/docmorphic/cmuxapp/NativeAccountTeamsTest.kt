@@ -22,7 +22,7 @@ class NativeAccountTeamsTest {
             val user = NativeSignInUser("verified-user", "Verified name", "fixture@example.test", "one")
             NativeAccountProfileCache.writeVerifiedUser(root, "login", environment, user)
             NativeAccountTeams({ "fixture-token" }, { "login" }, server.url("/api/v1/"), cache = cache).use { account ->
-                server.teamUsers(4) { MockResponse().setResponseCode(401).setBody("{}") }
+                server.teamUsers(2) { MockResponse().setResponseCode(401).setBody("{}") }
                 assertTrue(runCatching { account.refreshAfterSignIn("login", user) }.isFailure)
                 assertEquals(user.id, account.state.value.userId); assertEquals(user.name, account.state.value.displayName)
                 assertNull(account.state.value.scope); assertTrue(account.state.value.teams.isEmpty())
@@ -94,7 +94,7 @@ class NativeAccountTeamsTest {
             server.teamUsers(2){MockResponse().setResponseCode(503)}
             assertTrue(runCatching { account.refresh() }.isFailure)
             assertTrue(account.allowsContinuation(proof)); assertTrue(account.isCurrent(first))
-            server.teamUsers(if(status==401)4 else 2){MockResponse().setResponseCode(status)}
+            server.teamUsers(2){MockResponse().setResponseCode(status)}
             assertTrue(runCatching { account.refresh() }.isFailure)
             assertTrue(account.allowsContinuation(proof)); assertNotNull(account.captureContinuation(first))
             server.profile(); account.refresh()
@@ -288,8 +288,8 @@ class NativeAccountTeamsTest {
                 assertEquals("/api/v1/users/me", server.takeRequest().path)
                 val rest=List(2){server.takeRequest()};val teamRequest = rest.single{it.path=="/api/v1/teams?user_id=me"}
                 assertEquals("/api/v1/teams?user_id=me", teamRequest.path)
-                assertEquals(NativeAccount.PROJECT_ID, teamRequest.getHeader("x-stack-project-id"))
-                assertEquals("fixture-token", teamRequest.getHeader("x-stack-access-token"))
+                assertEquals(NativeAccount.PROJECT_ID, teamRequest.getHeader("x-hexclave-project-id"))
+                assertEquals("fixture-token", teamRequest.getHeader("x-hexclave-access-token"))
                 server.profile("two")
                 assertEquals(captured, account.refresh().scope)
             }
@@ -359,7 +359,7 @@ class NativeAccountTeamsTest {
             server.dispatcher=object:okhttp3.mockwebserver.Dispatcher(){override fun dispatch(request:okhttp3.mockwebserver.RecordedRequest):MockResponse {
                 if(redirect)return MockResponse().setResponseCode(307).setHeader("Location",server.url("/elsewhere"))
                 if(request.path!!.contains("/teams?"))return MockResponse().setBody(teams("one","two").toString())
-                if(request.getHeader("x-stack-access-token")=="fixture-token")return MockResponse().setHeader("x-stack-actual-status","401").setBody("{}")
+                if(request.getHeader("x-hexclave-access-token")=="fixture-token")return MockResponse().setHeader("x-stack-actual-status","401").setHeader("x-stack-known-error","invalid_access_token").setBody("{}")
                 return MockResponse().setBody(user().toString())
             }}
             controller(server, token = { force -> forced += force; if (force) "new-token" else "fixture-token" }).use { account ->

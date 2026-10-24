@@ -32,7 +32,7 @@ class NativeTeamPhaseTest {
         val teams=NativeAccountTeams({if(currentCoroutineContext()[CoroutineName]?.name=="team-selection-read")"fixture-selected" else token(it)},{"login"},server.url("/api/v1/"),refreshCredential={"fixture-refresh"},
             backendOrigin=server.url("/"),sessionIdentity=identity::get,phaseNowMillis=now,phaseWork=work,networkTimeoutMillis=timeout)
         init {server.dispatcher=object:QueueDispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
-            if(request.path=="/api/v1/users/me" && request.getHeader("x-stack-access-token")=="fixture-selected")
+            if(request.path=="/api/v1/users/me" && request.getHeader("x-hexclave-access-token")=="fixture-selected")
                 return MockResponse().setBody(JSONObject().put("id","user").put("selected_team",selected?.let{JSONObject().put("id",it)} ?: JSONObject.NULL).toString())
             return super.dispatch(request)
         }}}

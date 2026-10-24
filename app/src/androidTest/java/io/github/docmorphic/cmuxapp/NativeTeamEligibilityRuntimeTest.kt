@@ -100,7 +100,7 @@ class NativeTeamEligibilityRuntimeTest {
         MockWebServer().use {server->seed(server);val account=account(server);val c=teams(server,account);val(owner,proof)=establish(server,account,c)
             val both=CountDownLatch(2)
             server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
-                if(request.path=="/api/v1/users/me"){both.countDown();check(both.await(5,TimeUnit.SECONDS));return MockResponse().setResponseCode(401)}
+                if(request.path=="/api/v1/users/me"){both.countDown();check(both.await(5,TimeUnit.SECONDS));return MockResponse().setResponseCode(401).setHeader("x-hexclave-known-error","invalid_access_token")}
                 return MockResponse().setResponseCode(401).setBody("{}")
             }}
             assertTrue(runCatching {c.refresh()}.isFailure);assertNull(store.taskSession());assertFalse(c.isCurrent(owner));assertFalse(c.allowsContinuation(proof))

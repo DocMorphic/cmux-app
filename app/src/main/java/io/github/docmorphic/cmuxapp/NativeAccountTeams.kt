@@ -20,7 +20,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -64,6 +63,8 @@ internal class NativeAccountTeams(
     private val accountUser:(()->NativeSignInUser?)?=null,
     private val sessionUser:(()->NativeSignInUser?)?=null,
     private val sessionGeneration:(()->Long)?=null,
+    private val refreshRejected:(suspend (String?)->String?)?=null,
+    private val retrySleep:suspend(Long)->Unit=nativeSdkRetrySleep,
 ) : AutoCloseable {
     constructor(account: NativeAccount, store: NativeCredentialStore,
         origin:HttpUrl="https://api.stack-auth.com/api/v1/".toHttpUrl(),base:OkHttpClient=OkHttpClient(),
@@ -75,11 +76,12 @@ internal class NativeAccountTeams(
         sessionIdentity=account.sessionRestore::identity,restoreUser=account.sessionRestore::restoreIdentityIfNeeded,
         needsRestoration={account.sessionRestore.needsIdentityValidation},phaseNowMillis={android.os.SystemClock.elapsedRealtime()},phaseWork=store.authWork,
         networkTimeoutMillis=networkTimeoutMillis,accountUser={account.sessionRestore.state.value.user},
-        sessionUser=account.sessionRestore::verifiedUser,sessionGeneration={account.sessionRestore.sessionGeneration})
+        sessionUser=account.sessionRestore::verifiedUser,sessionGeneration={account.sessionRestore.sessionGeneration},
+        refreshRejected={failed->account.accessToken(forceRefresh=true,rejectedAccess=failed)})
 
     private class StackFailure(val status: Int) : IOException("Account request failed ($status)")
     private val client = base.newBuilder().followRedirects(false).followSslRedirects(false)
-        .retryOnConnectionFailure(false).callTimeout(0,TimeUnit.SECONDS)
+        .retryOnConnectionFailure(false).cache(null).callTimeout(0,TimeUnit.SECONDS)
         .connectTimeout(30,TimeUnit.SECONDS).readTimeout(30,TimeUnit.SECONDS).writeTimeout(30,TimeUnit.SECONDS).build()
     private val backendClient=client.newBuilder().connectTimeout(60,TimeUnit.SECONDS)
         .readTimeout(60,TimeUnit.SECONDS).writeTimeout(60,TimeUnit.SECONDS).build()
@@ -491,31 +493,15 @@ internal class NativeAccountTeams(
 
     private suspend fun request(path: String, owner: String, epoch: Operation, body: JSONObject? = null,discardBody:Boolean=false,
         emptyObjectOnInvalidJson:Boolean=false): JSONObject {
-        for (attempt in 0..1) {
-            checkCurrent(owner, epoch)
-            val access = token(attempt == 1)?.takeIf { it.isNotBlank() } ?: throw IOException("Sign in to cmux")
-            if (access.length > 8192 || access.any { it == '\r' || it == '\n' }) throw IOException("Invalid account credential")
-            checkCurrent(owner, epoch)
-            val builder = Request.Builder().url(checkNotNull(origin.resolve(path)))
-                .header("x-stack-project-id", NativeAccount.PROJECT_ID)
-                .header("x-stack-publishable-client-key", NativeAccount.PUBLISHABLE_KEY)
-                .header("x-stack-client-version", "cmux-android@0.2.0")
-                .header("x-stack-access-type", "client")
-                .header("x-stack-access-token", access)
-                .header("x-stack-override-error-status", "true")
-                .header("x-stack-random-nonce", UUID.randomUUID().toString())
-            if (body != null) builder.patch(body.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-            try {
-                val response = exchange(builder.build(), owner, epoch,parseBody=!discardBody,emptyObjectOnInvalidJson=emptyObjectOnInvalidJson)
-                checkCurrent(owner, epoch)
-                return response
-            } catch (failure: StackFailure) {
-                // Only an explicit authentication rejection is replayable with a refreshed token.
-                // A timeout or lost PATCH response is never treated as proof the mutation failed.
-                if (failure.status != 401 || attempt != 0) throw failure
-            }
+        checkCurrent(owner,epoch)
+        val access=token(false)?.takeIf{it.isNotBlank()} ?: throw IOException("Sign in to cmux")
+        checkCurrent(owner,epoch)
+        val initial=nativeSdkRequest(checkNotNull(origin.resolve(path)),NativeAccount.PROJECT_ID,NativeAccount.PUBLISHABLE_KEY,
+            method=if(body==null)"GET" else "PATCH",body=body,access=access,refresh=refreshCredential())
+        return nativeSdkSend(initial,true,refreshRejected={failed->refreshRejected?.invoke(failed) ?: if(refreshRejected==null)token(true) else null},
+            checkCurrent={checkCurrent(owner,epoch)},sleep=retrySleep) {request->
+            exchange(request,owner,epoch,parseBody=!discardBody,emptyObjectOnInvalidJson=emptyObjectOnInvalidJson)
         }
-        throw IOException("Sign in to cmux")
     }
 
     private suspend fun exchange(request: Request, owner: String, epoch: Operation,parseBody:Boolean=true,backend:Boolean=false,
@@ -531,15 +517,19 @@ internal class NativeAccountTeams(
             override fun onResponse(call: Call, response: Response) {
                 val result = runCatching {
                     response.use {
-                        val status = (it.header("x-hexclave-actual-status") ?: it.header("x-stack-actual-status"))?.toIntOrNull() ?: it.code
-                        val known=it.header("x-hexclave-known-error") ?: it.header("x-stack-known-error")
-                        if(it.code==429 || status==429 || known?.uppercase() in setOf("RATE_LIMITED","RATE_LIMIT"))throw nativeAccountRateLimit(it)
-                        if (!it.isSuccessful || status !in 200..299) throw StackFailure(if (it.isSuccessful) status else it.code)
-                        val body = it.body ?: throw IOException("Missing account response")
-                        if (backend && body.contentLength() > MAX_REPLY) throw IOException("Account response too large")
-                        val source = body.source()
-                        if (backend && source.request(MAX_REPLY + 1L)) throw IOException("Account response too large")
-                        val raw=source.readByteArray()
+                        if(backend) {
+                            val status=(it.header("x-hexclave-actual-status") ?: it.header("x-stack-actual-status"))?.toIntOrNull() ?: it.code
+                            val known=it.header("x-hexclave-known-error") ?: it.header("x-stack-known-error")
+                            if(it.code==429 || status==429 || known?.uppercase() in setOf("RATE_LIMITED","RATE_LIMIT"))throw nativeAccountRateLimit(it)
+                            if(!it.isSuccessful || status !in 200..299)throw StackFailure(if(it.isSuccessful)status else it.code)
+                        }
+                        val body = it.body
+                        if(backend && body==null)throw IOException("Missing account response")
+                        if (backend && body!!.contentLength() > MAX_REPLY) throw IOException("Account response too large")
+                        val source = body?.source()
+                        if (backend && source!!.request(MAX_REPLY + 1L)) throw IOException("Account response too large")
+                        val raw=source?.readByteArray() ?: byteArrayOf()
+                        if(!backend)nativeSdkCheckResponse(it,raw)
                         if(!parseBody)JSONObject() else try {
                             if(backend)JSONObject(raw.toString(Charsets.UTF_8))else NativeAuthJson.objectValue(raw)
                         } catch(failure:Exception) {

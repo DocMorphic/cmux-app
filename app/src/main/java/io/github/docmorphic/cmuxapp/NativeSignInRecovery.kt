@@ -15,23 +15,6 @@ import kotlin.coroutines.resumeWithException
 internal open class NativeAccountRequestFailure(val code: String, val requiresEmailVerification: Boolean,
     message: String) : IOException(message)
 
-internal fun nativeAccountResponse(status: Int, knownError: String?, raw: String): JSONObject {
-    if (status == 429) throw NativeAccountRequestFailure("RATE_LIMITED", false, "Too many attempts. Please wait a moment and try again.")
-    if (status !in 200..299 || !knownError.isNullOrBlank()) {
-        val body = runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
-        val code = (knownError ?: (body.opt("code") as? String).orEmpty()).uppercase(Locale.ROOT)
-        val detail = body.optJSONObject("details")?.opt("would_work_if_email_was_verified")
-        val unverified = code == "USER_EMAIL_ALREADY_EXISTS" && when (detail) {
-            is Boolean -> detail
-            is Number -> detail.toDouble() != 0.0
-            else -> false
-        }
-        throw NativeAccountRequestFailure(code, unverified,
-            (body.opt("message") as? String)?.takeIf { it.isNotBlank() } ?: "Account request failed: HTTP $status")
-    }
-    return JSONObject(raw.ifBlank { "{}" })
-}
-
 internal enum class NativeSignInRecoveryError { PENDING, RATE_LIMIT, UNAVAILABLE }
 internal class NativeSignInRecoveryFailure(val reason: NativeSignInRecoveryError) : IOException("Account recovery unavailable")
 

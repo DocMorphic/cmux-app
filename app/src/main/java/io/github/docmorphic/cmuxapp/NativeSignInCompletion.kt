@@ -50,6 +50,7 @@ internal class NativeSignInCompletion(
     private val onCredentialsWritten: () -> Unit = {},
     private val onVerified: (String, NativeSignInUser) -> Unit = { _, _ -> },
     private val sessionEpoch: () -> Long = { 0 },
+    private val fetchUserWithRefresh:(suspend(String,suspend(String?)->String?)->NativeSignInUser)?=null,
 ) {
     private class Flow(val id: String, val generation: Long, val operation: Job, var epoch: Long,
         val lease: NativeAuthWork.SignInLease) {
@@ -98,7 +99,7 @@ internal class NativeSignInCompletion(
             exchangeComplete = true
             checkCurrent(flow)
             val access = checkNotNull(flow.access) { "Sign-in returned without credentials" }
-            val user = work.run(NativeAuthPhase.USER, networkTimeoutMillis, flow.id) { fetchUser(access) }
+            val user = work.run(NativeAuthPhase.USER, networkTimeoutMillis, flow.id) { pendingUser(flow,access,30_000) }
             withContext(Dispatchers.IO) { synchronized(lock) {
                 checkCurrent(flow)
                 update { root ->
@@ -172,7 +173,10 @@ internal class NativeSignInCompletion(
                 } }
                 return work.run(NativeAuthPhase.USER, networkTimeoutMillis, flow.id) { fetchUser(next) }
             }
-            val user = if (access == null) refreshUser() else try {
+            val user = if(fetchUserWithRefresh!=null)work.run(NativeAuthPhase.USER,networkTimeoutMillis,flow.id) {
+                val initial=access ?: refreshPendingAccess(flow,null,timeoutMillis) ?: throw NativeSessionUserUnavailable()
+                pendingUser(flow,initial,timeoutMillis)
+            } else if (access == null) refreshUser() else try {
                 work.run(NativeAuthPhase.USER, networkTimeoutMillis, flow.id) { fetchUser(access) }
             } catch (failure: Exception) {
                 if (nativeSignInError(failure) != NativeSignInError.UNAUTHORIZED || refreshAccess == null || refresh == null) throw failure
@@ -195,6 +199,48 @@ internal class NativeSignInCompletion(
             }
             throw failure
         } finally { flow.lease.finish();synchronized(flowLock) { active -= flow } }
+    }
+
+    private suspend fun pendingUser(flow:Flow,access:String,refreshTimeout:Long):NativeSignInUser =
+        fetchUserWithRefresh?.invoke(access) {failed->refreshPendingAccess(flow,failed,refreshTimeout)} ?: fetchUser(access)
+
+    /** A pending receipt can refresh itself without admitting its unverified tokens as an account. */
+    private suspend fun refreshPendingAccess(flow:Flow,rejected:String?,timeout:Long):String? {
+        val exchange=refreshAccess ?: return null
+        val caller=currentCoroutineContext()
+        val observed:Pair<String,String?> = synchronized(lock) {
+            caller.ensureActive();checkCurrent(flow)
+            val root=load()
+            if(!ownsPending(root,flow.id))throw CancellationException("Account changed")
+            val refresh=root?.opt("refresh_token") as? String ?: return null
+            val current=root.opt("access_token") as? String
+            if(rejected!=null && current!=null && current!=rejected && !nativeAccessTokenIsExpired(current,System.currentTimeMillis()))return current
+            refresh to current
+        }
+        val next=try {work.run(NativeAuthPhase.RESTORE_REFRESH,timeout,flow.id){exchange(observed.first)}}
+        catch(failure:Exception) {
+            caller.ensureActive();checkCurrent(flow)
+            if(failure is NativeSignInFailure && failure.reason==NativeSignInError.UNAUTHORIZED)withContext(Dispatchers.IO) {
+                synchronized(lock) {
+                    caller.ensureActive();checkCurrent(flow)
+                    val root=load()
+                    if(ownsPending(root,flow.id) && root?.opt("refresh_token")==observed.first)clearPending(flow.id)
+                }
+            }
+            // APIClient.fetchNewAccessToken returns nil for a failed refresh; its caller
+            // then throws the original rejected-access error rather than inventing a new one.
+            return null
+        }
+        return withContext(Dispatchers.IO) {synchronized(lock) {
+            caller.ensureActive();checkCurrent(flow)
+            update {root->
+                caller.ensureActive();checkCurrent(flow)
+                if(!ownsPending(root,flow.id) || root.opt("refresh_token")!=observed.first || root.opt("access_token")!=observed.second)
+                    throw CancellationException("Account changed")
+                root.put("access_token",next)
+            }
+            flow.access=next;next
+        }}
     }
 
     /** Form retirement must not wait for credential IO. */

@@ -34,7 +34,7 @@ class NativeTeamRefreshReadsTest {
             sessionIdentity=identity::get,phaseWork=work,networkTimeoutMillis=timeout,cache=cache)
         init {server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse=when {
             request.path=="/api/v1/teams?user_id=me"->list()
-            request.path=="/api/v1/users/me" && request.getHeader("x-stack-access-token")=="team-selection-read"->selection()
+            request.path=="/api/v1/users/me" && request.getHeader("x-hexclave-access-token")=="team-selection-read"->selection()
             request.path=="/api/v1/users/me"->primary()
             else->MockResponse().setResponseCode(404)
         }}}

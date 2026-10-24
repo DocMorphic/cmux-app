@@ -194,7 +194,7 @@ class NativeOAuthRuntimeTest {
         assertTrue(account!!.isSignedIn()); assertEquals("fixture-access", store!!.load()!!.getString("access_token"))
         assertNotNull(store!!.taskSession()); assertEquals(1, completions.get()); preservedPairing()
         val verification = server!!.takeRequest(); assertEquals("/api/v1/users/me", verification.requestUrl!!.encodedPath)
-        assertEquals("fixture-access", verification.getHeader("x-stack-access-token")); assertNull(verification.getHeader("Authorization"))
+        assertEquals("fixture-access", verification.getHeader("x-hexclave-access-token")); assertNull(verification.getHeader("Authorization"))
         assertEquals(3, server!!.requestCount); assertFalse(NativeSignInCompletion.isPending(store!!.load()))
         assertEquals("fixture-user", store!!.load()!!.getJSONObject(NativeAccountProfileCache.KEY).getString("user"))
         assertFalse(NativeOAuthRedirectCallbacks.deliver(link)); assertTrue(browser!!.presentations.value.isEmpty())
@@ -264,7 +264,7 @@ class NativeOAuthRuntimeTest {
     }
 
     @Test fun failedUserVerificationStaysSignedOutAndAFreshAccountOwnerRestoresTheStoredPendingSession() = restoreAfterFailedUserFetch(false)
-    @Test fun aFreshOwnerRefreshesAnExpiredPendingAccessTokenBeforeRestoringTheVerifiedUser() = restoreAfterFailedUserFetch(true)
+    @Test fun aFreshOwnerRefreshesARejectedPendingAccessTokenBeforeRestoringTheVerifiedUser() = restoreAfterFailedUserFetch(true)
     private fun restoreAfterFailedUserFetch(expired: Boolean) {
         start(); enqueueAuthorization(); enqueueTokens(); server!!.enqueue(MockResponse().setResponseCode(503).setBody("{}"))
         tap("github", 1); val authorization = server!!.takeRequest()
@@ -275,14 +275,14 @@ class NativeOAuthRuntimeTest {
         assertTrue(NativeSignInCompletion.isPending(store!!.load())); assertFalse(store!!.load()!!.has(NativeAccountProfileCache.KEY))
         server!!.takeRequest(); server!!.takeRequest()
         if (expired) {
-            server!!.enqueue(MockResponse().setResponseCode(401).setBody("{}"))
+            server!!.enqueue(MockResponse().setResponseCode(401).setHeader("x-hexclave-known-error","invalid_access_token").setBody("{}"))
             server!!.enqueue(MockResponse().setBody("{\"access_token\":\"refreshed-access\"}"))
         }
         enqueueUser()
         val restored = NativeAccount(store!!, NativeOAuthClient("fixture-project", "fixture-public-key", server!!.url("/")), NativeOAuthBrowser())
         runBlocking { restored.restorePendingSignIn() }
         val request = server!!.takeRequest(); assertEquals("/api/v1/users/me", request.requestUrl!!.encodedPath)
-        assertEquals("fixture-access", request.getHeader("x-stack-access-token"))
+        assertEquals("fixture-access", request.getHeader("x-hexclave-access-token"))
         if (expired) {
             val refresh = server!!.takeRequest(); assertEquals("/api/v1/auth/oauth/token", refresh.requestUrl!!.encodedPath)
             val form = refresh.body.readUtf8().split('&').associate { field ->
@@ -290,7 +290,9 @@ class NativeOAuthRuntimeTest {
             assertEquals("refresh_token", form["grant_type"]); assertEquals("fixture-refresh", form["refresh_token"])
             assertEquals("fixture-project", form["client_id"])
             val verified = server!!.takeRequest(); assertEquals("/api/v1/users/me", verified.requestUrl!!.encodedPath)
-            assertEquals("refreshed-access", verified.getHeader("x-stack-access-token"))
+            assertEquals("refreshed-access", verified.getHeader("x-hexclave-access-token"))
+            assertEquals(request.getHeader("x-hexclave-random-nonce"),verified.getHeader("x-hexclave-random-nonce"))
+            assertEquals("fixture-refresh",verified.getHeader("x-hexclave-refresh-token"))
         }
         assertEquals(if (expired) 6 else 4, server!!.requestCount)
         assertTrue(restored.isSignedIn()); assertNotNull(store!!.taskSession()); preservedPairing()

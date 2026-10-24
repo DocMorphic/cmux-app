@@ -299,4 +299,50 @@ class NativeSignInCompletionTest {
         } finally { release.complete(Unit);blocker.join();waiting.join() }
     }
 
+    @Test fun interactivePendingRefreshKeepsItsReceiptAndDoesNotUseVerifiedAccountAccess()=runBlocking<Unit> {
+        val store=Store();var receipt:String?=null;var exchanges=0
+        val flow=NativeSignInCompletion(store::load,store::update,{error("Legacy fetch unused")},environment,store.lock,
+            refreshAccess={assertEquals("refresh",it);exchanges++;"fresh"},fetchUserWithRefresh={access,refresh->
+                assertEquals("access",access);receipt=store.load().getString("task_session")
+                assertTrue(NativeSignInCompletion.isPending(store.load()))
+                assertEquals("fresh",refresh(access));assertEquals(receipt,store.load().getString("task_session"));user
+            })
+        flow.signIn{it("access","refresh")};assertEquals(1,exchanges)
+        assertEquals(receipt,store.load().getString("task_session"));assertEquals("fresh",store.load().getString("access_token"))
+        assertFalse(NativeSignInCompletion.isPending(store.load()));store.preserved()
+    }
+    @Test fun cancelledPendingRefreshCannotWriteAfterItsPhaseOrReceiptIsRetired()=runBlocking<Unit> {
+        val store=Store();val work=NativeAuthWork();val entered=CompletableDeferred<Unit>();val release=CompletableDeferred<Unit>()
+        val flow=NativeSignInCompletion(store::load,store::update,{error("Legacy fetch unused")},environment,store.lock,work=work,
+            refreshAccess={withContext(NonCancellable){entered.complete(Unit);release.await();"late"}},
+            fetchUserWithRefresh={access,refresh->refresh(access);user})
+        val operation=async{runCatching{flow.signIn{it("access","refresh")}}}
+        try {entered.await();flow.cancelPending()
+            store.update{it.put("task_session","replacement").put(NativeSignInCompletion.PENDING,"replacement")
+                .put("access_token","replacement-access").put("refresh_token","replacement-refresh")}
+            release.complete(Unit);assertTrue(operation.await().isFailure);work.quiesce(3000)
+            assertEquals("replacement-access",store.load().getString("access_token"));assertEquals("replacement-refresh",store.load().getString("refresh_token"))
+            assertTrue(NativeSignInCompletion.isPending(store.load()));store.preserved()
+        } finally {release.complete(Unit);operation.cancelAndJoin()}
+    }
+    @Test fun definitivePendingRefreshRejectionClearsThatReceiptAndReturnsNoReplacementAccess()=runBlocking<Unit> {
+        val store=Store()
+        val flow=NativeSignInCompletion(store::load,store::update,{error("Legacy fetch unused")},environment,store.lock,
+            refreshAccess={throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)},fetchUserWithRefresh={access,refresh->
+                assertNull(refresh(access));throw NativeSdkRequestFailure("invalid_access_token","Unknown error",null,401L,"invalid_access_token")
+            })
+        val failure=runCatching{flow.signIn{it("access","refresh")}}.exceptionOrNull() as NativeSdkRequestFailure
+        assertEquals("invalid_access_token",failure.code);assertCleared(store)
+    }
+    @Test fun transientPendingRefreshFailurePreservesItsCredentialsAndOriginalRejectedAccessError()=runBlocking<Unit> {
+        val store=Store()
+        val flow=NativeSignInCompletion(store::load,store::update,{error("Legacy fetch unused")},environment,store.lock,
+            refreshAccess={throw IOException("Offline")},fetchUserWithRefresh={access,refresh->
+                assertNull(refresh(access));throw NativeSdkRequestFailure("invalid_access_token","Unknown error",null,401L,"invalid_access_token")
+            })
+        val failure=runCatching{flow.signIn{it("access","refresh")}}.exceptionOrNull() as NativeSdkRequestFailure
+        assertEquals("invalid_access_token",failure.code);assertTrue(NativeSignInCompletion.isPending(store.load()))
+        assertEquals("access",store.load().getString("access_token"));assertEquals("refresh",store.load().getString("refresh_token"));store.preserved()
+    }
+
 }
