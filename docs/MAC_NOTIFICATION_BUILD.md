@@ -19,19 +19,28 @@ The cause is a wrong boundary type in the previous fixture: actual upstream
 MobileHostIdentity.instanceTag() returns String, while the fixture returned
 String?. Thus Optional.map in the patch actually called String.map in the full
 app and produced Character values that Foundation cannot serialize. The patch
-now encodes the String directly, with explicit null for the default stable tag;
-fetch normalizes that stable tag consistently. The fixture now has the real
+now encodes the String directly. A follow-up API audit also preserves the
+current stable tag, the literal String "default", on both fetch and ACK. The
+original PhonePushClient constructs that same tag, and the original inbox
+coordinator compares it directly; normalizing it to null would address another
+target. The checker now binds those producer/coordinator sources as well. The fixture now has the real
 nonoptional return type, and its checker binds the original identity source and
 asserts that signature. All20 client cases, the actual worker fetch/ACK parser,
 five installer tests and eight cache tests pass. A full corrected Mac build and
 independent artifact/live acceptance are required before replacement.
 
-The Mac recovery launch currently uses an argument-domain-only mobile-listener
-pause to avoid retrying the known crash; the saved pairing preference remains1.
-Workspace restoration and removal of the disposable fixture are still being
-reconciled, and normal mobile listening must be restored after the verified fix.
-The saved helper registration remains present. No credential, signing material or
-pairing enrollment was replaced. Evidence is private under
+Recovery used an argument-domain-only mobile-listener pause while the pending
+reply remained live. The fresh saved session still contained all original
+workspaces and the disposable one; it was restored without using the older
+backup. The disposable workspace and generated recovery window were removed.
+All three original workspace IDs, order and selection then matched preflight.
+An ordinary graceful quit/relaunch removed the process-only pause after the test
+reply TTL; normal startup and the saved pairing preference1 are restored. The
+helper still has one registration and zero retired rows. No credential, signing
+material or pairing enrollment was replaced. Build40205170225 at exact source83878ea9 is still running and contains the
+tagged-build crash fix; its older stable normalization does not include the
+follow-up default-tag correction. The next full build must use the corrected
+source; do not replace the app before exact-source artifact verification. Actual post-fix reply/ACK and cold tap remain unaccepted. Evidence is private under
 `captures/recovery-20261025/pixel-723-live-v1` and
 `captures/recovery-20261025/reply-ack-real-string-v1`.
 

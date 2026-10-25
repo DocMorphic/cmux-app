@@ -130,8 +130,7 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
             } else {
                 precondition(request.httpMethod == "GET" && request.url?.path == "/v1/replies/e2e")
                 var expected = [URLQueryItem(name: "macDeviceId", value: "fixture-mac")]
-                let tag = MobileHostIdentity.instanceTag()
-                if tag != "default" { expected.append(URLQueryItem(name: "macInstanceTag", value: tag)) }
+                expected.append(URLQueryItem(name: "macInstanceTag", value: MobileHostIdentity.instanceTag()))
                 expected.append(URLQueryItem(name: "macBuildID", value: Bundle.main.bundleIdentifier ?? "cmux"))
                 precondition(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems == expected)
             }

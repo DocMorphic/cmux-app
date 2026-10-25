@@ -28,6 +28,14 @@ def main():
     fixture_source = (root / 'scripts/phone-reply-inbox-diagnostics-fixture.swift').read_text()
     assert 'static func instanceTag() -> String {' in fixture_source
     (output / 'OriginalMobileHostIdentity.swift').write_bytes(identity)
+    producer_path = 'Sources/Cloud/PhonePushClient.swift'
+    producer = subprocess.check_output(['git', '-C', str(args.upstream.resolve()), 'show', patch.REF + ':' + producer_path])
+    assert b'macInstanceTag: MobileHostIdentity.instanceTag()' in producer
+    coordinator_path = 'Sources/Cloud/PhoneReplyInboxCoordinator.swift'
+    coordinator = subprocess.check_output(['git', '-C', str(args.upstream.resolve()), 'show', patch.REF + ':' + coordinator_path])
+    assert b'encryptedPayload.tuple.macInstanceTag == MobileHostIdentity.instanceTag()' in coordinator
+    (output / 'OriginalPhonePushClient.swift').write_bytes(producer)
+    (output / 'OriginalPhoneReplyInboxCoordinator.swift').write_bytes(coordinator)
     source = patch.patched_sources(originals)['Sources/Cloud/PhoneReplyInboxClient.swift']
     client = output / 'PhoneReplyInboxClient.swift'; client.write_bytes(source)
     # The pinned full app target uses SWIFT_VERSION=5.0. Do not silently turn
@@ -106,12 +114,12 @@ for (const [fetchName, ackName] of [['empty','ack-success'],['stable-empty','ack
   const ack = parsePhoneReplyAck(load(ackName).body);
   assert.equal(ack.ok, true); assert.deepEqual(ack.target, target);
   assert.deepEqual(ack.replyIds, ['fixture-reply']);
-  assert.equal(target.macInstanceTag, fetchName.startsWith('stable') ? null : 'fixture-instance');
+  assert.equal(target.macInstanceTag, fetchName.startsWith('stable') ? 'default' : 'fixture-instance');
 }
 console.log('PASS actual worker parser rejects old targetless requests; accepts exact Swift fetch/ack targets for tagged and stable builds');
 ''')
     print(run('worker-contract', ['node', '--experimental-strip-types', str(output / 'worker-contract.mjs')], timeout=15).strip())
-    receipt = {'upstream': patch.REF, 'identitySource': identity_path, 'identitySourceSha256': hashlib.sha256(identity).hexdigest(), 'patchedClientSha256': hashlib.sha256(source).hexdigest(),
+    receipt = {'upstream': patch.REF, 'identitySource': identity_path, 'identitySourceSha256': hashlib.sha256(identity).hexdigest(), 'producerSourceSha256': hashlib.sha256(producer).hexdigest(), 'coordinatorSourceSha256': hashlib.sha256(coordinator).hexdigest(), 'patchedClientSha256': hashlib.sha256(source).hexdigest(),
         'fixtureSha256': hashlib.sha256(fixture.read_bytes()).hexdigest(), 'cases': cases,
         'workerSource': worker_path, 'workerSha256': hashlib.sha256(worker).hexdigest(),
         'scope': 'Exact patched client typechecked/executed with inert auth/service/URLProtocol/crypto DTO boundaries; not real Mac account/server retrieval or terminal reply acceptance.'}

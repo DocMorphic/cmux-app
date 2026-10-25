@@ -224,13 +224,13 @@ def reply_inbox_diagnostics(source):
                 value: MobileHostIdentity.deviceID()
             )]''', '''            queryItems: [
                 URLQueryItem(name: "macDeviceId", value: MobileHostIdentity.deviceID()),
-                URLQueryItem(name: "macInstanceTag", value: MobileHostIdentity.instanceTag() == "default" ? nil : MobileHostIdentity.instanceTag()),
+                URLQueryItem(name: "macInstanceTag", value: MobileHostIdentity.instanceTag()),
                 URLQueryItem(name: "macBuildID", value: Bundle.main.bundleIdentifier ?? "cmux"),
             ].filter { $0.value != nil }''')
     source = once(source, '            withJSONObject: ["replyIds": replyIds],', '''            withJSONObject: [
                 "replyIds": replyIds,
                 "macDeviceId": MobileHostIdentity.deviceID(),
-                "macInstanceTag": MobileHostIdentity.instanceTag() == "default" ? NSNull() : MobileHostIdentity.instanceTag() as Any,
+                "macInstanceTag": MobileHostIdentity.instanceTag(),
                 "macBuildID": Bundle.main.bundleIdentifier ?? "cmux",
             ],''')
     return source
