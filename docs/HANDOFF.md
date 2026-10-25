@@ -1,3 +1,24 @@
+## Original iOS bundle probe prepared — 2026-10-25
+
+The native Home/question Bundle.main gap now has an original-app capture path.
+This Mac has Command Line Tools only; the manual hosted macOS 26 workflow builds
+the pinned, unmodified iOS workspace and real native dependencies. A read-only
+sidecar runs the complete original L10n helper in that app process and compares
+executable/Info/catalog-resource hashes with the build product. It queries 23
+source main-bundle labels and 11 module error keys across nine launch languages.
+It neither signs in nor operates Home/question UI; matched native views remain
+separate from resource-resolution evidence.
+
+Local preparation, Swift/Objective-C checking, workflow YAML and 11 verifier tests
+pass. The original iOS app has not yet built or run on this path; runtime lookup
+and packaging remain unproven until its hosted capture is inspected. No Android
+app code, native libraries, real account/pairing/signing or frozen 722/723 changed.
+The signed 723 device availability question remains pending; do not duplicate it.
+Global source pins remain unchanged; nativeBundleFiles adds scoped resource/
+project attribution only. Next: dispatch Original iOS Chief bundle lookups, bind
+its exact run/head/artifact, and continue full-question error localization while
+it builds. All thirteen parity completion areas stay open.
+
 ## Full-question reopening and focused input corrected — 2026-10-25
 
 Canceling a pending full question and reopening the same card now permits a new

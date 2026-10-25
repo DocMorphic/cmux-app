@@ -50,6 +50,15 @@ through Activity replacement. Actual emulator IME-window bounds verify normal,
 enlarged and reopened input. This adapter is not matched UIKit sheet/IME motion;
 physical keyboard, selection/composition and accessibility acceptance remain open.
 
+`nativeBundleFiles` additionally binds the original iOS project/workspace,
+app package assembly and ShellUI package resource declarations. The manual
+Original iOS Chief bundle lookups workflow builds the original pinned app without
+editing its sources/resources. A Foundation sidecar calls unmodified L10n in the
+actual app process and records main/module resolution with executable/resource
+identity checks. Local preparation/typechecking is not runtime evidence. See
+[HANDOFF.md](../../docs/HANDOFF.md) for the exact capture run and current verification state; native UI,
+authentication and physical behavior are outside this resource probe.
+
 The rich composer keyboard port also follows the already attributed
 ConversationComposerView.swift priority Command-B/I/U overrides and editable
 action checks. Android Ctrl/Meta dispatch invokes the same semantic palette

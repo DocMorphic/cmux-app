@@ -1,0 +1,65 @@
+name: Original iOS Chief bundle lookups
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-chief-original-bundles
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      CMUX_WIREGUARD_GO_REQUIRE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cmux-app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          # Exact maintained toolchain; see https://go.dev/doc/devel/release#go1.26.10.
+          go-version: '1.26.10'
+          cache: false
+      - name: Check the capture/verifier and select source SDK family
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_bundles.py
+          cd upstream
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
+      - name: Provision the original pinned native engine
+        run: |
+          set -euo pipefail
+          cd upstream
+          git submodule update --init --depth 1 ghostty
+          ./scripts/install-zig-ci.sh
+          ./scripts/ensure-ghosttykit.sh
+      - name: Build unmodified app and capture actual resource lookup
+        run: |
+          set -euo pipefail
+          python3 cmux-app/scripts/run-ios-chief-bundles.py \
+            --upstream upstream --output "$RUNNER_TEMP/chief-bundles" \
+            --project-commit "$GITHUB_SHA"
+      - name: Preserve observations and bounded diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-chief-original-bundles
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/chief-bundles/*.json
+            ${{ runner.temp }}/chief-bundles/*.log
+            ${{ runner.temp }}/chief-bundles/*.swift
+            ${{ runner.temp }}/chief-bundles/observations

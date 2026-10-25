@@ -319,5 +319,12 @@
   "questionPresentationFiles": {
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefHomeView.swift": "a52aa435572007905dec6ebcbe27d718bb0b363a6c8a823fead044732e1d449f",
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift": "bc7e624230704182753a7ec42ac5d0db4b27c4e403f9d299c25b26acfadd8f61"
+  },
+  "nativeBundleFiles": {
+    "ios/cmux-ios.xcodeproj/project.pbxproj": "f17b7f6c949f06aaed89b081c924617120181af2aa0836fd3f936ce17ca9f614",
+    "ios/cmux.xcworkspace/contents.xcworkspacedata": "1dec062119857605e6b0a295f01a434feb7907ef280aa463f45cca329ee98810",
+    "ios/cmuxPackage/Package.swift": "6c6d4df5cb5b33468c7ff984382ed02d650716828558e2dbb3d8ecce5cd7c017",
+    "Packages/iOS/CmuxMobileShellUI/Package.swift": "f46d5d7955c3d30b9fb77acfaa64145ce0ca7e6478d28c328f56a4c8f2dc2a0e",
+    ".xcode-version": "20d2add851bf39edcc6b5e830930f962db7e19dffa2cab8610eed551eda6c302"
   }
 }
