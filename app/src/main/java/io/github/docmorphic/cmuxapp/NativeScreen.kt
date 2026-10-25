@@ -2803,7 +2803,7 @@ internal fun NativeScreen(
                         modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
                     NativeAccountDeletionButton(browserLogin, deletionReceipt, accountDeletion::begin,
                         publishedAuthIdentity,accountDeletion::confirmationOwner,accountDeletion.requiresIdentity)
-                    if (connector == null) NativeAccountPlanSettings(account, accountTeams, teamState.scope)
+                    if (connector == null) NativeAccountPlanSettings(account, accountTeams)
                     if (whatsNewState?.archive?.isNotEmpty() == true) TextButton(onClick = { showWhatsNew = true },
                         modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.whatsnew")) { Text("What's New") }
                     })

@@ -4,6 +4,15 @@ refresh-only ordering and 270/270 owned-emulator checkpoint. The historical
 checkpoint below keeps its earlier scope; full parity and physical/UI acceptance
 remain open.
 
+## Cloud credential follow-up — 2026-10-25
+
+[Cloud credential context](CLOUD_CREDENTIAL_CONTEXT.md) adds fresh Cloud pair
+capture, optional-team ownership and bootstrap-inclusive deletion credential
+capture. Native membership and stored snapshot admission remain separate.
+Credential-free snapshot/deletion current-owner checks and whole deletion
+confirmation/client behavior under unreadable storage remain open; direct
+credential-capture coverage does not close those gates.
+
 Current local-authority follow-up: [Access-only session authority](ACCESS_ONLY_SESSION.md)
 records the 2026-10-25 live-verification receipt, restoration cancellation and
 initial v2 control credential split. The earlier evidence below retains its

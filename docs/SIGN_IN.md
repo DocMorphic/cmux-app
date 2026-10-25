@@ -1,3 +1,48 @@
+## Cloud credential context and optional team routing — 2026-10-25
+
+Cloud now resolves a fresh coherent SDK pair and pins the optional team around
+capture. Personal accounts can load the catalog and plan without inventing native
+Mac membership. Account/team changes retire the Cloud owner; native membership
+publication fences capture while preserving the same Cloud controller. VPN binding
+performs no credential or device lookup; enrollment captures once before identity,
+and retained credentials can only revoke their captured browser peer.
+
+Legacy cached restoration binds the local receipt whether restore or an earlier
+reader created it, with cached-account, epoch and writer fences. Access-only cached
+presentation can show Cloud's missing-refresh result without writing a receipt.
+Account-deletion credential capture includes bootstrap in one absolute deadline;
+plain bootstrap work stays tracked without blocking later token readers.
+
+The source comparison executes nine complete unchanged release declarations across
+323 cases at immutable pin `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`.
+Independent regeneration is byte-identical. Final JVM results: 3,506 total in 470
+suites, 3,502 passed, four existing SSH skips, zero failures/errors. The affected
+owned API36 cohort passes 15/15 in 50.874 seconds. The final full run passes
+285/285 in 501.136 seconds, including 15 new methods and 270 regressions, with
+byte-identical APKs and source inputs. Both runs have empty crash logs, no
+preflight ANR, restored settings/window and owned exit 0. Loaded-empty Cloud
+pixels were inspected; the full-run images match the focused images exactly.
+The 1,000ms capture returned at 1,008ms without a backend request; the existing
+60-second team phase returned at 60,007ms with ciphertext/pairing preserved.
+Production transport/SDK defaults are unchanged. Earlier failed/incomplete
+attempts remain recorded; the intermittent existing membership fixture is not
+declared fixed.
+
+Evidence: `captures/recovery-20261025/cloud-context-checkpoint.json`.
+
+Full parity remains active. Credential-free snapshot/deletion current-owner checks
+and the whole deletion confirmation/client under unreadable storage remain open;
+the direct capture test does not establish whole-flow retry behavior. Original
+phase admission/finish/high-water, real OS sleep/locked storage/process death,
+authentication-project reset/scoping, remaining schema/metadata/callback/form/
+identity/worker/diagnostic behavior and complete matched UI/accessibility remain
+open. Physical Pixel/Mac, native terminal, provider/helper/Firebase, Cloud/VPN
+acceptance and signed delivery are still required. No real account/pairing/signing
+data, global pin or frozen signed722 changed.
+
+Details: [Cloud credential context](CLOUD_CREDENTIAL_CONTEXT.md).
+Earlier checkpoints below retain their historical scope and open items.
+
 ## Authenticated snapshot capture reconciled — 2026-10-25
 
 Initial control connections now receive a retryable network error when encrypted

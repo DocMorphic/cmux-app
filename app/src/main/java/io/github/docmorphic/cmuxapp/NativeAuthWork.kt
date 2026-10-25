@@ -21,13 +21,17 @@ internal class NativeAuthWork(
     private val active = mutableSetOf<Entry>()
     internal val activeCount: Int get() = synchronized(lock) { active.size }
     internal val cancelledCount: Int get() = synchronized(lock) { active.count { it.job.isCancelled } }
+    internal fun clockMillis():Long=nowMillis()
 
     suspend fun <T> run(phase: NativeAuthPhase, timeoutMillis: Long, owner: String? = null,
-        admission: Admission = Admission.TOKEN, finish:()->Unit={}, operation: suspend () -> T): T {
+        admission: Admission = Admission.TOKEN, finish:()->Unit={}, absoluteDeadlineMillis:Long?=null,operation: suspend () -> T): T {
         require(timeoutMillis > 0)
         val context = currentCoroutineContext()
         context.ensureActive()
         val started = nowMillis()
+        val deadline=absoluteDeadlineMillis ?: (started+timeoutMillis)
+        val waitMillis=(deadline-nowMillis()).coerceAtLeast(0)
+        if(waitMillis==0L)throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
         val lifetime = SupervisorJob()
         val scope = CoroutineScope(context.minusKey(Job) + lifetime)
         val task = scope.async(start = CoroutineStart.LAZY) {
@@ -36,7 +40,7 @@ internal class NativeAuthWork(
             ensureActive()
             // Token phases carry an absolute deadline; prompt/exchange phases
             // follow the original race winner without an extra expiry verdict.
-            if (admission in setOf(Admission.TOKEN,Admission.SHARED_REFRESH) && nowMillis() - started >= timeoutMillis)
+            if (admission in setOf(Admission.TOKEN,Admission.SHARED_REFRESH) && nowMillis() >= deadline)
                 throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
             result.getOrThrow()
         }
@@ -50,7 +54,7 @@ internal class NativeAuthWork(
             lifetime.cancel()
         }
         try {
-            return awaitPhaseWinner(scope, task, entry, timeoutMillis)
+            return awaitPhaseWinner(scope, task, entry, waitMillis)
         } catch (failure: Exception) {
             if (failure is PhaseTimeout || failure is CancellationException) {
                 synchronized(lock) { if (entry in active) entry.timedOutAt = nowMillis() }
@@ -252,7 +256,7 @@ internal class NativeAuthWork(
         }
         val conflict = active.any { old -> old.phase == entry.phase && old.blocksAdmission && when (entry.admission) {
             Admission.EXCLUSIVE -> true
-            Admission.TOKEN -> old.timedOutAt != null
+            Admission.TOKEN -> old.admission!=Admission.PHASE && old.timedOutAt != null
             Admission.SHARED_REFRESH -> false // The shared registry fences retired writes; retain actual jobs for sign-in joining.
             Admission.PHASE -> false // A plain source phase permits another attempt while a retired operation finishes.
             Admission.CLEANUP -> false

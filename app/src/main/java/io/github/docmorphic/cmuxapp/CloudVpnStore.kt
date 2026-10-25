@@ -12,7 +12,8 @@ import java.nio.file.StandardCopyOption
 import java.util.UUID
 
 internal data class CloudVpnOwner(val user: String, val team: String?) {
-    init { require(user.isNotBlank() && user.length <= 4096 && (team == null || team.isNotBlank() && team.length <= 4096)) }
+    // The original successful SDK user model permits an empty id; Cloud authenticates at the backend.
+    init { require(user.length <= 4096 && (team == null || team.isNotBlank() && team.length <= 4096)) }
     override fun toString() = "CloudVpnOwner(redacted)"
 }
 internal data class CloudVpnRevocation(val attempt: String, val owner: CloudVpnOwner, val fingerprint: String) {

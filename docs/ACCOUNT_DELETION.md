@@ -1,5 +1,14 @@
 # Account deletion
 
+## Cloud credential follow-up — 2026-10-25
+
+[Cloud credential context](CLOUD_CREDENTIAL_CONTEXT.md) adds fresh Cloud pair
+capture, optional-team ownership and bootstrap-inclusive deletion credential
+capture. Native membership and stored snapshot admission remain separate.
+Credential-free snapshot/deletion current-owner checks and whole deletion
+confirmation/client behavior under unreadable storage remain open; direct
+credential-capture coverage does not close those gates.
+
 ## Upstream contract
 
 Reviewed cmux at audited candidate `204a11dfcc76280205e50406ab94270a1c152155`:

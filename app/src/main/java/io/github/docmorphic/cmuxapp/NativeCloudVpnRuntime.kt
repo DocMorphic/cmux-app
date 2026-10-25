@@ -16,7 +16,7 @@ internal class NativeCloudVpnRuntime(context: Context, parent: CoroutineScope,
     private val vpnStore = nativeCloudVpnStore(application)
     private val controller: CloudSystemVpnController = CloudSystemVpnController(scope, vpnStore, platform)
     val state = controller.state
-    private val mutableOwner = MutableStateFlow<NativeTeamScope?>(null)
+    private val mutableOwner = MutableStateFlow<CloudAccountScope?>(null)
     val owner = mutableOwner.asStateFlow()
     private val mutableFailure = MutableStateFlow<String?>(null)
     val failure = mutableFailure.asStateFlow()
@@ -25,11 +25,11 @@ internal class NativeCloudVpnRuntime(context: Context, parent: CoroutineScope,
         scope.launch {
             var firstBinding = true
             val initialLogin = store.taskSession()
-            combine(teams.state, store.revisions, refresh) { state, _, retry ->
-                Triple(state.scope?.takeIf(teams::isCurrent), store.taskSession(), retry)
+            combine(teams.state, store.revisions, refresh, account.sessionRestore.state, account.sessionRestore.generations) { _, _, retry, state, _ ->
+                Triple(account.cloudScope(teams)?.takeIf{state.authenticated && !state.restoring}, store.taskSession(), retry)
             }.distinctUntilChanged().collectLatest { (next, login, _) ->
-                // Initial membership loading is not sign-out. A saved VPN remains
-                // dormant until the same login/user/team has been verified.
+                // Initial account restoration is not sign-out. A saved VPN remains
+                // dormant until the same published Cloud account finishes restoring.
                 if (firstBinding && login != initialLogin) {
                     controller.bind(null); firstBinding = false
                 }
@@ -41,7 +41,7 @@ internal class NativeCloudVpnRuntime(context: Context, parent: CoroutineScope,
                 if (next != null) try {
                     val access = nativeCloudVpnAccess(application, account, teams, next)
                     ensureActive()
-                    if (teams.isCurrent(next)) {
+                    if (account.isCloudScopeCurrent(teams,next)) {
                         controller.bind(access, restoreSaved = firstBinding)
                         firstBinding = false
                         mutableOwner.value = next
@@ -54,7 +54,7 @@ internal class NativeCloudVpnRuntime(context: Context, parent: CoroutineScope,
             }
         }
     }
-    fun enable(expected: NativeTeamScope): Boolean = owner.value == expected && teams.isCurrent(expected) && controller.enable()
+    fun enable(expected: CloudAccountScope): Boolean = owner.value == expected && account.isCloudScopeCurrent(teams,expected) && controller.enable()
     /** Called only by Android restarting our previously sticky service. It adopts
      * the empty service, not a native tunnel; verified binding restores the profile. */
     fun recoverService(service: NativeCloudVpnService) {

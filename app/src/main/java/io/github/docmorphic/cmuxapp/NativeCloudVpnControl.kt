@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.dp
     val owner by runtime.owner.collectAsState()
     val failure by runtime.failure.collectAsState()
     val context = LocalContext.current
-    var confirming by remember { mutableStateOf<NativeTeamScope?>(null) }
-    var permissionOwner by remember { mutableStateOf<NativeTeamScope?>(null) }
+    var confirming by remember { mutableStateOf<CloudAccountScope?>(null) }
+    var permissionOwner by remember { mutableStateOf<CloudAccountScope?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val expected = permissionOwner; permissionOwner = null

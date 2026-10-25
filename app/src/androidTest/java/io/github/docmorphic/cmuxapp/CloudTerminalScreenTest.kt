@@ -124,7 +124,7 @@ class CloudTerminalScreenTest {
         val row = snapshot.rows.single()
         val drafts = TerminalDrafts()
         val saved = java.util.concurrent.atomic.AtomicReference<String?>(null)
-        val draftOwner = NativeTeamScope("fixture-login", "fixture-user", "fixture-team", 1)
+        val draftOwner = CloudAccountScope("fixture-login", "fixture-user", "fixture-team", 1)
         link.beforeSend = { text ->
             val persisted = org.json.JSONArray(checkNotNull(saved.get()) { "Input preceded draft persistence" })
             check((0 until persisted.length()).any { index ->

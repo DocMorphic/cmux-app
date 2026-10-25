@@ -14,9 +14,10 @@ import kotlinx.coroutines.flow.collectLatest
 import java.io.File
 
 /** Retained account owner. A foreground shell with machines holds the tunnel across tab changes. */
-internal class NativeCloudViewModel(context: Context, account: NativeAccount,
+internal class NativeCloudViewModel(context: Context, private val account: NativeAccount,
     private val store: NativeCredentialStore, private val teams: NativeAccountTeams,
-    private val savedState: SavedStateHandle = SavedStateHandle()) : ViewModel() {
+    private val savedState: SavedStateHandle = SavedStateHandle(),
+    private val apiRequests:CloudApiRequests=CloudApiRequests()) : ViewModel() {
     private val draftRepository = TerminalDraftRepository.get(context.applicationContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutable = MutableStateFlow<CloudMachinesController?>(null)
@@ -38,7 +39,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
     val connectionFailures = mutableConnectionFailures.asStateFlow()
     private var pendingRestore = CloudScreenCheckpoint.decode(savedState.get<String>(CloudScreenCheckpoint.KEY))
     private var navigationRevision = 0L
-    private var owner: NativeTeamScope? = null
+    private var owner: CloudAccountScope? = null
     private var foreground = false
     private var catalogObserver: Job? = null
     private var connectionObserver: Job? = null
@@ -46,8 +47,8 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         val application = context.applicationContext
         val root = File(application.noBackupFilesDir, "cloud-creates")
         scope.launch {
-            combine(teams.state, store.revisions) { state, _ -> state.scope?.takeIf(teams::isCurrent) }.collect { next ->
-                if (next == owner) return@collect
+            combine(teams.state, store.revisions, account.sessionRestore.state, account.sessionRestore.generations) { _, _, _, _ -> account.cloudScope(teams) }.collect { next ->
+                if (next == owner) { setForeground(foreground);return@collect }
                 pendingRestore = CloudScreenCheckpoint.decode(savedState.get<String>(CloudScreenCheckpoint.KEY))
                 if ((next != null && pendingRestore?.matches(next) == false) || store.taskSession() == null) cancelRestoration()
                 mutableNavigationFailure.value = null
@@ -60,18 +61,18 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                 mutableTunnel.value?.close(); mutableTunnel.value = null
                 mutable.value?.close(); mutable.value = null; owner = next
                 if (next != null) {
-                    val capture = CloudAccountScope(next.login, next.userId, next.teamId, next.generation)
+                    val capture = next
                     val preferences = application.getSharedPreferences("cloud_machine_visibility", Context.MODE_PRIVATE)
                     val visibility = CloudMachineVisibility(capture,
                         { key -> preferences.getStringSet(key, emptySet()).orEmpty().toSet() },
                         { key, ids -> check(preferences.edit().putStringSet(key, ids).commit()) { "Could not save Cloud computer visibility" } },
-                        { teams.isCurrent(next) })
+                        { account.isCloudScopeCurrent(teams,next) })
                     mutableVisibility.value = visibility
-                    val api = nativeCloudApi(account, teams, next)
-                    val runtime = CloudTunnelController(scope, { teams.isCurrent(next) },
-                        { startNativeCloudTunnelResource(application, scope, api, teams, next) },
+                    val api = nativeCloudApi(account, teams, next,apiRequests)
+                    val runtime = CloudTunnelController(scope, { account.isCloudScopeCurrent(teams,next) },
+                        { startNativeCloudTunnelResource(application, scope, api, next) { account.isCloudScopeCurrent(teams,next) } },
                         NativeCloudTunnelResource::retire)
-                    val workspaces = CloudWorkspaceController(scope, { teams.isCurrent(next) }) { machineId ->
+                    val workspaces = CloudWorkspaceController(scope, { account.isCloudScopeCurrent(teams,next) }) { machineId ->
                         val pool = runtime.resource()?.connections
                         val link = pool?.connection(machineId)
                             ?: throw IllegalStateException("Cloud tunnel is reconnecting")
@@ -80,10 +81,10 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                         catch (failure: Exception) { pool.retire(machineId, link); throw failure }
                     }
                     val controller = CloudMachinesController(scope, api,
-                        CloudCreateFileJournal(root, capture), { teams.isCurrent(next) },
+                        CloudCreateFileJournal(root, capture), { account.isCloudScopeCurrent(teams,next) },
                         retireConnections = { runtime.resource()?.connections?.retire(it) },
                         onMachineRestarted = { id ->
-                            if (teams.isCurrent(next) && mutableWorkspaces.value === workspaces) {
+                            if (account.isCloudScopeCurrent(teams,next) && mutableWorkspaces.value === workspaces) {
                                 hosts[id]?.awaitFreshCatalog(workspaces.state.value[id]?.catalogRevision ?: 0)
                                 workspaces.refresh(id)
                             }
@@ -93,7 +94,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                         val link = checkNotNull(pool.connection(machineId)) { "Cloud connection changed" }
                         pool.withConnection(machineId, link) { session ->
                             val bytes = withContext(Dispatchers.IO) {
-                                check(teams.isCurrent(next)) { "Cloud account changed" }
+                                check(account.isCloudScopeCurrent(teams,next)) { "Cloud account changed" }
                                 session.catalog(if (workspaceId == null) CloudCatalogOperation.CREATE_WORKSPACE else CloudCatalogOperation.CREATE_TERMINAL,
                                     workspace = workspaceId)
                             }
@@ -101,7 +102,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                         }
                     }
                     mutableCreation.value = creation
-                    controller.setForeground(foreground)
+                    controller.setForeground(cloudForeground())
                     mutableTunnel.value = runtime
                     mutable.value = controller
                     mutableWorkspaces.value = workspaces
@@ -110,7 +111,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                             val pool = runtime.resource()?.connections
                             if (pool == null) mutableConnectionFailures.value = emptyMap()
                             else pool.failures.collect { failures ->
-                                if (teams.isCurrent(next) && mutableTunnel.value === runtime) mutableConnectionFailures.value = failures
+                                if (account.isCloudScopeCurrent(teams,next) && mutableTunnel.value === runtime) mutableConnectionFailures.value = failures
                             }
                         }
                     }
@@ -118,14 +119,14 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                         combine(controller.state, runtime.state, workspaces.state) { machines, tunnel, rows -> Triple(machines, tunnel, rows) }
                             .collect { (update, tunnel, rows) ->
                             visibility.reconcile(update.catalog.machines.map { it.id }.toSet(), update.phase == CloudCatalogPhase.LOADED)
-                            runtime.setWanted(foreground && update.catalog.machines.isNotEmpty())
+                            runtime.setWanted(cloudForeground() && update.catalog.machines.isNotEmpty())
                             workspaces.setMachines(update.catalog.machines)
-                            workspaces.setAvailable(foreground && tunnel.phase == CloudTunnelPhase.READY)
+                            workspaces.setAvailable(cloudForeground() && tunnel.phase == CloudTunnelPhase.READY)
                             hosts.keys.toList().filter { id -> update.catalog.machines.none { it.id == id } }.forEach { id ->
                                 hosts.remove(id)?.close()
                                 if (mutableRoute.value?.host?.machineId == id) { mutableRoute.value = null; cancelRestoration() }
                             }
-                            hosts.forEach { (id, host) -> host.reconcile(rows[id], foreground && mutableRoute.value?.host === host, tunnel.phase == CloudTunnelPhase.READY) }
+                            hosts.forEach { (id, host) -> host.reconcile(rows[id], cloudForeground() && mutableRoute.value?.host === host, tunnel.phase == CloudTunnelPhase.READY) }
                             mutableRoute.value?.takeIf { it.catalogOwner === workspaces }?.let { route ->
                                 rows[route.host.machineId]?.takeIf { it.authoritative }?.rows?.singleOrNull { it.key == route.workspaceId }?.let { row ->
                                     val previous = route.host.selected.value
@@ -139,7 +140,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                                 }
                             }
                             pendingRestore?.let { saved ->
-                                when (val decision = saved.resolve(next, foreground, visibility.hidden.value, update, rows)) {
+                                when (val decision = saved.resolve(next, cloudForeground(), visibility.hidden.value, update, rows)) {
                                     CloudRestoreDecision.Wait -> Unit
                                     CloudRestoreDecision.Discard -> cancelRestoration()
                                     is CloudRestoreDecision.Open -> {
@@ -151,22 +152,24 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
                             }
                         }
                     }
-                    if (foreground) controller.refresh()
+                    if (cloudForeground()) controller.refresh()
                 }
             }
         }
     }
+    private fun cloudForeground()=foreground && account.sessionRestore.state.value.let{it.authenticated && !it.restoring}
     fun activate() {
-        mutable.value?.takeIf { foreground && it.state.value.phase == CloudCatalogPhase.IDLE }?.refresh()
+        mutable.value?.takeIf { cloudForeground() && it.state.value.phase == CloudCatalogPhase.IDLE }?.refresh()
     }
     fun setForeground(value: Boolean) {
         foreground = value
-        mutable.value?.setForeground(value)
-        if (!value) mutableWorkspaces.value?.setAvailable(false)
-        hosts.forEach { (id, host) -> host.reconcile(mutableWorkspaces.value?.state?.value?.get(id), value && mutableRoute.value?.host === host,
+        val active=cloudForeground()
+        mutable.value?.setForeground(active)
+        if (!active) mutableWorkspaces.value?.setAvailable(false)
+        hosts.forEach { (id, host) -> host.reconcile(mutableWorkspaces.value?.state?.value?.get(id), active && mutableRoute.value?.host === host,
             mutableTunnel.value?.state?.value?.phase == CloudTunnelPhase.READY) }
-        mutableTunnel.value?.setWanted(value && mutable.value?.state?.value?.catalog?.machines?.isNotEmpty() == true)
-        if (value) activate()
+        mutableTunnel.value?.setWanted(active && mutable.value?.state?.value?.catalog?.machines?.isNotEmpty() == true)
+        if (active) activate()
     }
     fun connection(machineId: String): CloudMachineHandshake<CloudNativeSession>? {
         val machine = mutable.value?.state?.value?.catalog?.machines?.singleOrNull { it.id == machineId } ?: return null
@@ -174,7 +177,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         return mutableTunnel.value?.resource()?.connections?.connection(machineId)
     }
     fun retryConnections(expected: CloudWorkspaceController) {
-        if (mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return
+        if (mutableWorkspaces.value !== expected || owner?.let{account.isCloudScopeCurrent(teams,it)} != true) return
         val failed = expected.state.value.values.filter { it.failure != null }.map { it.machine.id }.toSet() +
             mutableTunnel.value?.resource()?.connections?.failures?.value.orEmpty().keys
         failed.forEach { hosts[it]?.awaitFreshCatalog(expected.state.value[it]?.catalogRevision ?: 0) }
@@ -183,7 +186,7 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         expected.refreshAll()
     }
     fun retryConnection(machineId: String, expected: CloudWorkspaceController) {
-        if (mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return
+        if (mutableWorkspaces.value !== expected || owner?.let{account.isCloudScopeCurrent(teams,it)} != true) return
         mutableCreation.value?.clearFailure(machineId)
         hosts[machineId]?.awaitFreshCatalog(expected.state.value[machineId]?.catalogRevision ?: 0)
         mutableTunnel.value?.resource()?.connections?.retire(setOf(machineId))
@@ -194,23 +197,23 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         check(row.machine.id !in mutableVisibility.value?.hidden?.value.orEmpty()) { "This Cloud computer is hidden on this phone" }
         check(mutableWorkspaces.value === expected) { "Cloud workspace account changed" }
         val owner = owner ?: return
-        check(teams.isCurrent(owner)) { "Cloud account changed" }
+        check(account.isCloudScopeCurrent(teams,owner)) { "Cloud account changed" }
         val snapshot = mutableWorkspaces.value?.state?.value?.get(row.machine.id) ?: return
         val current = snapshot.rows.singleOrNull { it.key == row.key } ?: return
         val host = hosts.getOrPut(row.machine.id) {
-            CloudTerminalHost(scope, row.machine.id, { teams.isCurrent(owner) }, {
+            CloudTerminalHost(scope, row.machine.id, { account.isCloudScopeCurrent(teams,owner) }, {
                 val pool = checkNotNull(mutableTunnel.value?.resource()?.connections) { "Cloud tunnel is reconnecting" }
                 val link = checkNotNull(connection(row.machine.id)) { "Cloud connection changed" }
                 pool.withConnection(row.machine.id, link, reportSuccess = false) { session ->
                     ReportingCloudTerminalLink(NativeCloudTerminalLink(session)) { failure -> pool.report(row.machine.id, link, failure) }
                 }
             }, SshComposerPool(draftRepository.drafts, { terminal -> cloudDraftTarget(owner, row.machine.id, terminal) },
-                draftRepository::persistNow, { teams.isCurrent(owner) }))
+                draftRepository::persistNow, { account.isCloudScopeCurrent(teams,owner) }))
         }
         mutableRoute.value?.host?.takeUnless { it === host }?.let { previous ->
             previous.reconcile(mutableWorkspaces.value?.state?.value?.get(previous.machineId), false, false)
         }
-        host.reconcile(snapshot, foreground, mutableTunnel.value?.state?.value?.phase == CloudTunnelPhase.READY)
+        host.reconcile(snapshot, cloudForeground(), mutableTunnel.value?.state?.value?.phase == CloudTunnelPhase.READY)
         val remembered = store.lastWorkspaceTab(owner.login, cloudWorkspaceTabKey(owner, current))
         val terminal = if (terminalId == null) cloudWorkspaceTerminal(current, snapshot.authoritative, remembered)
             else current.workspace.terminals.singleOrNull { it.id == terminalId }
@@ -223,10 +226,10 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         mutableRoute.value = CloudWorkspaceRoute(host, current.key, expected)
     }
     fun createWorkspace(machineId: String, expected: CloudWorkspaceController, workspaceId: String? = null): Boolean {
-        if (machineId in mutableVisibility.value?.hidden?.value.orEmpty() || mutableWorkspaces.value !== expected || owner?.let(teams::isCurrent) != true) return false
+        if (machineId in mutableVisibility.value?.hidden?.value.orEmpty() || mutableWorkspaces.value !== expected || owner?.let{account.isCloudScopeCurrent(teams,it)} != true) return false
         val navigation = navigationRevision
         return mutableCreation.value?.request(machineId, workspaceId) { created ->
-            if (navigationRevision == navigation && mutableWorkspaces.value === expected && foreground &&
+            if (navigationRevision == navigation && mutableWorkspaces.value === expected && cloudForeground() &&
                 created.machineId !in mutableVisibility.value?.hidden?.value.orEmpty()) {
                 expected.state.value[created.machineId]?.rows?.singleOrNull { it.remoteId == created.workspaceId }?.let { row ->
                     openWorkspace(row, created.terminalId?.let { CloudAddress(created.machineId, it).identifier }, expected)
@@ -242,13 +245,13 @@ internal class NativeCloudViewModel(context: Context, account: NativeAccount,
         }
         return true
     }
-    private fun rememberDestination(owner: NativeTeamScope, row: CloudWorkspaceRow, terminal: NativeTerminal?,
+    private fun rememberDestination(owner: CloudAccountScope, row: CloudWorkspaceRow, terminal: NativeTerminal?,
         recordTab: Boolean, waitingTerminal: String? = null) {
-        if (!teams.isCurrent(owner)) return
+        if (!account.isCloudScopeCurrent(teams,owner)) return
         if (recordTab && terminal != null) try {
             store.rememberWorkspaceTab(owner.login, cloudWorkspaceTabKey(owner, row), NativeWorkspaceTab(NativeWorkspaceTabKind.TERMINAL, terminal.id))
         } catch (_: Exception) { mutableNavigationFailure.value = "Could not save the selected Cloud terminal on this phone." }
-        savedState[CloudScreenCheckpoint.KEY] = CloudScreenCheckpoint(owner.login, owner.userId, owner.teamId,
+        savedState[CloudScreenCheckpoint.KEY] = CloudScreenCheckpoint(owner.login, owner.user, owner.team,
             row.machine.id, row.key, terminal?.id ?: waitingTerminal).encode()
     }
     fun cancelRestoration() { pendingRestore = null; savedState.remove<String>(CloudScreenCheckpoint.KEY) }

@@ -481,6 +481,8 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     internal var onSignedOut: suspend (String?,String?) -> Unit = { _,_ -> }
     internal var signOutTeardownTimeoutMillis: Long = 5_000
     internal var snapshotTimeoutMillis:Long = 60_000
+    internal var cloudCaptureTimeoutMillis:Long = 60_000
+    internal val credentialRevisions get()=store.revisions
     private val completion = NativeSignInCompletion(store::load, store::update, {access->oauthClient.currentUser(access,store.load()?.opt("refresh_token") as? String)},
         oauthClient.accountEnvironment, store.accountStateLock, onPublished = { login, user -> onSignedIn(login, user) },
         refreshAccess = oauthClient::refreshAccess, work = authWork,
@@ -495,6 +497,9 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     private val restoredOwner = java.util.concurrent.atomic.AtomicReference<String?>(null)
     private val publishedOwner = java.util.concurrent.atomic.AtomicReference<String?>(null)
     private val observedAuthEpoch = java.util.concurrent.atomic.AtomicLong(0)
+    // Presentation-only Cloud owner for a cached access-only launch with no durable local receipt.
+    // No receipt or refresh ownership is written by this fallback.
+    private val cloudPresentationLogin=UUID.randomUUID().toString()
     internal val sessionRestore: NativeSessionRestore by lazy {
         val root = store.load()
         val cached = cachedSessionUser(root)
@@ -507,10 +512,26 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
             storageAvailable = { store.readability.value != NativeCredentialReadStatus.UNAVAILABLE },
             hasStoredTokens = {
                 // The token probe, including storage and refresh, is phase-bounded.
+                val caller=kotlinx.coroutines.currentCoroutineContext()
+                val epoch=store.authSessionEpoch.get();val generation=sessionRestore.generationSnapshot
                 val snapshot = store.requireReadable()
                 val owner = if (snapshot?.optString("refresh_token")?.isNotBlank() == true && !NativeSignInCompletion.isPending(snapshot))
                     store.requireReadableTaskSession() else snapshot?.optString("task_session")?.takeIf(String::isNotBlank)
                 restoredOwner.set(owner)
+                // Another local reader may already have migrated the receipt after this model was primed.
+                if(owner!=null && snapshot?.optString("refresh_token")?.isNotBlank()==true && publishedOwner.get()==null)
+                    synchronized(store.accountStateLock) {
+                        val latest=store.requireReadable()
+                        val model=sessionRestore.state.value
+                        if(latest?.opt("task_session")==owner && (latest.opt("refresh_token") as? String)?.isNotBlank()==true &&
+                            !NativeSignInCompletion.isPending(latest) && model.authenticated && model.user!=null && model.user==cachedSessionUser(latest))authWork.commitSessionRead {
+                            caller.ensureActive()
+                            if(store.authSessionEpoch.get()==epoch && observedAuthEpoch.get()==epoch && sessionRestore.generationSnapshot==generation &&
+                                publishedOwner.get()==null && !authWork.currentSignInOwnsStore && !authWork.isCapturingSignOutCredentials) {
+                                publishedOwner.set(owner);observedAuthEpoch.set(epoch)
+                            }
+                        }
+                    }
                 val access = sdkAccessToken()
                 val refresh = store.requireReadable()?.optString("refresh_token")?.takeIf(String::isNotBlank)
                 access != null || refresh != null
@@ -874,31 +895,27 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         !authWork.storedSessionCaptureBlocked && runCatching { deletionOwner(owner.login)==owner }.getOrDefault(false)
     /** currentTokens resolves the live pair, including bootstrap, under one absolute capture deadline. */
     internal suspend fun deletionCredentials(owner: NativeAuthenticatedOwner): NativeDeletionCredentials = withContext(Dispatchers.IO) {
-        val started=android.os.SystemClock.elapsedRealtime()
-        try { kotlinx.coroutines.withTimeout(60_000) {
-            // Bootstrap may join token work itself; never register this read-only wait as token work.
-            sessionRestore.awaitBootstrapped()
-            val remaining=60_000-(android.os.SystemClock.elapsedRealtime()-started)
-            if(remaining<=0)throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
-            authWork.run(NativeAuthPhase.ACCOUNT_DELETION,remaining,owner.login) {
-                fun admitted() { if(!isDeletionOwnerCurrent(owner))throw kotlinx.coroutines.CancellationException("Account changed") }
-                repeat(3) {
-                    admitted()
-                    val before=store.requireReadable()
-                    val refresh=before?.optString("refresh_token")?.takeIf(String::isNotBlank)
-                        ?: throw NativeSignInFailure(NativeSignInError.UNAUTHORIZED)
-                    val access=resolvedAccessToken()
-                    kotlinx.coroutines.currentCoroutineContext().ensureActive();admitted()
-                    val after=store.requireReadable()
-                    if(access.isNullOrBlank())throw NativeSignInFailure(if(after?.optString("refresh_token").isNullOrBlank())
-                        NativeSignInError.UNAUTHORIZED else NativeSignInError.NETWORK_ERROR)
-                    if(after?.optString("refresh_token")==refresh)return@run NativeDeletionCredentials(access,refresh)
-                }
-                throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
-            }
-        } } catch(failure:kotlinx.coroutines.TimeoutCancellationException) {
-            kotlinx.coroutines.currentCoroutineContext().ensureActive();throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
+        val caller=kotlinx.coroutines.currentCoroutineContext()
+        fun admitted(){caller.ensureActive()
+            if(publishedAuthenticatedOwner()!=owner)throw kotlinx.coroutines.CancellationException("Account changed")
         }
+        fun root():JSONObject?=synchronized(store.accountStateLock) {
+            admitted()
+            val value=store.requireReadable()
+            if(NativeSignInCompletion.isPending(value))throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
+            val empty=value==null || listOf("task_session","access_token","refresh_token").all{key->
+                value.opt(key).let{it==null || it===JSONObject.NULL || it is String && it.isBlank()}}
+            if(!empty && value?.opt("task_session")!=owner.login)throw kotlinx.coroutines.CancellationException("Account changed")
+            value
+        }
+        val pair=nativeCurrentTokens(authWork,sessionRestore::awaitBootstrapped,{authWork.storedSessionCaptureBlocked},
+            generation={sessionRestore.generationSnapshot to store.authSessionEpoch.get()},checkOwner=::admitted,
+            phase=NativeAuthPhase.ACCOUNT_DELETION,owner=owner.login,capture={
+                nativeCoherentPair(available={try{root();true}catch(_:NativeCredentialReadException){false}},
+                    refresh={(root()?.opt("refresh_token") as? String)?.takeIf(String::isNotEmpty)},
+                    access={nativeSdkResolvedAccess(ordinaryTokens(false,null))})
+            })
+        NativeDeletionCredentials(pair.access,pair.refresh)
     }
 
     private fun publishedAuthenticatedOwner():NativeAuthenticatedOwner? = synchronized(store.accountStateLock) {
@@ -907,6 +924,50 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         val epoch=store.authSessionEpoch.get()
         if(observedAuthEpoch.get()!=epoch)return@synchronized null
         NativeAuthenticatedOwner(identity,login,epoch)
+    }
+    private fun publishedCloudPrincipal():NativeCloudPrincipal?=synchronized(store.accountStateLock) {
+        val model=sessionRestore.state.value
+        val user=model.user?.takeIf{model.authenticated} ?: return@synchronized null
+        val login=publishedOwner.get() ?: cloudPresentationLogin
+        val epoch=store.authSessionEpoch.get()
+        if(observedAuthEpoch.get()!=epoch)return@synchronized null
+        NativeCloudPrincipal(login,user.id,sessionRestore.generationSnapshot,epoch)
+    }
+    internal fun cloudScope(teams:NativeAccountTeams)=teams.cloudRoute(publishedCloudPrincipal()).owner
+    internal fun isCloudScopeCurrent(teams:NativeAccountTeams,owner:CloudAccountScope)=cloudScope(teams)==owner
+    /** Cloud requires live coherence; it must not reuse initial control's stored-pair fast path. */
+    internal suspend fun cloudTokenContext(teams:NativeAccountTeams,owner:CloudAccountScope):NativeCloudTokenContext=withContext(Dispatchers.IO) {
+        val caller=kotlinx.coroutines.currentCoroutineContext();caller.ensureActive()
+        val epoch=store.authSessionEpoch.get();val generation=sessionRestore.generationSnapshot
+        val receipt=publishedOwner.get()
+        fun stamp():NativeCloudContextStamp {
+            val route=teams.cloudRoute(publishedCloudPrincipal())
+            return NativeCloudContextStamp(sessionRestore.generationSnapshot,store.authSessionEpoch.get(),route.generation,route.owner?.team)
+        }
+        fun root():JSONObject?=synchronized(store.accountStateLock) {
+            caller.ensureActive()
+            if(store.authSessionEpoch.get()!=epoch || sessionRestore.generationSnapshot!=generation)
+                throw kotlinx.coroutines.CancellationException("Cloud account changed")
+            val value=store.requireReadable()
+            if(NativeSignInCompletion.isPending(value))throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
+            val empty=value==null || listOf("task_session","access_token","refresh_token").all{key->
+                value.opt(key).let{it==null || it===JSONObject.NULL || it is String && it.isBlank()}}
+            val storedReceipt=value?.opt("task_session")
+            if(storedReceipt!=null && storedReceipt!==JSONObject.NULL && storedReceipt !is String)
+                throw kotlinx.coroutines.CancellationException("Cloud account changed")
+            if(!empty && (storedReceipt as? String)?.takeIf(String::isNotBlank)!=receipt)throw kotlinx.coroutines.CancellationException("Cloud account changed")
+            value
+        }
+        if(!isCloudScopeCurrent(teams,owner))throw kotlinx.coroutines.CancellationException("Cloud account changed")
+        val result=nativeCloudTokenContext(::stamp,::applicationTransitionActive) {
+            authWork.run(NativeAuthPhase.REFRESH,cloudCaptureTimeoutMillis,owner.login) {
+                nativeCoherentPair(available={try{root();true}catch(_:NativeCredentialReadException){false}},
+                    refresh={(root()?.opt("refresh_token") as? String)?.takeIf(String::isNotEmpty)},
+                    access={nativeSdkResolvedAccess(ordinaryTokens(false,null))})
+            }
+        }
+        if(!isCloudScopeCurrent(teams,owner))throw NativeSignInFailure(NativeSignInError.NETWORK_ERROR)
+        result
     }
     private fun storedAuthenticatedSession(): NativeStoredAuthSession = synchronized(store.accountStateLock) {
         val root = store.requireReadable()

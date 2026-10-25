@@ -9,9 +9,9 @@ import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CloudComposerDraftsTest {
-    private val owner = NativeTeamScope("login", "user", "team", 1)
+    private val owner = CloudAccountScope("login", "user", "team", 1)
     private fun terminal(id: String) = CloudAddress("vm_a", id).identifier
-    private fun pool(drafts: TerminalDrafts, scope: NativeTeamScope = owner, current: () -> Boolean = { true }, persist: suspend () -> Unit = {}) =
+    private fun pool(drafts: TerminalDrafts, scope: CloudAccountScope = owner, current: () -> Boolean = { true }, persist: suspend () -> Unit = {}) =
         SshComposerPool(drafts, { cloudDraftTarget(scope, "vm_a", it) }, persist, current)
     @Test fun textSurvivesHostCloseAndRepositoryReloadWithoutLeakingAcrossTerminalAccountOrTeam() {
         val drafts = TerminalDrafts(); val first = pool(drafts)
@@ -22,7 +22,7 @@ class CloudComposerDraftsTest {
             assertEquals("unfinished 日本語", it.open(terminal("a")).current.text)
             assertEquals("another", it.open(terminal("b")).current.text)
         }
-        for (other in listOf(owner.copy(login = "new"), owner.copy(userId = "other"), owner.copy(teamId = "other")))
+        for (other in listOf(owner.copy(login = "new"), owner.copy(user = "other"), owner.copy(team = "other")))
             pool(restored, other).use { assertEquals("", it.open(terminal("a")).current.text) }
         pool(restored, owner.copy(generation = 9)).use { assertEquals("unfinished 日本語", it.open(terminal("a")).current.text) }
     }
@@ -58,7 +58,7 @@ class CloudComposerDraftsTest {
         assertEquals("keep me", state.text); assertNull(state.operation); assertEquals(TerminalDrafts.DELIVERY_UNCONFIRMED, state.error)
     }
     @Test fun closingHostSettlesItsPendingDraftWithoutWipingOtherHostsOrAllowingLateClear() {
-        val drafts = TerminalDrafts(); val first = pool(drafts); val second = pool(drafts, owner.copy(teamId = "another"))
+        val drafts = TerminalDrafts(); val first = pool(drafts); val second = pool(drafts, owner.copy(team = "another"))
         val old = first.open(terminal("a")); old.edit("old send"); val send = old.begin()!!
         second.open(terminal("a")).edit("other team's text")
         first.close(); old.finish(send)

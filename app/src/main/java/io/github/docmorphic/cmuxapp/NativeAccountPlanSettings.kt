@@ -37,12 +37,17 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
-internal fun NativeAccountPlanSettings(account: NativeAccount, teams: NativeAccountTeams, owner: NativeTeamScope?) {
-    if (owner == null || !teams.isCurrent(owner)) return
+internal fun NativeAccountPlanSettings(account: NativeAccount, teams: NativeAccountTeams,
+    requests:CloudApiRequests?=null) {
+    val state by account.sessionRestore.state.collectAsState()
+    val generation by account.sessionRestore.generations.collectAsState()
+    val revisions by account.credentialRevisions.collectAsState()
+    val routes by teams.state.collectAsState()
+    val owner=remember(state,generation,revisions,routes){account.cloudScope(teams)} ?: return
     key(owner) {
         val scope = rememberCoroutineScope()
-        val api = remember(account, teams, owner) { nativeCloudApi(account, teams, owner) }
-        val controller = remember(api) { AccountPlanController(scope, api::accountPlan) { teams.isCurrent(owner) } }
+        val api = remember(account, teams, owner,requests) { nativeCloudApi(account, teams, owner,requests ?: CloudApiRequests()) }
+        val controller = remember(api) { AccountPlanController(scope, api::accountPlan) { account.isCloudScopeCurrent(teams,owner) } }
         DisposableEffect(controller) { onDispose { controller.close(); api.close() } }
         val context = LocalContext.current
         AccountPlanSettings(controller) { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }

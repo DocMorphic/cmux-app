@@ -120,6 +120,18 @@ internal class NativeAccountTeams(
     private val cacheEnvironment = "$origin#${NativeAccount.PROJECT_ID}"
     private val mutableState = MutableStateFlow(NativeAccountTeamsState())
     val state = mutableState.asStateFlow()
+    private val cloudScopes=NativeCloudScopeRegistry()
+
+    /** Cloud's optional backend route is separate from a verified native Mac membership proof. */
+    internal fun cloudRoute(principal:NativeCloudPrincipal?):NativeCloudRoute=synchronized(lock) {
+        val owner=principal?.takeUnless{closed}
+        val state=mutableState.value
+        val sameUser=owner!=null && state.userId==owner.user
+        val fresh=sameUser && !state.cached && verifiedLogin==owner?.login && verifiedGeneration==owner?.generation
+        val selected=state.selectedTeamId.takeIf{sameUser}
+        val team=nativeResolvedTeamId(selected,state.teams.takeIf{fresh}.orEmpty())
+        NativeCloudRoute(cloudScopes.scope(owner,team,state.scope.takeIf{fresh}),cloudScopes.routingGeneration)
+    }
 
     init {
         require(networkTimeoutMillis>0)

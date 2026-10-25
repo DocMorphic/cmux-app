@@ -141,11 +141,11 @@ class CloudTunnelControllerTest {
     }
     @Test fun daemonIdentityScopeSurvivesLoginAndGenerationButSeparatesUsersAndTeams() {
         val root = File("/private/app")
-        val owner = NativeTeamScope("login", "user", "team", 1)
+        val owner = CloudAccountScope("login", "user", "team", 1)
         val first = cloudDaemonStateDirectory(root, owner)
         assertEquals(first, cloudDaemonStateDirectory(root, owner.copy(login = "replacement", generation = 2)))
-        assertNotEquals(first, cloudDaemonStateDirectory(root, owner.copy(userId = "another")))
-        assertNotEquals(first, cloudDaemonStateDirectory(root, owner.copy(teamId = "another")))
+        assertNotEquals(first, cloudDaemonStateDirectory(root, owner.copy(user = "another")))
+        assertNotEquals(first, cloudDaemonStateDirectory(root, owner.copy(team = "another")))
         assertEquals(root, first.parentFile); assertFalse(first.name.contains("user"))
     }
 }

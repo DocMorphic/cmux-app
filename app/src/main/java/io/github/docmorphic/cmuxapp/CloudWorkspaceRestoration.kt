@@ -4,8 +4,8 @@ package io.github.docmorphic.cmuxapp
 
 import org.json.JSONObject
 
-internal fun cloudWorkspaceTabKey(owner: NativeTeamScope, row: CloudWorkspaceRow) =
-    NativeWorkspaceTabKey(owner.userId, owner.teamId, CloudAddress(row.machine.id).identifier, row.key)
+internal fun cloudWorkspaceTabKey(owner: CloudAccountScope, row: CloudWorkspaceRow) =
+    NativeWorkspaceTabKey(owner.user, owner.team, CloudAddress(row.machine.id).identifier, row.key)
 
 /** Incomplete inventories cannot disprove the saved phone selection. */
 internal fun cloudWorkspaceTerminal(row: CloudWorkspaceRow, authoritative: Boolean, remembered: NativeWorkspaceTab?): NativeTerminal? {
@@ -19,7 +19,7 @@ internal fun cloudWorkspaceTerminal(row: CloudWorkspaceRow, authoritative: Boole
 /** Android activity checkpoint. Contains destination IDs only, never input, credentials or create requests. */
 internal data class CloudScreenCheckpoint(val login: String, val user: String, val team: String?,
     val machine: String, val workspace: String, val terminal: String?) {
-    fun matches(owner: NativeTeamScope) = login == owner.login && user == owner.userId && team == owner.teamId
+    fun matches(owner: CloudAccountScope) = login == owner.login && user == owner.user && team == owner.team
     fun encode() = JSONObject().put("version", 1).put("login", login).put("user", user).put("team", team ?: JSONObject.NULL)
         .put("machine", machine).put("workspace", workspace).put("terminal", terminal ?: JSONObject.NULL).toString()
     companion object {
@@ -30,7 +30,10 @@ internal data class CloudScreenCheckpoint(val login: String, val user: String, v
             fun text(key: String): String = (value.opt(key) as? String)?.takeIf { it.isNotBlank() && it.length <= 4096 }
                 ?: error("Invalid Cloud destination")
             fun optional(key: String) = if (value.has(key) && value.isNull(key)) null else text(key)
-            val saved = CloudScreenCheckpoint(text("login"), text("user"), optional("team"), text("machine"), text("workspace"), optional("terminal"))
+            val user=(value.opt("user") as? String)?.takeIf{it.length<=4096} ?: error("Invalid Cloud user")
+            val team=if(value.has("team") && value.isNull("team"))null else
+                (value.opt("team") as? String)?.takeIf{it.length<=4096} ?: error("Invalid Cloud team")
+            val saved = CloudScreenCheckpoint(text("login"), user, team, text("machine"), text("workspace"), optional("terminal"))
             val workspace = checkNotNull(CloudAddress.parse(saved.workspace))
             require(workspace.machineId == saved.machine && workspace.component != null)
             saved.terminal?.let { terminal ->
@@ -48,7 +51,7 @@ internal sealed interface CloudRestoreDecision {
     data class Open(val row: CloudWorkspaceRow, val terminal: NativeTerminal?) : CloudRestoreDecision
 }
 
-internal fun CloudScreenCheckpoint.resolve(owner: NativeTeamScope, foreground: Boolean, hidden: Set<String>,
+internal fun CloudScreenCheckpoint.resolve(owner: CloudAccountScope, foreground: Boolean, hidden: Set<String>,
     machines: CloudMachinesState, snapshots: Map<String, CloudWorkspaceSnapshot>): CloudRestoreDecision {
     if (!matches(owner) || machine in hidden) return CloudRestoreDecision.Discard
     if (!foreground) return CloudRestoreDecision.Wait

@@ -124,7 +124,9 @@ class NativeTeamRefreshReadsTest {
                     .apply{if(row.getBoolean("stale"))setBodyDelay(150,TimeUnit.MILLISECONDS)}}
                 val pending=async{runCatching{f.teams.refreshAfterSignIn("login",published)}}
                 if(row.getBoolean("stale")){entered.await();f.identity.set(NativeAuthIdentity(1,"user"));f.teams.reconcileLogin()}
-                val result=pending.await();assertEquals(row.getString("case"),failure!="membership" && !row.getBoolean("stale"),result.isSuccess)
+                val result=pending.await();val error=result.exceptionOrNull()
+                val diagnostic="${row.getString("case")} (${server.requestCount} requests, ${error?.javaClass?.simpleName}, ${(error as? NativeSignInFailure)?.reason}): ${f.events.joinToString()}"
+                assertEquals(diagnostic,failure!="membership" && !row.getBoolean("stale"),result.isSuccess)
                 val state=f.teams.state.value;val ids=row.getJSONArray("publishedMembers")
                 assertEquals(row.getString("case"),List(ids.length()){ids.getString(it)},state.teams.map{it.id})
                 assertEquals(row.getString("case"),optional(row,"selected"),state.selectedTeamId)

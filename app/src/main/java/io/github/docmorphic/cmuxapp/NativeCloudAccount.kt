@@ -8,20 +8,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** The controller must close this client on account/team retirement; creation itself performs no I/O. */
-internal fun nativeCloudApi(account: NativeAccount, teams: NativeAccountTeams, scope: NativeTeamScope): CloudApi {
-    val owner = CloudAccountScope(scope.login, scope.userId, scope.teamId, scope.generation)
-    return CloudApi(owner, credentials = {
-        withContext(Dispatchers.IO) {
-            if (!teams.isCurrent(scope)) throw CancellationException("Cloud account changed")
-            // Reuse the account's coherent snapshot across refresh. Never combine an
-            // access token from one login with a refresh token from its replacement.
-            val snapshot = account.authenticatedSessionSnapshot()
-            if (!teams.isCurrent(scope) || snapshot.owner.login != scope.login || snapshot.owner.identity.userId != scope.userId)
-                throw CancellationException("Cloud account changed")
-            CloudCredentials(owner, snapshot.accessToken, snapshot.refreshToken)
+internal fun nativeCloudApi(account:NativeAccount,teams:NativeAccountTeams,owner:CloudAccountScope,
+    requests:CloudApiRequests=CloudApiRequests()):CloudApi = CloudApi(owner,credentials={
+    withContext(Dispatchers.IO) {
+        if(!account.isCloudScopeCurrent(teams,owner))throw CancellationException("Cloud account changed")
+        val context=try{account.cloudTokenContext(teams,owner)}catch(failure:NativeSignInFailure){
+            if(failure.reason!=NativeSignInError.UNAUTHORIZED)throw failure
+            null
         }
-    }, isCurrent = { it == owner && teams.isCurrent(scope) })
-}
+        if(!account.isCloudScopeCurrent(teams,owner))throw CancellationException("Cloud account changed")
+        context?.let{CloudCredentials(owner,it.pair.access,it.pair.refresh)}
+    }
+},isCurrent={it==owner && account.isCloudScopeCurrent(teams,owner)},requests=requests)
 
 internal class CloudTunnelMaterial(val identity: CloudTunnelIdentity, val configuration: CloudWireGuardConfig) {
     override fun toString() = "CloudTunnelMaterial(redacted)"
@@ -29,8 +27,8 @@ internal class CloudTunnelMaterial(val identity: CloudTunnelIdentity, val config
 
 /** Explicit startup step for an admitted tunnel owner; never invoked by merely constructing the Cloud UI. */
 internal suspend fun prepareNativeCloudTunnel(context: Context, api: CloudApi,
-    teams: NativeAccountTeams, owner: NativeTeamScope): CloudTunnelMaterial {
-    fun admitted() { if (!teams.isCurrent(owner)) throw CancellationException("Cloud account changed") }
+    owner: CloudAccountScope, isCurrent:()->Boolean): CloudTunnelMaterial {
+    fun admitted() { if (!isCurrent()) throw CancellationException("Cloud account changed") }
     admitted()
     val (deviceId, identity) = withContext(Dispatchers.IO) {
         admitted()

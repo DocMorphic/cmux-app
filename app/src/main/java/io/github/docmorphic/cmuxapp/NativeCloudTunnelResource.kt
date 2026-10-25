@@ -15,10 +15,10 @@ internal class NativeCloudTunnelResource(
     override fun close() { retire(); tunnel.close() }
 }
 
-internal fun cloudDaemonStateDirectory(root: File, owner: NativeTeamScope): File {
+internal fun cloudDaemonStateDirectory(root: File, owner: CloudAccountScope): File {
     // Exclude the transient generation: known-daemon identity survives re-login
     // for the same account/team, without sharing it across different owners.
-    val key = JSONArray(listOf("https://cmux.com", owner.userId, owner.teamId)).toString()
+    val key = JSONArray(listOf("https://cmux.com", owner.user, owner.team)).toString()
     val hash = MessageDigest.getInstance("SHA-256").digest(key.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
     // Rust creates this directory with its own private-mode policy.
@@ -27,14 +27,14 @@ internal fun cloudDaemonStateDirectory(root: File, owner: NativeTeamScope): File
 
 /** Runs on the tunnel controller's IO worker; no suspension after allocating the native handle. */
 internal suspend fun startNativeCloudTunnelResource(context: Context, parent: CoroutineScope,
-    api: CloudApi, teams: NativeAccountTeams, owner: NativeTeamScope): NativeCloudTunnelResource {
-    val material = prepareNativeCloudTunnel(context, api, teams, owner)
+    api: CloudApi, owner: CloudAccountScope, isCurrent:()->Boolean): NativeCloudTunnelResource {
+    val material = prepareNativeCloudTunnel(context, api, owner, isCurrent)
     val directory = cloudDaemonStateDirectory(context.noBackupFilesDir, owner)
     val deviceName = TerminalDeviceIdentity(Build.MODEL).name
     val tunnel = CloudNativeTunnel.start(material.configuration)
     try {
         return NativeCloudTunnelResource(tunnel, CloudMachineConnections(parent, api, material.identity.fingerprint,
-            { teams.isCurrent(owner) }, { endpoint -> tunnel.connect(endpoint, directory, deviceName) },
+            isCurrent, { endpoint -> tunnel.connect(endpoint, directory, deviceName) },
             retireSession = CloudNativeSession::retire))
     } catch (failure: Throwable) { tunnel.close(); throw failure }
 }

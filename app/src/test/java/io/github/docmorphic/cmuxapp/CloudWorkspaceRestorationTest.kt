@@ -5,7 +5,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CloudWorkspaceRestorationTest {
-    private val owner = NativeTeamScope("login", "user", "team", 1)
+    private val owner = CloudAccountScope("login", "user", "team", 1)
     private val machine = CloudMachine("vm_a", "fixture", "running", "Cloud", null, null)
     private fun catalog(terminals: List<String> = listOf("first", "last")) = CloudWorkspaceCatalog(
         listOf(CloudWorkspaceSummary("ws_a")), terminals.map { CloudTerminalSummary(it, workspaceId = "ws_a") })
@@ -18,8 +18,8 @@ class CloudWorkspaceRestorationTest {
         val memory = NativeWorkspaceLastTabs(); memory.set(key, NativeWorkspaceTab(NativeWorkspaceTabKind.TERMINAL, checkpoint.terminal!!))
         val reopened = NativeWorkspaceLastTabs(memory.json())
         assertEquals(checkpoint.terminal, cloudWorkspaceTerminal(row, true, reopened.get(key))!!.id)
-        assertNull(reopened.get(cloudWorkspaceTabKey(owner.copy(userId = "other"), row)))
-        assertNull(reopened.get(cloudWorkspaceTabKey(owner.copy(teamId = "other"), row)))
+        assertNull(reopened.get(cloudWorkspaceTabKey(owner.copy(user = "other"), row)))
+        assertNull(reopened.get(cloudWorkspaceTabKey(owner.copy(team = "other"), row)))
         val other = projectCloudWorkspaces(machine.copy(id = "vm_b"), catalog()).single()
         assertNull(reopened.get(cloudWorkspaceTabKey(owner, other)))
         assertEquals(key, cloudWorkspaceTabKey(owner.copy(generation = 2), row))
@@ -43,7 +43,7 @@ class CloudWorkspaceRestorationTest {
     }
     @Test fun switchedAccountHiddenOrDeletedMachineAndDeletedWorkspaceDiscardInsteadOfCrossRestoring() {
         val fresh = mapOf(machine.id to snapshot())
-        for (other in listOf(owner.copy(login = "new"), owner.copy(userId = "other"), owner.copy(teamId = "other")))
+        for (other in listOf(owner.copy(login = "new"), owner.copy(user = "other"), owner.copy(team = "other")))
             assertEquals(CloudRestoreDecision.Discard, checkpoint.resolve(other, true, emptySet(), machines, fresh))
         assertEquals(CloudRestoreDecision.Discard, checkpoint.resolve(owner, true, setOf(machine.id), machines, fresh))
         assertEquals(CloudRestoreDecision.Discard, checkpoint.resolve(owner, true, emptySet(), machines.copy(catalog = CloudMachineCatalog(emptyList(), null, null)), fresh))

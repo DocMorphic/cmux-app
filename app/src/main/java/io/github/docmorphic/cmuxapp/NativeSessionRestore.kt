@@ -42,7 +42,10 @@ internal class NativeSessionRestore(
     private val lock: Any = Any(),
     private val restoreDispatcher:CoroutineDispatcher?=null,
 ) {
+    private val generationUpdates=MutableStateFlow(0L)
+    val generations=generationUpdates.asStateFlow()
     @Volatile private var generation = 0L
+        set(value){field=value;generationUpdates.value=value}
     internal val generationSnapshot get()=generation
     val sessionGeneration get()=synchronized(lock){generation}
     @Volatile internal var recoveryObserver:NativeSessionRecoveryObserver?=null

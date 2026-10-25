@@ -1,0 +1,5188 @@
+{
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+Tokens.swift": "5dbaf5875603f6ce4c27e56685954403c5c7ef2c0443346fe8a587d7ab92824a",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+CurrentTokens.swift": "d4759eeaa8a1d1185dd203127f7405026f471b52264eec1ae18b487ef7ac27d0",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator+TokenTouchingPhaseTimeout.swift": "056072b0bd92c02fcf0b9720973498f27af3297a76baf6e560edc4227e61c47e"
+  },
+  "executedDeclarationsSha256": [
+    "132dbce70d1e46cc47bd7281746cb6a7412cb729425de166a40ac3f066a7f9a7",
+    "dee86cbb8a68f277cd5478d9b20c4335b0a778077369ee9199448b9657632c0a",
+    "b1b03d733c7dcc7f0279ce6f001670068a1d9107a5dad2c47f109b18828ab414",
+    "19af352dadb14d8d9ea48b13b7d1ee5d358455fd12f48f2fa020ebda46fbdcfc",
+    "0e9c87c8591e748d4527e694f2651ace07231f80ad14315bbd85ec6e33f833bd",
+    "7ba16b7872fcfe56703cb1ed1cd42624a865d1919ad04508201a5199469cc40d",
+    "fb757d02516999f289d0acd186223ec0dc2b6e04f7cb9d7d2c57aa917222afa1",
+    "d8e0e1efbc7ef903bc29fdca33213cb63b828a2d4a82f75d263a66c0a85b7ff5",
+    "fc413994f76430869910785ba8e8ab08e3181010b567f0a3ad9511c56472d35e"
+  ],
+  "seams": "Nine complete unchanged release declarations execute: coherent public/inner pair, Cloud context, currentTokens/captureCloudTokens, empty-read classifier, transition property and both token-phase overloads. SDK refresh/access, storage availability, bootstrap, clock advancement and phase finish are inert. The bootstrap timeout seam calls the original bootstrap operation and currentTokens checks its absolute deadline; the original timer race/admission/high-water reconciliation and Keychain/Android IO are not executed. Real child-task cancellation and original late success/failure deadline checks run. No full original coordinator, Cloud/UIKit composition, transport, OS lock/death or iOS-runtime equivalence is established.",
+  "cases": [
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "none",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "signIn",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "staleSignIn",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "validation",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "role": "capture",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": "team-a"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": ""
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": "team-a"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": ""
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": "team-a"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": ""
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": "team-a"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": ""
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "none",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "signIn",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "staleSignIn",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "validation",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "role": "capture",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "complete",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "complete",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "complete",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "missingAccess",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "missingRefresh",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "missingRefresh",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "missingRefresh",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "empty",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "empty",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "empty",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "unavailable",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "unavailable",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "none",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "signIn",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "staleSignIn",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "validation",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "transient",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "transient",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "role": "capture",
+        "state": "transient",
+        "team": ""
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "session",
+        "event": "resolved",
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "teamScope",
+        "event": "resolved",
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "team",
+        "event": "resolved",
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "transition",
+        "event": "resolved",
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "dropRefresh",
+        "event": "resolved",
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "rotate",
+        "event": "resolved",
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "rotation-1",
+        "team": null
+      },
+      "resolutions": 2
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "churn",
+        "event": "resolved",
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 3
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "unavailable",
+        "event": "availability",
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "restore",
+        "event": "availability",
+        "method": "pair",
+        "role": "none",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "access": "restored",
+        "error": null,
+        "refresh": "restored-refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "transition",
+        "event": "availability",
+        "method": "pair",
+        "role": "none",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "session",
+        "event": "resolved",
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "teamScope",
+        "event": "resolved",
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "team",
+        "event": "resolved",
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "transition",
+        "event": "resolved",
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "dropRefresh",
+        "event": "resolved",
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "rotate",
+        "event": "resolved",
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "rotation-1",
+        "team": "team-a"
+      },
+      "resolutions": 2
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "churn",
+        "event": "resolved",
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 3
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "unavailable",
+        "event": "availability",
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "restore",
+        "event": "availability",
+        "method": "context",
+        "role": "none",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "access": "restored",
+        "error": null,
+        "refresh": "restored-refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "transition",
+        "event": "availability",
+        "method": "context",
+        "role": "none",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "session",
+        "event": "resolved",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "cancelled"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "teamScope",
+        "event": "resolved",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "team",
+        "event": "resolved",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "transition",
+        "event": "resolved",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "dropRefresh",
+        "event": "resolved",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "rotate",
+        "event": "resolved",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "rotation-1",
+        "team": null
+      },
+      "resolutions": 2
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "churn",
+        "event": "resolved",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": "team-a"
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 3
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "unavailable",
+        "event": "availability",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "restore",
+        "event": "availability",
+        "method": "current",
+        "role": "none",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "access": "restored",
+        "error": null,
+        "refresh": "restored-refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "transition",
+        "event": "availability",
+        "method": "current",
+        "role": "none",
+        "state": "unavailable",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "session",
+        "event": "bootstrap",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "teamScope",
+        "event": "bootstrap",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "team",
+        "event": "bootstrap",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "transition",
+        "event": "bootstrap",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "networkError"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "dropRefresh",
+        "event": "bootstrap",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "unauthorized"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "action": "restore",
+        "event": "bootstrap",
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "restored",
+        "error": null,
+        "refresh": "restored-refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "bootstrapMillis": 0,
+        "method": "current",
+        "resolveMillis": 0,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 1000,
+      "finishCalls": 1,
+      "input": {
+        "bootstrapMillis": 0,
+        "method": "current",
+        "resolveMillis": 1000,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 59999,
+      "finishCalls": 1,
+      "input": {
+        "bootstrapMillis": 59999,
+        "method": "current",
+        "resolveMillis": 0,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "access": "resolved",
+        "error": null,
+        "refresh": "refresh",
+        "team": null
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 60999,
+      "finishCalls": 1,
+      "input": {
+        "bootstrapMillis": 59999,
+        "method": "current",
+        "resolveMillis": 1000,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "timedOut"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 60000,
+      "finishCalls": 0,
+      "input": {
+        "bootstrapMillis": 60000,
+        "method": "current",
+        "resolveMillis": 0,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "timedOut"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 60000,
+      "finishCalls": 0,
+      "input": {
+        "bootstrapMillis": 60000,
+        "method": "current",
+        "resolveMillis": 1000,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "timedOut"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 60001,
+      "finishCalls": 0,
+      "input": {
+        "bootstrapMillis": 60001,
+        "method": "current",
+        "resolveMillis": 0,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "timedOut"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 60001,
+      "finishCalls": 0,
+      "input": {
+        "bootstrapMillis": 60001,
+        "method": "current",
+        "resolveMillis": 1000,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "timedOut"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 60001,
+      "finishCalls": 1,
+      "input": {
+        "method": "pair",
+        "resolveMillis": 60001,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "timedOut"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 0,
+      "input": {
+        "cancelBefore": true,
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "cancelled"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "cancelDuring": true,
+        "method": "pair",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "cancelled"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 60001,
+      "finishCalls": 1,
+      "input": {
+        "method": "context",
+        "resolveMillis": 60001,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "timedOut"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 0,
+      "input": {
+        "cancelBefore": true,
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "cancelled"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "cancelDuring": true,
+        "method": "context",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "cancelled"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 60001,
+      "finishCalls": 1,
+      "input": {
+        "method": "current",
+        "resolveMillis": 60001,
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "timedOut"
+      },
+      "resolutions": 1
+    },
+    {
+      "bootstraps": 0,
+      "elapsedMillis": 0,
+      "finishCalls": 0,
+      "input": {
+        "cancelBefore": true,
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "cancelled"
+      },
+      "resolutions": 0
+    },
+    {
+      "bootstraps": 1,
+      "elapsedMillis": 0,
+      "finishCalls": 1,
+      "input": {
+        "cancelDuring": true,
+        "method": "current",
+        "role": "none",
+        "state": "missingAccess",
+        "team": null
+      },
+      "outcome": {
+        "error": "cancelled"
+      },
+      "resolutions": 1
+    }
+  ],
+  "foundation": {
+    "coreFoundationVersion": 5026.5,
+    "os": "Version 26.5.2 (Build 25F84)"
+  }
+}
