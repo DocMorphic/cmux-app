@@ -57,8 +57,8 @@ private final class RichComposerBackend: ConversationBackend, @unchecked Sendabl
 /// API/control actions, not keyboard gestures, XCUIScreen captures or Android acceptance.
 final class CmuxChiefRichComposerTests: XCTestCase {
     @MainActor private func descendants(_ root: UIView) -> [UIView] { [root] + root.subviews.flatMap(descendants) }
-    @MainActor private func wait(_ description: String, _ predicate: () -> Bool) async throws {
-        let deadline = CACurrentMediaTime() + 10
+    @MainActor private func wait(_ description: String, timeout: TimeInterval = 10, _ predicate: () -> Bool) async throws {
+        let deadline = CACurrentMediaTime() + timeout
         while !predicate() {
             if CACurrentMediaTime() > deadline { XCTFail("Timed out: " + description); throw RichComposerFailure.invalidAction }
             try await Task.sleep(for: .milliseconds(30))
@@ -159,7 +159,7 @@ final class CmuxChiefRichComposerTests: XCTestCase {
                 "target": name, "sourceCommit": commit]
             try JSONSerialization.data(withJSONObject: request).write(to: directory.appendingPathComponent("request.json"), options: .atomic)
             var response: [String: Any]?
-            try await wait("host applies actual simulator system category") {
+            try await wait("host applies actual simulator system category", timeout: 60) {
                 guard let data = try? Data(contentsOf: directory.appendingPathComponent("response.json")),
                       let value = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                       value["id"] as? String == identifier else { return false }
@@ -272,12 +272,13 @@ final class CmuxChiefRichComposerTests: XCTestCase {
             window.overrideUserInterfaceStyle = specification.style == "light" ? .light : .dark
             window.rootViewController = controller; window.makeKeyAndVisible()
             var records: [[String: Any]] = []
+            var completed = false
             defer {
                 window.endEditing(true); store.stop(); window.isHidden = true; window.rootViewController = nil
                 previous?.makeKeyAndVisible()
                 let payload: [String: Any] = ["schema": 1, "referenceKind": "chiefRichComposer", "caseID": specification.id,
                     "fixtureSha256": digest, "provenance": provenance, "records": records, "probe": probe,
-                    "completed": records.count == specification.actions.count + 1, "backendMode": specification.backend,
+                    "completed": completed, "backendMode": specification.backend,
                     "style": specification.style, "platform": UIDevice.current.systemName,
                     "runtimeVersion": UIDevice.current.systemVersion, "os": ProcessInfo.processInfo.operatingSystemVersionString,
                     "actualCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
@@ -295,11 +296,21 @@ final class CmuxChiefRichComposerTests: XCTestCase {
             records.append(["step": -1, "action": ["kind": "initial"], "state": state(text, controller: controller, store: store, backend: backend)])
             for (index, action) in specification.actions.enumerated() {
                 let before = CACurrentMediaTime()
-                let observed = try await perform(action, text: text, controller: controller, store: store, backend: backend)
                 let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(action))
-                records.append(["step": index, "action": encoded, "observed": observed, "before": before, "after": CACurrentMediaTime(),
-                    "state": state(text, controller: controller, store: store, backend: backend)])
+                do {
+                    let observed = try await perform(action, text: text, controller: controller, store: store, backend: backend)
+                    records.append(["step": index, "action": encoded, "observed": observed, "before": before, "after": CACurrentMediaTime(),
+                        "state": state(text, controller: controller, store: store, backend: backend)])
+                } catch {
+                    // Retain the actual failed transition state before teardown changes it.
+                    // A failed final action must never make the payload look completed.
+                    records.append(["step": index, "action": encoded, "failed": true, "failure": String(describing: error),
+                        "before": before, "after": CACurrentMediaTime(),
+                        "state": state(text, controller: controller, store: store, backend: backend)])
+                    throw error
+                }
             }
+            completed = true
         }
     }
 }

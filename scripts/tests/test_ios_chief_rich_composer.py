@@ -54,6 +54,10 @@ class RichComposerExportGuards(unittest.TestCase):
 
     def test_complete_bound_synthetic_observation_is_structurally_valid(self): self.validate()
 
+    def test_rejects_a_failed_final_action_even_with_completed_claimed(self):
+        self.payload['records'][-1]['failed'] = True
+        with self.assertRaisesRegex(ValueError, 'Failed native action'): self.validate()
+
     def test_rejects_dirty_or_changed_native_source(self):
         self.payload['provenance']['projectSourceDirty'] = True
         with self.assertRaisesRegex(ValueError, 'provenance'): self.validate()

@@ -65,7 +65,7 @@ content-size changes/readbacks. Native application/controller/editor categories
 and span fonts are recorded while the same editor remains mounted. A full request
 round-trip and category restoration are required; --system-font-cases verification
 also requires the exact --bridge-events receipt. Source Store sends use only the
-existing authored in-memory backend. Local 127 guards, host generation and Swift/
+existing authored in-memory backend. Local 128 guards, host generation and Swift/
 workflow parsing pass; actual native execution/export acceptance remains pending.
 No accepted transaction/controller-font projection or Android behavior is replaced.
 
@@ -75,3 +75,14 @@ restoration succeeded; no font actions ran and no global result was accepted. Th
 bridge now retries bounded container observations against the same build process;
 a regression proves it does not restart or terminate that build. Driver stderr is
 also preserved in the artifact. Native compile/run/export acceptance remains pending.
+
+Retry 40173879842 compiled and executed the original UIKit test. The first host
+category command/readback took 8.004s and confirmed Accessibility Medium; the app
+also reported that category at teardown. The existing 10s native propagation wait
+expired before all three category properties were observed. No completed global
+case was accepted; system Large was restored. The probe now waits up to 60s for
+the same strict application/controller/editor categories and captures failed-action
+state before teardown. Only those host-mediated actions have a 75s export clock
+bound; ordinary actions retain 15s. An explicit completion flag and rejection of
+failed records prevent a failed final step from being accepted. Native global
+execution/export acceptance remains pending; Android production is unchanged.

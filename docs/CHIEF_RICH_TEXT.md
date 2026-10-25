@@ -213,7 +213,7 @@ The hosted-only bridge validates request/source identities, runs explicit simctl
 arguments, records command/readback events and restores the original category on
 success/failure. Export guards bind that exact driver, require native application/
 controller/editor category propagation and match each observed response to the
-host event inventory. They do not prescribe a semantic/font outcome. All 127 Python
+host event inventory. They do not prescribe a semantic/font outcome. All 128 Python
 reference guards pass, Swift parses, workflow YAML/bash parses and the generated
 host binds the new fixture/bridge to the unchanged package tree. Native compile,
 execution and independent export acceptance are still pending. Android behavior
@@ -234,6 +234,17 @@ The screenshot was inspected; crash log is empty, settings restore and emulator
 exit 0 is observed. This records existing Android behavior, not matched iOS or
 physical acceptance. No production Android font behavior changed. The retry at
 e99ccfc3 is run 40173879842; native execution/export acceptance is still pending.
+
+Retry 40173879842 compiled and executed the original UIKit test. The first host
+category command/readback took 8.004s and confirmed Accessibility Medium; the app
+also reported that category at teardown. The existing 10s native propagation wait
+expired before all three category properties were observed. No completed global
+case was accepted; system Large was restored. The probe now waits up to 60s for
+the same strict application/controller/editor categories and captures failed-action
+state before teardown. Only those host-mediated actions have a 75s export clock
+bound; ordinary actions retain 15s. An explicit completion flag and rejection of
+failed records prevent a failed final step from being accepted. Native global
+execution/export acceptance remains pending; Android production is unchanged.
 
 ## Native live-font controller observations verified — 2026-10-25
 

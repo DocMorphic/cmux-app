@@ -74,9 +74,11 @@ def validate(payload, case, category, commit, fixture_bytes, manifest, font_case
     for index, record in enumerate(records):
         action = {'kind': 'initial'} if index == 0 else case['actions'][index - 1]
         require(record.get('step') == index - 1 and record.get('action') == action, 'Changed or reordered native action')
+        require('failed' not in record, 'Failed native action cannot be accepted')
         if index:
             before, after = record.get('before'), record.get('after')
-            require(finite(before) and finite(after) and previous_time <= before <= after and after - before < 15, 'Missing native action clock')
+            limit = 75 if system_font_cases and action['kind'] == 'systemMetricsCategory' else 15
+            require(finite(before) and finite(after) and previous_time <= before <= after and after - before < limit, 'Missing native action clock')
             previous_time = after
         state = record.get('state', {})
         text = state.get('text')
