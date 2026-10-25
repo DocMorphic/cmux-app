@@ -1,3 +1,40 @@
+## Native search/count evidence and Home anchor correction — 2026-10-25
+
+Original-app run40209688789 succeeded at source15e50ff9. Artifact12605626655
+matches its GitHub SHA-256; safe extraction, exact-source local verification and
+CI receipts agree, and both owned Simulator cleanup actions pass. It supplies
+918 complete original Home predicate/model observations,90 unread-helper calls,
+207 main lookups and306 explicit module lookups across nine actual locales.
+All eight positive count boundaries through Int.max are now executed on iOS,
+including the source signed32 formatting behavior. The scoped Android resource
+reference advances to this capture; global upstream pins are unchanged.
+
+Executing the complete current Kotlin Home state/matcher/model/text-policy
+declarations on the JVM exposes30 differing search results per locale. Native
+expansions, canonical forms and component boundaries cannot be replaced by a
+simple locale collator. Search remains an explicit implementation gap; the probe
+executes the original predicate in a query-state wrapper, not native Home views.
+
+Final Android Home runtime passes5/5 in13.695s, including72 summaries matched to
+iOS, source hashes, restored settings and an empty crash log. All22 native-library
+hashes and both APK16KiB alignments match. The owned emulator exits0. Screenshot
+review exposed the avatar anchored to the wrong edge when a badge exceeds its
+width; the container now follows the source ZStack topTrailing in LTR/RTL.
+Reviewed normal/enlarged/light/RTL frames show the corrected anchor. This is
+source/layout evidence; matched native view geometry remains separate. The
+focused JVM formatter check passes eight native-matched vectors in one test.
+
+Whole-package original Home/question UI run40210978473 is compiling at822f2f5c;
+it remains unaccepted. Mac repair run40208082394 is now running at75c017be after
+older40205170225 succeeded. Do not deploy that older source. Its8.54GiB compiler
+cache exceeded the4GiB guard and was not saved; do not assume an incremental hit.
+Frozen signed724 is unchanged and predates this alignment fix; installed723,
+account/workspace/pairing/signing data are preserved. The phone remains reclaimed
+and unavailable. All thirteen parity areas remain open. Private evidence:
+captures/recovery-20261025/chief-unread-native-checkpoint.json,
+chief-home-search-native-verification-40209688789.json and
+chief-home-search-kotlin-audit-v1/receipt.json.
+
 ## Signed candidate 724 and observable Mac ACK — 2026-10-25
 
 Signed candidate 724 is frozen from source 49827545 with the existing stable
@@ -5696,7 +5733,7 @@ unchanged until reconciliation. See the latest HANDOFF.md and PARITY.md entries.
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Chief conversations | Finish the outstanding transcript/question feature/UI reconciliation and matched native Home acceptance from the Oct 20 audit candidate. Home source branches, indicators, copied catalogs, grouped summaries, search and refresh have Android runtime evidence. The full question sheet now has captured presentation/payload, editable pending controls, explicit Cancel, scoped late completion, recreation/retirement and copied nine-locale form evidence; cancel/reopen submission now follows 12 executed source-method cases with per-presentation rather than compact-poll reservation. Android evidence also covers actual keyboard visibility and selected-range retention through enlarged-text Activity recreation. Original bundle lookup is verified by run40200670788; whole-backend/native-question execution and matched presentation remain open. Reconcile Home Unicode search: the current Kotlin matcher differs from the source Foundation predicate; the schema3 original-app probe prepares 102 title/preview cases per locale and wide unread boundaries. Include broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped toolbar undo, rich navigation/configuration, controlled motion/warm scroll reuse, nonempty live global font-scale editing and Ctrl/Meta formatting key dispatch are verified; wider input/clipboard/focus, empty/font-trait/deep-navigation cases, long-distance scrolling/GPU budgets, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
+| Chief conversations | Finish the outstanding transcript/question feature/UI reconciliation and matched native Home acceptance from the Oct 20 audit candidate. Home source branches, indicators, copied catalogs, grouped summaries, search and refresh have Android runtime evidence. The full question sheet now has captured presentation/payload, editable pending controls, explicit Cancel, scoped late completion, recreation/retirement and copied nine-locale form evidence; cancel/reopen submission now follows 12 executed source-method cases with per-presentation rather than compact-poll reservation. Android evidence also covers actual keyboard visibility and selected-range retention through enlarged-text Activity recreation. Original bundle lookup and90 unread helpers through Int.max are verified by run40209688789; whole-backend/native-question execution and matched presentation remain open. Reconcile Home Unicode search: the current Kotlin matcher differs from the source Foundation predicate; the accepted schema3 original-app probe executes102 title/preview cases per locale; current Kotlin execution differs on30 cases per locale. Whole original Home/question UI run40210978473 is compiling and unaccepted. Include broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped toolbar undo, rich navigation/configuration, controlled motion/warm scroll reuse, nonempty live global font-scale editing and Ctrl/Meta formatting key dispatch are verified; wider input/clipboard/focus, empty/font-trait/deep-navigation cases, long-distance scrolling/GPU budgets, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
 | Agent Feed | Verify the revised reply editor and new native full-text reader, including original UI/traits, URL routing and broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
 | Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |

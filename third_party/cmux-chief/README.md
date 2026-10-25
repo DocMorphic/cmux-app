@@ -75,9 +75,7 @@ language without authored expected results. Case expansions, canonical equivalen
 and emoji components expose differences from Kotlin's current `contains(ignoreCase)`;
 the Android matcher is still awaiting reconciliation. The capture adds four positive
 unread boundaries through Int.max. The verifier binds the original source bytes,
-regenerated wrapper, all inputs/results and actual locale. Local macOS source-method
-execution and verifier tests have passed; new iOS observations and matched Home UI
-are separate requirements. Historical schema 1/2 captures retain their source verifier.
+regenerated wrapper, all inputs/results and actual locale. Run40209688789 at15e50ff9 is accepted after independent artifact/source verification:918 search observations and90 unread calls. Executed current Kotlin declarations differ on30 search cases per locale; matcher reconciliation remains open. All eight positive counts through Int.max agree on iOS and Android. Whole original Home/question UI run40210978473 at822f2f5c is a separate, currently unaccepted job. Historical schema 1/2 captures retain their source verifier.
 
 `questionErrorStrings` separately binds three backend errors resolved explicitly
 from the ShellUI module. `check-chief-question-error-strings.py --upstream PATH`

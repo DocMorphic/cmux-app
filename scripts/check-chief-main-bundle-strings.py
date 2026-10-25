@@ -69,4 +69,4 @@ if __name__ == '__main__':
     parser.add_argument('--upstream',type=Path,required=True)
     parser.add_argument('--capture',type=Path,required=True)
     args = parser.parse_args()
-    print('Checked',check(args.upstream,args.capture),'native main-bundle labels; 21 English fallbacks, two localized keys and 54 native unread queries')
+    print('Checked',check(args.upstream,args.capture),'native main-bundle labels; 21 English fallbacks, two localized keys and 90 native unread queries')

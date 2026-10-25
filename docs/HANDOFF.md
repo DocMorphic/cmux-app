@@ -1,3 +1,40 @@
+## Native search/count evidence and Home anchor correction — 2026-10-25
+
+Original-app run40209688789 succeeded at source15e50ff9. Artifact12605626655
+matches its GitHub SHA-256; safe extraction, exact-source local verification and
+CI receipts agree, and both owned Simulator cleanup actions pass. It supplies
+918 complete original Home predicate/model observations,90 unread-helper calls,
+207 main lookups and306 explicit module lookups across nine actual locales.
+All eight positive count boundaries through Int.max are now executed on iOS,
+including the source signed32 formatting behavior. The scoped Android resource
+reference advances to this capture; global upstream pins are unchanged.
+
+Executing the complete current Kotlin Home state/matcher/model/text-policy
+declarations on the JVM exposes30 differing search results per locale. Native
+expansions, canonical forms and component boundaries cannot be replaced by a
+simple locale collator. Search remains an explicit implementation gap; the probe
+executes the original predicate in a query-state wrapper, not native Home views.
+
+Final Android Home runtime passes5/5 in13.695s, including72 summaries matched to
+iOS, source hashes, restored settings and an empty crash log. All22 native-library
+hashes and both APK16KiB alignments match. The owned emulator exits0. Screenshot
+review exposed the avatar anchored to the wrong edge when a badge exceeds its
+width; the container now follows the source ZStack topTrailing in LTR/RTL.
+Reviewed normal/enlarged/light/RTL frames show the corrected anchor. This is
+source/layout evidence; matched native view geometry remains separate. The
+focused JVM formatter check passes eight native-matched vectors in one test.
+
+Whole-package original Home/question UI run40210978473 is compiling at822f2f5c;
+it remains unaccepted. Mac repair run40208082394 is now running at75c017be after
+older40205170225 succeeded. Do not deploy that older source. Its8.54GiB compiler
+cache exceeded the4GiB guard and was not saved; do not assume an incremental hit.
+Frozen signed724 is unchanged and predates this alignment fix; installed723,
+account/workspace/pairing/signing data are preserved. The phone remains reclaimed
+and unavailable. All thirteen parity areas remain open. Private evidence:
+captures/recovery-20261025/chief-unread-native-checkpoint.json,
+chief-home-search-native-verification-40209688789.json and
+chief-home-search-kotlin-audit-v1/receipt.json.
+
 ## Original Home search capture running — 2026-10-25
 
 [Original-app run40209688789](https://github.com/DocMorphic/cmux-app/actions/runs/40209688789)

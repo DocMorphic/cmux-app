@@ -175,7 +175,7 @@ class NativeChiefHomeRuntimeTest {
             compose.runOnUiThread { locale=language };compose.waitForIdle()
             compose.onNodeWithText(label(R.string.chief_home_title)).assertIsDisplayed()
             compose.onNodeWithTag("ChiefSearch").assertContentDescriptionEquals(label(R.string.chief_home_search))
-            for(count in listOf(1L,2L,17L,1234L)) {
+            for(count in listOf(1L,2L,17L,1234L,2147483647L,2147483648L,4294967296L,Long.MAX_VALUE)) {
                 compose.runOnUiThread { api.changes.trySend(Result.success(NativeChiefSnapshot(
                     listOf(row("chief","Chief",unread=count,pinned=true),row("build","Build","Preview")),"unread-$language-$count"))) }
                 compose.waitUntil(10_000) { computer.home.state.value.pinned?.unread==count }

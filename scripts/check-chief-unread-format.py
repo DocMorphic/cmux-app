@@ -32,14 +32,14 @@ FileHandle.standardOutput.write(bytes)
     rows=json.loads(subprocess.check_output([str(binary)]));assert len(rows)==8
     native=json.loads((args.native_capture/'observations/en.json').read_text())
     for row in rows:
-        if row['count'] in native['unreadLabels']:assert row['value']==native['unreadLabels'][row['count']]
+        assert row['value']==native['unreadLabels'][row['count']]
     reference=dict(revision=manifest['revision'],helperSha256=entry['sha256'],rows=rows,
-        scope='Whole unmodified source helper on local macOS Foundation with English main-bundle defaults. Counts1/2/17/1234 agree with original iOS run40200670788; large-count iOS execution remains separate.')
+        scope='Whole unmodified source helper on local macOS Foundation with English main-bundle defaults. All eight positive counts through Int.max agree with original iOS run40209688789.')
     target=ROOT/'app/src/test/resources/parity/chief-unread-format.json'
     if args.write_reference:target.write_text(json.dumps(reference,indent=2)+'\n')
     else:assert json.loads(target.read_text())==reference
     (out/'receipt.json').write_text(json.dumps(dict(reference=reference,originalSha256=hashlib.sha256(original.read_bytes()).hexdigest(),driverSha256=hashlib.sha256(driver.read_bytes()).hexdigest()),indent=2)+'\n')
-    print('Checked eight original positive-count results including signed32 and signed64 limits; four agree with native iOS')
+    print('Checked eight original positive-count results including signed32 and signed64 limits; all eight agree with native iOS')
 
 
 if __name__=='__main__':main()

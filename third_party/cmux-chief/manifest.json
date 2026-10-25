@@ -338,12 +338,12 @@
     "scope": "Three full-question local backend errors resolve through source module strings; unknown transport/host text remains literal. Native original-app module resource capture is separate."
   },
   "mainBundleResolution": {
-    "nativeRun": 40200670788,
-    "projectCommit": "36ad7d1d9751f9135d78725dfddf90c8fc5edc92",
-    "artifactId": 12602481297,
-    "artifactSha256": "5b18590e20da1ee79cdca785aa4b2246aeb9b13c5d3a6c1a7ac50e58dde6ea8d",
+    "nativeRun": 40209688789,
+    "projectCommit": "15e50ff95ccd3d4e4070ecf0b3adc446774fc655",
+    "artifactId": 12605626655,
+    "artifactSha256": "c00f2ea0a7f58505d8a48628571c578a52b70a0b0741fab11df339e9d6651566",
     "androidReferencePath": "app/src/androidTest/assets/parity/chief-main-bundle.json",
-    "sha256": "5021262fbab0af8d108e92ce503005f190ce3c950f55746111d091b95fe480b7",
-    "scope": "Original compiled pinned iOS app main/module lookups in nine languages and 54 unread-helper calls. Scoped Android labels and positive unread counts; no native Home/question view, backend static-property lifetime, real host or physical parity claim."
+    "sha256": "9678defc159e2b57a181e3d787b4305783f8f4b9038f693753cb33f73b3ef7bd",
+    "scope": "Original compiled pinned iOS app main/module lookups in nine languages and 90 unread-helper calls through Int.max. The separate 918 original Home search calls expose an Android matcher gap. No native Home/question view, backend static-property lifetime, real host or physical parity claim."
   }
 }

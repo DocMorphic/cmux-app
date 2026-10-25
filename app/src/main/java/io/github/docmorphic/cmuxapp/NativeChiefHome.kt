@@ -142,7 +142,7 @@ private fun ChiefHomePinned(conversation: NativeChiefConversation, ink: Color, m
     Column(Modifier.fillMaxWidth().testTag("ChiefPinnedConversation").clickable(onClick = open)
         .clearAndSetSemantics { contentDescription = summary; role = Role.Button; onClick { open(); true } }
         .padding(top = 24.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.testTag("ChiefPinnedAvatar")) {
+        Box(Modifier.testTag("ChiefPinnedAvatar"), contentAlignment = Alignment.TopEnd) {
             ChiefHomeAvatar(88.dp, dark)
             if (conversation.working) Box(Modifier.align(Alignment.TopEnd).absoluteOffset(x = 4.dp, y = (-4).dp)
                 .background(orange, CircleShape).padding(7.dp).testTag("ChiefPinnedWorking")) {
