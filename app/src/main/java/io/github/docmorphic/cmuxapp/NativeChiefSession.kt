@@ -140,10 +140,9 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         scope.launch {
             try {
                 require(valid) { "Choose an answer for each question before submitting" }
-                val message = pendingQuestionMessage(shown.messageID)
-                if (answerPayload(message, choices, text) { failure -> updateQuestionSheet(generation) { it.copy(error = failure) } })
-                    dismissQuestionSheet(generation)
-                else updateQuestionSheet(generation) { it.copy(error = it.error ?: "That Chief card is already being answered") }
+                pendingQuestionMessage(shown.messageID)
+                answerFullQuestion(shown.messageID, choices, text)
+                dismissQuestionSheet(generation)
             } catch (error: Exception) {
                 currentCoroutineContext().ensureActive(); checkOwner()
                 updateQuestionSheet(generation) { it.copy(error = error.message ?: "Chief did not confirm this question") }
@@ -698,14 +697,35 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         }
         return message
     }
-    private suspend fun answerPayload(message: NativeChiefMessage, choices: List<String>, text: String?, failure: ((String) -> Unit)? = null): Boolean {
-        return decide(message, failure) {
+    /** Source answerQuestion is independent of the compact poll's reservation.
+     * A reopened presentation may explicitly submit while an earlier one waits. */
+    private suspend fun answerFullQuestion(messageID: String, choices: List<String>, text: String?) {
+        require(choices.isNotEmpty() || !text.isNullOrBlank()) { "Choose an answer before submitting" }
+        owned { client.answer(conversationId, messageID, choices, text) }
+        val refreshed = try { read() } catch (error: Exception) {
+            currentCoroutineContext().ensureActive(); checkOwner()
+            if (state.value.messages.any { it.id == messageID }) return
+            throw error
+        }
+        refreshed.messages.firstOrNull { it.id == messageID }?.let { merge(listOf(it)); return }
+        val previous = state.value.messages.firstOrNull { it.id == messageID }
+        if (previous != null && previous.seq < ULong.MAX_VALUE) {
+            val targeted = try { read(previous.seq + 1uL, 1) } catch (error: Exception) {
+                currentCoroutineContext().ensureActive(); checkOwner(); null
+            }
+            targeted?.messages?.firstOrNull { it.id == messageID }?.let { merge(listOf(it)); return }
+        }
+        if (state.value.messages.any { it.id == messageID }) return
+        error("Chief did not return the answered question")
+    }
+    private suspend fun answerPayload(message: NativeChiefMessage, choices: List<String>, text: String?): Boolean {
+        return decide(message) {
             val result = owned { client.answer(conversationId, message.id, choices, text) }
             check(result.conversation == conversationId && result.message == message.id) { "Chief did not confirm this question" }
         }
     }
 
-    private suspend fun decide(message: NativeChiefMessage, failure: ((String) -> Unit)? = null, action: suspend () -> Unit): Boolean {
+    private suspend fun decide(message: NativeChiefMessage, action: suspend () -> Unit): Boolean {
         val id = message.id
         if (id in state.value.deciding || id in state.value.committed) return false
         // A user may explicitly retry a failed answer, as in the source sheet.
@@ -728,8 +748,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
                 val error = e.message ?: "The answer could not be confirmed. Refresh the conversation."
                 mutableState.value = state.value.copy(
                     uncertain = if (e is MobileRpcException && e.fromHostResponse) state.value.uncertain else state.value.uncertain + id,
-                    actionErrors = if (failure == null) state.value.actionErrors + (id to error) else state.value.actionErrors - id)
-                failure?.invoke(error)
+                    actionErrors = state.value.actionErrors + (id to error))
             }
             currentCoroutineContext().ensureActive(); checkOwner(); return false
         } finally { if (job.isActive && permits()) mutableState.value = state.value.copy(deciding = state.value.deciding - id) }

@@ -5,6 +5,10 @@ see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
 ## Current local signed development candidate — 723 (2026-10-25)
 
+Current source also contains later full-question submission and keyboard/editor fixes. Candidate723
+does not include that change; its bounded release-account/terminal/notification
+acceptance remains useful and must record this exact artifact version.
+
 Candidate723 is private and unpublished, built from `0f840adb337a0db1002053ae4c524d8f960288fc`.
 It has not been installed on the user's Pixel. Earlier published and physical
 records below are historical; re-observe the current phone before updating it.

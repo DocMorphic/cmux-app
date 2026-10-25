@@ -36,9 +36,19 @@ ChiefHomeView/caller and ChiefConversationBackend sources) and `questionStrings`
 (the exact ShellUI catalog). `check-chief-question-strings.py --upstream PATH`
 checks 72 copied labels in nine Android locales. Captured opening form/payload,
 editable pending controls, explicit Cancel and presentation-scoped late completion
-follow those sources. Android's existing per-message reservation remains an open
-cancel/reopen concurrency difference. Static hashes and Android runtime checks do
-not establish native Bundle.main resolution, SwiftUI pixels or physical parity.
+follow those sources. The full-sheet cancel/reopen path now follows the source independently of compact
+poll reservation. `check-chief-question-submission.py --upstream PATH --output DIR`
+executes the complete unmodified answerQuestion method with controlled state/client
+seams and checks 12 observations in `app/src/test/resources/parity/chief-question-submission.json`. Android
+regressions consume the reopened-submission and follow-up-read observations. This
+is not the whole backend, SwiftUI rendering, native Bundle.main resolution, actual
+transport or physical parity.
+
+The Android question form additionally expands its dialog for focused keyboard
+input and brings Other into view; its saveable editor retains text/selection
+through Activity replacement. Actual emulator IME-window bounds verify normal,
+enlarged and reopened input. This adapter is not matched UIKit sheet/IME motion;
+physical keyboard, selection/composition and accessibility acceptance remain open.
 
 The rich composer keyboard port also follows the already attributed
 ConversationComposerView.swift priority Command-B/I/U overrides and editable

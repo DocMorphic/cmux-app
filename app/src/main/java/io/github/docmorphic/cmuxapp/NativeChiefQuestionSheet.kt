@@ -1,5 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,6 +19,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -25,22 +29,31 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.collect
 import org.json.JSONArray
 import org.json.JSONObject
 
 /** ChiefQuestionSheet's captured form, source controls and medium/large presentation. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boolean, error: String?, onDismiss: () -> Unit,
     onSend: (NativeChiefQuestionForm) -> Unit) {
@@ -54,11 +67,19 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
         }, json.getString("other"))
     }.getOrNull() }) }
     var form by rememberSaveable(question, stateSaver = saver) { mutableStateOf(NativeChiefQuestionForm(question)) }
+    var otherEditor by rememberSaveable(question, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(form.otherText, TextRange(form.otherText.length)))
+    }
+    val displayedOther = if (otherEditor.text == form.otherText) otherEditor
+        else TextFieldValue(form.otherText, TextRange(form.otherText.length))
     val currentBusy by rememberUpdatedState(busy)
     // Material remembers this predicate as a state key. Keep its identity stable
     // when submitting changes, while reading the latest interactive-dismiss gate.
     val confirm = remember { { value: SheetValue -> !currentBusy || value != SheetValue.Hidden } }
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = false, confirmValueChange = confirm)
+    val otherViewport = remember { BringIntoViewRequester() }
+    var otherFocused by remember { mutableStateOf(false) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
     val ink = if (dark) Color.White else Color.Black
     val muted = if (dark) Color(0xFF98989E) else Color(0xFF6C6C70)
@@ -70,6 +91,23 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
         containerColor = if (dark) Color(0xFF1C1C1E) else Color.White,
         dragHandle = { BottomSheetDefaults.DragHandle(Modifier.testTag("ChiefQuestionDragHandle")) },
         modifier = Modifier.testTag("ChiefQuestionSheet")) {
+        val ime = WindowInsets.ime
+        val density = LocalDensity.current
+        LaunchedEffect(sheet, ime, density) {
+            snapshotFlow { Triple(otherFocused, ime.getBottom(density), sheet.currentValue to sheet.targetValue) }.collect { (focused, bottom, _) ->
+                if (focused && bottom > 0) try {
+                    // Initial show() may choose partial after focus restores. A
+                    // sequential collector does not cancel its own expansion.
+                    if (sheet.currentValue != SheetValue.Expanded || sheet.targetValue != SheetValue.Expanded) sheet.expand()
+                    withFrameNanos { }
+                    if (otherFocused && ime.getBottom(density) > 0) otherViewport.bringIntoView()
+                } catch (interrupted: CancellationException) {
+                    // A competing sheet mutation can interrupt expansion; keep
+                    // observing unless this presentation itself was canceled.
+                    currentCoroutineContext().ensureActive()
+                }
+            }
+        }
         Column(Modifier.fillMaxWidth().fillMaxHeight(.92f).imePadding()) {
             Layout(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), content = {
                 TextButton(onClick = onDismiss, modifier = Modifier.testTag("ChiefQuestionCancel"), colors = ButtonDefaults.textButtonColors(contentColor = blue)) {
@@ -128,8 +166,16 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
                                 if (index < item.options.lastIndex) HorizontalDivider(Modifier.padding(start = 32.dp), color = muted.copy(alpha = .3f), thickness = .5.dp)
                             }
                         }
-                        if (item.id == form.otherTarget?.id) BasicTextField(form.otherText, { form = form.editOther(it) },
+                        if (item.id == form.otherTarget?.id) BasicTextField(displayedOther, { next ->
+                            val textChanged = next.text != form.otherText
+                            // CoreTextField collapses selection when its window loses focus.
+                            // Keep the editing range across Activity pause/recreation.
+                            val acceptsSelection = otherFocused && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+                            otherEditor = if (textChanged || acceptsSelection) next else next.copy(selection = otherEditor.selection)
+                            if (textChanged) form = form.editOther(next.text)
+                        },
                             Modifier.fillMaxWidth().heightIn(min = 34.dp).testTag("ChiefQuestionOther:${item.id}")
+                                .bringIntoViewRequester(otherViewport).onFocusChanged { otherFocused = it.isFocused }
                                 .semantics { contentDescription = otherLabel }.background(if (dark) Color(0xFF2C2C2E) else Color.White, RoundedCornerShape(6.dp))
                                 .border(.5.dp, muted.copy(alpha = .5f), RoundedCornerShape(6.dp)).padding(8.dp),
                             textStyle = nativeChiefTextStyle().copy(color = ink), cursorBrush = SolidColor(blue),

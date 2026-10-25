@@ -1,0 +1,97 @@
+{
+  "cases": [
+    {
+      "answerCalls": 0,
+      "id": "missing",
+      "result": "not-waiting"
+    },
+    {
+      "answerCalls": 0,
+      "id": "settled",
+      "result": "not-waiting"
+    },
+    {
+      "answerCalls": 0,
+      "id": "empty",
+      "result": "answer-required"
+    },
+    {
+      "answerCalls": 3,
+      "choices": [
+        [
+          "item\u001ffirst"
+        ],
+        [
+          "item\u001fsecond"
+        ],
+        [
+          "item\u001fthird"
+        ]
+      ],
+      "id": "reopened-pending-and-retained-after-commit",
+      "results": [
+        "answer-failed",
+        "row:m",
+        "row:m"
+      ]
+    },
+    {
+      "choices": [],
+      "id": "trim-other",
+      "result": "row:m",
+      "text": "Canada"
+    },
+    {
+      "id": "targeted-read",
+      "readBefore": [
+        null,
+        "8"
+      ],
+      "result": "row:m"
+    },
+    {
+      "id": "targeted-empty-fallback",
+      "readBefore": [
+        null,
+        "8"
+      ],
+      "result": "row:m"
+    },
+    {
+      "id": "targeted-failed-fallback",
+      "readBefore": [
+        null,
+        "8"
+      ],
+      "result": "row:m"
+    },
+    {
+      "id": "max-sequence-fallback",
+      "readBefore": [
+        null
+      ],
+      "result": "row:m"
+    },
+    {
+      "id": "read-error-without-retained-row",
+      "readBefore": [
+        null
+      ],
+      "result": "read-failed"
+    },
+    {
+      "id": "missing-without-retained-row",
+      "readBefore": [
+        null
+      ],
+      "result": "answer-missing"
+    },
+    {
+      "id": "refreshed-row-without-cache",
+      "readBefore": [
+        null
+      ],
+      "result": "row:m"
+    }
+  ]
+}

@@ -1,3 +1,50 @@
+## Full-question reopening and focused input corrected — 2026-10-25
+
+Canceling a pending full question and reopening the same card now permits a new
+explicit submission, as the source backend does. Duplicate taps within one
+presentation remain blocked. Each request retains its captured payload and its
+original presentation; an older result cannot dismiss or put an error on a newer
+sheet. Mac/account retirement still cancels work, and a question settled by the
+Mac rejects the old captured form. Polling never resends an answer.
+
+Full-sheet submissions no longer enter the compact-poll deciding/committed/error
+sets. A successful answer follows the source refresh/targeted-reread/retained-row
+fallback, including the UInt64 maximum guard. A failed refresh after a commit
+closes the original sheet with its retained row; that still-pending card can be
+explicitly reopened. Compact approval/poll behavior remains separate.
+
+Screenshot review found a focused Other field below the actual keyboard (bottom
+2173 px; IME top 1613 px), despite the earlier 52 passing checks. The sheet now reads
+IME insets inside its own dialog, expands on focused keyboard input and brings
+the field into view. Medium presentation remains without that interaction.
+The editor saves TextFieldValue selection with the draft: after actual Activity
+replacement at font scale 2, selection 6–10 survives and new text replaces that range.
+An earlier String editor retained the text but reset the caret to 0. A lifecycle/
+focus guard also prevents blur callbacks from collapsing the saved range. The
+keyboard case requests system animator scale 1; sheet states are observed by a
+sequential collector so automatic show() cannot leave focused input partial.
+
+The source checker executes the complete unmodified pinned answerQuestion method
+with controlled question lookup, row publication and async client seams: 12 cases.
+The old Android reservation regression admits one request where the source admits
+two. Final JVM suite: 3,549 pass/four existing skips, including 75 Chief session
+checks. Final API 36 runtime: 53/53 in 172.434s, including 9 full-form checks,
+Home, rich editor, locale and lifecycle regressions. Actual IME window bounds
+cover normal/enlarged/reopened fields. Screens are reviewed, settings/app locales
+and accessibility flags restore, crash log is empty and the owned AVD exits 0.
+All 32 controlled effect frames/all 22 native hashes and both APK alignments match.
+
+This is selected source-method and Android evidence. Whole-backend/native question
+execution, Bundle.main/error localization, matched SwiftUI/keyboard behavior and
+physical Gboard/hardware/TalkBack acceptance remain open. Frozen signed candidates 722 and 723,
+real account/pairing/signing and global pins are preserved. Candidate 723 predates
+these changes; its pending terminal/reply/cold-tap plan remains separate. No phone
+or Mac UI was operated. All thirteen completion areas remain open; goal active.
+Evidence: `captures/recovery-20261025/chief-question-concurrency-checkpoint.json`.
+Next: prepared signed 723 checks after fresh availability; otherwise native Home/
+question bundle/error localization and matched UI, plus wider source/device gates.
+Earlier entries retain their historical checkpoint scope.
+
 ## Signed candidate723 prepared for physical acceptance — 2026-10-25
 
 Private signed development candidate723 is built from `0f840adb337a0db1002053ae4c524d8f960288fc`
@@ -5542,7 +5589,7 @@ unchanged until reconciliation. See the latest HANDOFF.md and PARITY.md entries.
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Chief conversations | Finish the outstanding transcript/question feature/UI reconciliation and matched native Home acceptance from the Oct 20 audit candidate. Home source branches, indicators, copied catalogs, grouped summaries, search and refresh have Android runtime evidence. The full question sheet now has captured presentation/payload, editable pending controls, explicit Cancel, scoped late completion, recreation/retirement and copied nine-locale form evidence; cancel/reopen per-message reservation still needs native reconciliation; original bundle lookup and presentation remain open. Include broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped toolbar undo, rich navigation/configuration, controlled motion/warm scroll reuse, nonempty live global font-scale editing and Ctrl/Meta formatting key dispatch are verified; wider input/clipboard/focus, empty/font-trait/deep-navigation cases, long-distance scrolling/GPU budgets, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
+| Chief conversations | Finish the outstanding transcript/question feature/UI reconciliation and matched native Home acceptance from the Oct 20 audit candidate. Home source branches, indicators, copied catalogs, grouped summaries, search and refresh have Android runtime evidence. The full question sheet now has captured presentation/payload, editable pending controls, explicit Cancel, scoped late completion, recreation/retirement and copied nine-locale form evidence; cancel/reopen submission now follows 12 executed source-method cases with per-presentation rather than compact-poll reservation. Android evidence also covers actual keyboard visibility and selected-range retention through enlarged-text Activity recreation. Original bundle lookup, whole-backend/native-question execution and matched presentation remain open. Include broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped toolbar undo, rich navigation/configuration, controlled motion/warm scroll reuse, nonempty live global font-scale editing and Ctrl/Meta formatting key dispatch are verified; wider input/clipboard/focus, empty/font-trait/deep-navigation cases, long-distance scrolling/GPU budgets, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
 | Agent Feed | Verify the revised reply editor and new native full-text reader, including original UI/traits, URL routing and broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
 | Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |

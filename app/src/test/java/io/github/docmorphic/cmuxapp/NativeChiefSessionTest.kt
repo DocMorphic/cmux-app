@@ -9,6 +9,74 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefSessionTest {
+    private fun questionSubmissionObservation(id: String): org.json.JSONObject {
+        val cases=org.json.JSONObject(checkNotNull(javaClass.getResourceAsStream("/parity/chief-question-submission.json")).bufferedReader().use { it.readText() }).getJSONArray("cases")
+        return (0 until cases.length()).map(cases::getJSONObject).single { it.getString("id")==id }
+    }
+    @Test fun fullQuestionReopenFollowsTheExecutedSourceWithoutACompactPollReservation() = runTest {
+        val expected=questionSubmissionObservation("reopened-pending-and-retained-after-commit")
+        val api=Api();val original=question(other=true)
+        val q=original.copy(items=original.items.map { it.copy(options=listOf("first","second","third").map { id -> NativeChiefQuestion.Option(id,id,null,null) }) })
+        val acknowledgements=List(3) { CompletableDeferred<NativeChiefAnswered>() }
+        api.answerBlock={acknowledgements[api.answers.lastIndex].await()}
+        val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+        try {
+            api.reads.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q))))));session.start();runCurrent()
+            session.openQuestionSheet("m1");val first=session.questionSheet.value!!
+            session.submitQuestionSheet(first.generation,NativeChiefQuestionForm(q));runCurrent()
+            session.dismissQuestionSheet(first.generation);session.openQuestionSheet("m1");val second=session.questionSheet.value!!
+            session.submitQuestionSheet(second.generation,NativeChiefQuestionForm(q).toggle("item","second"));runCurrent()
+            assertEquals("Source admits the reopened pending card",2,api.answers.size)
+            acknowledgements[0].completeExceptionally(java.io.IOException("First answer failed"));runCurrent()
+            assertTrue(session.questionSheet.value!!.submitting);assertNull(session.questionSheet.value!!.error)
+            api.reads.send(Result.failure(java.io.IOException("Read after second commit")))
+            acknowledgements[1].complete(NativeChiefAnswered("chief-main","m1",emptyList()));runCurrent()
+            assertNull(session.questionSheet.value)
+            session.openQuestionSheet("m1");val third=session.questionSheet.value!!
+            session.submitQuestionSheet(third.generation,NativeChiefQuestionForm(q).toggle("item","third"));runCurrent()
+            api.reads.send(Result.failure(java.io.IOException("Read after third commit")))
+            acknowledgements[2].complete(NativeChiefAnswered("chief-main","m1",emptyList()));runCurrent()
+            assertNull(session.questionSheet.value)
+            assertEquals(expected.getInt("answerCalls"),api.answers.size)
+            val choices=expected.getJSONArray("choices")
+            assertEquals((0 until choices.length()).map { i -> choices.getJSONArray(i).let { a -> (0 until a.length()).map(a::getString) } },api.answers.map { it.first })
+            assertTrue(api.answers.all { it.second==null })
+            assertTrue(session.state.value.deciding.isEmpty());assertTrue(session.state.value.committed.isEmpty())
+            assertTrue(session.state.value.uncertain.isEmpty());assertTrue(session.state.value.actionErrors.isEmpty())
+        } finally { session.close() }
+    }
+    @Test fun fullQuestionFollowupAndRetainedFallbackMatchExecutedSourceReads() = runTest {
+        for(id in listOf("targeted-read","targeted-empty-fallback","targeted-failed-fallback","max-sequence-fallback")) {
+            val expected=questionSubmissionObservation(id);val api=Api();val q=question(other=true)
+            val row=message(1,parts=listOf(NativeChiefPart("question",null,null,q))).copy(seq=if(id=="max-sequence-fallback") ULong.MAX_VALUE else 7uL)
+            val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+            try {
+                api.reads.send(Result.success(page(row)));session.start();runCurrent();session.pause();api.readRequests.clear()
+                session.openQuestionSheet("m1");val shown=session.questionSheet.value!!
+                api.reads.send(Result.success(page()))
+                if(id!="max-sequence-fallback") api.reads.send(if(id=="targeted-failed-fallback") Result.failure(java.io.IOException("Targeted read failed"))
+                    else Result.success(if(id=="targeted-read") page(row.copy(partPayloads=listOf(NativeChiefPart("question",null,null,q.copy(state=NativeChiefQuestion.State.CANCELLED))))) else page()))
+                session.submitQuestionSheet(shown.generation,NativeChiefQuestionForm(q));runCurrent()
+                assertNull(id,session.questionSheet.value)
+                val before=expected.getJSONArray("readBefore")
+                assertEquals(id,(0 until before.length()).map { i -> if(before.isNull(i)) null else before.getString(i) },api.readRequests.map { it.before?.toString() })
+                assertEquals(id,"m1",session.state.value.messages.single().id)
+                assertTrue(id,session.state.value.committed.isEmpty())
+            } finally { session.close() }
+        }
+    }
+    @Test fun fullQuestionOpeningSnapshotCannotSubmitAfterTheMacSettlesIt() = runTest {
+        val api=Api();val q=question(other=true);val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+        try {
+            api.reads.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q))))));session.start();runCurrent()
+            session.openQuestionSheet("m1");val shown=session.questionSheet.value!!
+            api.waits.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q.copy(state=NativeChiefQuestion.State.CANCELLED)))))));runCurrent()
+            session.submitQuestionSheet(shown.generation,NativeChiefQuestionForm(q));runCurrent()
+            assertNotNull(session.questionSheet.value!!.error);assertFalse(session.questionSheet.value!!.submitting)
+            assertTrue(api.answers.isEmpty());assertTrue(session.state.value.actionErrors.isEmpty())
+            assertEquals(0,questionSubmissionObservation("settled").getInt("answerCalls"))
+        } finally { session.close() }
+    }
     @Test fun dismissedQuestionFailureIsNotPublishedInItsReplacementOrTheTranscript() = runTest {
         val api=Api();val q=question(other=true);val ack=CompletableDeferred<NativeChiefAnswered>();api.answerBlock={ack.await()}
         val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
@@ -20,7 +88,7 @@ class NativeChiefSessionTest {
             session.dismissQuestionSheet(first.generation);session.openQuestionSheet("m2");val replacement=session.questionSheet.value!!
             ack.completeExceptionally(java.io.IOException("Old request failed"));runCurrent()
             assertSame(replacement,session.questionSheet.value);assertNull(replacement.error)
-            assertFalse("m1" in session.state.value.actionErrors);assertTrue("m1" in session.state.value.uncertain)
+            assertFalse("m1" in session.state.value.actionErrors);assertFalse("m1" in session.state.value.uncertain)
         } finally { session.close() }
     }
 
@@ -51,7 +119,7 @@ class NativeChiefSessionTest {
             assertTrue(session.questionSheet.value!!.submitting);assertEquals(listOf(emptyList<String>() to "Canada"),api.answers)
             session.dismissQuestionSheet(first.generation);session.openQuestionSheet("m2");val replacement=session.questionSheet.value!!
             api.reads.send(Result.failure(java.io.IOException("Read after commit")));ack.complete(NativeChiefAnswered("chief-main","m1",emptyList()));runCurrent()
-            assertSame(replacement,session.questionSheet.value);assertTrue("m1" in session.state.value.committed)
+            assertSame(replacement,session.questionSheet.value);assertFalse("m1" in session.state.value.committed)
             session.submitQuestionSheet(first.generation,form);runCurrent();assertEquals(1,api.answers.size)
         } finally { session.close() }
     }
