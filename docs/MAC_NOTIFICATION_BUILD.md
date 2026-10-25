@@ -1,3 +1,22 @@
+## ACK-success diagnostics and final native build — 2026-10-25
+
+Source 75c017be adds one coarse successful-acknowledgement event after HTTP 2xx.
+Only the numeric status code is logged; there are no reply IDs, account/device
+identifiers, message bytes, URLs or credentials. The exact patched client passes
+22 controlled cases, including empty ACK, successful200/204, tagged/default
+String targets, rate limiting and failures. Actual unified OSLog info events
+appear for the three successful controlled requests. Five installer and eight
+cache tests pass. This verifies instrumentation with URLProtocol seams, not a
+real backend ACK or terminal delivery.
+
+[Build 40208082394](https://github.com/DocMorphic/cmux-app/actions/runs/40208082394)
+is pending at that exact source. It replaces canceled pending run40206417517;
+earlier run40205170225 remains in compilation. Only the final exact-source bundle
+is the replacement target. Prepare independent source/patch/archive/signature
+verification, preserve the current restored account/workspaces/registration and
+use a graceful restart when replacement is appropriate. The phone is unavailable;
+post-fix reply/ACK and cold-tap checks await explicit owner availability.
+
 ## Real Pixel723 upgrade and Mac ACK crash — 2026-10-25
 
 With fresh owner availability, the Pixel was upgraded in place from signed712 to

@@ -1,3 +1,35 @@
+## Signed candidate 724 and observable Mac ACK — 2026-10-25
+
+Signed candidate 724 is frozen from source 49827545 with the existing stable
+signer and private Firebase client configuration. Its APK SHA-256 is
+ff8e1f554d1532c386030152ffbffbbe6867955eafad4ef79144cc8077d1aa94
+(278,853,630 bytes). All 22 viewer assets, 22 native libraries, 16 excluded debug
+components and compiled Firebase resources pass verification. The JVM suite has
+3,552 passes/four existing skips. A fresh owned API 36 emulator passes eleven ART
+class checks and two reviewed actual release starts without crash/ANR evidence;
+it was stopped and deleted. Candidate 724 is local and unpublished, and has not
+been installed on the phone. Frozen candidate 723 is unchanged.
+
+The Mac client now records one fixed ACK-success event after an HTTP 2xx response,
+containing only the status code. Twenty-two controlled client cases and the actual
+worker target parser pass; macOS unified logs contain the three expected success
+events (200, 200 and 204), without message content, identifiers or credentials.
+These are controlled responses, not a live account/server ACK. The current
+nonoptional String API and stable tag are preserved.
+
+[Native build 40208082394](https://github.com/DocMorphic/cmux-app/actions/runs/40208082394)
+is pending at source 75c017be behind the earlier compile. It supersedes the canceled
+pending build 40206417517; the earlier running build lacks the final telemetry/tag
+changes. Verify this exact source/artifact before replacement. Post-fix live reply
+execution/ACK and cold notification tap remain open.
+
+The owner reclaimed the phone. No further physical phone use is authorized until
+explicit new availability; do not create another availability request now.
+The restored Mac account/workspace/pairing state and all thirteen open parity
+areas remain as documented below. Evidence:
+captures/recovery-20261025/parity-candidate-724-checkpoint.json,
+release-724-cold-v1, reply-ack-success-events-v1 and pixel-724-test-plan.json.
+
 ## Pixel723 installed; Mac reply crash blocks acceptance — 2026-10-25
 
 The owner-authorized in-place712→723 upgrade preserves the stable signer, original
@@ -15,14 +47,14 @@ Chief reopening, error-localization and effective-bundle-label changes.
 Current source development is on `main`. These are development milestones;
 see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
-## Current local signed development candidate — 723 (2026-10-25)
+## Installed physical baseline — 723 (2026-10-25)
 
 Current source also contains later full-question submission and keyboard/editor fixes. Candidate723
 does not include that change; its bounded release-account/terminal/notification
 acceptance remains useful and must record this exact artifact version.
 
 Candidate723 is private and unpublished, built from `0f840adb337a0db1002053ae4c524d8f960288fc`.
-It has not been installed on the user's Pixel. Earlier published and physical
+It was installed during the owner-authorized712→723 session above. Earlier published and physical
 records below are historical; re-observe the current phone before updating it.
 
 - Package: `io.github.docmorphic.cmuxapp`; version723 / 0.2.0.
