@@ -1,3 +1,22 @@
+## Native rich-composer input reference accepted; Android UI still open — 2026-10-25
+
+Original UIKit run 40157384521 at 60e3fcef passes 22 native cases / 260 actions across
+actual Large and Accessibility Medium. The 525,195-byte artifact 12585616903 matches
+service SHA256 7d3316fe6bc0a886878ccccdd19c3fdaff69caab690d467ed9fd2086afb2a5e5;
+independent immutable-source validation reproduces 24 files. Native runtime is
+iOS 26.4.1 (23E254a). The committed projection retains 141 shared semantic states
+and 282 display profiles, including two observed unmounted Large palette-open
+states. Gesture/IME/keyboard, stable window/pixel/motion, Chief backend, Android
+and physical acceptance remain open. Production Android still has no rich editor.
+
+Next implement the exact transaction/undo/IME owner, source palette and glyph
+overlay using these native observations. Source same-text edits change formatting
+and composition changes typing-state reset, so a text diff cannot define that
+owner. The public-API/menu-control fixture and authored backend do not replace
+actual Chief or real-device acceptance. Details: CHIEF_RICH_TEXT.md; evidence:
+captures/recovery-20261025/rich-composer-native-checkpoint.json. Global pins,
+frozen signed722 and personal data are preserved; full parity remains active.
+
 ## Rich composer semantic/motion engine; UI integration open — 2026-10-25
 
 Ported the standalone Kotlin UTF-16 formatting and eight-effect engine, including

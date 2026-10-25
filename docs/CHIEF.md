@@ -1,3 +1,31 @@
+## Original rich-composer input observations independently verified — 2026-10-25
+
+Run 40157384521 succeeds at exact source 60e3fcef609d6863bfb2615c2cc0190a872e4b8a
+on iOS 26.4.1 (23E254a): eleven cases and 130 actions in each actual Large and
+Accessibility Medium category. Native tests pass in 37.627/30.018 seconds.
+Artifact 12585616903 is 525,195 bytes; downloaded SHA256 matches the service:
+7d3316fe6bc0a886878ccccdd19c3fdaff69caab690d467ed9fd2086afb2a5e5.
+Independent verification from immutable source reproduces all 24 canonical files.
+
+The public-API traces show same-text replacement changing spans, caret formatting
+on the first inserted chunk then plain typing, marked text retaining typing
+attributes until unmark, rich undo/redo, source palette selection, three grapheme
+layers and 22 word layers, and source send/reset plus fixture failed/plain-ACK
+rows. These are scoped observations, not a general keyboard-policy proof.
+A committed projection preserves 141 identical semantic states across categories
+and 282 display profiles. Two Large open-palette snapshots have no attached
+palette window, while following toggles do; category-specific geometry/visibility
+is retained. No cause, stable-visibility or pixel/motion acceptance is inferred.
+
+This runs the original controller/Store with public input/control actions and
+an explicitly authored in-memory backend. No gestures, real IME/hardware
+keyboard, Chief backend/RPC, Android integration, physical device or full UI
+acceptance is claimed. Production Android is still plain text. Implement its
+coherent rich edit/undo/IME owner, palette and glyph overlay against this native
+reference; all 13 broader completion areas stay open. See CHIEF_RICH_TEXT.md and
+captures/recovery-20261025/rich-composer-native-checkpoint.json. Frozen signed722,
+real credentials/pairing/signing and global upstream pins remain unchanged.
+
 ## Original rich-composer transaction reference prepared — 2026-10-25
 
 The new optional rich-composer host mounts the unchanged pinned UIKit controller

@@ -1,3 +1,20 @@
+## Rich-composer native public-input observations accepted — 2026-10-25
+
+Run 40157384521 succeeds at 60e3fcef609d6863bfb2615c2cc0190a872e4b8a on
+actual iOS 26.4.1 (23E254a), Large and Accessibility Medium. Eleven cases / 130 actions
+per category pass in 37.627/30.018 seconds. The artifact 12585616903 service/download
+hash agrees, and immutable-source independent verification reproduces 24 canonical
+files. The committed NativeObservations.json projection preserves 141 semantic
+states and 282 category-specific display profiles with full provenance.
+
+Actual source public APIs expose same-text span replacement, composition typing
+state, rich undo/redo and source Store send/reset behavior. They do not prove
+real keyboard/gesture, pixel/motion or Chief backend acceptance. Two Large first
+palette-open snapshots have no window attachment; their later toggle snapshots
+do. This observation and category-specific geometry are retained without inferring
+a cause or stable visibility. See docs/CHIEF_RICH_TEXT.md and local recovery
+rich-composer-native-checkpoint.json. Android mounting/full parity remain open.
+
 ## Rich-composer public-input transaction candidate — 2026-10-25
 
 Optional --with-rich-composer adds an application-hosted XCTest around the

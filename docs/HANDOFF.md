@@ -1,3 +1,43 @@
+## Accepted native rich-editor observations; Android mounting next — 2026-10-25
+
+Run 40157384521 at 60e3fcef609d6863bfb2615c2cc0190a872e4b8a passes original UIKit
+public-input/source-control scenarios in actual Large and Accessibility Medium:
+11 cases / 130 actions each; tests 37.627/30.018s; iOS 26.4.1 (23E254a). Artifact
+12585616903 (525,195 bytes) hashes 7d3316fe6bc0a886878ccccdd19c3fdaff69caab690d467ed9fd2086afb2a5e5.
+The six-file immutable verifier snapshot independently reproduces 24 canonical
+files. Current projection tests/chief-rich-composer/NativeObservations.json
+contains 141 cross-category equal semantic states and 282 display profiles; its
+provenance binds the native source/run/artifact/fixture/verifier and projector.
+
+NEXT: implement the full Android rich owner/editor transactions, undo/IME,
+palette and glyph overlay against that actual source reference. Do not substitute
+additional standalone motion fixtures or assume conventional sticky typing styles.
+In these public-API traces, caret formatting affects the first inserted chunk,
+then typing metadata resets; marked text retains it until unmark. Replacing aa
+with aa removes part of a bold span, so text-only observation is insufficient.
+Source undo restores rich metadata. Generic Store sends carry trimmed runs;
+fixture rejection keeps them and authored plain ACK removes them. The real Chief
+backend remains source-mapped, not executed here. Physical IME semantics and
+broader edits/undo still need their own runtime coverage.
+
+Two Large after-open snapshots (all-eight-effects, grapheme-effect-units) have
+paletteInWindow=false, unlike AX Medium; following toggles are true. The
+projection keeps visibility and geometry per category, rather than collapsing
+that difference. No cause, stable visible palette, pixels or actual motion is
+proven. Native source actions are public UIControl/UITextInput calls and a
+recorded menu UIAction bridge; no gestures/private selectors/source edits.
+
+Current Foundation 1.9.1 source confirms InputTransformation runs for same-text
+edit operations, skipping composition-only changes. Official 1.12.1 sources add
+tracked styles by default but their undo record still stores strings/selections;
+no dependency upgrade or runtime equivalence is claimed. Isolated source receipt:
+captures/recovery-20261025/rich-composer-foundation-source-v1/receipt.json.
+Local 112 guards pass; Swift syntax, project parse and all four legacy host byte
+comparisons pass. Raw collector/checkpoint/handoff sit in recovery-20261025.
+All current tool handles and native run are terminal; no owned live process.
+Android engine remains unmounted. Preserve existing phone/account/pairing/signing,
+frozen signed722 and global pins; all 13 completion areas and full goal stay active.
+
 ## Rich-composer native transaction candidate — 2026-10-25
 
 Next native step is the manual ios-chief-rich-composer workflow: eleven cases,

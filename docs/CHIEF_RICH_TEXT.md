@@ -144,3 +144,72 @@ required before interpreting the observations or mounting the Android editor.
 The four old generated hosts are byte-identical except truthful local dirty
 provenance (237/240/240/239 files); the new mode generates239 files. Existing
 source/package pins, Android code, signed722 and personal data remain unchanged.
+
+## Native transaction reference accepted — 2026-10-25
+
+[Run 40157384521](https://github.com/DocMorphic/cmux-app/actions/runs/40157384521)
+at 60e3fcef609d6863bfb2615c2cc0190a872e4b8a passes eleven cases / 130 actions in
+each actual Large / Accessibility Medium category. The native tests take 37.627
+and 30.018 seconds. Runtime is iOS 26.4.1 (23E254a). Artifact 12585616903 is 525,195
+bytes and its downloaded SHA256 agrees with the service:
+7d3316fe6bc0a886878ccccdd19c3fdaff69caab690d467ed9fd2086afb2a5e5.
+A six-file verifier/fixture/source snapshot from the immutable native commit
+independently reproduces all 24 uploaded canonical files. All 282 snapshots pass the export guards; their shared semantic traces and
+specific display differences were inspected. No screenshot or pixel was captured.
+
+In these specific public-API traces:
+
+- A caret Bold or empty-draft Nod toggle formats the first inserted chunk, then
+  typing semantic keys reset. Repeated insertion is not conventional sticky bold.
+- Marked ka/かな text retains Italic typing through both marked updates; unmark
+  resets typing metadata while retaining the composed span. Undo/redo restores
+  the native grouped text and rich metadata. This is not actual IME acceptance.
+- Replacing selected aa with aa leaves the string aaaa unchanged while shrinking
+  the initial two-unit Bold run to one unit. Exact edit intent is necessary.
+- A short composed-character sample creates three effect glyph layers; an 88-unit
+  repeated-word run creates 22. Source animation tracks are installed, without
+  proving rendered frames, movement, accessibility motion or Android segmentation.
+- Source Store sends trim the styled draft, clear the editor/palette/typing state,
+  and preserve runs on a fixture rejection. A deliberately plain fixture ACK
+  replaces them. That backend choice does not execute Chief's adapter.
+
+Text, selection, marking, runs, typing semantic keys, undo flags, source control
+selection and Store/draft observations agree across the two categories. The
+committed tests/chief-rich-composer/NativeObservations.json preserves 141 shared
+semantic states and 282 display profiles. Base font observations are 17/28 points;
+Big is 27.2/44.8 points. The composer paragraph uses natural pitch (observed minimum/
+maximum line heights 0), so a blanket fixed-pitch rule would be incorrect here.
+These are source platform/font inputs, not matched Android glyph measurements.
+
+Presentation is explicitly separate. Two Large first-open records (all-eight-
+effects and grapheme-effect-units) have paletteInWindow=false; the following
+toggle records are true. AX Medium first-open records are true. The cause is
+unestablished. Their actual geometry is preserved in two Large/one AX palette
+layouts and category-specific display records. The initial projector correctly
+refused to collapse window presence; its final schema keeps that property and
+the explicit differences in display data while only collapsing equal text/
+formatting semantics. No capture/verifier check was removed to assert visibility.
+Stable visible keyboard/menu geometry, gestures, pixels and motion remain open.
+
+The projector revalidates every canonical payload using the immutable source
+verifier and checks all receipt file hashes plus the service-bound archive hash.
+Use scripts/project-ios-chief-rich-composer.py with the accepted canonical/source
+snapshot, exact native commit/run/artifact identities and archive. Default mode
+requires byte equality with NativeObservations.json; --output explicitly writes
+a projection. It binds source test, verifier, projector, fixture and all 22 native
+payload hashes. Raw source/runtime/ZIP evidence is local under recovery-20261025.
+
+The installed Foundation 1.9.1 commitEditAsUser checks operation count and runs
+InputTransformation even for same-text replacement, but skips composition-only
+updates. Official Google Maven 1.12.1 sources expose tracked SpanStyle/ParagraphStyle
+with default-enabled styled editing and buffer-scoped handles. Their undo record
+still contains strings/selections and replaces text on undo/redo. This is source
+inspection only, not a rich-undo runtime proof or reason to assume that an upgrade
+solves semantic effect ownership. No app dependency changed. Exact source/archive
+hashes are in rich-composer-foundation-source-v1/receipt.json.
+
+Android's retained formatting owner, exact transaction/undo/composition adapter,
+full source palette and glyph overlay are next. Production Chief remains plain
+text; all broader feature/UI/physical/backend/release gates remain active. No
+personal device, account, pairing, Keychain, purchase or signing operation ran.
+Frozen signed722 and global implemented/reviewed/audit/detected pins are unchanged.
