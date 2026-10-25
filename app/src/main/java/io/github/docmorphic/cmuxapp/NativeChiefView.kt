@@ -175,12 +175,12 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
         }
     } }
     val list = rememberLazyListState()
-    var answerMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    val questionSheet by session.questionSheet.collectAsState()
+    val answerMessage = questionSheet?.messageID
     var failedMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
     val displayedFailure = failedMessage?.let { id -> state.outgoing.singleOrNull { it.clientMessageId == id && it.delivery.isFailed } }
-    val displayedQuestion = answerMessage?.let { id -> state.messages.singleOrNull { it.id == id } }
-        ?.let(NativeChiefPresentation::pendingPart)?.question
+    val displayedQuestion = questionSheet?.question
     val timeline = remember(state.messages, state.outgoing, state.localClientIds, state.working) { NativeChiefTimeline.rows(state) }
     val leadingCount = if (state.hasMore || state.hasLoadedInfo) 1 else 0
     val currentTimeline by rememberUpdatedState(timeline)
@@ -530,7 +530,7 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 ChiefTranscriptRow(row, timeline.getOrNull(index - 1), state, bubbleMetrics, origins = replyOrigins,
                     onApprove = { id, choice -> act { session.approve(id, choice) } },
                     onAnswer = { id, form -> act { session.answer(id, form) } },
-                    onQuestion = { answerMessage = it }, onFailure = { failedMessage = it }, onQuote = ::openThread, onReply = ::replyTo,
+                    onQuestion = session::openQuestionSheet, onFailure = { failedMessage = it }, onQuote = ::openThread, onReply = ::replyTo,
                     onSwipeReply = if (reply == null && !selecting && !state.retired) ::swipeReply else null,
                     onCopy = copyCapturedText,
                     translation = translationState.presentations[row.item.key],
@@ -605,11 +605,11 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
             }
         }
     }
-    if (answerMessage != null && displayedQuestion != null) NativeChiefQuestionSheet(displayedQuestion,
-        busy = answerMessage in state.deciding, error = state.actionErrors[answerMessage], onDismiss = { answerMessage = null }) { form ->
-        val id = answerMessage ?: return@NativeChiefQuestionSheet
-        act { if (session.answer(id, form)) answerMessage = null }
-    }
+    questionSheet?.takeIf { !state.retired }?.let { shown -> key(shown.generation) {
+        NativeChiefQuestionSheet(shown.question, shown.submitting, shown.error,
+            onDismiss = { session.dismissQuestionSheet(shown.generation) },
+            onSend = { session.submitQuestionSheet(shown.generation, it) })
+    } }
     if (pollDetails != null && !state.retired) NativeChiefPollDetails(pollDetails!!, state, session)
     val doomed = confirmedDelete
     if (doomed != null && doomed.isNotEmpty() && !state.retired) NativeModalBottomSheet(onDismissRequest = { confirmedDelete = null },
@@ -752,69 +752,6 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
                     modifier = Modifier.testTag("ChiefFailed:${outgoing.clientMessageId}")) {
                     Text(stringResource(R.string.chief_retry_try_again))
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boolean, error: String?, onDismiss: () -> Unit,
-    onSend: (NativeChiefQuestionForm) -> Unit) {
-    val saver = remember(question) { Saver<NativeChiefQuestionForm, String>(save = { form -> JSONObject()
-        .put("other", form.otherText).put("selections", JSONObject().apply { form.selections.forEach { (id, choices) -> put(id, JSONArray(choices.toList())) } }).toString()
-    }, restore = { raw -> runCatching {
-        val json = JSONObject(raw); val chosen = json.getJSONObject("selections")
-        NativeChiefQuestionForm(question, question.items.associate { item ->
-            val values = chosen.optJSONArray(item.id)
-            item.id to (0 until (values?.length() ?: 0)).map { values!!.getString(it) }.filter { value -> item.options.any { it.id == value } }.toSet()
-        }, json.getString("other"))
-    }.getOrNull() }) }
-    var form by rememberSaveable(question, stateSaver = saver) { mutableStateOf(NativeChiefQuestionForm(question)) }
-    NativeModalBottomSheet(onDismissRequest = { if (!busy) onDismiss() },
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !busy || it != SheetValue.Hidden }),
-        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !busy),
-        modifier = Modifier.testTag("ChiefQuestionSheet")) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(.92f).imePadding()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancel") }
-                Text("Answer Chief", Modifier.weight(1f).semantics { heading() }, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = { onSend(form) }, enabled = form.canSubmit && !busy,
-                    modifier = Modifier.testTag("ChiefQuestionSubmit")) { Text(question.submitLabel ?: "Send") }
-            }
-            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-            Text("Chief needs your input", style = MaterialTheme.typography.titleMedium)
-            Text("Choose an answer for each question before sending it back to your Mac.", color = chiefMuted)
-            if (form.otherTarget != null) Text("You can type one custom answer; it is sent to the first question that accepts it.", color = chiefMuted)
-            question.items.forEach { item ->
-                Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item.header?.takeIf(String::isNotEmpty)?.let { Text(it, color = chiefMuted) }
-                    Text(item.prompt, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium)
-                    if (item.multiSelect) Text("Select all that apply", color = chiefMuted)
-                    item.options.forEach { option ->
-                        Row(Modifier.fillMaxWidth().clickable(enabled = !busy) { form = form.toggle(item.id, option.id) }
-                            .testTag("ChiefQuestionOption:${item.id}:${option.id}").semantics(mergeDescendants = true) {
-                                role = if (item.multiSelect) Role.Checkbox else Role.RadioButton
-                                selected = option.id in form.selections[item.id].orEmpty()
-                            }, verticalAlignment = Alignment.CenterVertically) {
-                            if (item.multiSelect) Checkbox(option.id in form.selections[item.id].orEmpty(), null, enabled = !busy)
-                            else RadioButton(option.id in form.selections[item.id].orEmpty(), null, enabled = !busy)
-                            Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
-                                Text(option.label)
-                                option.detail?.let { Text(it, color = chiefMuted, style = MaterialTheme.typography.bodySmall) }
-                            }
-                        }
-                        if (option.id in form.selections[item.id].orEmpty()) option.preview?.let { preview ->
-                            SelectionContainer { AgentFeedMarkdownText(preview.text, Modifier.padding(start = 16.dp),
-                                monospaced = preview.format == NativeChiefQuestion.Preview.Format.MONOSPACE) }
-                        }
-                    }
-                    if (item.id == form.otherTarget?.id) OutlinedTextField(form.otherText, { form = form.editOther(it) },
-                        Modifier.fillMaxWidth().testTag("ChiefQuestionOther:${item.id}"), enabled = !busy, label = { Text("Other answer (optional)") })
-                }
-            }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("ChiefQuestionError")) }
-            Spacer(Modifier.height(28.dp))
             }
         }
     }

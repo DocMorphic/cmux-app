@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_needs_input" formatted="false">Chief benötigt deine Eingabe</string>
+    <string name="chief_question_instructions" formatted="false">Wähle für jede Frage eine Antwort, bevor du sie an deinen Mac sendest.</string>
+    <string name="chief_question_other_hint" formatted="false">Du kannst eine eigene Antwort eingeben; sie wird an die erste passende Frage gesendet.</string>
+    <string name="chief_question_title" formatted="false">Chief antworten</string>
+    <string name="chief_question_cancel" formatted="false">Abbrechen</string>
+    <string name="chief_question_send" formatted="false">Senden</string>
+    <string name="chief_question_select_all" formatted="false">Wähle alle zutreffenden Optionen</string>
+    <string name="chief_question_other" formatted="false">Andere Antwort (optional)</string>
+</resources>

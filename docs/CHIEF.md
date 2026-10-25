@@ -1,3 +1,51 @@
+## Chief full-question presentation and submission lifetime — 2026-10-25
+
+The full question sheet now captures the opening question and its presentation
+identity in the retained transcript session. Pending submission preserves the
+original immutable choices/text while options and Other remain editable; explicit
+Cancel stays available. Only Submit and interactive/back dismissal are blocked.
+A late success or failure belongs to that original presentation and cannot close,
+reset or put an error on a replacement sheet or the transcript. Activity recreation
+keeps the edited form and request; retiring the computer cancels its request and
+rejects captured actions. Live question updates do not reset the opening form;
+submission still requires the current Mac message to have a pending question.
+
+The source-mapped form uses medium/large detents, grouped choices, source text/
+spacing anchors and no selected-option preview Markdown. The stable Material
+confirmation callback reads current submission state without resetting the sheet.
+Eight source labels in nine Android locales (72 values) are hash/catalog checked.
+This is an Android port of pinned source behavior; source SF Symbols, SwiftUI
+materials/metrics, native Bundle.main lookup and matched screens are unverified.
+Android retains its existing per-message decision reservation across cancel/reopen;
+the original full-sheet backend has no corresponding reservation. That concurrency
+policy still needs explicit reconciliation and native behavior evidence.
+
+Validation: full JVM suite 3,546 passed with four existing SSH skips (476 suites),
+including 72 Chief session checks. API 36 combined runtime-v6 passes 50/51; the older full-form retry fixture
+asserted dismissal before its retained request finished. Final build-v8/runtime-v7
+passes that one case in 5.32s after adding only a wait for actual dismissal. All
+51 distinct checks are accepted against the identical production APK; this is
+not a single green 51-case rerun. New checks cover pending editing/Cancel, scoped
+late ACK/failure, actual recreation, source snapshots, retirement and nine actual
+app locales. Medium, English dark, Japanese light/font2 and Arabic RTL/font2
+windows are reviewed; enlarged Japanese toolbar ellipsis remains a native visual
+comparison item. Crash logs are empty; device settings and app locales restore,
+and all owned AVD runs terminate. All 32 controlled effect frames and 22 native
+libraries match the previous accepted checkpoint; both APKs pass ZIP alignment.
+The first pending-input check reproduced the old disabled Other field. Intermediate
+UI fixture failures (duplicate prompt selector, partial-sheet lower controls and
+merged drag-handle lookup) are excluded from final acceptance. Production/JVM
+sources were unchanged by the final fixture corrections.
+
+All thirteen completion areas remain open. Real Pixel/Mac terminal, cold-tap/
+encrypted-push, TalkBack/Gboard/hardware input and release acceptance still require
+fresh device availability. Global pins, native libraries, real account/pairing/
+signing and frozen signed722 are preserved; this turn does not promote a release.
+Next: reconcile the cancel/reopen reservation and prepare a fresh private signed
+candidate with concrete Pixel/Mac acceptance steps before requesting device time.
+Evidence: `captures/recovery-20261025/chief-question-checkpoint.json`.
+Earlier entries retain their historical checkpoint scope.
+
 ## Chief Home source/UI follow-through — 2026-10-25
 
 Home now follows the pinned/recent/invitation/empty branches with source avatar
@@ -54,9 +102,9 @@ The added fast-refresh pixel baseline fails at runtime-v4/build-v5 before the
 request-state fix; final acceptance is build-v6/runtime-v5. Earlier attempts
 remain excluded from final combined acceptance.
 
-The source question sheet still differs: explicit Cancel/options/Other remain
-enabled while pending, and no selected option.preview is rendered. Android currently
-disables those inputs and adds preview Markdown. See the next-source findings;
+At this historical Home checkpoint the source question sheet still differed: explicit Cancel/options/Other remained
+enabled while pending, and no selected option.preview is rendered. Android then
+disabled those inputs and added preview Markdown. See the next-source findings;
 submission capture and stale-owner lifetime must be reconciled before changing it.
 
 ## Chief formatting keyboard commands ported — 2026-10-25

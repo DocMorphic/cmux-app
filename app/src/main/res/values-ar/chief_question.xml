@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_needs_input" formatted="false">يحتاج Chief إلى إدخالك</string>
+    <string name="chief_question_instructions" formatted="false">اختر إجابة لكل سؤال قبل إرسالها إلى جهاز Mac.</string>
+    <string name="chief_question_other_hint" formatted="false">يمكنك كتابة إجابة مخصصة؛ وستُرسل إلى أول سؤال يقبلها.</string>
+    <string name="chief_question_title" formatted="false">الإجابة على Chief</string>
+    <string name="chief_question_cancel" formatted="false">إلغاء</string>
+    <string name="chief_question_send" formatted="false">إرسال</string>
+    <string name="chief_question_select_all" formatted="false">حدد كل ما ينطبق</string>
+    <string name="chief_question_other" formatted="false">إجابة أخرى (اختياري)</string>
+</resources>

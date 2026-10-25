@@ -9,6 +9,81 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefSessionTest {
+    @Test fun dismissedQuestionFailureIsNotPublishedInItsReplacementOrTheTranscript() = runTest {
+        val api=Api();val q=question(other=true);val ack=CompletableDeferred<NativeChiefAnswered>();api.answerBlock={ack.await()}
+        val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+        try {
+            api.reads.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q))),
+                message(2,parts=listOf(NativeChiefPart("question",null,null,q.copy(id="second")))))))
+            session.start();runCurrent();session.openQuestionSheet("m1");val first=session.questionSheet.value!!
+            session.submitQuestionSheet(first.generation,NativeChiefQuestionForm(q));runCurrent()
+            session.dismissQuestionSheet(first.generation);session.openQuestionSheet("m2");val replacement=session.questionSheet.value!!
+            ack.completeExceptionally(java.io.IOException("Old request failed"));runCurrent()
+            assertSame(replacement,session.questionSheet.value);assertNull(replacement.error)
+            assertFalse("m1" in session.state.value.actionErrors);assertTrue("m1" in session.state.value.uncertain)
+        } finally { session.close() }
+    }
+
+    @Test fun questionSheetKeepsItsOpeningSnapshotAndOldDismissalCannotCloseAReplacement() = runTest {
+        val api=Api();val q=question(other=true);val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+        try {
+            api.reads.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q))),
+                message(2,parts=listOf(NativeChiefPart("question",null,null,q.copy(id="second")))))))
+            session.start();runCurrent();session.openQuestionSheet("m1");val first=session.questionSheet.value!!
+            val changed=q.copy(items=q.items.map { it.copy(prompt="New prompt") })
+            api.waits.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,changed))))));runCurrent()
+            assertSame(q,session.questionSheet.value!!.question)
+            session.pause();assertSame(first,session.questionSheet.value)
+            session.dismissQuestionSheet(first.generation);session.openQuestionSheet("m2");val replacement=session.questionSheet.value!!
+            session.dismissQuestionSheet(first.generation);assertSame(replacement,session.questionSheet.value)
+            session.endVisit();assertNull(session.questionSheet.value);assertTrue(api.answers.isEmpty())
+        } finally { session.close() }
+    }
+    @Test fun questionSheetCapturesPayloadAndItsLateCommitCannotDismissAnotherSheet() = runTest {
+        val api=Api();val q=question(other=true);val ack=CompletableDeferred<NativeChiefAnswered>();api.answerBlock={ack.await()}
+        val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+        try {
+            api.reads.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q))),
+                message(2,parts=listOf(NativeChiefPart("question",null,null,q.copy(id="second")))))))
+            session.start();runCurrent();session.openQuestionSheet("m1");val first=session.questionSheet.value!!
+            val form=NativeChiefQuestionForm(q).editOther(" Canada ")
+            session.submitQuestionSheet(first.generation,form);session.submitQuestionSheet(first.generation,form);runCurrent()
+            assertTrue(session.questionSheet.value!!.submitting);assertEquals(listOf(emptyList<String>() to "Canada"),api.answers)
+            session.dismissQuestionSheet(first.generation);session.openQuestionSheet("m2");val replacement=session.questionSheet.value!!
+            api.reads.send(Result.failure(java.io.IOException("Read after commit")));ack.complete(NativeChiefAnswered("chief-main","m1",emptyList()));runCurrent()
+            assertSame(replacement,session.questionSheet.value);assertTrue("m1" in session.state.value.committed)
+            session.submitQuestionSheet(first.generation,form);runCurrent();assertEquals(1,api.answers.size)
+        } finally { session.close() }
+    }
+    @Test fun questionSheetFailureRetainsItsIdentityAndRetryUsesTheNewForm() = runTest {
+        val api=Api();val q=question(other=true);val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+        try {
+            api.reads.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q))))));session.start();runCurrent()
+            session.openQuestionSheet("m1");val shown=session.questionSheet.value!!
+            api.answerBlock={throw MobileRpcOutcomeUnknown()};session.submitQuestionSheet(shown.generation,NativeChiefQuestionForm(q));runCurrent()
+            assertFalse(session.questionSheet.value!!.submitting);assertNotNull(session.questionSheet.value!!.error)
+            api.answerBlock={NativeChiefAnswered("chief-main","m1",emptyList())};api.reads.send(Result.failure(java.io.IOException("Read after commit")))
+            session.submitQuestionSheet(shown.generation,NativeChiefQuestionForm(q).editOther("Canada"));runCurrent()
+            assertEquals(listOf(listOf("item\u001fus") to null,emptyList<String>() to "Canada"),api.answers)
+            assertNull(session.questionSheet.value)
+        } finally { session.close() }
+    }
+    @Test fun questionSheetUsesLiveMacPendingAuthorityAndRetirementCancelsItsRetainedRequest() = runTest {
+        val api=Api();val q=question(other=true);var current=true
+        val session=NativeChiefTranscriptSession(this,api,"chief-main",{current});val ack=CompletableDeferred<NativeChiefAnswered>()
+        try {
+            api.reads.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q))))));session.start();runCurrent()
+            session.openQuestionSheet("m1");val shown=session.questionSheet.value!!
+            api.waits.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q.copy(items=q.items.map { it.copy(prompt="Changed") })))))));runCurrent()
+            api.answerBlock={ack.await()};session.submitQuestionSheet(shown.generation,NativeChiefQuestionForm(q).editOther("Original"));runCurrent()
+            assertEquals(listOf(emptyList<String>() to "Original"),api.answers)
+            current=false;session.submitQuestionSheet(shown.generation,NativeChiefQuestionForm(q));runCurrent()
+            ack.complete(NativeChiefAnswered("chief-main","m1",emptyList()));runCurrent()
+            assertNull(session.questionSheet.value);assertTrue(session.state.value.retired);assertEquals(1,api.answers.size)
+            session.openQuestionSheet("m1");assertNull(session.questionSheet.value)
+        } finally { session.close() }
+    }
+
     @Test fun richOnlyRevisionCannotBeClearedByAnOlderSendAndOutgoingRunsFollowTrimFailureRetryAndPlainAck() = runTest {
         val api = Api(); var current = true
         val session = NativeChiefTranscriptSession(this, api, "chief-main", { current }, { instant }, { "rich-send" })

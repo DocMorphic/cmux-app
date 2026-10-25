@@ -300,5 +300,24 @@
       "sha256": "631542639cfcf40815ef05a8bb372771a6bbaa75d2a97744c1a779530e91b202"
     },
     "scope": "Source catalog copies in all nine Android locales; source helper count1/other branches. Actual original Home Bundle.main localization resolution and matched UIKit presentation remain unverified."
+  },
+  "questionStrings": {
+    "path": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+    "sha256": "e942c581def4193ffa841537b70774fa9b91f98688fef40e4c5001ef864183a7",
+    "keys": {
+      "mobile.chief.question.needsInput": "chief_question_needs_input",
+      "mobile.chief.question.instructions": "chief_question_instructions",
+      "mobile.chief.question.otherHint": "chief_question_other_hint",
+      "mobile.chief.question.title": "chief_question_title",
+      "mobile.chief.cancel": "chief_question_cancel",
+      "mobile.chief.send": "chief_question_send",
+      "mobile.chief.question.selectAll": "chief_question_select_all",
+      "mobile.chief.question.otherPlaceholder": "chief_question_other"
+    },
+    "scope": "Exact source catalog text in all nine Android locales; native Bundle.main resolution and matched native question window remain unverified."
+  },
+  "questionPresentationFiles": {
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefHomeView.swift": "a52aa435572007905dec6ebcbe27d718bb0b363a6c8a823fead044732e1d449f",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift": "bc7e624230704182753a7ec42ac5d0db4b27c4e403f9d299c25b26acfadd8f61"
   }
 }

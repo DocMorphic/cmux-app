@@ -31,6 +31,15 @@ Original built-app Bundle.main resolution and matched SwiftUI presentation remai
 unverified. Android date/search/pull rendering and the authored sparkles vector
 are not exported UIKit/SF assets. See CHIEF.md for runtime scope and remaining gates.
 
+The full question form additionally binds `questionPresentationFiles` (the whole
+ChiefHomeView/caller and ChiefConversationBackend sources) and `questionStrings`
+(the exact ShellUI catalog). `check-chief-question-strings.py --upstream PATH`
+checks 72 copied labels in nine Android locales. Captured opening form/payload,
+editable pending controls, explicit Cancel and presentation-scoped late completion
+follow those sources. Android's existing per-message reservation remains an open
+cancel/reopen concurrency difference. Static hashes and Android runtime checks do
+not establish native Bundle.main resolution, SwiftUI pixels or physical parity.
+
 The rich composer keyboard port also follows the already attributed
 ConversationComposerView.swift priority Command-B/I/U overrides and editable
 action checks. Android Ctrl/Meta dispatch invokes the same semantic palette

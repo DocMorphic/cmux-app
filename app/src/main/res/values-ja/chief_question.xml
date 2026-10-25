@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_needs_input" formatted="false">Chiefに入力が必要です</string>
+    <string name="chief_question_instructions" formatted="false">Macに送る前に各質問への回答を選んでください。</string>
+    <string name="chief_question_other_hint" formatted="false">カスタム回答を1つ入力すると、受け付ける最初の質問に送信されます。</string>
+    <string name="chief_question_title" formatted="false">Chiefに回答</string>
+    <string name="chief_question_cancel" formatted="false">キャンセル</string>
+    <string name="chief_question_send" formatted="false">送信</string>
+    <string name="chief_question_select_all" formatted="false">該当するものをすべて選択</string>
+    <string name="chief_question_other" formatted="false">その他の回答（任意）</string>
+</resources>

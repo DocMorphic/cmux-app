@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_needs_input" formatted="false">Chief needs your input</string>
+    <string name="chief_question_instructions" formatted="false">Choose an answer for each question before sending it back to your Mac.</string>
+    <string name="chief_question_other_hint" formatted="false">You can type one custom answer; it is sent to the first question that accepts it.</string>
+    <string name="chief_question_title" formatted="false">Answer Chief</string>
+    <string name="chief_question_cancel" formatted="false">Cancel</string>
+    <string name="chief_question_send" formatted="false">Send</string>
+    <string name="chief_question_select_all" formatted="false">Select all that apply</string>
+    <string name="chief_question_other" formatted="false">Other answer (optional)</string>
+</resources>

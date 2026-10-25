@@ -113,6 +113,43 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private var pollGeneration = 0L
     private val mutablePollDetails = MutableStateFlow<NativeChiefPollPresentation?>(null)
     val pollDetails = mutablePollDetails.asStateFlow()
+    private var questionGeneration = 0L
+    private val mutableQuestionSheet = MutableStateFlow<NativeChiefQuestionPresentation?>(null)
+    val questionSheet = mutableQuestionSheet.asStateFlow()
+
+    fun openQuestionSheet(messageID: String) {
+        if (!job.isActive || !permits()) { close(); return }
+        val question = state.value.messages.singleOrNull { it.id == messageID }
+            ?.let(NativeChiefPresentation::pendingPart)?.question ?: return
+        mutableQuestionSheet.value = NativeChiefQuestionPresentation(++questionGeneration, messageID, question)
+    }
+    fun dismissQuestionSheet(generation: Long) {
+        if (mutableQuestionSheet.value?.generation == generation) mutableQuestionSheet.value = null
+    }
+    private fun updateQuestionSheet(generation: Long, transform: (NativeChiefQuestionPresentation) -> NativeChiefQuestionPresentation) {
+        if (!job.isActive || !permits()) return
+        mutableQuestionSheet.value?.takeIf { it.generation == generation }?.let { mutableQuestionSheet.value = transform(it) }
+    }
+    fun submitQuestionSheet(generation: Long, form: NativeChiefQuestionForm) {
+        if (!job.isActive || !permits()) { close(); return }
+        val shown = mutableQuestionSheet.value?.takeIf { it.generation == generation && !it.submitting && it.question == form.question } ?: return
+        // Capture arguments before the first suspension. The sheet may keep editing or
+        // explicitly dismiss while this request belongs to its original Mac/message.
+        val choices = form.choices.toList(); val text = form.text; val valid = form.canSubmit
+        mutableQuestionSheet.value = shown.copy(submitting = true, error = null)
+        scope.launch {
+            try {
+                require(valid) { "Choose an answer for each question before submitting" }
+                val message = pendingQuestionMessage(shown.messageID)
+                if (answerPayload(message, choices, text) { failure -> updateQuestionSheet(generation) { it.copy(error = failure) } })
+                    dismissQuestionSheet(generation)
+                else updateQuestionSheet(generation) { it.copy(error = it.error ?: "That Chief card is already being answered") }
+            } catch (error: Exception) {
+                currentCoroutineContext().ensureActive(); checkOwner()
+                updateQuestionSheet(generation) { it.copy(error = error.message ?: "Chief did not confirm this question") }
+            } finally { updateQuestionSheet(generation) { it.copy(submitting = false) } }
+        }
+    }
 
     fun openPollDetails(messageID: String, you: String, answerQuestions: String) {
         checkOwner()
@@ -303,7 +340,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     fun endVisit() {
         checkOwner()
         if (composerEditorLazy.isInitialized()) composerEditorLazy.value.endVisit()
-        mutablePollDetails.value = null; reading = reading.endVisit(); publishReading()
+        mutablePollDetails.value = null; mutableQuestionSheet.value = null; reading = reading.endVisit(); publishReading()
     }
     fun dismissCatchUp() { checkOwner(); reading = reading.dismiss(); publishReading() }
     fun catchUpTarget() = reading.target(state.value.messages, !state.value.hasMore)
@@ -647,18 +684,28 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     }
 
     suspend fun answer(messageId: String, form: NativeChiefQuestionForm): Boolean {
-        checkOwner()
-        val message = state.value.messages.single { it.id == messageId }
-        val question = NativeChiefPresentation.pendingPart(message)?.takeIf { it.kind == "question" }?.question
-            ?: error("That Chief question is no longer waiting")
+        val message = pendingQuestionMessage(messageId)
+        val question = checkNotNull(NativeChiefPresentation.pendingPart(message)?.question)
         require(form.question == question && form.canSubmit) { "Choose an answer for each question before submitting" }
-        return decide(message) {
-            val result = owned { client.answer(conversationId, messageId, form.choices, form.text) }
-            check(result.conversation == conversationId && result.message == messageId) { "Chief did not confirm this question" }
+        return answerPayload(message, form.choices, form.text)
+    }
+    private fun pendingQuestionMessage(messageId: String): NativeChiefMessage {
+        checkOwner()
+        val message = state.value.messages.singleOrNull { it.id == messageId }
+            ?: error("That Chief question is no longer waiting")
+        check(NativeChiefPresentation.pendingPart(message)?.takeIf { it.kind == "question" }?.question != null) {
+            "That Chief question is no longer waiting"
+        }
+        return message
+    }
+    private suspend fun answerPayload(message: NativeChiefMessage, choices: List<String>, text: String?, failure: ((String) -> Unit)? = null): Boolean {
+        return decide(message, failure) {
+            val result = owned { client.answer(conversationId, message.id, choices, text) }
+            check(result.conversation == conversationId && result.message == message.id) { "Chief did not confirm this question" }
         }
     }
 
-    private suspend fun decide(message: NativeChiefMessage, action: suspend () -> Unit): Boolean {
+    private suspend fun decide(message: NativeChiefMessage, failure: ((String) -> Unit)? = null, action: suspend () -> Unit): Boolean {
         val id = message.id
         if (id in state.value.deciding || id in state.value.committed) return false
         // A user may explicitly retry a failed answer, as in the source sheet.
@@ -677,9 +724,13 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
             } catch (e: Exception) { currentCoroutineContext().ensureActive(); checkOwner() }
             return true
         } catch (e: Exception) {
-            if (job.isActive && permits()) mutableState.value = state.value.copy(
-                uncertain = if (e is MobileRpcException && e.fromHostResponse) state.value.uncertain else state.value.uncertain + id,
-                actionErrors = state.value.actionErrors + (id to (e.message ?: "The answer could not be confirmed. Refresh the conversation.")))
+            if (job.isActive && permits()) {
+                val error = e.message ?: "The answer could not be confirmed. Refresh the conversation."
+                mutableState.value = state.value.copy(
+                    uncertain = if (e is MobileRpcException && e.fromHostResponse) state.value.uncertain else state.value.uncertain + id,
+                    actionErrors = if (failure == null) state.value.actionErrors + (id to error) else state.value.actionErrors - id)
+                failure?.invoke(error)
+            }
             currentCoroutineContext().ensureActive(); checkOwner(); return false
         } finally { if (job.isActive && permits()) mutableState.value = state.value.copy(deciding = state.value.deciding - id) }
     }
@@ -712,6 +763,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         translationOwner.value?.close(); translationOwner.value = null
         translationHost?.close(); translationHost = null
         mutablePollDetails.value = null
+        mutableQuestionSheet.value = null
         reading = NativeChiefReading(); mutableState.value = NativeChiefTranscriptState(loading = false, draftRevision = clearedDraftRevision, retired = true)
     }
 }

@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_needs_input" formatted="false">Chief 需要你的輸入</string>
+    <string name="chief_question_instructions" formatted="false">請先為每個問題選擇答案，再傳回 Mac。</string>
+    <string name="chief_question_other_hint" formatted="false">你可以輸入一個自訂答案，系統會將它傳給第一個接受它的問題。</string>
+    <string name="chief_question_title" formatted="false">回答 Chief</string>
+    <string name="chief_question_cancel" formatted="false">取消</string>
+    <string name="chief_question_send" formatted="false">傳送</string>
+    <string name="chief_question_select_all" formatted="false">選取所有適用項目</string>
+    <string name="chief_question_other" formatted="false">其他答案（選填）</string>
+</resources>

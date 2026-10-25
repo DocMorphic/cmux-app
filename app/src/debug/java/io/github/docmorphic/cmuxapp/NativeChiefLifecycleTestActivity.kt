@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 
@@ -12,9 +13,12 @@ class NativeChiefLifecycleTestActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val retained = checkNotNull(computer) { "Chief lifecycle owner was not installed" }
-        setContent { CmuxTheme { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
+        setContent { CmuxTheme(darkTheme = darkThemeOverride ?: isSystemInDarkTheme()) { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
             NativeChiefView(retained, true, Modifier.fillMaxSize())
         } } }
     }
-    companion object { internal var computer: NativeChiefComputerSession? = null }
+    companion object {
+        internal var computer: NativeChiefComputerSession? = null
+        internal var darkThemeOverride: Boolean? = null
+    }
 }

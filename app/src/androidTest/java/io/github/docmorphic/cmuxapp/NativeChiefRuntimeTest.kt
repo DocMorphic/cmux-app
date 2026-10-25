@@ -2069,6 +2069,11 @@ class NativeChiefRuntimeTest {
         }
         compose.onNodeWithTag("ChiefPinnedConversation").performClick()
         compose.onNodeWithTag("ChiefAnswer:question-row").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefQuestionDragHandle", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        val grip=compose.onNodeWithTag("ChiefQuestionDragHandle", useUnmergedTree = true).fetchSemanticsNode().boundsInWindow
+        if(grip.top>androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).displayHeight*.25)
+            androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).swipe(grip.center.x.toInt(),grip.center.y.toInt(),grip.center.x.toInt(),100,25)
+        compose.waitForIdle()
         compose.onNodeWithTag("ChiefQuestionOption:checks:default").performScrollTo().performClick()
         compose.onNodeWithTag("ChiefQuestionOther:region").performScrollTo().performTextInput("Canada")
         compose.onNodeWithTag("ChiefQuestionSheet").assertExists()
@@ -2079,10 +2084,12 @@ class NativeChiefRuntimeTest {
         bitmap.recycle()
         compose.onNodeWithTag("ChiefQuestionSubmit").performClick()
         compose.waitUntil(10_000) { api.answers.size == 1 }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefQuestionError").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("ChiefQuestionError").assertExists()
         compose.onNodeWithTag("ChiefQuestionSubmit").assertIsEnabled().performClick()
         compose.waitUntil(10_000) { api.answers.size == 2 }
         assertTrue(api.answers.all { it.first == listOf("checks\u001fdefault") && it.second == "Canada" })
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefQuestionSheet").fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithTag("ChiefQuestionSheet").assertDoesNotExist()
         compose.onNodeWithText("Answered in chat").assertExists()
     }
