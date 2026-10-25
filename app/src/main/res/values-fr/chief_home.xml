@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_home_loading" formatted="false">Chargement de Chief</string>
+    <string name="chief_home_unavailable" formatted="false">Chief indisponible</string>
+    <string name="chief_home_empty" formatted="false">Aucune conversation Chief</string>
+    <string name="chief_home_empty_message" formatted="false">Démarrez une conversation avec Chief sur votre Mac.</string>
+    <string name="chief_home_title" formatted="false">Accueil</string>
+    <string name="chief_home_search" formatted="false">Rechercher des conversations</string>
+    <string name="chief_home_recent" formatted="false">Conversations récentes</string>
+    <string name="chief_home_ready_title" formatted="false">Chief est prêt quand vous l’êtes</string>
+    <string name="chief_home_ready_message" formatted="false">Démarrez une conversation avec Chief sur votre Mac. Les nouveaux messages apparaîtront ici.</string>
+    <string name="chief_home_refresh" formatted="false">Actualiser les conversations Chief</string>
+    <string name="chief_home_ask" formatted="false">Demandez n’importe quoi à Chief</string>
+    <string name="chief_home_no_messages" formatted="false">Aucun message pour le moment</string>
+    <string name="chief_home_working" formatted="false">En cours</string>
+    <string name="chief_home_unread_one" formatted="false">1 non lu</string>
+    <string name="chief_home_unread_other">%1$d non lu</string>
+</resources>

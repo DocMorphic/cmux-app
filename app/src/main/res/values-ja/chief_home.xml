@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_home_loading" formatted="false">Chiefを読み込み中</string>
+    <string name="chief_home_unavailable" formatted="false">Chiefを利用できません</string>
+    <string name="chief_home_empty" formatted="false">Chiefの会話はありません</string>
+    <string name="chief_home_empty_message" formatted="false">MacのChiefから会話を始めてください。</string>
+    <string name="chief_home_title" formatted="false">ホーム</string>
+    <string name="chief_home_search" formatted="false">会話を検索</string>
+    <string name="chief_home_recent" formatted="false">最近の会話</string>
+    <string name="chief_home_ready_title" formatted="false">Chiefは準備できています</string>
+    <string name="chief_home_ready_message" formatted="false">MacのChiefから会話を始めてください。新しいメッセージがここに表示されます。</string>
+    <string name="chief_home_refresh" formatted="false">Chiefの会話を更新</string>
+    <string name="chief_home_ask" formatted="false">Chiefに何でも聞いてください</string>
+    <string name="chief_home_no_messages" formatted="false">まだメッセージはありません</string>
+    <string name="chief_home_working" formatted="false">処理中</string>
+    <string name="chief_home_unread_one" formatted="false">未読 1 件</string>
+    <string name="chief_home_unread_other">未読 %1$d 件</string>
+</resources>

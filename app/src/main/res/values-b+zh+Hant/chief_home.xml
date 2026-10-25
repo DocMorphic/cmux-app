@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_home_loading" formatted="false">正在載入 Chief</string>
+    <string name="chief_home_unavailable" formatted="false">Chief 無法使用</string>
+    <string name="chief_home_empty" formatted="false">沒有 Chief 對話</string>
+    <string name="chief_home_empty_message" formatted="false">在 Mac 上從 Chief 開始對話。</string>
+    <string name="chief_home_title" formatted="false">主頁</string>
+    <string name="chief_home_search" formatted="false">搜尋對話</string>
+    <string name="chief_home_recent" formatted="false">最近的對話</string>
+    <string name="chief_home_ready_title" formatted="false">Chief 已準備好，等你開始</string>
+    <string name="chief_home_ready_message" formatted="false">在 Mac 上從 Chief 開始對話，新訊息會顯示在這裡。</string>
+    <string name="chief_home_refresh" formatted="false">重新整理 Chief 對話</string>
+    <string name="chief_home_ask" formatted="false">問 Chief 任何事情</string>
+    <string name="chief_home_no_messages" formatted="false">尚無訊息</string>
+    <string name="chief_home_working" formatted="false">處理中</string>
+    <string name="chief_home_unread_one" formatted="false">1 條未讀</string>
+    <string name="chief_home_unread_other">%1$d unread</string>
+</resources>

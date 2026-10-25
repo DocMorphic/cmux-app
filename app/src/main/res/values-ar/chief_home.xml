@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_home_loading" formatted="false">جارٍ تحميل Chief</string>
+    <string name="chief_home_unavailable" formatted="false">Chief غير متاح</string>
+    <string name="chief_home_empty" formatted="false">لا توجد محادثات مع Chief</string>
+    <string name="chief_home_empty_message" formatted="false">ابدأ محادثة مع Chief على جهاز Mac.</string>
+    <string name="chief_home_title" formatted="false">الصفحة الرئيسية</string>
+    <string name="chief_home_search" formatted="false">البحث في المحادثات</string>
+    <string name="chief_home_recent" formatted="false">المحادثات الأخيرة</string>
+    <string name="chief_home_ready_title" formatted="false">Chief جاهز عندما تكون مستعدًا</string>
+    <string name="chief_home_ready_message" formatted="false">ابدأ محادثة مع Chief على جهاز Mac. ستظهر الرسائل الجديدة هنا.</string>
+    <string name="chief_home_refresh" formatted="false">تحديث محادثات Chief</string>
+    <string name="chief_home_ask" formatted="false">اسأل Chief عن أي شيء</string>
+    <string name="chief_home_no_messages" formatted="false">لا توجد رسائل بعد</string>
+    <string name="chief_home_working" formatted="false">قيد التنفيذ</string>
+    <string name="chief_home_unread_one" formatted="false">1 غير مقروءة</string>
+    <string name="chief_home_unread_other">%1$d غير مقروءة</string>
+</resources>

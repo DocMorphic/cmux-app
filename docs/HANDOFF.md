@@ -1,3 +1,50 @@
+## Chief Home source/UI follow-through — 2026-10-25
+
+Home now follows the pinned/recent/invitation/empty branches with source avatar
+sizes/insets, constrained previews, distinct working/unread indicators and one
+actionable accessibility summary per conversation. Working takes precedence in
+the spoken status; a recent working row can still show its unread dot. Search
+retains the owner query across navigation. Pull and toolbar refresh share the
+live owner; cached rows remain visible without a new inline error row, as in the
+source. Loading, initial failure, empty and Mac-startup fallback stay distinct.
+
+Two source catalogs supply 135 checked labels in nine Android locales, including
+the source unread helper's one/other branches. Final APK build-v6 succeeds; API 36
+runtime-v5 passes 44/44 in 117.892s (five new Home checks plus 39 regressions,
+including full question form, rich editor, font/lifecycle/render and send/return
+navigation). Focused Chief session JVM checks pass 67/67; the other unchanged JVM
+sources retain the accepted 3,541-pass/four-skip checkpoint. English dark, Japanese
+light/enlarged and Arabic RTL/enlarged captures are reviewed. Review found and
+fixed English row text aligned away from RTL avatars; actual glyph-position
+assertions now check it. Crash log empty, settings restored, owned AVD exits 0;
+native libraries/frozen signed722/ZIP alignment and 32 effect frames are preserved.
+
+A later capture exposed a real immediate-refresh race: a response could coalesce
+loading=true/false and leave Material's pull indicator over the avatar. A new
+actual pixel regression fails before the fix with 19,126 changed avatar pixels.
+A UI-local request flag now survives until an observable frame after loading
+finishes, so the indicator sees the transition and hides. Final acceptance checks
+zero changed avatar pixels. No transport, data ownership or stored state changed.
+
+This is source-mapped Android UI and isolated API evidence. Original Home
+Bundle.main localization resolution, native fonts/material/geometry/date labels,
+matched iOS screens, TalkBack and real Pixel/Mac workflows remain unverified.
+All thirteen completion areas stay open; full parity is active. Pins and real
+account/pairing/signing are preserved. Evidence:
+`captures/recovery-20261025/chief-home-checkpoint.json`.
+Earlier entries retain their original checkpoint scope.
+
+NEXT: reconcile the original question sheet's explicit Cancel and editable
+options/Other while submission is pending (only Submit and interactive dismissal
+are blocked in the source), and remove/explain Android-only selected preview
+rendering. First trace captured submit payload/owner/late-receipt lifetime, then
+port and test. Exact static findings: chief-home-next-source-findings.json.
+Native Home bundle lookup/matched presentation and remaining rich input/fonts
+stay open, alongside all thirteen broader gates. Physical availability is pending;
+do not reuse historical phone/Mac permissions. All owned builds/runtime handles
+are terminal; no owned Gradle/AVD remains. Preserve account/pairing/signing, pins
+and frozen signed722; no new signed release was promoted.
+
 ## Chief formatting keyboard commands ported — 2026-10-25
 
 The pinned ComposerTextView declares priority Command-B/I/U and routes them to
@@ -27,12 +74,7 @@ areas remain open; full parity stays active. Global pins and real account/pairin
 signing are preserved. Evidence: `captures/recovery-20261025/rich-keyboard-checkpoint.json`.
 Earlier dated entries retain their own checkpoint scope.
 
-NEXT: reconcile wider rich clipboard/input/focus and empty/font-trait/deep-
-navigation behavior against the original controller, and continue the Chief
-source/UI inventory and thirteen broader gates. Physical Pixel/Mac availability
-is pending; do not reuse historical device permissions. All owned builds/runtime
-handles are terminal; no owned Gradle/AVD remains. Preserve account/pairing/signing,
-global pins and frozen signed722. No new signed candidate was promoted.
+The next source audit continued with the Home implementation above.
 
 ## Live text-size changes follow the verified native editor — 2026-10-25
 

@@ -23,6 +23,14 @@ The UIKit-only source is hash-checked, not compiled by this portable checker.
 This is a scoped text-only comparison; keyboard/IME, rich editor, material and
 physical acceptance require their own evidence.
 
+The Home UI port follows the attributed ChiefHomeView.swift pinned/recent/
+invitation/empty branches, working/unread summaries and source layout anchors.
+`homeStrings` binds two exact catalogs and the shared L10n unread helper; all
+135 copied strings in nine Android locales are checked by check-chief-home-strings.py.
+Original built-app Bundle.main resolution and matched SwiftUI presentation remain
+unverified. Android date/search/pull rendering and the authored sparkles vector
+are not exported UIKit/SF assets. See CHIEF.md for runtime scope and remaining gates.
+
 The rich composer keyboard port also follows the already attributed
 ConversationComposerView.swift priority Command-B/I/U overrides and editable
 action checks. Android Ctrl/Meta dispatch invokes the same semantic palette

@@ -84,11 +84,6 @@ internal fun NativeChiefView(computer: NativeChiefComputerSession, active: Boole
 }
 
 @Composable
-private fun ChiefAvatar(modifier: Modifier = Modifier) {
-    Image(painterResource(R.drawable.chief_avatar), null, modifier.clip(CircleShape).background(Color(0xFF25282E)).padding(4.dp))
-}
-
-@Composable
 internal fun ChiefTimestamp(at: Instant, tag: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
@@ -130,81 +125,6 @@ internal fun ChiefTimestamp(at: Instant, tag: String, modifier: Modifier = Modif
         val label = children.single().measure(Constraints(maxWidth = constraints.maxWidth))
         layout(constraints.maxWidth, (geometry.rowHeight * density.density).roundToInt()) {
             label.place(0, with(density) { 10.dp.roundToPx() })
-        }
-    }
-}
-
-@Composable
-private fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier: Modifier) {
-    val state by computer.home.state.collectAsState()
-    val query = computer.query
-    val rows = state.matching(query)
-    val pinned = state.pinned
-    val refresh = { if (computer.current()) computer.home.refresh() }
-    Column(modifier.fillMaxSize().testTag("ChiefHome")) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Home", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
-            TextButton(onClick = refresh) { Text("Refresh") }
-        }
-        OutlinedTextField(query, computer::search, Modifier.fillMaxWidth().padding(horizontal = 18.dp).testTag("ChiefSearch"),
-            label = { Text("Search Chief") }, singleLine = true)
-        when {
-            state.loading && state.conversations.isEmpty() -> Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(); Text("Loading Chief") }
-            }
-            state.conversations.isEmpty() -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp),
-                verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (state.error != null) "Chief unavailable" else "No Chief conversations", style = MaterialTheme.typography.titleLarge)
-                Text(state.error ?: "Start a conversation from Chief on your Mac.", color = chiefMuted)
-                TextButton(onClick = refresh) { Text("Try Again") }
-            }
-            else -> LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("ChiefConversations")) {
-                state.error?.let { error -> item { Text(error, Modifier.padding(18.dp), color = MaterialTheme.colorScheme.error) } }
-                if (pinned != null && pinned in rows) item(key = "pinned:${pinned.id}") {
-                    Column(Modifier.fillMaxWidth().clickable { computer.open(pinned) }.padding(24.dp)
-                        .testTag("ChiefPinnedConversation").semantics(mergeDescendants = true) { role = Role.Button },
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box {
-                            ChiefAvatar(Modifier.size(88.dp))
-                            if (pinned.working) CircularProgressIndicator(Modifier.size(22.dp).align(Alignment.TopEnd))
-                            else if (pinned.unread > 0) Badge(Modifier.align(Alignment.TopEnd)) { Text(pinned.unread.toString()) }
-                        }
-                        Text(pinned.title, fontWeight = FontWeight.SemiBold)
-                        Text(pinned.preview.ifEmpty { "Ask Chief anything" }, color = chiefMuted, maxLines = 2)
-                        if (pinned.working) Text("Working", color = chiefAccent)
-                    }
-                }
-                val recent = rows.filter { it.id != pinned?.id }
-                if (pinned != null && pinned in rows && recent.isEmpty()) item {
-                    Column(Modifier.fillMaxWidth().height(480.dp).padding(24.dp).testTag("ChiefPinnedOnlyInvitation"),
-                        verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Chief is ready when you are", style = MaterialTheme.typography.titleMedium)
-                        Text("Start a conversation from Chief on your Mac. New messages will appear here.", color = chiefMuted)
-                    }
-                }
-                if (recent.isNotEmpty()) item { Text("Recent conversations", Modifier.padding(18.dp).semantics { heading() }, color = chiefMuted) }
-                items(recent, key = { it.id }) { conversation ->
-                    Row(Modifier.fillMaxWidth().clickable { computer.open(conversation) }.padding(horizontal = 18.dp, vertical = 12.dp)
-                        .testTag("ChiefConversation:${conversation.id}").semantics(mergeDescendants = true) { role = Role.Button },
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ChiefAvatar(Modifier.size(45.dp))
-                        Column(Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(conversation.title, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                if (conversation.updatedAt.epochSecond != -62135769600L) Text(
-                                    android.text.format.DateUtils.getRelativeTimeSpanString(conversation.updatedAt.toEpochMilli(),
-                                        System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS,
-                                        android.text.format.DateUtils.FORMAT_ABBREV_RELATIVE).toString(), color = chiefMuted,
-                                    style = MaterialTheme.typography.labelSmall)
-                            }
-                            Text(conversation.preview.ifEmpty { "No messages yet" }, color = chiefMuted, maxLines = 2)
-                            if (conversation.working) Text("Working", color = chiefAccent)
-                        }
-                        if (conversation.unread > 0) Badge { Text(conversation.unread.toString()) }
-                    }
-                }
-                if (rows.isEmpty()) item { Text("No matching conversations", Modifier.padding(24.dp), color = chiefMuted) }
-            }
         }
     }
 }

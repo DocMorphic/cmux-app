@@ -264,5 +264,41 @@
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationComposerFormatting.swift": "dc8b7fa3321d69c029c9f91b225342e14ab10b86352545ce00848210f6018f02",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationDynamicType.swift": "8d8ae4d10803bdb94f92e602bbedad4a085f50c11b925ed88638c2954db513a4",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationTheme.swift": "533fe1579789bfe6bab5b57acf327ff38689224b4c2624d5cdba500d50e1d53d"
+  },
+  "homeStrings": {
+    "catalogs": [
+      {
+        "path": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+        "sha256": "e942c581def4193ffa841537b70774fa9b91f98688fef40e4c5001ef864183a7",
+        "keys": {
+          "mobile.chief.loading": "chief_home_loading",
+          "mobile.chief.unavailable.title": "chief_home_unavailable",
+          "mobile.chief.empty.title": "chief_home_empty",
+          "mobile.chief.empty.message": "chief_home_empty_message",
+          "mobile.chief.home.title": "chief_home_title",
+          "mobile.chief.home.search": "chief_home_search",
+          "mobile.chief.home.recent": "chief_home_recent",
+          "mobile.chief.home.ready.title": "chief_home_ready_title",
+          "mobile.chief.home.ready.message": "chief_home_ready_message",
+          "mobile.chief.refresh": "chief_home_refresh",
+          "mobile.chief.home.ask": "chief_home_ask",
+          "mobile.chief.home.noMessages": "chief_home_no_messages",
+          "mobile.chief.working": "chief_home_working"
+        }
+      },
+      {
+        "path": "ios/cmux/Resources/Localizable.xcstrings",
+        "sha256": "9facaabb7334f92917f938a5f8ed3508c02b7ead5d401393e5410a49c3f74bfd",
+        "keys": {
+          "mobile.workspace.unreadCountFormat.one": "chief_home_unread_one",
+          "mobile.workspace.unreadCountFormat.other": "chief_home_unread_other"
+        }
+      }
+    ],
+    "unreadHelper": {
+      "path": "Packages/iOS/CmuxMobileSupport/Sources/CmuxMobileSupport/L10n.swift",
+      "sha256": "631542639cfcf40815ef05a8bb372771a6bbaa75d2a97744c1a779530e91b202"
+    },
+    "scope": "Source catalog copies in all nine Android locales; source helper count1/other branches. Actual original Home Bundle.main localization resolution and matched UIKit presentation remain unverified."
   }
 }

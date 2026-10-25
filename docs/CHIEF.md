@@ -1,3 +1,64 @@
+## Chief Home source/UI follow-through — 2026-10-25
+
+Home now follows the pinned/recent/invitation/empty branches with source avatar
+sizes/insets, constrained previews, distinct working/unread indicators and one
+actionable accessibility summary per conversation. Working takes precedence in
+the spoken status; a recent working row can still show its unread dot. Search
+retains the owner query across navigation. Pull and toolbar refresh share the
+live owner; cached rows remain visible without a new inline error row, as in the
+source. Loading, initial failure, empty and Mac-startup fallback stay distinct.
+
+Two source catalogs supply 135 checked labels in nine Android locales, including
+the source unread helper's one/other branches. Final APK build-v6 succeeds; API 36
+runtime-v5 passes 44/44 in 117.892s (five new Home checks plus 39 regressions,
+including full question form, rich editor, font/lifecycle/render and send/return
+navigation). Focused Chief session JVM checks pass 67/67; the other unchanged JVM
+sources retain the accepted 3,541-pass/four-skip checkpoint. English dark, Japanese
+light/enlarged and Arabic RTL/enlarged captures are reviewed. Review found and
+fixed English row text aligned away from RTL avatars; actual glyph-position
+assertions now check it. Crash log empty, settings restored, owned AVD exits 0;
+native libraries/frozen signed722/ZIP alignment and 32 effect frames are preserved.
+
+A later capture exposed a real immediate-refresh race: a response could coalesce
+loading=true/false and leave Material's pull indicator over the avatar. A new
+actual pixel regression fails before the fix with 19,126 changed avatar pixels.
+A UI-local request flag now survives until an observable frame after loading
+finishes, so the indicator sees the transition and hides. Final acceptance checks
+zero changed avatar pixels. No transport, data ownership or stored state changed.
+
+This is source-mapped Android UI and isolated API evidence. Original Home
+Bundle.main localization resolution, native fonts/material/geometry/date labels,
+matched iOS screens, TalkBack and real Pixel/Mac workflows remain unverified.
+All thirteen completion areas stay open; full parity is active. Pins and real
+account/pairing/signing are preserved. Evidence:
+`captures/recovery-20261025/chief-home-checkpoint.json`.
+Earlier entries retain their original checkpoint scope.
+
+Home source details: ChiefHomeView.swift at a5911a1f has hash
+a52aa435572007905dec6ebcbe27d718bb0b363a6c8a823fead044732e1d449f.
+The four-file source snapshot also preserves L10n.swift and both catalogs. The
+Home call uses L10n/Bundle.main; Chief strings occur in the ShellUI module catalog,
+while unread count strings occur in the app catalog. This port copies those
+catalog values but does not claim the original built app resolves them identically.
+Android relative-date formatting, framework search/pull controls and authored
+sparkles remain platform rendering; source point anchors do not prove matching
+SwiftUI font/line metrics. Physical screen-reader traversal is still required.
+
+The first instrumentation build had fixture-only Kotlin errors. Runtime-v1 passed
+39 checks but all five new localized Home cases lost the Activity result-registry
+owner through createConfigurationContext. A ContextThemeWrapper now preserves
+the real Activity chain without modifying device/app locale. Runtime-v2 passed
+44/44 before screenshot review caught RTL English labels on the wrong edge. RTL
+build-v4/runtime-v3 adds interface-leading alignment and measured glyph checks.
+The added fast-refresh pixel baseline fails at runtime-v4/build-v5 before the
+request-state fix; final acceptance is build-v6/runtime-v5. Earlier attempts
+remain excluded from final combined acceptance.
+
+The source question sheet still differs: explicit Cancel/options/Other remain
+enabled while pending, and no selected option.preview is rendered. Android currently
+disables those inputs and adds preview Markdown. See the next-source findings;
+submission capture and stale-owner lifetime must be reconciled before changing it.
+
 ## Chief formatting keyboard commands ported — 2026-10-25
 
 The pinned ComposerTextView declares priority Command-B/I/U and routes them to

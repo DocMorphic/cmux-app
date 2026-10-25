@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_home_loading" formatted="false">Chief 로드 중</string>
+    <string name="chief_home_unavailable" formatted="false">Chief를 사용할 수 없음</string>
+    <string name="chief_home_empty" formatted="false">Chief 대화 없음</string>
+    <string name="chief_home_empty_message" formatted="false">Mac의 Chief에서 대화를 시작하세요.</string>
+    <string name="chief_home_title" formatted="false">홈</string>
+    <string name="chief_home_search" formatted="false">대화 검색</string>
+    <string name="chief_home_recent" formatted="false">최근 대화</string>
+    <string name="chief_home_ready_title" formatted="false">Chief가 기다리고 있습니다</string>
+    <string name="chief_home_ready_message" formatted="false">Mac의 Chief에서 대화를 시작하세요. 새 메시지가 여기에 표시됩니다.</string>
+    <string name="chief_home_refresh" formatted="false">Chief 대화 새로 고침</string>
+    <string name="chief_home_ask" formatted="false">Chief에게 무엇이든 물어보세요</string>
+    <string name="chief_home_no_messages" formatted="false">아직 메시지 없음</string>
+    <string name="chief_home_working" formatted="false">작업 중</string>
+    <string name="chief_home_unread_one" formatted="false">읽지 않은 항목 1개</string>
+    <string name="chief_home_unread_other">%1$d 읽지 않음</string>
+</resources>
