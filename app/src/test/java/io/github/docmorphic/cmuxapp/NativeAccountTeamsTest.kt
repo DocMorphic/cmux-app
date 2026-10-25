@@ -89,15 +89,25 @@ class NativeAccountTeamsTest {
 
     @Test fun failedRefreshKeepsLoadedMembershipUntilTheSessionOrMembershipActuallyChanges() = runBlocking<Unit> {
         for (status in listOf(401, 403)) MockWebServer().use { server -> controller(server).use { account ->
-            server.profile(); val first = checkNotNull(account.refresh().scope)
+            // An unsuccessful mandatory user read cancels its optional sibling.
+            // Reply by phase instead of leaving an unused queued error for the next refresh.
+            val responseStatus = java.util.concurrent.atomic.AtomicInteger(200)
+            server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+                override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse =
+                    if (request.path == "/api/v1/users/me") {
+                        val code = responseStatus.get()
+                        MockResponse().setResponseCode(code).setBody(if (code == 200) user().toString() else "{}")
+                    } else MockResponse().setBody(teams("one", "two").toString())
+            }
+            val first = checkNotNull(account.refresh().scope)
             val proof = checkNotNull(account.captureContinuation(first))
-            server.teamUsers(2){MockResponse().setResponseCode(503)}
+            responseStatus.set(503)
             assertTrue(runCatching { account.refresh() }.isFailure)
             assertTrue(account.allowsContinuation(proof)); assertTrue(account.isCurrent(first))
-            server.teamUsers(2){MockResponse().setResponseCode(status)}
+            responseStatus.set(status)
             assertTrue(runCatching { account.refresh() }.isFailure)
             assertTrue(account.allowsContinuation(proof)); assertNotNull(account.captureContinuation(first))
-            server.profile(); account.refresh()
+            responseStatus.set(200); account.refresh()
             assertTrue(account.allowsContinuation(proof))
             account.clear();assertFalse(account.allowsContinuation(proof))
         } }
@@ -355,16 +365,26 @@ class NativeAccountTeamsTest {
     @Test fun actualStatus401RefreshesOnlyItsRejectedReadAndRedirectsCannotReachMembership() = runBlocking<Unit> {
         MockWebServer().use { server ->
             val forced = java.util.Collections.synchronizedList(mutableListOf<Boolean>())
-            var redirect=false
+            val redirect = java.util.concurrent.atomic.AtomicBoolean(false)
+            val initialUsers = CountDownLatch(2)
+            val redirectUsers = CountDownLatch(2)
             server.dispatcher=object:okhttp3.mockwebserver.Dispatcher(){override fun dispatch(request:okhttp3.mockwebserver.RecordedRequest):MockResponse {
-                if(redirect)return MockResponse().setResponseCode(307).setHeader("Location",server.url("/elsewhere"))
+                if(redirect.get()) {
+                    redirectUsers.countDown()
+                    if (!redirectUsers.await(5, TimeUnit.SECONDS)) return MockResponse().setResponseCode(599).setBody("Both redirect probes did not arrive")
+                    return MockResponse().setResponseCode(307).setHeader("Location",server.url("/elsewhere"))
+                }
                 if(request.path!!.contains("/teams?"))return MockResponse().setBody(teams("one","two").toString())
-                if(request.getHeader("x-hexclave-access-token")=="fixture-token")return MockResponse().setHeader("x-stack-actual-status","401").setHeader("x-stack-known-error","invalid_access_token").setBody("{}")
+                if(request.getHeader("x-hexclave-access-token")=="fixture-token") {
+                    initialUsers.countDown()
+                    if (!initialUsers.await(5, TimeUnit.SECONDS)) return MockResponse().setResponseCode(599).setBody("Both rejected user probes did not arrive")
+                    return MockResponse().setHeader("x-stack-actual-status","401").setHeader("x-stack-known-error","invalid_access_token").setBody("{}")
+                }
                 return MockResponse().setBody(user().toString())
             }}
             controller(server, token = { force -> forced += force; if (force) "new-token" else "fixture-token" }).use { account ->
                 assertNotNull(account.refresh().scope);assertEquals(2,forced.count{it})
-                val before=server.requestCount;redirect=true
+                val before=server.requestCount;redirect.set(true)
                 assertTrue(runCatching { account.refresh() }.isFailure)
                 val calls=List(server.requestCount){server.takeRequest()};assertTrue(calls.drop(before).all{it.path=="/api/v1/users/me"})
                 assertEquals(2,server.requestCount-before)
