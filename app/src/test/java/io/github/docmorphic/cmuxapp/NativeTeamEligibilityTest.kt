@@ -21,6 +21,16 @@ class NativeTeamEligibilityTest {
         repeat(2){server.teamUsers{reply(user())}};server.enqueue(teams());val scope=checkNotNull(c.refreshAfterSignIn("login",a).scope)
         return scope to checkNotNull(c.captureContinuation(scope))
     }
+    /** Hold the rejection until both independent reads have reached the server.
+     * Otherwise membership can fail first and cancel selection before its request. */
+    private fun pairedIneligibleReplies(server:MockWebServer,flag:String) {
+        repeat(2){server.teamUsers{reply(user(flag))}}
+        val arrived=java.util.concurrent.CountDownLatch(2)
+        (server.dispatcher as NativeTeamHttpFixture).beforeUserResponse={
+            arrived.countDown()
+            check(arrived.await(5,TimeUnit.SECONDS)) { "Both user reads must reach the controlled rejection" }
+        }
+    }
     @Test fun decoderMatchesTwentyNineCasesExecutedFromTheWholeOriginalSdkUserModel() {
         val data=checkNotNull(javaClass.getResourceAsStream("/native-team-user-eligibility-reference.json"))
             .bufferedReader().use {JSONObject(it.readText())}
@@ -34,7 +44,7 @@ class NativeTeamEligibilityTest {
     }
     @Test fun ineligibleUsersCannotObtainFreshMembershipOrAMemoryProof()=runBlocking<Unit> {
         for(flag in listOf("is_anonymous","is_restricted"))MockWebServer().use {server->controller(server).use {c->
-            repeat(2){server.teamUsers{reply(user(flag))}}
+            pairedIneligibleReplies(server,flag)
             assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
             assertEquals(2,server.requestCount);assertEquals("/api/v1/users/me",server.takeRequest().path)
             assertNull(c.state.value.scope);assertTrue(c.state.value.teams.isEmpty())
@@ -42,7 +52,7 @@ class NativeTeamEligibilityTest {
     }
     @Test fun anIneligibleReadKeepsOnlyTheAlreadyLoadedSameSessionAuthorityAndDoesNotFetchTeams()=runBlocking<Unit> {
         for(flag in listOf("is_anonymous","is_restricted"))MockWebServer().use {server->controller(server).use {c->
-            val(scope,proof)=establish(server,c);repeat(2){server.teamUsers{reply(user(flag))}}
+            val(scope,proof)=establish(server,c);pairedIneligibleReplies(server,flag)
             assertTrue(runCatching {c.refresh()}.exceptionOrNull() is NativeSessionUserUnavailable)
             assertEquals(5,server.requestCount);assertEquals(scope,c.state.value.scope)
             assertTrue(c.isCurrent(scope));assertTrue(c.allowsContinuation(proof));assertFalse(c.state.value.loading)

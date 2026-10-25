@@ -12,8 +12,10 @@ import java.util.concurrent.atomic.AtomicInteger
 internal class NativeTeamHttpFixture : QueueDispatcher() {
     val users = LinkedBlockingQueue<MockResponse>()
     private val unscripted = AtomicInteger()
+    @Volatile var beforeUserResponse: (() -> Unit)? = null
     override fun dispatch(request: RecordedRequest): MockResponse {
         if (request.method == "GET" && request.path == "/api/v1/users/me") {
+            beforeUserResponse?.invoke()
             return users.poll(5, TimeUnit.SECONDS) ?: run {
                 unscripted.incrementAndGet()
                 MockResponse().setResponseCode(599).setBody("Unscripted fixture user read")
