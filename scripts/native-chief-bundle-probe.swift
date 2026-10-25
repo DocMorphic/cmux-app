@@ -34,7 +34,7 @@ public func cmuxChiefBundleCapture() {
         var resourceDigests: [String: String] = [:]
         for file in resourceFiles { resourceDigests[String(file.path.dropFirst(main.bundleURL.path.count + 1))] = try bundleDigest(file) }
         let report: [String: Any] = [
-            "schema": 3, "requested": requested,
+            "schema": 4, "requested": requested,
             "bundleID": main.bundleIdentifier ?? "missing",
             "executableSha256": try bundleDigest(main.executableURL!),
             "infoSha256": try bundleDigest(main.bundleURL.appendingPathComponent("Info.plist")),
@@ -55,6 +55,7 @@ public func cmuxChiefBundleCapture() {
                              "4294967296": L10n.unreadLabel(count: 4294967296),
                              "9223372036854775807": L10n.unreadLabel(count: Int.max)],
             "homeSearch": try sourceHomeSearchObservations(),
+            "foundationProvider": requested == "en" ? try sourceFoundationProviderFacts() : NSNull(),
             "defaults": sourceBundleDefaults(),
             "mainRaw": mainRaw, "moduleRaw": moduleRaw,
             "os": ProcessInfo.processInfo.operatingSystemVersionString,

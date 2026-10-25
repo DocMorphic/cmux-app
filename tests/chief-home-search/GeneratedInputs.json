@@ -1,10 +1,11 @@
 {
-  "cases": 5546,
+  "cases": 5696,
   "baselineCases": 102,
+  "legacyClusterCases": 150,
   "baselineSha256": "198ee208c27d9070d664ca485898a3e9692b96d8edf56fc1dcb093a525a771fb",
-  "generatorSha256": "ae5a42e7c0ddf4d9627512a550991669dc9926904c62e6b06c56b6e22292e427",
+  "generatorSha256": "0f0cd2d6aa97607b669fd9b40ef49b6480b29e6142ec2bf402275dbdf402c7ea",
   "mappingInputGeneratorSha256": "e544864c234f897bd5b785726b13432bfa1fb236471a42ebd6811868c1c1085a",
   "icu4jSha256": "b3640b9f416a4411fd33c59abbeea8fd57d024c23e1819bf9673220a97499fe3",
-  "casesSha256": "9d34e96a1af999bbb6e1b3cca15cde5876bb97e3121ff82de07260fced91ad51",
+  "casesSha256": "32f3bf274778125fdf61ac69303bd25312751557319bbdf6972099c5d32f1768",
   "scope": "ICU mapping/normalization is used only to author title/query inputs, never expected results. Entire original native Home predicate/model decides truth; iOS acceptance requires a new exact-source capture. No Android matcher or platform parity claim."
 }

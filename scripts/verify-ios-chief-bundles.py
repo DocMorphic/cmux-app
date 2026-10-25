@@ -3,6 +3,7 @@
 import argparse
 import base64
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -45,11 +46,46 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def validate_foundation_provider(provider):
+    assert set(provider)=={'schema','scalarQueries','caseMapType','flags','language','characterSets','caseFold',
+        'canonicalDecomposition','combiningClass','letterRanges','graphemeExtendRanges','whitespaceAndNewlineRanges','scope'}
+    assert all(type(provider[k]) is int for k in ['schema','scalarQueries','caseMapType','flags'])
+    assert provider['schema']==1 and provider['scalarQueries']==1112064
+    assert provider['caseMapType']==3 and provider['flags']==0 and provider['language'] is None
+    assert provider['characterSets']==dict(letter=5,graphemeExtend=110,whitespaceAndNewline=3)
+    def scalar(key):
+        assert isinstance(key,str) and re.fullmatch('[0-9a-f]+',key)
+        cp=int(key,16);assert 0<=cp<=0x10FFFF and not 0xD800<=cp<=0xDFFF and format(cp,'x')==key
+        return cp
+    for name in ['caseFold','canonicalDecomposition']:
+        table=provider[name];assert isinstance(table,dict) and table
+        for key,value in table.items():
+            cp=scalar(key)
+            assert isinstance(value,str) and value and value!=chr(cp)
+            assert all(not 0xD800<=ord(c)<=0xDFFF for c in value)
+    table=provider['combiningClass'];assert isinstance(table,dict) and table
+    for key,value in table.items():
+        scalar(key);assert type(value) is int and 1<=value<=255
+    counts={}
+    for name in ['letterRanges','graphemeExtendRanges','whitespaceAndNewlineRanges']:
+        rows=provider[name];assert isinstance(rows,list) and rows
+        previous=-2;total=0
+        for pair in rows:
+            assert isinstance(pair,list) and len(pair)==2 and all(type(v) is int for v in pair)
+            first,last=pair
+            assert 0<=first<=last<=0x10FFFF and first>previous+1 and (last<0xD800 or first>0xDFFF)
+            total+=last-first+1;previous=last
+        counts[name]=total
+    assert isinstance(provider['scope'],str) and provider['scope']
+    return dict(scalarQueries=provider['scalarQueries'],caseFoldMappings=len(provider['caseFold']),
+        canonicalDecompositions=len(provider['canonicalDecomposition']),combiningClasses=len(provider['combiningClass']),**counts)
+
+
 def verify(capture, project_commit, root=ROOT):
     manifest=json.loads((root/'third_party/cmux-chief/manifest.json').read_text())
     provenance=json.loads((capture/'Provenance.json').read_text())
     assert re.fullmatch('[0-9a-f]{40}',project_commit)
-    assert provenance['schema']==3
+    assert provenance['schema']==4
     assert provenance['projectCommit']==project_commit and provenance['revision']==manifest['revision']
     pins=dict(manifest['nativeBundleFiles']);pins.update(manifest['questionPresentationFiles'])
     pins[CLIENT]=manifest['files'][CLIENT]
@@ -60,6 +96,7 @@ def verify(capture, project_commit, root=ROOT):
     for name,expected in provenance['generatedSha256'].items():
         assert Path(name).name==name and sha(capture/name)==expected,name
     assert sha(capture/'Probe.swift')==sha(root/'scripts/native-chief-bundle-probe.swift')
+    assert sha(capture/'FoundationProbe.swift')==sha(root/'scripts/native-chief-foundation-probe.swift')
     assert sha(capture/'OriginalL10n.swift')==manifest['homeStrings']['unreadHelper']['sha256']
     assert sha(capture/'OriginalChiefHome.swift')==pins[HOME]
     assert sha(capture/'OriginalMobileChiefClient.swift')==pins[CLIENT]
@@ -73,6 +110,13 @@ def verify(capture, project_commit, root=ROOT):
     assert (capture/'OriginalHomeSearch.swift').read_text()==expected
     product=json.loads((capture/'build-product.json').read_text())
     assert product['originalTrackedInputsUnchanged'] is True
+    assert product['runnerSha256']==sha(root/'scripts/run-ios-chief-bundles.py')
+    assert sha(capture/'libChiefBundleProbe.dylib')==product['probeLibrarySha256']
+    bundle_verifier=Path(__file__).with_name('verify-ios-reference-bundle.py')
+    assert provenance['bundleVerifierSha256']==sha(root/'scripts/verify-ios-reference-bundle.py')==sha(bundle_verifier)
+    spec=importlib.util.spec_from_file_location('trusted_original_bundle_identity',bundle_verifier)
+    bundle=importlib.util.module_from_spec(spec);spec.loader.exec_module(bundle)
+    identity=bundle.verify(capture)
     for key in ['executableSha256','infoSha256','probeLibrarySha256']:
         assert re.fullmatch('[0-9a-f]{64}',product[key])
     assert product['resourceSha256'] and all(re.fullmatch('[0-9a-f]{64}',v) for v in product['resourceSha256'].values())
@@ -81,13 +125,15 @@ def verify(capture, project_commit, root=ROOT):
     for item in manifest['homeStrings']['catalogs']:expected_main.update(item['keys'])
     assert main_keys==expected_main and len(provenance['mainKeys'])==len(main_keys)
     assert all(key.startswith('mobile.chief.error.') for key in provenance['moduleKeys'])
-    rows=[]
+    rows=[];foundation=None
     files=list((capture/'observations').glob('*.json'))
     assert set(provenance['languages'])==set(LOCALES) and len(provenance['languages'])==9
     assert {p.stem for p in files}==set(provenance['languages']) and len(files)==9
     for language in provenance['languages']:
         path=capture/'observations'/(language+'.json');row=json.loads(path.read_text())
-        assert row['schema']==3 and row['requested']==language and row['bundleID']==product['bundleID']
+        assert row['schema']==4 and row['requested']==language and row['bundleID']==product['bundleID']
+        if language=='en':foundation=validate_foundation_provider(row['foundationProvider'])
+        else:assert row['foundationProvider'] is None
         assert row['mainBundle'].endswith('.app') and row['preferredLanguages']
         assert row['locale']==LOCALES[language],(language,row['locale'])
         assert all(row[key]==product[key] for key in ['executableSha256','infoSha256','resourceSha256'])
@@ -118,9 +164,11 @@ def verify(capture, project_commit, root=ROOT):
             mainFallback=sorted(k for k in main_keys if row['mainRaw'][k]==MISSING),
             moduleResolved=sorted(k for k in all_keys if row['moduleRaw'][k]!=MISSING),unreadLabels=unread,
             homeSearch=searches,sha256=sha(path)))
-    receipt=dict(schema=3,projectCommit=project_commit,revision=manifest['revision'],languages=9,
+    assert foundation is not None
+    receipt=dict(schema=4,projectCommit=project_commit,revision=manifest['revision'],languages=9,
                  mainQueries=len(main_keys)*9,moduleQueries=len(all_keys)*9,unreadQueries=len(UNREAD_KEYS)*9,
                  homeSearchQueries=len(cases)*9,rows=rows,
+                 foundationProvider=foundation,bundleIdentity=identity,probeLibrarySha256=product['probeLibrarySha256'],
                  provenanceSha256=sha(capture/'Provenance.json'),productSha256=sha(capture/'build-product.json'),
                  scope='Actual compiled original app Bundle.main with unmodified source L10n, explicit packaged-module lookup and the complete original Home search predicate/wire model in a sidecar query-state wrapper. No native Home/question view, authentication, backend static-property or physical parity claim.')
     return receipt

@@ -74,10 +74,12 @@ def prepare(upstream, out, project_commit):
     generated += 'func sourceBundleKeys() -> [String] { return ['+', '.join(map(literal, sorted(main_keys | module_keys)))+'] }\n'
     (out/'CaptureCalls.swift').write_text(generated)
     shutil.copy2(ROOT/'scripts/native-chief-bundle-probe.swift',out/'Probe.swift')
+    shutil.copy2(ROOT/'scripts/native-chief-foundation-probe.swift',out/'FoundationProbe.swift')
     (out/'ProbeLoad.m').write_text('#import <Foundation/Foundation.h>\n#import <dispatch/dispatch.h>\nextern void cmuxChiefBundleCapture(void);\n__attribute__((constructor)) static void cmuxLoad(void) { dispatch_async(dispatch_get_main_queue(), ^{ cmuxChiefBundleCapture(); }); }\n')
-    provenance = dict(schema=3,revision=manifest['revision'],projectCommit=project_commit,sourceSha256=pins,
+    provenance = dict(schema=4,revision=manifest['revision'],projectCommit=project_commit,sourceSha256=pins,
                       mainKeys=sorted(main_keys),moduleKeys=sorted(module_keys),languages=list(LANGUAGES),
                       generatedSha256={p.name:sha(p) for p in out.glob('*') if p.is_file()},
+                      bundleVerifierSha256=sha(ROOT/'scripts/verify-ios-reference-bundle.py'),
                       generatorSha256=sha(__file__),scope='Original full app project/catalogs, whole source L10n and complete Home search predicate/wire model with query-state wrapper. Read-only sidecar, no authentication or UI actions; not native Home/question rendering.')
     (out/'Provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
     return provenance
@@ -119,13 +121,19 @@ def main():
         app=apps[0];info=plistlib.loads((app/'Info.plist').read_bytes());bundle_id=info['CFBundleIdentifier']
         executable=app/info['CFBundleExecutable'];arch=os.uname().machine
         assert arch in command(['lipo','-archs',executable]).split()
-        (out/'build-product.json').write_text(json.dumps(dict(bundleID=bundle_id,executableSha256=sha(executable),infoSha256=sha(app/'Info.plist'),
+        product=dict(bundleID=bundle_id,executableSha256=sha(executable),infoSha256=sha(app/'Info.plist'),
             resourceSha256={str(p.relative_to(app)):sha(p) for p in app.rglob('*') if p.is_file() and p.name in ['Localizable.strings','Localizable.stringsdict']},
-            xcode=command(['xcodebuild','-version']),architecture=arch,go=command(['go','version']),originalTrackedInputsUnchanged=True),indent=2)+'\n')
+            xcode=command(['xcodebuild','-version']),architecture=arch,go=command(['go','version']),originalTrackedInputsUnchanged=True,
+            bundleFilesSha256={str(p.relative_to(app)):sha(p) for p in app.rglob('*') if p.is_file() and not p.is_symlink()},
+            bundleSymlinks={str(p.relative_to(app)):os.readlink(p) for p in app.rglob('*') if p.is_symlink()},runnerSha256=sha(Path(__file__)))
+        archive=out/'OriginalChiefApp.app.zip'
+        command(['/usr/bin/ditto','-c','-k','--keepParent',app,archive],timeout=180)
+        product['archive']=archive.name;product['archiveSha256']=sha(archive)
+        (out/'build-product.json').write_text(json.dumps(product,indent=2)+'\n')
         sdk=command(['xcrun','--sdk','iphonesimulator','--show-sdk-path']);target=arch+'-apple-ios18.0-simulator'
         command(['xcrun','clang','-target',target,'-isysroot',sdk,'-fobjc-arc','-fblocks','-c',out/'ProbeLoad.m','-o',out/'ProbeLoad.o'])
         command(['xcrun','swiftc','-swift-version','6','-target',target,'-sdk',sdk,'-emit-library','-module-name','ChiefBundleProbe',
-                 out/'OriginalL10n.swift',out/'OriginalHomeSearch.swift',out/'CaptureCalls.swift',out/'Probe.swift',out/'ProbeLoad.o','-o',out/'libChiefBundleProbe.dylib'])
+                 out/'OriginalL10n.swift',out/'OriginalHomeSearch.swift',out/'CaptureCalls.swift',out/'FoundationProbe.swift',out/'Probe.swift',out/'ProbeLoad.o','-o',out/'libChiefBundleProbe.dylib'])
         product=json.loads((out/'build-product.json').read_text())
         product['probeLibrarySha256']=sha(out/'libChiefBundleProbe.dylib')
         (out/'build-product.json').write_text(json.dumps(product,indent=2)+'\n')
@@ -147,6 +155,7 @@ def main():
             command(['xcrun','simctl','io',sid,'screenshot',captures/(language+'.png')])
             command(['xcrun','simctl','terminate',sid,bundle_id])
         command(['python3',ROOT/'scripts/verify-ios-chief-bundles.py','--capture',out,'--project-commit',args.project_commit])
+        command(['python3',ROOT/'scripts/verify-ios-reference-bundle.py','--capture',out,'--output',out/'bundle-identity.json'])
         passed=True
     finally:
         cleanup=[]

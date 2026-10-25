@@ -1,3 +1,31 @@
+## Expanded original search and Unicode-provider reference prepared — 2026-10-25
+
+The corpus now has 5,696 authored inputs, adding all 150 local combining/joiner
+cases that exposed 18 prototype differences. The unchanged complete original
+predicate/model will decide their iOS results. Accepted run 40222183064 still
+covers only its preceding 5,546 inputs (49,914 observations), not the additions.
+
+Schema 4 also exports native CoreFoundation provider facts over all 1,112,064
+valid Unicode scalars: case folding, canonical decompositions, combining classes
+and letter/grapheme/whitespace sets. These reference-only APIs are confined to
+the sidecar, never Android. A local preflight caught Swift canonical String
+equality suppressing 24 raw fold mappings and every decomposition; exact UTF-16
+comparison fixes it. Native executable preflight verifies the complete export,
+including those canonically equivalent/code-unit-distinct values. The full local
+fold table agrees with the prior independent ctypes export. This is macOS
+preflight, not accepted target iOS data.
+
+The runner now retains and verifies the entire original app ZIP and sidecar
+dylib. Source/capture guards pass 24 tests, bundle identity passes seven, and the
+native exporter test passes: 32 total. The prepared probe plus actual pinned
+source declarations type-checks as a complete Swift 6 module on macOS. A fresh
+exact-commit iOS workflow is required; follow the resulting specific handle in
+captures/recovery-20261025/foundation-provider-next-reference.json. Do not duplicate
+or restart a live capture. New native results and the production matcher remain
+unaccepted. No phone operation or request was made. The badge fix is pushed at
+9c68d6b0; physical 723/frozen signed 724, all 13 gates and global source pins remain
+unchanged. The full goal remains active.
+
 ## Home visible badge grouping matched — 2026-10-25
 
 Visible unread badges now use the actual UI locale's integer formatter, including

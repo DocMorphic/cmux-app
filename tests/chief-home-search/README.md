@@ -1,7 +1,7 @@
 # Original Chief Home search inputs
 
 The original102 rows are retained in BaselineCases.json. Current Cases.json has
-5,546 inputs: the baseline plus all ICU77.1 case-fold mappings, BMP canonical
+5,696 inputs: the baseline plus all ICU77.1 case-fold mappings, BMP canonical
 decompositions outside algorithmic Hangul, partial expansions, digit/script
 branch selection, prefixed queries and long combining runs. These exercise the complete
 `ChiefHomeView.matches` method at the Chief manifest revision. Cases cover case
@@ -11,8 +11,9 @@ Inputs deliberately contain no authored expected results. Generate them with
 `scripts/generate-chief-home-search-cases.py --java-home <JDK17> --icu4j <icu4j-77.1.jar>`.
 The Java mapping helper authors query strings only; original native code decides
 the boolean result. GeneratedInputs.json binds the baseline, generators, input
-jar and resulting corpus hashes. The expanded corpus has now executed on iOS
-in independently verified run 40222183064, described below.
+jar and resulting corpus hashes. Run 40222183064 independently verifies the
+preceding 5,546-input corpus. The 150 additional legacy-cluster inputs are pending
+native execution; do not treat that earlier run as covering the new inputs.
 
 The Original iOS Chief bundle lookups workflow compiles the complete original
 `MobileChiefConversation` declaration and unchanged predicate in a Foundation
@@ -50,3 +51,19 @@ That is still insufficient: an additional150 authored combining-mark/joiner
 inputs expose18 differences against the complete local original predicate.
 The prototype needs the native cluster rules as well as fold data; modern ICU
 grapheme boundaries alone do not reproduce them. No replacement matcher has shipped.
+
+Schema 4 prepares the complete 5,696-input corpus and an English-launch provider
+export over all 1,112,064 valid Unicode scalars: exact case-fold mappings,
+canonical decompositions, combining classes and letter/grapheme/whitespace sets.
+These are read-only facts from the actual process's CoreFoundation, not expected
+search results. The reference-only APIs are not linked into Android. Exact UTF-16
+comparison preserves canonically equivalent but code-unit-distinct mappings.
+The local macOS exporter executes successfully and its folds agree with a prior
+independent native export; the iOS provider facts are not yet accepted.
+
+The new runner retains the complete original app archive and probe dylib, and
+verifies every archived implementation/resource file. The capture verifier has
+24 guards; seven separate bundle-identity checks and a native macOS exporter
+test also pass. These checks do not replace the pending iOS execution or Android
+matcher/physical/full-app acceptance. Prior captures retain their frozen schema
+and verifier sources.

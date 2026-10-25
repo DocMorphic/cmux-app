@@ -33,10 +33,15 @@ def main():
         for marks in ['\u0301','\u0301\u0327','\u0345']:
             text='a'+marks*size;extra.extend([(text,'a'),(text,text),('é'+marks*size,'é'+marks*size),(text,marks)])
     for index,(text,query) in enumerate(extra):rows.append(dict(id='branch-boundary-%04d'%index,title=text,preview='',query=query))
+    clusters=[(base+joiner+tail,base+joiner)
+        for base in ['a','x','क','1',' ','😀']
+        for joiner in ['\u034f','\u200d','\u094d','\u0301','\ufe0f']
+        for tail in ['b','x',' ','क','😀']]
+    for index,(text,query) in enumerate(clusters):rows.append(dict(id='legacy-cluster-%03d'%index,title=text,preview='',query=query))
     assert len({row['id'] for row in rows})==len(rows)
     target=folder/'Cases.json'
     target.write_text('[\n'+',\n'.join(json.dumps(row,ensure_ascii=False,separators=(',',':')) for row in rows)+'\n]\n')
-    provenance=dict(cases=len(rows),baselineCases=102,baselineSha256=sha(baseline),generatorSha256=sha(Path(__file__)),
+    provenance=dict(cases=len(rows),baselineCases=102,legacyClusterCases=len(clusters),baselineSha256=sha(baseline),generatorSha256=sha(Path(__file__)),
         mappingInputGeneratorSha256=sha(source),icu4jSha256=sha(args.icu4j),casesSha256=sha(target),
         scope='ICU mapping/normalization is used only to author title/query inputs, never expected results. Entire original native Home predicate/model decides truth; iOS acceptance requires a new exact-source capture. No Android matcher or platform parity claim.')
     (folder/'GeneratedInputs.json').write_text(json.dumps(provenance,indent=2)+'\n')
