@@ -62,6 +62,7 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
         let body: String
         switch Self.scenario {
         case "malformed-json": body = "fixture-secret-response-body"
+        case "ack-http-204": body = ""
         case "plaintext-rejected":
             body = #"{"replies":[{"replyId":"r","macDeviceId":"fixture-mac","text":"fixture-secret-reply","createdAtMs":1,"expiresAtMs":2}]}"#
         case "encrypted":
@@ -90,7 +91,7 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
         let isAck = scenario.hasPrefix("ack-")
         if isAck {
             let accepted = await client.acknowledge(replyIds: scenario == "ack-empty" ? [] : ["fixture-reply"])
-            precondition(accepted == (scenario == "ack-empty" || scenario == "ack-success" || scenario == "ack-stable-success"))
+            precondition(accepted == (scenario == "ack-empty" || scenario == "ack-success" || scenario == "ack-stable-success" || scenario == "ack-http-204"))
         } else {
             let replies = await client.fetchPending()
             if scenario == "empty" || scenario == "stable-empty" { precondition(replies == []) }
@@ -104,7 +105,7 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
         case "service-missing": expected = ("serviceUnavailable", 0)
         case "http-401": expected = ("http", 401)
         case "http-403", "ack-http-403": expected = ("http", 403)
-        case "http-429": expected = ("http", 429)
+        case "http-429", "ack-http-429": expected = ("http", 429)
         case "http-503": expected = ("http", 503)
         case "non-http": expected = ("nonHTTP", 0)
         case "malformed-json", "plaintext-rejected": expected = ("decoding", 0)
@@ -114,6 +115,9 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
         }
         if let (cause, code) = expected {
             precondition(logs == ["phoneReply.requestFailed operation=\(isAck ? "ack" : "fetch") cause=\(cause) code=\(code)"])
+        } else if ["ack-success", "ack-stable-success", "ack-http-204"].contains(scenario) {
+            let code = scenario == "ack-http-204" ? 204 : 200
+            precondition(logs == ["phoneReply.ackSucceeded code=\(code)"])
         } else { precondition(logs.isEmpty) }
         precondition(logs.allSatisfy { !$0.contains("fixture-") && !$0.contains("https:") })
         if ["auth-missing", "token-fail", "service-missing", "ack-empty"].contains(scenario) {

@@ -146,6 +146,13 @@ def reply_inbox_diagnostics(source):
         case nonHTTP, http, decoding, transport, unexpected
     }
 
+    private func recordAcknowledgement(code: Int) {
+        phoneReplyLog.info("reply acknowledgement accepted code=\\(code, privacy: .public)")
+        #if DEBUG
+        cmuxDebugLog("phoneReply.ackSucceeded code=\\(code)")
+        #endif
+    }
+
     private func recordFailure(_ operation: Operation, _ cause: Failure, code: Int = 0) {
         if cause == .authUnavailable || cause == .cancelled {
             phoneReplyLog.debug("reply request unavailable operation=\\(operation.rawValue, privacy: .public) cause=\\(cause.rawValue, privacy: .public) code=\\(code, privacy: .public)")
@@ -233,6 +240,9 @@ def reply_inbox_diagnostics(source):
                 "macInstanceTag": MobileHostIdentity.instanceTag(),
                 "macBuildID": Bundle.main.bundleIdentifier ?? "cmux",
             ],''')
+    source = once(source, '            return true\n        } catch is DecodingError {',
+                  '            recordAcknowledgement(code: http.statusCode)\n'
+                  '            return true\n        } catch is DecodingError {')
     return source
 
 

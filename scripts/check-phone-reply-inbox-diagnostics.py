@@ -93,7 +93,7 @@ public struct PhonePushEncryptedPayload: Decodable, Equatable, Sendable { public
     cases = ['auth-missing', 'token-fail', 'service-missing', 'http-401', 'http-403',
              'http-429', 'http-503', 'non-http', 'malformed-json', 'plaintext-rejected',
              'transport-timeout', 'transport-cancelled', 'empty', 'encrypted',
-             'ack-empty', 'ack-success', 'ack-http-403', 'ack-transport-timeout', 'stable-empty', 'ack-stable-success']
+             'ack-empty', 'ack-success', 'ack-http-403', 'ack-transport-timeout', 'stable-empty', 'ack-stable-success', 'ack-http-204', 'ack-http-429']
     contracts = {'empty', 'ack-success', 'stable-empty', 'ack-stable-success'}
     for case in cases:
         arguments = [str(binary), case] + ([str(output / (case + '.request.json'))] if case in contracts else [])
