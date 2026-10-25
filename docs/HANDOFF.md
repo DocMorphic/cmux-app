@@ -1,3 +1,25 @@
+## Native live-font probe candidate — 2026-10-25
+
+The pinned source's applyScaledFonts replaces nonempty attributedText using plain
+body attributes and restores selection, while its emoji-base update explicitly
+preserves semantic keys and restyles. Android currently retains its rich metadata
+on font changes. The effective native behavior, including marked text, typing and
+undo, needs observation before choosing the Android change.
+
+FontCases.json adds four separate cases / 44 public actions for formatted selection,
+emoji-base changes, marked text and caret formatting. The unchanged original UIKit
+package runs under public controller traitOverrides, with actual controller/editor
+category, span fonts, selection, runs, history and fixture sends recorded. This is
+a controller trait transition, not a global Settings change or physical IME check.
+The prior accepted Cases.json and NativeObservations.json are unchanged.
+
+All 116 Python reference guards pass; the Swift fixture parses and the host binds
+both fixture resources to the exact package tree. Native UIKit compile/run/export
+acceptance is pending. Do not clear Android formatting from source inference alone.
+Use the fonts probe on the existing ios-chief-rich-composer workflow; verify its
+artifact against the exact source commit with --font-cases. Account/pairing/signing,
+signed722 and global pins remain unchanged. Full parity stays active.
+
 ## Chief rich draft restoration, clipboard undo and mounted motion — 2026-10-25
 
 The retained rich composer now preserves selection, formatting and history through
@@ -1811,7 +1833,7 @@ is 4,315,223 bytes, SHA256
 All nineteen canonical files byte-match immutable independent verification;
 normal and AX Medium pending screens were reviewed. Actual default-weight
 body-to-footnote point inputs are 14/12, 15/12, 16/12, 17/13, 19/15, 21/17,
-23/19, 28/23, 33/27, 40/33, 47/38 and 53/44. Current/visible native table fonts
+23/19, 28/23, 33/27, 40/33, 47/38 and 53/ 44. Current/visible native table fonts
 verify at normal and AX Medium. Compatible-trait inputs for the other categories
 are not rendered layout acceptance. Public image observations report white
 symbol tint; the rendered cyan material is not a cyan source-image tint.
@@ -3195,7 +3217,7 @@ timestamp geometry (current Android labelSmall/padding/semibold differs from the
 actual source caption2/explicit row geometry/medium), material gray and exact
 font/inset/glyph treatment, followed by ReplyTrip travel/release-offset unwind.
 `captures/recovery-20261021/chief-thread-match-next.json` preserves source rules
-and actual native 28⅔/44⅓-point timestamp row measurements. Physical Mac/Pixel
+and actual native 28⅔/ 44⅓-point timestamp row measurements. Physical Mac/Pixel
 terminal, encrypted FCM/cold-tap/lifecycle and the remaining completion gates stay
 open. Full-parity goal remains active.
 

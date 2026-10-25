@@ -40,3 +40,16 @@ temporary UIButton bridge to the source menu UIAction. Its backend is authored,
 in-memory rejection/plain ACK. It does not execute Chief's adapter or prove
 actual IME/hardware keyboard, gestures, rendered pixels, Android integration
 or physical/full app parity. See [CHIEF_RICH_TEXT.md](../../docs/CHIEF_RICH_TEXT.md).
+
+## Separate live-font probe candidate
+
+FontCases.json contains four cases / 44 public actions. Dispatch the rich-composer
+workflow with probe=fonts and category=all to observe public controller text-metric
+trait overrides while the original editor is mounted. Verify each category with
+verify-ios-chief-rich-composer.py --font-cases and the exact run source commit.
+The separate fixture/provenance key and probe marker prevent accepting transaction
+exports as font observations. Export guards require actual category propagation
+to the original editor and actual per-span fonts, without prescribing formatting
+outcomes. Native execution/export acceptance is pending. This does not update the
+accepted transaction projection or establish global Settings, gestures, physical
+input, rendered pixels, Android or full app parity.

@@ -43,13 +43,14 @@ def check_runs(rows, count):
         previous = row['location'] + row['length']
 
 
-def validate(payload, case, category, commit, fixture_bytes, manifest):
+def validate(payload, case, category, commit, fixture_bytes, manifest, font_cases=False):
     require(payload.get('schema') == 1 and payload.get('referenceKind') == 'chiefRichComposer' and
             payload.get('caseID') == case['id'] and payload.get('completed') is True, 'Wrong or incomplete native case')
     require(payload.get('fixtureSha256') == sha(fixture_bytes), 'Changed fixture identity')
     provenance = payload.get('provenance', {})
     expected = dict(upstreamRevision=manifest['revision'], packageTree=manifest['referencePackage']['tree'],
-                    projectSourceCommit=commit, richComposerCasesSha256=sha(fixture_bytes),
+                    projectSourceCommit=commit,
+                    **{('richComposerFontCasesSha256' if font_cases else 'richComposerCasesSha256'): sha(fixture_bytes)},
                     richComposerTestsSha256=sha((ROOT / 'tests/ios-chief-reference/RichComposerTests.swift').read_bytes()),
                     referenceAppSha256=sha((ROOT / 'tests/ios-chief-reference/ReferenceApp.swift').read_bytes()),
                     referenceTestsSha256=sha((ROOT / 'tests/ios-chief-reference/ReferenceTests.swift').read_bytes()))
@@ -59,6 +60,8 @@ def validate(payload, case, category, commit, fixture_bytes, manifest):
     require(payload.get('supportsAttachments') is False and payload.get('privateSelectorsUsed') is False and
             payload.get('sourceModified') is False and payload.get('externalBackend') is False, 'Wrong native scope')
     require(payload.get('backendMode') == case['backend'] and payload.get('style') == case['style'], 'Changed fixture configuration')
+    if font_cases:
+        require(payload.get('probe') == 'liveFonts', 'Wrong native font probe')
     records = payload.get('records')
     require(isinstance(records, list) and len(records) == len(case['actions']) + 1, 'Missing native steps')
     identity = None
@@ -134,10 +137,33 @@ def validate(payload, case, category, commit, fixture_bytes, manifest):
             require(isinstance(message.get('text'), str) and isinstance(message.get('delivery'), str), 'Missing source Store message')
             check_runs(message.get('runs'), len(message['text'].encode('utf-16-le')) // 2)
 
+    if font_cases:
+        validate_font_categories(records, category)
 
-def verify(exported, output, commit, category):
+
+def validate_font_categories(records, category):
+    expected = CATEGORIES[category]
+    changes = 0
+    for record in records:
+        action = record['action']; state = record['state']
+        if action['kind'] == 'metricsCategory':
+            require(action.get('target') in CATEGORIES, 'Unknown text metric category')
+            observed = record.get('observed', {})
+            require(observed.get('invocation') == 'UIViewController.traitOverrides.preferredContentSizeCategory' and
+                    observed.get('beforeControllerCategory') == expected, 'Missing public trait transition')
+            expected = CATEGORIES[action['target']]; changes += 1
+        require(state.get('controllerCategory') == expected and state.get('editorCategory') == expected,
+                'Trait override did not reach original editor')
+        for span in state['attributes']:
+            attributes = span['attributes']
+            require(finite(attributes.get('fontSize')) and attributes['fontSize'] > 0 and
+                    isinstance(attributes.get('fontName'), str) and bool(attributes['fontName']), 'Missing actual span font')
+    require(changes >= 2, 'Missing live text metric roundtrip')
+
+
+def verify(exported, output, commit, category, font_cases=False):
     require(re.fullmatch('[0-9a-f]{40}', commit) is not None, 'Full immutable source commit required')
-    fixture = (ROOT / 'tests/chief-rich-composer/Cases.json').read_bytes()
+    fixture = (ROOT / 'tests/chief-rich-composer' / ('FontCases.json' if font_cases else 'Cases.json')).read_bytes()
     manifest = json.loads((ROOT / 'third_party/cmux-chief/manifest.json').read_text())
     candidates = {}
     for path in exported.rglob('*.json'):
@@ -152,7 +178,7 @@ def verify(exported, output, commit, category):
     require(set(candidates) == {c['id'] for c in cases}, 'Missing or unexpected native case inventory')
     for case in cases:
         require(len(candidates[case['id']]) == 1, 'Duplicated native payload')
-        validate(candidates[case['id']][0], case, category, commit, fixture, manifest)
+        validate(candidates[case['id']][0], case, category, commit, fixture, manifest, font_cases)
     output.mkdir(parents=True, exist_ok=False)
     files = {}
     for case in cases:
@@ -160,7 +186,7 @@ def verify(exported, output, commit, category):
         data = (json.dumps(candidates[case['id']][0], ensure_ascii=False, indent=2) + '\n').encode()
         (output / name).write_bytes(data); files[name] = sha(data)
     receipt = dict(projectCommit=commit, upstreamRevision=manifest['revision'], fixtureSha256=sha(fixture), category=category,
-                   cases=len(cases), actions=sum(len(c['actions']) for c in cases), files=files,
+                   probe='liveFonts' if font_cases else 'transactions', cases=len(cases), actions=sum(len(c['actions']) for c in cases), files=files,
                    scope='Actual pinned UIKit composer/Store public-API and source-control observations with authored in-memory backend. No gestures/physical keyboard, XCUIScreen/pixel, Chief backend, Android UI or full parity acceptance.')
     (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt, indent=2))
@@ -172,5 +198,6 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--project-commit', required=True)
     parser.add_argument('--category', choices=CATEGORIES, default='large')
+    parser.add_argument('--font-cases', action='store_true', help='Verify the separate live controller-trait font probe')
     args = parser.parse_args()
-    verify(args.exported, args.output, args.project_commit, args.category)
+    verify(args.exported, args.output, args.project_commit, args.category, args.font_cases)

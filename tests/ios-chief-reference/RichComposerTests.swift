@@ -132,6 +132,7 @@ final class CmuxChiefRichComposerTests: XCTestCase {
             "unsupportedWrites": backend.unsupportedWrites, "viewing": store.isViewing,
             "actualCategory": UIApplication.shared.preferredContentSizeCategory.rawValue,
             "controllerCategory": controller.traitCollection.preferredContentSizeCategory.rawValue,
+            "editorCategory": text.traitCollection.preferredContentSizeCategory.rawValue,
             "reduceMotion": UIAccessibility.isReduceMotionEnabled, "boldText": UIAccessibility.isBoldTextEnabled]
     }
     @MainActor private func trigger(_ identifier: String, root: UIView) throws {
@@ -142,6 +143,17 @@ final class CmuxChiefRichComposerTests: XCTestCase {
         store: ConversationStore, backend: RichComposerBackend) async throws -> [String: Any] {
         var observed: [String: Any] = [:]
         switch action.kind {
+        case "metricsCategory":
+            let name = try XCTUnwrap(action.target)
+            guard name == "large" || name == "accessibilityMedium" else { throw RichComposerFailure.invalidAction }
+            let category: UIContentSizeCategory = name == "large" ? .large : .accessibilityMedium
+            observed["beforeControllerCategory"] = controller.traitCollection.preferredContentSizeCategory.rawValue
+            controller.traitOverrides.preferredContentSizeCategory = category
+            controller.view.setNeedsLayout(); controller.view.layoutIfNeeded()
+            try await wait("public trait override reaches original text view") {
+                controller.traitCollection.preferredContentSizeCategory == category && text.traitCollection.preferredContentSizeCategory == category
+            }
+            observed["invocation"] = "UIViewController.traitOverrides.preferredContentSizeCategory"
         case "focus": XCTAssertTrue(text.becomeFirstResponder())
         case "resign": observed["resigned"] = text.resignFirstResponder()
         case "insert": text.insertText(try XCTUnwrap(action.text))
@@ -204,8 +216,14 @@ final class CmuxChiefRichComposerTests: XCTestCase {
         return observed
     }
     @MainActor func testCaptureOriginalRichComposerTransactions() async throws {
+        try await capture(resource: "RichComposerCases", probe: "transactions")
+    }
+    @MainActor func testCaptureOriginalRichComposerLiveFonts() async throws {
+        try await capture(resource: "RichComposerFontCases", probe: "liveFonts")
+    }
+    @MainActor private func capture(resource: String, probe: String) async throws {
         let bundle = Bundle(for: Self.self)
-        let input = try Data(contentsOf: XCTUnwrap(bundle.url(forResource: "RichComposerCases", withExtension: "json")))
+        let input = try Data(contentsOf: XCTUnwrap(bundle.url(forResource: resource, withExtension: "json")))
         let fixture = try JSONDecoder().decode(RichComposerCases.self, from: input)
         XCTAssertEqual(fixture.schema, 1)
         let provenance = try JSONSerialization.jsonObject(with: Data(contentsOf: XCTUnwrap(bundle.url(forResource: "Provenance", withExtension: "json"))))
@@ -228,7 +246,7 @@ final class CmuxChiefRichComposerTests: XCTestCase {
                 window.endEditing(true); store.stop(); window.isHidden = true; window.rootViewController = nil
                 previous?.makeKeyAndVisible()
                 let payload: [String: Any] = ["schema": 1, "referenceKind": "chiefRichComposer", "caseID": specification.id,
-                    "fixtureSha256": digest, "provenance": provenance, "records": records,
+                    "fixtureSha256": digest, "provenance": provenance, "records": records, "probe": probe,
                     "completed": records.count == specification.actions.count + 1, "backendMode": specification.backend,
                     "style": specification.style, "platform": UIDevice.current.systemName,
                     "runtimeVersion": UIDevice.current.systemVersion, "os": ProcessInfo.processInfo.operatingSystemVersionString,

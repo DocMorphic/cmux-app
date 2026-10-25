@@ -117,4 +117,46 @@ class RichComposerExportGuards(unittest.TestCase):
             self.payload[key] = False
 
 
+class RichComposerFontExportGuards(unittest.TestCase):
+    def setUp(self):
+        def record(kind, category, target=None, before=None):
+            value = dict(action=dict(kind=kind), state=dict(controllerCategory=VERIFY.CATEGORIES[category],
+                editorCategory=VERIFY.CATEGORIES[category], attributes=[dict(attributes=dict(fontSize=17, fontName='SyntheticFont'))]))
+            if target is not None:
+                value['action']['target'] = target
+                value['observed'] = dict(invocation='UIViewController.traitOverrides.preferredContentSizeCategory',
+                                         beforeControllerCategory=VERIFY.CATEGORIES[before])
+            return value
+        self.records = [record('initial', 'large'),
+            record('metricsCategory', 'accessibilityMedium', 'accessibilityMedium', 'large'),
+            record('insert', 'accessibilityMedium'), record('metricsCategory', 'large', 'large', 'accessibilityMedium')]
+
+    def validate(self): VERIFY.validate_font_categories(self.records, 'large')
+
+    def test_accepts_bound_public_controller_roundtrip_without_prescribing_formatting(self):
+        self.validate()
+        self.records[1]['state']['attributes'][0]['attributes']['fontSize'] = 29
+        self.validate()
+
+    def test_rejects_trait_not_reaching_editor_and_wrong_prior_category(self):
+        self.records[1]['state']['editorCategory'] = VERIFY.CATEGORIES['large']
+        with self.assertRaisesRegex(ValueError, 'reach original editor'): self.validate()
+        self.records[1]['state']['editorCategory'] = VERIFY.CATEGORIES['accessibilityMedium']
+        self.records[3]['observed']['beforeControllerCategory'] = VERIFY.CATEGORIES['large']
+        with self.assertRaisesRegex(ValueError, 'public trait transition'): self.validate()
+
+    def test_rejects_missing_public_transition_or_metric_font(self):
+        self.records[1]['observed']['invocation'] = 'manual-private-callback'
+        with self.assertRaisesRegex(ValueError, 'public trait transition'): self.validate()
+        self.records[1]['observed']['invocation'] = 'UIViewController.traitOverrides.preferredContentSizeCategory'
+        self.records[2]['state']['attributes'][0]['attributes']['fontSize'] = float('nan')
+        with self.assertRaisesRegex(ValueError, 'actual span font'): self.validate()
+
+    def test_rejects_unknown_target_and_missing_roundtrip(self):
+        self.records[1]['action']['target'] = 'invented'
+        with self.assertRaisesRegex(ValueError, 'Unknown text metric'): self.validate()
+        self.setUp(); self.records.pop()
+        with self.assertRaisesRegex(ValueError, 'roundtrip'): self.validate()
+
+
 if __name__ == '__main__': unittest.main()

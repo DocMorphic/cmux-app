@@ -162,6 +162,28 @@ input/control traces do not prove gesture or IME equivalence. Real account/backe
 device, release and all thirteen broader gates remain active. Account/pairing/
 signing, frozen signed722 and global upstream pins remain unchanged.
 
+## Native live-font probe candidate — 2026-10-25
+
+The pinned source's applyScaledFonts replaces nonempty attributedText using plain
+body attributes and restores selection, while its emoji-base update explicitly
+preserves semantic keys and restyles. Android currently retains its rich metadata
+on font changes. The effective native behavior, including marked text, typing and
+undo, needs observation before choosing the Android change.
+
+FontCases.json adds four separate cases / 44 public actions for formatted selection,
+emoji-base changes, marked text and caret formatting. The unchanged original UIKit
+package runs under public controller traitOverrides, with actual controller/editor
+category, span fonts, selection, runs, history and fixture sends recorded. This is
+a controller trait transition, not a global Settings change or physical IME check.
+The prior accepted Cases.json and NativeObservations.json are unchanged.
+
+All 116 Python reference guards pass; the Swift fixture parses and the host binds
+both fixture resources to the exact package tree. Native UIKit compile/run/export
+acceptance is pending. Do not clear Android formatting from source inference alone.
+Use the fonts probe on the existing ios-chief-rich-composer workflow; verify its
+artifact against the exact source commit with --font-cases. Account/pairing/signing,
+signed722 and global pins remain unchanged. Full parity stays active.
+
 ## Rich continuity and mounted motion verification — 2026-10-25
 
 Full continuity build-v11 passes all 3,543 JVM cases in 475 suites: 3,539 passed,
@@ -328,7 +350,7 @@ Text, selection, marking, runs, typing semantic keys, undo flags, source control
 selection and Store/draft observations agree across the two categories. The
 committed tests/chief-rich-composer/NativeObservations.json preserves 141 shared
 semantic states and 282 display profiles. Base font observations are 17/28 points;
-Big is 27.2/44.8 points. The composer paragraph uses natural pitch (observed minimum/
+Big is 27.2/ 44.8 points. The composer paragraph uses natural pitch (observed minimum/
 maximum line heights 0), so a blanket fixed-pitch rule would be incorrect here.
 These are source platform/font inputs, not matched Android glyph measurements.
 
