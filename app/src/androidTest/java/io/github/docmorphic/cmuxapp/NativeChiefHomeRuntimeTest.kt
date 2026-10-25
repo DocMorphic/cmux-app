@@ -50,7 +50,10 @@ class NativeChiefHomeRuntimeTest {
         compose.setContent {
             val original = LocalContext.current
             val config = remember(locale) { android.content.res.Configuration(original.resources.configuration).apply {
-                setLocale(Locale.forLanguageTag(this@NativeChiefHomeRuntimeTest.locale));setLayoutDirection(Locale.forLanguageTag(this@NativeChiefHomeRuntimeTest.locale))
+                // Match the captured original Home's AppleLocale, including its
+                // region. Android's bare "ar" may select Latin numbering.
+                val referenceLocale = Locale.forLanguageTag(if (this@NativeChiefHomeRuntimeTest.locale=="ar") "ar-SA" else this@NativeChiefHomeRuntimeTest.locale)
+                setLocale(referenceLocale);setLayoutDirection(referenceLocale)
             } }
             // Preserve the Activity owner chain used by launchers/BackHandler while
             // changing only this subtree's resources, not the device/app locale.
@@ -181,7 +184,15 @@ class NativeChiefHomeRuntimeTest {
                 compose.waitUntil(10_000) { computer.home.state.value.pinned?.unread==count }
                 val expected=nativeUnread.getJSONObject(language).getString(count.toString())
                 compose.onNodeWithTag("ChiefPinnedConversation").assertContentDescriptionEquals("Chief, "+expected)
-                records.put(org.json.JSONObject().put("language",language).put("count",count).put("value",expected))
+                val badge = compose.onNodeWithTag("ChiefPinnedUnread",useUnmergedTree=true)
+                // Whole original Home run40213828169 shows this visible digit;
+                // the spoken summary above intentionally retains Western digits.
+                if (count==2L && language in listOf("en","ar")) {
+                    badge.assertTextEquals(if (language=="ar") "٢" else "2")
+                    if (language=="ar") capture("chief-home-ar-native-badge-two")
+                }
+                val visible=badge.fetchSemanticsNode().config[SemanticsProperties.Text].single().text
+                records.put(org.json.JSONObject().put("language",language).put("count",count).put("value",expected).put("badge",visible))
             }
         }
         for ((language,big,bright) in listOf(Triple("en",1f,false),Triple("ja",2f,true),Triple("ar",2f,false))) {

@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
@@ -139,6 +140,10 @@ private fun ChiefHomeAvatar(size: Dp, dark: Boolean) {
 @Composable
 private fun ChiefHomePinned(conversation: NativeChiefConversation, ink: Color, muted: Color, blue: Color, orange: Color, dark: Boolean, open: () -> Unit) {
     val summary = chiefHomeSummary(conversation)
+    // Original SwiftUI integer interpolation localizes the visible badge's
+    // digits; its separate L10n unread accessibility summary uses Western digits.
+    val locale = LocalConfiguration.current.locales[0] ?: java.util.Locale.getDefault()
+    val badge = remember(conversation.unread, locale) { String.format(locale, "%d", conversation.unread) }
     Column(Modifier.fillMaxWidth().testTag("ChiefPinnedConversation").clickable(onClick = open)
         .clearAndSetSemantics { contentDescription = summary; role = Role.Button; onClick { open(); true } }
         .padding(top = 24.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -147,7 +152,7 @@ private fun ChiefHomePinned(conversation: NativeChiefConversation, ink: Color, m
             if (conversation.working) Box(Modifier.align(Alignment.TopEnd).absoluteOffset(x = 4.dp, y = (-4).dp)
                 .background(orange, CircleShape).padding(7.dp).testTag("ChiefPinnedWorking")) {
                 CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-            } else if (conversation.unread > 0) Text(conversation.unread.toString(), Modifier.align(Alignment.TopEnd)
+            } else if (conversation.unread > 0) Text(badge, Modifier.align(Alignment.TopEnd)
                 .absoluteOffset(x = 8.dp, y = (-4).dp).background(blue, RoundedCornerShape(50)).padding(horizontal = 7.dp, vertical = 4.dp)
                 .testTag("ChiefPinnedUnread"), color = Color.White, style = nativeChiefTextStyle(11).copy(fontWeight = FontWeight.Bold))
         }

@@ -42,6 +42,8 @@ UI tests failed because the prior debug-loopback fixture route was rejected as
 insecureManualRoute. This run is preserved as failure evidence, not accepted UI
 behavior. Corrected run40213828169 at56204e94 passes the eight-state Home test and
 expanded-case search test. Its question test reaches the actual conversation but
-cannot find the merged option as an accessibility button. Nine frame sets and
-the unchanged-source/build identity are retained; independent verification and
-review are pending. The measured physical-tap correction needs a fresh run.
+cannot find the merged option as an accessibility button. Nine frame sets now pass exact-source/template/catalog, regenerated-project and
+PNG/AX/RPC digest checks and visual review. The executable is not in this artifact,
+so its hash remains CI metadata. This accepts only scoped Home/search reference
+frames; question and full-shell geometry remain open. Corrected physical-input
+run40217714743 is active at9aa995fe.

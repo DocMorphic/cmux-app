@@ -1,3 +1,43 @@
+## Verified Mac repair and native Home badge follow-through — 2026-10-25
+
+Mac build40208082394 succeeds at75c017be. GitHub artifact12607229729 matches
+SHA25642981c102b2e5fbbda99498137c417ba3033f6dd1e3a15d43082c0ed7b7f12d0.
+Independent verification binds15 original pins,34 regenerated patched files,
+30 safe archive links, ARM64, production configuration and strict signatures.
+Inner archive SHA256 is43bc5775e0543f858aaf29d1f3af385f45a3a6f462d3cb53000d8de98a40616a.
+After a fresh private session/preference/registration backup and ordinary quit,
+the verified replacement launches through the filtered owner launcher. Account
+and selected-team hashes, signed-in/team-ready state, all three workspace IDs,
+order/selection and saved pairing preference remain intact. The stopped helper's
+checkpointed database copy still contains one registration/zero retired rows.
+Postlaunch helper/ACK acceptance is pending: process sampling shows native
+phone-push and producer-storage Keychain reads waiting, and SecurityAgent is
+outside computer-use access. One Mac-only owner question is pending. No phone
+operation or test notification was performed.
+
+Original Home run40213828169 now has independent exact-source/template/catalog,
+regenerated-project and nine PNG/AX/RPC digest checks plus visual review. Its Home
+and search tests pass; its question test failed. Product executable hashes are
+CI metadata, since this UI artifact omits the binary. The surrounding authenticated
+tab shell is absent, so bottom-search/header geometry needs that context before
+Android alignment. Corrected question physical-input run40217714743 is active
+at9aa995fe; do not duplicate it.
+
+Native Arabic Home shows a localized visible badge digit while its spoken unread
+summary retains Western digits. Android now formats the visible integer with the
+actual UI locale and keeps the separate source-matched summary. The first runtime
+caught a bare-ar versus native ar-SA fixture mismatch; the corrected matched-region
+run passes5/5 in13.859s with72 spoken summaries. The visible English/Arabic two
+badges match original frames; wide-count grouping/geometry remain unverified.
+Sources/settings match, the crash log is empty,22 native-library hashes are
+unchanged, both APK zip alignments pass, and the owned emulator exits0. Screens
+are reviewed;135 source-catalog and207 native-main-bundle label checks pass.
+Frozen signed724 predates this change; physical723 and all thirteen full-parity
+areas remain open. The phone is reclaimed; no new availability request is needed.
+Private evidence: captures/recovery-20261025/mac-reply-runtime-40208082394,
+chief-home-ui-verification-40213828169.json, chief-home-ui-visual-review-40213828169.json
+and chief-badge-digits-runtime-v2.
+
 ## Original Home execution and physical question entry — 2026-10-25
 
 Original UI run40213828169 at56204e94 passes two of three tests: all eight

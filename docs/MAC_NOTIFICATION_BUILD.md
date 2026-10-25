@@ -1,3 +1,20 @@
+## Verified Mac repair and native Home badge follow-through — 2026-10-25
+
+Mac build40208082394 succeeds at75c017be. GitHub artifact12607229729 matches
+SHA25642981c102b2e5fbbda99498137c417ba3033f6dd1e3a15d43082c0ed7b7f12d0.
+Independent verification binds15 original pins,34 regenerated patched files,
+30 safe archive links, ARM64, production configuration and strict signatures.
+Inner archive SHA256 is43bc5775e0543f858aaf29d1f3af385f45a3a6f462d3cb53000d8de98a40616a.
+After a fresh private session/preference/registration backup and ordinary quit,
+the verified replacement launches through the filtered owner launcher. Account
+and selected-team hashes, signed-in/team-ready state, all three workspace IDs,
+order/selection and saved pairing preference remain intact. The stopped helper's
+checkpointed database copy still contains one registration/zero retired rows.
+Postlaunch helper/ACK acceptance is pending: process sampling shows native
+phone-push and producer-storage Keychain reads waiting, and SecurityAgent is
+outside computer-use access. One Mac-only owner question is pending. No phone
+operation or test notification was performed.
+
 ## ACK-success diagnostics and final native build — 2026-10-25
 
 Source 75c017be adds one coarse successful-acknowledgement event after HTTP 2xx.
