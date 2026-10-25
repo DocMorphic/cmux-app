@@ -41,15 +41,17 @@ in-memory rejection/plain ACK. It does not execute Chief's adapter or prove
 actual IME/hardware keyboard, gestures, rendered pixels, Android integration
 or physical/full app parity. See [CHIEF_RICH_TEXT.md](../../docs/CHIEF_RICH_TEXT.md).
 
-## Separate live-font probe candidate
+## Separate live-font controller observations
 
-FontCases.json contains four cases / 44 public actions. Dispatch the rich-composer
-workflow with probe=fonts and category=all to observe public controller text-metric
-trait overrides while the original editor is mounted. Verify each category with
-verify-ios-chief-rich-composer.py --font-cases and the exact run source commit.
-The separate fixture/provenance key and probe marker prevent accepting transaction
-exports as font observations. Export guards require actual category propagation
-to the original editor and actual per-span fonts, without prescribing formatting
-outcomes. Native execution/export acceptance is pending. This does not update the
-accepted transaction projection or establish global Settings, gestures, physical
-input, rendered pixels, Android or full app parity.
+FontCases.json contains four cases / 44 public actions. Run 40171337742 at 96c52a8e
+passes both actual system categories, with public controller trait overrides while
+the original editor stays mounted. Artifact 12590397040 matches service SHA256
+332233c17389359a2655e3eb439afbae7fd6836f0bf72520343c8a5fc0c0d5ce. The exact
+nine-file native source snapshot independently reproduces all ten canonical files.
+Replay verify-ios-chief-rich-composer.py --font-cases from that exact snapshot;
+its separate fixture/provenance key and probe marker prevent accepting transaction
+exports as font observations. Categories and actual span fonts are recorded
+without prescribing semantic outcomes. Existing accepted transaction projection
+is unchanged. See CHIEF_RICH_TEXT.md for observations and important scope limits:
+per-controller overrides retain a fixed global application category and do not
+prove live global Settings, rendered pixels, physical input or Android behavior.

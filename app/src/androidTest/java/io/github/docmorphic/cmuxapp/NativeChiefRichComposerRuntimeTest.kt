@@ -343,6 +343,73 @@ class NativeChiefRichComposerRuntimeTest {
         compose.runOnUiThread { assertEquals(text, rich.snapshot.text); assertEquals(runs, rich.snapshot.runs); assertEquals(runs, ownerRuns) }
     }
 
+    @Test fun animatedScrollReusesWarmGlyphRastersInsteadOfRemeasuringEachFrame() {
+        val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val directory = java.io.File(compose.activity.getExternalFilesDir(null), "rich-composer").apply { mkdirs() }
+        val originalMotion = device.executeShellCommand("settings get global animator_duration_scale").trim()
+        device.executeShellCommand("settings put global animator_duration_scale 1")
+        device.executeShellCommand("atrace --async_start -b 16384 -a io.github.docmorphic.cmuxapp.debug gfx view")
+        compose.mainClock.autoAdvance = false
+        var trace = ""
+        var changedPixels = 0
+        fun mark(name: String) = compose.runOnUiThread { android.os.Trace.beginSection(name); android.os.Trace.endSection() }
+        fun frame() { compose.mainClock.advanceTimeBy(64); compose.waitForIdle() }
+        try {
+            mark("cmux.RichWarmStart")
+            val text = "one two three four five\n".repeat(30)
+            compose.runOnUiThread {
+                limitHeight = true
+                rich.reset(text, listOf(NativeConversationTextRun(0, text.length, effect = NativeConversationTextEffect.RIPPLE)))
+                rich.field.edit { selection = TextRange(0) }; rich.synchronizeSelectionAndComposition()
+            }
+            frame()
+            val node = compose.onNodeWithTag("ChiefComposer")
+            fun scroll(delta: Float) {
+                node.performSemanticsAction(SemanticsActions.ScrollBy) { assertTrue(it(0f, delta)) }; frame()
+            }
+            scroll(-1_000_000f); scroll(90f); scroll(-90f)
+            val axis = node.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
+            assertEquals(0f, axis.value(), 1f)
+            fun pixels(): IntArray {
+                val bitmap = compose.onNodeWithTag("ChiefComposerTextViewport", useUnmergedTree = true).captureToImage()
+                val map = bitmap.toPixelMap()
+                return IntArray(map.width * map.height) { index -> map[index % map.width, index / map.width].hashCode() }
+            }
+            val before = pixels(); compose.mainClock.advanceTimeBy(192); compose.waitForIdle(); val after = pixels()
+            assertEquals(before.size, after.size)
+            changedPixels = before.indices.count { before[it] != after[it] }
+            assertTrue("Actual effect ink moves between controlled frames, beyond the caret", changedPixels > 2000)
+            mark("cmux.RichWarmEnd"); mark("cmux.RichReuseStart")
+            repeat(4) {
+                scroll(90f); assertTrue("Actual viewport moved", axis.value() > 0f)
+                scroll(-90f); assertEquals(0f, axis.value(), 1f)
+            }
+            mark("cmux.RichReuseEnd")
+            capture("rich-cache-reused")
+            compose.runOnUiThread { assertEquals(text, rich.snapshot.text); assertEquals(text.length, rich.snapshot.runs.single().length) }
+        } finally {
+            try {
+                trace = device.executeShellCommand("atrace --async_stop")
+                java.io.File(directory, "rich-cache-atrace.txt").writeText(trace)
+            } finally {
+                compose.mainClock.autoAdvance = true
+                device.executeShellCommand(if (originalMotion == "null") "settings delete global animator_duration_scale"
+                    else "settings put global animator_duration_scale $originalMotion")
+            }
+        }
+        fun rastersBetween(start: String, end: String): Int {
+            val begin = trace.indexOf("|$start"); val finish = trace.indexOf("|$end", begin.coerceAtLeast(0))
+            assertTrue("Actual app trace markers $start/$end", begin >= 0 && finish > begin)
+            return trace.substring(begin, finish).lineSequence().count { it.contains("|cmux.RichGlyphRaster") }
+        }
+        val warm = rastersBetween("cmux.RichWarmStart", "cmux.RichWarmEnd")
+        val reuse = rastersBetween("cmux.RichReuseStart", "cmux.RichReuseEnd")
+        java.io.File(directory, "rich-cache-counts.json").writeText(org.json.JSONObject().put("warmRasters", warm)
+            .put("repeatedViewportRasters", reuse).put("scrollRoundtrips", 4).put("changedMotionPixels", changedPixels).toString(2) + "\n")
+        assertTrue("Trace includes actual bitmap preparation", warm > 0)
+        assertEquals("Warm overlapping viewport frames must reuse actual glyph rasters", 0, reuse)
+    }
+
     @Test fun endingTheVisitRejectsItsOldInputConnectionWithoutClearingTheRichDraft() {
         edit { it.commitText("base", 1); it.setSelection(0, 4) }
         compose.runOnUiThread { rich.toggle(NativeConversationTextStyle.BOLD) }

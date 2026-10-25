@@ -1,30 +1,22 @@
-## Chief rich draft restoration, clipboard undo and mounted motion — 2026-10-25
+## Chief animated scroll reuse and native font observations — 2026-10-25
 
-The retained rich composer now preserves selection, formatting and history through
-conversation navigation, Activity recreation, rotation and background/resume.
-Configuration restores its palette/focus without persisting draft text or runs.
-Ended visits and replaced mounts reject old input/clipboard actions. Stock plain
-paste/cut keep separate rich undo groups, including equal-text replacement.
-All eight mounted effects visibly move, rest and repeat under a controlled frame
-clock; Android's live motion setting stops and restarts that drawing.
+The rich renderer now reuses glyph rasters across overlapping animated viewport
+updates with bounded image/track storage. A mounted atrace comparison reduces
+repeated raster preparation from 620 to 0 across four scroll round-trips, while all 32
+controlled effect frames match the previous renderer pixel-for-pixel. Final debug
+build-v2 and API 36 runtime-v2 pass 32/32 (96.742s), including the prior 31 clipboard,
+composition, lifecycle and render regressions. Crash log is empty, settings restore
+and the owned emulator exits 0. JVM sources are unchanged; the earlier 3539-pass /
+four-skip full checkpoint is retained, not rerun for this renderer change.
 
-Full JVM build-v11 passes 3,539 tests (four existing SSH skips); final debug APKs
-build in v13. The final untraced continuity runtime-v10 passes 31/31 in 90.993s
-on disposable API36, with empty crash log, restored settings and emulator exit0.
-The actual stock toolbar is touched after dismissing the OS clipboard preview.
-Deterministic public-input cases suspend OS binding; two palette cases and three
-Activity lifecycle cases use the actual system IME. These are controlled API/
-backend fixtures, not physical Gboard, real-host or matched UIKit acceptance.
-Two account HTTP fixtures were made deterministic without production auth changes;
-60 actual HTTP replays pass. Source/native references and all 22 libraries are
-unchanged; ZIP alignment passes. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md).
-
-Wider input/clipboard/focus routes, live font changes, animated scrolling and GPU/
-frame budgets, physical input, accessibility and matched iOS presentation remain.
-All thirteen broader completion areas remain open. Real account/pairing/signing,
-frozen signed722 and global pins are preserved. Full parity remains active.
-Evidence: `captures/recovery-20261025/rich-continuity-checkpoint.json`.
-Earlier dated entries retain their original checkpoint scope.
+Original iOS run 40171337742 at 96c52a8e verifies eight native controller-font cases /
+88 public actions / 96 records with independently reproduced exports. These keep a
+fixed global category; live global Settings and Android font-reset behavior remain
+open. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md) for exact scope and evidence.
+Long-distance scrolling, GPU/physical frame budgets, wider input/focus/clipboard,
+TalkBack, real Pixel/Mac and matched UIKit acceptance remain. All thirteen broader
+completion areas remain open; full parity stays active. Account/pairing/signing,
+signed722 and global pins are preserved. Earlier entries retain historical scope.
 
 ## Original rich-composer input observations independently verified — 2026-10-25
 

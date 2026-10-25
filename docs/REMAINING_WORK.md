@@ -1,30 +1,22 @@
-## Chief rich draft restoration, clipboard undo and mounted motion — 2026-10-25
+## Chief animated scroll reuse and native font observations — 2026-10-25
 
-The retained rich composer now preserves selection, formatting and history through
-conversation navigation, Activity recreation, rotation and background/resume.
-Configuration restores its palette/focus without persisting draft text or runs.
-Ended visits and replaced mounts reject old input/clipboard actions. Stock plain
-paste/cut keep separate rich undo groups, including equal-text replacement.
-All eight mounted effects visibly move, rest and repeat under a controlled frame
-clock; Android's live motion setting stops and restarts that drawing.
+The rich renderer now reuses glyph rasters across overlapping animated viewport
+updates with bounded image/track storage. A mounted atrace comparison reduces
+repeated raster preparation from 620 to 0 across four scroll round-trips, while all 32
+controlled effect frames match the previous renderer pixel-for-pixel. Final debug
+build-v2 and API 36 runtime-v2 pass 32/32 (96.742s), including the prior 31 clipboard,
+composition, lifecycle and render regressions. Crash log is empty, settings restore
+and the owned emulator exits 0. JVM sources are unchanged; the earlier 3539-pass /
+four-skip full checkpoint is retained, not rerun for this renderer change.
 
-Full JVM build-v11 passes 3,539 tests (four existing SSH skips); final debug APKs
-build in v13. The final untraced continuity runtime-v10 passes 31/31 in 90.993s
-on disposable API36, with empty crash log, restored settings and emulator exit0.
-The actual stock toolbar is touched after dismissing the OS clipboard preview.
-Deterministic public-input cases suspend OS binding; two palette cases and three
-Activity lifecycle cases use the actual system IME. These are controlled API/
-backend fixtures, not physical Gboard, real-host or matched UIKit acceptance.
-Two account HTTP fixtures were made deterministic without production auth changes;
-60 actual HTTP replays pass. Source/native references and all 22 libraries are
-unchanged; ZIP alignment passes. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md).
-
-Wider input/clipboard/focus routes, live font changes, animated scrolling and GPU/
-frame budgets, physical input, accessibility and matched iOS presentation remain.
-All thirteen broader completion areas remain open. Real account/pairing/signing,
-frozen signed722 and global pins are preserved. Full parity remains active.
-Evidence: `captures/recovery-20261025/rich-continuity-checkpoint.json`.
-Earlier dated entries retain their original checkpoint scope.
+Original iOS run 40171337742 at 96c52a8e verifies eight native controller-font cases /
+88 public actions / 96 records with independently reproduced exports. These keep a
+fixed global category; live global Settings and Android font-reset behavior remain
+open. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md) for exact scope and evidence.
+Long-distance scrolling, GPU/physical frame budgets, wider input/focus/clipboard,
+TalkBack, real Pixel/Mac and matched UIKit acceptance remain. All thirteen broader
+completion areas remain open; full parity stays active. Account/pairing/signing,
+signed722 and global pins are preserved. Earlier entries retain historical scope.
 
 ## Helper worker recovery across a canceled HTTPS response — 2026-10-25
 
@@ -5406,7 +5398,7 @@ unchanged until reconciliation. See the latest HANDOFF.md and PARITY.md entries.
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Chief conversations | Finish the outstanding Android Home/transcript/question feature/UI port from the Oct 20 audit candidate, including broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped plain toolbar undo, rich navigation/configuration and controlled-clock mounted motion are verified; wider input/clipboard/focus routes, live fonts, animated scrolling/performance, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
+| Chief conversations | Finish the outstanding Android Home/transcript/question feature/UI port from the Oct 20 audit candidate, including broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped plain toolbar undo, rich navigation/configuration, controlled-clock mounted motion and warm animated viewport reuse are verified; wider input/clipboard/focus routes, live global fonts, long-distance scrolling/GPU budgets, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
 | Agent Feed | Verify the revised reply editor and new native full-text reader, including original UI/traits, URL routing and broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
 | Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |

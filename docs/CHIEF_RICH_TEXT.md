@@ -162,27 +162,71 @@ input/control traces do not prove gesture or IME equivalence. Real account/backe
 device, release and all thirteen broader gates remain active. Account/pairing/
 signing, frozen signed722 and global upstream pins remain unchanged.
 
-## Native live-font probe candidate — 2026-10-25
+## Bounded rich-effect reuse during animated scrolling — 2026-10-25
 
-The pinned source's applyScaledFonts replaces nonempty attributedText using plain
-body attributes and restores selection, while its emoji-base update explicitly
-preserves semantic keys and restyles. Android currently retains its rich metadata
-on font changes. The effective native behavior, including marked text, typing and
-undo, needs observation before choosing the Android change.
+The mounted renderer now retains glyph images/keyframe tracks across viewport
+scroll updates. A per-overlay 8MiB weighted LRU, with a 64KiB minimum entry weight,
+limits both pixel storage and the entry count (at most 128). Layout/density/ink/
+resolved-font/locale/seed changes replace the cache. Scroll updates still prepare
+newly exposed units. Evicted bitmaps are left to Android's lifetime management so
+recorded drawing commands can finish using them.
 
-FontCases.json adds four separate cases / 44 public actions for formatted selection,
-emoji-base changes, marked text and caret formatting. The unchanged original UIKit
-package runs under public controller traitOverrides, with actual controller/editor
-category, span fonts, selection, runs, history and fixture sends recorded. This is
-a controller trait transition, not a global Settings change or physical IME check.
-The prior accepted Cases.json and NativeObservations.json are unchanged.
+The real mounted field's atrace test explicitly enables motion, observes 146,376
+changed viewport pixels between controlled frames, and makes four 90px scroll
+round-trips. The trace-only original renderer prepares 230 rasters during warm-up
+and 620 during the repeated viewport pass. The optimized renderer prepares 80 and 0.
+All 32 controlled active/rest/next-cycle frames for the eight effects are identical
+to the previous accepted Android renderer. This measures avoided preparation;
+it does not establish physical FPS, GPU budgets or long-distance scroll smoothness.
 
-All 116 Python reference guards pass; the Swift fixture parses and the host binds
-both fixture resources to the exact package tree. Native UIKit compile/run/export
-acceptance is pending. Do not clear Android formatting from source inference alone.
-Use the fonts probe on the existing ios-chief-rich-composer workflow; verify its
-artifact against the exact source commit with --font-cases. Account/pairing/signing,
-signed722 and global pins remain unchanged. Full parity stays active.
+Final debug APK build-v2 passes; disposable API 36 runtime-v2 passes 32/32 in 96.742s,
+with empty crash log, no observed ANR, restored settings and owned emulator exit0.
+It includes the previous 31 composition/clipboard/lifecycle/render regressions plus
+the animated scroll trace. All 22 native libraries and frozen signed722 match;
+16 KiB ZIP alignment passes. JVM sources are unchanged; the earlier full 3539-pass /
+four-skip JVM checkpoint is retained and was not rerun for this draw-cache change.
+
+The first scoped run passed its one method but hit an old driver pluralization
+assertion ("1 tests"); it is excluded from final acceptance. The final driver fixes
+that exact count, and motion is explicitly enabled in the final trace fixture.
+The trace-only original baseline fails the reuse assertion as expected. Original
+logs, traces, APKs and source snapshots are retained. Evidence:
+`captures/recovery-20261025/rich-scroll-checkpoint.json`.
+
+All thirteen full-app completion areas remain open. Native live-font controller
+observations below are verified, but a mounted native global Settings transition
+is still needed before choosing Android's font-reset behavior. Physical Gboard/
+hardware, TalkBack, Pixel/Mac workflows, GPU budgets and matched UIKit presentation
+remain. Account/pairing/signing, global source pins and signed722 are preserved.
+Full parity remains active; no physical device was modified this continuation.
+
+## Native live-font controller observations verified — 2026-10-25
+
+[Run 40171337742](https://github.com/DocMorphic/cmux-app/actions/runs/40171337742)
+at 96c52a8e8be1ed3e88806a49a3dc8bae398c6359 passes the original pinned UIKit
+controller/composer in actual Large and Accessibility Medium: four cases / 44
+public actions per run, eight cases / 88 actions / 96 records total. Tests take
+13.281s and 11.082s on iOS 26.4.1. Artifact 12590397040 is 280,782 bytes and matches
+service SHA256 332233c17389359a2655e3eb439afbae7fd6836f0bf72520343c8a5fc0c0d5ce.
+The exact commit's nine-file source snapshot independently reproduces all ten
+canonical files. All 116 Python reference guards pass; original transaction
+Cases.json/NativeObservations.json remain unchanged.
+
+The public controller trait override propagates to the original editor. A changed
+category can clear rich runs, caret formatting, marked text and undo history while
+retaining text/selection. Reapplying the already-effective category preserves the
+observed formatting. Later undo preservation differs when UIKit receives otherwise
+identical plain attributes; a blanket clear-history rule is not established.
+
+The run's global application category stays fixed. Actual span/body fonts still
+follow that global category, including the observed emoji-to-body font reset.
+This is not a live global Settings transition, rendered pixels or physical IME
+acceptance. Before porting Android global font behavior, observe a mounted native
+global-category transition and its continued typing/restyling/history behavior.
+No Android font-reset behavior was changed from this narrower probe. Source
+applyScaledFonts rebuilds plain attributed text; the emoji-base path explicitly
+preserves semantic keys. Raw evidence: captures/recovery-20261025/
+rich-fonts-native-checkpoint.json. Full parity and the live-font gate remain open.
 
 ## Rich continuity and mounted motion verification — 2026-10-25
 

@@ -107,7 +107,19 @@ private data class NativeEffectGlyph(val bitmap: Bitmap, val box: Rect, val fram
         base.fontStyle ?: FontStyle.Normal, FontSynthesis.All)
     val locale = LocalConfiguration.current.locales[0]
     val measurer = rememberTextMeasurer(cacheSize = 64)
-    val geometry = layout()?.size
+    val measured = layout()?.takeIf { it.layoutInput.text.text == text }
+    val geometry = measured?.size
+    val units = remember(text, runs, locale) { nativeConversationEffectUnits(text, runs, locale) }
+    // Scroll invalidates the viewport's draw cache, not the underlying text layout.
+    // Keep overlapping glyph images across those updates, while bounding retained
+    // pixel memory independently of draft length. Let Android release evicted images
+    // after any recorded RenderNode commands have finished using them.
+    val glyphCache = remember(measured, density, ink, typeface, locale, seed) {
+        object : android.util.LruCache<NativeEffectUnit, NativeEffectGlyph>(8 * 1024 * 1024) {
+            // Minimum weight also bounds the number of retained keyframe tracks.
+            override fun sizeOf(key: NativeEffectUnit, value: NativeEffectGlyph) = value.bitmap.allocationByteCount.coerceAtLeast(64 * 1024)
+        }
+    }
     val phase = key(text, runs, base, ink, geometry, animated) {
         if (animated) {
             val transition = rememberInfiniteTransition(label = "cmuxTextEffects")
@@ -115,10 +127,9 @@ private data class NativeEffectGlyph(val bitmap: Bitmap, val box: Rect, val fram
         } else remember { mutableFloatStateOf(1f) }
     }
     return Modifier.drawWithCache {
-        val measured = layout()?.takeIf { it.layoutInput.text.text == text }
         val offset = origin()
         val glyphs = if (measured == null || measured.size.width <= 0) emptyList() else {
-            nativeConversationEffectUnits(text, runs, locale).mapNotNull { unit ->
+            units.mapNotNull { unit ->
                 val font = with(density) { base.fontSize.toPx() } * NativeConversationTextEffectMotion.fontScale(unit.effect).toFloat()
                 val rect = measured.getPathForRange(unit.start, unit.end).getBounds()
                 // Match the source's padded integral logical-point box, including italic overhang.
@@ -128,34 +139,39 @@ private data class NativeEffectGlyph(val bitmap: Bitmap, val box: Rect, val fram
                     ceil(rect.right / density.density + pad) * density.density,
                     ceil(rect.bottom / density.density + pad) * density.density)
                 if (box.width <= 0 || box.height <= 0 || box.bottom + offset.y + 2 * font < 0 || box.top + offset.y - 2 * font > size.height) return@mapNotNull null
-                val inked = AnnotatedString.Builder(measured.layoutInput.text).apply {
-                    addStyle(SpanStyle(color = Color.Transparent), 0, text.length)
-                    addStyle(SpanStyle(color = ink), unit.start, unit.end)
-                }.toAnnotatedString()
-                val source = measured.layoutInput
-                val rasterLayout = measurer.measure(inked, style = source.style, overflow = source.overflow, softWrap = source.softWrap,
-                    maxLines = source.maxLines, placeholders = source.placeholders, constraints = source.constraints,
-                    layoutDirection = source.layoutDirection, density = source.density, fontFamilyResolver = source.fontFamilyResolver, skipCache = true)
-                val bitmap = Bitmap.createBitmap(ceil(box.width).toInt(), ceil(box.height).toInt(), Bitmap.Config.ARGB_8888)
-                CanvasDrawScope().draw(density, source.layoutDirection, Canvas(bitmap.asImageBitmap()), Size(bitmap.width.toFloat(), bitmap.height.toFloat())) {
-                    translate(-box.left, -box.top) {
-                        val underlines = inked.getStringAnnotations(ChiefDetectedTextRange, unit.start, unit.end)
-                        if (underlines.isNotEmpty()) {
-                            val underlinePaint = android.graphics.Paint().apply { this.typeface = typeface as android.graphics.Typeface; textSize = font }
-                            val position = if (android.os.Build.VERSION.SDK_INT >= 29) underlinePaint.underlinePosition else underlinePaint.fontMetrics.descent / 2f
-                            val thickness = (if (android.os.Build.VERSION.SDK_INT >= 29) underlinePaint.underlineThickness else font / 16f).coerceAtLeast(1f)
-                            for (range in underlines) for (line in 0 until rasterLayout.lineCount) {
-                                val start = maxOf(unit.start, range.start, rasterLayout.getLineStart(line))
-                                val end = minOf(unit.end, range.end, rasterLayout.getLineEnd(line, visibleEnd = true))
-                                if (end > start) clipPath(rasterLayout.getPathForRange(start, end)) {
-                                    drawRect(ink.copy(alpha = nativeChiefUnderlineAlpha(ink)), Offset(0f, rasterLayout.getLineBaseline(line) + position), Size(rasterLayout.size.width.toFloat(), thickness))
+                glyphCache.get(unit)?.let { return@mapNotNull it }
+                android.os.Trace.beginSection("cmux.RichGlyphRaster")
+                try {
+                    val inked = AnnotatedString.Builder(measured.layoutInput.text).apply {
+                        addStyle(SpanStyle(color = Color.Transparent), 0, text.length)
+                        addStyle(SpanStyle(color = ink), unit.start, unit.end)
+                    }.toAnnotatedString()
+                    val source = measured.layoutInput
+                    val rasterLayout = measurer.measure(inked, style = source.style, overflow = source.overflow, softWrap = source.softWrap,
+                        maxLines = source.maxLines, placeholders = source.placeholders, constraints = source.constraints,
+                        layoutDirection = source.layoutDirection, density = source.density, fontFamilyResolver = source.fontFamilyResolver, skipCache = true)
+                    val bitmap = Bitmap.createBitmap(ceil(box.width).toInt(), ceil(box.height).toInt(), Bitmap.Config.ARGB_8888)
+                    CanvasDrawScope().draw(density, source.layoutDirection, Canvas(bitmap.asImageBitmap()), Size(bitmap.width.toFloat(), bitmap.height.toFloat())) {
+                        translate(-box.left, -box.top) {
+                            val underlines = inked.getStringAnnotations(ChiefDetectedTextRange, unit.start, unit.end)
+                            if (underlines.isNotEmpty()) {
+                                val underlinePaint = android.graphics.Paint().apply { this.typeface = typeface as android.graphics.Typeface; textSize = font }
+                                val position = if (android.os.Build.VERSION.SDK_INT >= 29) underlinePaint.underlinePosition else underlinePaint.fontMetrics.descent / 2f
+                                val thickness = (if (android.os.Build.VERSION.SDK_INT >= 29) underlinePaint.underlineThickness else font / 16f).coerceAtLeast(1f)
+                                for (range in underlines) for (line in 0 until rasterLayout.lineCount) {
+                                    val start = maxOf(unit.start, range.start, rasterLayout.getLineStart(line))
+                                    val end = minOf(unit.end, range.end, rasterLayout.getLineEnd(line, visibleEnd = true))
+                                    if (end > start) clipPath(rasterLayout.getPathForRange(start, end)) {
+                                        drawRect(ink.copy(alpha = nativeChiefUnderlineAlpha(ink)), Offset(0f, rasterLayout.getLineBaseline(line) + position), Size(rasterLayout.size.width.toFloat(), thickness))
+                                    }
                                 }
                             }
+                            drawText(rasterLayout)
                         }
-                        drawText(rasterLayout)
                     }
-                }
-                NativeEffectGlyph(bitmap, box, NativeConversationTextEffectMotion.keyframes(unit.effect, unit.index, unit.count, font.toDouble(), seed))
+                    NativeEffectGlyph(bitmap, box, NativeConversationTextEffectMotion.keyframes(unit.effect, unit.index, unit.count, font.toDouble(), seed))
+                        .also { glyphCache.put(unit, it) }
+                } finally { android.os.Trace.endSection() }
             }
         }
         val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG)
