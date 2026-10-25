@@ -62,5 +62,6 @@ jobs:
             ${{ runner.temp }}/chief-home/*.stderr
             ${{ runner.temp }}/chief-home/*.swift
             ${{ runner.temp }}/chief-home/*.xcstrings
+            ${{ runner.temp }}/chief-home/*.zip
             ${{ runner.temp }}/chief-home/ChiefHomeReference.xcodeproj
             ${{ runner.temp }}/chief-home/attachments

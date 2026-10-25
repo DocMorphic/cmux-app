@@ -34,6 +34,10 @@ unchanged view; it does not invoke its callback or present the sheet directly.
 The source generator records package tree identities and source/resource hashes;
 the runner requires a clean committed project, preserves result exports/build
 identity and shuts down/deletes only its own Simulator.
+The next artifact also retains the built app ZIP and hashes every regular bundle
+file and link, including the Debug implementation dylib. Independent verification
+must compare those bytes before accepting its built-product identity; a launcher
+hash alone does not identify the compiled Swift implementation.
 
 Run `.github/workflows/ios-chief-home.yml` manually. Local preparation, Swift
 syntax parsing and eight generator/guard tests pass. Native compilation/execution,

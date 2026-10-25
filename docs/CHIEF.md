@@ -1,3 +1,14 @@
+## Native UI build identity strengthened — 2026-10-25
+
+The prepared original Home runner now preserves the actual built app archive,
+hashes every regular bundle file and records links, including any Debug
+implementation dylib. The prior launcher/Info/resource hashes alone could not
+independently identify all compiled implementation bytes because the UI artifact
+omitted the app. The next artifact will permit full bundle rehashing; independent
+verification remains required. No prior artifact is retroactively upgraded by
+this change. Python checks and eight host-generator tests pass. Run40217714743
+remains active at its existing source; this archive change is for the next run.
+
 ## Mac helper restored; original tab-context reference prepared — 2026-10-25
 
 The verified75c017be Mac app's Keychain suspension has cleared. Its private owner

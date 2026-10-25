@@ -54,6 +54,15 @@ def main():
                 infoSha256=sha(app/'Info.plist'),resourceSha256={str(p.relative_to(app)):sha(p) for p in app.rglob('*') if p.is_file() and p.name in ['Localizable.strings','Localizable.stringsdict']},
                 originalTrackedInputsUnchanged=not command(['git','-C',upstream,'diff','--name-only']),xcode=command(['xcodebuild','-version']))
             assert product['originalTrackedInputsUnchanged']
+            # Debug apps can put their compiled implementation in a separate
+            # .debug.dylib. Bind every actual bundle file, not just its launcher,
+            # and retain the app so independent verification can rehash it.
+            product['bundleFilesSha256']={str(p.relative_to(app)):sha(p) for p in app.rglob('*') if p.is_file() and not p.is_symlink()}
+            product['bundleSymlinks']={str(p.relative_to(app)):os.readlink(p) for p in app.rglob('*') if p.is_symlink()}
+            archive=out/'ChiefHomeReference.app.zip'
+            subprocess.run(['/usr/bin/ditto','-c','-k','--keepParent',str(app),str(archive)],check=True,timeout=180)
+            product['archive']=archive.name;product['archiveSha256']=sha(archive)
+            product['runnerSha256']=sha(Path(__file__))
             (out/'build-product.json').write_text(json.dumps(product,indent=2)+'\n')
         # The test runner installs its host in this owned Simulator. The last
         # persisted file records only authored reference method/parameter data.
