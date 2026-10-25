@@ -1,0 +1,51 @@
+{
+  "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "catalogSha256": "e942c581def4193ffa841537b70774fa9b91f98688fef40e4c5001ef864183a7",
+  "labels": {
+    "en": {
+      "mobile.chief.error.questionNotWaiting": "That Chief question is no longer waiting",
+      "mobile.chief.error.answerRequired": "Choose an answer before submitting",
+      "mobile.chief.error.answeredQuestionMissing": "Chief did not return the answered question"
+    },
+    "ja": {
+      "mobile.chief.error.questionNotWaiting": "その Chief の質問はもう待機中ではありません",
+      "mobile.chief.error.answerRequired": "送信する前に回答を選択してください",
+      "mobile.chief.error.answeredQuestionMissing": "Chief は回答済みの質問を返しませんでした"
+    },
+    "de": {
+      "mobile.chief.error.questionNotWaiting": "Diese Chief-Frage wartet nicht mehr",
+      "mobile.chief.error.answerRequired": "Wähle eine Antwort aus, bevor du sie absendest",
+      "mobile.chief.error.answeredQuestionMissing": "Chief hat die beantwortete Frage nicht zurückgegeben"
+    },
+    "es": {
+      "mobile.chief.error.questionNotWaiting": "Esa pregunta de Chief ya no está pendiente",
+      "mobile.chief.error.answerRequired": "Elige una respuesta antes de enviarla",
+      "mobile.chief.error.answeredQuestionMissing": "Chief no devolvió la pregunta respondida"
+    },
+    "fr": {
+      "mobile.chief.error.questionNotWaiting": "Cette question Chief n’est plus en attente",
+      "mobile.chief.error.answerRequired": "Choisissez une réponse avant de l’envoyer",
+      "mobile.chief.error.answeredQuestionMissing": "Chief n’a pas renvoyé la question à laquelle vous avez répondu"
+    },
+    "ar": {
+      "mobile.chief.error.questionNotWaiting": "لم يعد سؤال Chief هذا قيد الانتظار",
+      "mobile.chief.error.answerRequired": "اختر إجابة قبل الإرسال",
+      "mobile.chief.error.answeredQuestionMissing": "لم يُرجع Chief السؤال الذي تمت الإجابة عنه"
+    },
+    "ko": {
+      "mobile.chief.error.questionNotWaiting": "해당 Chief 질문은 더 이상 대기 중이 아닙니다",
+      "mobile.chief.error.answerRequired": "제출하기 전에 답변을 선택하세요",
+      "mobile.chief.error.answeredQuestionMissing": "Chief가 답변한 질문을 반환하지 않았습니다"
+    },
+    "zh-Hans": {
+      "mobile.chief.error.questionNotWaiting": "该 Chief 问题已不再等待回答",
+      "mobile.chief.error.answerRequired": "提交前请选择答案",
+      "mobile.chief.error.answeredQuestionMissing": "Chief 未返回已回答的问题"
+    },
+    "zh-Hant": {
+      "mobile.chief.error.questionNotWaiting": "此 Chief 問題已不再等待回答",
+      "mobile.chief.error.answerRequired": "提交前請選擇答案",
+      "mobile.chief.error.answeredQuestionMissing": "Chief 未傳回已回答的問題"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_error_not_waiting" formatted="false">その Chief の質問はもう待機中ではありません</string>
+    <string name="chief_question_error_answer_required" formatted="false">送信する前に回答を選択してください</string>
+    <string name="chief_question_error_answer_missing" formatted="false">Chief は回答済みの質問を返しませんでした</string>
+</resources>

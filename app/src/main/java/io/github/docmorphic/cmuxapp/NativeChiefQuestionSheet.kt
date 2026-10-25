@@ -55,7 +55,7 @@ import org.json.JSONObject
 /** ChiefQuestionSheet's captured form, source controls and medium/large presentation. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boolean, error: String?, onDismiss: () -> Unit,
+internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boolean, error: NativeChiefQuestionError?, onDismiss: () -> Unit,
     onSend: (NativeChiefQuestionForm) -> Unit) {
     val saver = remember(question) { Saver<NativeChiefQuestionForm, String>(save = { form -> JSONObject()
         .put("other", form.otherText).put("selections", JSONObject().apply { form.selections.forEach { (id, choices) -> put(id, JSONArray(choices.toList())) } }).toString()
@@ -185,11 +185,21 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
                 } }
                 if (error != null) Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
                     Icon(painterResource(R.drawable.ic_task_warning), null, Modifier.size(15.dp), tint = Color(0xFFFF3B30))
-                    Text(error, Modifier.testTag("ChiefQuestionError"), color = Color(0xFFFF3B30), style = nativeChiefTextStyle(13))
+                    Text(chiefQuestionErrorText(error), Modifier.testTag("ChiefQuestionError"), color = Color(0xFFFF3B30), style = nativeChiefTextStyle(13))
                 }
             }
         }
     }
+}
+
+@Composable
+private fun chiefQuestionErrorText(error: NativeChiefQuestionError): String = when (error) {
+    is NativeChiefQuestionError.Source -> stringResource(when (error.problem) {
+        NativeChiefQuestionProblem.NOT_WAITING -> R.string.chief_question_error_not_waiting
+        NativeChiefQuestionProblem.ANSWER_REQUIRED -> R.string.chief_question_error_answer_required
+        NativeChiefQuestionProblem.ANSWER_MISSING -> R.string.chief_question_error_answer_missing
+    })
+    is NativeChiefQuestionError.Message -> error.value
 }
 
 @Composable

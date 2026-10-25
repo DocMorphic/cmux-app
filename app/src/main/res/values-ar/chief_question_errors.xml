@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_error_not_waiting" formatted="false">لم يعد سؤال Chief هذا قيد الانتظار</string>
+    <string name="chief_question_error_answer_required" formatted="false">اختر إجابة قبل الإرسال</string>
+    <string name="chief_question_error_answer_missing" formatted="false">لم يُرجع Chief السؤال الذي تمت الإجابة عنه</string>
+</resources>

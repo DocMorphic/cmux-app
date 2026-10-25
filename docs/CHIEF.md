@@ -1,3 +1,30 @@
+## Full-question error localization — 2026-10-25
+
+Three local full-question failures now retain their source error identity until
+rendering: the question is no longer waiting, an answer is required, or the
+answered question is missing. The sheet resolves their text in the current app
+locale. Transport/host messages remain literal, even when their text equals an
+English source error. This avoids translating arbitrary remote text.
+
+The attributed ShellUI catalog and original backend constructors bind 27 values
+across nine locales. Every observed Android value matches the original iOS app's
+explicit module lookup from native run 40197041982. Actual Android app-language
+changes recreate the Activity while retaining the original error presentation;
+a Mac-settled question rejects submission without sending an answer.
+
+The JVM suite passes 3,551 tests with four existing skips, including 77 Chief
+session checks. The focused API 36 run passes both new runtime tests and all 27
+locale/error combinations. The broader API 36 regression passes 55/55 in 193.049 seconds; tested source
+hashes match, settings restore, the crash log is empty and the owned AVD exits 0.
+Evidence: `captures/recovery-20261025/chief-question-errors-checkpoint.json`.
+
+The controlled error injection verifies Android presentation, not actual remote
+wire failures or the iOS backend's static-property language lifetime. The separate
+21 Home/question main-bundle English fallbacks still need Android alignment;
+formatted unread capture remains in progress in hosted run 40200670788. No real
+phone/Mac UI or account/pairing/signing data was changed. Frozen signed 722/723
+predate this change. All thirteen parity completion areas remain open.
+
 ## Full-question reopening and focused input corrected — 2026-10-25
 
 Canceling a pending full question and reopening the same card now permits a new

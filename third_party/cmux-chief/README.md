@@ -64,6 +64,13 @@ backend's static-property language lifetime. See
 [HANDOFF.md](../../docs/HANDOFF.md) for the exact capture run and current verification state; native UI,
 authentication and physical behavior are outside this resource probe.
 
+`questionErrorStrings` separately binds three backend errors resolved explicitly
+from the ShellUI module. `check-chief-question-error-strings.py --upstream PATH`
+checks their original constructors, source hashes and 27 Android values across
+nine locales. Android retains a semantic reason for these local errors and
+resolves its text with the current app locale; transport messages remain literal.
+This does not reproduce the native backend's static-property language lifetime.
+
 The rich composer keyboard port also follows the already attributed
 ConversationComposerView.swift priority Command-B/I/U overrides and editable
 action checks. Android Ctrl/Meta dispatch invokes the same semantic palette

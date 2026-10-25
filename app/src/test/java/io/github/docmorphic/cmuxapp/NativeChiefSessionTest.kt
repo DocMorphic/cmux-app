@@ -9,6 +9,28 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefSessionTest {
+    @Test fun invalidFullQuestionRetainsTheSourceAnswerRequiredReasonWithoutSending() = runTest {
+        val api=Api();val q=question(multi=true);val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+        try {
+            api.reads.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q))))));session.start();runCurrent()
+            session.openQuestionSheet("m1");val shown=session.questionSheet.value!!
+            session.submitQuestionSheet(shown.generation,NativeChiefQuestionForm(q));runCurrent()
+            assertEquals(NativeChiefQuestionError.Source(NativeChiefQuestionProblem.ANSWER_REQUIRED),session.questionSheet.value!!.error)
+            assertFalse(session.questionSheet.value!!.submitting);assertTrue(api.answers.isEmpty());assertTrue(session.state.value.actionErrors.isEmpty())
+        } finally { session.close() }
+    }
+    @Test fun transportTextMatchingASourceErrorRemainsLiteralInTheFullQuestion() = runTest {
+        val api=Api();val q=question(other=true);val session=NativeChiefTranscriptSession(this,api,"chief-main",{true})
+        val transportText=NativeChiefQuestionProblem.NOT_WAITING.fallback
+        try {
+            api.reads.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q))))));session.start();runCurrent()
+            api.answerBlock={throw java.io.IOException(transportText)}
+            session.openQuestionSheet("m1");val shown=session.questionSheet.value!!
+            session.submitQuestionSheet(shown.generation,NativeChiefQuestionForm(q));runCurrent()
+            assertEquals(NativeChiefQuestionError.Message(transportText),session.questionSheet.value!!.error)
+            assertTrue(session.state.value.actionErrors.isEmpty());assertEquals(1,api.answers.size)
+        } finally { session.close() }
+    }
     private fun questionSubmissionObservation(id: String): org.json.JSONObject {
         val cases=org.json.JSONObject(checkNotNull(javaClass.getResourceAsStream("/parity/chief-question-submission.json")).bufferedReader().use { it.readText() }).getJSONArray("cases")
         return (0 until cases.length()).map(cases::getJSONObject).single { it.getString("id")==id }
@@ -72,7 +94,8 @@ class NativeChiefSessionTest {
             session.openQuestionSheet("m1");val shown=session.questionSheet.value!!
             api.waits.send(Result.success(page(message(1,parts=listOf(NativeChiefPart("question",null,null,q.copy(state=NativeChiefQuestion.State.CANCELLED)))))));runCurrent()
             session.submitQuestionSheet(shown.generation,NativeChiefQuestionForm(q));runCurrent()
-            assertNotNull(session.questionSheet.value!!.error);assertFalse(session.questionSheet.value!!.submitting)
+            assertEquals(NativeChiefQuestionError.Source(NativeChiefQuestionProblem.NOT_WAITING),session.questionSheet.value!!.error)
+            assertFalse(session.questionSheet.value!!.submitting)
             assertTrue(api.answers.isEmpty());assertTrue(session.state.value.actionErrors.isEmpty())
             assertEquals(0,questionSubmissionObservation("settled").getInt("answerCalls"))
         } finally { session.close() }

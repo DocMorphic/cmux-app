@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_error_not_waiting" formatted="false">해당 Chief 질문은 더 이상 대기 중이 아닙니다</string>
+    <string name="chief_question_error_answer_required" formatted="false">제출하기 전에 답변을 선택하세요</string>
+    <string name="chief_question_error_answer_missing" formatted="false">Chief가 답변한 질문을 반환하지 않았습니다</string>
+</resources>

@@ -326,5 +326,15 @@
     "ios/cmuxPackage/Package.swift": "6c6d4df5cb5b33468c7ff984382ed02d650716828558e2dbb3d8ecce5cd7c017",
     "Packages/iOS/CmuxMobileShellUI/Package.swift": "f46d5d7955c3d30b9fb77acfaa64145ce0ca7e6478d28c328f56a4c8f2dc2a0e",
     ".xcode-version": "20d2add851bf39edcc6b5e830930f962db7e19dffa2cab8610eed551eda6c302"
+  },
+  "questionErrorStrings": {
+    "path": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
+    "sha256": "e942c581def4193ffa841537b70774fa9b91f98688fef40e4c5001ef864183a7",
+    "keys": {
+      "mobile.chief.error.questionNotWaiting": "chief_question_error_not_waiting",
+      "mobile.chief.error.answerRequired": "chief_question_error_answer_required",
+      "mobile.chief.error.answeredQuestionMissing": "chief_question_error_answer_missing"
+    },
+    "scope": "Three full-question local backend errors resolve through source module strings; unknown transport/host text remains literal. Native original-app module resource capture is separate."
   }
 }

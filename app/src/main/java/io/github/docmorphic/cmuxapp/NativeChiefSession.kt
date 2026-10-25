@@ -139,13 +139,13 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         mutableQuestionSheet.value = shown.copy(submitting = true, error = null)
         scope.launch {
             try {
-                require(valid) { "Choose an answer for each question before submitting" }
+                if (!valid) throw NativeChiefQuestionException(NativeChiefQuestionProblem.ANSWER_REQUIRED)
                 pendingQuestionMessage(shown.messageID)
                 answerFullQuestion(shown.messageID, choices, text)
                 dismissQuestionSheet(generation)
             } catch (error: Exception) {
                 currentCoroutineContext().ensureActive(); checkOwner()
-                updateQuestionSheet(generation) { it.copy(error = error.message ?: "Chief did not confirm this question") }
+                updateQuestionSheet(generation) { it.copy(error = NativeChiefQuestionError.from(error)) }
             } finally { updateQuestionSheet(generation) { it.copy(submitting = false) } }
         }
     }
@@ -691,16 +691,15 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private fun pendingQuestionMessage(messageId: String): NativeChiefMessage {
         checkOwner()
         val message = state.value.messages.singleOrNull { it.id == messageId }
-            ?: error("That Chief question is no longer waiting")
-        check(NativeChiefPresentation.pendingPart(message)?.takeIf { it.kind == "question" }?.question != null) {
-            "That Chief question is no longer waiting"
-        }
+            ?: throw NativeChiefQuestionException(NativeChiefQuestionProblem.NOT_WAITING)
+        if (NativeChiefPresentation.pendingPart(message)?.takeIf { it.kind == "question" }?.question == null)
+            throw NativeChiefQuestionException(NativeChiefQuestionProblem.NOT_WAITING)
         return message
     }
     /** Source answerQuestion is independent of the compact poll's reservation.
      * A reopened presentation may explicitly submit while an earlier one waits. */
     private suspend fun answerFullQuestion(messageID: String, choices: List<String>, text: String?) {
-        require(choices.isNotEmpty() || !text.isNullOrBlank()) { "Choose an answer before submitting" }
+        if (choices.isEmpty() && text.isNullOrBlank()) throw NativeChiefQuestionException(NativeChiefQuestionProblem.ANSWER_REQUIRED)
         owned { client.answer(conversationId, messageID, choices, text) }
         val refreshed = try { read() } catch (error: Exception) {
             currentCoroutineContext().ensureActive(); checkOwner()
@@ -716,7 +715,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
             targeted?.messages?.firstOrNull { it.id == messageID }?.let { merge(listOf(it)); return }
         }
         if (state.value.messages.any { it.id == messageID }) return
-        error("Chief did not return the answered question")
+        throw NativeChiefQuestionException(NativeChiefQuestionProblem.ANSWER_MISSING)
     }
     private suspend fun answerPayload(message: NativeChiefMessage, choices: List<String>, text: String?): Boolean {
         return decide(message) {

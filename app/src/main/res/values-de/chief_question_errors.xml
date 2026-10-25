@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_error_not_waiting" formatted="false">Diese Chief-Frage wartet nicht mehr</string>
+    <string name="chief_question_error_answer_required" formatted="false">Wähle eine Antwort aus, bevor du sie absendest</string>
+    <string name="chief_question_error_answer_missing" formatted="false">Chief hat die beantwortete Frage nicht zurückgegeben</string>
+</resources>

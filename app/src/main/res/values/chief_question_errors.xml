@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_error_not_waiting" formatted="false">That Chief question is no longer waiting</string>
+    <string name="chief_question_error_answer_required" formatted="false">Choose an answer before submitting</string>
+    <string name="chief_question_error_answer_missing" formatted="false">Chief did not return the answered question</string>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="chief_question_error_not_waiting" formatted="false">此 Chief 問題已不再等待回答</string>
+    <string name="chief_question_error_answer_required" formatted="false">提交前請選擇答案</string>
+    <string name="chief_question_error_answer_missing" formatted="false">Chief 未傳回已回答的問題</string>
+</resources>

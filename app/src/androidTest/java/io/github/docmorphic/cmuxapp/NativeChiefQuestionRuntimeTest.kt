@@ -294,6 +294,63 @@ class NativeChiefQuestionRuntimeTest {
         java.io.File(dir,"chief-question-locales.json").writeText(records.toString(2))
         compose.onNodeWithTag("ChiefQuestionCancel").performClick();assertTrue(api.answers.isEmpty())
     }
+    private fun useAppLocale(language:String) {
+        val manager=instrument.targetContext.getSystemService(android.app.LocaleManager::class.java)
+        instrument.runOnMainSync { manager.applicationLocales=android.os.LocaleList.forLanguageTags(language) }
+        compose.waitUntil(15_000) {
+            var resolved:java.util.Locale?=null
+            runCatching { scenario!!.onActivity { resolved=it.resources.configuration.locales[0] } }
+            val wanted=java.util.Locale.forLanguageTag(language)
+            resolved?.let { it.language==wanted.language && (wanted.script.isEmpty() || it.script==wanted.script) }==true
+        }
+    }
+    private fun sourceErrorLabels()=org.json.JSONObject(instrument.context.assets.open("parity/chief-question-errors.json").bufferedReader().use { it.readText() }).getJSONObject("labels")
+    @Test fun aSettledMacQuestionKeepsASemanticErrorWhenTheActualAppLanguageChanges() {
+        useAppLocale("en");open();unit()
+        instrument.runOnMainSync {
+            api.rows=api.rows.map { row -> if(row.id!="a") row else row.copy(partPayloads=row.partPayloads.map { part -> part.copy(question=part.question!!.copy(state=NativeChiefQuestion.State.CANCELLED)) }) }
+            api.changes.trySend(api.snapshot())
+        }
+        compose.waitUntil(10_000) { computer.transcript()!!.state.value.messages.first().partPayloads.first().question!!.state==NativeChiefQuestion.State.CANCELLED }
+        compose.onNodeWithTag("ChiefQuestionSubmit").performClick()
+        compose.waitUntil(10_000) { computer.transcript()!!.questionSheet.value?.error!=null && !computer.transcript()!!.questionSheet.value!!.submitting }
+        val retained=computer.transcript()!!.questionSheet.value!!
+        assertEquals(NativeChiefQuestionError.Source(NativeChiefQuestionProblem.NOT_WAITING),retained.error)
+        useAppLocale("ja")
+        compose.onNodeWithTag("ChiefQuestionError").performScrollTo().assertTextEquals(sourceErrorLabels().getJSONObject("ja").getString(NativeChiefQuestionProblem.NOT_WAITING.sourceKey))
+        assertSame(retained,computer.transcript()!!.questionSheet.value);assertTrue(api.answers.isEmpty())
+        capture("chief-question-error-settled-ja")
+    }
+    @Test fun sourceErrorPresentationUsesAllNineActualAppLocalesAndPreservesLiteralTransportText() {
+        val labels=sourceErrorLabels();val records=org.json.JSONArray()
+        for(problem in NativeChiefQuestionProblem.entries) {
+            instrument.runOnMainSync { api.answerFailure=NativeChiefQuestionException(problem) }
+            open();unit();compose.onNodeWithTag("ChiefQuestionSubmit").performClick()
+            compose.waitUntil(10_000) { computer.transcript()!!.questionSheet.value?.error!=null && !computer.transcript()!!.questionSheet.value!!.submitting }
+            val retained=computer.transcript()!!.questionSheet.value!!
+            assertEquals(NativeChiefQuestionError.Source(problem),retained.error)
+            for(language in listOf("en","ja","de","es","fr","ar","ko","zh-Hans","zh-Hant")) {
+                useAppLocale(language)
+                val expected=labels.getJSONObject(language).getString(problem.sourceKey)
+                compose.onNodeWithTag("ChiefQuestionError").performScrollTo().assertTextEquals(expected)
+                assertSame(retained,computer.transcript()!!.questionSheet.value)
+                records.put(org.json.JSONObject().put("language",language).put("sourceKey",problem.sourceKey).put("value",expected))
+                if(problem==NativeChiefQuestionProblem.NOT_WAITING && language in listOf("en","ja","ar")) capture("chief-question-error-$language")
+            }
+            compose.onNodeWithTag("ChiefQuestionCancel").performClick()
+        }
+        val literal=NativeChiefQuestionProblem.NOT_WAITING.fallback
+        instrument.runOnMainSync { api.answerFailure=java.io.IOException(literal) }
+        open();unit();compose.onNodeWithTag("ChiefQuestionSubmit").performClick()
+        compose.waitUntil(10_000) { computer.transcript()!!.questionSheet.value?.error!=null && !computer.transcript()!!.questionSheet.value!!.submitting }
+        useAppLocale("ja")
+        assertEquals(NativeChiefQuestionError.Message(literal),computer.transcript()!!.questionSheet.value!!.error)
+        compose.onNodeWithTag("ChiefQuestionError").performScrollTo().assertTextEquals(literal)
+        assertNotEquals(literal,labels.getJSONObject("ja").getString(NativeChiefQuestionProblem.NOT_WAITING.sourceKey))
+        val dir=java.io.File(instrument.targetContext.getExternalFilesDir(null),"rich-composer").apply { mkdirs() }
+        java.io.File(dir,"chief-question-error-locales.json").writeText(records.toString(2))
+        assertEquals(4,api.answers.size)
+    }
     private data class Call(val message:String,val choices:List<String>,val text:String?)
     private inner class Api:NativeChiefApi {
         var rows=emptyList<NativeChiefMessage>()
@@ -304,6 +361,7 @@ class NativeChiefQuestionRuntimeTest {
         @Volatile var completions=0
         @Volatile var retainPendingAfterAnswer=false
         @Volatile var failReadAfterAnswer=false
+        @Volatile var answerFailure:Exception?=null
         fun snapshot()=NativeChiefRead("chief-main",false,rows,false,0uL,0,rows.maxOfOrNull { it.seq },"read")
         override suspend fun conversations(afterCursor:String?,waitForChange:Boolean):NativeChiefSnapshot {
             if(waitForChange) awaitCancellation()
@@ -318,7 +376,7 @@ class NativeChiefQuestionRuntimeTest {
         override suspend fun markRead(conversation:String?,upToSeq:ULong)=NativeChiefMarked("chief-main",upToSeq,true)
         override suspend fun answer(conversation:String?,message:String?,choices:List<String>,text:String?):NativeChiefAnswered {
             answers+=Call(message!!,choices.toList(),text)
-            try { replies.receive().getOrThrow() } catch(e:CancellationException) { cancellations++;throw e } finally { completions++ }
+            try { answerFailure?.let { throw it };replies.receive().getOrThrow() } catch(e:CancellationException) { cancellations++;throw e } finally { completions++ }
             if(retainPendingAfterAnswer) failReadAfterAnswer=true
             else rows=rows.map { row -> if(row.id!=message) row else row.copy(partPayloads=row.partPayloads.map { part -> part.copy(question=part.question!!.copy(state=NativeChiefQuestion.State.CANCELLED)) }) }
             return NativeChiefAnswered("chief-main",message,choices)
