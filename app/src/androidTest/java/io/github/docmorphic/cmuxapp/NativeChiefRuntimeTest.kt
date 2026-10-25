@@ -1930,8 +1930,14 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefSend").assertIsDisplayed().assertIsEnabled()
         val (field, send, _) = settledComposerGeometry()
         assertTrue("Send $send must stay inside field $field", field.contains(send.topLeft) && field.contains(send.bottomRight))
+        saveScreenshot("chief-read-failed-before-send")
         tapSendWhenReady()
-        compose.waitUntil(10_000) { api.sends.size == 1 }
+        try { compose.waitUntil(10_000) { api.sends.size == 1 } }
+        catch (error: Exception) {
+            saveScreenshot("chief-read-failed-send-diagnostic")
+            throw AssertionError("Read-failed send: owner=${computer.transcript()?.state?.value}, editor=${computer.transcript()?.composerEditor?.snapshot}; " +
+                compose.onNodeWithTag("ChiefComposerBar").printToString(), error)
+        }
         assertEquals("**literal**", api.sends.single().first)
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefMessage:echo").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("**literal**").assertExists()
@@ -1963,6 +1969,39 @@ class NativeChiefRuntimeTest {
         compose.onNodeWithTag("ChiefComposer").performTextClearance()
         compose.onNodeWithTag("ChiefSend").assertDoesNotExist()
         compose.waitUntil(10_000) { compose.onNodeWithTag("ChiefComposerField").fetchSemanticsNode().boundsInRoot.height <= initial.height + 1 }
+    }
+
+    @Test fun richDraftAndUndoHistorySurviveProductionNavigationAndRetireWithTheComputer() {
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { computer.transcript()?.state?.value?.hasLoadedInfo == true }
+        val session = computer.transcript()!!; val editor = session.composerEditor
+        compose.onNodeWithTag("ChiefComposer").performTextInput("base")
+        compose.onNodeWithTag("ChiefComposer").performTextInputSelection(androidx.compose.ui.text.TextRange(0, 4))
+        compose.runOnUiThread { editor.toggle(NativeConversationTextStyle.BOLD) }
+        compose.waitForIdle()
+        compose.onNodeWithTag("ChiefComposer").performTextInputSelection(androidx.compose.ui.text.TextRange(4))
+        compose.onNodeWithTag("ChiefComposer").performTextInput("X")
+        compose.onNodeWithTag("ChiefComposer").performTextInputSelection(androidx.compose.ui.text.TextRange(0, 4))
+        compose.waitForIdle()
+        val draft = editor.snapshot
+        val effects = compose.onNodeWithTag("ChiefComposer").fetchSemanticsNode().config[
+            androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == compose.activity.getString(R.string.chief_rich_title) }
+        compose.runOnUiThread { assertTrue(effects.action()) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefTextEffectsPalette").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ChiefBack").performClick()
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("ChiefTextEffectsPalette").assertDoesNotExist()
+        compose.runOnUiThread {
+            assertSame(session, computer.transcript()); assertSame(editor, computer.transcript()!!.composerEditor)
+            assertEquals(draft, editor.snapshot); assertEquals(draft.runs, session.state.value.draftRuns)
+            assertTrue(editor.history(false)); assertEquals("base", editor.snapshot.text)
+            assertEquals(listOf(NativeConversationTextRun(0, 4, 1)), editor.snapshot.runs)
+        }
+        compose.waitForIdle(); compose.onNodeWithTag("ChiefComposer").assertTextContains("base")
+        compose.runOnUiThread { computer.close() }
+        compose.runOnUiThread { assertFalse(editor.acceptsInput); assertEquals("", editor.field.text.toString()); assertTrue(editor.snapshot.runs.isEmpty()) }
+        assertTrue(api.sends.isEmpty())
     }
 
     @Test fun typingAndLeavingInTheSameEventRetainsTheDraftWithoutSending() {

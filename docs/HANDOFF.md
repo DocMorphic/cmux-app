@@ -1,31 +1,38 @@
-## Android rich Chief composer mounted — 2026-10-25
+## Chief rich draft restoration, clipboard undo and mounted motion — 2026-10-25
 
-The production composer now uses the retained semantic owner, exact edit/IME
-adapter, rich undo, four-style/eight-effect palette and glyph overlay. Formatting
-survives local optimistic failures/retry; the ordinary Chief wire and canonical/
-ACK rows stay plain, as in the pinned source backend. Original native traces,
-Android verification scope and remaining acceptance are in CHIEF_RICH_TEXT.md.
-This is a scoped implementation step. Physical input, wider lifecycle and motion,
-matched UIKit presentation and all thirteen broader completion areas remain open.
-Global pins, real credentials/pairing/signing and frozen signed722 are preserved.
-Earlier dated records below describe their original checkpoints.
+The retained rich composer now preserves selection, formatting and history through
+conversation navigation, Activity recreation, rotation and background/resume.
+Configuration restores its palette/focus without persisting draft text or runs.
+Ended visits and replaced mounts reject old input/clipboard actions. Stock plain
+paste/cut keep separate rich undo groups, including equal-text replacement.
+All eight mounted effects visibly move, rest and repeat under a controlled frame
+clock; Android's live motion setting stops and restarts that drawing.
 
-Final Android build-v12 passes 3,539 JVM tests (four existing SSH skips);
-runtime-v5 passes 20/20 in 43.986s, with empty crash log, restored settings and
-owned emulator exit0. Six public-input cases suspend OS binding for deterministic
-composition; the two palette cases use the actual system keyboard. Static raster
-coverage includes all eight effects, source three-grapheme/22-word units and RTL
-links; animation/physical input and matched UIKit presentation remain open.
-Raw evidence: captures/recovery-20261025/rich-composer-mounted-checkpoint.json.
+Full JVM build-v11 passes 3,539 tests (four existing SSH skips); final debug APKs
+build in v13. The final untraced continuity runtime-v10 passes 31/31 in 90.993s
+on disposable API36, with empty crash log, restored settings and emulator exit0.
+The actual stock toolbar is touched after dismissing the OS clipboard preview.
+Deterministic public-input cases suspend OS binding; two palette cases and three
+Activity lifecycle cases use the actual system IME. These are controlled API/
+backend fixtures, not physical Gboard, real-host or matched UIKit acceptance.
+Two account HTTP fixtures were made deterministic without production auth changes;
+60 actual HTTP replays pass. Source/native references and all 22 libraries are
+unchanged; ZIP alignment passes. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md).
 
-NEXT: verify rich retained navigation/configuration and the default toolbar's
-paste/undo grouping, then actual scrolling/motion/performance and wider input
-APIs. Do not replace the mounted feature with further standalone pose fixtures.
-Use fresh physical-device availability before Pixel/Mac work. Preserve accounts,
-pairing/signing, frozen signed722 and all global pins. All current build/runtime
-handles are terminal; no owned emulator/Gradle process remains. The unchanged
-account forced-refresh test was flaky once (build-v10, expected2/saw1); final full
-build-v12 passes, and the earlier XML/logs remain recorded rather than discarded.
+Wider input/clipboard/focus routes, live font changes, animated scrolling and GPU/
+frame budgets, physical input, accessibility and matched iOS presentation remain.
+All thirteen broader completion areas remain open. Real account/pairing/signing,
+frozen signed722 and global pins are preserved. Full parity remains active.
+Evidence: `captures/recovery-20261025/rich-continuity-checkpoint.json`.
+Earlier dated entries retain their original checkpoint scope.
+
+NEXT: continue wider rich input/clipboard/focus routes and live font changes,
+then animated scrolling/performance and matched native presentation. Physical
+Gboard/hardware, TalkBack, terminal and notification workflows require fresh
+Pixel/Mac availability; the latest phone question is pending. No physical device
+was changed in this continuation. All owned runtime/build handles are terminal;
+no owned emulator/Gradle remains. Preserve account/pairing/signing and signed722.
+Continue the thirteen completion gates and final source audit.
 
 ## Accepted native rich-editor observations; Android mounting next — 2026-10-25
 

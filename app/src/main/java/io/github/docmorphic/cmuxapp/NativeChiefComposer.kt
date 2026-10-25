@@ -18,6 +18,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -33,6 +35,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.platform.PlatformTextInputInterceptor
 import androidx.compose.ui.platform.PlatformTextInputMethodRequest
@@ -55,6 +59,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.first
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
 import kotlin.math.roundToInt
@@ -72,6 +80,9 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
     // Deliberately memory-only: the retained owner holds the draft; no new saved-state text copy.
     val rich = richEditorState ?: remember { NativeChiefRichEditor(draft).also { if (draftRuns.isNotEmpty()) it.reset(draft, draftRuns) } }
     val editor = rich.field
+    val visit = rich.visitGeneration
+    val mount = remember(rich, visit) { Any() }
+    val input = remember(rich, mount, visit) { rich.input(mount, visit) }
     val bridge = remember(rich) { NativeChiefDraftBridge(draft, draftRevision, draftRuns) }
     val publish by rememberUpdatedState<(String, List<NativeConversationTextRun>) -> Long?>({ text, runs ->
         if (onRichDraft != null) onRichDraft(text, runs) else onDraft(text)
@@ -80,24 +91,73 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val host = LocalView.current
-    DisposableEffect(rich, host) { rich.attach(host); onDispose { rich.detach(host) } }
-    var paletteRequested by remember { mutableStateOf(false) }
+    val platformClipboard = LocalClipboard.current
+    val clipboard = remember(rich, platformClipboard, mount, visit) { NativeChiefClipboard(platformClipboard, rich) { rich.isInputMountCurrent(mount, visit) } }
+    DisposableEffect(clipboard) { onDispose { clipboard.close() } }
+    // Android recreates this view on configuration changes while UIKit retains
+    // its controller. Restore presentation only within the same conversation visit.
+    val presentation = rememberSaveable(rich, visit, saver = listSaver<NativeChiefComposerPresentation, Any>(
+        save = { listOf(it.visit, it.effects.value, it.focused.value, editor.selection.start, editor.selection.end) },
+        restore = { if (it.size == 5 && (it[0] as Number).toLong() == visit) NativeChiefComposerPresentation(visit, it[1] as Boolean, it[2] as Boolean,
+            TextRange((it[3] as Number).toInt(), (it[4] as Number).toInt()))
+            else NativeChiefComposerPresentation(visit) })) { NativeChiefComposerPresentation(visit) }
+    var paletteRequested by presentation.effects
+    var focusToRestore by remember(presentation) { mutableStateOf(presentation.focused.value || paletteRequested) }
+    var restoringFocus by remember(presentation) { mutableStateOf(focusToRestore) }
     var composerHasFocus by remember { mutableStateOf(false) }
     var fieldHasFocus by remember { mutableStateOf(false) }
-    LaunchedEffect(composerHasFocus || fieldHasFocus) {
-        if (!composerHasFocus && !fieldHasFocus) {
+    var resumed by remember(mount) { mutableStateOf(false) }
+    var resumeVersion by remember(mount) { mutableIntStateOf(0) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, rich, host, mount, visit, presentation) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    focusToRestore = presentation.focused.value || paletteRequested || fieldHasFocus || composerHasFocus
+                    restoringFocus = focusToRestore
+                    rich.attach(host, mount, visit); resumed = true; resumeVersion++
+                }
+                Lifecycle.Event.ON_PAUSE -> { resumed = false; rich.suspendInput(mount, visit) }
+                else -> Unit
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer); rich.detach(host, mount) }
+    }
+    val windowInfo = LocalWindowInfo.current
+    LaunchedEffect(presentation, resumeVersion, resumed) {
+        if (!resumed || resumeVersion == 0) return@LaunchedEffect
+        restoringFocus = focusToRestore
+        try {
+            if (focusToRestore) {
+                snapshotFlow { windowInfo.isWindowFocused }.first { it }
+                withFrameNanos { }
+                if (resumed && rich.isInputMountCurrent(mount, visit)) {
+                    // Foundation deselects on the old node's blur. Restore the range
+                    // captured at state save after the new window can accept focus.
+                    presentation.selection?.takeIf { it.max <= editor.text.length }?.let { range ->
+                        editor.edit { selection = range }; rich.synchronizeSelectionAndComposition()
+                    }
+                    presentation.selection = null
+                    focus.requestFocus()
+                }
+            }
+        } finally { restoringFocus = false }
+    }
+    LaunchedEffect(composerHasFocus || fieldHasFocus, restoringFocus, resumed) {
+        if (resumed && !restoringFocus && !composerHasFocus && !fieldHasFocus) {
             // Focus can pass through the group while a palette button updates the
             // field's output styling. Act on settled focus, not that intermediate state.
             kotlinx.coroutines.delay(100)
-            if (!composerHasFocus && !fieldHasFocus) { paletteRequested = false; rich.breakUndoGroup() }
+            if (resumed && !composerHasFocus && !fieldHasFocus) { paletteRequested = false; rich.breakUndoGroup() }
         }
     }
     val effectsTitle = stringResource(R.string.chief_rich_title)
     val undoTitle = stringResource(R.string.chief_rich_undo)
     val redoTitle = stringResource(R.string.chief_rich_redo)
-    val interceptor = remember(rich) { PlatformTextInputInterceptor { request, next ->
+    val interceptor = remember(rich, mount, visit) { PlatformTextInputInterceptor { request, next ->
         val session = currentCoroutineContext()[Job]
-        next.startInputMethod(PlatformTextInputMethodRequest { attributes -> rich.connection(request.createInputConnection(attributes)) { session?.isActive != false } })
+        next.startInputMethod(PlatformTextInputMethodRequest { attributes -> rich.connection(request.createInputConnection(attributes)) { rich.isInputMountCurrent(mount, visit) && session?.isActive != false } })
     } }
     fun openEffects() { if (!retired) { paletteRequested = true; focus.requestFocus(); keyboard?.hide() } }
     fun closeEffects() { paletteRequested = false; focus.requestFocus(); keyboard?.show() }
@@ -160,6 +220,8 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
     val animated = nativeRichMotionEnabled()
     val overlay = if (composing) Modifier else nativeConversationEffectOverlay(editor.text.toString(), runs, style, ink,
         { textLayout }, animated, origin = { Offset(with(density) { 16.dp.toPx() }, with(density) { 10.dp.toPx() } - scroll.value) })
+    key(visit) {
+    CompositionLocalProvider(LocalClipboard provides clipboard) {
     InterceptPlatformTextInput(interceptor) {
     BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = (12 * progress).dp).testTag("ChiefComposerBar")) {
         val paletteVisible = paletteRequested && ime == 0
@@ -179,20 +241,26 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
         }
         val fieldHeight = naturalHeight.coerceIn(oneLine, cap)
         val shape = RoundedCornerShape(20.dp)
-        Column(Modifier.onFocusChanged { composerHasFocus = it.hasFocus }.focusGroup()) {
+        Column(Modifier.onFocusChanged {
+            composerHasFocus = it.hasFocus
+            if (!restoringFocus && rich.isInputMountCurrent(mount, visit)) presentation.focused.value = it.hasFocus || fieldHasFocus
+        }.focusGroup()) {
         Box(Modifier.fillMaxWidth().padding(horizontal = inset, vertical = 4.dp)) {
         Layout(modifier = Modifier.fillMaxWidth().testTag("ChiefComposerField").clip(shape)
             .background(if (dark) Color(0xFF1A1A1A) else Color(0xFFF3F3F3))
             .border(.5.dp, if (dark) Color.White.copy(alpha = .16f) else Color.Black.copy(alpha = .10f), shape), content = {
             BasicTextField(editor, enabled = !retired, scrollState = scroll, lineLimits = TextFieldLineLimits.MultiLine(),
-                inputTransformation = rich.input,
+                inputTransformation = input,
                 outputTransformation = { runs.forEach { run ->
                     if (run.location >= 0 && run.location + run.length <= length && run.length > 0)
                         addStyle(nativeConversationSpan(run, style, density, ink, !composing), run.location, run.location + run.length)
                 } },
                 onTextLayout = { result -> textLayout = result() },
                 modifier = Modifier.fillMaxWidth().height(fieldHeight).focusRequester(focus)
-                    .onFocusChanged { fieldHasFocus = it.hasFocus }
+                    .onFocusChanged {
+                        fieldHasFocus = it.hasFocus
+                        if (!restoringFocus && rich.isInputMountCurrent(mount, visit)) presentation.focused.value = it.hasFocus || composerHasFocus
+                    }
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && (event.isCtrlPressed || event.isMetaPressed) && (event.key == Key.Z || event.key == Key.Y)) {
                             rich.history(event.key == Key.Y || event.isShiftPressed); true
@@ -252,4 +320,11 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
         }
     }
     }
+    }
+    }
+}
+
+private class NativeChiefComposerPresentation(val visit: Long, effects: Boolean = false, focused: Boolean = false, var selection: TextRange? = null) {
+    val effects = mutableStateOf(effects)
+    val focused = mutableStateOf(focused)
 }

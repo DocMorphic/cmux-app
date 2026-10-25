@@ -300,7 +300,11 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         checkOwner(); reading = reading.viewing(value)
         if (!value || monitor?.isActive == true) refreshReading() else publishReading()
     }
-    fun endVisit() { checkOwner(); mutablePollDetails.value = null; reading = reading.endVisit(); publishReading() }
+    fun endVisit() {
+        checkOwner()
+        if (composerEditorLazy.isInitialized()) composerEditorLazy.value.endVisit()
+        mutablePollDetails.value = null; reading = reading.endVisit(); publishReading()
+    }
     fun dismissCatchUp() { checkOwner(); reading = reading.dismiss(); publishReading() }
     fun catchUpTarget() = reading.target(state.value.messages, !state.value.hasMore)
     fun observeVisible(messageIds: Set<String>, localSendVisible: Boolean) {

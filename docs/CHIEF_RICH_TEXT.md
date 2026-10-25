@@ -134,19 +134,95 @@ samples the source's compressed matrix tracks linearly. Visible glyph images
 are cached, share the three-second phase and move with internal scrolling.
 Disabled animator duration keeps static ink/typography. While marked text is
 active, the composer draws static base ink; composition/effect presentation needs
-broader native comparison. Renderer performance and animated presentation remain
-open, independently of semantic/matrix tests and static raster observations.
+broader native comparison. Mounted Android motion is checked below; renderer
+performance and matched UIKit animation remain open.
 
-Remaining acceptance includes rich navigation/configuration lifetime beyond the
-covered plain regressions, default toolbar paste/undo grouping, wider autocorrect
-and composition/reversed-selection cases, scrolling animated effects, live font
-changes, all locale/contrast/light profiles, real TalkBack, hardware keyboard and
-physical Gboard. Native public input/control traces do not prove gesture or IME
-equivalence. Real account/backend/device, release and all thirteen broader gates
-remain active. Account/pairing/signing, frozen signed722 and global upstream pins
-remain unchanged. Earlier sections below record the native reference history.
+Stock clipboard access now delegates the actual platform entry and menu behavior,
+while recognizing its exact replacement transaction to isolate rich undo groups.
+The installed Foundation 1.9.1 source uses NeverMerge for native paste/cut history;
+that flag is not exposed to InputTransformation. The bridge matches old text,
+selection, replacement and the actual change range, including equal-text paste.
+It fences clipboard callbacks and input actions to the current mounted visit.
 
-## Mounted Android verification
+The retained rich owner keeps text, runs, selection and history through navigation
+and configuration changes. Ending a visit fences its old field/input connection
+before Foundation's blur can collapse the retained selection. Pausing suspends
+input; resuming the same mount admits its still-valid connection. A replacement
+mount cannot revive the old one. Configuration saved state contains only the
+visit, palette/focus flags and selection integers. Text/runs/history stay in the
+existing memory owner. Focus restoration waits for the new window before restoring
+the saved selection and requesting focus; leaving the conversation closes the
+palette for the next visit. This does not add process-death draft persistence.
+
+Remaining acceptance includes HTML/URI/attributed clipboard transfer, wider
+input/autocorrect/composition and reversed selections, other focus routes, process
+restoration, live font changes, animated scrolling/performance, all locale/contrast/
+light profiles, real TalkBack, hardware keyboard and physical Gboard. Native public
+input/control traces do not prove gesture or IME equivalence. Real account/backend/
+device, release and all thirteen broader gates remain active. Account/pairing/
+signing, frozen signed722 and global upstream pins remain unchanged.
+
+## Rich continuity and mounted motion verification — 2026-10-25
+
+Full continuity build-v11 passes all 3,543 JVM cases in 475 suites: 3,539 passed,
+four existing SSH skips and no failures/errors. Its production/JVM sources match
+the final runtime snapshot; subsequent changes are Android test fixtures and Git
+build metadata. Final APK build-v13 succeeds. All 22 native libraries and frozen
+signed722 match the previous checkpoint; 16 KiB ZIP alignment passes. The original
+native observations, semantic/matrix corpus and copied locale labels are unchanged.
+The earlier native/label guard results below are retained, not claimed as rerun.
+
+Final untraced runtime-v10 passes 31/31 in 90.993s on disposable Android16/API36:
+the earlier twenty methods plus eleven new mounted checks. Six new rich-composer
+methods cover stock clipboard paste/cut and equal-text rich undo, an actual stock
+Paste toolbar touch, ink at both ends of a scrolled effect draft, and stale input,
+clipboard and old field callbacks after ending a visit. Three actual Activity
+lifecycle methods cover recreation with selected Bold/Big palette and undo/redo,
+rotation/background followed by account revocation, and normal system keyboard
+restoration with noncollapsed selection followed by a newer selection on resume.
+They use the retained production computer/session and a controlled read-only API;
+no backend mutation is admitted. A production navigation method checks retained
+rich history and selection, palette closure on return and owner retirement.
+
+The eleventh new method captures the actual mounted renderer for all eight effects:
+active pixels differ from rest, rest remains stable and the next cycle moves again.
+It changes the actual OS animator setting live, verifies static ink across another
+cycle, then re-enables motion. This uses a controlled Compose frame clock and
+isolated canvas; it does not measure physical smoothness, GPU/frame budgets,
+animated scrolling or UIKit pixel equality. The scroll method checks static visible
+ink and retained semantic runs, not animated scroll performance.
+
+Deterministic public-InputConnection cases still suspend OS binding. Two original
+palette cases and the three Activity cases bind the real system IME; normal-keyboard
+lifecycle checks assert OS IME visibility. This does not establish physical Gboard
+or hardware-keyboard acceptance. The final crash log is empty, settings/window
+values read back restored and the owned emulator exits0. Selected palette, normal
+keyboard, scroll endpoints, stock toolbar and active/rest screenshots were inspected.
+Fixture system bars/materials do not establish whole-app presentation parity.
+
+Earlier continuity attempts are excluded from combined acceptance. They exposed
+Foundation blur collapsing the retained selection and late teardown mutating saved
+focus; mounted/paused/visit fences and window-focused selection restoration fix
+those paths. Android's clipboard preview also physically covered the Paste target;
+the final fixture waits for it and touches the empty upper fixture area to dismiss
+it before the actual stock toolbar tap. Focused runtime-v9 passes2/2 in10.907s;
+the final31 run includes both checks. Temporary lifecycle tracing used for diagnosis
+is absent from final sources. One early read-error send wait failed; the diagnostic
+check and final combined run pass without a production send change.
+
+Two preexisting account HTTP fixture races were repaired separately: unused queued
+failure responses could leak into a later refresh, and sibling read cancellation
+could defeat an exact request-count assertion. Phase-based responses and bounded
+request rendezvous preserve the intended assertions. Full JVM checks and60 actual
+HTTP replays (30 per method) pass. Production authentication code is unchanged.
+Earlier failed XMLs and raw traced runs remain local for audit.
+
+Evidence: `captures/recovery-20261025/rich-continuity-checkpoint.json` and
+`rich-continuity-handoff.json` bind current sources, tested APKs, archived source,
+JVM XMLs, driver, logs, screenshots, restoration and native integrity. Raw artifacts
+stay local; source/tests/docs are committed. All thirteen full-app gates remain open.
+
+## Earlier mounted Android verification
 
 Final build-v12 passes all 3,543 JVM cases in 475 suites: 3,539 passed, four
 existing SSH skips, no failures/errors. The native editor trace test compares

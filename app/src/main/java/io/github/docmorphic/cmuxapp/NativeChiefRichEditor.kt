@@ -27,8 +27,19 @@ internal class NativeChiefRichEditor(initial: String, private val permits: () ->
     private var closed = false
     private var generation = 0L
     private var host: WeakReference<View>? = null
+    private var inputMount: Any? = null
     private var editing = NativeChiefRichEditing(NativeChiefRichDraft(initial, selection = TextRange(initial.length)))
     private var pending: NativeChiefRichEditing? = null
+    private data class ClipboardEdit(val owner: Any, val before: String, val range: TextRange, val replacement: String) {
+        fun matches(text: String, after: String, selection: TextRange, changes: List<NativeChiefRichEditing.Change>): Boolean =
+            text == before && after == before.replaceRange(range.min, range.max, replacement) &&
+                selection == TextRange(range.min + replacement.length) && changes.singleOrNull()?.let {
+                    it.oldStart == range.min && it.oldEnd == range.max && it.newStart == range.min && it.newEnd == range.min + replacement.length
+                } == true
+    }
+    private var clipboardEdit: ClipboardEdit? = null
+    var visitGeneration by mutableLongStateOf(0)
+        private set
     var revision by mutableLongStateOf(0)
         private set
     var coherent = true
@@ -44,21 +55,33 @@ internal class NativeChiefRichEditor(initial: String, private val permits: () ->
         handler.post { posted = false; revision++ }
     }
     private fun allowed() = !closed && permits()
-    val input = InputTransformation {
+    val acceptsInput get() = allowed()
+    fun prepareClipboardEdit(owner: Any, replacement: String?) {
+        clipboardEdit = if (allowed() && replacement != null)
+            ClipboardEdit(owner, field.text.toString(), field.selection, replacement) else null
+    }
+    fun forgetClipboardEdit(owner: Any) { if (clipboardEdit?.owner === owner) clipboardEdit = null }
+    fun isInputMountCurrent(owner: Any, visit: Long) = inputMount === owner && visitGeneration == visit && allowed()
+    fun input(owner: Any, visit: Long) = InputTransformation {
         if (!allowed()) { revertAllChanges(); handler.post { retire() }; return@InputTransformation }
+        if (!isInputMountCurrent(owner, visit)) { revertAllChanges(); return@InputTransformation }
         val before = originalText.toString(); val after = asCharSequence().toString()
+        val deltas = (0 until changes.changeCount).map { index ->
+            val old = changes.getOriginalRange(index); val new = changes.getRange(index)
+            NativeChiefRichEditing.Change(old.min, old.max, new.min, new.max)
+        }
+        val isolate = clipboardEdit?.matches(before, after, selection, deltas) == true
+        clipboardEdit = null
+        if (isolate) editing.breakUndoGroup()
         val candidate = pending
         if (candidate != null && candidate.draft.text == after && candidate.draft.selection == selection) {
             editing.adopt(candidate)
         } else {
             if (editing.draft.text != before) { coherent = false; editing.reset(before) }
-            val deltas = (0 until changes.changeCount).map { index ->
-                val old = changes.getOriginalRange(index); val new = changes.getRange(index)
-                NativeChiefRichEditing.Change(old.min, old.max, new.min, new.max)
-            }
             if (candidate != null) coherent = false
             editing.acceptedChanges(after, deltas, selection, field.composition != null)
         }
+        if (isolate) editing.breakUndoGroup()
         changed()
     }
     /** Composition-only changes intentionally bypass InputTransformation in Foundation. */
@@ -69,13 +92,27 @@ internal class NativeChiefRichEditor(initial: String, private val permits: () ->
         if (editing.draft.composition != field.composition) editing.composition(field.composition)
         if (before != editing.draft) changed()
     }
-    fun attach(view: View) { host = WeakReference(view) }
-    fun detach(view: View) { if (host?.get() === view) host = null }
-    private fun invalidateConnections() {
+    fun attach(view: View, owner: Any, visit: Long) {
+        if (visit == visitGeneration && allowed()) { host = WeakReference(view); inputMount = owner }
+    }
+    fun detach(view: View, owner: Any) {
+        if (host?.get() === view && inputMount === owner) { host = null; inputMount = null }
+    }
+    fun suspendInput(owner: Any, visit: Long) {
+        if (inputMount === owner && visitGeneration == visit) {
+            // Pause gates commands without retiring the same node's connection.
+            // Replaced mounts and ended visits remain permanently fenced.
+            inputMount = null; clipboardEdit = null
+        }
+    }
+    private fun invalidateConnections(restartInput: Boolean = true) {
         generation++
+        clipboardEdit = null
+        if (!restartInput) return
         val view = host?.get() ?: return
+        val expected = generation
         handler.post {
-            if (host?.get() === view && view.isAttachedToWindow && !closed)
+            if (generation == expected && inputMount != null && host?.get() === view && view.isAttachedToWindow && !closed)
                 view.context.getSystemService(InputMethodManager::class.java)?.restartInput(view)
         }
     }
@@ -103,6 +140,10 @@ internal class NativeChiefRichEditor(initial: String, private val permits: () ->
         field.undoState.clearHistory(); changed(); return true
     }
     fun breakUndoGroup() = editing.breakUndoGroup()
+    fun endVisit() {
+        visitGeneration++; inputMount = null; host = null
+        invalidateConnections(restartInput = false); editing.breakUndoGroup()
+    }
     fun retire() {
         if (closed) return
         closed = true; reset("")
