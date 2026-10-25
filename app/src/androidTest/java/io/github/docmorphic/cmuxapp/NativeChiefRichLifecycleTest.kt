@@ -131,6 +131,50 @@ class NativeChiefRichLifecycleTest {
         assertEquals(0, api.writes)
     }
 
+    @Test fun actualSystemFontChangesRetainTheOwnerAndRecordRichStateAndMeasuredText() {
+        val original = device.executeShellCommand("settings get system font_scale").trim()
+        val editor = styleAndOpenPalette(); val session = computer.transcript()!!
+        val records = org.json.JSONArray()
+        fun record(name: String): Float {
+            compose.waitForIdle()
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            compose.onNodeWithTag("ChiefComposer").performSemanticsAction(SemanticsActions.GetTextLayoutResult) { assertTrue(it(layouts)) }
+            val layout = layouts.single(); val height = layout.getLineBottom(0) - layout.getLineTop(0)
+            var scale = 0f; scenario!!.onActivity { scale = it.resources.configuration.fontScale }
+            compose.runOnUiThread {
+                assertSame(session, computer.transcript()); assertSame(editor, session.composerEditor)
+                assertEquals("base", editor.field.text.toString()); assertEquals(TextRange(0, 4), editor.field.selection)
+                val draft = editor.snapshot
+                records.put(org.json.JSONObject().put("phase", name).put("fontScale", scale).put("lineHeightPx", height)
+                    .put("text", draft.text).put("selectionStart", draft.selection.start).put("selectionEnd", draft.selection.end)
+                    .put("typingStyle", draft.typingStyle).put("typingEffect", draft.typingEffect?.wireName ?: org.json.JSONObject.NULL)
+                    .put("canUndo", editor.canUndo).put("canRedo", editor.canRedo).put("runs", org.json.JSONArray(draft.runs.map { run ->
+                        org.json.JSONObject().put("location", run.location).put("length", run.length).put("style", run.style)
+                            .put("effect", run.effect?.wireName ?: org.json.JSONObject.NULL)
+                    })))
+            }
+            capture("rich-system-font-$name")
+            return height
+        }
+        fun waitForScale(scale: Float) = compose.waitUntil(15_000) {
+            var actual = 0f; scenario!!.onActivity { actual = it.resources.configuration.fontScale }
+            kotlin.math.abs(actual - scale) < .01f
+        }
+        try {
+            val initial = record("initial")
+            device.executeShellCommand("settings put system font_scale 2.0"); waitForScale(2f)
+            val enlarged = record("enlarged")
+            assertTrue("Actual system text metrics change: $initial -> $enlarged", enlarged > initial + 1f)
+            device.executeShellCommand(if (original == "null") "settings delete system font_scale" else "settings put system font_scale $original")
+            waitForScale(original.toFloatOrNull() ?: 1f); record("returned")
+            assertEquals(0, api.writes)
+        } finally {
+            device.executeShellCommand(if (original == "null") "settings delete system font_scale" else "settings put system font_scale $original")
+            val directory = java.io.File(instrument.targetContext.getExternalFilesDir(null), "rich-composer").apply { mkdirs() }
+            java.io.File(directory, "rich-system-font-records.json").writeText(records.toString(2) + "\n")
+        }
+    }
+
     private class Api : NativeChiefApi {
         var writes = 0
         private val now = Instant.parse("2026-10-25T00:00:00Z")

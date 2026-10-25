@@ -226,6 +226,15 @@ bridge now retries bounded container observations against the same build process
 a regression proves it does not restart or terminate that build. Driver stderr is
 also preserved in the artifact. Native compile/run/export acceptance remains pending.
 
+Android system-scale baseline runtime-v1 passes 1/1 in 7.299s on disposable API 36.
+It changes the actual system font scale 1→2→1 while retaining the production
+computer/session/editor. Text and selection 0..4 remain; measured line height is
+96→163→96px and current Bold/Big runs and undo availability remain recorded.
+The screenshot was inspected; crash log is empty, settings restore and emulator
+exit 0 is observed. This records existing Android behavior, not matched iOS or
+physical acceptance. No production Android font behavior changed. The retry at
+e99ccfc3 is run 40173879842; native execution/export acceptance is still pending.
+
 ## Native live-font controller observations verified — 2026-10-25
 
 [Run 40171337742](https://github.com/DocMorphic/cmux-app/actions/runs/40171337742)
