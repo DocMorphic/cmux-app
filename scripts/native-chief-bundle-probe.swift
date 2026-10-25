@@ -34,7 +34,7 @@ public func cmuxChiefBundleCapture() {
         var resourceDigests: [String: String] = [:]
         for file in resourceFiles { resourceDigests[String(file.path.dropFirst(main.bundleURL.path.count + 1))] = try bundleDigest(file) }
         let report: [String: Any] = [
-            "schema": 2, "requested": requested,
+            "schema": 3, "requested": requested,
             "bundleID": main.bundleIdentifier ?? "missing",
             "executableSha256": try bundleDigest(main.executableURL!),
             "infoSha256": try bundleDigest(main.bundleURL.appendingPathComponent("Info.plist")),
@@ -49,11 +49,16 @@ public func cmuxChiefBundleCapture() {
             "mainValues": sourceMainBundleValues(),
             "unreadLabels": ["nil": L10n.unreadLabel(count: nil), "0": L10n.unreadLabel(count: 0),
                              "1": L10n.unreadLabel(count: 1), "2": L10n.unreadLabel(count: 2),
-                             "17": L10n.unreadLabel(count: 17), "1234": L10n.unreadLabel(count: 1234)],
+                             "17": L10n.unreadLabel(count: 17), "1234": L10n.unreadLabel(count: 1234),
+                             "2147483647": L10n.unreadLabel(count: 2147483647),
+                             "2147483648": L10n.unreadLabel(count: 2147483648),
+                             "4294967296": L10n.unreadLabel(count: 4294967296),
+                             "9223372036854775807": L10n.unreadLabel(count: Int.max)],
+            "homeSearch": try sourceHomeSearchObservations(),
             "defaults": sourceBundleDefaults(),
             "mainRaw": mainRaw, "moduleRaw": moduleRaw,
             "os": ProcessInfo.processInfo.operatingSystemVersionString,
-            "scope": "Actual original app Bundle.main and packaged module resources. A read-only injected probe calls unmodified source L10n; no sign-in, native Home/question presentation or backend static-property execution."
+            "scope": "Actual original app Bundle.main and packaged module resources. A read-only injected probe calls unmodified source L10n and the complete original Home search predicate/wire model in a query-state wrapper; no sign-in, native Home/question presentation or backend static-property execution."
         ]
         let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])

@@ -46,7 +46,7 @@ jobs:
           git submodule update --init --depth 1 ghostty
           ./scripts/install-zig-ci.sh
           ./scripts/ensure-ghosttykit.sh
-      - name: Build unmodified app and capture actual resource lookup
+      - name: Build unmodified app and capture resource and search behavior
         run: |
           set -euo pipefail
           python3 cmux-app/scripts/run-ios-chief-bundles.py \

@@ -6,6 +6,7 @@ sidecar reads resources in that app process; it does not sign in or operate UI.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -28,6 +29,8 @@ def prepare(upstream, out, project_commit):
     manifest = json.loads((ROOT/'third_party/cmux-chief/manifest.json').read_text())
     pins = dict(manifest['nativeBundleFiles'])
     pins.update(manifest['questionPresentationFiles'])
+    client='Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileChiefClient.swift'
+    pins[client]=manifest['files'][client]
     for item in manifest['homeStrings']['catalogs'] + [manifest['homeStrings']['unreadHelper'], manifest['questionStrings']]:
         pins[item['path']] = item['sha256']
     originals = {}
@@ -56,6 +59,13 @@ def prepare(upstream, out, project_commit):
     assert set(calls) == main_keys, sorted(main_keys-set(calls))
     out.mkdir(parents=True, exist_ok=False)
     (out/'OriginalL10n.swift').write_bytes(originals[helper])
+    (out/'OriginalChiefHome.swift').write_bytes(originals[view])
+    (out/'OriginalMobileChiefClient.swift').write_bytes(originals[client])
+    cases=(ROOT/'tests/chief-home-search/Cases.json').read_bytes()
+    (out/'HomeSearchCases.json').write_bytes(cases)
+    spec=importlib.util.spec_from_file_location('chief_bundle_verifier',ROOT/'scripts/verify-ios-chief-bundles.py')
+    verifier=importlib.util.module_from_spec(spec);spec.loader.exec_module(verifier)
+    (out/'OriginalHomeSearch.swift').write_text(verifier.home_search_source(originals[view].decode(),originals[client].decode(),cases))
     literal = lambda value: json.dumps(value, ensure_ascii=False)
     generated = 'import Foundation\nfunc sourceMainBundleValues() -> [String:String] {\nreturn [\n'
     generated += ',\n'.join(literal(key)+': '+calls[key][0] for key in sorted(calls))+'\n]\n}\n'
@@ -65,10 +75,10 @@ def prepare(upstream, out, project_commit):
     (out/'CaptureCalls.swift').write_text(generated)
     shutil.copy2(ROOT/'scripts/native-chief-bundle-probe.swift',out/'Probe.swift')
     (out/'ProbeLoad.m').write_text('#import <Foundation/Foundation.h>\n#import <dispatch/dispatch.h>\nextern void cmuxChiefBundleCapture(void);\n__attribute__((constructor)) static void cmuxLoad(void) { dispatch_async(dispatch_get_main_queue(), ^{ cmuxChiefBundleCapture(); }); }\n')
-    provenance = dict(schema=2,revision=manifest['revision'],projectCommit=project_commit,sourceSha256=pins,
+    provenance = dict(schema=3,revision=manifest['revision'],projectCommit=project_commit,sourceSha256=pins,
                       mainKeys=sorted(main_keys),moduleKeys=sorted(module_keys),languages=list(LANGUAGES),
                       generatedSha256={p.name:sha(p) for p in out.glob('*') if p.is_file()},
-                      generatorSha256=sha(__file__),scope='Original full app project/catalogs and source L10n. Read-only sidecar, no authentication or UI actions; not native Home/question rendering.')
+                      generatorSha256=sha(__file__),scope='Original full app project/catalogs, whole source L10n and complete Home search predicate/wire model with query-state wrapper. Read-only sidecar, no authentication or UI actions; not native Home/question rendering.')
     (out/'Provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
     return provenance
 
@@ -115,7 +125,7 @@ def main():
         sdk=command(['xcrun','--sdk','iphonesimulator','--show-sdk-path']);target=arch+'-apple-ios18.0-simulator'
         command(['xcrun','clang','-target',target,'-isysroot',sdk,'-fobjc-arc','-fblocks','-c',out/'ProbeLoad.m','-o',out/'ProbeLoad.o'])
         command(['xcrun','swiftc','-swift-version','6','-target',target,'-sdk',sdk,'-emit-library','-module-name','ChiefBundleProbe',
-                 out/'OriginalL10n.swift',out/'CaptureCalls.swift',out/'Probe.swift',out/'ProbeLoad.o','-o',out/'libChiefBundleProbe.dylib'])
+                 out/'OriginalL10n.swift',out/'OriginalHomeSearch.swift',out/'CaptureCalls.swift',out/'Probe.swift',out/'ProbeLoad.o','-o',out/'libChiefBundleProbe.dylib'])
         product=json.loads((out/'build-product.json').read_text())
         product['probeLibrarySha256']=sha(out/'libChiefBundleProbe.dylib')
         (out/'build-product.json').write_text(json.dumps(product,indent=2)+'\n')

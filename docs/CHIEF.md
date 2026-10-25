@@ -1,3 +1,24 @@
+## Home Unicode search reference prepared — 2026-10-25
+
+The current Android Home filter uses Kotlin contains(ignoreCase), while the
+original uses localizedCaseInsensitiveContains. Executing the complete unchanged
+source predicate and original wire-model declaration on local macOS Foundation
+reveals meaningful differences: Straße matches strasse, ligatures expand, canonical
+accent forms agree, accents are preserved and emoji prefixes/suffixes follow
+Foundation matching rules. A generic case-insensitive ICU collator also disagrees
+on several of these inputs, so it is not an accepted replacement.
+
+The existing read-only original-app probe now includes 102 title/preview search
+inputs across nine language/locale launches and four additional positive unread
+boundaries through Int.max. The complete model/predicate are compiled in a sidecar
+query-state wrapper; the original app project/sources/resources remain unchanged.
+The schema 3 verifier regenerates that wrapper from hash-bound original sources,
+binds every input/result and rejects wrong locales and missing wide-count results.
+Nineteen verifier tests pass; all 102 predicate/model cases compile and execute on
+local macOS Foundation. This prepares iOS evidence; it does not establish Android
+search parity, native Home UI/lifetime or physical acceptance. Existing schema 2
+resource evidence and frozen APKs remain unchanged.
+
 ## Physical723 acceptance and Mac reply correction — 2026-10-25
 
 The owner's available Pixel was upgraded712→723 in place with the same signer and

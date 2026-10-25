@@ -68,6 +68,17 @@ backend's static-property language lifetime. See
 [HANDOFF.md](../../docs/HANDOFF.md) for the exact capture run and current verification state; native UI,
 authentication and physical behavior are outside this resource probe.
 
+The schema 3 resource workflow additionally captures the complete original Home
+search predicate and `MobileChiefConversation` declaration in a sidecar query-state
+wrapper. `tests/chief-home-search/Cases.json` supplies 102 title/preview inputs per
+language without authored expected results. Case expansions, canonical equivalents
+and emoji components expose differences from Kotlin's current `contains(ignoreCase)`;
+the Android matcher is still awaiting reconciliation. The capture adds four positive
+unread boundaries through Int.max. The verifier binds the original source bytes,
+regenerated wrapper, all inputs/results and actual locale. Local macOS source-method
+execution and verifier tests have passed; new iOS observations and matched Home UI
+are separate requirements. Historical schema 1/2 captures retain their source verifier.
+
 `questionErrorStrings` separately binds three backend errors resolved explicitly
 from the ShellUI module. `check-chief-question-error-strings.py --upstream PATH`
 checks their original constructors, source hashes and 27 Android values across

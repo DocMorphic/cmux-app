@@ -16,6 +16,7 @@ class OriginalBundleCaptureValidation(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name)/'repo';self.capture=Path(self.temp.name)/'capture'
         (self.root/'scripts').mkdir(parents=True);(self.root/'third_party/cmux-chief').mkdir(parents=True)
+        (self.root/'tests/chief-home-search').mkdir(parents=True)
         (self.capture/'observations').mkdir(parents=True)
         self.commit='a'*40
         digest=lambda value:hashlib.sha256(value.encode()).hexdigest()
@@ -23,21 +24,33 @@ class OriginalBundleCaptureValidation(unittest.TestCase):
             (self.root/'scripts'/name).write_text(name)
         helper='original-helper';(self.capture/'OriginalL10n.swift').write_text(helper)
         (self.capture/'Probe.swift').write_text('native-chief-bundle-probe.swift')
-        self.manifest=dict(revision='b'*40,nativeBundleFiles={'Project':digest('project')},questionPresentationFiles={},
+        home='    private func matches(_ conversation: MobileChiefConversation) -> Bool {\n        return query.isEmpty\n    }\n\n    private func load() async {\n'
+        client='public struct MobileChiefConversation: Codable {\n    let title: String\n}\n\n/// One compact transcript message\n'
+        cases=[dict(id='one',title='Straße',preview='',query='strasse')]
+        cases_raw=json.dumps(cases).encode()
+        (self.root/'tests/chief-home-search/Cases.json').write_bytes(cases_raw)
+        (self.capture/'HomeSearchCases.json').write_bytes(cases_raw)
+        (self.capture/'OriginalChiefHome.swift').write_text(home)
+        (self.capture/'OriginalMobileChiefClient.swift').write_text(client)
+        (self.capture/'OriginalHomeSearch.swift').write_text(module.home_search_source(home,client,cases_raw))
+        self.manifest=dict(revision='b'*40,nativeBundleFiles={'Project':digest('project')},questionPresentationFiles={module.HOME:digest(home)},files={module.CLIENT:digest(client)},
             homeStrings=dict(catalogs=[],unreadHelper=dict(path='L10n',sha256=digest(helper))),questionStrings=dict(path='Catalog',sha256=digest('catalog'),keys={'chief.title':'title','mobile.workspace.unreadCountFormat.one':'one','mobile.workspace.unreadCountFormat.other':'other'}))
         self.write(self.root/'third_party/cmux-chief/manifest.json',self.manifest)
-        self.provenance=dict(schema=2,projectCommit=self.commit,revision='b'*40,sourceSha256=dict(Project=digest('project'),L10n=digest(helper),Catalog=digest('catalog')),
+        self.provenance=dict(schema=3,projectCommit=self.commit,revision='b'*40,sourceSha256={**dict(Project=digest('project'),L10n=digest(helper),Catalog=digest('catalog')),module.HOME:digest(home),module.CLIENT:digest(client)},
             generatorSha256=module.sha(self.root/'scripts/run-ios-chief-bundles.py'),generatedSha256={p.name:module.sha(p) for p in self.capture.glob('*.swift')},
             mainKeys=['chief.title','mobile.workspace.unreadCountFormat.one','mobile.workspace.unreadCountFormat.other'],moduleKeys=['mobile.chief.error.example'],languages=['en','ja','de','es','fr','ar','ko','zh-Hans','zh-Hant'])
         self.write(self.capture/'Provenance.json',self.provenance)
         self.product=dict(bundleID='app.original',originalTrackedInputsUnchanged=True,executableSha256=digest('executable'),infoSha256=digest('info'),probeLibrarySha256=digest('dylib'),resourceSha256={'en.lproj/Localizable.strings':digest('resources')})
         self.write(self.capture/'build-product.json',self.product)
         for language in self.provenance['languages']:
-            row=dict(schema=2,requested=language,bundleID='app.original',mainBundle='/native/Original.app',preferredLanguages=[language],
+            row=dict(schema=3,requested=language,bundleID='app.original',mainBundle='/native/Original.app',preferredLanguages=[language],
+                locale=module.LOCALES[language],
                 mainPreferred=[language],modulePreferred=[language],moduleCandidates=['/native/Original.app/ShellUI.bundle'],selectedModule='/native/Original.app/ShellUI.bundle',
                 mainValues={'chief.title':'Chief'},defaults={'chief.title':'Chief'},mainRaw={'chief.title':module.MISSING,'mobile.chief.error.example':module.MISSING},
                 moduleRaw={'chief.title':'Title '+language,'mobile.chief.error.example':'Error '+language})
             row['unreadLabels']={'nil':'Unread','0':'Unread','1':'1 unread','2':'2 unread','17':'17 unread','1234':'1234 unread'}
+            row['unreadLabels'].update({'2147483647':'2147483647 unread','2147483648':'-2147483648 unread','4294967296':'0 unread','9223372036854775807':'-1 unread'})
+            row['homeSearch']=[dict(**cases[0],matches=True)]
             for key,value in [('mobile.workspace.unreadCountFormat.one','1 unread'),('mobile.workspace.unreadCountFormat.other','%d unread')]:
                 for name in ['mainValues','defaults','mainRaw']:row[name][key]=value
                 row['moduleRaw'][key]=module.MISSING
@@ -53,6 +66,41 @@ class OriginalBundleCaptureValidation(unittest.TestCase):
         receipt=self.verify()
         self.assertEqual(9,receipt['languages']);self.assertEqual(27,receipt['mainQueries']);self.assertEqual(36,receipt['moduleQueries'])
         self.assertEqual(['chief.title'],receipt['rows'][1]['mainFallback'])
+        self.assertEqual(90,receipt['unreadQueries']);self.assertEqual(9,receipt['homeSearchQueries'])
+
+    def test_rejects_changed_search_source_even_with_rehashed_generated_file(self):
+        path=self.capture/'OriginalHomeSearch.swift';path.write_text(path.read_text().replace('return query.isEmpty','return true'))
+        self.provenance['generatedSha256'][path.name]=module.sha(path);self.write(self.capture/'Provenance.json',self.provenance)
+        with self.assertRaises(AssertionError):self.verify()
+
+    def test_rejects_changed_original_home_even_with_rehashed_generated_file(self):
+        path=self.capture/'OriginalChiefHome.swift';path.write_text(path.read_text()+'\n')
+        self.provenance['generatedSha256'][path.name]=module.sha(path);self.write(self.capture/'Provenance.json',self.provenance)
+        with self.assertRaises(AssertionError):self.verify()
+
+    def test_rejects_search_case_or_result_shape_changes(self):
+        path=self.capture/'observations/ja.json';original=json.loads(path.read_text())
+        for field,value in [('id','other'),('query','different'),('matches',1)]:
+            with self.subTest(field=field):
+                row=copy.deepcopy(original);row['homeSearch'][0][field]=value;self.write(path,row)
+                with self.assertRaises(AssertionError):self.verify()
+
+    def test_rejects_missing_search_observation(self):
+        path=self.capture/'observations/ja.json';row=json.loads(path.read_text());row['homeSearch']=[];self.write(path,row)
+        with self.assertRaises(AssertionError):self.verify()
+
+    def test_rejects_missing_wide_unread_observation(self):
+        path=self.capture/'observations/ja.json';row=json.loads(path.read_text());del row['unreadLabels']['4294967296'];self.write(path,row)
+        with self.assertRaises(AssertionError):self.verify()
+
+    def test_rejects_wrong_search_locale_even_with_correct_preferred_language(self):
+        path=self.capture/'observations/ja.json';row=json.loads(path.read_text());row['locale']='en_US';self.write(path,row)
+        with self.assertRaises(AssertionError):self.verify()
+
+    def test_rejects_replaced_case_corpus_even_when_rehashed(self):
+        path=self.capture/'HomeSearchCases.json';path.write_text('[]')
+        self.provenance['generatedSha256'][path.name]=module.sha(path);self.write(self.capture/'Provenance.json',self.provenance)
+        with self.assertRaises(AssertionError):self.verify()
 
     def test_accepts_actual_main_resolution_instead_of_forcing_fallback(self):
         path=self.capture/'observations/ja.json';row=json.loads(path.read_text())
