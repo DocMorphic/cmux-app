@@ -62,7 +62,7 @@ def main():
                 rpc=Path(lookup.stdout.strip())/'Documents/reference-rpc.json'
                 if rpc.exists():(out/'last-reference-rpc.json').write_bytes(rpc.read_bytes())
         result.check_returncode()
-        assert 'Executed 3 tests, with 0 failures' in (out/'test.log').read_text(),'Expected three real UI tests'
+        assert 'Executed 4 tests, with 0 failures' in (out/'test.log').read_text(),'Expected four real UI tests'
         passed=True
     finally:
         if sid:

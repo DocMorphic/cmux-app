@@ -1,3 +1,27 @@
+## Mac helper restored; original tab-context reference prepared — 2026-10-25
+
+The verified75c017be Mac app's Keychain suspension has cleared. Its private owner
+socket is live; a new consistent database snapshot verifies the same one saved
+phone registration/zero retired rows. Account/team hashes, all three workspace
+IDs/order/selection and enabled pairing preference match pre-update state.
+A local TLS handshake validates the existing configured certificate chain,
+advertised hostname and leaf fingerprint. No enrollment or notification was
+created, and no phone operation was performed. Live inline execution/ACK and
+cold notification taps remain unaccepted until fresh owner phone availability.
+
+The original UI reference now also prepares the unchanged primary tab scaffold
+and search coordinator around Home. Seven authored scenes cover dark/light/Arabic
+tab context and visible1234/Int.max badges in English/Arabic. Unused sibling
+destinations are explicit placeholders; this does not substitute for authenticated
+WorkspaceShellView or sibling-screen acceptance. Four native UI tests are now
+expected. Eight generator/guard tests and Swift syntax parsing pass; these new
+scenes are not yet compiled/executed on iOS. Earlier physical-input run40217714743
+at9aa995fe remains active; do not restart or duplicate it. Android source remains
+eae2a16a for the badge change, signed724/physical723 are unchanged, and all thirteen
+full-parity areas remain open. Private Mac receipts:
+captures/recovery-20261025/mac-reply-runtime-40208082394/restoration-checkpoint.json,
+registration-after-active.sqlite and tls-restoration.json.
+
 ## Verified Mac repair and native Home badge follow-through — 2026-10-25
 
 Mac build40208082394 succeeds at75c017be. GitHub artifact12607229729 matches

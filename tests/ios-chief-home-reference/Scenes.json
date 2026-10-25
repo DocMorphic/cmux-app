@@ -61,5 +61,68 @@
     "language": "en",
     "style": "dark",
     "category": "large"
+  },
+  {
+    "id": "recent-tabs",
+    "mode": "recent",
+    "language": "en",
+    "style": "dark",
+    "category": "large",
+    "primaryTabs": true,
+    "unreadCount": 2
+  },
+  {
+    "id": "recent-tabs-light",
+    "mode": "recent",
+    "language": "en",
+    "style": "light",
+    "category": "large",
+    "primaryTabs": true,
+    "unreadCount": 2
+  },
+  {
+    "id": "recent-tabs-arabic",
+    "mode": "recent",
+    "language": "ar",
+    "style": "dark",
+    "category": "large",
+    "primaryTabs": true,
+    "unreadCount": 2
+  },
+  {
+    "id": "badge-english-1234",
+    "mode": "recent",
+    "language": "en",
+    "style": "dark",
+    "category": "large",
+    "primaryTabs": true,
+    "unreadCount": 1234
+  },
+  {
+    "id": "badge-arabic-1234",
+    "mode": "recent",
+    "language": "ar",
+    "style": "dark",
+    "category": "large",
+    "primaryTabs": true,
+    "unreadCount": 1234
+  },
+  {
+    "id": "badge-english-wide",
+    "mode": "recent",
+    "language": "en",
+    "style": "dark",
+    "category": "large",
+    "primaryTabs": true,
+    "unreadCount": 9223372036854775807
+  },
+  {
+    "id": "badge-arabic-wide",
+    "mode": "recent",
+    "language": "ar",
+    "style": "dark",
+    "category": "large",
+    "primaryTabs": true,
+    "unreadCount": 9223372036854775807
   }
 ]

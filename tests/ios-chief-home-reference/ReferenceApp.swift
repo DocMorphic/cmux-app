@@ -9,6 +9,8 @@ import CmuxMobileShell
 
 private struct HomeScene: Decodable, Sendable {
     let id: String; let mode: String; let language: String; let style: String; let category: String
+    let primaryTabs: Bool?
+    let unreadCount: Int?
     static func selected() -> Self {
         let data = try! Data(contentsOf: Bundle.main.url(forResource: "Scenes", withExtension: "json")!)
         let scenes = try! JSONDecoder().decode([Self].self, from: data)
@@ -30,17 +32,45 @@ private struct HomeScene: Decodable, Sendable {
         let ticket = try! CmxAttachTicket(workspaceID: "", terminalID: nil,
             macDeviceID: "offline-reference-mac", macDisplayName: "Offline reference",
             routes: [route], expiresAt: nil, authToken: nil)
-        let runtime = HomeRuntime(transportFactory: HomeFactory(transport: HomeTransport(mode: scene.mode, diagnostics: diagnostics)))
+        let runtime = HomeRuntime(transportFactory: HomeFactory(transport: HomeTransport(mode: scene.mode, unreadCount: scene.unreadCount ?? 2, diagnostics: diagnostics)))
         client = MobileChiefClient(client: MobileCoreRPCClient(runtime: runtime, route: route, ticket: ticket))
     }
     var body: some Scene {
         WindowGroup {
             // The original compiled view owns state, navigation, list and sheet.
-            ChiefHomeView(client: client)
+            Group {
+                if scene.primaryTabs == true {
+                    HomeReferenceTabs(client: client)
+                } else {
+                    ChiefHomeView(client: client)
+                }
+            }
                 .overlay(alignment: .topLeading) { HomeObservation(diagnostics: diagnostics) }
                 .preferredColorScheme(scene.style == "dark" ? .dark : .light)
                 .environment(\.sizeCategory, scene.category == "large" ? .large : .accessibilityExtraExtraExtraLarge)
         }
+    }
+}
+
+/// Keep the original tab/search coordinator and platform container. The unused
+/// sibling destinations are explicit authored placeholders, not app acceptance.
+@MainActor private struct HomeReferenceTabs: View {
+    let client: MobileChiefClient
+    @State private var selection: MobilePrimaryTab = .home
+    @State private var searchCoordinator = MobilePrimarySearchCoordinator()
+    var body: some View {
+        MobilePrimaryTabScaffold(selection: $selection, searchCoordinator: searchCoordinator,
+            notificationUnreadCount: 0, homeContent: AnyView(ChiefHomeView(client: client))) {
+                Text("Offline workspace placeholder")
+            } feed: {
+                Text("Offline Feed placeholder")
+            } notifications: {
+                Text("Offline notification placeholder")
+            } cloud: {
+                Text("Offline Cloud placeholder")
+            } search: {
+                Text("Offline primary search placeholder")
+            }
     }
 }
 
@@ -114,6 +144,7 @@ private struct HomeFactory: CmxByteTransportFactory {
 
 private actor HomeTransport: CmxByteTransport {
     let mode: String
+    let unreadCount: Int
     let diagnostics: HomeDiagnostics
     private var queued: [Data] = []
     private var readers: [CheckedContinuation<Data?, Never>] = []
@@ -121,7 +152,10 @@ private actor HomeTransport: CmxByteTransport {
     private var closed = false
     private var answered = false
     private var requests: [[String: Any]] = []
-    init(mode: String, diagnostics: HomeDiagnostics) { self.mode = mode; self.diagnostics = diagnostics }
+    init(mode: String, unreadCount: Int, diagnostics: HomeDiagnostics) {
+        precondition(unreadCount > 0)
+        self.mode = mode; self.unreadCount = unreadCount; self.diagnostics = diagnostics
+    }
     func connect() async throws {}
     func receive() async throws -> Data? {
         if !queued.isEmpty { return queued.removeFirst() }
@@ -142,7 +176,7 @@ private actor HomeTransport: CmxByteTransport {
             let id = request["id"] as! String
             let params = request["params"] as? [String: Any] ?? [:]
             requests.append(["method": method, "params": params])
-            let report = try JSONSerialization.data(withJSONObject: ["mode": mode, "requests": requests], options: [.sortedKeys])
+            let report = try JSONSerialization.data(withJSONObject: ["mode": mode, "unreadCount": unreadCount, "requests": requests], options: [.sortedKeys])
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             try report.write(to: documents.appendingPathComponent("reference-rpc.json"), options: .atomic)
             await diagnostics.record(String(decoding: report, as: UTF8.self))
@@ -179,7 +213,7 @@ private actor HomeTransport: CmxByteTransport {
     private func conversations() -> [[String: Any]] {
         if mode == "empty" || mode == "failure" { return [] }
         let pinned: [String: Any] = ["id": "chief-main", "title": "Chief", "preview": "Ready on your Mac",
-            "pinned": true, "working": false, "unread": 2]
+            "pinned": true, "working": false, "unread": unreadCount]
         if mode == "pinned" || mode == "question" { return [pinned] }
         return [pinned,
             ["id": "working", "title": "Build", "preview": "Compiling the app", "working": true, "unread": 3],

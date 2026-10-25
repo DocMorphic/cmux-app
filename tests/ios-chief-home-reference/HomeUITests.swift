@@ -84,6 +84,18 @@ import CryptoKit
         XCTAssertFalse(element(app, "MobileChiefConversationRow-working").exists)
         capture(app, "search-expanded-case")
     }
+    func testOriginalTabScaffoldAndVisibleIntegerBadgeBoundaries() {
+        continueAfterFailure = false
+        for id in ["recent-tabs", "recent-tabs-light", "recent-tabs-arabic", "badge-english-1234", "badge-arabic-1234", "badge-english-wide", "badge-arabic-wide"] {
+            let app = launch(id, language: id.contains("arabic") ? "ar" : "en")
+            defer { app.terminate() }
+            XCTAssertTrue(element(app, "MobileChiefPinnedConversation").waitForExistence(timeout: 10))
+            XCTAssertTrue(element(app, "MobilePrimaryTabs").exists)
+            XCTAssertTrue(app.tabBars.firstMatch.exists)
+            XCTAssertTrue(element(app, "MobileChiefConversationRow-working").exists)
+            capture(app, id)
+        }
+    }
     func testQuestionOpenEditCancelReopenAndSubmitThroughWholeBackend() throws {
         continueAfterFailure = false
         let app = launch("question"); defer { app.terminate() }

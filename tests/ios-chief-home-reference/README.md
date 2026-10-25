@@ -17,10 +17,14 @@ opens a socket, signs in, pairs or uses a real account. An explicit question
 submission must carry exactly the reference message and default qualified choice.
 The persisted RPC trace contains only fixture methods/parameters, excluding auth.
 
-Three UI tests cover eight Home states (loading, empty, startup error, pinned-only,
+Four UI tests cover eight Home states (loading, empty, startup error, pinned-only,
 recent, light, Arabic and enlarged text), actual expanded-case search and original
 question entry, keyboard editing, cancellation, reopening and submission through
-the whole backend. Tests retain compositor screenshots and accessibility trees. A clear one-point
+the whole backend. Seven additional scenes place Home inside the unchanged original
+MobilePrimaryTabScaffold/search coordinator with explicitly authored unused sibling
+destinations. They capture dark/light/Arabic tab context and visible1234/Int.max
+badges in English and Arabic; they do not verify the authenticated WorkspaceShellView
+or those sibling destinations. Tests retain compositor screenshots and accessibility trees. A clear one-point
 observation node reports authored RPC methods/parameters. The exported observation
 binds the actual PNG and AX tree digests; it does not generate view pixels.
 The original conversation cell merges accessibility children. The question test

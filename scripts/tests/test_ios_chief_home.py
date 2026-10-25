@@ -84,11 +84,12 @@ class OriginalHomeHostPreparation(unittest.TestCase):
     def test_fixture_covers_all_native_branches_without_replacing_the_view(self):
         fixtures=ROOT/'tests/ios-chief-home-reference'
         scenes=json.loads((fixtures/'Scenes.json').read_text())
-        self.assertEqual(9,len(scenes));self.assertEqual(9,len({r['id'] for r in scenes}))
+        self.assertEqual(16,len(scenes));self.assertEqual(16,len({r['id'] for r in scenes}))
         self.assertEqual({'loading','empty','failure','pinned','recent','question'},{r['mode'] for r in scenes})
         source=(fixtures/'ReferenceApp.swift').read_text()
         self.assertIn('@testable import CmuxMobileShellUI',source)
         self.assertIn('ChiefHomeView(client: client)',source)
+        self.assertIn('MobilePrimaryTabScaffold(selection: $selection',source)
         self.assertNotIn('URLSession',source)
         self.assertNotIn('.debugLoopback',source)
         self.assertIn('route.kind == .iroh',source)
