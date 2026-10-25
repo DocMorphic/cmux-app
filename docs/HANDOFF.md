@@ -1,3 +1,25 @@
+## Original Home search capture running — 2026-10-25
+
+[Original-app run40209688789](https://github.com/DocMorphic/cmux-app/actions/runs/40209688789)
+is in progress at exact source15e50ff9. It extends the read-only bundle probe to
+102 title/preview searches per locale (918 total) through the complete unmodified
+Home matches predicate and original conversation wire model in a query-state
+wrapper. It also adds four positive unread boundaries through Int.max (90 unread
+queries total). Original app sources/resources stay unchanged. The verifier binds
+source bytes, regenerates the wrapper and checks every input/result and locale.
+Nineteen verifier tests pass, and all102 cases compile/run on local macOS
+Foundation. New iOS observations remain unaccepted until independently downloaded
+and verified. Android search still needs reconciliation: its current Kotlin case
+comparison differs on expansions, canonical forms and emoji components. See
+[CHIEF.md](CHIEF.md) and tests/chief-home-search/README.md for exact scope.
+
+The corrected full Mac build40208082394 remains pending behind compile40205170225.
+Do not deploy that older source. The phone is reclaimed/unavailable, installed723
+and frozen724 are unchanged, and all thirteen parity gates remain open.
+Private checkpoint: captures/recovery-20261025/chief-home-search-checkpoint.json;
+trusted verification snapshot: chief-home-search-source-15e50ff9. Do not duplicate
+these live jobs or operate/request the phone without fresh owner availability.
+
 ## Signed candidate 724 and observable Mac ACK — 2026-10-25
 
 Signed candidate 724 is frozen from source 49827545 with the existing stable
