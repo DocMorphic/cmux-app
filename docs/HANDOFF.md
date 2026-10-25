@@ -1,3 +1,30 @@
+## Original question reference passed; broader search capture prepared — 2026-10-25
+
+Original UI run40217714743 succeeds at9aa995fe: three tests pass, including actual
+question opening, keyboard editing, Cancel, fresh reopening/default selection and
+submission through the whole original backend. Artifact12609217951 matches GitHub
+SHA2567623be98154518355aa25b227945de2af54f9a3eafb1706870339b73596b378e.
+Independent verification binds the original source/package trees, templates,
+regenerated project, main catalog,13 PNG/AX/RPC frame sets, two measured physical
+entry taps and exactly one qualified answer RPC with no retained Other draft.
+Both owned Simulator cleanup actions pass. Four native question frames have been
+visually reviewed; matched Android geometry and broader lifetime/concurrency remain
+open. This older artifact omits the binary, so implementation hashes remain CI
+metadata. New tab-context/wide-badge/full-bundle run40221580152 is dispatched at
+exactc147788f; follow that handle without duplicating it.
+
+The expanded search input corpus contains5,546 cases with no authored booleans.
+The original102 accepted cases are preserved separately; deterministic input
+generation binds ICU77.1 mapping queries, canonical forms, partial expansions,
+digit/script branches, prefixed queries and long combining runs. Nineteen native
+bundle-verifier guards pass. A private forward matcher agrees with all102 accepted
+iOS cases and5,537/5,546 expanded local macOS original-method results. The remaining
+nine are native Cyrillic case-fold data differences; no new production matcher
+has shipped. The expanded corpus requires a fresh iOS original-method capture.
+Do not reinterpret the earlier918 accepted observations as covering these inputs.
+All thirteen parity areas remain open. The Mac repair/helper remains restored;
+the phone remains reclaimed/unavailable and must not be operated or requested.
+
 ## Current continuation state — 2026-10-25
 
 The owner reclaimed the phone and repeated that they need it. No physical phone

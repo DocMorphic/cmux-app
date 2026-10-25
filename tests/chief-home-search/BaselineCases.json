@@ -1,0 +1,614 @@
+[
+  {
+    "id": "ascii-case-title",
+    "title": "Build RELEASE",
+    "preview": "",
+    "query": "release"
+  },
+  {
+    "id": "ascii-case-preview",
+    "title": "",
+    "preview": "Build RELEASE",
+    "query": "release"
+  },
+  {
+    "id": "ascii-miss-title",
+    "title": "Build",
+    "preview": "",
+    "query": "deploy"
+  },
+  {
+    "id": "ascii-miss-preview",
+    "title": "",
+    "preview": "Build",
+    "query": "deploy"
+  },
+  {
+    "id": "empty-query-title",
+    "title": "Build",
+    "preview": "",
+    "query": ""
+  },
+  {
+    "id": "empty-query-preview",
+    "title": "",
+    "preview": "Build",
+    "query": ""
+  },
+  {
+    "id": "space-query-title",
+    "title": "Build",
+    "preview": "",
+    "query": " \t\n"
+  },
+  {
+    "id": "space-query-preview",
+    "title": "",
+    "preview": "Build",
+    "query": " \t\n"
+  },
+  {
+    "id": "trim-query-title",
+    "title": "Build RELEASE",
+    "preview": "",
+    "query": " release​"
+  },
+  {
+    "id": "trim-query-preview",
+    "title": "",
+    "preview": "Build RELEASE",
+    "query": " release​"
+  },
+  {
+    "id": "sharp-s-title",
+    "title": "Straße",
+    "preview": "",
+    "query": "strasse"
+  },
+  {
+    "id": "sharp-s-preview",
+    "title": "",
+    "preview": "Straße",
+    "query": "strasse"
+  },
+  {
+    "id": "capital-sharp-s-title",
+    "title": "STRAẞE",
+    "preview": "",
+    "query": "straße"
+  },
+  {
+    "id": "capital-sharp-s-preview",
+    "title": "",
+    "preview": "STRAẞE",
+    "query": "straße"
+  },
+  {
+    "id": "sharp-s-partial-title",
+    "title": "ß",
+    "preview": "",
+    "query": "s"
+  },
+  {
+    "id": "sharp-s-partial-preview",
+    "title": "",
+    "preview": "ß",
+    "query": "s"
+  },
+  {
+    "id": "sharp-s-followed-title",
+    "title": "ßs",
+    "preview": "",
+    "query": "s"
+  },
+  {
+    "id": "sharp-s-followed-preview",
+    "title": "",
+    "preview": "ßs",
+    "query": "s"
+  },
+  {
+    "id": "ligature-title",
+    "title": "ﬃ",
+    "preview": "",
+    "query": "FFI"
+  },
+  {
+    "id": "ligature-preview",
+    "title": "",
+    "preview": "ﬃ",
+    "query": "FFI"
+  },
+  {
+    "id": "ligature-partial-title",
+    "title": "ﬃ",
+    "preview": "",
+    "query": "ff"
+  },
+  {
+    "id": "ligature-partial-preview",
+    "title": "",
+    "preview": "ﬃ",
+    "query": "ff"
+  },
+  {
+    "id": "accent-preserved-title",
+    "title": "CAFÉ",
+    "preview": "",
+    "query": "café"
+  },
+  {
+    "id": "accent-preserved-preview",
+    "title": "",
+    "preview": "CAFÉ",
+    "query": "café"
+  },
+  {
+    "id": "accent-not-stripped-title",
+    "title": "café",
+    "preview": "",
+    "query": "cafe"
+  },
+  {
+    "id": "accent-not-stripped-preview",
+    "title": "",
+    "preview": "café",
+    "query": "cafe"
+  },
+  {
+    "id": "canonical-composed-title",
+    "title": "café",
+    "preview": "",
+    "query": "café"
+  },
+  {
+    "id": "canonical-composed-preview",
+    "title": "",
+    "preview": "café",
+    "query": "café"
+  },
+  {
+    "id": "canonical-decomposed-title",
+    "title": "café",
+    "preview": "",
+    "query": "café"
+  },
+  {
+    "id": "canonical-decomposed-preview",
+    "title": "",
+    "preview": "café",
+    "query": "café"
+  },
+  {
+    "id": "combining-prefix-title",
+    "title": "á",
+    "preview": "",
+    "query": "a"
+  },
+  {
+    "id": "combining-prefix-preview",
+    "title": "",
+    "preview": "á",
+    "query": "a"
+  },
+  {
+    "id": "combining-suffix-title",
+    "title": "á",
+    "preview": "",
+    "query": "́"
+  },
+  {
+    "id": "combining-suffix-preview",
+    "title": "",
+    "preview": "á",
+    "query": "́"
+  },
+  {
+    "id": "composed-suffix-title",
+    "title": "é",
+    "preview": "",
+    "query": "́"
+  },
+  {
+    "id": "composed-suffix-preview",
+    "title": "",
+    "preview": "é",
+    "query": "́"
+  },
+  {
+    "id": "combining-order-title",
+    "title": "á̧",
+    "preview": "",
+    "query": "á̧"
+  },
+  {
+    "id": "combining-order-preview",
+    "title": "",
+    "preview": "á̧",
+    "query": "á̧"
+  },
+  {
+    "id": "fullwidth-title",
+    "title": "ＡＢＣ",
+    "preview": "",
+    "query": "abc"
+  },
+  {
+    "id": "fullwidth-preview",
+    "title": "",
+    "preview": "ＡＢＣ",
+    "query": "abc"
+  },
+  {
+    "id": "kelvin-title",
+    "title": "Kelvin",
+    "preview": "",
+    "query": "kelvin"
+  },
+  {
+    "id": "kelvin-preview",
+    "title": "",
+    "preview": "Kelvin",
+    "query": "kelvin"
+  },
+  {
+    "id": "long-s-title",
+    "title": "ſearch",
+    "preview": "",
+    "query": "search"
+  },
+  {
+    "id": "long-s-preview",
+    "title": "",
+    "preview": "ſearch",
+    "query": "search"
+  },
+  {
+    "id": "sigma-title",
+    "title": "ΟΣ",
+    "preview": "",
+    "query": "ος"
+  },
+  {
+    "id": "sigma-preview",
+    "title": "",
+    "preview": "ΟΣ",
+    "query": "ος"
+  },
+  {
+    "id": "greek-accent-title",
+    "title": "Αθήνα",
+    "preview": "",
+    "query": "αθηνα"
+  },
+  {
+    "id": "greek-accent-preview",
+    "title": "",
+    "preview": "Αθήνα",
+    "query": "αθηνα"
+  },
+  {
+    "id": "turkish-dot-title",
+    "title": "İstanbul",
+    "preview": "",
+    "query": "i"
+  },
+  {
+    "id": "turkish-dot-preview",
+    "title": "",
+    "preview": "İstanbul",
+    "query": "i"
+  },
+  {
+    "id": "turkish-dotless-title",
+    "title": "Istanbul",
+    "preview": "",
+    "query": "ı"
+  },
+  {
+    "id": "turkish-dotless-preview",
+    "title": "",
+    "preview": "Istanbul",
+    "query": "ı"
+  },
+  {
+    "id": "turkish-composed-dot-title",
+    "title": "İstanbul",
+    "preview": "",
+    "query": "i̇"
+  },
+  {
+    "id": "turkish-composed-dot-preview",
+    "title": "",
+    "preview": "İstanbul",
+    "query": "i̇"
+  },
+  {
+    "id": "cyrillic-title",
+    "title": "ПРИВЕТ",
+    "preview": "",
+    "query": "привет"
+  },
+  {
+    "id": "cyrillic-preview",
+    "title": "",
+    "preview": "ПРИВЕТ",
+    "query": "привет"
+  },
+  {
+    "id": "arabic-title",
+    "title": "مرحبا",
+    "preview": "",
+    "query": "مرح"
+  },
+  {
+    "id": "arabic-preview",
+    "title": "",
+    "preview": "مرحبا",
+    "query": "مرح"
+  },
+  {
+    "id": "arabic-marks-title",
+    "title": "مَرْحَبًا",
+    "preview": "",
+    "query": "مرحبا"
+  },
+  {
+    "id": "arabic-marks-preview",
+    "title": "",
+    "preview": "مَرْحَبًا",
+    "query": "مرحبا"
+  },
+  {
+    "id": "hebrew-title",
+    "title": "שָׁלוֹם",
+    "preview": "",
+    "query": "שלום"
+  },
+  {
+    "id": "hebrew-preview",
+    "title": "",
+    "preview": "שָׁלוֹם",
+    "query": "שלום"
+  },
+  {
+    "id": "japanese-title",
+    "title": "ターミナル",
+    "preview": "",
+    "query": "たーみなる"
+  },
+  {
+    "id": "japanese-preview",
+    "title": "",
+    "preview": "ターミナル",
+    "query": "たーみなる"
+  },
+  {
+    "id": "korean-composition-title",
+    "title": "가",
+    "preview": "",
+    "query": "가"
+  },
+  {
+    "id": "korean-composition-preview",
+    "title": "",
+    "preview": "가",
+    "query": "가"
+  },
+  {
+    "id": "chinese-title",
+    "title": "漢字",
+    "preview": "",
+    "query": "漢"
+  },
+  {
+    "id": "chinese-preview",
+    "title": "",
+    "preview": "漢字",
+    "query": "漢"
+  },
+  {
+    "id": "emoji-exact-title",
+    "title": "👩🏽‍💻",
+    "preview": "",
+    "query": "👩🏽‍💻"
+  },
+  {
+    "id": "emoji-exact-preview",
+    "title": "",
+    "preview": "👩🏽‍💻",
+    "query": "👩🏽‍💻"
+  },
+  {
+    "id": "emoji-prefix-title",
+    "title": "👩🏽‍💻",
+    "preview": "",
+    "query": "👩"
+  },
+  {
+    "id": "emoji-prefix-preview",
+    "title": "",
+    "preview": "👩🏽‍💻",
+    "query": "👩"
+  },
+  {
+    "id": "emoji-modifier-title",
+    "title": "👩🏽‍💻",
+    "preview": "",
+    "query": "🏽"
+  },
+  {
+    "id": "emoji-modifier-preview",
+    "title": "",
+    "preview": "👩🏽‍💻",
+    "query": "🏽"
+  },
+  {
+    "id": "emoji-base-modifier-title",
+    "title": "👩🏽‍💻",
+    "preview": "",
+    "query": "👩🏽"
+  },
+  {
+    "id": "emoji-base-modifier-preview",
+    "title": "",
+    "preview": "👩🏽‍💻",
+    "query": "👩🏽"
+  },
+  {
+    "id": "emoji-suffix-title",
+    "title": "👩🏽‍💻",
+    "preview": "",
+    "query": "💻"
+  },
+  {
+    "id": "emoji-suffix-preview",
+    "title": "",
+    "preview": "👩🏽‍💻",
+    "query": "💻"
+  },
+  {
+    "id": "emoji-joiner-title",
+    "title": "👩🏽‍💻",
+    "preview": "",
+    "query": "‍"
+  },
+  {
+    "id": "emoji-joiner-preview",
+    "title": "",
+    "preview": "👩🏽‍💻",
+    "query": "‍"
+  },
+  {
+    "id": "emoji-joiner-suffix-title",
+    "title": "👩🏽‍💻",
+    "preview": "",
+    "query": "‍💻"
+  },
+  {
+    "id": "emoji-joiner-suffix-preview",
+    "title": "",
+    "preview": "👩🏽‍💻",
+    "query": "‍💻"
+  },
+  {
+    "id": "variation-prefix-title",
+    "title": "✈️",
+    "preview": "",
+    "query": "✈"
+  },
+  {
+    "id": "variation-prefix-preview",
+    "title": "",
+    "preview": "✈️",
+    "query": "✈"
+  },
+  {
+    "id": "flag-prefix-title",
+    "title": "🇺🇸",
+    "preview": "",
+    "query": "🇺"
+  },
+  {
+    "id": "flag-prefix-preview",
+    "title": "",
+    "preview": "🇺🇸",
+    "query": "🇺"
+  },
+  {
+    "id": "flag-suffix-title",
+    "title": "🇺🇸",
+    "preview": "",
+    "query": "🇸"
+  },
+  {
+    "id": "flag-suffix-preview",
+    "title": "",
+    "preview": "🇺🇸",
+    "query": "🇸"
+  },
+  {
+    "id": "soft-hyphen-title",
+    "title": "A­B",
+    "preview": "",
+    "query": "ab"
+  },
+  {
+    "id": "soft-hyphen-preview",
+    "title": "",
+    "preview": "A­B",
+    "query": "ab"
+  },
+  {
+    "id": "zero-width-space-title",
+    "title": "a​b",
+    "preview": "",
+    "query": "ab"
+  },
+  {
+    "id": "zero-width-space-preview",
+    "title": "",
+    "preview": "a​b",
+    "query": "ab"
+  },
+  {
+    "id": "indic-prefix-title",
+    "title": "क्",
+    "preview": "",
+    "query": "क"
+  },
+  {
+    "id": "indic-prefix-preview",
+    "title": "",
+    "preview": "क्",
+    "query": "क"
+  },
+  {
+    "id": "indic-suffix-title",
+    "title": "क्",
+    "preview": "",
+    "query": "्"
+  },
+  {
+    "id": "indic-suffix-preview",
+    "title": "",
+    "preview": "क्",
+    "query": "्"
+  },
+  {
+    "id": "nul-title",
+    "title": "ab\u0000cd",
+    "preview": "",
+    "query": "cd"
+  },
+  {
+    "id": "nul-preview",
+    "title": "",
+    "preview": "ab\u0000cd",
+    "query": "cd"
+  },
+  {
+    "id": "deseret-title",
+    "title": "𐐀𐐁",
+    "preview": "",
+    "query": "𐐨𐐩"
+  },
+  {
+    "id": "deseret-preview",
+    "title": "",
+    "preview": "𐐀𐐁",
+    "query": "𐐨𐐩"
+  },
+  {
+    "id": "supplementary-miss-title",
+    "title": "𐐀",
+    "preview": "",
+    "query": "𐐂"
+  },
+  {
+    "id": "supplementary-miss-preview",
+    "title": "",
+    "preview": "𐐀",
+    "query": "𐐂"
+  }
+]
