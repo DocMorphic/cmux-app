@@ -94,7 +94,7 @@ jobs:
               if ! python3 cmux-app/scripts/run-ios-chief-global-fonts.py \
                 --simulator "$RICH_COMPOSER_SIMULATOR" --source-commit "$GITHUB_SHA" \
                 --events "$RUNNER_TEMP/rich-composer-global-font-events.json" \
-                --log "$RUNNER_TEMP/rich-composer-$category.log" -- "${build[@]}"; then
+                --log "$RUNNER_TEMP/rich-composer-$category.log" -- "${build[@]}" 2>&1 | tee "$RUNNER_TEMP/rich-composer-global-font-driver.log"; then
                 tail -80 "$RUNNER_TEMP/rich-composer-$category.log"; exit 1
               fi
             else

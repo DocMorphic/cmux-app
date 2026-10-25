@@ -11,11 +11,18 @@ The hosted-only bridge validates request/source identities, runs explicit simctl
 arguments, records command/readback events and restores the original category on
 success/failure. Export guards bind that exact driver, require native application/
 controller/editor category propagation and match each observed response to the
-host event inventory. They do not prescribe a semantic/font outcome. All 126 Python
+host event inventory. They do not prescribe a semantic/font outcome. All 127 Python
 reference guards pass, Swift parses, workflow YAML/bash parses and the generated
 host binds the new fixture/bridge to the unchanged package tree. Native compile,
 execution and independent export acceptance are still pending. Android behavior
 has not changed from this candidate; full parity remains active.
+
+The first system-font run 40173198122 stopped before native execution: its app-
+container observation timed out while Xcode was still resolving packages. Category
+restoration succeeded; no font actions ran and no global result was accepted. The
+bridge now retries bounded container observations against the same build process;
+a regression proves it does not restart or terminate that build. Driver stderr is
+also preserved in the artifact. Native compile/run/export acceptance remains pending.
 
 ## Bounded rich-effect reuse during animated scrolling — 2026-10-25
 

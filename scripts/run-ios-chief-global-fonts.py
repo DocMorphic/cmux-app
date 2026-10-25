@@ -54,8 +54,8 @@ def run(args):
     command = args.command[1:] if args.command[:1] == ['--'] else args.command
     if not command or command[0] != 'xcodebuild':
         raise ValueError('Expected the explicit reference xcodebuild command')
-    def execute(values):
-        return subprocess.check_output(values, text=True, stderr=subprocess.PIPE, timeout=15)
+    def execute(values, timeout=15):
+        return subprocess.check_output(values, text=True, stderr=subprocess.PIPE, timeout=timeout)
     devices = json.loads(execute(['xcrun', 'simctl', 'list', 'devices', 'available', '-j']))
     selected = [d for rows in devices['devices'].values() for d in rows if d['udid'] == args.simulator]
     if len(selected) != 1 or not selected[0].get('isAvailable') or selected[0]['state'] != 'Booted':
@@ -65,7 +65,7 @@ def run(args):
     if original != 'large':
         raise ValueError('The global font probe starts at actual system Large')
     receipt = dict(schema=1, sourceCommit=args.source_commit, simulator=args.simulator, initialCategory=original,
-                   driverSha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), events=[], restored=False)
+                   driverSha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), events=[], restored=False, containerProbeTimeouts=0)
     args.events.parent.mkdir(parents=True, exist_ok=True)
     args.log.parent.mkdir(parents=True, exist_ok=True)
     atomic_json(args.events, receipt)
@@ -78,9 +78,15 @@ def run(args):
                     raise TimeoutError('Hosted global-font reference deadline')
                 if container is None:
                     try:
-                        container = Path(execute(['xcrun', 'simctl', 'get_app_container', args.simulator, BUNDLE, 'data']).strip())
+                        container = Path(execute(['xcrun', 'simctl', 'get_app_container', args.simulator, BUNDLE, 'data'], timeout=3).strip())
+                        if not container.is_absolute(): raise ValueError('Invalid reference app container path')
                     except subprocess.CalledProcessError:
-                        time.sleep(.5); continue
+                        time.sleep(.2); continue
+                    except subprocess.TimeoutExpired:
+                        # Installation/Simulator queries can time out while xcodebuild is
+                        # still compiling. Keep observing this exact process; no restart.
+                        receipt['containerProbeTimeouts'] += 1; atomic_json(args.events, receipt)
+                        time.sleep(.2); continue
                 bridge = container / 'Documents/ChiefGlobalFontBridge'
                 request = bridge / 'request.json'
                 if request.exists():

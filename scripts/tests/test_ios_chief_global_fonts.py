@@ -67,6 +67,35 @@ class GlobalFontHostBridge(unittest.TestCase):
             self.assertIn(['xcrun','simctl','ui',SIMULATOR,'content_size','large'],commands)
 
 
+    def test_container_observation_timeout_keeps_the_same_build_alive(self):
+        with tempfile.TemporaryDirectory() as folder:
+            container = Path(folder) / 'app'; bridge = container / 'Documents/ChiefGlobalFontBridge'
+            bridge.mkdir(parents=True); DRIVER.atomic_json(bridge/'request.json',request(1,'accessibilityMedium'))
+            current = 'large'; probes = 0
+            def execute(command, **kwargs):
+                nonlocal current, probes
+                if command[:4] == ['xcrun','simctl','list','devices']:
+                    return json.dumps(dict(devices={'runtime':[dict(udid=SIMULATOR,isAvailable=True,state='Booted')]}))
+                if command[:3] == ['xcrun','simctl','get_app_container']:
+                    probes += 1
+                    if probes == 1: raise DRIVER.subprocess.TimeoutExpired(command,3)
+                    return str(container)
+                if len(command) == 6: current = command[-1]
+                return current
+            process = Mock(); process.poll.side_effect = [None,None,0,0]; process.returncode = 0
+            args = SimpleNamespace(simulator=SIMULATOR,source_commit=COMMIT,events=Path(folder)/'events.json',
+                                   log=Path(folder)/'build.log',command=['--','xcodebuild','test'])
+            with patch.dict(os.environ,{'GITHUB_ACTIONS':'true','RUNNER_TEMP':folder}), \
+                 patch.object(DRIVER.subprocess,'check_output',side_effect=execute), \
+                 patch.object(DRIVER.subprocess,'Popen',return_value=process) as start, \
+                 patch.object(DRIVER.time,'sleep'), patch.object(DRIVER.os,'killpg') as kill:
+                DRIVER.run(args)
+            start.assert_called_once(); kill.assert_not_called()
+            receipt = json.loads(args.events.read_text())
+            self.assertEqual(1,receipt['containerProbeTimeouts']); self.assertEqual(1,len(receipt['events']))
+            self.assertTrue(receipt['restored']); self.assertEqual('large',current)
+
+
 
 class GlobalFontExportGuards(unittest.TestCase):
     def setUp(self):

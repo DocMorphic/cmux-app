@@ -65,6 +65,13 @@ content-size changes/readbacks. Native application/controller/editor categories
 and span fonts are recorded while the same editor remains mounted. A full request
 round-trip and category restoration are required; --system-font-cases verification
 also requires the exact --bridge-events receipt. Source Store sends use only the
-existing authored in-memory backend. Local 126 guards, host generation and Swift/
+existing authored in-memory backend. Local 127 guards, host generation and Swift/
 workflow parsing pass; actual native execution/export acceptance remains pending.
 No accepted transaction/controller-font projection or Android behavior is replaced.
+
+The first system-font run 40173198122 stopped before native execution: its app-
+container observation timed out while Xcode was still resolving packages. Category
+restoration succeeded; no font actions ran and no global result was accepted. The
+bridge now retries bounded container observations against the same build process;
+a regression proves it does not restart or terminate that build. Driver stderr is
+also preserved in the artifact. Native compile/run/export acceptance remains pending.
