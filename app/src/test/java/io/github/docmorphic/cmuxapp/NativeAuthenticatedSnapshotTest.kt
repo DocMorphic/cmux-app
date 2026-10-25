@@ -100,6 +100,12 @@ class NativeAuthenticatedSnapshotTest {
         f.transition=true;assertFalse(f.snapshots.isCurrent(a));f.transition=false
         f.view=NativeStoredAuthSession(b,"b","r");assertFalse(f.snapshots.isCurrent(a))
     }
+    @Test fun currentChecksNeverReadUnavailableStorageOrAcquireCredentials() {
+        val f=fixture();f.reader={error("Current-owner checks must not read storage")}
+        f.available=false;assertTrue(f.snapshots.isCurrent(a));assertEquals(0,f.resolutions)
+        f.transition=true;assertFalse(f.snapshots.isCurrent(a));f.transition=false
+        f.view=NativeStoredAuthSession(a.copy(epoch=2),null,null);assertFalse(f.snapshots.isCurrent(a))
+    }
     @Test fun cancelledCaptureNeverResolvesAccessAndDescriptionsRedactAllSecrets()=runTest {
         val f=fixture(access=null);val gate=CompletableDeferred<Unit>();f.bootstrap={gate.await()}
         val task=launch {f.snapshots.session()};runCurrent();task.cancelAndJoin();assertEquals(0,f.resolutions)

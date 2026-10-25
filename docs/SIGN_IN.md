@@ -1,3 +1,34 @@
+## Credential-free current-session checks — 2026-10-25
+
+Snapshot and deletion owner checks now use the published account/generation and
+shared writer epoch without reading encrypted credentials. Orphaned pending
+exchanges cannot prime published local authority. The production deletion
+controller distinguishes unavailable storage from absent receipts, retains a
+received outcome for its still-current account and exposes local sign-out retry
+without another DELETE. Replacement sessions cannot inherit that result. A new
+controller still restores an unsaved processing outcome as uncertainty.
+
+The source reference executes two complete unchanged release declarations across
+512 cases and regenerates byte-identically. Full JVM/build-v2: 3,510 total in 471
+suites, 3,506 passed, four existing SSH skips, zero failures/errors. The full
+owned API36 run passes 291/291 in 488.963 seconds, six new methods and 285
+regressions; the focused cohort passes 6/6 in 5.051 seconds. Both use identical
+source inputs and APKs, have empty crash logs and no preflight ANR, restore
+settings/window and exit the owned emulator 0. Final test-only build-v3 leaves
+the main APK and full JVM XML byte-identical. Earlier failed attempts and their
+source-based fixture correction remain recorded. No production classifier or
+deadline was relaxed.
+
+Evidence: `captures/recovery-20261025/current-owner-checkpoint.json`.
+
+The original Settings flow has no Android encrypted
+receipt write prerequisite; this behavior difference and full phase/admission/
+transition wiring remain open. Complete UI, physical device and signed delivery
+gates remain active; no real account/pairing/signing data or global pin changed.
+
+Details: [Current-session owners](CURRENT_SESSION_OWNERS.md).
+Earlier checkpoints below retain their historical scope and open items.
+
 ## Cloud credential context and optional team routing — 2026-10-25
 
 Cloud now resolves a fresh coherent SDK pair and pins the optional team around

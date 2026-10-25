@@ -4,6 +4,14 @@ refresh-only ordering and 270/270 owned-emulator checkpoint. The historical
 checkpoint below keeps its earlier scope; full parity and physical/UI acceptance
 remain open.
 
+## Current-owner follow-up — 2026-10-25
+
+[Current-session owners](CURRENT_SESSION_OWNERS.md) records credential-free
+snapshot/deletion owner checks and retained deletion outcomes during unavailable
+storage. This supersedes the older current-owner open item below. Complete
+phase/transition wiring and Android's extra deletion-receipt admission behavior
+remain open; this is not complete account-deletion or UI/device parity.
+
 ## Cloud credential follow-up — 2026-10-25
 
 [Cloud credential context](CLOUD_CREDENTIAL_CONTEXT.md) adds fresh Cloud pair

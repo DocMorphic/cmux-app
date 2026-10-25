@@ -503,7 +503,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
     internal val sessionRestore: NativeSessionRestore by lazy {
         val root = store.load()
         val cached = cachedSessionUser(root)
-        publishedOwner.set(root?.optString("task_session")?.takeIf(String::isNotBlank))
+        publishedOwner.set(root?.takeUnless(NativeSignInCompletion::isPending)?.optString("task_session")?.takeIf(String::isNotBlank))
         observedAuthEpoch.set(store.authSessionEpoch.get())
         val hasTokens = root?.let { it.optString("access_token").isNotBlank() || it.optString("refresh_token").isNotBlank() } == true
         NativeSessionRestore(store.authTokenHint(oauthClient.accountEnvironment, hasTokens), cached,
@@ -882,15 +882,7 @@ class NativeAccount private constructor(private val store: NativeCredentialStore
         return deletionCredentials(deletionOwner(login) ?: throw kotlinx.coroutines.CancellationException("Account changed"))
     }
     /** Published authority survives a definitive refresh rejection long enough to retire that old model. */
-    internal fun deletionOwner(login: String): NativeAuthenticatedOwner? = synchronized(store.accountStateLock) {
-        val root=store.requireReadable();val identity=sessionRestore.identity() ?: return@synchronized null
-        if(NativeSignInCompletion.isPending(root))return@synchronized null
-        val epoch=store.authSessionEpoch.get()
-        if(publishedOwner.get()!=login || observedAuthEpoch.get()!=epoch)return@synchronized null
-        val empty=root?.optString("task_session").isNullOrBlank() && root?.optString("access_token").isNullOrBlank() && root?.optString("refresh_token").isNullOrBlank()
-        if(!empty && root?.optString("task_session")!=login)return@synchronized null
-        NativeAuthenticatedOwner(identity,login,epoch)
-    }
+    internal fun deletionOwner(login: String): NativeAuthenticatedOwner? = publishedAuthenticatedOwner()?.takeIf{it.login==login}
     internal fun isDeletionOwnerCurrent(owner: NativeAuthenticatedOwner): Boolean =
         !authWork.storedSessionCaptureBlocked && runCatching { deletionOwner(owner.login)==owner }.getOrDefault(false)
     /** currentTokens resolves the live pair, including bootstrap, under one absolute capture deadline. */

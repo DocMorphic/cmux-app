@@ -47,5 +47,5 @@ internal fun nativeAccountDeletionController(scope: CoroutineScope, account: Nat
             NativeAccountDeletionClient({ account.deletionCredentials(owner) },
                 { account.isDeletionOwnerCurrent(owner) },origin).delete()
         })
-    return NativeAccountDeletionController(scope,store::load,store::update,authority) { error("Account authority required") }
+    return NativeAccountDeletionController(scope,store::requireReadable,store::update,authority) { error("Account authority required") }
 }

@@ -1,5 +1,13 @@
 # Cloud credential context and optional team routing
 
+## Current-owner follow-up — 2026-10-25
+
+[Current-session owners](CURRENT_SESSION_OWNERS.md) records credential-free
+snapshot/deletion owner checks and retained deletion outcomes during unavailable
+storage. This supersedes the older current-owner open item below. Complete
+phase/transition wiring and Android's extra deletion-receipt admission behavior
+remain open; this is not complete account-deletion or UI/device parity.
+
 Cloud requests use the original coordinator's live coherent pair and optional
 selected team. Initial v2 control and mobile web snapshots retain their separate
 stored-pair fast path. A Cloud request must never substitute that fast path for

@@ -1,0 +1,6674 @@
+{
+  "cases": [
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": false,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": true,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": true,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": true,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": true,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": true,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": true,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": false
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": false
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": false,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": false,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "none",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "current",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleGeneration",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 3,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": null,
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-a",
+        "validating": true
+      },
+      "transition": true
+    },
+    {
+      "current": false,
+      "input": {
+        "authenticated": true,
+        "capturing": true,
+        "generation": 4,
+        "restoring": true,
+        "role": "staleSignOut",
+        "user": "account-b",
+        "validating": true
+      },
+      "transition": true
+    }
+  ],
+  "executedDeclarationsSha256": {
+    "0": "48bb3010f9f13eaa1d323aaf01cca644f6d2812913e09a29404d76cff2e21ecb",
+    "1": "fb757d02516999f289d0acd186223ec0dc2b6e04f7cb9d7d2c57aa917222afa1"
+  },
+  "seams": [
+    "Inert published model and active-flow value storage; the complete original current-session and transition declarations execute unchanged.",
+    "No token storage, SDK, timers, phase registry, UI or iOS runtime is executed.",
+    "Snapshot identity is the production-captured nonempty account-a at generation3; current model includes nil/empty/different users."
+  ],
+  "upstream": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "wholeOriginalFiles": {
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/AuthCoordinator.swift": "f06fdcd6b4cf4d40f0ef38b58bead701d76ee6432738b26fe0f8244c87a177ed",
+    "Packages/Shared/CmuxAuthRuntime/Sources/CmuxAuthRuntime/Coordinator/TokenProviding.swift": "7d64f4a2bf7f6fb0f4d8b1e877b781ff01d56d4dda875f0b31d624c24c7a501f"
+  }
+}

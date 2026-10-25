@@ -3,6 +3,14 @@ records the 2026-10-25 live-verification receipt, restoration cancellation and
 initial v2 control credential split. The earlier evidence below retains its
 scope; full parity and live-device acceptance remain open.
 
+## Current-owner follow-up — 2026-10-25
+
+[Current-session owners](CURRENT_SESSION_OWNERS.md) records credential-free
+snapshot/deletion owner checks and retained deletion outcomes during unavailable
+storage. This supersedes the older current-owner open item below. Complete
+phase/transition wiring and Android's extra deletion-receipt admission behavior
+remain open; this is not complete account-deletion or UI/device parity.
+
 ## Cloud credential follow-up — 2026-10-25
 
 [Cloud credential context](CLOUD_CREDENTIAL_CONTEXT.md) adds fresh Cloud pair

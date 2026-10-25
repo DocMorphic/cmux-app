@@ -14,7 +14,8 @@ class NativeDeletionAuthorityTest {
     private class Store {
         var root=JSONObject().put("task_session","login").put("access_token","access-secret").put("refresh_token","refresh-secret").put("pairing","retain")
         var fail=false
-        fun load()=JSONObject(root.toString())
+        var unreadable=false
+        fun load():JSONObject {if(unreadable)throw NativeCredentialReadException();return JSONObject(root.toString())}
         fun update(change:(JSONObject)->Unit) {if(fail)throw NativeCredentialReadException();val next=load();change(next);NativeAccountDeletionRecord.prune(next);root=next}
     }
     private inner class Fixture(val scope:CoroutineScope) {
@@ -103,5 +104,24 @@ class NativeDeletionAuthorityTest {
         val receipt=NativeAccountDeletionReceipt(UUID.randomUUID().toString(),"login",NativeAccountDeletionResult.COMPLETED,
             NativeDeletionBinding(a.identity.userId,a.identity.generation,a.epoch,process))
         assertNull(authority.signOutOwner(receipt));assertEquals(2,reads)
+    }
+    @Test fun knownOutcomeSurvivesUnreadableStorageAndRecoveryWithoutBecomingAResend()=runTest {
+        val f=Fixture(this);val release=CompletableDeferred<Unit>()
+        f.response={release.await();NativeAccountDeletionResult.REJECTED}
+        val c=f.controller();assertTrue(c.begin("login"));runCurrent();f.store.unreadable=true
+        c.reconcile();assertEquals(NativeAccountDeletionResult.PROCESSING,c.state.value!!.result)
+        release.complete(Unit);runCurrent();assertEquals(NativeAccountDeletionResult.REJECTED,c.state.value!!.result)
+        c.reconcile();assertEquals(NativeAccountDeletionResult.REJECTED,c.state.value!!.result)
+        assertFalse(c.begin("login"));assertFalse(c.acknowledge(c.state.value!!));assertEquals(1,f.calls)
+        f.store.unreadable=false;c.reconcile();assertEquals(NativeAccountDeletionResult.REJECTED,c.state.value!!.result)
+        val restarted=f.controller();assertEquals(NativeAccountDeletionResult.UNKNOWN,restarted.state.value!!.result)
+        assertTrue(c.acknowledge(c.state.value!!));assertNull(c.state.value);assertEquals(1,f.calls)
+    }
+    @Test fun unreadableStorageCannotKeepAnOutcomeForAReplacementSession()=runTest {
+        val f=Fixture(this);val release=CompletableDeferred<Unit>()
+        f.response={withContext(NonCancellable){release.await()};NativeAccountDeletionResult.COMPLETED}
+        val c=f.controller();assertTrue(c.begin("login"));runCurrent();f.store.unreadable=true
+        f.owner=a.copy(identity=a.identity.copy(generation=2));c.reconcile();assertNull(c.state.value)
+        release.complete(Unit);runCurrent();assertNull(c.state.value);assertEquals(1,f.calls)
     }
 }

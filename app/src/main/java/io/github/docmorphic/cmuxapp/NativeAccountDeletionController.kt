@@ -85,18 +85,22 @@ internal class NativeAccountDeletionController(
                     if (current(receipt) && NativeAccountDeletionRecord.read(root)?.let { it.id == receipt.id && it.binding == binding } == true)
                         NativeAccountDeletionRecord.write(root, receipt.copy(result = result))
                 } } catch (_: Exception) { /* Retained PROCESSING restores as unknown, never success. */ }
-                if (running == receipt.id) { running = null; mutableState.value = restored() }
+                if (running == receipt.id) { running = null; mutableState.value = restored(receipt.copy(result=result)) }
             }
         }.also { it.start() }
         true
     }
 
     fun reconcile() = synchronized(lock) {
-        val saved = NativeAccountDeletionRecord.read(load())
+        val saved = try {NativeAccountDeletionRecord.read(load())} catch(_:NativeCredentialReadException) {
+            // Unknown encrypted storage cannot erase an outcome already received by this process.
+            if(mutableState.value?.let(::current)==true)return
+            job?.cancel();running=null;mutableState.value=null;return
+        }
         if (saved != null && saved.id == running && current(saved) && job?.isActive == true) return
         if (running != null) { job?.cancel(); running = null }
         val ephemeral = mutableState.value?.takeIf { it.result == NativeAccountDeletionResult.STORAGE && current(it) }
-        mutableState.value = restored() ?: ephemeral
+        mutableState.value = restored(mutableState.value) ?: ephemeral
     }
 
     fun acknowledge(receipt: NativeAccountDeletionReceipt): Boolean = synchronized(lock) {
@@ -120,9 +124,11 @@ internal class NativeAccountDeletionController(
         authority.status(receipt) == NativeDeletionReceiptStatus.CURRENT else load()?.let {
             it.optString("task_session") == receipt.login && it.optString("refresh_token").isNotBlank()
         } == true
-    private fun restored(): NativeAccountDeletionReceipt? = NativeAccountDeletionRecord.read(load())?.let {
+    private fun restored(retained:NativeAccountDeletionReceipt?=null): NativeAccountDeletionReceipt? = try {NativeAccountDeletionRecord.read(load())?.let {
         if (!current(it)) null
-        else if (it.result == NativeAccountDeletionResult.PROCESSING || authority != null && it.binding == null)
-            it.copy(result = NativeAccountDeletionResult.UNKNOWN) else it
-    }
+        else if (it.result == NativeAccountDeletionResult.PROCESSING)
+            retained?.takeIf { known -> authority!=null && known.id==it.id && known.binding==it.binding && known.result!=NativeAccountDeletionResult.PROCESSING }
+                ?: it.copy(result = NativeAccountDeletionResult.UNKNOWN)
+        else if(authority != null && it.binding==null)it.copy(result=NativeAccountDeletionResult.UNKNOWN) else it
+    }}catch(_:NativeCredentialReadException){retained?.takeIf(::current)}
 }

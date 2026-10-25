@@ -160,10 +160,10 @@ class NativeAuthenticatedSnapshotRuntimeTest {
             assertTrue(runCatching {reader.requireReadable()}.exceptionOrNull() is NativeCredentialReadException)
             assertEquals(NativeSignInError.NETWORK_ERROR,(runCatching {account.authenticatedSessionSnapshot()}.exceptionOrNull() as NativeSignInFailure).reason)
             assertEquals(NativeSignInError.NETWORK_ERROR,(runCatching {account.authenticatedRefreshTokenSnapshot()}.exceptionOrNull() as NativeSignInFailure).reason)
-            assertFalse(account.isAuthenticatedSessionCurrent(owner));assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null))
+            assertTrue(account.isAuthenticatedSessionCurrent(owner));assertEquals(cipher,context.getSharedPreferences(name,0).getString("state",null))
             unavailable=false;assertEquals(owner,account.authenticatedSessionSnapshot().owner);assertEquals(0,server.requestCount)
             record("unavailable-storage",JSONObject().put("noSnapshotWhileUnavailable",true).put("strictStoreFailureRetained",true)
-                .put("applicationPairAndRefreshRetryable",true).put("ciphertextPreserved",true).put("restoredSameIdentity",true))}
+                .put("applicationPairAndRefreshRetryable",true).put("publishedOwnerStillCurrent",true).put("ciphertextPreserved",true).put("restoredSameIdentity",true))}
     }
     @Test fun completeOriginalReleaseSnapshotsRunOnArt()=runBlocking<Unit> {
         val asset=InstrumentationRegistry.getInstrumentation().context.assets.open("native-snapshot-reference.json").bufferedReader().use{it.readText()}

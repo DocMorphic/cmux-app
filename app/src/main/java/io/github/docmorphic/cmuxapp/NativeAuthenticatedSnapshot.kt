@@ -103,5 +103,5 @@ internal class NativeAuthenticatedSnapshots(
     }
     /** Token rotation within this identity does not retire the operation that asked. */
     fun isCurrent(owner: NativeAuthenticatedOwner): Boolean =
-        !transitionActive() && publishedOwner()==owner && runCatching { read().let { !it.pending && it.owner == owner } }.getOrDefault(false)
+        !transitionActive() && publishedOwner()==owner
 }
