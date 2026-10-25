@@ -1,3 +1,40 @@
+## Real Pixel723 upgrade and Mac ACK crash — 2026-10-25
+
+With fresh owner availability, the Pixel was upgraded in place from signed712 to
+signed723. APK SHA256 and both signer certificates match the frozen candidate;
+the original first-install time remains unchanged. The existing account and saved
+Mac reconnected without sign-in or pairing, and the real terminal displayed its
+owned marker. Actual direct keyboard input was verified on the Mac before Enter;
+its harmless echo produced exactly one independent output line. The phone's
+original USB power setting is restored and the phone has been released.
+
+A real encrypted private-helper alert reached the Android notification shade.
+An explicitly terminal-targeted alert exposed Reply. Its exact harmless command
+was verified in the actual Android RemoteInput field before Send. The Mac then
+crashed in PhoneReplyInboxClient.acknowledge while JSONSerialization rejected
+__SwiftValue; a second ordinary relaunch reproduced the pending-ACK crash.
+Execution/ACK and cold-tap acceptance are not established.
+
+The cause is a wrong boundary type in the previous fixture: actual upstream
+MobileHostIdentity.instanceTag() returns String, while the fixture returned
+String?. Thus Optional.map in the patch actually called String.map in the full
+app and produced Character values that Foundation cannot serialize. The patch
+now encodes the String directly, with explicit null for the default stable tag;
+fetch normalizes that stable tag consistently. The fixture now has the real
+nonoptional return type, and its checker binds the original identity source and
+asserts that signature. All20 client cases, the actual worker fetch/ACK parser,
+five installer tests and eight cache tests pass. A full corrected Mac build and
+independent artifact/live acceptance are required before replacement.
+
+The Mac recovery launch currently uses an argument-domain-only mobile-listener
+pause to avoid retrying the known crash; the saved pairing preference remains1.
+Workspace restoration and removal of the disposable fixture are still being
+reconciled, and normal mobile listening must be restored after the verified fix.
+The saved helper registration remains present. No credential, signing material or
+pairing enrollment was replaced. Evidence is private under
+`captures/recovery-20261025/pixel-723-live-v1` and
+`captures/recovery-20261025/reply-ack-real-string-v1`.
+
 # Custom Mac notification build
 
 ## Restored Mac and scoped reply request correction — 2026-10-22

@@ -1,3 +1,15 @@
+## Pixel723 installed; Mac reply crash blocks acceptance — 2026-10-25
+
+The owner-authorized in-place712→723 upgrade preserves the stable signer, original
+first-install time, account and saved Mac. Real native connection and direct
+terminal input/output pass; encrypted helper delivery and Android Reply affordance
+are observed. Sending the controlled reply exposes a Mac JSON-serialization crash
+in acknowledgement. Reply execution/ACK and cold notification tap remain open.
+The source correction and recovery state are documented in
+[MAC_NOTIFICATION_BUILD.md](MAC_NOTIFICATION_BUILD.md). The phone's original USB
+power setting is restored; the phone is released. Candidate723 predates the newer
+Chief reopening, error-localization and effective-bundle-label changes.
+
 # Pixel 6a install and native pairing check
 
 Current source development is on `main`. These are development milestones;

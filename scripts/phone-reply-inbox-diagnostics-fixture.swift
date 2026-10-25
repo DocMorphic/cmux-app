@@ -16,7 +16,7 @@ func cmuxDebugLog(_ value: @autoclosure () -> String) { observation.log(value())
 
 enum MobileHostIdentity {
     static func deviceID() -> String { "fixture-mac" }
-    static func instanceTag() -> String? { CommandLine.arguments[1].contains("stable") ? nil : "fixture-instance" }
+    static func instanceTag() -> String { CommandLine.arguments[1].contains("stable") ? "default" : "fixture-instance" }
 }
 @MainActor enum PresenceHeartbeatClient {
     static var serviceURL: URL? = URL(string: "https://fixture.invalid")
@@ -130,7 +130,8 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
             } else {
                 precondition(request.httpMethod == "GET" && request.url?.path == "/v1/replies/e2e")
                 var expected = [URLQueryItem(name: "macDeviceId", value: "fixture-mac")]
-                if let tag = MobileHostIdentity.instanceTag() { expected.append(URLQueryItem(name: "macInstanceTag", value: tag)) }
+                let tag = MobileHostIdentity.instanceTag()
+                if tag != "default" { expected.append(URLQueryItem(name: "macInstanceTag", value: tag)) }
                 expected.append(URLQueryItem(name: "macBuildID", value: Bundle.main.bundleIdentifier ?? "cmux"))
                 precondition(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems == expected)
             }
