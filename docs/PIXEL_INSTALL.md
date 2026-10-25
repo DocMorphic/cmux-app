@@ -1,3 +1,14 @@
+## Mac repair restored; phone remains released — 2026-10-25
+
+Exact75c017be Mac build40208082394 is verified and running. Fresh backups,
+account/team, all original workspaces, pairing preference, one phone registration
+and existing TLS identity/listener are preserved. The approved Keychain wait is
+cleared. No phone operation or notification was performed. Frozen724 remains
+uninstalled and predates the latest Home avatar/digit changes; installed723 is
+last observed. Post-fix reply/ACK and cold tap await explicit fresh availability.
+Do not use or request the reclaimed phone now; do not re-enroll it. See the latest
+HANDOFF.md and MAC_NOTIFICATION_BUILD.md for the current Mac path and evidence.
+
 ## Signed candidate 724 and observable Mac ACK — 2026-10-25
 
 Signed candidate 724 is frozen from source 49827545 with the existing stable

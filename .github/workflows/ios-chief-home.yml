@@ -35,6 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_home.py
+          python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_reference_bundle.py
           cd upstream
           pin_major="$(cut -d. -f1 .xcode-version)"
           CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh

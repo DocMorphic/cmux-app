@@ -38,6 +38,11 @@ The next artifact also retains the built app ZIP and hashes every regular bundle
 file and link, including the Debug implementation dylib. Independent verification
 must compare those bytes before accepting its built-product identity; a launcher
 hash alone does not identify the compiled Swift implementation.
+`scripts/verify-ios-reference-bundle.py --capture <download> --output <fresh.json>`
+rehashes the retained bundle without executing or extracting it. Seven checks
+cover changed/missing implementation files, injected files, altered archives and
+contained/escaping links. This narrow bundle receipt still requires separate
+artifact/source/result binding and visual review.
 
 Run `.github/workflows/ios-chief-home.yml` manually. Local preparation, Swift
 syntax parsing and eight generator/guard tests pass. Native compilation/execution,

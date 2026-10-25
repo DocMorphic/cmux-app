@@ -1,3 +1,47 @@
+## Current continuation state — 2026-10-25
+
+The owner reclaimed the phone and repeated that they need it. No physical phone
+operations, test notifications, upgrades or availability questions until explicit
+fresh owner availability. Last installed723 and frozen signed724 are unchanged.
+The stable signer, account, pairing and original workspaces must be preserved.
+All thirteen completion areas remain open; source integration is not acceptance.
+
+Mac repair40208082394 succeeds at exact75c017be and is independently verified and
+running from captures/recovery-20261025/mac-reply-40208082394-app/cmux DEV android-push.app.
+Its ordinary quit/relaunch preserved the current account/team hashes and all three
+workspace IDs/order/selection. The owner approved the matching Keychain prompt;
+its wait is cleared. The private helper owner socket, one saved registration/zero
+retired rows, existing TLS certificate/hostname and enabled pairing preference
+are verified after launch. Keep Pair Android Notifications closed. Do not replace
+this with older40205170225/83878ea9. New runtime/backup receipts are in
+captures/recovery-20261025/mac-reply-runtime-40208082394. Live post-fix reply/ACK,
+exact terminal execution and cold notification taps still require the phone.
+
+Original UI run40217714743 is active at exact9aa995fe (three tests). Poll that
+specific handle; an observation timeout is not failure and does not justify a
+restart. Its predecessor40213828169 at56204e94 passes Home/search, fails question
+entry, and has nine independently verified/reviewed frame sets. The current run
+uses a measured physical tap on the original UIKit option. Its app binary is not
+in that older artifact schema; launcher/Info/resource hashes remain CI metadata.
+
+The next reference source prepares four tests/20 frames: original tab scaffold
+and search coordinator around Home, explicit unused sibling placeholders and
+English/Arabic visible1234/Int.max badges. It also preserves the full built app,
+including any Debug implementation dylib, for independent rehashing. Eight host
+guards and seven bundle-identity checks pass; Swift/Python parsing passes. These
+new scenes/archive retention are not yet native-executed. Wait for40217714743 to
+be terminal and inspect its results before dispatching the next reference run.
+The prepared immutable snapshot is chief-home-ui-source-e586c0d8; later commits
+add the bundle verifier and documentation without changing those UI templates.
+
+Android Home visible badge digits now follow the actual UI locale (eae2a16a),
+while the source-matched spoken summary retains Western digits. Final focused
+runtime passes5/5 in13.859s,72 native-matched summaries, reviewed ar-SA digit two,
+unchanged22 native libraries, empty crash log, restored settings and stopped owned
+AVD. Native geometry, visible wide-count formatting and the30 search differences
+per locale remain open. Do not ship a generic collator or vector-specific fixes.
+Private research is summarized in chief-home-search-next-findings.json.
+
 ## Corrected native UI run active — 2026-10-25
 
 [Run40213828169](https://github.com/DocMorphic/cmux-app/actions/runs/40213828169)
