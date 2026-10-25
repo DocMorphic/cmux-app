@@ -11,7 +11,8 @@ Inputs deliberately contain no authored expected results. Generate them with
 `scripts/generate-chief-home-search-cases.py --java-home <JDK17> --icu4j <icu4j-77.1.jar>`.
 The Java mapping helper authors query strings only; original native code decides
 the boolean result. GeneratedInputs.json binds the baseline, generators, input
-jar and resulting corpus hashes. The expanded corpus is not yet accepted on iOS.
+jar and resulting corpus hashes. The expanded corpus has now executed on iOS
+in independently verified run 40222183064, described below.
 
 The Original iOS Chief bundle lookups workflow compiles the complete original
 `MobileChiefConversation` declaration and unchanged predicate in a Foundation
@@ -35,5 +36,17 @@ branch use different search paths; applying a single collator to all queries is
 incorrect. The expanded local macOS original-method comparison agrees on5,537
 inputs and differs on nine historic Cyrillic case-fold mappings. Direct native
 mapping observations confirm those scalars remain unchanged there. This remains
-research: no new matcher is in production, and a fresh original iOS capture must
-validate the expanded corpus before it supports Android acceptance.
+research: no new matcher is in production. The expanded iOS capture below checks
+these inputs; additional cluster-rule gaps still prevent Android acceptance.
+
+Expanded native run40222183064 succeeds at exact de119d4b. Artifact12609983965
+matches SHA256c80144a6bbf58c39c4c770980f12617b548d80f72404339eda02f4f2d599bd66;
+independent frozen-source verification binds all49,914 search observations across
+nine locales,90 unread lookups and207/306 main/module label lookups. All5,546
+cases agree with the local original predicate in each locale. The private
+prototype using the entire observed local CoreFoundation scalar fold provider
+also agrees with these49,914 observations, resolving its nine mapping differences.
+That is still insufficient: an additional150 authored combining-mark/joiner
+inputs expose18 differences against the complete local original predicate.
+The prototype needs the native cluster rules as well as fold data; modern ICU
+grapheme boundaries alone do not reproduce them. No replacement matcher has shipped.

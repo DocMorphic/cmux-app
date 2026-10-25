@@ -1,3 +1,54 @@
+## Question keyboard fix and verified original references — 2026-10-25
+
+The Android full-question sheet now uses neutral capsule toolbar actions, an
+emphasized Send button, a compact handle and the captured navigation spacing.
+Focusing Other expands the medium sheet even when its resized dialog reports
+zero IME inset. The matched reference fixture exposed the bug: the field bottom
+was 2042 px below the actual keyboard top of 1613 px. Final runtime keeps it at
+1223–1282 px; enlarged text remains above the keyboard at 1386–1590 px.
+
+All 12 production question runtime tests pass in 94.251 seconds on the owned
+API 36 emulator. The same authored native question passes editing, physical
+Cancel/Send taps, default restoration, exactly one qualified answer without the
+discarded draft and the actual transcript receipt. Existing retry, concurrency,
+recreation, nine-language/RTL and enlarged-text cases pass. Source/APK hashes
+match, settings restore, the crash log is empty, both APK alignments pass and
+all 22 native-library hashes remain unchanged. The emulator exits successfully.
+Seven Android images were visually reviewed. Complete material, margin, font,
+system-bar and authenticated-shell equivalence remain open.
+
+Original Home run 40221580152 succeeds at c147788f: four tests and 20 bound
+PNG/AX/RPC frame sets. Artifact 12610303390 matches SHA256
+33e4ea2963a9de9a6751d24d0bd9cb8d0f7c051236c7cda1b9d76c3f21799c75.
+Independent verification binds original source/package trees, regenerated
+project, templates, catalog, runner and cleanup. All 418 files in the complete
+app archive, including the ARM64 Debug implementation dylib, are rehashed.
+Seven new tab-context/badge frames were visually reviewed. They expose another
+Android gap: visible 1234/Int.max badges need comma grouping, including Arabic
+digits with an ASCII comma. Fix that against these frames next. The unused
+sibling destinations remain placeholders; this is not authenticated shell parity.
+
+Original search run 40222183064 succeeds at de119d4b. Artifact 12609983965 matches
+SHA256 c80144a6bbf58c39c4c770980f12617b548d80f72404339eda02f4f2d599bd66.
+Frozen-source verification binds 5,546 inputs across nine locales: 49,914 search
+observations, plus 90 unread and 207/306 main/module label lookups. They all agree
+with the complete local original predicate. The private prototype with the full
+observed local scalar fold provider also agrees, but 150 additional local
+combining/joiner inputs still expose 18 cluster-rule gaps. No replacement matcher
+has shipped. This resource artifact omits the compiled app, so its binary hashes
+remain CI metadata; the separately archived Home UI app does not change that.
+
+The verified Mac helper and saved pairing remain restored. The owner has approved
+the matching Keychain prompt; no further prompt action is pending. The phone
+remains reclaimed: no operation, notification or availability question was made.
+Physical 723 and frozen signed 724 are unchanged; all 13 completion areas and
+the full goal remain open. Private receipts are under
+captures/recovery-20261025: chief-question-toolbar-checkpoint.json,
+chief-question-toolbar-runtime-v5, chief-home-ui-verification-40221580152.json,
+chief-home-ui-visual-review-40221580152.json,
+chief-home-search-native-verification-40222183064.json and
+foundation-search-forward-v1/expanded-ios-comparison-40222183064.json.
+
 ## Mac helper restored; original tab-context reference prepared — 2026-10-25
 
 The verified75c017be Mac app's Keychain suspension has cleared. Its private owner

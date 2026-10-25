@@ -89,18 +89,24 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
     NativeModalBottomSheet(onDismissRequest = { if (!currentBusy) onDismiss() }, sheetState = sheet,
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !busy),
         containerColor = if (dark) Color(0xFF1C1C1E) else Color.White,
-        dragHandle = { BottomSheetDefaults.DragHandle(Modifier.testTag("ChiefQuestionDragHandle")) },
+        dragHandle = {
+            Box(Modifier.fillMaxWidth().height(16.dp).testTag("ChiefQuestionDragHandle"), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(36.dp, 4.dp).background(muted.copy(alpha = .6f), RoundedCornerShape(2.dp)))
+            }
+        },
         modifier = Modifier.testTag("ChiefQuestionSheet")) {
         val ime = WindowInsets.ime
         val density = LocalDensity.current
         LaunchedEffect(sheet, ime, density) {
-            snapshotFlow { Triple(otherFocused, ime.getBottom(density), sheet.currentValue to sheet.targetValue) }.collect { (focused, bottom, _) ->
-                if (focused && bottom > 0) try {
+            snapshotFlow { Triple(otherFocused, ime.getBottom(density), sheet.currentValue to sheet.targetValue) }.collect { (focused, _, _) ->
+                if (focused) try {
+                    // A resized dialog can report zero IME inset. Focus must
+                    // still promote the medium sheet before its field is covered.
                     // Initial show() may choose partial after focus restores. A
                     // sequential collector does not cancel its own expansion.
                     if (sheet.currentValue != SheetValue.Expanded || sheet.targetValue != SheetValue.Expanded) sheet.expand()
                     withFrameNanos { }
-                    if (otherFocused && ime.getBottom(density) > 0) otherViewport.bringIntoView()
+                    if (otherFocused) otherViewport.bringIntoView()
                 } catch (interrupted: CancellationException) {
                     // A competing sheet mutation can interrupt expansion; keep
                     // observing unless this presentation itself was canceled.
@@ -109,22 +115,18 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
             }
         }
         Column(Modifier.fillMaxWidth().fillMaxHeight(.92f).imePadding()) {
-            Layout(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), content = {
-                TextButton(onClick = onDismiss, modifier = Modifier.testTag("ChiefQuestionCancel"), colors = ButtonDefaults.textButtonColors(contentColor = blue)) {
-                    Text(nativeChiefMainString(R.string.chief_question_cancel), style = nativeChiefTextStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+            Layout(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp), content = {
+                ChiefQuestionToolbarButton(nativeChiefMainString(R.string.chief_question_cancel), "ChiefQuestionCancel", ink = ink, onClick = onDismiss)
                 Text(nativeChiefMainString(R.string.chief_question_title), Modifier.testTag("ChiefQuestionTitle").semantics { heading() },
                     color = ink, style = nativeChiefTextStyle().copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
-                TextButton(onClick = { onSend(form) }, enabled = form.canSubmit && !busy, modifier = Modifier.testTag("ChiefQuestionSubmit"),
-                    colors = ButtonDefaults.textButtonColors(contentColor = blue)) {
-                    Text(question.submitLabel ?: nativeChiefMainString(R.string.chief_question_send), style = nativeChiefTextStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                ChiefQuestionToolbarButton(question.submitLabel ?: nativeChiefMainString(R.string.chief_question_send), "ChiefQuestionSubmit",
+                    ink = ink, confirmation = true, enabled = form.canSubmit && !busy, onClick = { onSend(form) })
             }) { children, constraints ->
                 val actions = constraints.copy(minWidth = 0, minHeight = 0, maxWidth = constraints.maxWidth / 3)
                 val cancel = children[0].measure(actions); val send = children[2].measure(actions)
                 val title = children[1].measure(constraints.copy(minWidth = 0, minHeight = 0,
                     maxWidth = (constraints.maxWidth - 2 * maxOf(cancel.width, send.width)).coerceAtLeast(0)))
-                val height = maxOf(44.dp.roundToPx(), cancel.height, send.height, title.height)
+                val height = maxOf(54.dp.roundToPx(), cancel.height, send.height, title.height)
                 layout(constraints.maxWidth, height) {
                     cancel.placeRelative(0, (height - cancel.height) / 2)
                     title.placeRelative((constraints.maxWidth - title.width) / 2, (height - title.height) / 2)
@@ -188,6 +190,23 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
                     Text(chiefQuestionErrorText(error), Modifier.testTag("ChiefQuestionError"), color = Color(0xFFFF3B30), style = nativeChiefTextStyle(13))
                 }
             }
+        }
+    }
+}
+
+/** Original system toolbar: neutral capsules, with emphasis on confirmation. */
+@Composable
+private fun ChiefQuestionToolbarButton(label: String, tag: String, ink: Color, confirmation: Boolean = false,
+    enabled: Boolean = true, onClick: () -> Unit) {
+    // Keep the 36-point visual capsule inside an Android-sized touch target.
+    Box(Modifier.heightIn(min = 48.dp).testTag(tag).clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center) {
+        Box(Modifier.heightIn(min = 36.dp).background(ink.copy(alpha = .035f), RoundedCornerShape(50))
+            .border(.5.dp, ink.copy(alpha = .12f), RoundedCornerShape(50)).padding(horizontal = 16.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center) {
+            Text(label, color = ink.copy(alpha = if (enabled) 1f else .3f),
+                style = nativeChiefTextStyle().copy(fontWeight = if (confirmation) FontWeight.SemiBold else FontWeight.Normal),
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

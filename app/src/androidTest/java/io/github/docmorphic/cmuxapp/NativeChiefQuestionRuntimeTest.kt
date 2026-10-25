@@ -134,6 +134,49 @@ class NativeChiefQuestionRuntimeTest {
             compose.onNodeWithTag("ChiefQuestionSheet").printToString()
         }?:"Sheet absent")
     }
+    @Test fun originalReferenceQuestionEditsCancelReopenAndSubmitThroughTheMountedTranscript() {
+        useAppLocale("en")
+        // Same authored question and response as native original run 40217714743.
+        val q=NativeChiefQuestion("question-1",NativeChiefQuestion.Source(NativeChiefQuestion.Harness.CHIEF,"chief-main",null,null,"Chief",null,null),
+            listOf(NativeChiefQuestion.Item("region",null,"Which region?",listOf(
+                NativeChiefQuestion.Option("us","United States","Recommended",null),NativeChiefQuestion.Option("eu","Europe",null,null)),false,true)),
+            NativeChiefQuestion.State.PENDING,null,null)
+        scenario!!.close()
+        instrument.runOnMainSync {
+            computer.close()
+            NativeChiefLifecycleTestActivity.darkThemeOverride=true
+            api.rows=listOf(message("question-message",1uL,q).copy(text="Which region?",at=Instant.parse("2026-10-25T12:00:00Z")))
+            api.settledAnswer=NativeChiefQuestion.Answer(mapOf("region" to NativeChiefQuestion.Selection(listOf("us"))),null,null)
+            computer=NativeChiefComputerSession(scope,api) { current }
+            NativeChiefLifecycleTestActivity.computer=computer
+        }
+        scenario=ActivityScenario.launch(NativeChiefLifecycleTestActivity::class.java)
+        compose.onNodeWithTag("ChiefPinnedConversation").performClick()
+        compose.waitUntil(10_000) { computer.transcript()!!.state.value.messages.map { it.id }==listOf("question-message") }
+        open("question-message",expand=false)
+        compose.onNodeWithTag("ChiefQuestionOption:region:us").assertIsSelected()
+        compose.onNodeWithTag("ChiefQuestionSubmit").assertIsEnabled()
+        capture("chief-question-reference-medium")
+        compose.onNodeWithTag("ChiefQuestionOther:region").performScrollTo().performClick().performTextInput("Custom region")
+        compose.onNodeWithTag("ChiefQuestionOption:region:us").assertIsNotSelected()
+        assertOtherAboveActualKeyboard("chief-question-reference-keyboard")
+        compose.onNodeWithTag("ChiefQuestionCancel").performTouchInput { click() }
+        compose.onNodeWithTag("ChiefQuestionSheet").assertDoesNotExist()
+        open("question-message",expand=false)
+        compose.onNodeWithTag("ChiefQuestionOption:region:us").assertIsSelected()
+        assertEquals("",compose.onNodeWithTag("ChiefQuestionOther:region").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text)
+        capture("chief-question-reference-reopened")
+        compose.onNodeWithTag("ChiefQuestionSubmit").performTouchInput { click() }
+        compose.waitUntil(10_000) { api.answers.size==1 }
+        assertEquals(Call("question-message",listOf("region\u001fus"),null),api.answers.single())
+        compose.onNodeWithTag("ChiefQuestionSubmit").assertIsNotEnabled()
+        instrument.runOnMainSync { api.replies.trySend(Result.success(Unit)) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefQuestionSheet").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText("Which region?\n✓ United States").assertExists()
+        capture("chief-question-reference-submitted")
+        assertEquals(1,api.answers.size)
+    }
     @Test fun reopeningTheSamePendingQuestionOwnsAnIndependentRequestAndRetainedCommitCanReopenAgain() {
         open();unit();compose.onNodeWithTag("ChiefQuestionSubmit").performClick()
         compose.waitUntil(10_000) { api.answers.size==1 }
@@ -364,6 +407,7 @@ class NativeChiefQuestionRuntimeTest {
         @Volatile var retainPendingAfterAnswer=false
         @Volatile var failReadAfterAnswer=false
         @Volatile var answerFailure:Exception?=null
+        var settledAnswer:NativeChiefQuestion.Answer?=null
         fun snapshot()=NativeChiefRead("chief-main",false,rows,false,0uL,0,rows.maxOfOrNull { it.seq },"read")
         override suspend fun conversations(afterCursor:String?,waitForChange:Boolean):NativeChiefSnapshot {
             if(waitForChange) awaitCancellation()
@@ -380,7 +424,8 @@ class NativeChiefQuestionRuntimeTest {
             answers+=Call(message!!,choices.toList(),text)
             try { answerFailure?.let { throw it };replies.receive().getOrThrow() } catch(e:CancellationException) { cancellations++;throw e } finally { completions++ }
             if(retainPendingAfterAnswer) failReadAfterAnswer=true
-            else rows=rows.map { row -> if(row.id!=message) row else row.copy(partPayloads=row.partPayloads.map { part -> part.copy(question=part.question!!.copy(state=NativeChiefQuestion.State.CANCELLED)) }) }
+            else rows=rows.map { row -> if(row.id!=message) row else row.copy(partPayloads=row.partPayloads.map { part -> part.copy(question=part.question!!.copy(
+                state=if(settledAnswer==null) NativeChiefQuestion.State.CANCELLED else NativeChiefQuestion.State.ANSWERED,answer=settledAnswer)) }) }
             return NativeChiefAnswered("chief-main",message,choices)
         }
         override suspend fun send(text:String,conversation:String?,from:String?,startTurn:Boolean,clientMessageId:String?):NativeChiefSent=error("Unexpected send")
