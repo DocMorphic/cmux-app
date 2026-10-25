@@ -64,7 +64,10 @@ class NativeCredentialStore private constructor(context: Context, storageName: S
     internal val revisions: kotlinx.coroutines.flow.StateFlow<Long> get() = changeState
     // Background workers construct separate account/store objects for this same document.
     internal val authWork = synchronized(storageLock) {
-        accountWork.getOrPut(context.applicationInfo.dataDir + "/" + storageName) { NativeAuthWork() }
+        accountWork.getOrPut(context.applicationInfo.dataDir + "/" + storageName) {
+            NativeAuthWork(nowMillis=android.os.SystemClock::elapsedRealtime,waitUntil=NativeContinuousDeadline::await,
+                retryNowMillis=android.os.SystemClock::uptimeMillis)
+        }
     }
     internal fun refreshCoordinator(environment:String):NativeTokenRefresh = synchronized(storageLock) {
         refreshWork.getOrPut(documentKey to environment) { NativeTokenRefresh(now=android.os.SystemClock::elapsedRealtime) }

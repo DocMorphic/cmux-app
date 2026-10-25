@@ -1,5 +1,13 @@
 # Coherent authenticated credential capture
 
+## Continuous phase clock follow-up — 2026-10-25
+
+[Continuous auth deadlines](CONTINUOUS_AUTH_DEADLINES.md) corrects the production
+phase clock and timer together while keeping retry suppression on uptime.
+This supersedes the older NativeAuthWork default-clock open item below. Other
+timeout wrappers, complete phase finish/high-water and actual OS sleep remain
+open; controlled timers and stopped Activity delivery are separate evidence.
+
 ## Current-owner follow-up — 2026-10-25
 
 [Current-session owners](CURRENT_SESSION_OWNERS.md) records credential-free

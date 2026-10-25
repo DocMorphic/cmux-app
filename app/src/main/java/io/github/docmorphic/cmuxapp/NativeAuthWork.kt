@@ -11,6 +11,8 @@ internal class NativeAuthWork(
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
     private val retryResetMillis: Long = 30_000,
     private val teardownDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val waitUntil:(suspend (Long)->Unit)?=null,
+    private val retryNowMillis:()->Long=nowMillis,
 ) {
     internal enum class Admission { EXCLUSIVE, TOKEN, SHARED_REFRESH, PHASE, CLEANUP }
     private class Entry(val phase: NativeAuthPhase, val owner: String?, val admission: Admission, val job: Job) {
@@ -54,10 +56,10 @@ internal class NativeAuthWork(
             lifetime.cancel()
         }
         try {
-            return awaitPhaseWinner(scope, task, entry, waitMillis)
+            return awaitPhaseWinner(scope, task, entry, deadline)
         } catch (failure: Exception) {
             if (failure is PhaseTimeout || failure is CancellationException) {
-                synchronized(lock) { if (entry in active) entry.timedOutAt = nowMillis() }
+                synchronized(lock) { if (entry in active) entry.timedOutAt = retryNowMillis() }
                 task.cancel(if ((failure is PhaseTimeout || failure is TimeoutCancellationException) && context.isActive)
                     NativeAuthDeadlineCancellation() else CancellationException("Account work cancelled"))
             }
@@ -73,12 +75,24 @@ internal class NativeAuthWork(
     /** Settle the race before dispatching the caller; delayed delivery cannot change its winner. */
     @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun <T> awaitPhaseWinner(scope: CoroutineScope, task: Deferred<T>, entry: Entry,
-        timeoutMillis: Long): T = suspendCancellableCoroutine { continuation ->
+        deadlineMillis: Long): T = suspendCancellableCoroutine { continuation ->
         val settled = java.util.concurrent.atomic.AtomicBoolean(false)
         val timer = scope.launch(start = CoroutineStart.LAZY) {
-            delay(timeoutMillis)
+            try {
+                if(waitUntil!=null)waitUntil.invoke(deadlineMillis)
+                else delay((deadlineMillis-nowMillis()).coerceAtLeast(0))
+                ensureActive()
+            }catch(_:CancellationException){return@launch}
+            catch(failure:Exception){
+                if(settled.compareAndSet(false,true)) {
+                    synchronized(lock){if(entry in active)entry.timedOutAt=retryNowMillis()}
+                    task.cancel(CancellationException("Deadline wait failed"))
+                    continuation.resumeWith(Result.failure(failure))
+                }
+                return@launch
+            }
             if (settled.compareAndSet(false, true)) {
-                synchronized(lock) { if (entry in active) entry.timedOutAt = nowMillis() }
+                synchronized(lock) { if (entry in active) entry.timedOutAt = retryNowMillis() }
                 task.cancel(NativeAuthDeadlineCancellation())
                 continuation.resumeWith(Result.failure(PhaseTimeout()))
             }
@@ -251,7 +265,7 @@ internal class NativeAuthWork(
 
     private fun register(entry: Entry): Boolean = synchronized(lock) {
         active.filter { it.phase == entry.phase }.forEach { old ->
-            if (old.admission == Admission.EXCLUSIVE && old.timedOutAt?.let { nowMillis() - it >= retryResetMillis } == true)
+            if (old.admission == Admission.EXCLUSIVE && old.timedOutAt?.let { retryNowMillis() - it >= retryResetMillis } == true)
                 old.blocksAdmission = false
         }
         val conflict = active.any { old -> old.phase == entry.phase && old.blocksAdmission && when (entry.admission) {

@@ -1,3 +1,32 @@
+## Continuous auth phase deadlines — 2026-10-25
+
+Production auth phases now measure and wait on continuous boot time, including
+suspend, using a shared process-owned kernel timer. Retry suppression keeps its
+separate uptime clock. Token phases preserve late-result expiry, and canceled or
+timed-out operations stay tracked until actual retirement. A timer setup failure
+settles the caller and gates its still-retiring operation. No new alarm permission
+or native binary is introduced.
+
+Full JVM/build-v4: 3,519 total in 472 suites, 3,515 passed, four existing SSH skips,
+zero failures/errors. Six focused API36 cases pass in 47.37 seconds, checking
+actual clock ID7, one shared timer for 20 waits, descriptor cleanup, production
+store timeouts and Activity-stop delivery. The full run passes 297/297 in 559.119
+seconds, six new methods and 291 regressions. Both runs bind identical source
+inputs and installed APK hashes, have empty crash logs and no preflight ANR,
+restore settings/window and observe owned emulator exit 0. Final full JVM XML
+remains unchanged. These fixtures do not establish actual device suspend, Doze
+or physical parity.
+
+Evidence: `captures/recovery-20261025/continuous-checkpoint.json`.
+
+Other preflight/teardown/controller timeout wrappers and complete original phase
+finish/high-water and transition wiring remain open. Full UI, physical device and
+signed delivery gates remain active. Real account/pairing/signing data, global
+pins and frozen signed722 are preserved.
+
+Details: [Continuous auth deadlines](CONTINUOUS_AUTH_DEADLINES.md).
+Earlier checkpoints below retain their historical scope and open items.
+
 ## Credential-free current-session checks — 2026-10-25
 
 Snapshot and deletion owner checks now use the published account/generation and

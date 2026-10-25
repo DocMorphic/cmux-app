@@ -209,6 +209,8 @@ dependencies {
     implementation("org.mozilla.geckoview:geckoview:157.0.20260924084938")
     implementation(project(":legacy-biometric"))
     implementation(project(":iroh"))
+    // Reuse the same Android JNA runtime already packaged by Iroh for libc CLOCK_BOOTTIME timers.
+    implementation("net.java.dev.jna:jna:5.17.0@aar")
     implementation(project(":ghostty"))
     val composeBom = platform("androidx.compose:compose-bom:2025.09.00")
     implementation(composeBom)

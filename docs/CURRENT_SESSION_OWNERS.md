@@ -1,5 +1,13 @@
 # Credential-free current-session checks
 
+## Continuous phase clock follow-up — 2026-10-25
+
+[Continuous auth deadlines](CONTINUOUS_AUTH_DEADLINES.md) corrects the production
+phase clock and timer together while keeping retry suppression on uptime.
+This supersedes the older NativeAuthWork default-clock open item below. Other
+timeout wrappers, complete phase finish/high-water and actual OS sleep remain
+open; controlled timers and stopped Activity delivery are separate evidence.
+
 Current-session validation now compares the published account, session generation,
 shared writer epoch and local incarnation without reading encrypted credentials.
 Storage availability is a credential-capture verdict, not evidence that a

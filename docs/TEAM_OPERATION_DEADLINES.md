@@ -1,5 +1,13 @@
 # Team operation deadlines and publication
 
+## Continuous phase clock follow-up — 2026-10-25
+
+[Continuous auth deadlines](CONTINUOUS_AUTH_DEADLINES.md) corrects the production
+phase clock and timer together while keeping retry suppression on uptime.
+This supersedes the older NativeAuthWork default-clock open item below. Other
+timeout wrappers, complete phase finish/high-water and actual OS sleep remain
+open; controlled timers and stopped Activity delivery are separate evidence.
+
 The team controller now applies the original network phase boundaries to direct,
 Settings and worker-owned calls. Creation, the subsequent membership attempt and
 final selection each receive a separate 60-second budget. A selection's fresh-user
