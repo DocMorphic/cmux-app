@@ -1,5 +1,16 @@
 # Android background push
 
+## Actual worker cancellation and helper ACK recovery — 2026-10-25
+
+A new WorkManager/Keystore/HTTPS runtime check with the local production
+Node/CryptoKit helper verifies cancellation after two actual renewal commits,
+exact-proof ACK recovery, latest-token convergence and logout revocation without
+restoring trust. Runtime-v2 passes11/11; full JVM/build-v4 passes3,529 with four
+existing SSH skips. The token/storage adapter is injected, and the default
+Firebase/permission observer and physical delivery remain open. See
+[Helper worker recovery](PUSH_WORKER_RECOVERY.md) for bounds, retained failures,
+provenance and remaining full-parity gates.
+
 ## Current registration readiness — 2026-10-25
 
 Helper maintenance now selects due work before its eight-operation cap and

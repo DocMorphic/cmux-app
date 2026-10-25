@@ -10,7 +10,7 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 internal object PhoneHelperMaintenanceWork {
-    private const val NAME = "cmux.push.maintenance"
+    internal const val NAME = "cmux.push.maintenance"
     private val serial = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val http = okhttp3.OkHttpClient()
@@ -70,6 +70,10 @@ internal object PhoneHelperMaintenanceWork {
         var pending = false
         val changed = access(context, true) { pending = it.pending().isNotEmpty() }
         if (!pending) return@withContext
+        enqueue(context, changed)
+    }
+    /** Shared scheduling boundary; credential reconciliation stays in recover(). */
+    internal suspend fun enqueue(context: Context, changed: Boolean) {
         WorkManager.getInstance(context).enqueueUniqueWork(NAME, if (changed) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<PhoneHelperMaintenanceWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
@@ -83,8 +87,11 @@ internal object PhoneHelperMaintenanceWork {
     }
 }
 
-class PhoneHelperMaintenanceWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
+class PhoneHelperMaintenanceWorker internal constructor(context: Context, parameters: WorkerParameters,
+    private val maintenance: suspend () -> Boolean) : CoroutineWorker(context, parameters) {
+    constructor(context: Context, parameters: WorkerParameters) : this(context, parameters,
+        { PhoneHelperMaintenanceWork.run(context.applicationContext) })
     override suspend fun doWork(): Result = try {
-        if (PhoneHelperMaintenanceWork.run(applicationContext)) Result.retry() else Result.success()
+        if (maintenance()) Result.retry() else Result.success()
     } catch (_: Exception) { currentCoroutineContext().ensureActive(); Result.retry() }
 }

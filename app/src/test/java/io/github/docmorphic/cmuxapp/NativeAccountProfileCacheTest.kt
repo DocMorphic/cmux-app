@@ -3,11 +3,15 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.*
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.RecordedRequest
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class NativeAccountProfileCacheTest {
     @Test fun persistedSelectionNormalizesLikeTheCompleteOriginalSelectionStore() {
@@ -81,23 +85,48 @@ class NativeAccountProfileCacheTest {
 
     @Test fun offlineFailureKeepsCachedDetailsAndVerifiedRefreshReconcilesMembershipAndSelection() = runBlocking<Unit> {
         MockWebServer().use { server ->
-            val store = Store(); seed(server, store)
+            data class Profile(val selected: String?, val ids: List<String>, val name: String, val offline: Boolean = false)
+            val response = AtomicReference(Profile("two", listOf("one", "two"), " Fixture Person "))
+            val requests = ConcurrentLinkedQueue<String>()
+            // Either failed user read may cancel its sibling before dispatch.
+            // Route by path/current phase instead of leaving a counted 503 in
+            // the user queue for the following verified refresh to consume.
+            server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse {
+                    requests += request.method + " " + request.path
+                    val current = response.get()
+                    return when (request.method + " " + request.path) {
+                        "GET /api/v1/users/me" -> if (current.offline) MockResponse().setResponseCode(503) else MockResponse().setBody(
+                            JSONObject().put("id", "user").put("display_name", current.name).put("primary_email", "person@example.test")
+                                .put("selected_team", current.selected?.let { JSONObject().put("id", it) } ?: JSONObject.NULL).toString())
+                        "GET /api/v1/teams?user_id=me" -> MockResponse().setBody(JSONObject().put("items", JSONArray(current.ids.map {
+                            JSONObject().put("id", it).put("display_name", "Team $it")
+                        })).toString())
+                        else -> MockResponse().setResponseCode(599)
+                    }
+                }
+            }
+            val store = Store()
+            controller(server, store).use { assertNotNull(it.refresh().scope) }
             controller(server, store).use { restored ->
-                server.teamUsers(2){MockResponse().setResponseCode(503)}
+                response.set(response.get().copy(offline = true))
                 assertTrue(runCatching { restored.refresh() }.isFailure)
                 assertTrue(restored.state.value.cached); assertNull(restored.state.value.scope)
                 assertEquals(" Fixture Person ", restored.state.value.displayName)
-                server.profile(selected = null, name = "Updated Person")
+                response.set(Profile(null, listOf("one", "two"), "Updated Person"))
                 val fresh = restored.refresh()
                 assertEquals("two", fresh.selectedTeamId) // Same-user persisted choice, still an actual membership.
                 assertEquals("Updated Person", fresh.displayName); assertFalse(fresh.cached)
                 assertTrue(restored.isCurrent(checkNotNull(fresh.scope)))
-                server.profile(selected = "two", ids = listOf("one"))
+                response.set(response.get().copy(selected = "two", ids = listOf("one")))
                 assertEquals("one", restored.refresh().selectedTeamId)
-                server.profile(selected = null, ids = emptyList())
+                response.set(response.get().copy(selected = null, ids = emptyList()))
                 assertNull(restored.refresh().scope); assertTrue(restored.state.value.teams.isEmpty())
             }
             controller(server, store).use { assertTrue(it.state.value.cached); assertEquals("one",it.state.value.selectedTeamId) }
+            assertEquals(4, requests.count { it == "GET /api/v1/teams?user_id=me" })
+            assertTrue(requests.count { it == "GET /api/v1/users/me" } in 9..10)
+            assertEquals(requests.size, requests.count { it == "GET /api/v1/users/me" || it == "GET /api/v1/teams?user_id=me" })
         }
     }
 

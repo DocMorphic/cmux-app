@@ -1,0 +1,89 @@
+{
+  "notice": "PUBLIC SYNTHETIC TEST KEYS ONLY. No live helper, account, project or FCM token.",
+  "now": 1800000000000,
+  "phonePrivateKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "offerDigest": "f187219b283f495dbb848d46778b8bc952a7a68164cfb7b1de0eff1e1851ceb3",
+  "requestDigest": "a09740ddda6248d9434666d41ad4b14e114e2daf5bff31ba37fc7954957e89fb",
+  "offer": {
+    "endpoint": "https://helper.invalid/v1/push/enroll",
+    "project": {
+      "project": "fixture-project",
+      "application": "fixture-app",
+      "sender": "123456"
+    },
+    "phoneBuildID": "io.github.docmorphic.cmuxapp",
+    "mac": {
+      "accountID": "test-account",
+      "teamID": "test-team",
+      "macDeviceID": "test-mac",
+      "macInstanceTag": "test-instance",
+      "macBuildID": "dev.cmux.app"
+    },
+    "native": {
+      "version": 1,
+      "algorithm": "rawX25519",
+      "installationID": "test-native/λ中",
+      "keyID": "test-native-key",
+      "publicKey": "V9tLNZ8jrl4Ubk4lEgVnBHIlBjSMFQwUdT0Mkz0E1CE="
+    },
+    "helper": {
+      "version": 1,
+      "algorithm": "rawX25519",
+      "installationID": "test-helper",
+      "keyID": "test-sender-key",
+      "publicKey": "NYBy1jZYgNGu6jKa35EhODhR7SGijjt16WXQ0s0WYlQ="
+    },
+    "version": 1,
+    "offerID": "236d3903-0a73-4a8c-b862-7b5242bb82c4",
+    "expiresAt": 1800000120000,
+    "secret": "lsM4_c52yc55RIidRCCDvomP-iCUTM9M6sggsQuVSYM"
+  },
+  "begin": {
+    "offerID": "236d3903-0a73-4a8c-b862-7b5242bb82c4",
+    "requestID": "00000000-0000-4000-8000-000000000001",
+    "phone": {
+      "version": 1,
+      "algorithm": "rawX25519",
+      "installationID": "test-phone",
+      "keyID": "test-recipient-key",
+      "publicKey": "j0DFrbaPJWJK5bIU6nZ6bslNgp09e14a0bpvPiE4KF8="
+    },
+    "token": "public-fixture-fcm-token",
+    "proof": "nssBoPJaJ9Jj-tApM7ydRawGCyP54ItEitjBgMeoNs8"
+  },
+  "response": {
+    "offerID": "236d3903-0a73-4a8c-b862-7b5242bb82c4",
+    "requestID": "00000000-0000-4000-8000-000000000001",
+    "envelope": {
+      "ciphertext": "tXjjfsgPl+1udm1okPGFQGrXlUrhC8oO7NWinJWh9BWGvzmWg/YOB9rW9Xt++JsJUiSVd8xetdy3dPScOxm5SaE1sZ389bZsf4VwzqXQHfqHV+4mQM6mBMIJaYqTKjRuRSvLxxohkWD+aenoD5T4a1lgfAB8NBh1WjnKowCAFjq2rF0hV0KR6hv0dvykUe1BJDt7oTN8bO56gDQAlEzlluiaqVZ5cP0xmesDD09SOQRcg5BQjmXynHsCxfSVI4L2aZPhPhnYQ3Tbc5DpXH965n30H6SBm1Z3SOw6TlVtAvEfvSKrHXGwDgRTN68TU3Am2ILybxmHW1ayIMK5QZlIp4O+GaFRIs6jCI3rvUrUkmNrVFxOnjdvC+NSysL1JOKGD0+uKHS6deqT4UsphI4OPgwkxoOy4lcs7oWhPqwkrbPfOErAYD9yt/uni/+TM/1kk6M6vGBoNSjeDHWKxnDPD4D6LxyUIthrPdeI0Amrht1DHXf4eaw9c9FWi+6OuoIcPA87/5NHfijY+GabgWvYox0BEC4vmiAqu9Kj5pM=",
+      "encapsulatedKey": "60eG18WpKWRBeqedC18TSHcS3/nzcIMPtC075kA/sDw=",
+      "installationID": "test-phone",
+      "keyID": "test-recipient-key",
+      "senderKeyID": "test-sender-key",
+      "tuple": {
+        "accountID": "test-account",
+        "iosBuildID": "io.github.docmorphic.cmuxapp",
+        "iosInstallationID": "test-phone",
+        "macBuildID": "dev.cmux.app",
+        "macDeviceID": "test-mac",
+        "macInstanceTag": "test-instance",
+        "teamID": "test-team"
+      },
+      "version": 2
+    }
+  },
+  "finish": {
+    "offerID": "236d3903-0a73-4a8c-b862-7b5242bb82c4",
+    "requestID": "00000000-0000-4000-8000-000000000001",
+    "proof": "DFyfPhTB3dgoVql3bjR3KTL0o2GVr4MykTqgHgxvmP4"
+  },
+  "ack": {
+    "offerID": "236d3903-0a73-4a8c-b862-7b5242bb82c4",
+    "requestID": "00000000-0000-4000-8000-000000000001",
+    "registration": {
+      "id": "6bf191f2-8e1f-4783-b3ff-63a8f13b3abb",
+      "generation": "cb105cb2-0f87-44ce-a75a-817f98888f68"
+    },
+    "proof": "dmTIVZNrns5n8-7CNYaGCggma9kmWCnwm5v-O50U9y0"
+  }
+}

@@ -1,3 +1,30 @@
+## Helper worker recovery across a canceled HTTPS response — 2026-10-25
+
+The actual WorkManager/worker/recovery/HTTPS path now runs against isolated
+encrypted stores and the production local Node/CryptoKit helper. Two responses
+are withheld after real renewal commits, then REPLACE cancels their workers.
+Exact saved proofs recover both committed ACKs; the latest token becomes current,
+then logout removes its next generation without restoring trust. Pairing survives.
+The default permission/Firebase observer is an explicit untested adapter boundary.
+
+Runtime-v2 passes 11/11 in 10.027 seconds, one new two-phase scenario plus ten
+storage regressions. It observes four helper commits, empty crash log, no preflight
+ANR, restored settings/window and emulator/helper exit0. Full JVM/build-v4 passes
+3,529 total: 3,525 passed, four existing SSH skips, zero failures/errors. Both APKs
+build and match the passing runtime pair. The retained earlier failures and one
+JVM-only post-runtime fixture correction are documented with exact scope.
+
+Evidence: `captures/recovery-20261025/helper-worker-checkpoint.json`.
+The public WorkManager constructor and production recovery behavior are preserved;
+scoped operation injection and a shared enqueue boundary enable this check.
+Full observer/provider, physical Pixel/Mac/native terminal/cold taps, complete
+UI/accessibility, remaining feature/backend/source reconciliation and signed
+delivery gates stay open. Account/pairing/signing data, global pins and frozen
+signed722 are preserved. Full parity remains active.
+
+Details: [Helper worker recovery](PUSH_WORKER_RECOVERY.md).
+Earlier checkpoints below retain their historical scope and open items.
+
 ## Current notification registration before historical cleanup — 2026-10-25
 
 Fixed a helper-maintenance queue starvation case: eight historical retry rows

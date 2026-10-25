@@ -126,6 +126,11 @@ source audit-v3. No deadline, authority or pass-limit assertion was relaxed.
 
 ## Remaining obligations
 
+Follow-up: [Helper worker recovery](PUSH_WORKER_RECOVERY.md) executes actual
+WorkManager cancellation and real TLS ACK recovery against the production local
+helper, with an isolated token/storage adapter. It adds evidence beyond the Retry
+transport seam here; the default observer/Firebase and physical gates stay open.
+
 Complete registration-hook, observer/worker scheduling and cancellation parity
 is not closed by this readiness fix. Other preflight/registry/caller/presentation
 and nested currentTokens/deletion behavior remains open. No physical phone or
