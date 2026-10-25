@@ -1,3 +1,23 @@
+## Whole original Home/sheet reference prepared — 2026-10-25
+
+The new manual ios-chief-home workflow links the complete unchanged original
+ShellUI, Shell, RPC and MobileCore packages, instantiates the actual Home view,
+and navigates through its original representable/backend/controller to the private
+question sheet. A controlled byte transport is the only service seam; the main
+app catalog is copied unchanged. This preserves the original view and backend
+implementation rather than reconstructing their bodies in a reference UI.
+
+Three UI tests target eight Home states, real expanded-case search and question
+open/edit/cancel/reopen/submit, retaining compositor screenshots and AX trees.
+The question send must carry the exact fixture message/default qualified choice
+and produce the original backend's answered receipt. Unknown RPCs fail. The runner
+requires clean committed reference source and deletes only its owned Simulator.
+Eight source-generator/guard tests pass; generated Xcode project lint, Python
+syntax and Swift syntax parsing pass locally. Native compilation, runtime success,
+artifact/visual verification and matched Android acceptance remain unproven.
+No real account, Mac workspace or phone is used. See
+[the host scope](../tests/ios-chief-home-reference/README.md).
+
 ## Home Unicode search reference prepared — 2026-10-25
 
 The current Android Home filter uses Kotlin contains(ignoreCase), while the

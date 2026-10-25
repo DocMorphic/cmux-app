@@ -1,0 +1,66 @@
+name: Original iOS Chief Home and question UI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-chief-original-home
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    runs-on: macos-26
+    timeout-minutes: 80
+    env:
+      CMUX_WIREGUARD_GO_REQUIRE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cmux-app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.10'
+          cache: false
+      - name: Select the source SDK family and check the host generator
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_home.py
+          cd upstream
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
+      - name: Provision the original pinned native engine
+        run: |
+          set -euo pipefail
+          cd upstream
+          git submodule update --init --depth 1 ghostty
+          ./scripts/install-zig-ci.sh
+          ./scripts/ensure-ghosttykit.sh
+      - name: Run actual Home navigation and full question sheet
+        run: |
+          set -euo pipefail
+          python3 cmux-app/scripts/run-ios-chief-home-reference.py \
+            --upstream upstream --output "$RUNNER_TEMP/chief-home"
+      - name: Preserve original UI observations and bounded diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-chief-original-home
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/chief-home/*.json
+            ${{ runner.temp }}/chief-home/*.log
+            ${{ runner.temp }}/chief-home/*.stderr
+            ${{ runner.temp }}/chief-home/*.swift
+            ${{ runner.temp }}/chief-home/*.xcstrings
+            ${{ runner.temp }}/chief-home/ChiefHomeReference.xcodeproj
+            ${{ runner.temp }}/chief-home/attachments

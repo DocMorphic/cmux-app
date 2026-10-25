@@ -1,0 +1,65 @@
+[
+  {
+    "id": "loading",
+    "mode": "loading",
+    "language": "en",
+    "style": "light",
+    "category": "large"
+  },
+  {
+    "id": "empty",
+    "mode": "empty",
+    "language": "en",
+    "style": "light",
+    "category": "large"
+  },
+  {
+    "id": "failure",
+    "mode": "failure",
+    "language": "en",
+    "style": "dark",
+    "category": "large"
+  },
+  {
+    "id": "pinned-only",
+    "mode": "pinned",
+    "language": "en",
+    "style": "dark",
+    "category": "large"
+  },
+  {
+    "id": "recent",
+    "mode": "recent",
+    "language": "en",
+    "style": "dark",
+    "category": "large"
+  },
+  {
+    "id": "recent-light",
+    "mode": "recent",
+    "language": "en",
+    "style": "light",
+    "category": "large"
+  },
+  {
+    "id": "recent-arabic",
+    "mode": "recent",
+    "language": "ar",
+    "style": "dark",
+    "category": "large"
+  },
+  {
+    "id": "recent-big",
+    "mode": "recent",
+    "language": "en",
+    "style": "dark",
+    "category": "accessibilityExtraExtraExtraLarge"
+  },
+  {
+    "id": "question",
+    "mode": "question",
+    "language": "en",
+    "style": "dark",
+    "category": "large"
+  }
+]
