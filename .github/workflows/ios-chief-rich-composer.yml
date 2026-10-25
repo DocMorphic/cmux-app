@@ -8,7 +8,7 @@ on:
         type: choice
         required: true
         default: transactions
-        options: [transactions, fonts]
+        options: [transactions, fonts, systemFonts]
       category:
         description: Actual system text category
         type: choice
@@ -51,7 +51,7 @@ jobs:
           pin_major="$(cut -d. -f1 .xcode-version)"
           CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
           cd ..
-          python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_rich_composer.py
+          python3 -m unittest discover -s cmux-app/scripts/tests -p 'test_ios_chief*.py'
           python3 cmux-app/scripts/prepare-ios-chief-reference.py --upstream upstream --output "$RUNNER_TEMP/rich-composer" --with-rich-composer
           xcodebuild -version
       - name: Select disposable hosted simulator
@@ -74,19 +74,32 @@ jobs:
           mode=test
           test_method=testCaptureOriginalRichComposerTransactions
           if [ "$REFERENCE_PROBE" = fonts ]; then test_method=testCaptureOriginalRichComposerLiveFonts; fi
+          if [ "$REFERENCE_PROBE" = systemFonts ]; then
+            if [ "$REFERENCE_CATEGORY" != large ]; then echo 'systemFonts requires category=large (it changes the system category live)'; exit 2; fi
+            test_method=testCaptureOriginalRichComposerGlobalFonts
+          fi
           for category in large accessibilityMedium; do
             if [ "$REFERENCE_CATEGORY" != all ] && [ "$REFERENCE_CATEGORY" != "$category" ]; then continue; fi
             system_category=large
             if [ "$category" = accessibilityMedium ]; then system_category=accessibility-medium; fi
             xcrun simctl ui "$RICH_COMPOSER_SIMULATOR" content_size "$system_category"
             xcrun simctl ui "$RICH_COMPOSER_SIMULATOR" content_size
-            xcodebuild "$mode" -project "$RUNNER_TEMP/rich-composer/CmuxChiefReference.xcodeproj" \
-              -scheme CmuxChiefReference -destination "platform=iOS Simulator,id=$RICH_COMPOSER_SIMULATOR" \
-              -derivedDataPath "$RUNNER_TEMP/rich-composer-derived" -destination-timeout 90 \
-              -parallel-testing-enabled NO -testLanguage en -testRegion US \
-              -only-testing:"CmuxChiefReferenceTests/CmuxChiefRichComposerTests/$test_method" \
-              -resultBundlePath "$RUNNER_TEMP/rich-composer-$category.xcresult" \
-              CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/rich-composer-$category.log"
+            build=(xcodebuild "$mode" -project "$RUNNER_TEMP/rich-composer/CmuxChiefReference.xcodeproj"
+              -scheme CmuxChiefReference -destination "platform=iOS Simulator,id=$RICH_COMPOSER_SIMULATOR"
+              -derivedDataPath "$RUNNER_TEMP/rich-composer-derived" -destination-timeout 90
+              -parallel-testing-enabled NO -testLanguage en -testRegion US
+              -only-testing:"CmuxChiefReferenceTests/CmuxChiefRichComposerTests/$test_method"
+              -resultBundlePath "$RUNNER_TEMP/rich-composer-$category.xcresult" CODE_SIGNING_ALLOWED=NO)
+            if [ "$REFERENCE_PROBE" = systemFonts ]; then
+              if ! python3 cmux-app/scripts/run-ios-chief-global-fonts.py \
+                --simulator "$RICH_COMPOSER_SIMULATOR" --source-commit "$GITHUB_SHA" \
+                --events "$RUNNER_TEMP/rich-composer-global-font-events.json" \
+                --log "$RUNNER_TEMP/rich-composer-$category.log" -- "${build[@]}"; then
+                tail -80 "$RUNNER_TEMP/rich-composer-$category.log"; exit 1
+              fi
+            else
+              "${build[@]}" 2>&1 | tee "$RUNNER_TEMP/rich-composer-$category.log"
+            fi
             mode=test-without-building
           done
       - name: Export and bind original composer observations
@@ -98,6 +111,7 @@ jobs:
             xcrun xcresulttool export attachments --path "$RUNNER_TEMP/rich-composer-$category.xcresult" --output-path "$RUNNER_TEMP/rich-composer-exported/$category"
             font_flags=()
             if [ "$REFERENCE_PROBE" = fonts ]; then font_flags+=(--font-cases); fi
+            if [ "$REFERENCE_PROBE" = systemFonts ]; then font_flags+=(--system-font-cases --bridge-events "$RUNNER_TEMP/rich-composer-global-font-events.json"); fi
             python3 cmux-app/scripts/verify-ios-chief-rich-composer.py "${font_flags[@]}" \
               --exported "$RUNNER_TEMP/rich-composer-exported/$category" \
               --output "$RUNNER_TEMP/rich-composer-canonical/$category" \
@@ -107,7 +121,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ios-chief-rich-composer${{ inputs.probe == 'fonts' && '-fonts' || '' }}
+          name: ios-chief-rich-composer${{ inputs.probe == 'systemFonts' && '-system-fonts' || inputs.probe == 'fonts' && '-fonts' || '' }}
           if-no-files-found: error
           path: |
             ${{ runner.temp }}/rich-composer-canonical
@@ -116,3 +130,4 @@ jobs:
             ${{ runner.temp }}/rich-composer-*.log
             ${{ runner.temp }}/rich-composer/Provenance.json
             ${{ runner.temp }}/rich-composer-simulators.json
+            ${{ runner.temp }}/rich-composer-global-font-events.json

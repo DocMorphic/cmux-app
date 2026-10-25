@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "probe": "globalFonts",
+  "cases": [
+    {
+      "id": "global-formatted-selection-metrics-roundtrip",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "bold move"
+        },
+        {
+          "kind": "select",
+          "start": 0,
+          "length": 4
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "bold"
+        },
+        {
+          "kind": "toggle",
+          "target": "big"
+        },
+        {
+          "kind": "systemMetricsCategory",
+          "target": "accessibilityMedium"
+        },
+        {
+          "kind": "systemMetricsCategory",
+          "target": "large"
+        },
+        {
+          "kind": "closeEffects"
+        },
+        {
+          "kind": "insert",
+          "text": "X"
+        },
+        {
+          "kind": "undo"
+        },
+        {
+          "kind": "redo"
+        },
+        {
+          "kind": "send"
+        }
+      ]
+    },
+    {
+      "id": "global-emoji-base-metrics-and-restyle",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "🙂"
+        },
+        {
+          "kind": "select",
+          "selection": "all"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "bold"
+        },
+        {
+          "kind": "toggle",
+          "target": "big"
+        },
+        {
+          "kind": "systemMetricsCategory",
+          "target": "accessibilityMedium"
+        },
+        {
+          "kind": "closeEffects"
+        },
+        {
+          "kind": "select",
+          "selection": "end"
+        },
+        {
+          "kind": "insert",
+          "text": " "
+        },
+        {
+          "kind": "deleteBackward"
+        },
+        {
+          "kind": "systemMetricsCategory",
+          "target": "large"
+        },
+        {
+          "kind": "undo"
+        },
+        {
+          "kind": "send"
+        }
+      ]
+    },
+    {
+      "id": "global-marked-metrics-change",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "italic"
+        },
+        {
+          "kind": "closeEffects"
+        },
+        {
+          "kind": "marked",
+          "text": "かな",
+          "start": 2,
+          "length": 0
+        },
+        {
+          "kind": "systemMetricsCategory",
+          "target": "accessibilityMedium"
+        },
+        {
+          "kind": "unmark"
+        },
+        {
+          "kind": "insert",
+          "text": "X"
+        },
+        {
+          "kind": "systemMetricsCategory",
+          "target": "large"
+        },
+        {
+          "kind": "undo"
+        },
+        {
+          "kind": "send"
+        }
+      ]
+    },
+    {
+      "id": "global-caret-typing-metrics-reset",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "base"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "bold"
+        },
+        {
+          "kind": "closeEffects"
+        },
+        {
+          "kind": "systemMetricsCategory",
+          "target": "accessibilityMedium"
+        },
+        {
+          "kind": "insert",
+          "text": "X"
+        },
+        {
+          "kind": "systemMetricsCategory",
+          "target": "large"
+        },
+        {
+          "kind": "undo"
+        },
+        {
+          "kind": "redo"
+        },
+        {
+          "kind": "send"
+        }
+      ]
+    }
+  ]
+}

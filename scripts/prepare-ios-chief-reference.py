@@ -54,6 +54,7 @@ def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False, wit
         shutil.copyfile(templates / 'RichComposerTests.swift', output / 'RichComposerTests.swift')
         shutil.copyfile(root / 'tests/chief-rich-composer/Cases.json', output / 'RichComposerCases.json')
         shutil.copyfile(root / 'tests/chief-rich-composer/FontCases.json', output / 'RichComposerFontCases.json')
+        shutil.copyfile(root / 'tests/chief-rich-composer/GlobalFontCases.json', output / 'RichComposerGlobalFontCases.json')
     if with_ui:
         shutil.copyfile(templates / (ui_kind + 'ReferenceApp.swift'), output / 'ReferenceApp.swift')
         for name in (ui_tests, ui_fixture):
@@ -83,7 +84,9 @@ def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False, wit
     if with_rich_composer:
         provenance.update(richComposerTestsSha256=hashlib.sha256((output / 'RichComposerTests.swift').read_bytes()).hexdigest(),
                           richComposerCasesSha256=hashlib.sha256((output / 'RichComposerCases.json').read_bytes()).hexdigest(),
-                          richComposerFontCasesSha256=hashlib.sha256((output / 'RichComposerFontCases.json').read_bytes()).hexdigest())
+                          richComposerFontCasesSha256=hashlib.sha256((output / 'RichComposerFontCases.json').read_bytes()).hexdigest(),
+                          richComposerGlobalFontCasesSha256=hashlib.sha256((output / 'RichComposerGlobalFontCases.json').read_bytes()).hexdigest(),
+                          richComposerGlobalFontBridgeSha256=hashlib.sha256((root / 'scripts/run-ios-chief-global-fonts.py').read_bytes()).hexdigest())
     (output / 'Provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
 
     def uid(name): return hashlib.sha256(name.encode()).hexdigest()[:24].upper()
@@ -97,7 +100,7 @@ def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False, wit
                            ('Scenes.json', 'text.json'), ('Interactions.json', 'text.json'), ('Actions.json', 'text.json'), ('Provenance.json', 'text.json'), ('ChiefAvatar.png', 'image.png')] + (
                                [(ui_tests, 'sourcecode.swift'), (ui_fixture, 'text.json')] if with_ui else []) + (
                                [('DataDetectionTests.swift', 'sourcecode.swift'), ('DataDetectionCases.json', 'text.json')] if with_data_detection else []) + (
-                               [('RichComposerTests.swift', 'sourcecode.swift'), ('RichComposerCases.json', 'text.json'), ('RichComposerFontCases.json', 'text.json')] if with_rich_composer else []):
+                               [('RichComposerTests.swift', 'sourcecode.swift'), ('RichComposerCases.json', 'text.json'), ('RichComposerFontCases.json', 'text.json'), ('RichComposerGlobalFontCases.json', 'text.json')] if with_rich_composer else []):
         refs[filename] = obj(filename, 'PBXFileReference', f'lastKnownFileType = {q(kind)}; path = {q(filename)}; sourceTree = "<group>";')
     app_product = obj('app-product', 'PBXFileReference', 'explicitFileType = wrapper.application; path = CmuxChiefReferenceHost.app; sourceTree = BUILT_PRODUCTS_DIR;')
     test_product = obj('test-product', 'PBXFileReference', 'explicitFileType = wrapper.cfbundle; path = CmuxChiefReferenceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
@@ -114,7 +117,7 @@ def prepare(upstream, output, with_translation_ui=False, with_poll_ui=False, wit
     source_builds = {}
     for name in ('ReferenceApp.swift', 'ReferenceTests.swift') + (('DataDetectionTests.swift',) if with_data_detection else ()) + (('RichComposerTests.swift',) if with_rich_composer else ()):
         source_builds[name] = obj(name + '-build', 'PBXBuildFile', f'fileRef = {refs[name]};')
-    resource_builds = [obj(name + '-build', 'PBXBuildFile', f'fileRef = {refs[name]};') for name in ('Scenes.json', 'Interactions.json', 'Actions.json', 'Provenance.json', 'ChiefAvatar.png') + (('DataDetectionCases.json',) if with_data_detection else ()) + (('RichComposerCases.json', 'RichComposerFontCases.json') if with_rich_composer else ())]
+    resource_builds = [obj(name + '-build', 'PBXBuildFile', f'fileRef = {refs[name]};') for name in ('Scenes.json', 'Interactions.json', 'Actions.json', 'Provenance.json', 'ChiefAvatar.png') + (('DataDetectionCases.json',) if with_data_detection else ()) + (('RichComposerCases.json', 'RichComposerFontCases.json', 'RichComposerGlobalFontCases.json') if with_rich_composer else ())]
     app_sources = obj('app-sources', 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = ({source_builds["ReferenceApp.swift"]},); runOnlyForDeploymentPostprocessing = 0;')
     test_sources = obj('test-sources', 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = ({source_builds["ReferenceTests.swift"]},' + (f' {source_builds["DataDetectionTests.swift"]},' if with_data_detection else '') + (f' {source_builds["RichComposerTests.swift"]},' if with_rich_composer else '') + '); runOnlyForDeploymentPostprocessing = 0;')
     test_frameworks = obj('test-frameworks', 'PBXFrameworksBuildPhase', f'buildActionMask = 2147483647; files = ({", ".join(frameworks)},); runOnlyForDeploymentPostprocessing = 0;')

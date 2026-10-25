@@ -1,3 +1,22 @@
+## Mounted native global text-size probe candidate — 2026-10-25
+
+The new systemFonts mode requests actual Simulator system content-size changes
+while the original pinned controller/editor remains mounted. Four separate cases /
+49 declared public actions include eight Large/Accessibility Medium transitions,
+continued marked/caret/emoji/selected editing, undo/redo and four source Store sends
+to the existing in-memory rejecting backend. The original transaction/controller-
+font cases and accepted observations are unchanged.
+
+The hosted-only bridge validates request/source identities, runs explicit simctl
+arguments, records command/readback events and restores the original category on
+success/failure. Export guards bind that exact driver, require native application/
+controller/editor category propagation and match each observed response to the
+host event inventory. They do not prescribe a semantic/font outcome. All 126 Python
+reference guards pass, Swift parses, workflow YAML/bash parses and the generated
+host binds the new fixture/bridge to the unchanged package tree. Native compile,
+execution and independent export acceptance are still pending. Android behavior
+has not changed from this candidate; full parity remains active.
+
 ## Bounded rich-effect reuse during animated scrolling — 2026-10-25
 
 The mounted renderer now retains glyph images/keyframe tracks across viewport

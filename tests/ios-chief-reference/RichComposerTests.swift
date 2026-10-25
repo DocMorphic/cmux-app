@@ -143,6 +143,33 @@ final class CmuxChiefRichComposerTests: XCTestCase {
         store: ConversationStore, backend: RichComposerBackend) async throws -> [String: Any] {
         var observed: [String: Any] = [:]
         switch action.kind {
+        case "systemMetricsCategory":
+            let name = try XCTUnwrap(action.target)
+            guard name == "large" || name == "accessibilityMedium" else { throw RichComposerFailure.invalidAction }
+            let category: UIContentSizeCategory = name == "large" ? .large : .accessibilityMedium
+            let bundle = Bundle(for: Self.self)
+            let provenance = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf:
+                XCTUnwrap(bundle.url(forResource: "Provenance", withExtension: "json")))) as? [String: Any])
+            let commit = try XCTUnwrap(provenance["projectSourceCommit"] as? String)
+            let identifier = UUID().uuidString
+            let directory = try XCTUnwrap(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first)
+                .appendingPathComponent("ChiefGlobalFontBridge", isDirectory: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let request: [String: Any] = ["schema": 1, "referenceKind": "chiefGlobalFontRequest", "id": identifier,
+                "target": name, "sourceCommit": commit]
+            try JSONSerialization.data(withJSONObject: request).write(to: directory.appendingPathComponent("request.json"), options: .atomic)
+            var response: [String: Any]?
+            try await wait("host applies actual simulator system category") {
+                guard let data = try? Data(contentsOf: directory.appendingPathComponent("response.json")),
+                      let value = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                      value["id"] as? String == identifier else { return false }
+                response = value
+                return UIApplication.shared.preferredContentSizeCategory == category &&
+                    controller.traitCollection.preferredContentSizeCategory == category &&
+                    text.traitCollection.preferredContentSizeCategory == category
+            }
+            observed["invocation"] = "xcrun.simctl.ui.content_size"
+            observed["bridge"] = try XCTUnwrap(response)
         case "metricsCategory":
             let name = try XCTUnwrap(action.target)
             guard name == "large" || name == "accessibilityMedium" else { throw RichComposerFailure.invalidAction }
@@ -220,6 +247,9 @@ final class CmuxChiefRichComposerTests: XCTestCase {
     }
     @MainActor func testCaptureOriginalRichComposerLiveFonts() async throws {
         try await capture(resource: "RichComposerFontCases", probe: "liveFonts")
+    }
+    @MainActor func testCaptureOriginalRichComposerGlobalFonts() async throws {
+        try await capture(resource: "RichComposerGlobalFontCases", probe: "globalFonts")
     }
     @MainActor private func capture(resource: String, probe: String) async throws {
         let bundle = Bundle(for: Self.self)

@@ -55,3 +55,16 @@ without prescribing semantic outcomes. Existing accepted transaction projection
 is unchanged. See CHIEF_RICH_TEXT.md for observations and important scope limits:
 per-controller overrides retain a fixed global application category and do not
 prove live global Settings, rendered pixels, physical input or Android behavior.
+
+## Mounted global system-font probe candidate
+
+GlobalFontCases.json is a separate four-case / 49-action probe. Dispatch
+probe=systemFonts and category=large. The hosted-only Python driver wraps the
+reference xcodebuild and answers native JSON requests with actual simctl system
+content-size changes/readbacks. Native application/controller/editor categories
+and span fonts are recorded while the same editor remains mounted. A full request
+round-trip and category restoration are required; --system-font-cases verification
+also requires the exact --bridge-events receipt. Source Store sends use only the
+existing authored in-memory backend. Local 126 guards, host generation and Swift/
+workflow parsing pass; actual native execution/export acceptance remains pending.
+No accepted transaction/controller-font projection or Android behavior is replaced.
