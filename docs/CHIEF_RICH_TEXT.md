@@ -201,6 +201,47 @@ hardware, TalkBack, Pixel/Mac workflows, GPU budgets and matched UIKit presentat
 remain. Account/pairing/signing, global source pins and signed722 are preserved.
 Full parity remains active; no physical device was modified this continuation.
 
+## Priority formatting keyboard commands — 2026-10-25
+
+The original ConversationComposerView.swift at pinned a5911a1f defines priority
+Command-B/I/U keyCommands, permits them when isEditable and invokes toggle(.bold),
+toggle(.italic) and toggle(.underline). Its full attributed source SHA256 is
+0c330915c1f033f577b6b44da624da41a0b862c463b88b44ec9b9f4e37e7d0a2, already recorded
+in the manifest. The Android composer now handles Ctrl/Meta-B/I/U in its preview
+key handler, before Foundation processes them. The existing semantic toggles
+preserve mixed selection styles, effects, first-chunk typing and owner publication.
+Formatting chords with Alt/Shift are not intercepted. Key-up/unrelated events
+fall through. Current mounting, visit, resume and editable-owner guards cover
+formatting and existing Z/Y undo/redo dispatch.
+
+Actual Android View key dispatch verifies selected B/I/U combination, both Ctrl
+and Meta families, left/right modifier keys, partial-selection unformatting and
+unchanged Big effects. Palette selection and published owner runs agree. At the
+caret, a multi-commit Foundation batch styles only its first chunk; Meta-Z,
+Ctrl-Shift-Z and Ctrl-Y restore semantic history without inserting shortcut
+letters. Extra-modifier chords, a retired disabled field, paused Activity and
+obsolete current-owner predicates cannot apply formatting; resume permits it.
+
+Final build-v3 and combined runtime-v2 pass 38/38 in 122.464s. Runtime-v1 passed
+all four new keyboard checks but the existing real system-font check asserted
+focus while the new window was still restoring it. The final fixture waits at
+most 10s for actual focus, then performs the same assertions; it neither requests
+focus nor changes production restoration. Build-v1 required the Compose test API
+opt-in; build-v2 was the first successful APK pair. Those attempts remain excluded
+from final combined acceptance. Final crash log is empty, settings restore, owned
+emulator exits 0, all 32 controlled effect frames are identical and warm scroll
+preparation remains 80 then 0. All 22 native libraries/frozen signed722 match;
+16 KiB ZIP alignment passes. The previous 3,541-pass/four-skip JVM checkpoint is
+reused after binding unchanged semantic/JVM sources and corpora; only the mounted
+UI handler and Android instrumentation changed. Evidence:
+`captures/recovery-20261025/rich-keyboard-checkpoint.json`.
+
+The keyboard source is hash-mapped, not newly executed through UIKit hardware
+dispatch. Injected View events do not establish physical keyboard/global OS
+shortcut behavior, actual Gboard, TalkBack or Pixel/Mac acceptance. Wider input/
+clipboard/focus, empty/font traits/deep navigation, long-distance scrolling/GPU
+budgets, matched UIKit pixels and all thirteen full-app gates remain open.
+
 ## Mounted global system-font behavior verified and ported — 2026-10-25
 
 [Run 40175245243](https://github.com/DocMorphic/cmux-app/actions/runs/40175245243)

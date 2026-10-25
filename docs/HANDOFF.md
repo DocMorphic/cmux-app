@@ -1,3 +1,39 @@
+## Chief formatting keyboard commands ported — 2026-10-25
+
+The pinned ComposerTextView declares priority Command-B/I/U and routes them to
+the same semantic toggles as its palette when editable. Android now handles
+Ctrl/Meta-B/I/U before Foundation's defaults, preserving text, selection and
+existing effects. Caret formatting applies to the first accepted batch chunk.
+Commands require the current mounted visit, resumed lifecycle and editable owner;
+extra Alt/Shift formatting chords are left to the platform. Z/Y history remains.
+
+Final debug/test build-v3 succeeds; disposable API 36 runtime-v2 passes 38/38 in
+122.464s: four new actual View key-dispatch checks plus the prior 34 editor/
+lifecycle/render regressions. Selection and caret styling, palette/owner state,
+Ctrl/Meta history, pause/resume, retired fields and obsolete owners are checked.
+The first run passed all four new checks but an existing system-font case observed
+focus before its recreated window restored it. Final test waits at most 10s for
+actual focus and retains the assertion; production focus handling is unchanged.
+Crash log is empty, settings restore and the owned AVD exits 0. All 32 controlled
+effect frames, all 22 native libraries and frozen signed722 match; ZIP alignment
+passes. Semantic/JVM sources remain unchanged from the accepted 3,541-pass /
+four-existing-skip suite, which was reused rather than rerun for this UI handler.
+
+This is source-mapped Android key dispatch, not a new native hardware run or
+physical keyboard/Gboard acceptance. Empty/font-trait/deep-navigation behavior,
+wider clipboard/input/focus, long-distance scroll/GPU budgets, matched UIKit
+presentation and real Pixel/Mac workflows remain open. All thirteen completion
+areas remain open; full parity stays active. Global pins and real account/pairing/
+signing are preserved. Evidence: `captures/recovery-20261025/rich-keyboard-checkpoint.json`.
+Earlier dated entries retain their own checkpoint scope.
+
+NEXT: reconcile wider rich clipboard/input/focus and empty/font-trait/deep-
+navigation behavior against the original controller, and continue the Chief
+source/UI inventory and thirteen broader gates. Physical Pixel/Mac availability
+is pending; do not reuse historical device permissions. All owned builds/runtime
+handles are terminal; no owned Gradle/AVD remains. Preserve account/pairing/signing,
+global pins and frozen signed722. No new signed candidate was promoted.
+
 ## Live text-size changes follow the verified native editor — 2026-10-25
 
 The retained Chief editor now handles effective font-scale changes like the
@@ -30,13 +66,7 @@ passes. Full parity remains active. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md)
 Evidence: `captures/recovery-20261025/rich-global-fonts-checkpoint.json`.
 Earlier dated entries retain their original checkpoint scope.
 
-NEXT: port the original ComposerTextView priority Command-B/I/U actions to
-Android Ctrl/Meta handling (the current handler only implements Z/Y history).
-Check current mounting/editability and actual View key dispatch; injected keys
-are not physical hardware acceptance. Continue empty/font-trait/deep-navigation
-coverage, long-distance scrolling and the thirteen broader gates. Pixel/Mac
-availability is still pending. All owned build/runtime handles are terminal;
-no owned Gradle/AVD remains. Preserve account/pairing/signing, pins and signed722.
+The pending keyboard port from this checkpoint is addressed above.
 
 ## Bounded rich-effect reuse during animated scrolling — 2026-10-25
 

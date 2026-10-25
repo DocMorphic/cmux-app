@@ -17,6 +17,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.input.key.Key
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
 import org.junit.Before
@@ -26,7 +27,7 @@ import org.junit.Test
 
 /** Actual production state-based field and wrapped Foundation InputConnection, on an AVD only.
  * Public input calls are deterministic; these are not physical Gboard/keyboard acceptance. */
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalTestApi::class)
 class NativeChiefRichComposerRuntimeTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     @get:Rule val testName = org.junit.rules.TestName()
@@ -38,6 +39,7 @@ class NativeChiefRichComposerRuntimeTest {
     private var fontScale by mutableFloatStateOf(1f)
     private var direction by mutableStateOf(androidx.compose.ui.unit.LayoutDirection.Ltr)
     private var limitHeight by mutableStateOf(false)
+    private var retired by mutableStateOf(false)
     private val sent = mutableListOf<Pair<String, List<NativeConversationTextRun>>>()
     @After fun clearFixtureClipboard() {
         compose.runOnUiThread { compose.activity.getSystemService(android.content.ClipboardManager::class.java).clearPrimaryClip() }
@@ -63,7 +65,7 @@ class NativeChiefRichComposerRuntimeTest {
                         Column {
                             Spacer(Modifier.weight(1f))
                             Box(if (limitHeight) Modifier.height(260.dp) else Modifier) {
-                            NativeChiefComposer(ownerText, ownerRevision, false, { publish(it, emptyList()) }, { _, _ -> false },
+                            NativeChiefComposer(ownerText, ownerRevision, retired, { publish(it, emptyList()) }, { _, _ -> false },
                                 richEditorState = rich, draftRuns = ownerRuns, onRichDraft = ::publish,
                                 onRichSend = { text, _, runs -> sent += text to runs; publish("", emptyList()); true })
                             }
@@ -110,6 +112,76 @@ class NativeChiefRichComposerRuntimeTest {
         bitmap.recycle()
         val diagnostic = compose.onNodeWithTag("ChiefComposerBar").printToString() + "\nRich: " + rich.snapshot + "\nOwner: " + ownerRuns
         java.io.File(directory, "$name.txt").writeText(diagnostic)
+    }
+
+    @Test fun priorityKeyboardCommandsCombineSelectedStylesAndKeepPaletteAndOwnerInSync() {
+        edit { it.commitText("base", 1); it.setSelection(0, 4) }
+        compose.runOnUiThread { rich.toggle(NativeConversationTextEffect.BIG) }
+        compose.onNodeWithTag("ChiefComposer").performKeyInput {
+            keyDown(Key.CtrlLeft); pressKey(Key.B); keyUp(Key.CtrlLeft)
+            keyDown(Key.MetaLeft); pressKey(Key.I); keyUp(Key.MetaLeft)
+            keyDown(Key.CtrlRight); pressKey(Key.U); keyUp(Key.CtrlRight)
+        }
+        compose.runOnUiThread {
+            assertEquals("base", rich.field.text.toString()); assertEquals(TextRange(0, 4), rich.field.selection)
+            assertEquals(listOf(NativeConversationTextRun(0, 4, 7, NativeConversationTextEffect.BIG)), ownerRuns)
+            assertEquals(ownerRuns, rich.snapshot.runs); assertTrue(rich.coherent)
+        }
+        openPalette()
+        for (name in listOf("bold", "italic", "underline")) compose.onNodeWithTag("ChiefTextStyle:$name").assertIsSelected()
+        compose.onNodeWithTag("ChiefTextEffect:big").assertIsSelected()
+        capture("rich-keyboard-selected")
+        edit { it.setSelection(2, 4) }
+        compose.onNodeWithTag("ChiefComposer").performKeyInput {
+            keyDown(Key.MetaRight); pressKey(Key.B); keyUp(Key.MetaRight)
+        }
+        compose.runOnUiThread {
+            assertEquals(listOf(NativeConversationTextRun(0, 2, 7, NativeConversationTextEffect.BIG),
+                NativeConversationTextRun(2, 2, 6, NativeConversationTextEffect.BIG)), ownerRuns)
+            assertEquals(TextRange(2, 4), rich.field.selection); assertEquals("base", rich.snapshot.text)
+        }
+        compose.onNodeWithTag("ChiefTextStyle:bold").assertIsNotSelected()
+    }
+
+    @Test fun caretKeyboardStylesApplyToTheFirstBatchChunkAndHistoryKeysRestoreThem() {
+        compose.onNodeWithTag("ChiefComposer").performKeyInput {
+            keyDown(Key.CtrlLeft); pressKey(Key.B); pressKey(Key.I); pressKey(Key.U); keyUp(Key.CtrlLeft)
+        }
+        compose.runOnUiThread { assertEquals(7L, rich.snapshot.typingStyle); assertEquals("", rich.snapshot.text) }
+        edit { it.beginBatchEdit(); it.commitText("a", 1); it.commitText("b", 1); it.endBatchEdit() }
+        val styled = listOf(NativeConversationTextRun(0, 1, 7))
+        compose.runOnUiThread { assertEquals("ab", rich.snapshot.text); assertEquals(styled, ownerRuns); assertEquals(0L, rich.snapshot.typingStyle) }
+        compose.onNodeWithTag("ChiefComposer").performKeyInput { keyDown(Key.MetaLeft); pressKey(Key.Z); keyUp(Key.MetaLeft) }
+        compose.runOnUiThread { assertEquals("", rich.snapshot.text); assertTrue(rich.canRedo) }
+        compose.onNodeWithTag("ChiefComposer").performKeyInput {
+            keyDown(Key.CtrlLeft); keyDown(Key.ShiftLeft); pressKey(Key.Z); keyUp(Key.ShiftLeft); keyUp(Key.CtrlLeft)
+        }
+        compose.runOnUiThread { assertEquals("ab", rich.snapshot.text); assertEquals(styled, ownerRuns) }
+        compose.onNodeWithTag("ChiefComposer").performKeyInput {
+            keyDown(Key.CtrlLeft); pressKey(Key.Z); pressKey(Key.Y); keyUp(Key.CtrlLeft)
+        }
+        compose.runOnUiThread { assertEquals("ab", rich.snapshot.text); assertEquals(styled, ownerRuns); assertTrue(rich.coherent) }
+        capture("rich-keyboard-caret-history")
+    }
+
+    @Test fun extraModifiersAndRetiredKeyboardCommandsCannotToggleFormatting() {
+        edit { it.commitText("base", 1); it.setSelection(0, 4) }
+        compose.onNodeWithTag("ChiefComposer").performKeyInput {
+            keyDown(Key.CtrlLeft); keyDown(Key.ShiftLeft); pressKey(Key.B); keyUp(Key.ShiftLeft)
+            keyDown(Key.AltLeft); pressKey(Key.U); keyUp(Key.AltLeft); keyUp(Key.CtrlLeft)
+        }
+        compose.runOnUiThread { assertTrue(rich.snapshot.runs.isEmpty()); assertEquals(0L, rich.snapshot.typingStyle) }
+        compose.runOnUiThread { retired = true }
+        compose.waitForIdle()
+        compose.onNodeWithTag("ChiefComposer").assertIsNotEnabled()
+        compose.runOnUiThread {
+            val time = android.os.SystemClock.uptimeMillis()
+            for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP)) {
+                compose.activity.dispatchKeyEvent(android.view.KeyEvent(time, time, action, android.view.KeyEvent.KEYCODE_B, 0, android.view.KeyEvent.META_CTRL_ON))
+            }
+        }
+        compose.waitForIdle()
+        compose.runOnUiThread { assertEquals("", rich.snapshot.text); assertEquals(0L, rich.snapshot.typingStyle); assertTrue(ownerRuns.isEmpty()) }
     }
 
     @Test fun batchingKeepsFirstChunkStyleAndEqualTextReplacementKeepsExactRange() {

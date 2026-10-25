@@ -1,3 +1,32 @@
+## Chief formatting keyboard commands ported — 2026-10-25
+
+The pinned ComposerTextView declares priority Command-B/I/U and routes them to
+the same semantic toggles as its palette when editable. Android now handles
+Ctrl/Meta-B/I/U before Foundation's defaults, preserving text, selection and
+existing effects. Caret formatting applies to the first accepted batch chunk.
+Commands require the current mounted visit, resumed lifecycle and editable owner;
+extra Alt/Shift formatting chords are left to the platform. Z/Y history remains.
+
+Final debug/test build-v3 succeeds; disposable API 36 runtime-v2 passes 38/38 in
+122.464s: four new actual View key-dispatch checks plus the prior 34 editor/
+lifecycle/render regressions. Selection and caret styling, palette/owner state,
+Ctrl/Meta history, pause/resume, retired fields and obsolete owners are checked.
+The first run passed all four new checks but an existing system-font case observed
+focus before its recreated window restored it. Final test waits at most 10s for
+actual focus and retains the assertion; production focus handling is unchanged.
+Crash log is empty, settings restore and the owned AVD exits 0. All 32 controlled
+effect frames, all 22 native libraries and frozen signed722 match; ZIP alignment
+passes. Semantic/JVM sources remain unchanged from the accepted 3,541-pass /
+four-existing-skip suite, which was reused rather than rerun for this UI handler.
+
+This is source-mapped Android key dispatch, not a new native hardware run or
+physical keyboard/Gboard acceptance. Empty/font-trait/deep-navigation behavior,
+wider clipboard/input/focus, long-distance scroll/GPU budgets, matched UIKit
+presentation and real Pixel/Mac workflows remain open. All thirteen completion
+areas remain open; full parity stays active. Global pins and real account/pairing/
+signing are preserved. Evidence: `captures/recovery-20261025/rich-keyboard-checkpoint.json`.
+Earlier dated entries retain their own checkpoint scope.
+
 ## Live text-size changes follow the verified native editor — 2026-10-25
 
 The retained Chief editor now handles effective font-scale changes like the

@@ -23,6 +23,13 @@ The UIKit-only source is hash-checked, not compiled by this portable checker.
 This is a scoped text-only comparison; keyboard/IME, rich editor, material and
 physical acceptance require their own evidence.
 
+The rich composer keyboard port also follows the already attributed
+ConversationComposerView.swift priority Command-B/I/U overrides and editable
+action checks. Android Ctrl/Meta dispatch invokes the same semantic palette
+toggles, with current visit/lifecycle/owner guards. Actual Android View dispatch
+is covered separately from physical hardware and UIKit keyboard acceptance;
+see CHIEF_RICH_TEXT.md. No global source pin or reference corpus changed.
+
 The live text-metrics port additionally records `richComposerTextMetricsFiles`:
 composer font reset/emoji-base updates, formatting/restyle, trait change detection
 and body metrics. Native global run 40175245243 at fc39577c supplies four original

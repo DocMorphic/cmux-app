@@ -4,6 +4,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.input.key.Key
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
@@ -14,6 +15,7 @@ import java.time.Instant
 
 /** Real Android Activity/configuration lifecycle with the production retained computer.
  * The isolated read API supplies no account, host or persistent-draft acceptance. */
+@OptIn(ExperimentalTestApi::class)
 class NativeChiefRichLifecycleTest {
     @get:Rule val compose = createEmptyComposeRule()
     private val instrument = InstrumentationRegistry.getInstrumentation()
@@ -61,6 +63,36 @@ class NativeChiefRichLifecycleTest {
         val bitmap = instrument.uiAutomation.takeScreenshot()
         java.io.File(dir, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
         java.io.File(dir, "$name.txt").writeText(compose.onNodeWithTag("ChiefComposerBar").printToString())
+    }
+
+    @Test fun keyboardFormattingIsRejectedWhilePausedOrOwnerObsoleteAndWorksAfterResume() {
+        val editor = styleAndOpenPalette(); val session = computer.transcript()!!
+        val before = editor.snapshot
+        fun rawItalic() {
+            scenario!!.onActivity { activity ->
+                val time = android.os.SystemClock.uptimeMillis()
+                for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP)) {
+                    activity.dispatchKeyEvent(android.view.KeyEvent(time, time, action, android.view.KeyEvent.KEYCODE_I, 0, android.view.KeyEvent.META_CTRL_ON))
+                }
+            }
+            compose.waitForIdle()
+        }
+        scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.STARTED)
+        rawItalic()
+        compose.runOnUiThread { assertEquals(before, editor.snapshot); assertEquals(before.runs, session.state.value.draftRuns) }
+        scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+        compose.onNodeWithTag("ChiefComposer").assertIsFocused()
+        compose.onNodeWithTag("ChiefComposer").performKeyInput { keyDown(Key.CtrlLeft); pressKey(Key.I); keyUp(Key.CtrlLeft) }
+        compose.onNodeWithTag("ChiefTextStyle:italic").assertIsSelected()
+        compose.runOnUiThread {
+            assertEquals("base", editor.snapshot.text); assertEquals(TextRange(0, 4), editor.field.selection)
+            assertEquals(listOf(NativeConversationTextRun(0, 4, 3, NativeConversationTextEffect.BIG)), session.state.value.draftRuns)
+            current = false
+        }
+        val obsolete = editor.snapshot
+        rawItalic()
+        compose.runOnUiThread { assertEquals(obsolete, editor.snapshot); assertEquals(obsolete.runs, session.state.value.draftRuns) }
+        assertEquals(0, api.writes)
     }
 
     @Test fun activityRecreationRetainsRichSelectionHistoryPaletteAndFocus() {
@@ -162,6 +194,11 @@ class NativeChiefRichLifecycleTest {
                     })))
             }
             if (name != "initial") {
+                // The configuration can arrive before the new window gains focus;
+                // production restores the retained range after that window event.
+                compose.waitUntil(10_000) {
+                    compose.onAllNodes(hasTestTag("ChiefComposer") and isFocused()).fetchSemanticsNodes().size == 1
+                }
                 compose.onNodeWithTag("ChiefTextStyle:bold").assertIsNotSelected()
                 compose.onNodeWithTag("ChiefTextEffect:big").assertIsNotSelected()
                 compose.onNodeWithTag("ChiefComposer").assertIsFocused()

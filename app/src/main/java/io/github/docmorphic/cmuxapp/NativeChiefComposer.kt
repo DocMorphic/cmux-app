@@ -268,8 +268,20 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
                         if (!restoringFocus && rich.isInputMountCurrent(mount, visit)) presentation.focused.value = it.hasFocus || composerHasFocus
                     }
                     .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && (event.isCtrlPressed || event.isMetaPressed) && (event.key == Key.Z || event.key == Key.Y)) {
+                        if (event.type != KeyEventType.KeyDown || retired || !resumed ||
+                            !rich.isInputMountCurrent(mount, visit) || !(event.isCtrlPressed || event.isMetaPressed)) false
+                        else if (event.key == Key.Z || event.key == Key.Y) {
                             rich.history(event.key == Key.Y || event.isShiftPressed); true
+                        } else if (!event.isAltPressed && !event.isShiftPressed) {
+                            // ComposerTextView's priority Command-B/I/U use the same
+                            // semantic toggles as its palette, before system handling.
+                            val command = when (event.key) {
+                                Key.B -> NativeConversationTextStyle.BOLD
+                                Key.I -> NativeConversationTextStyle.ITALIC
+                                Key.U -> NativeConversationTextStyle.UNDERLINE
+                                else -> null
+                            }
+                            if (command != null) { rich.toggle(command); true } else false
                         } else false
                     }
                     .appendTextContextMenuComponents {

@@ -1,3 +1,32 @@
+## Chief formatting keyboard commands ported — 2026-10-25
+
+The pinned ComposerTextView declares priority Command-B/I/U and routes them to
+the same semantic toggles as its palette when editable. Android now handles
+Ctrl/Meta-B/I/U before Foundation's defaults, preserving text, selection and
+existing effects. Caret formatting applies to the first accepted batch chunk.
+Commands require the current mounted visit, resumed lifecycle and editable owner;
+extra Alt/Shift formatting chords are left to the platform. Z/Y history remains.
+
+Final debug/test build-v3 succeeds; disposable API 36 runtime-v2 passes 38/38 in
+122.464s: four new actual View key-dispatch checks plus the prior 34 editor/
+lifecycle/render regressions. Selection and caret styling, palette/owner state,
+Ctrl/Meta history, pause/resume, retired fields and obsolete owners are checked.
+The first run passed all four new checks but an existing system-font case observed
+focus before its recreated window restored it. Final test waits at most 10s for
+actual focus and retains the assertion; production focus handling is unchanged.
+Crash log is empty, settings restore and the owned AVD exits 0. All 32 controlled
+effect frames, all 22 native libraries and frozen signed722 match; ZIP alignment
+passes. Semantic/JVM sources remain unchanged from the accepted 3,541-pass /
+four-existing-skip suite, which was reused rather than rerun for this UI handler.
+
+This is source-mapped Android key dispatch, not a new native hardware run or
+physical keyboard/Gboard acceptance. Empty/font-trait/deep-navigation behavior,
+wider clipboard/input/focus, long-distance scroll/GPU budgets, matched UIKit
+presentation and real Pixel/Mac workflows remain open. All thirteen completion
+areas remain open; full parity stays active. Global pins and real account/pairing/
+signing are preserved. Evidence: `captures/recovery-20261025/rich-keyboard-checkpoint.json`.
+Earlier dated entries retain their own checkpoint scope.
+
 ## Live text-size changes follow the verified native editor — 2026-10-25
 
 The retained Chief editor now handles effective font-scale changes like the
@@ -5410,7 +5439,7 @@ unchanged until reconciliation. See the latest HANDOFF.md and PARITY.md entries.
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Chief conversations | Finish the outstanding Android Home/transcript/question feature/UI port from the Oct 20 audit candidate, including broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped toolbar undo, rich navigation/configuration, controlled motion/warm scroll reuse and nonempty live global font-scale editing are verified; priority formatting keyboard commands, wider input/clipboard/focus, empty/font-trait/deep-navigation cases, long-distance scrolling/GPU budgets, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
+| Chief conversations | Finish the outstanding Android Home/transcript/question feature/UI port from the Oct 20 audit candidate, including broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped toolbar undo, rich navigation/configuration, controlled motion/warm scroll reuse, nonempty live global font-scale editing and Ctrl/Meta formatting key dispatch are verified; wider input/clipboard/focus, empty/font-trait/deep-navigation cases, long-distance scrolling/GPU budgets, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
 | Agent Feed | Verify the revised reply editor and new native full-text reader, including original UI/traits, URL routing and broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
 | Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
