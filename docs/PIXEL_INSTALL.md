@@ -3,7 +3,53 @@
 Current source development is on `main`. These are development milestones;
 see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
-## Current verified signed development APK — build 659 (2026-10-13)
+## Current local signed development candidate — 723 (2026-10-25)
+
+Candidate723 is private and unpublished, built from `0f840adb337a0db1002053ae4c524d8f960288fc`.
+It has not been installed on the user's Pixel. Earlier published and physical
+records below are historical; re-observe the current phone before updating it.
+
+- Package: `io.github.docmorphic.cmuxapp`; version723 / 0.2.0.
+- APK: `captures/runtime/parity-candidate-723/app-release.apk` (278,834,218 bytes).
+- SHA-256: `38804af8ceb247aa94d8de009f43b35410b1ade3e2ddcd425f1a5d5afb86bdd4`.
+- Existing stable signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+- Packaging: 22 viewer assets, 22 native libraries with 16KB alignment,
+  16 debug fixture components excluded, compiled private Firebase client resources verified.
+- JVM: 3,546 pass/four existing skips; fresh API36: six ART checks and two reviewed cold starts.
+
+Fresh availability is required before using the connected, unlocked Pixel and
+Mac for about fifteen minutes. Execute these checks in order:
+
+1. Record the actual device/model, installed version/signer and first-install
+   time. Record existing account/team, saved Mac, notification enrollment and
+   Mac workspace identities/order/selection privately. Stop on a signer or
+   version mismatch; do not downgrade, uninstall, clear data or reset pairing.
+2. Revalidate the archived APK hash/certificate, then update only this release
+   package with `adb -s SERIAL install -r APK`. Check first-install time,
+   existing sign-in, saved Mac/workspaces and helper enrollment are retained.
+3. Create one disposable Mac workspace. Open its terminal on the phone; send
+   one harmless unique marker through the actual composer after checking the
+   command. Verify exactly-once Mac execution and visible phone output. Check
+   navigation/reopen and independent input/output lane behavior.
+4. Target a private helper notification only at the owned workspace. Verify
+   actual provider delivery, visible reply, authenticated Mac fetch/ACK and
+   exactly-once reply execution; WorkManager success alone is insufficient.
+5. Stop only this app process with `am stop-app`, deliver a distinct alert, then
+   tap the actual notification. Verify the exact saved Mac and owned terminal
+   return. Android force-stop does not model ordinary process death for push.
+6. Close only the owned workspace, verify original workspaces/enrollment and
+   restore changed settings. Return the phone to its original list and release it.
+
+Reuse the existing enrolled helper; the Pair Android Notifications window can
+stay closed. A new pairing code is unnecessary for this upgrade. If time remains,
+inspect Chief Home/form on an owned test question; never answer a real user
+question merely to exercise the sheet. Doze/token rotation, network transitions,
+TalkBack/Gboard/hardware input, Cloud and billing need separately agreed time.
+Existing live instrumentation targets the separate debug package and cannot
+prove preservation of the signed release account. This plan is not runtime
+acceptance. Preserve frozen candidate722 and all real account/signing material.
+
+## Historical published development APK — build 659 (2026-10-13)
 
 [Download build 659](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-659/app-release.apk)
 from the [published development preview](https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-659).

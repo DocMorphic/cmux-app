@@ -1,3 +1,22 @@
+## Signed candidate723 prepared for physical acceptance — 2026-10-25
+
+Private signed development candidate723 is built from `0f840adb337a0db1002053ae4c524d8f960288fc`
+with the existing stable signer and private Firebase client configuration. Full
+JVM suite: 3,546 passed/four existing skips. Strict package/assets/native/
+Firebase checks pass; a fresh owned API36 AVD passes six release ART class checks
+and two actual cold starts with reviewed sign-in roots and no crash/ANR evidence.
+The AVD was stopped and deleted. Frozen candidate722 remains unchanged.
+
+The Pixel has not been upgraded and no account, pairing, Mac UI or existing
+workspace was operated. Fresh availability is required for the bounded release
+upgrade/terminal/background-reply/cold-tap plan in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+Reuse the existing notification enrollment; leave Pair Android Notifications
+closed unless diagnosis establishes a need to re-enroll. All thirteen parity
+areas remain open, including full-sheet concurrency, native/matched UI, physical
+input/accessibility, Cloud, analytics and billing backend acceptance.
+Evidence: `captures/recovery-20261025/parity-candidate-723-checkpoint.json` and
+`pixel-723-test-plan.json`. Candidate723 is local and unpublished.
+
 ## Chief full-question presentation and submission lifetime — 2026-10-25
 
 The full question sheet now captures the opening question and its presentation
