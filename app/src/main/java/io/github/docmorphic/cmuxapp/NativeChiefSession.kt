@@ -80,7 +80,8 @@ internal val NativeChiefDelivery.isFailed: Boolean
     get() = this == NativeChiefDelivery.UNCONFIRMED || this == NativeChiefDelivery.REJECTED
 internal data class NativeChiefOutgoing(val clientMessageId: String, val text: String, val at: Instant,
     val delivery: NativeChiefDelivery = NativeChiefDelivery.SENDING, val serverMessageId: String? = null, val error: String? = null,
-    val echoClientMessageId: String? = null, val failedAnchorSeq: ULong? = null, val sentAfterSeq: ULong = 0uL, val replyToID: String? = null)
+    val echoClientMessageId: String? = null, val failedAnchorSeq: ULong? = null, val sentAfterSeq: ULong = 0uL, val replyToID: String? = null,
+    val textRuns: List<NativeConversationTextRun> = emptyList())
 internal data class NativeChiefListState(val muted: Boolean = false, val readReceipts: Boolean = true)
 
 internal data class NativeChiefTranscriptState(
@@ -94,7 +95,7 @@ internal data class NativeChiefTranscriptState(
     val localSendRevision: Long = 0, val reply: NativeChiefReply? = null,
     val draft: String = "", val draftRevision: Long = 0, val deciding: Set<String> = emptySet(), val committed: Set<String> = emptySet(),
     val uncertain: Set<String> = emptySet(), val actionErrors: Map<String, String> = emptyMap(),
-    val localClientIds: Map<String, String> = emptyMap()
+    val localClientIds: Map<String, String> = emptyMap(), val draftRuns: List<NativeConversationTextRun> = emptyList()
 )
 
 /** Event-backed transcript. Pausing cancels reads, preserving drafts/history; retiring clears all content. */
@@ -104,6 +105,10 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     private val job = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + job)
     private val mutableState = MutableStateFlow(NativeChiefTranscriptState())
+    private val composerEditorLazy = lazy { NativeChiefRichEditor(mutableState.value.draft) { job.isActive && permits() }.also { editor ->
+        if (mutableState.value.draftRuns.isNotEmpty()) editor.reset(mutableState.value.draft, mutableState.value.draftRuns)
+    } }
+    val composerEditor get() = composerEditorLazy.value
     private var replyGeneration = 0L
     private var pollGeneration = 0L
     private val mutablePollDetails = MutableStateFlow<NativeChiefPollPresentation?>(null)
@@ -476,9 +481,11 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
         return NativeChiefTimeline.items(state.value).firstOrNull { it.key == rowID }
     }
 
-    fun editDraft(text: String): Long {
+    fun editDraft(text: String, runs: List<NativeConversationTextRun> = emptyList()): Long {
         checkOwner()
-        if (text != state.value.draft) mutableState.value = state.value.copy(draft = text, draftRevision = state.value.draftRevision + 1)
+        val normalized = NativeConversationRichText.normalized(runs, text.length)
+        if (text != state.value.draft || normalized != state.value.draftRuns) mutableState.value = state.value.copy(
+            draft = text, draftRuns = normalized, draftRevision = state.value.draftRevision + 1)
         return state.value.draftRevision
     }
 
@@ -491,22 +498,25 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     }
 
     /** Synchronous UI admission, matching Store.send: retiring the view cannot lose a clicked send. */
-    fun submitFromComposer(text: String, revision: Long): String? = submit(text, revision)?.first
+    fun submitFromComposer(text: String, revision: Long, runs: List<NativeConversationTextRun> = emptyList()): String? = submit(text, revision, runs)?.first
 
-    private fun submit(capturedDraft: String?, capturedRevision: Long?): Pair<String, Deferred<Unit>>? {
+    private fun submit(capturedDraft: String?, capturedRevision: Long?, capturedRuns: List<NativeConversationTextRun>? = null): Pair<String, Deferred<Unit>>? {
         checkOwner()
         require((capturedDraft == null) == (capturedRevision == null))
-        val draft = NativeChiefComposerPolicy.trim(capturedDraft ?: state.value.draft)
+        val formatted = NativeConversationRichText.trimmed(capturedDraft ?: state.value.draft,
+            capturedRuns ?: state.value.draftRuns.takeIf { capturedDraft == null || capturedDraft == state.value.draft }.orEmpty())
+        val draft = formatted.text
         if (draft.isEmpty()) return null
         val id = newId()
         require(state.value.outgoing.none { it.clientMessageId == id })
         val clear = capturedRevision == null || capturedRevision == state.value.draftRevision
         val replyToID = state.value.reply?.targetID
         mutableState.value = state.value.copy(reply = null, draft = if (clear) "" else state.value.draft,
+            draftRuns = if (clear) emptyList() else state.value.draftRuns,
             draftRevision = if (clear) state.value.draftRevision + 1 else state.value.draftRevision,
             localSendRevision = state.value.localSendRevision + 1,
             outgoing = state.value.outgoing + NativeChiefOutgoing(id, draft, now(),
-            sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { it.seq } ?: 0uL), replyToID = replyToID))
+            sentAfterSeq = maxOf(state.value.headSeq, state.value.messages.maxOfOrNull { it.seq } ?: 0uL), replyToID = replyToID, textRuns = formatted.runs))
         return id to enqueueTransmit(id, draft)
     }
 
@@ -588,7 +598,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
                 })
             }
             mutableState.value = state.value.copy(outgoing = state.value.outgoing.map {
-                if (it.clientMessageId == id) it.copy(serverMessageId = sent.messageId, replyToID = null,
+                if (it.clientMessageId == id) it.copy(serverMessageId = sent.messageId, replyToID = null, textRuns = emptyList(),
                     echoClientMessageId = sent.clientMessageId,
                     delivery = if (sent.queued) NativeChiefDelivery.QUEUED else NativeChiefDelivery.SENT) else it
             })
@@ -693,6 +703,7 @@ internal class NativeChiefTranscriptSession(parent: CoroutineScope, private val 
     fun refresh() { checkOwner(); pause(); start() }
     override fun close() {
         val clearedDraftRevision = state.value.draftRevision + 1
+        if (composerEditorLazy.isInitialized()) composerEditorLazy.value.retire()
         job.cancel(); monitor = null; sendTail = null; olderTask = null; olderWanted = false; historyOperation = null; deletedClientIds.clear(); deletedMessageIds.clear()
         translationOwner.value?.close(); translationOwner.value = null
         translationHost?.close(); translationHost = null

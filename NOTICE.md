@@ -78,8 +78,16 @@ ConversationRichTextRendering.swift keyframe algorithm at that same revision.
 Copyright Manaflow, Inc.; GPL-3.0-or-later. The manifest's `richTextFiles` binds
 the whole sources, applicability sources and original authored tests. The new
 fixture executes the unmodified core and shared renderer with Foundation and
-QuartzCore. This is a preparatory engine port; it is not yet mounted in Chief's
-editor or bubbles and does not add a rich-text Chief wire contract.
+QuartzCore. The Android rich editor, palette and glyph overlay in
+`NativeChiefRichEditing.kt`, `NativeChiefRichEditor.kt`,
+`NativeChiefTextEffectsPalette.kt` and `NativeConversationRichRendering.kt`
+adapt the source composer/formatting controller and shared rendering behavior
+at that revision. Fourteen palette labels in `chief_rich_composer.xml` are copied
+from its conversation UI catalog; the manifest's `richComposerStrings` binds
+their exact keys/hash. English fallback outside Japanese follows that catalog.
+Undo/Redo labels and the Foundation input adapter are project-authored. Local
+optimistic rows retain semantic runs; this does not add a rich-text Chief wire
+contract. See docs/CHIEF_RICH_TEXT.md for the verified scope and open gates.
 Direct header/details geometry, disabled details actions, list-state defaults and
 unsupported-setting rollback follow ConversationHeaderGeometry.swift,
 ConversationDetailsHeaderGeometry.swift, ConversationHeaderView.swift,

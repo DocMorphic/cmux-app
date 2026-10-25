@@ -142,4 +142,20 @@ class NativeConversationRichTextTest {
             }
         }
     }
+    @Test fun rendererInterpolatesActualQuartzCoreMatrixEntriesBetweenNativeKeyframes() {
+        reference().getJSONArray("keyframes").rows().forEach { row ->
+            val input = row.getJSONObject("input")
+            val actual = NativeConversationTextEffectMotion.keyframes(effect(input.getString("effect")), input.getInt("index"),
+                input.getInt("count"), input.getDouble("fontSize"), input.getString("seed").toULong())
+            val times = row.getJSONArray("transformTimes"); val matrices = row.getJSONArray("transforms")
+            for (i in 0 until times.length() - 1) {
+                val t = (times.getDouble(i) + times.getDouble(i + 1)) / 2
+                val pose = NativeConversationTextEffectMotion.sample(actual, t)
+                listOf(0 to pose.a, 1 to pose.b, 4 to pose.c, 5 to pose.d, 12 to pose.dx, 13 to pose.dy).forEach { (index, value) ->
+                    val expected = (matrices.getJSONArray(i).getDouble(index) + matrices.getJSONArray(i + 1).getDouble(index)) / 2
+                    assertEquals(input.toString() + " matrix component " + index, expected, value, 1e-10)
+                }
+            }
+        }
+    }
 }

@@ -9,6 +9,35 @@ import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeChiefSessionTest {
+    @Test fun richOnlyRevisionCannotBeClearedByAnOlderSendAndOutgoingRunsFollowTrimFailureRetryAndPlainAck() = runTest {
+        val api = Api(); var current = true
+        val session = NativeChiefTranscriptSession(this, api, "chief-main", { current }, { instant }, { "rich-send" })
+        try {
+            val bold = listOf(NativeConversationTextRun(1, 2, 1, NativeConversationTextEffect.BIG))
+            val italic = listOf(NativeConversationTextRun(1, 2, 2))
+            val old = session.editDraft(" aa ", bold)
+            val newer = session.editDraft(" aa ", italic)
+            assertTrue(newer > old)
+            api.sendBlock = { _, _ -> throw MobileRpcOutcomeUnknown() }
+            assertEquals("rich-send", session.submitFromComposer(" aa ", old, bold))
+            assertEquals(italic, session.state.value.draftRuns)
+            assertEquals(newer, session.state.value.draftRevision)
+            assertEquals(listOf(NativeConversationTextRun(0, 2, 1, NativeConversationTextEffect.BIG)), session.state.value.outgoing.single().textRuns)
+            runCurrent()
+            assertEquals(NativeChiefDelivery.UNCONFIRMED, session.state.value.outgoing.single().delivery)
+            assertEquals(listOf("aa" to "rich-send"), api.sends)
+            api.sendBlock = { _, id -> NativeChiefSent("chief-main", null, id, true) }
+            api.reads.send(Result.failure(java.io.IOException("No canonical read")))
+            assertTrue(session.retry("rich-send")); runCurrent()
+            assertEquals(listOf("aa" to "rich-send", "aa" to "rich-send"), api.sends)
+            assertTrue(session.state.value.outgoing.single().textRuns.isEmpty())
+            assertEquals(italic, session.state.value.draftRuns)
+            current = false
+            assertThrows(IllegalStateException::class.java) { session.editDraft("late", bold) }
+            assertTrue(session.state.value.draftRuns.isEmpty())
+        } finally { session.close() }
+    }
+
     @Test fun pollDetailsRetainsItsReadOnlySnapshotDuringPauseAndRejectsAnOldDismissal() = runTest {
         val api = Api(); var current = true
         val session = NativeChiefTranscriptSession(this, api, "chief-main", { current })

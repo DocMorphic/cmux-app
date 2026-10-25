@@ -1,10 +1,10 @@
 # Chief rich composer
 
-The standalone Android formatting and motion engine is ported from the pinned
-cmux conversation package at `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`.
-The production Chief composer remains plain text. The palette, edit transactions,
-retained formatting and rendered effects are still to be implemented and verified;
-this checkpoint does not close Chief or full app parity.
+The production Android Chief composer now mounts the formatting owner, edit-menu
+palette and effect renderer ported from the pinned cmux conversation package at
+`a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`. Local optimistic rows retain formatting
+through failed sends/retry; the Chief wire and canonical/ACK rows remain plain,
+following the source backend. This does not close Chief or full app parity.
 
 ## Source requirements
 
@@ -58,7 +58,8 @@ does not equate plain-edit carry with UIKit typing-attribute inheritance.
 font-scale rules, wrapping UInt64 randomization, UTF-8 FNV-1a identity seeds and
 the shared renderer's compressed 60 Hz transform/opacity tracks. Distances in
 poses use font-size units; generated transform frames use the supplied font size.
-This is a renderer input, not a mounted renderer or animation acceptance.
+This engine checkpoint originally supplied renderer inputs only; the subsequent
+mounted implementation is described below. It does not prove motion acceptance.
 
 `scripts/check-chief-rich-text.py` builds the whole unmodified Swift core as a
 module and the whole shared renderer as an executable dependency of the fixture.
@@ -94,30 +95,104 @@ local historical evidence; final acceptance is the full-width v5/v6 pair.
 
 Checkpoint: `captures/recovery-20261025/rich-text-checkpoint.json`.
 
-## Editor integration still required
+## Mounted editor and remaining acceptance — 2026-10-25
 
 The installed Compose Foundation 1.9.1 source explicitly supports `addStyle` in
 OutputTransformation only. Its TextFieldState does not store styled editing
 annotations, and output annotations do not track subsequent edits. Text/selection/
 composition observation via snapshotFlow alone also does not provide an exact
-edit transaction stream. A correct integration needs a coherent formatting owner
-and verified edit/undo transactions; a longest-prefix/suffix heuristic alone is
-insufficient for repeated text, composing replacements or same-text edits.
+edit transaction stream. `NativeChiefRichEditing` now owns semantic runs and
+rich inverse-edit history alongside the retained platform field. Exact buffer
+changes handle ordinary input. A wrapped actual InputConnection preserves the
+operation ranges that Foundation minimizes away for equal text. Deferred IME
+operations replay at the real outer batch boundary, against the then-current
+accepted document, preserving formatting changed while a batch is open.
+Captured input strings are immutable; rejected commands cannot admit a speculative
+style change. The model requires agreement with committed field text, selection
+and composition. Owner reset/undo/retirement invalidates old connections.
 
-Retain the existing state-based Chief editor's caret, IME, growth and send authority
-while resolving that integration. Do not add palette controls whose spans silently
-drift or disappear. Confirm the original typing/selection/undo/marked-text behavior
-through the real pinned UIKit composer, then verify the Android transaction model,
-palette and glyph overlay together. Local xcodebuild reports CommandLineTools,
-so native UIKit execution requires the established hosted reference route.
+The existing TextFieldState, caret, growth, internal scroll and synchronous send
+authority remain in use. Revision notifications are posted outside input
+transformations. Formatting-only changes advance the owner revision; an older
+captured send cannot clear a newer rich draft. Trim shifts runs with the text;
+failed rows keep them, retry reuses the client ID, and an ordinary plain ACK
+clears them. No rich Chief RPC or disk-persisted rich draft is inferred.
 
-Remaining acceptance includes draft navigation/retirement and owner guards,
-formatting-only changes, exact selection and caret typing rules, paste/undo/redo,
-composition and autocorrect, sending/failed retry/ACK replacement, internal field
-scrolling, effect loops and reduced motion, dynamic type/emoji/RTL/dark/light,
-TalkBack, accessibility-sized palette and physical Gboard/hardware input. Account,
-pairing and signing data, frozen signed722 and the global upstream pins remain
-unchanged. Full app feature/UI/device/backend/release gates remain active.
+The custom palette replaces the IME and supplies the four style/eight effect
+controls, source labels, selected states, preview effects and close/refocus.
+It exposes the Text Effects edit-menu entry and a custom accessibility action.
+Its fixed 330-point source layout subtracts the host's already-consumed Android
+navigation inset; a constrained landscape surface can scroll its controls.
+That adaptation and Android surface material are not UIKit geometry/material
+equivalence. English/Japanese labels and the other locales' source English
+fallback are checked by `check-chief-rich-composer-strings.py` (144 total values;
+Undo/Redo are authored Android labels).
+
+The overlay uses the actual field/text layout and font resolver. It preserves
+link annotations, hides base effect ink, rasterizes grapheme/word units and
+samples the source's compressed matrix tracks linearly. Visible glyph images
+are cached, share the three-second phase and move with internal scrolling.
+Disabled animator duration keeps static ink/typography. While marked text is
+active, the composer draws static base ink; composition/effect presentation needs
+broader native comparison. Renderer performance and animated presentation remain
+open, independently of semantic/matrix tests and static raster observations.
+
+Remaining acceptance includes rich navigation/configuration lifetime beyond the
+covered plain regressions, default toolbar paste/undo grouping, wider autocorrect
+and composition/reversed-selection cases, scrolling animated effects, live font
+changes, all locale/contrast/light profiles, real TalkBack, hardware keyboard and
+physical Gboard. Native public input/control traces do not prove gesture or IME
+equivalence. Real account/backend/device, release and all thirteen broader gates
+remain active. Account/pairing/signing, frozen signed722 and global upstream pins
+remain unchanged. Earlier sections below record the native reference history.
+
+## Mounted Android verification
+
+Final build-v12 passes all 3,543 JVM cases in 475 suites: 3,539 passed, four
+existing SSH skips, no failures/errors. The native editor trace test compares
+all 141 recorded states, including text/runs, selection/composition, typing
+metadata, undo/redo availability and palette selection. The matrix sampler is
+checked between the actual QuartzCore frames. Session coverage includes
+formatting-only revisions, trimmed sends, rejection/retry/plain ACK and owner
+retirement. Both debug APKs build. All 22 native libraries and frozen signed722
+are unchanged; 16 KiB ZIP alignment passes. The 112 existing native-reference
+guards pass, and the catalog checker verifies all 144 label values.
+
+Runtime-v5 passes 20/20 in 43.986 seconds on disposable Android 16 / API 36.
+Eight new composer cases cover first-chunk formatting in a real field batch,
+same-text replacement, modern composing/replace APIs, rich undo/redo, an obsolete
+open batch after reset, code-point deletion, rejected same-valued composition,
+and a formatting change during an open batch with mutable input text captured
+at call time. Two of these cases exercise the actual system keyboard with the
+palette: selected Bold/Big/send and enlarged RTL inventory/close/keyboard return.
+The other six directly call the actual Foundation InputConnection while the test
+interceptor suspends OS binding; Gboard cannot independently finish their marked
+text. That deterministic seam is not physical Gboard acceptance.
+
+One new renderer method records ten actual static raster/layout profiles: all
+eight effects on the source three-grapheme string, 22 words at scale 2 across
+style boundaries and five wrapped lines, and an RTL detected link. Base effect
+spans are transparent, actual visible glyph pixels are present and the link
+annotation survives. The other eleven methods are existing composer/navigation/
+retirement/emoji/reply/large-text and underline-raster regressions. Screenshots of
+the selected palette and enlarged RTL controls were inspected. Their fixture
+system-bar styling is not whole-app presentation acceptance. The crash log is
+empty, settings/window values read back restored, and the owned emulator exits 0.
+
+Earlier attempts are excluded from acceptance. They exposed a keyboard show
+overtaking the palette, transient focus loss on output restyling and RTL tiles
+anchored to the wrong edge. The final field suppresses automatic keyboard show
+while the palette is requested, observes field/group focus after a 100 ms settle,
+and places tiles from physical left. The early capture helper also assumed one
+semantics root despite selection-handle windows. One full build-v10 run hit the
+unchanged account test's nondeterministic forced-refresh count (expected 2, saw
+1); final full build-v12 passes. Raw attempts are retained, including that failure.
+
+Evidence: `captures/recovery-20261025/rich-composer-mounted-checkpoint.json` and
+`rich-composer-mounted-handoff.json`; the final runtime directory is
+`rich-composer-runtime-v5`. These local, hash-bound logs/binaries are excluded
+from Git. Source, tests, copied labels, attribution and these scope notes are
+committed. None of the thirteen full-app completion gates is closed by this run.
 
 ## Native transaction reference candidate — 2026-10-25
 

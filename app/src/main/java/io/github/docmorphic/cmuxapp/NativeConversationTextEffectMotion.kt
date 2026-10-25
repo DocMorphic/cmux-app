@@ -80,7 +80,37 @@ internal object NativeConversationTextEffectMotion {
 
     data class TransformFrame(val time: Double, val dx: Double, val dy: Double, val rotation: Double, val scale: Double)
     data class OpacityFrame(val time: Double, val opacity: Double)
-    data class Keyframes(val transforms: List<TransformFrame>, val opacities: List<OpacityFrame>)
+    data class Keyframes(val transforms: List<TransformFrame>, val opacities: List<OpacityFrame>) {
+        internal val transformTimes = transforms.map { it.time }
+        internal val opacityTimes = opacities.map { it.time }
+    }
+    data class DisplayPose(val a: Double = 1.0, val b: Double = 0.0, val c: Double = 0.0,
+        val d: Double = 1.0, val dx: Double = 0.0, val dy: Double = 0.0, val opacity: Double = 1.0)
+
+    /** Core Animation's linear tracks interpolate matrix components, not the nonlinear poses. */
+    fun sample(frames: Keyframes, phase: Double): DisplayPose {
+        fun segment(times: List<Double>): Triple<Int, Int, Double> {
+            if (phase <= times.first()) return Triple(0, 0, 0.0)
+            if (phase >= times.last()) return Triple(times.lastIndex, times.lastIndex, 0.0)
+            val upper = times.binarySearch(phase).let { if (it >= 0) it else -it - 1 }
+            if (times[upper] == phase) return Triple(upper, upper, 0.0)
+            val lower = upper - 1
+            return Triple(lower, upper, (phase - times[lower]) / (times[upper] - times[lower]))
+        }
+        fun matrix(frame: TransformFrame): DisplayPose {
+            val c = cos(frame.rotation) * frame.scale; val s = sin(frame.rotation) * frame.scale
+            return DisplayPose(c, s, -s, c, frame.dx, frame.dy)
+        }
+        val (lo, hi, fraction) = segment(frames.transformTimes)
+        val x = matrix(frames.transforms[lo]); val y = matrix(frames.transforms[hi])
+        fun lerp(a: Double, b: Double, f: Double = fraction) = a + (b - a) * f
+        val opacity = if (frames.opacities.isEmpty()) 1.0 else {
+            val (a, b, f) = segment(frames.opacityTimes)
+            lerp(frames.opacities[a].opacity, frames.opacities[b].opacity, f)
+        }
+        return DisplayPose(lerp(x.a, y.a), lerp(x.b, y.b), lerp(x.c, y.c), lerp(x.d, y.d),
+            lerp(x.dx, y.dx), lerp(x.dy, y.dy), opacity)
+    }
 
     /** Original shared renderer samples 60 Hz, retaining each edge of an equal-pose interval.
      * A renderer must use these tracks rather than evaluate nonlinear poses directly per frame. */

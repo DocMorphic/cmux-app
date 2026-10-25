@@ -41,17 +41,20 @@ internal object NativeChiefComposerPolicy {
 
 /** UI-local editor reconciliation. Owner revisions acknowledge our edits without replacing newer
  * selection/composition state. An unpublished local edit also wins over an older owner clear. */
-internal class NativeChiefDraftBridge(initialText: String, initialRevision: Long) {
+internal class NativeChiefDraftBridge(initialText: String, initialRevision: Long,
+    initialRuns: List<NativeConversationTextRun> = emptyList()) {
     private var publishedText = initialText
     private var publishedRevision = initialRevision
-    fun matches(text: String) = text == publishedText
-    fun clearText() { publishedText = "" }
-    fun published(text: String, revision: Long) {
-        if (revision >= publishedRevision) { publishedText = text; publishedRevision = revision }
+    private var publishedRuns = initialRuns
+    fun matches(text: String, runs: List<NativeConversationTextRun> = publishedRuns) = text == publishedText && runs == publishedRuns
+    fun clearText() { publishedText = ""; publishedRuns = emptyList() }
+    fun published(text: String, revision: Long, runs: List<NativeConversationTextRun> = publishedRuns) {
+        if (revision >= publishedRevision) { publishedText = text; publishedRevision = revision; publishedRuns = runs }
     }
-    fun adopt(text: String, revision: Long, editorText: String): Boolean {
-        if (revision <= publishedRevision || editorText != publishedText) return false
-        published(text, revision)
+    fun adopt(text: String, revision: Long, editorText: String, runs: List<NativeConversationTextRun> = emptyList(),
+        editorRuns: List<NativeConversationTextRun> = publishedRuns): Boolean {
+        if (revision <= publishedRevision || editorText != publishedText || editorRuns != publishedRuns) return false
+        published(text, revision, runs)
         return true
     }
 }

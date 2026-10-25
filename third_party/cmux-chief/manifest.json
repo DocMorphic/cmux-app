@@ -237,5 +237,26 @@
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefHomeView.swift": "a52aa435572007905dec6ebcbe27d718bb0b363a6c8a823fead044732e1d449f",
     "Packages/iOS/CmuxConversation/Tests/CmuxConversationCoreTests/ConversationRichTextTests.swift": "91373c9614446aa3b3417f3df66ac6fd861c960b2ddec494585877411a868fe0",
     "Packages/iOS/CmuxConversation/Tests/CmuxConversationGeometryTests/ConversationTextEffectKeyframesTests.swift": "03520e9880b0ecbbc61fed1714316813eeda3fd75beee9572633c1a204234a36"
+  },
+  "richComposerStrings": {
+    "path": "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/Resources/Localizable.xcstrings",
+    "sha256": "7d43f79f76c3ddbd63c5cab6ac66ea966cdf33a495dbf635cdf10bc4de088b93",
+    "keys": {
+      "conversation.textEffects.title": "chief_rich_title",
+      "conversation.textEffects.close": "chief_rich_close",
+      "conversation.textStyle.bold": "chief_rich_bold",
+      "conversation.textStyle.italic": "chief_rich_italic",
+      "conversation.textStyle.underline": "chief_rich_underline",
+      "conversation.textStyle.strikethrough": "chief_rich_strikethrough",
+      "conversation.textEffect.big": "chief_rich_big",
+      "conversation.textEffect.small": "chief_rich_small",
+      "conversation.textEffect.shake": "chief_rich_shake",
+      "conversation.textEffect.nod": "chief_rich_nod",
+      "conversation.textEffect.explode": "chief_rich_explode",
+      "conversation.textEffect.ripple": "chief_rich_ripple",
+      "conversation.textEffect.bloom": "chief_rich_bloom",
+      "conversation.textEffect.jitter": "chief_rich_jitter"
+    },
+    "scope": "Exact English/Japanese source catalog; other supported locales use the same English fallback as the source. Undo/Redo are project-authored Android action labels."
   }
 }

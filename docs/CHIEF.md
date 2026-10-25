@@ -1,3 +1,23 @@
+## Android rich Chief composer mounted — 2026-10-25
+
+The production composer now uses the retained semantic owner, exact edit/IME
+adapter, rich undo, four-style/eight-effect palette and glyph overlay. Formatting
+survives local optimistic failures/retry; the ordinary Chief wire and canonical/
+ACK rows stay plain, as in the pinned source backend. Original native traces,
+Android verification scope and remaining acceptance are in CHIEF_RICH_TEXT.md.
+This is a scoped implementation step. Physical input, wider lifecycle and motion,
+matched UIKit presentation and all thirteen broader completion areas remain open.
+Global pins, real credentials/pairing/signing and frozen signed722 are preserved.
+Earlier dated records below describe their original checkpoints.
+
+Final Android build-v12 passes 3,539 JVM tests (four existing SSH skips);
+runtime-v5 passes 20/20 in 43.986s, with empty crash log, restored settings and
+owned emulator exit0. Six public-input cases suspend OS binding for deterministic
+composition; the two palette cases use the actual system keyboard. Static raster
+coverage includes all eight effects, source three-grapheme/22-word units and RTL
+links; animation/physical input and matched UIKit presentation remain open.
+Raw evidence: captures/recovery-20261025/rich-composer-mounted-checkpoint.json.
+
 ## Original rich-composer input observations independently verified — 2026-10-25
 
 Run 40157384521 succeeds at exact source 60e3fcef609d6863bfb2615c2cc0190a872e4b8a

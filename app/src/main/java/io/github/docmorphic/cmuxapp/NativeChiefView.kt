@@ -485,7 +485,22 @@ private fun NativeChiefTranscriptView(conversation: NativeChiefConversation, ses
                 }
                 admitted
             } catch (error: IllegalStateException) { actionError = error.message; false }
-        }, replyGeneration = reply?.generation)
+        }, replyGeneration = reply?.generation, richEditorState = session.composerEditor, draftRuns = state.draftRuns,
+            onRichDraft = { text, runs ->
+                try { session.editDraft(text, runs) }
+                catch (error: IllegalStateException) { actionError = error.message; null }
+            }, onRichSend = { text, revision, runs ->
+                actionError = null
+                try {
+                    val closingPresentation = shownReply
+                    val admitted = session.submitFromComposer(text, revision, runs) != null
+                    if (admitted) {
+                        closingPresentation?.motion?.close(replyOrigins.snapshot(), settling = false)
+                        headerMotion.admit(null)
+                    }
+                    admitted
+                } catch (error: IllegalStateException) { actionError = error.message; false }
+            })
         }
     }, overlay = { headerHeight, composerHeight ->
         Box(Modifier.fillMaxSize()) {
@@ -790,15 +805,18 @@ private fun ChiefTranscriptRow(row: NativeChiefTimelineRow, previous: NativeChie
         } else {
             val outgoing = checkNotNull(row.item.outgoing)
             val body = translation?.text ?: outgoing.text
+            val richRuns = if (translation == null) outgoing.textRuns else emptyList()
             val emojiSize = remember(body) { NativeChiefEmojiPolicy.fontSize(body) }
             Column(Modifier.fillMaxWidth().then(cellPosition), horizontalAlignment = androidx.compose.ui.AbsoluteAlignment.Right) {
                 NativeChiefBalloonRow(row.quote, true, row.lastInRun, outgoing.clientMessageId, false, body, metrics,
-                    emojiSize = emojiSize, modifier = Modifier.alpha(bodyAlpha).then(replyAction).then(selectionModifier), pending = true,
+                    emojiSize = emojiSize, modifier = Modifier.alpha(bodyAlpha).then(replyAction).then(selectionModifier), pending = true, textRuns = richRuns,
+                    effectSeed = NativeConversationTextEffectMotion.seed(row.item.key),
                     onQuote = row.quote?.let { { onQuote(it.id) } },
                     menuSource = menuSource,
                     onBubblePositioned = { origins?.bubbles?.set(row.item.messageID, NativeChiefReplyOrigins.Bubble(row.item.key, it)) }) {
-                    if (menuSource != null) NativeChiefText(body, Modifier.onGloballyPositioned { if (emojiSize == null) menuSource.text = it })
-                    else SelectionContainer { NativeChiefText(body) }
+                    if (menuSource != null) NativeChiefText(body, Modifier.onGloballyPositioned { if (emojiSize == null) menuSource.text = it }, textRuns = richRuns,
+                        effectSeed = NativeConversationTextEffectMotion.seed(row.item.key))
+                    else SelectionContainer { NativeChiefText(body, textRuns = richRuns, effectSeed = NativeConversationTextEffectMotion.seed(row.item.key)) }
                 }
                 translation?.let { NativeChiefTranslationCaption(it, true,
                     if (row.lastInRun && emojiSize == null) metrics.drop else 0.dp, "ChiefTranslationCaption:${row.item.key}",

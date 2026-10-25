@@ -40,10 +40,20 @@ python3 scripts/check-chief-rich-text.py --upstream /absolute/path/to/cmux \
 
 Default mode recompiles/reexecutes and compares the committed reference bytes;
 `--vectors /absolute/path/to/vector.json` intentionally writes regenerated output.
-Outputs must be fresh directories. The Android engine is preparatory and remains
-unmounted. Rich editor typing/selection/undo/IME, palette, actual glyph/word
-rendering, accessibility, pending sends and physical acceptance remain required.
+Outputs must be fresh directories. The Android editor and optimistic row renderer
+now mount the semantic engine. Rich editor typing/selection/undo/IME, palette,
+actual glyph/word rendering, accessibility, pending sends and physical acceptance
+have separate evidence and remaining gates in the document below.
 See [CHIEF_RICH_TEXT.md](../../docs/CHIEF_RICH_TEXT.md).
+
+Fourteen palette labels are copied from the same pinned conversation catalog.
+English/Japanese are its exact translations; other supported locales retain its
+English fallback. Undo/Redo are project-authored Android action labels. Check all
+144 values in nine resource folders with:
+
+```sh
+python3 scripts/check-chief-rich-composer-strings.py --upstream /absolute/path/to/cmux
+```
 
 The emoji checker guards five source files and executes the actual prefilter,
 one-to-three grapheme predicate, count, fixed font-size and composer eligibility

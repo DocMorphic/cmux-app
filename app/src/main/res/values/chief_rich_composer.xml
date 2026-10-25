@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chief_rich_title">Text Effects</string>
+    <string name="chief_rich_close">Close</string>
+    <string name="chief_rich_bold">Bold</string>
+    <string name="chief_rich_italic">Italic</string>
+    <string name="chief_rich_underline">Underline</string>
+    <string name="chief_rich_strikethrough">Strikethrough</string>
+    <string name="chief_rich_big">Big</string>
+    <string name="chief_rich_small">Small</string>
+    <string name="chief_rich_shake">Shake</string>
+    <string name="chief_rich_nod">Nod</string>
+    <string name="chief_rich_explode">Explode</string>
+    <string name="chief_rich_ripple">Ripple</string>
+    <string name="chief_rich_bloom">Bloom</string>
+    <string name="chief_rich_jitter">Jitter</string>
+    <string name="chief_rich_undo">Undo</string>
+    <string name="chief_rich_redo">Redo</string>
+</resources>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chief_rich_title">テキストエフェクト</string>
+    <string name="chief_rich_close">閉じる</string>
+    <string name="chief_rich_bold">太字</string>
+    <string name="chief_rich_italic">斜体</string>
+    <string name="chief_rich_underline">下線</string>
+    <string name="chief_rich_strikethrough">取り消し線</string>
+    <string name="chief_rich_big">拡大</string>
+    <string name="chief_rich_small">縮小</string>
+    <string name="chief_rich_shake">シェイク</string>
+    <string name="chief_rich_nod">うなずき</string>
+    <string name="chief_rich_explode">爆発</string>
+    <string name="chief_rich_ripple">波紋</string>
+    <string name="chief_rich_bloom">ブルーム</string>
+    <string name="chief_rich_jitter">ジッター</string>
+    <string name="chief_rich_undo">取り消す</string>
+    <string name="chief_rich_redo">やり直す</string>
+</resources>

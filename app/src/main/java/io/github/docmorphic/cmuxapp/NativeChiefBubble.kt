@@ -62,6 +62,7 @@ internal fun NativeChiefBubble(outgoing: Boolean, tail: Boolean, modifier: Modif
     bodyTag: String? = null, expanded: Boolean = false, quote: Boolean = false,
     text: String? = null,
     metrics: NativeChiefBubbleMetrics = nativeChiefBubbleMetrics(),
+    textRuns: List<NativeConversationTextRun> = emptyList(),
     content: @Composable ColumnScope.() -> Unit) {
     val density = LocalDensity.current
     val view = LocalView.current
@@ -87,10 +88,12 @@ internal fun NativeChiefBubble(outgoing: Boolean, tail: Boolean, modifier: Modif
         val vertical = if (quote) 7.dp else metrics.vertical
         val hPx = with(density) { horizontal.toPx() }
         val vPx = with(density) { vertical.toPx() }
-        val rawWidth = remember(text, maximum, horizontal, measurer, measurementStyle, density) {
+        val rawWidth = remember(text, textRuns, maximum, horizontal, measurer, measurementStyle, density) {
             text?.let {
                 val limit = with(density) { maximum.toPx() - 2 * hPx }.toInt().coerceAtLeast(0)
-                val layout = measurer.measure(it, measurementStyle, constraints = Constraints(maxWidth = limit))
+                val styled = nativeConversationStyled(androidx.compose.ui.text.AnnotatedString(it), textRuns,
+                    measurementStyle, density, textColor, false)
+                val layout = measurer.measure(styled, measurementStyle, constraints = Constraints(maxWidth = limit))
                 (0 until layout.lineCount).maxOfOrNull { line -> abs(layout.getLineRight(line) - layout.getLineLeft(line)) } ?: 0f
             }
         }
@@ -158,6 +161,8 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
     onQuote: (() -> Unit)? = null, onSwipeReply: ((Float) -> Unit)? = null,
     onBubblePositioned: ((androidx.compose.ui.layout.LayoutCoordinates) -> Unit)? = null,
     menuSource: NativeChiefMenuSource? = null,
+    textRuns: List<NativeConversationTextRun> = emptyList(),
+    effectSeed: ULong = NativeConversationTextEffectMotion.seed(messageId),
     content: @Composable ColumnScope.() -> Unit) {
     val density = LocalDensity.current
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
@@ -198,9 +203,9 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
         val bodyModifier = swipeModifier
             .testTag(if (pending) "ChiefPending:$messageId" else "ChiefMessage:$messageId").onSizeChanged { bodySize = it }
             .onGloballyPositioned { onBubblePositioned?.invoke(it); menuSource?.body = it }
-        if (emojiSize != null && text != null) NativeChiefEmojiBalloon(text, emojiSize, messageId, bodyModifier, metrics)
+        if (emojiSize != null && text != null) NativeChiefEmojiBalloon(text, emojiSize, messageId, bodyModifier, metrics, textRuns, effectSeed)
         else NativeChiefBubble(outgoing, tail, bodyModifier, if (pending) "ChiefPendingBody:$messageId" else "ChiefBubbleBody:$messageId", expanded,
-                text = text, metrics = metrics, content = content)
+                text = text, metrics = metrics, textRuns = textRuns, content = content)
         }
     }
 }
@@ -209,14 +214,16 @@ internal fun NativeChiefBalloonRow(quoted: NativeChiefMessage?, outgoing: Boolea
  * Android supplies its system emoji artwork and font metrics. */
 @Composable
 internal fun NativeChiefEmojiBalloon(text: String, fontSize: Int, messageId: String,
-    modifier: Modifier = Modifier, metrics: NativeChiefBubbleMetrics = nativeChiefBubbleMetrics()) {
+    modifier: Modifier = Modifier, metrics: NativeChiefBubbleMetrics = nativeChiefBubbleMetrics(),
+    textRuns: List<NativeConversationTextRun> = emptyList(), effectSeed: ULong = NativeConversationTextEffectMotion.seed(messageId)) {
     val density = LocalDensity.current
     BoxWithConstraints(modifier) {
         val maximum = NativeChiefBubbleGeometry.maxWidth(maxWidth.value.toDouble(), metrics.accessibility).coerceAtLeast(0.0).toFloat().dp
         val style = nativeChiefTextStyle(fontSize).copy(fontSize = with(density) { fontSize.dp.toSp() })
         Box(Modifier.widthIn(max = maximum).testTag("ChiefEmoji:$messageId")
             .padding(top = 10.dp, bottom = (NativeChiefEmojiPolicy.verticalRoom(metrics.accessibility).toFloat() - 10).dp)) {
-            Text(text, Modifier.testTag("ChiefEmojiGlyph:$messageId"), style = style)
+            if (textRuns.isEmpty()) Text(text, Modifier.testTag("ChiefEmojiGlyph:$messageId"), style = style)
+            else NativeChiefText(text, Modifier.testTag("ChiefEmojiGlyph:$messageId"), textRuns = textRuns, styleOverride = style, effectSeed = effectSeed)
         }
     }
 }
