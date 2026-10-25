@@ -71,6 +71,15 @@ follow ComposerBarGeometry.swift, ComposerFieldMeasurement.swift,
 ConversationRichText.swift and ConversationComposerView.swift at that revision.
 Selected composer placeholder/send translations are copied from the conversation
 and mobile-shell UI catalogs. Their exact source hashes/keys are in the manifest.
+The standalone semantic run helpers and text-effect motion/keyframe engine in
+`NativeConversationRichText.kt` and `NativeConversationTextEffectMotion.kt` port
+ConversationRichText.swift, ConversationTextEffectMotion.swift and the shared
+ConversationRichTextRendering.swift keyframe algorithm at that same revision.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. The manifest's `richTextFiles` binds
+the whole sources, applicability sources and original authored tests. The new
+fixture executes the unmodified core and shared renderer with Foundation and
+QuartzCore. This is a preparatory engine port; it is not yet mounted in Chief's
+editor or bubbles and does not add a rich-text Chief wire contract.
 Direct header/details geometry, disabled details actions, list-state defaults and
 unsupported-setting rollback follow ConversationHeaderGeometry.swift,
 ConversationDetailsHeaderGeometry.swift, ConversationHeaderView.swift,

@@ -1,3 +1,22 @@
+## Rich composer semantic/motion engine; UI integration open — 2026-10-25
+
+Ported the standalone Kotlin UTF-16 formatting and eight-effect engine, including
+full 64-bit semantic masks and the source renderer's compressed 60 Hz tracks.
+The whole original Swift/QuartzCore replay matches 104 semantic cases, 2,473
+mutation steps, 672 motion probes and 72 keyframe tracks. Nine new JVM cases
+pass; full JVM/build-v5 passes 3,534 tests with four existing SSH skips and no
+failures/errors (3,538 cases, 474 suites). Both debug APKs build, 22 native
+libraries are unchanged, 16 KiB ZIP alignment passes and frozen signed722 remains
+unchanged. No physical or mounted editor runtime was exercised.
+
+The engine remains unmounted: Chief's production composer is still plain text.
+Palette, exact typing/selection/undo/IME transactions, retained formatting,
+glyph overlay, accessibility and pending/failed/ACK behavior remain required.
+This checkpoint closes none of the full feature/UI/device/backend/release gates.
+Global pins and real account/pairing/signing data are preserved. Full parity
+remains active. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md) and local evidence
+`captures/recovery-20261025/rich-text-checkpoint.json`.
+
 ## Helper worker recovery across a canceled HTTPS response — 2026-10-25
 
 The actual WorkManager/worker/recovery/HTTPS path now runs against isolated

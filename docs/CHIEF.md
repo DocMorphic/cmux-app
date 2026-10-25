@@ -1,3 +1,22 @@
+## Rich composer engine port; editor mounting remains open — 2026-10-25
+
+The standalone Kotlin formatting/motion engine now follows the pinned original
+ConversationRichText, ConversationTextEffectMotion and shared 60 Hz keyframe
+algorithm. Whole-source execution yields 104 UTF-16 semantic cases, 2,473
+mutation steps, 672 pose probes, seven identity seeds and 72 actual QuartzCore
+tracks. Tests include full 64-bit semantic style masks. This is preparatory:
+Chief's production composer remains plain text, and the palette, exact edit/
+undo/IME transactions, retained formatting, glyph overlay and send-row lifecycle
+still require implementation and runtime acceptance.
+
+Chief mounts Text Effects even with attachments disabled. Its optimistic rows
+carry formatting, while its backend sends text only and canonical/ACK fallback
+rows have no runs. The port must preserve that source distinction. See
+[CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md) for exact source scope, evidence and the
+next editor integration requirements. No account, phone, Mac pairing, Keychain
+or signing action was taken; global pins and frozen signed722 remain unchanged.
+Full app parity remains active.
+
 ## Date/address engine evaluated; actual iOS comparison prepared — 2026-10-23
 
 The isolated opt-in detector-spike evaluates eleven shared synthetic inputs

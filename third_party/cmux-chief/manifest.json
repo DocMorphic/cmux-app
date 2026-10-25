@@ -224,5 +224,18 @@
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationLinkPreview.swift": "c121d69083d25c880fa93b7e37e0078e4b329f61739ffa0cf88b8e59f08b809c",
     "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/MessageCellLayout.swift": "95ae1cc47cb17e25c0b8ae739e105029d5f65b109faa5b516c93897abdeb36bc",
     "Packages/iOS/CmuxConversation/Tests/CmuxConversationCoreTests/ConversationDataDetectionUnderlineTests.swift": "a48f13ba1cb6516064b540141df1df82f41cb951a0f66779177da66ea0f52e33"
+  },
+  "richTextFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationRichText.swift": "f5210ee3a6b6be4e02e9004436627f5b533b68eff66d8cfecb5e3a0e42482f2b",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationTextEffectMotion.swift": "df6f3e5af1505815276b26f6c7e717044da7c466fe9d3fd7c96dfd7a12b08ea7",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationGeometry/ConversationRichTextRendering.swift": "bcf18878749771470c0afcc472bd57def7607b4ab0b4410c2b924e0f024f9b03",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationComposerFormatting.swift": "dc8b7fa3321d69c029c9f91b225342e14ab10b86352545ce00848210f6018f02",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationComposerView.swift": "0c330915c1f033f577b6b44da624da41a0b862c463b88b44ec9b9f4e37e7d0a2",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationViewController+Send.swift": "600fac71b23b14d84f47b456ed38d6eb22998c29ce6f44fec39f09144758273c",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationCore/ConversationStore.swift": "172895cb7b0c811b7765ea46c6261c6703d13ccd7a2f5cd87a8c61c83651a293",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefConversationBackend.swift": "bc7e624230704182753a7ec42ac5d0db4b27c4e403f9d299c25b26acfadd8f61",
+    "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefHomeView.swift": "a52aa435572007905dec6ebcbe27d718bb0b363a6c8a823fead044732e1d449f",
+    "Packages/iOS/CmuxConversation/Tests/CmuxConversationCoreTests/ConversationRichTextTests.swift": "91373c9614446aa3b3417f3df66ac6fd861c960b2ddec494585877411a868fe0",
+    "Packages/iOS/CmuxConversation/Tests/CmuxConversationGeometryTests/ConversationTextEffectKeyframesTests.swift": "03520e9880b0ecbbc61fed1714316813eeda3fd75beee9572633c1a204234a36"
   }
 }

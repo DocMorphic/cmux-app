@@ -1,3 +1,14 @@
+## Chief rich editor remains a completion gate — 2026-10-25
+
+The new shared semantic/motion engine has original whole-Swift/QuartzCore
+reference evidence, including 64-bit masks and compressed keyframe matrices.
+It is not mounted in the production composer. Complete the palette, exact
+text-edit/undo/IME transactions, retained owner, overlay and source-specific
+pending/failed/ACK lifecycle described in [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md).
+This does not close Chief or any broader feature/UI/physical/backend/release
+completion gate. Global pins, real account/pairing/signing and frozen signed722
+are preserved; full parity remains active.
+
 ## Helper worker recovery across a canceled HTTPS response — 2026-10-25
 
 The actual WorkManager/worker/recovery/HTTPS path now runs against isolated
@@ -5378,7 +5389,7 @@ unchanged until reconciliation. See the latest HANDOFF.md and PARITY.md entries.
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Chief conversations | Finish the initial capability-gated Android Home/transcript/question port from the Oct 20 audit candidate; CHIEF.md records its source, session/race and Android fixture evidence. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
+| Chief conversations | Finish the outstanding Android Home/transcript/question feature/UI port from the Oct 20 audit candidate, including the Text Effects palette, exact rich-edit/undo/IME ownership, glyph overlay and optimistic/ACK formatting lifecycle. The shared formatting/motion engine is ported but unmounted; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
 | Agent Feed | Verify the revised reply editor and new native full-text reader, including original UI/traits, URL routing and broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
 | Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |

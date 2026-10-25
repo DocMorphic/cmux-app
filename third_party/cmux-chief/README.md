@@ -23,6 +23,28 @@ The UIKit-only source is hash-checked, not compiled by this portable checker.
 This is a scoped text-only comparison; keyboard/IME, rich editor, material and
 physical acceptance require their own evidence.
 
+The rich-text reference executes the whole unmodified ConversationRichText and
+ConversationTextEffectMotion files as a Swift core module and the whole shared
+ConversationRichTextRendering file linked against real QuartzCore. It records
+104 semantic cases, 2,473 mutation steps, 672 motion probes, seven UTF-8 seeds and
+72 compressed 60 Hz tracks (3,501 transform and 792 opacity frames). The tracks
+include all 16 actual CATransform3D components. Eleven whole-file hashes bind
+the executed files, original authored test inputs and Chief/UI applicability
+sources; hashing the latter does not execute UIKit, Store or Chief's backend.
+Only selected source test inputs are used; this does not execute those test suites.
+
+```sh
+python3 scripts/check-chief-rich-text.py --upstream /absolute/path/to/cmux \
+  --output /absolute/path/to/fresh-ignored-rich-text-evidence
+```
+
+Default mode recompiles/reexecutes and compares the committed reference bytes;
+`--vectors /absolute/path/to/vector.json` intentionally writes regenerated output.
+Outputs must be fresh directories. The Android engine is preparatory and remains
+unmounted. Rich editor typing/selection/undo/IME, palette, actual glyph/word
+rendering, accessibility, pending sends and physical acceptance remain required.
+See [CHIEF_RICH_TEXT.md](../../docs/CHIEF_RICH_TEXT.md).
+
 The emoji checker guards five source files and executes the actual prefilter,
 one-to-three grapheme predicate, count, fixed font-size and composer eligibility
 functions. Ninety-five cases cover joined families, flags, keycaps, variation

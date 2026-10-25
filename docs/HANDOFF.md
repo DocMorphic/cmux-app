@@ -1,3 +1,36 @@
+## Rich composer engine checkpoint; next mount the actual editor — 2026-10-25
+
+The standalone engine and exact source oracle are committed together. Whole
+unmodified Swift core plus shared rendering source execute Foundation semantic
+keys and real QuartzCore keyframes. Final wide-mask replay v6 matches the saved
+corpus: 104 cases, 2,473 mutations, 672 poses, seven seeds, 72 tracks with 3,501
+transform/792 opacity frames. Final JVM/build-v5 passes 3,534 tests, four existing
+SSH skips, zero failures/errors; both debug APKs build. Frozen signed722 and
+22 native libraries are unchanged, alignment passes and no device was operated.
+
+Read CHIEF_RICH_TEXT.md for requirements and limits. Production Chief remains a
+plain composer; these new helpers are unmounted. Next preserve the existing
+state-based editor while implementing a coherent rich-formatting owner and
+exact input/undo/IME transactions, then the native edit-menu Text Effects
+palette and glyph overlay. Verify the original pinned UIKit composer through
+the established hosted route; local xcodebuild has CommandLineTools only.
+Do not replace those tasks with further standalone pose fixtures or claim the
+plain-prefix/suffix carry helper implements typing inheritance. Retain source
+optimistic formatting and plain canonical/ACK semantics without changing Chief
+RPC. Source/UI/Store/backend hashes are applicability bindings, not execution.
+
+Local evidence: captures/recovery-20261025/rich-text-checkpoint.json and
+rich-text-handoff.json. Final source corpus SHA256:
+30dda39ba706fc61ee8ce78ca0d70aae6474b53553ef4f219ac82e7ac7d612b0.
+The nine new JVM methods take 0.302 seconds. Earlier compile and narrower-mask
+iterations remain excluded historical evidence. No owned process remains after
+both source/build handles terminal0. No fresh phone availability is established;
+do not reuse historical approvals for phone/Mac pairing/Keychain actions.
+All thirteen completion areas remain open; full parity stays active. Global
+implemented/reviewed/audit/detected pins, real credentials/pairing/signing and
+frozen signed722 remain unchanged. Push completed source/tests/docs to main;
+raw capture logs/binaries and secrets remain local.
+
 ## Encrypted read preservation and complete source references advanced — 2026-10-24
 
 NativeCredentialStore no longer deletes its encrypted document after a read,
