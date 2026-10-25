@@ -12,7 +12,13 @@ internal class PhoneHelperMaintenanceRecovery(
 ) {
     suspend fun runPass(): Boolean {
         var pending = emptyList<QueuedHelperMaintenance>()
-        transaction { pending = it.pending().take(8) }
+        transaction { queue ->
+            // A historical retry floor must not consume the ready-work budget.
+            // Establish current token readiness before cleaning up older rows;
+            // uncertain renewals still settle through their existing abort path.
+            pending = queue.pending().filter { it.retryAt <= now() }
+                .sortedBy { if (it.action == "renew" && !it.aborting) 0 else 1 }.take(8)
+        }
         for (item in pending) {
             currentCoroutineContext().ensureActive()
             if (item.retryAt > now()) continue

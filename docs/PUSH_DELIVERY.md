@@ -1,5 +1,21 @@
 # Android background push
 
+## Current registration readiness — 2026-10-25
+
+Helper maintenance now selects due work before its eight-operation cap and
+prioritizes current renewals over historical cleanup. This fixes a reproduced
+case where older backoff rows hid a ready token update. Exact retry floors,
+requests, ownership and cleanup deadlines are preserved. Two JVM regressions
+fail before and pass after; full JVM/build passes 3,529 with four existing SSH
+skips, and the encrypted-store runtime cohort passes 10/10. Runtime transport is
+a Retry seam, not a physical delivery acknowledgement.
+
+The original push actor and post-sign-in hook are now compiled/executed in five
+controlled Foundation cases. Android's existing application/account/token
+observers are mapped explicitly; full hook/worker and live provider equivalence
+remain open. See [Registration ownership](PUSH_REGISTRATION_OWNERSHIP.md) for
+source boundaries, evidence and remaining acceptance gates.
+
 ## Paired status wording — 2026-10-13
 
 A valid current helper receipt now displays **Notification helper paired**.

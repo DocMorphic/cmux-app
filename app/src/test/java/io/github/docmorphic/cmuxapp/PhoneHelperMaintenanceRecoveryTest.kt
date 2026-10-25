@@ -235,4 +235,58 @@ class PhoneHelperMaintenanceRecoveryTest {
         assertFalse(JSONObject(f.account).has(PhonePushHelperState.KEY))
     }
 
+    /** A ready current token must not sit behind an earlier account's retry floor. */
+    @Test fun historicalBackoffsDoNotHideAnEligibleCurrentRegistration() = runBlocking {
+        val f = Fixture(); f.rotate("ready-token"); f.access(true) {}
+        val current = JSONObject(f.ledger).getJSONArray(PhoneHelperMaintenanceQueue.KEY).getJSONObject(0)
+        val history = (1..8).map {
+            JSONObject(current.toString()).apply {
+                getJSONObject("receipt").put("id", UUID.randomUUID().toString()).put("registration", UUID.randomUUID().toString())
+                put("cleanup_deadline", f.now + 86_400_000)
+                put("operation", JSONObject().put("id", UUID.randomUUID().toString()).put("action", "revoke")
+                    .put("deadline", f.now + 86_400_000).put("retry_at", f.now + 60_000))
+            }
+        }
+        f.ledger = JSONObject().put(PhoneHelperMaintenanceQueue.KEY, JSONArray(history + current)).toString()
+        val readyRequest = current.getJSONObject("operation").getString("id")
+        assertTrue(f.runner { _, permits, step, body ->
+            assertEquals("A deferred cleanup must not be sent before its retry floor", readyRequest, body.getString("requestID"))
+            assertTrue(permits()); f.serve(step, body)
+        }.runPass())
+        assertEquals("ready-token", f.remoteToken); assertEquals(1, f.commits)
+        assertEquals(listOf("maintain.begin", "maintain.finish"), f.received.map { it.first })
+        val retained = PhoneHelperMaintenanceQueue(JSONObject(f.ledger), { f.now }).pending()
+        assertEquals(8, retained.size); assertTrue(retained.all { it.retryAt == f.now + 60_000 })
+    }
+
+    @Test fun currentRegistrationPrecedesReadyHistoricalCleanupWithinTheEightOperationBudget() = runBlocking {
+        val f = Fixture(); f.rotate("ready-token"); f.access(true) {}
+        val current = JSONObject(f.ledger).getJSONArray(PhoneHelperMaintenanceQueue.KEY).getJSONObject(0)
+        val history = (1..9).map {
+            JSONObject(current.toString()).apply {
+                getJSONObject("receipt").put("id", UUID.randomUUID().toString()).put("registration", UUID.randomUUID().toString())
+                put("cleanup_deadline", f.now + 86_400_000)
+                put("operation", JSONObject().put("id", UUID.randomUUID().toString()).put("action", "revoke")
+                    .put("deadline", f.now + 86_400_000))
+            }
+        }
+        f.ledger = JSONObject().put(PhoneHelperMaintenanceQueue.KEY, JSONArray(history + current)).toString()
+        val readyRequest = current.getJSONObject("operation").getString("id")
+        val attempted = mutableListOf<String>(); val steps = mutableListOf<String>()
+        assertTrue(f.runner { _, permits, step, body ->
+            assertTrue(permits()); val id = body.getString("requestID"); attempted += id; steps += step
+            if (id == readyRequest) f.serve(step, body) else {
+                assertEquals("maintain.begin", step)
+                PhoneHelperHttpResult.Retry(f.now + 1000)
+            }
+        }.runPass())
+        assertEquals("ready-token", f.remoteToken); assertEquals(1, f.commits)
+        assertEquals(listOf(readyRequest, readyRequest), attempted.take(2))
+        assertEquals(listOf("maintain.begin", "maintain.finish"), steps.take(2))
+        assertEquals(8, attempted.distinct().size); assertEquals(9, attempted.size)
+        val retained = PhoneHelperMaintenanceQueue(JSONObject(f.ledger), { f.now }).pending()
+        assertEquals(9, retained.size); assertEquals(7, retained.count { it.retryAt == f.now + 1000 })
+        assertEquals(2, retained.count { it.retryAt == 0L })
+    }
+
 }

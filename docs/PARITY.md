@@ -1,3 +1,32 @@
+## Current notification registration before historical cleanup — 2026-10-25
+
+Fixed a helper-maintenance queue starvation case: eight historical retry rows
+could hide an eligible current-token renewal. Ready renewals now lead eligible
+cleanup, and rows in backoff do not consume the unchanged eight-operation budget.
+Ownership, signed requests, retry floors and cleanup deadlines are preserved.
+
+Two new JVM regressions fail before the fix and pass afterward. Full JVM/build-v3
+passes 3,529 total in 473 suites: 3,525 passed, four existing SSH skips, zero
+failures/errors; both APKs build. API36 runtime-v1 passes 10/10 in 2.655 seconds,
+two new encrypted-queue cases plus eight storage regressions. Inputs/APKs are
+bound, crash log empty, no preflight ANR, settings/window restored and owned
+emulator exited0. The runtime transport returns Retry and does not claim a
+remote ACK or physical delivery.
+
+The compiled original push actor, SQLite store, deferred hook and complete
+post-sign-in registry pass five Foundation cases for readiness ordering, late
+account repair and retained hook ownership. The installed toolchain lacks Swift
+Testing; the original Swift Testing suite is not claimed as executed.
+
+Evidence: `captures/recovery-20261025/helper-readiness-checkpoint.json`.
+Complete hook/observer/worker equivalence, remaining auth/Cloud behavior, full
+UI/accessibility, physical Pixel/Mac/native terminal/provider/helper/Firebase/VPN
+and signed delivery remain open. Account/pairing/signing data, global pins and
+frozen signed722 are preserved. Full parity remains active.
+
+Details: [Registration ownership](PUSH_REGISTRATION_OWNERSHIP.md).
+Earlier checkpoints below retain their historical scope and open items.
+
 ## Token retirement source and encrypted-store audit — 2026-10-25
 
 The complete original token-phase extension now executes in 22 controlled Swift

@@ -5,12 +5,14 @@ import android.content.ContextWrapper
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.Base64
 import java.util.UUID
+import java.io.File
 
 class PhoneHelperMaintenanceStorageTest {
     /** Exercise primary-store hooks and real Android Keystore, with completely separate test preferences/revision flows. */
@@ -212,6 +214,71 @@ class PhoneHelperMaintenanceStorageTest {
             assertEquals("unreadable fixture FCM grant",fcm.getString("state",null))
             assertTrue(fcm.edit().putString("state",savedFcm).commit())
             assertNotNull(tokens.load());assertEquals(1,rows(context).length())
+        }
+    }
+
+    @Test fun deferredHistoricalRowsDoNotHideTheCurrentRenewalInTheEncryptedQueue() = maintenanceReadiness(true)
+    @Test fun currentRenewalLeadsHistoricalCleanupWithoutExceedingThePassBudget() = maintenanceReadiness(false)
+    private fun maintenanceReadiness(deferred: Boolean) = runBlocking<Unit> {
+        check(android.os.Build.MODEL.contains("sdk") || android.os.Build.FINGERPRINT.contains("generic"))
+        IsolatedContext(InstrumentationRegistry.getInstrumentation().targetContext).use { context ->
+            val seeded = seed(context); val account = NativeCredentialStore(context).requireReadable()!!
+            val time = System.currentTimeMillis()
+            val token = PhoneFcmTokenSnapshot(PhoneFcmTokenGrant(seeded.team.login,
+                PhoneFcmProject.parse(seeded.receipt.getJSONObject("project")), "fixture-grant"), "rotated-fixture-token", "new-revision")
+            val current = JSONObject(rows(context).getJSONObject(0).toString())
+            // These tests begin with an already-verified receipt. Use valid
+            // server UUIDs to exercise the real maintenance request constructor.
+            current.getJSONObject("receipt").put("registration", UUID.randomUUID().toString()).put("generation", UUID.randomUUID().toString())
+            account.getJSONArray(PhoneHelperEnrollmentState.RECEIPTS).put(0, JSONObject(current.getJSONObject("receipt").toString()))
+            val base = JSONObject().put(PhoneHelperMaintenanceQueue.KEY, JSONArray().put(current))
+            PhoneHelperMaintenanceQueue(base, { time }).reconcile(account, token.grant, token)
+            val ready = base.getJSONArray(PhoneHelperMaintenanceQueue.KEY).getJSONObject(0)
+            val history = (1..if (deferred) 8 else 9).map {
+                JSONObject(ready.toString()).apply {
+                    getJSONObject("receipt").put("id", UUID.randomUUID().toString()).put("registration", UUID.randomUUID().toString())
+                    put("cleanup_deadline", time + 86_400_000)
+                    put("operation", JSONObject().put("id", UUID.randomUUID().toString()).put("action", "revoke")
+                        .put("deadline", time + 86_400_000).apply { if (deferred) put("retry_at", time + 60_000) })
+                }
+            }
+            val storage = ledger(context)
+            storage.update { it.put(PhoneHelperMaintenanceQueue.KEY, JSONArray(history + ready)) }
+            val readyID = ready.getJSONObject("operation").getString("id")
+            fun access(write: Boolean, action: (PhoneHelperMaintenanceQueue) -> Unit) {
+                fun apply(state: JSONObject) {
+                    val queue = PhoneHelperMaintenanceQueue(state, { time })
+                    queue.reconcile(account, token.grant, token); action(queue); queue.reconcile(account, token.grant, token)
+                }
+                if (write) storage.update(::apply) else apply(storage.requireReadable()!!)
+            }
+            val attempted = mutableListOf<String>(); val actions = mutableListOf<String>()
+            val retry = PhoneHelperMaintenanceRecovery({ access(true, it) }, { access(false, it) }, { endpoint, permits, step, body ->
+                assertEquals("https://fixture.invalid/v1/push/enroll", endpoint); assertTrue(permits())
+                assertEquals("maintain.begin", step)
+                attempted += body.getString("requestID"); actions += body.getString("action")
+                if (body.getString("requestID") == readyID) assertEquals(token.token, body.getString("token"))
+                // A transport seam: preserve pending proof/ownership and exercise
+                // real encrypted retry commits, without claiming a remote ACK.
+                PhoneHelperHttpResult.Retry(time + 30_000)
+            }, { time }).runPass()
+            assertTrue(retry); assertEquals(readyID, attempted.first()); assertEquals("renew", actions.first())
+            assertEquals(if (deferred) 1 else 8, attempted.size); assertEquals(attempted.size, attempted.distinct().size)
+            val cold = NativeCredentialStore(context, "phone_helper_maintenance").requireReadable()!!
+            val pending = PhoneHelperMaintenanceQueue(cold, { time }).pending()
+            assertEquals(history.size + 1, pending.size)
+            assertEquals(time + 30_000, pending.single { it.requestID == readyID }.retryAt)
+            assertEquals(if (deferred) 8 else 0, pending.count { it.retryAt == time + 60_000 })
+            assertEquals(if (deferred) 0 else 2, pending.count { it.retryAt == 0L })
+            val ciphertext = context.getSharedPreferences("phone_helper_maintenance", 0).getString("state", null)!!
+            assertFalse(ciphertext.contains(token.token)); assertFalse(ciphertext.contains(seeded.phone.keyID))
+            assertEquals(listOf(seeded.mac), NativeCredentialStore(context).pairedMacs())
+            File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "helper-readiness").apply { mkdirs() }
+                .resolve(if (deferred) "deferred-history.json" else "eligible-history.json").writeText(JSONObject()
+                    .put("fixtureOnly", true).put("encryptedStoreUsed", true).put("currentRenewalFirst", true)
+                    .put("attemptedOperations", attempted.size).put("retainedOperations", pending.size).put("passBudget", 8)
+                    .put("historicalRetryFloorsPreserved", true).put("pairingPreserved", true).put("transportSeamReturnsRetry", true)
+                    .put("remoteAcknowledgementClaimed", false).toString(2))
         }
     }
 
