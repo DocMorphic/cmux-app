@@ -89,6 +89,12 @@ or production authority assertion was relaxed.
 
 ## Remaining work
 
+Follow-up: [Token retirement](AUTH_TOKEN_RETIREMENT.md) executes the complete
+original token-phase extension in 22 controlled source cases and verifies five
+Android encrypted-store producer races. It replaces the earlier inert finish
+seam for that source audit, without claiming complete Android phase equivalence
+or introducing a redundant production reconciliation callback.
+
 Complete original phase finish/high-water reconciliation, nested currentTokens/
 deletion phase binding and registry admission remain open. The Android preflight
 still retains additional whole-flow/teardown ownership compared with the original

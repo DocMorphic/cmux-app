@@ -1,3 +1,29 @@
+## Token retirement source and encrypted-store audit — 2026-10-25
+
+The complete original token-phase extension now executes in 22 controlled Swift
+cases, including real Task cancellation, capture waits, high-water/conditional
+cleanup and actual registry retirement. Five new Android ART tests verify late
+refresh work after sign-out, sign-out during refresh/exchange encryption, and
+late success/rejection against an unverified replacement using the same refresh
+string. The replacement is seeded directly at the storage boundary; it is not
+claimed as a second interactive sign-in bypassing preflight.
+
+Both debug APKs build. Final focused API36 runtime-v2 passes 5/5 in 0.524 seconds,
+with all source/APK inputs bound, empty crash log, no preflight ANR, restored
+settings/window and owned emulator exit 0. The first attempt's 4/5 result and
+corrected fixture ownership observation are retained. No production source was
+changed; prior full JVM/runtime totals are historical, not rerun results.
+
+Evidence: `captures/recovery-20261025/token-retirement-checkpoint.json`.
+This establishes the exercised source/producer paths, not complete phase or app
+parity. Remaining registry/caller/presentation and nested phase mapping,
+post-sign-in push-hook ownership, full UI/accessibility, physical Pixel/Mac/
+terminal/provider/helper/Firebase/Cloud/VPN and signed delivery gates stay open.
+Real account/pairing/signing data, global pins and frozen signed722 are preserved.
+
+Details: [Token retirement](AUTH_TOKEN_RETIREMENT.md).
+Earlier checkpoints below retain their historical scope and open items.
+
 ## Continuous preflight and structured teardown waits — 2026-10-25
 
 Previous-flow and token-work preflight now share one absolute continuous network
