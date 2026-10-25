@@ -184,6 +184,17 @@ class NativeTeamPhaseTest {
     }
     @Test fun cachePersistenceObservesMembershipAndPublishedScopeAsOneAtomicProjection()=runBlocking<Unit> {
         MockWebServer().use{server->
+            val memberIds=AtomicReference("one,two");val selected=AtomicReference("two")
+            val requests=java.util.concurrent.CopyOnWriteArrayList<String>()
+            server.dispatcher=object:Dispatcher(){override fun dispatch(request:RecordedRequest):MockResponse {
+                requests+=checkNotNull(request.path)
+                return when(request.requestUrl?.encodedPath) {
+                    "/api/v1/users/me"->MockResponse().setBody(JSONObject().put("id","user")
+                        .put("selected_team",JSONObject().put("id",selected.get())).toString())
+                    "/api/v1/teams"->members(memberIds.get())
+                    else->MockResponse().setResponseCode(404)
+                }
+            }}
             val lock=Any();var root=JSONObject().put("task_session","login").put("refresh_token","fixture")
             val owner=AtomicReference<NativeAccountTeams?>();var observations=0
             val cache=NativeAccountProfileCache({root},{update->
@@ -193,10 +204,11 @@ class NativeTeamPhaseTest {
             })
             NativeAccountTeams({"fixture"},{"login"},server.url("/api/v1/"),cache=cache,lock=lock,
                 sessionIdentity={NativeAuthIdentity(0,"user")}).use{c->owner.set(c)
-                repeat(2){server.enqueue(MockResponse().setBody("{\"id\":\"user\",\"selected_team\":{\"id\":\"two\"}}"))};server.enqueue(members());val old=checkNotNull(c.refreshAfterSignIn("login",user.copy(selectedTeam="two")).scope)
-                val proof=checkNotNull(c.captureContinuation(old));repeat(2){server.enqueue(profile())};server.enqueue(members("one"))
+                val old=checkNotNull(c.refreshAfterSignIn("login",user.copy(selectedTeam="two")).scope)
+                val proof=checkNotNull(c.captureContinuation(old));selected.set("one");memberIds.set("one")
                 assertEquals("one",c.refreshAfterSignIn("login",user.copy(name="Updated")).scope?.teamId)
                 assertFalse(c.allowsContinuation(proof));assertTrue(observations>0)
+                assertEquals(6,requests.size);assertEquals(4,requests.count{it=="/api/v1/users/me"});assertEquals(2,requests.count{it=="/api/v1/teams?user_id=me"})
             }
         }
     }

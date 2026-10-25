@@ -1,5 +1,12 @@
 # Saved-session restoration
 
+## Completion-wait follow-up — 2026-10-25
+
+[Auth completion waits](AUTH_COMPLETION_WAITS.md) moves preflight and sign-out
+completion/server waits onto the production continuous clock. Read-only joins
+and structured server cancellation retain different ownership. Larger registry,
+finish/high-water and caller/UI error-composition comparisons remain open.
+
 This checkpoint ports the normal saved-session path from pinned original
 `a5911a1f92f3eeb11c4d7f3e2ef89204718c5009`. It does not advance the global
 implemented/reviewed/detected source pins or establish whole-app parity.

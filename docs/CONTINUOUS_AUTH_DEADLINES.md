@@ -1,5 +1,12 @@
 # Continuous deadlines for native authentication phases
 
+## Completion-wait follow-up — 2026-10-25
+
+[Auth completion waits](AUTH_COMPLETION_WAITS.md) moves preflight and sign-out
+completion/server waits onto the production continuous clock. Read-only joins
+and structured server cancellation retain different ownership. Larger registry,
+finish/high-water and caller/UI error-composition comparisons remain open.
+
 Production `NativeCredentialStore.authWork` now reads `SystemClock.elapsedRealtime`
 and waits on an absolute Linux `CLOCK_BOOTTIME` timerfd. The time remaining in a
 request includes device suspend. An expired token phase still rejects late

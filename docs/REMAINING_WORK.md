@@ -1,3 +1,32 @@
+## Continuous preflight and structured teardown waits — 2026-10-25
+
+Previous-flow and token-work preflight now share one absolute continuous network
+budget. Read-only watchers stop waiting without forgetting their actual owners.
+Post-sign-in-effect joins and the server tail keep separate budgets; server-tail
+timeout/cancellation cancels and joins its actual child before retiring, with no
+later credential/hook/revocation leg admitted. Completed joins need no timer.
+
+Full JVM/build-v4: 3,527 total in 473 suites, 3,523 passed, four existing SSH
+skips, zero failures/errors; both APKs build. Eight new JVM cases and the corrected
+53-method focused cohort pass. The focused API36 cohort passes 6/6 in 1.466
+seconds. The full API36 run passes 303/303 in 556.94 seconds, six new methods
+and 297 regressions. Full/focused runs bind identical source inputs and installed
+APK hashes, have empty crash logs and no preflight ANR, restore settings/window
+and observe owned emulator exit 0. Final full JVM XML remains unchanged, as do
+all 22 packaged native library hashes; APK ZIP alignment passes.
+
+Evidence: `captures/recovery-20261025/waits-checkpoint.json`. The original-only Swift
+preflight probe records 12 controlled role/action rows, including a cancellation
+error-composition difference that remains open. Whole-flow/teardown snapshot
+categories, complete phase finish/high-water and nested admission are not closed.
+
+Full UI, real device sleep/Doze, physical Pixel/Mac/provider/helper/Firebase/Cloud/
+VPN and signed delivery gates remain active. Real account/pairing/signing data,
+global pins and frozen signed722 are preserved.
+
+Details: [Auth completion waits](AUTH_COMPLETION_WAITS.md).
+Earlier checkpoints below retain their historical scope and open items.
+
 ## Continuous auth phase deadlines — 2026-10-25
 
 Production auth phases now measure and wait on continuous boot time, including

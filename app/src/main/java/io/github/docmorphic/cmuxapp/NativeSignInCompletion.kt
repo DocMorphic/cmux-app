@@ -77,8 +77,9 @@ internal class NativeSignInCompletion(
         previous.forEach { it.cancel() }
         var exchangeComplete = false
         try {
-            withTimeout(networkTimeoutMillis) { previous.forEach { it.join() } }
-            work.quiesce(networkTimeoutMillis)
+            val preflightDeadline=work.clockMillis()+networkTimeoutMillis
+            work.awaitCompletions(previous,networkTimeoutMillis,preflightDeadline)
+            work.quiesce(networkTimeoutMillis,preflightDeadline)
             synchronized(lock) { checkCurrent(flow) }
             work.run(exchangePhase, exchangeTimeoutMillis, flow.id, NativeAuthWork.Admission.EXCLUSIVE) {
                 synchronized(lock) { checkCurrent(flow) }

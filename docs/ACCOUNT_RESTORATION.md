@@ -3,6 +3,13 @@ records the 2026-10-25 live-verification receipt, restoration cancellation and
 initial v2 control credential split. The earlier evidence below retains its
 scope; full parity and live-device acceptance remain open.
 
+## Completion-wait follow-up — 2026-10-25
+
+[Auth completion waits](AUTH_COMPLETION_WAITS.md) moves preflight and sign-out
+completion/server waits onto the production continuous clock. Read-only joins
+and structured server cancellation retain different ownership. Larger registry,
+finish/high-water and caller/UI error-composition comparisons remain open.
+
 ## Current-owner follow-up — 2026-10-25
 
 [Current-session owners](CURRENT_SESSION_OWNERS.md) records credential-free

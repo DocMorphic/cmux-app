@@ -24,6 +24,9 @@ internal class NativeAuthWork(
     internal val activeCount: Int get() = synchronized(lock) { active.size }
     internal val cancelledCount: Int get() = synchronized(lock) { active.count { it.job.isCancelled } }
     internal fun clockMillis():Long=nowMillis()
+    private val waits=NativeAuthWaits(nowMillis,waitUntil)
+    internal suspend fun awaitCompletions(jobs:List<Job>,timeoutMillis:Long,absoluteDeadlineMillis:Long?=null) =
+        waits.completions(jobs,timeoutMillis,absoluteDeadlineMillis)
 
     suspend fun <T> run(phase: NativeAuthPhase, timeoutMillis: Long, owner: String? = null,
         admission: Admission = Admission.TOKEN, finish:()->Unit={}, absoluteDeadlineMillis:Long?=null,operation: suspend () -> T): T {
@@ -167,9 +170,11 @@ internal class NativeAuthWork(
         val task=CoroutineScope(teardownDispatcher+lifetime).async(start=CoroutineStart.LAZY) {
             try {
                 val hooks=synchronized(lock) { active.filter { it.phase in setOf(NativeAuthPhase.TEAMS,NativeAuthPhase.TEAM_LIST,NativeAuthPhase.POST_SIGN_IN) }.map { it.job } }
-                withTimeoutOrNull(timeoutMillis) { hooks.forEach { it.join() } }
+                try {awaitCompletions(hooks,timeoutMillis)} catch(error:NativeSignInFailure) {
+                    if(error.reason!=NativeSignInError.TIMED_OUT)throw error
+                }
                 ensureActive()
-                withTimeout(timeoutMillis) { operation() }
+                waits.structured(timeoutMillis,operation)
             } catch(_:Exception) { /* Best effort; local logout has already committed. */ }
         }
         val entry=Entry(NativeAuthPhase.SIGN_OUT,null,Admission.CLEANUP,task)
@@ -236,17 +241,13 @@ internal class NativeAuthWork(
     }
 
     /** Cancel a snapshot and join the operations, including those whose UI wait already ended. */
-    suspend fun quiesce(timeoutMillis: Long) {
+    suspend fun quiesce(timeoutMillis: Long,absoluteDeadlineMillis:Long?=null) {
         val entries = synchronized(lock) { active.filter { it.phase != NativeAuthPhase.SEND_CODE }.toList() }
         // Captured-session teardown gets its own bounded attempt; a fresh login joins it.
         entries.filter { it.phase != NativeAuthPhase.SIGN_OUT }.forEach { it.job.cancel() }
         // Plain team-selection/backend requests cannot publish after retirement.
         // Their token-refresh children remain separately tracked and joined.
-        try { withTimeout(timeoutMillis) { entries.filter {it.admission!=Admission.PHASE}.forEach { it.job.join() } } }
-        catch (failure: TimeoutCancellationException) {
-            currentCoroutineContext().ensureActive()
-            throw NativeSignInFailure(NativeSignInError.TIMED_OUT)
-        }
+        awaitCompletions(entries.filter {it.admission!=Admission.PHASE}.map{it.job},timeoutMillis,absoluteDeadlineMillis)
     }
 
     fun cancelOwners(owners: Set<String>) {
