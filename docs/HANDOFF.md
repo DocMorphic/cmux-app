@@ -1,3 +1,25 @@
+## Rich-composer native transaction candidate — 2026-10-25
+
+Next native step is the manual ios-chief-rich-composer workflow: eleven cases,
+130 public-input/source-control actions per actual Large/Accessibility Medium
+category. RichComposerTests.swift mounts the exact source controller without
+package edits or private selectors. Menu invocation is an explicitly recorded
+UIAction bridge through a temporary UIButton; palette/send UIControl handlers
+and UITextInput methods execute the original composer. No touch/keyboard/pixel
+acceptance is implied. Authored backend sends are isolated rejecting/plain-ACK
+fixtures and do not execute ChiefConversationBackend or external services.
+
+Native compile/run and independent export verification remain required. Local
+syntax/project/guard checks do not establish those outputs. Preserve all four
+existing preparation modes; their 237/240/240/239 generated files remain byte
+identical except truthful local dirty provenance. The optional new mode is
+--with-rich-composer. Continue from the actual remote handle after dispatch;
+never infer a process from this document or restart on an observation timeout.
+Android engine at896a7cae remains unmounted; retain exact transaction/owner,
+palette, glyph overlay, send lifecycle and all13 broader gates. No fresh phone
+availability or Mac pairing/Keychain authority is established. Real account,
+pairing/signing and frozen signed722 are unchanged; full parity stays active.
+
 ## Rich composer engine checkpoint; next mount the actual editor — 2026-10-25
 
 The standalone engine and exact source oracle are committed together. Whole

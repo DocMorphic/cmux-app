@@ -118,3 +118,29 @@ scrolling, effect loops and reduced motion, dynamic type/emoji/RTL/dark/light,
 TalkBack, accessibility-sized palette and physical Gboard/hardware input. Account,
 pairing and signing data, frozen signed722 and the global upstream pins remain
 unchanged. Full app feature/UI/device/backend/release gates remain active.
+
+## Native transaction reference candidate — 2026-10-25
+
+The optional original host mode --with-rich-composer now mounts the actual pinned
+controller with attachments disabled. Eleven synthetic cases contain130 actions
+per actual system category. They exercise public UITextInput editing/selection/
+marked-text APIs, native undo/redo admission, source palette toggles, focus reset,
+effect layers and source Store send/reset behavior. The delegate's real Text
+Effects action is obtained with two authored suggested menu groups, then invoked
+through a temporary UIButton primaryActionTriggered event. No private selector,
+source-package modification or replacement formatter is used.
+
+Palette/send actions are programmatic UIControl events, and UIKit input APIs do
+not prove actual IME, hardware-keyboard or native-menu gesture behavior. There
+are no pixel/XCUIScreen exports. The in-memory backend rejects or returns a plain
+ACK by fixture choice; this is not an execution of Chief backend mapping,
+correlation, RPC or account/transport behavior. The hosted manual workflow
+requests actual Large and Accessibility Medium. Independent export guards bind
+source, cases, exact action order, unchanged editor identity, ranges/attributes,
+source palette inventory, undo admission and fixture-only writes without imposing
+unobserved formatting outcomes. Native compile/run/export acceptance remains
+required before interpreting the observations or mounting the Android editor.
+
+The four old generated hosts are byte-identical except truthful local dirty
+provenance (237/240/240/239 files); the new mode generates239 files. Existing
+source/package pins, Android code, signed722 and personal data remain unchanged.

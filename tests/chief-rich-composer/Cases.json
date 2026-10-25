@@ -1,0 +1,560 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "caret-typing-and-undo",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "aba"
+        },
+        {
+          "kind": "select",
+          "start": 1,
+          "length": 0
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "bold"
+        },
+        {
+          "kind": "closeEffects"
+        },
+        {
+          "kind": "insert",
+          "text": "X"
+        },
+        {
+          "kind": "insert",
+          "text": "X"
+        },
+        {
+          "kind": "deleteBackward"
+        },
+        {
+          "kind": "undo"
+        },
+        {
+          "kind": "redo"
+        },
+        {
+          "kind": "select",
+          "selection": "start"
+        },
+        {
+          "kind": "insert",
+          "text": "Z"
+        },
+        {
+          "kind": "undo"
+        },
+        {
+          "kind": "redo"
+        }
+      ]
+    },
+    {
+      "id": "mixed-selection",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "bold move"
+        },
+        {
+          "kind": "select",
+          "start": 0,
+          "length": 4
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "bold"
+        },
+        {
+          "kind": "select",
+          "selection": "all"
+        },
+        {
+          "kind": "toggle",
+          "target": "bold"
+        },
+        {
+          "kind": "select",
+          "start": 5,
+          "length": 4
+        },
+        {
+          "kind": "toggle",
+          "target": "underline"
+        },
+        {
+          "kind": "select",
+          "selection": "all"
+        },
+        {
+          "kind": "toggle",
+          "target": "bold"
+        },
+        {
+          "kind": "select",
+          "selection": "start"
+        },
+        {
+          "kind": "toggle",
+          "target": "nod"
+        },
+        {
+          "kind": "toggle",
+          "target": "nod"
+        },
+        {
+          "kind": "closeEffects"
+        }
+      ]
+    },
+    {
+      "id": "empty-effect-typing",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "nod"
+        },
+        {
+          "kind": "closeEffects"
+        },
+        {
+          "kind": "insert",
+          "text": "A"
+        },
+        {
+          "kind": "insert",
+          "text": "BC"
+        },
+        {
+          "kind": "select",
+          "selection": "start"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "nod"
+        },
+        {
+          "kind": "toggle",
+          "target": "big"
+        },
+        {
+          "kind": "closeEffects"
+        },
+        {
+          "kind": "insert",
+          "text": "X"
+        },
+        {
+          "kind": "undo"
+        },
+        {
+          "kind": "redo"
+        }
+      ]
+    },
+    {
+      "id": "marked-text",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "prepost"
+        },
+        {
+          "kind": "select",
+          "start": 3,
+          "length": 0
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "italic"
+        },
+        {
+          "kind": "closeEffects"
+        },
+        {
+          "kind": "marked",
+          "text": "ka",
+          "start": 2,
+          "length": 0
+        },
+        {
+          "kind": "marked",
+          "text": "かな",
+          "start": 2,
+          "length": 0
+        },
+        {
+          "kind": "unmark"
+        },
+        {
+          "kind": "insert",
+          "text": "X"
+        },
+        {
+          "kind": "undo"
+        },
+        {
+          "kind": "redo"
+        }
+      ]
+    },
+    {
+      "id": "same-text-replacement-and-paste",
+      "style": "light",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "aaaa"
+        },
+        {
+          "kind": "select",
+          "start": 0,
+          "length": 2
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "bold"
+        },
+        {
+          "kind": "closeEffects"
+        },
+        {
+          "kind": "select",
+          "start": 1,
+          "length": 2
+        },
+        {
+          "kind": "replace",
+          "text": "aa"
+        },
+        {
+          "kind": "select",
+          "selection": "end"
+        },
+        {
+          "kind": "paste",
+          "text": " plain"
+        },
+        {
+          "kind": "undo"
+        },
+        {
+          "kind": "redo"
+        }
+      ]
+    },
+    {
+      "id": "focus-resets-keyboard",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "text"
+        },
+        {
+          "kind": "select",
+          "selection": "all"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "strikethrough"
+        },
+        {
+          "kind": "resign"
+        },
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "select",
+          "selection": "end"
+        },
+        {
+          "kind": "insert",
+          "text": "X"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "closeEffects"
+        }
+      ]
+    },
+    {
+      "id": "all-eight-effects",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "abc"
+        },
+        {
+          "kind": "select",
+          "selection": "all"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "big"
+        },
+        {
+          "kind": "toggle",
+          "target": "big"
+        },
+        {
+          "kind": "toggle",
+          "target": "small"
+        },
+        {
+          "kind": "toggle",
+          "target": "small"
+        },
+        {
+          "kind": "toggle",
+          "target": "shake"
+        },
+        {
+          "kind": "toggle",
+          "target": "shake"
+        },
+        {
+          "kind": "toggle",
+          "target": "nod"
+        },
+        {
+          "kind": "toggle",
+          "target": "nod"
+        },
+        {
+          "kind": "toggle",
+          "target": "explode"
+        },
+        {
+          "kind": "toggle",
+          "target": "explode"
+        },
+        {
+          "kind": "toggle",
+          "target": "ripple"
+        },
+        {
+          "kind": "toggle",
+          "target": "ripple"
+        },
+        {
+          "kind": "toggle",
+          "target": "bloom"
+        },
+        {
+          "kind": "toggle",
+          "target": "bloom"
+        },
+        {
+          "kind": "toggle",
+          "target": "jitter"
+        },
+        {
+          "kind": "toggle",
+          "target": "jitter"
+        },
+        {
+          "kind": "closeEffects"
+        }
+      ]
+    },
+    {
+      "id": "grapheme-effect-units",
+      "style": "light",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "👩🏽‍💻 é 👨‍👩‍👧‍👦"
+        },
+        {
+          "kind": "select",
+          "selection": "all"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "ripple"
+        },
+        {
+          "kind": "closeEffects"
+        }
+      ]
+    },
+    {
+      "id": "word-effect-units",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "one one one one one one one one one one one one one one one one one one one one one one "
+        },
+        {
+          "kind": "select",
+          "selection": "all"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "ripple"
+        },
+        {
+          "kind": "closeEffects"
+        }
+      ]
+    },
+    {
+      "id": "send-reject",
+      "style": "dark",
+      "backend": "reject",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": " yes please "
+        },
+        {
+          "kind": "select",
+          "selection": "all"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "italic"
+        },
+        {
+          "kind": "toggle",
+          "target": "big"
+        },
+        {
+          "kind": "send"
+        },
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "next"
+        }
+      ]
+    },
+    {
+      "id": "send-plainAck",
+      "style": "dark",
+      "backend": "plainAck",
+      "actions": [
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": " yes please "
+        },
+        {
+          "kind": "select",
+          "selection": "all"
+        },
+        {
+          "kind": "openEffects"
+        },
+        {
+          "kind": "toggle",
+          "target": "italic"
+        },
+        {
+          "kind": "toggle",
+          "target": "big"
+        },
+        {
+          "kind": "send"
+        },
+        {
+          "kind": "focus"
+        },
+        {
+          "kind": "insert",
+          "text": "next"
+        }
+      ]
+    }
+  ]
+}

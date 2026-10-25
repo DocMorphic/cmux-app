@@ -1,0 +1,107 @@
+name: Pinned iOS Chief rich composer transactions
+
+on:
+  workflow_dispatch:
+    inputs:
+      category:
+        description: Actual system text category
+        type: choice
+        required: true
+        default: all
+        options: [all, large, accessibilityMedium]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-chief-rich-composer
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      REFERENCE_CATEGORY: ${{ inputs.category || 'all' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cmux-app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/cmux
+          ref: a5911a1f92f3eeb11c4d7f3e2ef89204718c5009
+          path: upstream
+          sparse-checkout: |
+            Packages/iOS/CmuxConversation
+            scripts
+          persist-credentials: false
+      - name: Select pinned SDK family and prepare original composer host
+        run: |
+          set -euo pipefail
+          cd upstream
+          pin_major="$(cut -d. -f1 .xcode-version)"
+          CMUX_CI_MAX_MACOS_SDK_MAJOR="$pin_major" ./scripts/select-ci-xcode.sh
+          cd ..
+          python3 -m unittest discover -s cmux-app/scripts/tests -p test_ios_chief_rich_composer.py
+          python3 cmux-app/scripts/prepare-ios-chief-reference.py --upstream upstream --output "$RUNNER_TEMP/rich-composer" --with-rich-composer
+          xcodebuild -version
+      - name: Select disposable hosted simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/rich-composer-simulators.json"
+          python3 - <<'PY'
+          import json, os
+          candidates = [d for devices in json.load(open(os.environ['RUNNER_TEMP'] + '/rich-composer-simulators.json'))['devices'].values() for d in devices if d.get('isAvailable') and d['name'].startswith('iPhone')]
+          if not candidates: raise RuntimeError('No installed iPhone simulator runtime')
+          selected = sorted(candidates, key=lambda d: (d['name'] != 'iPhone 17 Pro', d['name']))[0]
+          with open(os.environ['GITHUB_ENV'], 'a') as f: f.write('RICH_COMPOSER_SIMULATOR=' + selected['udid'] + '\n')
+          print(selected)
+          PY
+      - name: Observe public native input and original source controls
+        run: |
+          set -euo pipefail
+          xcrun simctl boot "$RICH_COMPOSER_SIMULATOR" || xcrun simctl bootstatus "$RICH_COMPOSER_SIMULATOR" -b
+          xcrun simctl bootstatus "$RICH_COMPOSER_SIMULATOR" -b
+          mode=test
+          for category in large accessibilityMedium; do
+            if [ "$REFERENCE_CATEGORY" != all ] && [ "$REFERENCE_CATEGORY" != "$category" ]; then continue; fi
+            system_category=large
+            if [ "$category" = accessibilityMedium ]; then system_category=accessibility-medium; fi
+            xcrun simctl ui "$RICH_COMPOSER_SIMULATOR" content_size "$system_category"
+            xcrun simctl ui "$RICH_COMPOSER_SIMULATOR" content_size
+            xcodebuild "$mode" -project "$RUNNER_TEMP/rich-composer/CmuxChiefReference.xcodeproj" \
+              -scheme CmuxChiefReference -destination "platform=iOS Simulator,id=$RICH_COMPOSER_SIMULATOR" \
+              -derivedDataPath "$RUNNER_TEMP/rich-composer-derived" -destination-timeout 90 \
+              -parallel-testing-enabled NO -testLanguage en -testRegion US \
+              -only-testing:CmuxChiefReferenceTests/CmuxChiefRichComposerTests/testCaptureOriginalRichComposerTransactions \
+              -resultBundlePath "$RUNNER_TEMP/rich-composer-$category.xcresult" \
+              CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/rich-composer-$category.log"
+            mode=test-without-building
+          done
+      - name: Export and bind original composer observations
+        if: always()
+        run: |
+          set -euo pipefail
+          for category in large accessibilityMedium; do
+            if [ "$REFERENCE_CATEGORY" != all ] && [ "$REFERENCE_CATEGORY" != "$category" ]; then continue; fi
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/rich-composer-$category.xcresult" --output-path "$RUNNER_TEMP/rich-composer-exported/$category"
+            python3 cmux-app/scripts/verify-ios-chief-rich-composer.py \
+              --exported "$RUNNER_TEMP/rich-composer-exported/$category" \
+              --output "$RUNNER_TEMP/rich-composer-canonical/$category" \
+              --project-commit "$GITHUB_SHA" --category "$category"
+          done
+      - name: Preserve actual observations and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-chief-rich-composer
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/rich-composer-canonical
+            ${{ runner.temp }}/rich-composer-exported
+            ${{ runner.temp }}/rich-composer-*.xcresult
+            ${{ runner.temp }}/rich-composer-*.log
+            ${{ runner.temp }}/rich-composer/Provenance.json
+            ${{ runner.temp }}/rich-composer-simulators.json

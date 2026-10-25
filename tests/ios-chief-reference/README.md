@@ -1,3 +1,25 @@
+## Rich-composer public-input transaction candidate — 2026-10-25
+
+Optional --with-rich-composer adds an application-hosted XCTest around the
+unchanged pinned controller. Eleven synthetic scenarios have130 actions per
+actual system category: caret/selection formatting, empty effect typing,
+marked-text APIs, same-text replacement, paste, undo/redo admission, focus reset,
+all eight effects, grapheme/long-word effect layers and source sends. Semantic,
+display/typing, palette/control, editor identity and Store/draft observations are
+exported as hash-bound JSON. No fake rich-text implementation is used.
+
+The source edit-menu UIAction is invoked through an explicit temporary UIButton
+primaryActionTriggered bridge. Palette and send controls use public sendActions;
+text edits use public UITextInput methods. This is programmatic native behavior
+evidence, not XCUITest gesture/physical keyboard, XCUIScreen/pixel or Android UI
+acceptance. The authored local backend either rejects or returns a plain ACK;
+ChiefConversationBackend, accounts and network services are not executed.
+
+The manual ios-chief-rich-composer workflow requests actual Large and
+Accessibility Medium categories and independently binds each export. Native
+execution is required before accepting its observations. The existing default,
+translation, poll and detector hosts remain unchanged. Full parity stays open.
+
 ## Data detection reference candidate — 2026-10-23
 
 The optional `--with-data-detection` mode observes actual NSDataDetector using

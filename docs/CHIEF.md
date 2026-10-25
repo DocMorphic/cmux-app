@@ -1,3 +1,21 @@
+## Original rich-composer transaction reference prepared — 2026-10-25
+
+The new optional rich-composer host mounts the unchanged pinned UIKit controller
+and captures eleven synthetic scenarios, 130 actions per actual text category.
+It drives public UITextInput operations and the real delegate menu/palette/send
+controls; an explicit UIButton event bridge invokes the source menu UIAction.
+It records semantic/display/typing attributes, selections, composition, undo
+admission, palette controls, editor identity and source Store/fixture-backend
+sends. It does not claim native gestures, physical keyboards or rendered pixels.
+
+The authored in-memory backend rejects sends or returns a deliberately plain
+ACK; ChiefConversationBackend and account/network transports are not executed.
+The opt-in hosted workflow covers Large and Accessibility Medium. Local guard,
+Swift syntax and generated-project checks are separate from native execution;
+the run and exported artifacts must pass independent verification before these
+observations can guide Android editor integration. Production Android remains
+plain text. See CHIEF_RICH_TEXT.md; full parity remains active.
+
 ## Rich composer engine port; editor mounting remains open — 2026-10-25
 
 The standalone Kotlin formatting/motion engine now follows the pinned original
