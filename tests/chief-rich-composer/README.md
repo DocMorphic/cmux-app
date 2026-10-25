@@ -56,33 +56,35 @@ is unchanged. See CHIEF_RICH_TEXT.md for observations and important scope limits
 per-controller overrides retain a fixed global application category and do not
 prove live global Settings, rendered pixels, physical input or Android behavior.
 
-## Mounted global system-font probe candidate
+## Verified mounted global system-font observations
 
-GlobalFontCases.json is a separate four-case / 49-action probe. Dispatch
-probe=systemFonts and category=large. The hosted-only Python driver wraps the
-reference xcodebuild and answers native JSON requests with actual simctl system
-content-size changes/readbacks. Native application/controller/editor categories
-and span fonts are recorded while the same editor remains mounted. A full request
-round-trip and category restoration are required; --system-font-cases verification
-also requires the exact --bridge-events receipt. Source Store sends use only the
-existing authored in-memory backend. Local 128 guards, host generation and Swift/
-workflow parsing pass; actual native execution/export acceptance remains pending.
-No accepted transaction/controller-font projection or Android behavior is replaced.
+GlobalFontCases.json contains four cases / 49 actions. Original run 40175245243 at
+fc39577c42420931ff374b6c505499dae01b61c8 passes all 53 records and eight real system
+category changes/readbacks. Artifact 12591394770 is 191,285 bytes; service digest:
+900eaad6534d6af9d850cb8464622aac4f88ad13abdd09c97307b4c314df0665. All five canonical
+files were independently reproduced using the exact eleven-file source snapshot.
+GlobalFontObservations.json preserves semantic/font/control and source Store
+observations, with strict source/driver/bridge/archive bindings. Its SHA256 is
+027c3a5ce706548777e490e0ebc9614715bb0efe7cc675a0d820884b0d9c9602.
 
-The first system-font run 40173198122 stopped before native execution: its app-
-container observation timed out while Xcode was still resolving packages. Category
-restoration succeeded; no font actions ran and no global result was accepted. The
-bridge now retries bounded container observations against the same build process;
-a regression proves it does not restart or terminate that build. Driver stderr is
-also preserved in the artifact. Native compile/run/export acceptance remains pending.
+Replay the committed projection against the accepted local evidence:
 
-Retry 40173879842 compiled and executed the original UIKit test. The first host
-category command/readback took 8.004s and confirmed Accessibility Medium; the app
-also reported that category at teardown. The existing 10s native propagation wait
-expired before all three category properties were observed. No completed global
-case was accepted; system Large was restored. The probe now waits up to 60s for
-the same strict application/controller/editor categories and captures failed-action
-state before teardown. Only those host-mediated actions have a 75s export clock
-bound; ordinary actions retain 15s. An explicit completion flag and rejection of
-failed records prevent a failed final step from being accepted. Native global
-execution/export acceptance remains pending; Android production is unchanged.
+```sh
+python3 scripts/project-ios-chief-global-fonts.py \
+  --canonical captures/recovery-20261025/rich-global-fonts-native-v3-independent/large \
+  --source-root captures/recovery-20261025/rich-global-fonts-native-v3-source \
+  --project-commit fc39577c42420931ff374b6c505499dae01b61c8 \
+  --run-id 40175245243 --artifact-id 12591394770 \
+  --artifact-zip captures/recovery-20261025/rich-global-fonts-native-v3.zip \
+  --artifact-sha256 900eaad6534d6af9d850cb8464622aac4f88ad13abdd09c97307b4c314df0665 \
+  --bridge-events captures/recovery-20261025/rich-global-fonts-native-v3/rich-composer-global-font-events.json
+```
+
+Use --output only to regenerate. The projector also requires canonical payloads
+and host events to match actual service archive bytes. The native verifier's
+--system-font-cases mode requires the exact --bridge-events receipt. Dispatch
+probe=systemFonts and category=large for a new original run. No private selector,
+source modification or real account/backend is used. Ordinary transaction and
+controller-override font observations remain separate and unchanged. See
+CHIEF_RICH_TEXT.md for font-base/undo findings, excluded attempts and remaining
+empty/font-trait/lifetime/physical/presentation acceptance. This is not full parity.

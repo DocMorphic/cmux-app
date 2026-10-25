@@ -1,0 +1,4206 @@
+{
+  "cases": [
+    {
+      "backend": "reject",
+      "id": "global-formatted-selection-metrics-roundtrip",
+      "records": [
+        {
+          "action": {
+            "kind": "initial"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              282,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              282,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": -1
+        },
+        {
+          "action": {
+            "kind": "focus"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 0
+        },
+        {
+          "action": {
+            "kind": "insert",
+            "text": "bold move"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 9,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 9
+            },
+            "storeMessages": [],
+            "text": "bold move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 1
+        },
+        {
+          "action": {
+            "kind": "select",
+            "length": 4,
+            "start": 0
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 9,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 4,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "bold move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 2
+        },
+        {
+          "action": {
+            "kind": "openEffects"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 9,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 4,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "bold move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 3
+        },
+        {
+          "action": {
+            "kind": "toggle",
+            "target": "bold"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Semibold",
+                  "fontSize": 17,
+                  "fontTraits": 32770,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 1,
+                  "underline": 0
+                },
+                "length": 4,
+                "location": 0
+              },
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 5,
+                "location": 4
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [
+              {
+                "effect": null,
+                "length": 4,
+                "location": 0,
+                "style": 1
+              }
+            ],
+            "selectedControls": [
+              "conversation.textEffects.bold"
+            ],
+            "selection": {
+              "length": 4,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "bold move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 4
+        },
+        {
+          "action": {
+            "kind": "toggle",
+            "target": "big"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": "big",
+                  "effectInkRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "fontName": ".SFUI-Semibold",
+                  "fontSize": 27.200000000000003,
+                  "fontTraits": 32770,
+                  "foregroundRGBA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 1,
+                  "underline": 0
+                },
+                "length": 4,
+                "location": 0
+              },
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 5,
+                "location": 4
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              60.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              60.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [
+              {
+                "effect": "big",
+                "length": 4,
+                "location": 0,
+                "style": 1
+              }
+            ],
+            "selectedControls": [
+              "conversation.textEffects.bold",
+              "conversation.textEffects.big"
+            ],
+            "selection": {
+              "length": 4,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "bold move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 5
+        },
+        {
+          "action": {
+            "kind": "systemMetricsCategory",
+            "target": "accessibilityMedium"
+          },
+          "bridgeEventID": "14540657-E48A-4396-9913-0AD9F5827355",
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 28,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 9,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              54.828125
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              54.828125
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 4,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "bold move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 28,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 6
+        },
+        {
+          "action": {
+            "kind": "systemMetricsCategory",
+            "target": "large"
+          },
+          "bridgeEventID": "1289E00E-09B9-4326-B875-FB6D971A113F",
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 9,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 4,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "bold move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 7
+        },
+        {
+          "action": {
+            "kind": "closeEffects"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 9,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 4,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "bold move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 8
+        },
+        {
+          "action": {
+            "kind": "insert",
+            "text": "X"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 6,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 1
+            },
+            "storeMessages": [],
+            "text": "X move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 9
+        },
+        {
+          "action": {
+            "kind": "undo"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 9,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": true,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 4,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "bold move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 10,
+          "undoOrRedoPerformed": true
+        },
+        {
+          "action": {
+            "kind": "redo"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 6,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 1
+            },
+            "storeMessages": [],
+            "text": "X move",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 11,
+          "undoOrRedoPerformed": true
+        },
+        {
+          "action": {
+            "kind": "send"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [
+              {
+                "runs": [],
+                "text": "X move"
+              }
+            ],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [
+              {
+                "delivery": "Optional(CmuxConversationCore.ConversationDelivery.failed(\"fixtureRejected\"))",
+                "runs": [],
+                "sequence": null,
+                "text": "X move"
+              }
+            ],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 12
+        }
+      ],
+      "style": "dark"
+    },
+    {
+      "backend": "reject",
+      "id": "global-emoji-base-metrics-and-restyle",
+      "records": [
+        {
+          "action": {
+            "kind": "initial"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": -1
+        },
+        {
+          "action": {
+            "kind": "focus"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 0
+        },
+        {
+          "action": {
+            "kind": "insert",
+            "text": "🙂"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 72,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": null,
+                  "minimumLineHeight": null,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              106.287109375
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              106.287109375
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 2
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 72,
+              "fontTraits": 0,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": null,
+              "minimumLineHeight": null,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 1
+        },
+        {
+          "action": {
+            "kind": "select",
+            "selection": "all"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 72,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": null,
+                  "minimumLineHeight": null,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              106.287109375
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              106.287109375
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 2,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 72,
+              "fontTraits": 0,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": null,
+              "minimumLineHeight": null,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 2
+        },
+        {
+          "action": {
+            "kind": "openEffects"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 72,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": null,
+                  "minimumLineHeight": null,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              106.287109375
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              106.287109375
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 2,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 72,
+              "fontTraits": 0,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": null,
+              "minimumLineHeight": null,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 3
+        },
+        {
+          "action": {
+            "kind": "toggle",
+            "target": "bold"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 72,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": null,
+                  "minimumLineHeight": null,
+                  "strikethrough": 0,
+                  "style": 1,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              106.287109375
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              106.287109375
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [
+              {
+                "effect": null,
+                "length": 2,
+                "location": 0,
+                "style": 1
+              }
+            ],
+            "selectedControls": [
+              "conversation.textEffects.bold"
+            ],
+            "selection": {
+              "length": 2,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 72,
+              "fontTraits": 0,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": null,
+              "minimumLineHeight": null,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 4
+        },
+        {
+          "action": {
+            "kind": "toggle",
+            "target": "big"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": "big",
+                  "effectInkRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 115.2,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "maximumLineHeight": null,
+                  "minimumLineHeight": null,
+                  "strikethrough": 0,
+                  "style": 1,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              158.287109375
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              158.287109375
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [
+              {
+                "effect": "big",
+                "length": 2,
+                "location": 0,
+                "style": 1
+              }
+            ],
+            "selectedControls": [
+              "conversation.textEffects.bold",
+              "conversation.textEffects.big"
+            ],
+            "selection": {
+              "length": 2,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 72,
+              "fontTraits": 0,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": null,
+              "minimumLineHeight": null,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 5
+        },
+        {
+          "action": {
+            "kind": "systemMetricsCategory",
+            "target": "accessibilityMedium"
+          },
+          "bridgeEventID": "72E30100-2226-4859-8DB5-580CC02F7A56",
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 28,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              55.4140625
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              55.4140625
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 2,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 28,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 6
+        },
+        {
+          "action": {
+            "kind": "closeEffects"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 28,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              55.4140625
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              55.4140625
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 2,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 28,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 7
+        },
+        {
+          "action": {
+            "kind": "select",
+            "selection": "end"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 28,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              55.4140625
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              55.4140625
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 2
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 28,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 8
+        },
+        {
+          "action": {
+            "kind": "insert",
+            "text": " "
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 28,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              },
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 28,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 1,
+                "location": 2
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              54.828125
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              54.828125
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 3
+            },
+            "storeMessages": [],
+            "text": "🙂 ",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 28,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 9
+        },
+        {
+          "action": {
+            "kind": "deleteBackward"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 72,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": null,
+                  "minimumLineHeight": null,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              107.4140625
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              107.4140625
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 2
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 72,
+              "fontTraits": 0,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": null,
+              "minimumLineHeight": null,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 10
+        },
+        {
+          "action": {
+            "kind": "systemMetricsCategory",
+            "target": "large"
+          },
+          "bridgeEventID": "9774493B-77F0-456A-B76B-362ABBD05F83",
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 17,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              41.287109375
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              41.287109375
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 2
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 11
+        },
+        {
+          "action": {
+            "kind": "undo"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".AppleColorEmojiUI",
+                  "fontSize": 17,
+                  "fontTraits": 3221233664,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              41.287109375
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              41.287109375
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 2
+            },
+            "storeMessages": [],
+            "text": "🙂",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 12,
+          "undoOrRedoPerformed": false
+        },
+        {
+          "action": {
+            "kind": "send"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [
+              {
+                "runs": [],
+                "text": "🙂"
+              }
+            ],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [
+              {
+                "delivery": "Optional(CmuxConversationCore.ConversationDelivery.failed(\"fixtureRejected\"))",
+                "runs": [],
+                "sequence": null,
+                "text": "🙂"
+              }
+            ],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 13
+        }
+      ],
+      "style": "dark"
+    },
+    {
+      "backend": "reject",
+      "id": "global-marked-metrics-change",
+      "records": [
+        {
+          "action": {
+            "kind": "initial"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": -1
+        },
+        {
+          "action": {
+            "kind": "focus"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 0
+        },
+        {
+          "action": {
+            "kind": "openEffects"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 1
+        },
+        {
+          "action": {
+            "kind": "toggle",
+            "target": "italic"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": true,
+            "runs": [],
+            "selectedControls": [
+              "conversation.textEffects.italic"
+            ],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-RegularItalic",
+              "fontSize": 17,
+              "fontTraits": 32769,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 2,
+              "underline": 0
+            }
+          },
+          "step": 2
+        },
+        {
+          "action": {
+            "kind": "closeEffects"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-RegularItalic",
+              "fontSize": 17,
+              "fontTraits": 32769,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 2,
+              "underline": 0
+            }
+          },
+          "step": 3
+        },
+        {
+          "action": {
+            "kind": "marked",
+            "length": 0,
+            "start": 2,
+            "text": "かな"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".CJKSymbolsFallbackSC-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 16384,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 2,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": {
+              "length": 2,
+              "location": 0
+            },
+            "paletteInWindow": false,
+            "runs": [
+              {
+                "effect": null,
+                "length": 2,
+                "location": 0,
+                "style": 2
+              }
+            ],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 2
+            },
+            "storeMessages": [],
+            "text": "かな",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-RegularItalic",
+              "fontSize": 17,
+              "fontTraits": 32769,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 2,
+              "underline": 0
+            }
+          },
+          "step": 4
+        },
+        {
+          "action": {
+            "kind": "systemMetricsCategory",
+            "target": "accessibilityMedium"
+          },
+          "bridgeEventID": "F04D8F3C-185F-4842-AF4F-08AFAA2C8170",
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".CJKSymbolsFallbackSC-Regular",
+                  "fontSize": 28,
+                  "fontTraits": 16384,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              54.828125
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              54.828125
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 2
+            },
+            "storeMessages": [],
+            "text": "かな",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 28,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 5
+        },
+        {
+          "action": {
+            "kind": "unmark"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".CJKSymbolsFallbackSC-Regular",
+                  "fontSize": 28,
+                  "fontTraits": 16384,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              54.828125
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              54.828125
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 2
+            },
+            "storeMessages": [],
+            "text": "かな",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 28,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 6
+        },
+        {
+          "action": {
+            "kind": "insert",
+            "text": "X"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".CJKSymbolsFallbackSC-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 16384,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              },
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 1,
+                "location": 2
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              54.828125
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              54.828125
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 3
+            },
+            "storeMessages": [],
+            "text": "かなX",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 7
+        },
+        {
+          "action": {
+            "kind": "systemMetricsCategory",
+            "target": "large"
+          },
+          "bridgeEventID": "CC825CA5-E738-4AC6-BB0D-43C1B2E00E86",
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".CJKSymbolsFallbackSC-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 16384,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              },
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 1,
+                "location": 2
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 3
+            },
+            "storeMessages": [],
+            "text": "かなX",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 8
+        },
+        {
+          "action": {
+            "kind": "undo"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".CJKSymbolsFallbackSC-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 16384,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 2,
+                "location": 0
+              },
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 1,
+                "location": 2
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 3
+            },
+            "storeMessages": [],
+            "text": "かなX",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 9,
+          "undoOrRedoPerformed": false
+        },
+        {
+          "action": {
+            "kind": "send"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [
+              {
+                "runs": [],
+                "text": "かなX"
+              }
+            ],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [
+              {
+                "delivery": "Optional(CmuxConversationCore.ConversationDelivery.failed(\"fixtureRejected\"))",
+                "runs": [],
+                "sequence": null,
+                "text": "かなX"
+              }
+            ],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 10
+        }
+      ],
+      "style": "dark"
+    },
+    {
+      "backend": "reject",
+      "id": "global-caret-typing-metrics-reset",
+      "records": [
+        {
+          "action": {
+            "kind": "initial"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              282,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              282,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": -1
+        },
+        {
+          "action": {
+            "kind": "focus"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              282,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              282,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 0
+        },
+        {
+          "action": {
+            "kind": "insert",
+            "text": "base"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 4,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              282,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              282,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 4
+            },
+            "storeMessages": [],
+            "text": "base",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 1
+        },
+        {
+          "action": {
+            "kind": "openEffects"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 4,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              303.84717607973425,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              303.84717607973425,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 4
+            },
+            "storeMessages": [],
+            "text": "base",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 2
+        },
+        {
+          "action": {
+            "kind": "toggle",
+            "target": "bold"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 4,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              303.84717607973425,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              303.84717607973425,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": "conversation.textEffects.palette",
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [
+              "conversation.textEffects.bold"
+            ],
+            "selection": {
+              "length": 0,
+              "location": 4
+            },
+            "storeMessages": [],
+            "text": "base",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Semibold",
+              "fontSize": 17,
+              "fontTraits": 32770,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 1,
+              "underline": 0
+            }
+          },
+          "step": 3
+        },
+        {
+          "action": {
+            "kind": "closeEffects"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 4,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              305.60132890365446,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              305.60132890365446,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 4
+            },
+            "storeMessages": [],
+            "text": "base",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Semibold",
+              "fontSize": 17,
+              "fontTraits": 32770,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 1,
+              "underline": 0
+            }
+          },
+          "step": 4
+        },
+        {
+          "action": {
+            "kind": "systemMetricsCategory",
+            "target": "accessibilityMedium"
+          },
+          "bridgeEventID": "75D9C72E-5859-4CB2-8749-C4D90E1A1E68",
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 28,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 4,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              54.828125
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              54.828125
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 4
+            },
+            "storeMessages": [],
+            "text": "base",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 28,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 5
+        },
+        {
+          "action": {
+            "kind": "insert",
+            "text": "X"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryAccessibilityM",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 5,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": true,
+            "contentSize": [
+              306,
+              54.828125
+            ],
+            "controllerCategory": "UICTContentSizeCategoryAccessibilityM",
+            "editorBounds": [
+              306,
+              54.828125
+            ],
+            "editorCategory": "UICTContentSizeCategoryAccessibilityM",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 5
+            },
+            "storeMessages": [],
+            "text": "baseX",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 6
+        },
+        {
+          "action": {
+            "kind": "systemMetricsCategory",
+            "target": "large"
+          },
+          "bridgeEventID": "0E522B13-18FC-4A2B-B37B-179AD2FC4594",
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 5,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 5
+            },
+            "storeMessages": [],
+            "text": "baseX",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 7
+        },
+        {
+          "action": {
+            "kind": "undo"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 5,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 5
+            },
+            "storeMessages": [],
+            "text": "baseX",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 8,
+          "undoOrRedoPerformed": false
+        },
+        {
+          "action": {
+            "kind": "redo"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [
+              {
+                "attributes": {
+                  "effect": null,
+                  "effectInkRGBA": null,
+                  "fontName": ".SFUI-Regular",
+                  "fontSize": 17,
+                  "fontTraits": 32768,
+                  "foregroundRGBA": [
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1.0000001192092896,
+                    1
+                  ],
+                  "maximumLineHeight": 0,
+                  "minimumLineHeight": 0,
+                  "strikethrough": 0,
+                  "style": 0,
+                  "underline": 0
+                },
+                "length": 5,
+                "location": 0
+              }
+            ],
+            "backendDrafts": [],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 5
+            },
+            "storeMessages": [],
+            "text": "baseX",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 9,
+          "undoOrRedoPerformed": false
+        },
+        {
+          "action": {
+            "kind": "send"
+          },
+          "state": {
+            "actualCategory": "UICTContentSizeCategoryL",
+            "attributes": [],
+            "backendDrafts": [
+              {
+                "runs": [],
+                "text": "baseX"
+              }
+            ],
+            "canRedo": false,
+            "canUndo": false,
+            "contentSize": [
+              306,
+              40.57421875
+            ],
+            "controllerCategory": "UICTContentSizeCategoryL",
+            "editorBounds": [
+              306,
+              40.57421875
+            ],
+            "editorCategory": "UICTContentSizeCategoryL",
+            "firstResponder": true,
+            "inputViewIdentifier": null,
+            "marked": null,
+            "paletteInWindow": false,
+            "runs": [],
+            "selectedControls": [],
+            "selection": {
+              "length": 0,
+              "location": 0
+            },
+            "storeMessages": [
+              {
+                "delivery": "Optional(CmuxConversationCore.ConversationDelivery.failed(\"fixtureRejected\"))",
+                "runs": [],
+                "sequence": null,
+                "text": "baseX"
+              }
+            ],
+            "text": "",
+            "typing": {
+              "effect": null,
+              "effectInkRGBA": null,
+              "fontName": ".SFUI-Regular",
+              "fontSize": 17,
+              "fontTraits": 32768,
+              "foregroundRGBA": [
+                1.0000001192092896,
+                1.0000001192092896,
+                1.0000001192092896,
+                1
+              ],
+              "maximumLineHeight": 0,
+              "minimumLineHeight": 0,
+              "strikethrough": 0,
+              "style": 0,
+              "underline": 0
+            }
+          },
+          "step": 10
+        }
+      ],
+      "style": "dark"
+    }
+  ],
+  "provenance": {
+    "artifactID": 12591394770,
+    "artifactSha256": "900eaad6534d6af9d850cb8464622aac4f88ad13abdd09c97307b4c314df0665",
+    "bridgeDriverSha256": "312103f0b708c42dd6a75841755448f5ec87623e94430a8ea830bad347215c12",
+    "bridgeEventsSha256": "507d5a050930c5bddad3b56bf9bfc01f526c72af03dab68536b03a4fbfd9a114",
+    "canonicalFilesSha256": {
+      "global-caret-typing-metrics-reset.json": "54f7ad47d1819394684527a7dbe5ac02f078b48023078835660e4ca142b38dd8",
+      "global-emoji-base-metrics-and-restyle.json": "3b2a7c781e7e93617dcc2114b979185e7af98100f8c93e70d3f93e7c3e451247",
+      "global-formatted-selection-metrics-roundtrip.json": "5ea2edbf7998848768a4abdddc6bf6a57630448aa4f71920d2bedb139b792bd0",
+      "global-marked-metrics-change.json": "34a2535e5eb74e1d81d3a8471368f9355fa4c50f4fe50d51069bf259f2912d3b"
+    },
+    "fixtureSha256": "159754d93e54ff1b2066505bf569e8672d367f4961610d05f6a78d8dfa0dac51",
+    "nativeProjectCommit": "fc39577c42420931ff374b6c505499dae01b61c8",
+    "nativeTestsSha256": "9dacff9e29dcfe98aca7d46d1eb999adc521e73538d29bd89f8c67d20d2adabc",
+    "packageTree": "c637abe46f3eeb6e223ae8c6c075641663e6d0cc",
+    "projectorSha256": "bcafc0efbcc3f40529b87eb112744b39f81fa72908bd464782674b9b4bd9be67",
+    "runID": 40175245243,
+    "upstreamRevision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+    "verifierSha256": "5782deb13f6293398a987101f319d6657d44ba19d060b47e537c185c3da575d6"
+  },
+  "referenceKind": "chiefRichComposerGlobalFontProjection",
+  "runtime": {
+    "os": "Version 26.4.1 (Build 23E254a)",
+    "version": "26.4.1"
+  },
+  "schema": 1,
+  "scope": "Original pinned UIKit composer/Store under actual mounted global Simulator category changes; same editor identity, public text/menu/control actions and authored in-memory rejecting backend. No rendered pixels, physical IME/hardware keyboard, real Chief backend, Android implementation or full app parity acceptance.",
+  "startingCategory": "UICTContentSizeCategoryL",
+  "systemCategoryRestored": true,
+  "systemEvents": [
+    {
+      "after": "accessibility-medium",
+      "before": "large",
+      "command": [
+        "xcrun",
+        "simctl",
+        "ui",
+        "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "content_size",
+        "accessibility-medium"
+      ],
+      "driverSha256": "312103f0b708c42dd6a75841755448f5ec87623e94430a8ea830bad347215c12",
+      "ended": 524.116978916,
+      "id": "14540657-E48A-4396-9913-0AD9F5827355",
+      "referenceKind": "chiefGlobalFontResponse",
+      "schema": 1,
+      "simulator": "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+      "sourceCommit": "fc39577c42420931ff374b6c505499dae01b61c8",
+      "started": 521.962670041,
+      "status": "applied",
+      "target": "accessibilityMedium"
+    },
+    {
+      "after": "large",
+      "before": "accessibility-medium",
+      "command": [
+        "xcrun",
+        "simctl",
+        "ui",
+        "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "content_size",
+        "large"
+      ],
+      "driverSha256": "312103f0b708c42dd6a75841755448f5ec87623e94430a8ea830bad347215c12",
+      "ended": 538.555887625,
+      "id": "1289E00E-09B9-4326-B875-FB6D971A113F",
+      "referenceKind": "chiefGlobalFontResponse",
+      "schema": 1,
+      "simulator": "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+      "sourceCommit": "fc39577c42420931ff374b6c505499dae01b61c8",
+      "started": 525.648093958,
+      "status": "applied",
+      "target": "large"
+    },
+    {
+      "after": "accessibility-medium",
+      "before": "large",
+      "command": [
+        "xcrun",
+        "simctl",
+        "ui",
+        "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "content_size",
+        "accessibility-medium"
+      ],
+      "driverSha256": "312103f0b708c42dd6a75841755448f5ec87623e94430a8ea830bad347215c12",
+      "ended": 548.740994416,
+      "id": "72E30100-2226-4859-8DB5-580CC02F7A56",
+      "referenceKind": "chiefGlobalFontResponse",
+      "schema": 1,
+      "simulator": "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+      "sourceCommit": "fc39577c42420931ff374b6c505499dae01b61c8",
+      "started": 544.669537041,
+      "status": "applied",
+      "target": "accessibilityMedium"
+    },
+    {
+      "after": "large",
+      "before": "accessibility-medium",
+      "command": [
+        "xcrun",
+        "simctl",
+        "ui",
+        "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "content_size",
+        "large"
+      ],
+      "driverSha256": "312103f0b708c42dd6a75841755448f5ec87623e94430a8ea830bad347215c12",
+      "ended": 553.839038625,
+      "id": "9774493B-77F0-456A-B76B-362ABBD05F83",
+      "referenceKind": "chiefGlobalFontResponse",
+      "schema": 1,
+      "simulator": "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+      "sourceCommit": "fc39577c42420931ff374b6c505499dae01b61c8",
+      "started": 551.980567166,
+      "status": "applied",
+      "target": "large"
+    },
+    {
+      "after": "accessibility-medium",
+      "before": "large",
+      "command": [
+        "xcrun",
+        "simctl",
+        "ui",
+        "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "content_size",
+        "accessibility-medium"
+      ],
+      "driverSha256": "312103f0b708c42dd6a75841755448f5ec87623e94430a8ea830bad347215c12",
+      "ended": 559.422740666,
+      "id": "F04D8F3C-185F-4842-AF4F-08AFAA2C8170",
+      "referenceKind": "chiefGlobalFontResponse",
+      "schema": 1,
+      "simulator": "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+      "sourceCommit": "fc39577c42420931ff374b6c505499dae01b61c8",
+      "started": 557.06748625,
+      "status": "applied",
+      "target": "accessibilityMedium"
+    },
+    {
+      "after": "large",
+      "before": "accessibility-medium",
+      "command": [
+        "xcrun",
+        "simctl",
+        "ui",
+        "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "content_size",
+        "large"
+      ],
+      "driverSha256": "312103f0b708c42dd6a75841755448f5ec87623e94430a8ea830bad347215c12",
+      "ended": 563.201862625,
+      "id": "CC825CA5-E738-4AC6-BB0D-43C1B2E00E86",
+      "referenceKind": "chiefGlobalFontResponse",
+      "schema": 1,
+      "simulator": "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+      "sourceCommit": "fc39577c42420931ff374b6c505499dae01b61c8",
+      "started": 560.954297125,
+      "status": "applied",
+      "target": "large"
+    },
+    {
+      "after": "accessibility-medium",
+      "before": "large",
+      "command": [
+        "xcrun",
+        "simctl",
+        "ui",
+        "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "content_size",
+        "accessibility-medium"
+      ],
+      "driverSha256": "312103f0b708c42dd6a75841755448f5ec87623e94430a8ea830bad347215c12",
+      "ended": 570.975964875,
+      "id": "75D9C72E-5859-4CB2-8749-C4D90E1A1E68",
+      "referenceKind": "chiefGlobalFontResponse",
+      "schema": 1,
+      "simulator": "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+      "sourceCommit": "fc39577c42420931ff374b6c505499dae01b61c8",
+      "started": 569.76384625,
+      "status": "applied",
+      "target": "accessibilityMedium"
+    },
+    {
+      "after": "large",
+      "before": "accessibility-medium",
+      "command": [
+        "xcrun",
+        "simctl",
+        "ui",
+        "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "content_size",
+        "large"
+      ],
+      "driverSha256": "312103f0b708c42dd6a75841755448f5ec87623e94430a8ea830bad347215c12",
+      "ended": 581.118203333,
+      "id": "0E522B13-18FC-4A2B-B37B-179AD2FC4594",
+      "referenceKind": "chiefGlobalFontResponse",
+      "schema": 1,
+      "simulator": "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+      "sourceCommit": "fc39577c42420931ff374b6c505499dae01b61c8",
+      "started": 577.216290791,
+      "status": "applied",
+      "target": "large"
+    }
+  ]
+}

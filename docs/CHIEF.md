@@ -1,22 +1,34 @@
-## Chief animated scroll reuse and native font observations — 2026-10-25
+## Live text-size changes follow the verified native editor — 2026-10-25
 
-The rich renderer now reuses glyph rasters across overlapping animated viewport
-updates with bounded image/track storage. A mounted atrace comparison reduces
-repeated raster preparation from 620 to 0 across four scroll round-trips, while all 32
-controlled effect frames match the previous renderer pixel-for-pixel. Final debug
-build-v2 and API 36 runtime-v2 pass 32/32 (96.742s), including the prior 31 clipboard,
-composition, lifecycle and render regressions. Crash log is empty, settings restore
-and the owned emulator exits 0. JVM sources are unchanged; the earlier 3539-pass /
-four-skip full checkpoint is retained, not rerun for this renderer change.
+The retained Chief editor now handles effective font-scale changes like the
+observed original controller: nonempty drafts lose rich runs, marked text,
+typing decorations and history while retaining text/selection. Accepted typing
+uses the retained earlier font base; emoji classification changes can replace
+that base, as in the source. Old input batches cannot restore pre-change content.
+The owner's published formatting clears too; no rich draft persistence is added.
 
-Original iOS run 40171337742 at 96c52a8e verifies eight native controller-font cases /
-88 public actions / 96 records with independently reproduced exports. These keep a
-fixed global category; live global Settings and Android font-reset behavior remain
-open. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md) for exact scope and evidence.
-Long-distance scrolling, GPU/physical frame budgets, wider input/focus/clipboard,
-TalkBack, real Pixel/Mac and matched UIKit acceptance remain. All thirteen broader
-completion areas remain open; full parity stays active. Account/pairing/signing,
-signed722 and global pins are preserved. Earlier entries retain historical scope.
+Original global run 40175245243 at fc39577c passes four cases / 49 public actions /
+53 states, with eight actual system category commands/readbacks and restoration.
+Five canonical files were independently reproduced from exact native source;
+the committed projection binds service artifact 12591394770. All 53 semantic/font/
+history/control states match the JVM engine. Full build-v5 passes 3,541 JVM tests
+(four existing SSH skips); final APK build-v6 and API 36 runtime-v4 pass 34/34 in
+97.581s. This includes actual Android system scale changes, subsequent typing,
+published owner metadata, stale batches and prior editor/render regressions.
+Crash log is empty, settings restore and the owned emulator exits 0. The 128 source
+export guards and four archive/projection tamper checks pass. All 32 effect frames
+remain identical, and warm scroll reuse remains 80 preparations then 0 repeats.
+
+This is scoped editor progress. Android uses actual platform font-scale metrics;
+UIFont/Android font geometry and rendered pixels are not claimed equal. Empty-
+draft history, Bold Text/legibility, other font traits/categories and deeper
+navigation/font lifetime remain. Priority formatting keyboard commands still need
+the Android port; physical Gboard/hardware, TalkBack and Pixel/Mac acceptance stay
+open. All thirteen completion areas remain open. Source pins, real account/pairing/
+signing, all 22 native libraries and frozen signed722 are preserved; ZIP alignment
+passes. Full parity remains active. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md).
+Evidence: `captures/recovery-20261025/rich-global-fonts-checkpoint.json`.
+Earlier dated entries retain their original checkpoint scope.
 
 ## Original rich-composer input observations independently verified — 2026-10-25
 

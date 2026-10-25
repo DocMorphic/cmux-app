@@ -1,48 +1,42 @@
-## Mounted native global text-size probe candidate — 2026-10-25
+## Live text-size changes follow the verified native editor — 2026-10-25
 
-The new systemFonts mode requests actual Simulator system content-size changes
-while the original pinned controller/editor remains mounted. Four separate cases /
-49 declared public actions include eight Large/Accessibility Medium transitions,
-continued marked/caret/emoji/selected editing, undo/redo and four source Store sends
-to the existing in-memory rejecting backend. The original transaction/controller-
-font cases and accepted observations are unchanged.
+The retained Chief editor now handles effective font-scale changes like the
+observed original controller: nonempty drafts lose rich runs, marked text,
+typing decorations and history while retaining text/selection. Accepted typing
+uses the retained earlier font base; emoji classification changes can replace
+that base, as in the source. Old input batches cannot restore pre-change content.
+The owner's published formatting clears too; no rich draft persistence is added.
 
-The hosted-only bridge validates request/source identities, runs explicit simctl
-arguments, records command/readback events and restores the original category on
-success/failure. Export guards bind that exact driver, require native application/
-controller/editor category propagation and match each observed response to the
-host event inventory. They do not prescribe a semantic/font outcome. All 128 Python
-reference guards pass, Swift parses, workflow YAML/bash parses and the generated
-host binds the new fixture/bridge to the unchanged package tree. Native compile,
-execution and independent export acceptance are still pending. Android behavior
-has not changed from this candidate; full parity remains active.
+Original global run 40175245243 at fc39577c passes four cases / 49 public actions /
+53 states, with eight actual system category commands/readbacks and restoration.
+Five canonical files were independently reproduced from exact native source;
+the committed projection binds service artifact 12591394770. All 53 semantic/font/
+history/control states match the JVM engine. Full build-v5 passes 3,541 JVM tests
+(four existing SSH skips); final APK build-v6 and API 36 runtime-v4 pass 34/34 in
+97.581s. This includes actual Android system scale changes, subsequent typing,
+published owner metadata, stale batches and prior editor/render regressions.
+Crash log is empty, settings restore and the owned emulator exits 0. The 128 source
+export guards and four archive/projection tamper checks pass. All 32 effect frames
+remain identical, and warm scroll reuse remains 80 preparations then 0 repeats.
 
-The first system-font run 40173198122 stopped before native execution: its app-
-container observation timed out while Xcode was still resolving packages. Category
-restoration succeeded; no font actions ran and no global result was accepted. The
-bridge now retries bounded container observations against the same build process;
-a regression proves it does not restart or terminate that build. Driver stderr is
-also preserved in the artifact. Native compile/run/export acceptance remains pending.
+This is scoped editor progress. Android uses actual platform font-scale metrics;
+UIFont/Android font geometry and rendered pixels are not claimed equal. Empty-
+draft history, Bold Text/legibility, other font traits/categories and deeper
+navigation/font lifetime remain. Priority formatting keyboard commands still need
+the Android port; physical Gboard/hardware, TalkBack and Pixel/Mac acceptance stay
+open. All thirteen completion areas remain open. Source pins, real account/pairing/
+signing, all 22 native libraries and frozen signed722 are preserved; ZIP alignment
+passes. Full parity remains active. See [CHIEF_RICH_TEXT.md](CHIEF_RICH_TEXT.md).
+Evidence: `captures/recovery-20261025/rich-global-fonts-checkpoint.json`.
+Earlier dated entries retain their original checkpoint scope.
 
-Android system-scale baseline runtime-v1 passes 1/1 in 7.299s on disposable API 36.
-It changes the actual system font scale 1→2→1 while retaining the production
-computer/session/editor. Text and selection 0..4 remain; measured line height is
-96→163→96px and current Bold/Big runs and undo availability remain recorded.
-The screenshot was inspected; crash log is empty, settings restore and emulator
-exit 0 is observed. This records existing Android behavior, not matched iOS or
-physical acceptance. No production Android font behavior changed. The retry at
-e99ccfc3 is run 40173879842; native execution/export acceptance is still pending.
-
-Retry 40173879842 compiled and executed the original UIKit test. The first host
-category command/readback took 8.004s and confirmed Accessibility Medium; the app
-also reported that category at teardown. The existing 10s native propagation wait
-expired before all three category properties were observed. No completed global
-case was accepted; system Large was restored. The probe now waits up to 60s for
-the same strict application/controller/editor categories and captures failed-action
-state before teardown. Only those host-mediated actions have a 75s export clock
-bound; ordinary actions retain 15s. An explicit completion flag and rejection of
-failed records prevent a failed final step from being accepted. Native global
-execution/export acceptance remains pending; Android production is unchanged.
+NEXT: port the original ComposerTextView priority Command-B/I/U actions to
+Android Ctrl/Meta handling (the current handler only implements Z/Y history).
+Check current mounting/editability and actual View key dispatch; injected keys
+are not physical hardware acceptance. Continue empty/font-trait/deep-navigation
+coverage, long-distance scrolling and the thirteen broader gates. Pixel/Mac
+availability is still pending. All owned build/runtime handles are terminal;
+no owned Gradle/AVD remains. Preserve account/pairing/signing, pins and signed722.
 
 ## Bounded rich-effect reuse during animated scrolling — 2026-10-25
 

@@ -66,12 +66,3 @@ internal object NativeChiefEmojiPolicy {
 
     fun verticalRoom(accessibility: Boolean) = 26.84 * if (accessibility) 1.2 else 1.0
 }
-
-/** Like updateEmojiScale, leave the previous base font in place during marked IME text. */
-internal class NativeChiefEmojiDraftStyle {
-    private var previous: Int? = null
-    fun update(marked: Boolean, next: () -> Int?): Int? {
-        if (!marked) previous = next()
-        return previous
-    }
-}

@@ -9,7 +9,20 @@ internal data class NativeChiefRichDraft(val text: String = "", val runs: List<N
 /** Memory-only semantic document. The platform field remains authoritative for accepted text.
  * IME batches work on a fork and are admitted only when the real field agrees. Replacements
  * retain their exact ranges even when their old/new characters are identical. */
-internal class NativeChiefRichEditing(initial: NativeChiefRichDraft = NativeChiefRichDraft()) {
+internal class NativeChiefRichEditing(initial: NativeChiefRichDraft = NativeChiefRichDraft(),
+    private val emojiFont: (String) -> Int? = { null }) {
+    var typography = NativeChiefRichTypography()
+        private set
+    private fun presentation(restyle: Boolean = true, typing: Boolean = true, marked: Boolean = draft.composition != null) {
+        typography = typography.changed(draft.text, marked, restyle, typing, emojiFont)
+    }
+    fun initializeTypography(bodyPoints: Double) { typography = typography.initialize(bodyPoints, draft.text, emojiFont) }
+    fun textMetricsChanged(bodyPoints: Double) {
+        typography = typography.metrics(bodyPoints)
+        draft = draft.copy(runs = emptyList(), composition = null, typingStyle = 0, typingEffect = null)
+        // Source replaces attributedText only for a nonempty document.
+        if (draft.text.isNotEmpty()) { undo = emptyList(); redo = emptyList(); newGroup = true }
+    }
     var draft = initial.copy(runs = NativeConversationRichText.normalized(initial.runs, initial.text.length))
         private set
     private data class Slice(val text: String, val runs: List<NativeConversationTextRun>)
@@ -21,13 +34,13 @@ internal class NativeChiefRichEditing(initial: NativeChiefRichDraft = NativeChie
     val canUndo get() = undo.isNotEmpty()
     val canRedo get() = redo.isNotEmpty()
 
-    fun fork() = NativeChiefRichEditing(draft).also { it.undo = undo; it.redo = redo; it.newGroup = newGroup }
+    fun fork() = NativeChiefRichEditing(draft, emojiFont).also { it.undo = undo; it.redo = redo; it.newGroup = newGroup; it.typography = typography }
     fun adopt(other: NativeChiefRichEditing) {
-        draft = other.draft; undo = other.undo; redo = other.redo; newGroup = other.newGroup
+        draft = other.draft; undo = other.undo; redo = other.redo; newGroup = other.newGroup; typography = other.typography
     }
     fun reset(text: String, runs: List<NativeConversationTextRun> = emptyList()) {
         draft = NativeChiefRichDraft(text, NativeConversationRichText.normalized(runs, text.length), TextRange(text.length))
-        undo = emptyList(); redo = emptyList(); newGroup = true
+        undo = emptyList(); redo = emptyList(); newGroup = true; presentation()
     }
     fun breakUndoGroup() { newGroup = true }
     fun select(range: TextRange, manual: Boolean = true) {
@@ -38,8 +51,10 @@ internal class NativeChiefRichEditing(initial: NativeChiefRichDraft = NativeChie
         } else draft = draft.copy(selection = range)
     }
     fun composition(range: TextRange?) {
-        if (range == null && draft.composition != null) draft = draft.copy(typingStyle = 0, typingEffect = null)
+        val finished = range == null && draft.composition != null
+        if (finished) draft = draft.copy(typingStyle = 0, typingEffect = null)
         draft = draft.copy(composition = range)
+        if (finished) presentation()
     }
     val activeStyle: Long get() = if (draft.selection.collapsed) draft.typingStyle else
         NativeConversationTextStyle.entries.fold(0L) { mask, entry ->
@@ -54,12 +69,14 @@ internal class NativeChiefRichEditing(initial: NativeChiefRichDraft = NativeChie
         if (draft.selection.collapsed) draft = draft.copy(typingStyle = draft.typingStyle xor style.mask)
         else draft = draft.copy(runs = NativeConversationRichText.toggleStyle(style.mask, draft.selection.min,
             draft.selection.length, draft.runs, draft.text.length).runs)
+        presentation(restyle = !draft.selection.collapsed, typing = draft.selection.collapsed)
     }
     fun toggle(effect: NativeConversationTextEffect) {
         val range = if (draft.selection.collapsed) TextRange(0, draft.text.length) else draft.selection
         if (range.collapsed) draft = draft.copy(typingEffect = if (draft.typingEffect == effect) null else effect)
         else draft = draft.copy(runs = NativeConversationRichText.toggleEffect(effect, range.min,
             range.length, draft.runs, draft.text.length).runs)
+        presentation(restyle = !range.collapsed, typing = range.collapsed)
     }
     private fun slice(start: Int, end: Int) = Slice(draft.text.substring(start, end),
         NativeConversationRichText.normalized(draft.runs.map { it.copy(location = it.location - start) }, end - start))
@@ -99,6 +116,7 @@ internal class NativeChiefRichEditing(initial: NativeChiefRichDraft = NativeChie
             typingStyle = if (composing) draft.typingStyle else 0,
             typingEffect = if (composing) draft.typingEffect else null)
         record(inverse, before, caret)
+        presentation(marked = composing)
     }
     fun commitText(text: String, cursor: Int = 1, composing: Boolean = false) {
         val range = draft.composition ?: draft.selection
@@ -138,6 +156,7 @@ internal class NativeChiefRichEditing(initial: NativeChiefRichDraft = NativeChie
         }
         delete(range.end, (range.end.toLong() + afterUnits).coerceAtMost(text.length.toLong()).toInt())
         delete((draft.selection.start.toLong() - beforeUnits).coerceAtLeast(0).toInt(), draft.selection.start)
+        if (draft.text != text) presentation()
     }
     data class Change(val oldStart: Int, val oldEnd: Int, val newStart: Int, val newEnd: Int)
     fun acceptedChanges(text: String, changes: List<Change>, selection: TextRange, composing: Boolean) {
@@ -152,6 +171,7 @@ internal class NativeChiefRichEditing(initial: NativeChiefRichDraft = NativeChie
         require(draft.text == text)
         draft = draft.copy(selection = selection, typingStyle = if (composing) draft.typingStyle else 0,
             typingEffect = if (composing) draft.typingEffect else null)
+        presentation(marked = composing)
     }
     private fun applyHistory(entry: History): History {
         val inverses = mutableListOf<Replace>()
@@ -160,6 +180,7 @@ internal class NativeChiefRichEditing(initial: NativeChiefRichDraft = NativeChie
             inverses.add(0, replace(op.start, op.start + op.expected.length, op.restore))
         }
         draft = draft.copy(selection = entry.target, composition = null, typingStyle = 0, typingEffect = null)
+        presentation()
         return History(entry.reverseTarget, entry.target, inverses)
     }
     fun undo(): Boolean {

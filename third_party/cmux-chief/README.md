@@ -23,6 +23,16 @@ The UIKit-only source is hash-checked, not compiled by this portable checker.
 This is a scoped text-only comparison; keyboard/IME, rich editor, material and
 physical acceptance require their own evidence.
 
+The live text-metrics port additionally records `richComposerTextMetricsFiles`:
+composer font reset/emoji-base updates, formatting/restyle, trait change detection
+and body metrics. Native global run 40175245243 at fc39577c supplies four original
+UIKit cases / 49 public actions / 53 states with eight actual system category
+changes and readbacks. The Android typography/semantic transaction state follows
+those observations, including the retained base used on later typing. See
+`tests/chief-rich-composer/GlobalFontObservations.json` and CHIEF_RICH_TEXT.md.
+This extends scoped attribution without changing the global pin or existing
+semantic/matrix corpus; physical/matched presentation acceptance remains open.
+
 The rich-text reference executes the whole unmodified ConversationRichText and
 ConversationTextEffectMotion files as a Swift core module and the whole shared
 ConversationRichTextRendering file linked against real QuartzCore. It records

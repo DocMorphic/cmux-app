@@ -410,6 +410,38 @@ class NativeChiefRichComposerRuntimeTest {
         assertEquals("Warm overlapping viewport frames must reuse actual glyph rasters", 0, reuse)
     }
 
+    @Test fun metricsChangeClearsMarkedRichHistoryRejectsItsOldBatchAndTypingUsesTheRetainedBase() {
+        compose.runOnUiThread { rich.toggle(NativeConversationTextStyle.ITALIC) }
+        edit { it.setComposingText("かな", 1) }
+        val old = connection()
+        compose.runOnUiThread {
+            assertNotNull(rich.snapshot.composition); assertTrue(old.beginBatchEdit()); assertTrue(old.commitText("late", 1))
+            fontScale = 2f
+        }
+        compose.waitUntil(10_000) { rich.snapshot.composition == null && rich.snapshot.runs.isEmpty() && !rich.canUndo }
+        fun actualFont(): Double {
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            compose.onNodeWithTag("ChiefComposer").performSemanticsAction(SemanticsActions.GetTextLayoutResult) { assertTrue(it(layouts)) }
+            val layout = layouts.single()
+            return with(layout.layoutInput.density) { layout.layoutInput.style.fontSize.toPx() / density }.toDouble()
+        }
+        compose.waitForIdle(); assertTrue("New actual system body font", actualFont() > 20.0)
+        compose.runOnUiThread {
+            assertEquals("かな", rich.field.text.toString()); assertNull(rich.field.composition)
+            assertFalse(old.endBatchEdit()); assertFalse(old.commitText("late", 1)); old.closeConnection()
+        }
+        compose.waitForIdle(); capture("rich-fonts-marked-reset")
+        val unmarkedFont = actualFont(); edit { it.finishComposingText(); it.deleteSurroundingText(0, 0) }
+        assertEquals("No-op unmark cannot restyle an already reset document", unmarkedFont, actualFont(), .01)
+        edit { it.commitText("X", 1) }
+        assertEquals("Original retained body base after typing", 17.0, actualFont(), .01)
+        compose.runOnUiThread { assertEquals("かなX", rich.snapshot.text); assertTrue(rich.canUndo); assertTrue(rich.snapshot.runs.isEmpty()) }
+        capture("rich-fonts-typed-retained-base")
+        compose.runOnUiThread { fontScale = 1f }
+        compose.waitUntil(10_000) { !rich.canUndo }
+        compose.runOnUiThread { assertFalse(rich.history(false)); assertEquals("かなX", rich.snapshot.text) }
+    }
+
     @Test fun endingTheVisitRejectsItsOldInputConnectionWithoutClearingTheRichDraft() {
         edit { it.commitText("base", 1); it.setSelection(0, 4) }
         compose.runOnUiThread { rich.toggle(NativeConversationTextStyle.BOLD) }

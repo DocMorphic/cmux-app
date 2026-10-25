@@ -23,8 +23,8 @@ Its 330-point custom keyboard has a title/close control, four style buttons and
 eight previews in a two-column grid: Big, Small, Shake, Nod, Explode, Ripple,
 Bloom and Jitter. Focus end and send restore the normal keyboard. Send clears
 typing formatting before Store admission. Restyling skips marked text; it preserves the
-selection and typing attributes. Dynamic type/emoji font changes require checking
-the actual composer call path before assuming rich spans survive them.
+selection and typing attributes. The verified live-size call path removes nonempty rich formatting and preserves
+its earlier base for later restyling; emoji-base transitions follow their own path.
 
 The renderer derives bold/italic fonts, underline/strike, and Big/Small type size
 from semantic runs. Big enlarges paragraph pitch. It hides effect ink in the base
@@ -109,7 +109,8 @@ operations replay at the real outer batch boundary, against the then-current
 accepted document, preserving formatting changed while a batch is open.
 Captured input strings are immutable; rejected commands cannot admit a speculative
 style change. The model requires agreement with committed field text, selection
-and composition. Owner reset/undo/retirement invalidates old connections.
+and composition. Owner reset/undo/retirement and effective text-scale changes
+invalidate old connections.
 
 The existing TextFieldState, caret, growth, internal scroll and synchronous send
 authority remain in use. Revision notifications are posted outside input
@@ -156,7 +157,7 @@ palette for the next visit. This does not add process-death draft persistence.
 
 Remaining acceptance includes HTML/URI/attributed clipboard transfer, wider
 input/autocorrect/composition and reversed selections, other focus routes, process
-restoration, live font changes, animated scrolling/performance, all locale/contrast/
+restoration, remaining empty/font-trait/deep-navigation cases, animated scrolling/performance, all locale/contrast/
 light profiles, real TalkBack, hardware keyboard and physical Gboard. Native public
 input/control traces do not prove gesture or IME equivalence. Real account/backend/
 device, release and all thirteen broader gates remain active. Account/pairing/
@@ -200,51 +201,83 @@ hardware, TalkBack, Pixel/Mac workflows, GPU budgets and matched UIKit presentat
 remain. Account/pairing/signing, global source pins and signed722 are preserved.
 Full parity remains active; no physical device was modified this continuation.
 
-## Mounted native global text-size probe candidate — 2026-10-25
+## Mounted global system-font behavior verified and ported — 2026-10-25
 
-The new systemFonts mode requests actual Simulator system content-size changes
-while the original pinned controller/editor remains mounted. Four separate cases /
-49 declared public actions include eight Large/Accessibility Medium transitions,
-continued marked/caret/emoji/selected editing, undo/redo and four source Store sends
-to the existing in-memory rejecting backend. The original transaction/controller-
-font cases and accepted observations are unchanged.
+[Run 40175245243](https://github.com/DocMorphic/cmux-app/actions/runs/40175245243)
+at fc39577c42420931ff374b6c505499dae01b61c8 succeeds on iOS 26.4.1: four cases /
+49 public actions / 53 records in 76.917s. Eight actual simctl system changes and
+readbacks propagate to the same original editor, controller and application;
+Large is restored. Artifact 12591394770 is 191,285 bytes and matches service SHA256
+900eaad6534d6af9d850cb8464622aac4f88ad13abdd09c97307b4c314df0665.
+The exact eleven-file native source snapshot independently reproduces all five
+canonical files. The new archive-bound GlobalFontObservations.json projection
+hashes 027c3a5ce706548777e490e0ebc9614715bb0efe7cc675a0d820884b0d9c9602.
+Replay instructions are in tests/chief-rich-composer/README.md. Existing accepted
+transaction/controller traces and the semantic/matrix corpus remain unchanged.
 
-The hosted-only bridge validates request/source identities, runs explicit simctl
-arguments, records command/readback events and restores the original category on
-success/failure. Export guards bind that exact driver, require native application/
-controller/editor category propagation and match each observed response to the
-host event inventory. They do not prescribe a semantic/font outcome. All 128 Python
-reference guards pass, Swift parses, workflow YAML/bash parses and the generated
-host binds the new fixture/bridge to the unchanged package tree. Native compile,
-execution and independent export acceptance are still pending. Android behavior
-has not changed from this candidate; full parity remains active.
+In these nonempty cases, a real Large→Accessibility Medium→Large change removes
+semantic runs, marked text, typing decorations and undo/redo while preserving text
+and selection. Selecting the new size really changes the span font 17→28 points.
+Later typing can restyle from the retained earlier 17-point base despite the still-
+enlarged global category. The emoji case resets 115.2-point Bold/Big emoji to body
+28; adding a space uses current body 28, deleting it restores emoji 72, and returning
+the system category resets to body 17. Subsequent source Store sends are plain to
+the authored rejecting backend. This does not execute real Chief RPC/account code.
 
-The first system-font run 40173198122 stopped before native execution: its app-
-container observation timed out while Xcode was still resolving packages. Category
-restoration succeeded; no font actions ran and no global result was accepted. The
-bridge now retries bounded container observations against the same build process;
-a regression proves it does not restart or terminate that build. Driver stderr is
-also preserved in the artifact. Native compile/run/export acceptance remains pending.
+NativeChiefRichTypography stores current body, retained base, display/typing points
+and emoji classification with the memory-only rich editing state. It forks/adopts
+with actual edit predictions, so rejected commands or obsolete batches cannot
+admit a speculative font change. First mount initializes the actual platform body
+metrics; later effective scale changes clear the observed nonempty rich/history
+state, preserve selection and invalidate old input connections. Same-value public
+field replacement commits composition. No-op unmark/deletion does not rebase an
+already-reset font. Source emoji-base transitions and retained-body restyling are
+preserved; placeholder sizing stays on the current body. Plain field measurement
+uses the existing source-rounded line/height policy. The obsolete per-view emoji
+font cache was removed; Unicode classification behavior remains checked.
 
-Android system-scale baseline runtime-v1 passes 1/1 in 7.299s on disposable API 36.
-It changes the actual system font scale 1→2→1 while retaining the production
-computer/session/editor. Text and selection 0..4 remain; measured line height is
-96→163→96px and current Bold/Big runs and undo availability remain recorded.
-The screenshot was inspected; crash log is empty, settings restore and emulator
-exit 0 is observed. This records existing Android behavior, not matched iOS or
-physical acceptance. No production Android font behavior changed. The retry at
-e99ccfc3 is run 40173879842; native execution/export acceptance is still pending.
+The new JVM replay checks all 53 text/run/selection/composition/typing/history/
+selected-control/span-font states against the original capture. ICU4J supplies the
+same Unicode policy through the separately checked Foundation corpus. Full final
+build-v5 passes 3,545 tests in 476 suites: 3,541 passed, four existing SSH skips, no
+failures/errors. Final debug/test APK build-v6 succeeds. Android runtime-v4 passes
+34/34 in 97.581s: the earlier 32 regressions, a controlled public-InputConnection
+metric-reset case and an actual system-scale lifecycle case. The latter verifies
+the retained computer/editor, cleared owner-published formatting and history,
+selection/focus/palette state, subsequent typing at the retained base while the
+real scale remains enlarged, and the next reset. The input case rejects an old
+open batch even on close, ends marked text and checks no-op commands. Deterministic
+transaction cases suspend OS binding; actual system IME is used in palette and
+Activity cases. API/transport fixtures are read-only; physical Gboard/real-host
+acceptance is not implied. Crash log is empty, settings/window read back restored,
+no app ANR is observed and the owned emulator exits 0.
 
-Retry 40173879842 compiled and executed the original UIKit test. The first host
-category command/readback took 8.004s and confirmed Accessibility Medium; the app
-also reported that category at teardown. The existing 10s native propagation wait
-expired before all three category properties were observed. No completed global
-case was accepted; system Large was restored. The probe now waits up to 60s for
-the same strict application/controller/editor categories and captures failed-action
-state before teardown. Only those host-mediated actions have a 75s export clock
-bound; ordinary actions retain 15s. An explicit completion flag and rejection of
-failed records prevent a failed final step from being accepted. Native global
-execution/export acceptance remains pending; Android production is unchanged.
+All 32 existing controlled effect frames match the previous renderer. Warm animated
+scroll preparation remains 80 rasters then 0 on four repeated viewport roundtrips.
+All 22 native libraries and frozen signed722 match; 16 KiB ZIP alignment passes.
+The 128 reference guards pass, and replay rejects four altered archive/source/
+canonical/bridge inputs. Global pins and real account/pairing/signing are unchanged.
+
+Earlier attempts remain for audit. Native-v1 stopped before testing on a container
+query timeout; v2 compiled/tested but its 10s propagation deadline was too short.
+One accepted v3 command/readback alone takes 12.908s. V3 keeps strict categories with
+a 60s observation window, 75s global action export bound, explicit completion and
+failed-action rejection. The baseline Android case kept runs/history; the port
+corrects that observed mismatch. Intermediate Android builds/runs and the final
+body-style precision adjustment are retained but final acceptance uses build-v5 /
+v6 and runtime-v4. Raw sources/APKs/XML/traces/receipts are local under
+`captures/recovery-20261025/rich-global-fonts-checkpoint.json`.
+
+This verifies the observed nonempty short drafts and controller lifetime. Empty-
+draft history, Bold Text/legibility (not handled by the current scale observer),
+other font traits/categories, wider input/clipboard/focus and deep navigation/font
+lifetime still require reconciliation. The source's priority Command-B/I/U actions
+also need the Android keyboard port; current Z/Y history handling is insufficient.
+Live long-text scrolling/GPU budgets, physical Gboard/hardware, TalkBack, real
+account/host/notification/terminal/release and matched UIKit pixels remain open.
+Android uses its actual platform font-scale metrics; the 17/28-point JVM context
+comparison does not claim identical SF/Android typography. No full-app completion
+gate is closed. Full parity remains active.
 
 ## Native live-font controller observations verified — 2026-10-25
 

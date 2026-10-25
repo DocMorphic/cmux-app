@@ -131,27 +131,40 @@ class NativeChiefRichLifecycleTest {
         assertEquals(0, api.writes)
     }
 
-    @Test fun actualSystemFontChangesRetainTheOwnerAndRecordRichStateAndMeasuredText() {
+    @Test fun actualSystemFontChangesClearRichHistoryAndFormattingButKeepOwnerTextAndSelection() {
         val original = device.executeShellCommand("settings get system font_scale").trim()
         val editor = styleAndOpenPalette(); val session = computer.transcript()!!
         val records = org.json.JSONArray()
-        fun record(name: String): Float {
+        fun record(name: String, expectedText: String = "base", expectedSelection: TextRange = TextRange(0, 4)): Float {
             compose.waitForIdle()
             val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
             compose.onNodeWithTag("ChiefComposer").performSemanticsAction(SemanticsActions.GetTextLayoutResult) { assertTrue(it(layouts)) }
             val layout = layouts.single(); val height = layout.getLineBottom(0) - layout.getLineTop(0)
+            val fontPoints = with(layout.layoutInput.density) { layout.layoutInput.style.fontSize.toPx() / density }
+            if (name == "enlarged-typed") assertEquals("Retained original base after real system change", 17f, fontPoints, .01f)
             var scale = 0f; scenario!!.onActivity { scale = it.resources.configuration.fontScale }
             compose.runOnUiThread {
                 assertSame(session, computer.transcript()); assertSame(editor, session.composerEditor)
-                assertEquals("base", editor.field.text.toString()); assertEquals(TextRange(0, 4), editor.field.selection)
+                assertEquals(expectedText, editor.field.text.toString()); assertEquals(expectedSelection, editor.field.selection)
                 val draft = editor.snapshot
-                records.put(org.json.JSONObject().put("phase", name).put("fontScale", scale).put("lineHeightPx", height)
+                assertEquals("Published owner formatting", draft.runs, session.state.value.draftRuns)
+                if (name == "enlarged" || name == "returned") {
+                    assertTrue(draft.runs.isEmpty()); assertNull(draft.composition)
+                    assertEquals(0L, draft.typingStyle); assertNull(draft.typingEffect)
+                    assertFalse(editor.canUndo); assertFalse(editor.canRedo)
+                }
+                records.put(org.json.JSONObject().put("phase", name).put("fontScale", scale).put("lineHeightPx", height).put("baseFontPoints", fontPoints)
                     .put("text", draft.text).put("selectionStart", draft.selection.start).put("selectionEnd", draft.selection.end)
                     .put("typingStyle", draft.typingStyle).put("typingEffect", draft.typingEffect?.wireName ?: org.json.JSONObject.NULL)
                     .put("canUndo", editor.canUndo).put("canRedo", editor.canRedo).put("runs", org.json.JSONArray(draft.runs.map { run ->
                         org.json.JSONObject().put("location", run.location).put("length", run.length).put("style", run.style)
                             .put("effect", run.effect?.wireName ?: org.json.JSONObject.NULL)
                     })))
+            }
+            if (name != "initial") {
+                compose.onNodeWithTag("ChiefTextStyle:bold").assertIsNotSelected()
+                compose.onNodeWithTag("ChiefTextEffect:big").assertIsNotSelected()
+                compose.onNodeWithTag("ChiefComposer").assertIsFocused()
             }
             capture("rich-system-font-$name")
             return height
@@ -165,8 +178,12 @@ class NativeChiefRichLifecycleTest {
             device.executeShellCommand("settings put system font_scale 2.0"); waitForScale(2f)
             val enlarged = record("enlarged")
             assertTrue("Actual system text metrics change: $initial -> $enlarged", enlarged > initial + 1f)
+            compose.onNodeWithTag("ChiefComposer").performTextInputSelection(TextRange(4))
+            compose.onNodeWithTag("ChiefComposer").performTextInput("X")
+            record("enlarged-typed", "baseX", TextRange(5))
+            compose.runOnUiThread { assertTrue(editor.canUndo); assertTrue(editor.snapshot.runs.isEmpty()) }
             device.executeShellCommand(if (original == "null") "settings delete system font_scale" else "settings put system font_scale $original")
-            waitForScale(original.toFloatOrNull() ?: 1f); record("returned")
+            waitForScale(original.toFloatOrNull() ?: 1f); record("returned", "baseX", TextRange(5))
             assertEquals(0, api.writes)
         } finally {
             device.executeShellCommand(if (original == "null") "settings delete system font_scale" else "settings put system font_scale $original")

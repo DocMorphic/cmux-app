@@ -28,7 +28,7 @@ internal class NativeChiefRichEditor(initial: String, private val permits: () ->
     private var generation = 0L
     private var host: WeakReference<View>? = null
     private var inputMount: Any? = null
-    private var editing = NativeChiefRichEditing(NativeChiefRichDraft(initial, selection = TextRange(initial.length)))
+    private var editing = NativeChiefRichEditing(NativeChiefRichDraft(initial, selection = TextRange(initial.length)), emojiFont = { NativeChiefEmojiPolicy.composerFontSize(it) })
     private var pending: NativeChiefRichEditing? = null
     private data class ClipboardEdit(val owner: Any, val before: String, val range: TextRange, val replacement: String) {
         fun matches(text: String, after: String, selection: TextRange, changes: List<NativeChiefRichEditing.Change>): Boolean =
@@ -44,6 +44,21 @@ internal class NativeChiefRichEditor(initial: String, private val permits: () ->
         private set
     var coherent = true
         private set
+    private var metricsScale: Float? = null
+    val hasTextMetrics get() = metricsScale != null
+    val fontPoints get() = editing.typography.textPoints
+    val emojiSize get() = editing.typography.emojiSize
+    fun observeTextMetrics(owner: Any, visit: Long, scale: Float, bodyPoints: Double) {
+        if (!isInputMountCurrent(owner, visit) || metricsScale == scale) return
+        val first = metricsScale == null; metricsScale = scale
+        if (first) { editing.initializeTypography(bodyPoints); changed(); return }
+        synchronizeSelectionAndComposition()
+        invalidateConnections(); pending = null
+        editing.textMetricsChanged(bodyPoints)
+        val value = editing.draft
+        field.edit { replace(0, length, value.text); selection = value.selection }
+        field.undoState.clearHistory(); changed()
+    }
     val snapshot get() = editing.draft
     val activeStyle get() = editing.activeStyle
     val activeEffect get() = editing.activeEffect

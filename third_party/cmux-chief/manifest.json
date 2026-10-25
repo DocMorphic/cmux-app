@@ -258,5 +258,11 @@
       "conversation.textEffect.jitter": "chief_rich_jitter"
     },
     "scope": "Exact English/Japanese source catalog; other supported locales use the same English fallback as the source. Undo/Redo are project-authored Android action labels."
+  },
+  "richComposerTextMetricsFiles": {
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationComposerView.swift": "0c330915c1f033f577b6b44da624da41a0b862c463b88b44ec9b9f4e37e7d0a2",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationComposerFormatting.swift": "dc8b7fa3321d69c029c9f91b225342e14ab10b86352545ce00848210f6018f02",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationDynamicType.swift": "8d8ae4d10803bdb94f92e602bbedad4a085f50c11b925ed88638c2954db513a4",
+    "Packages/iOS/CmuxConversation/Sources/CmuxConversationUI/ConversationTheme.swift": "533fe1579789bfe6bab5b57acf327ff38689224b4c2624d5cdba500d50e1d53d"
   }
 }

@@ -1,27 +1,12 @@
 package io.github.docmorphic.cmuxapp
 
-import com.ibm.icu.lang.UCharacter
-import com.ibm.icu.lang.UProperty
-import com.ibm.icu.text.BreakIterator
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
-import java.util.Locale
 
 class NativeChiefEmojiPolicyTest {
     private val vectors = JSONObject(javaClass.getResourceAsStream("/parity/chief-emoji.json")!!.bufferedReader().use { it.readText() })
-    private val unicode = object : NativeChiefEmojiPolicy.Unicode {
-        override fun clusters(text: String) = sequence {
-            val iterator = BreakIterator.getCharacterInstance(Locale.ROOT).apply { setText(text) }
-            var start = iterator.first(); var end = iterator.next()
-            while (end != BreakIterator.DONE) {
-                yield(text.substring(start, end)); start = end; end = iterator.next()
-            }
-        }
-        override fun emoji(scalar: Int) = UCharacter.hasBinaryProperty(scalar, UProperty.EMOJI)
-        override fun presentation(scalar: Int) = UCharacter.hasBinaryProperty(scalar, UProperty.EMOJI_PRESENTATION)
-        override fun whitespace(scalar: Int) = UCharacter.isUWhiteSpace(scalar)
-    }
+    private val unicode = NativeChiefTestUnicode
 
     @Test fun classificationFontAndGraphemeCountsMatchActualPinnedSwift() {
         val cases = vectors.getJSONArray("cases")
@@ -40,12 +25,13 @@ class NativeChiefEmojiPolicyTest {
     }
 
     @Test fun markedTextRetainsThePriorFontUntilCompositionFinishes() {
-        val style = NativeChiefEmojiDraftStyle()
-        assertEquals(72, style.update(false) { 72 })
-        assertEquals(72, style.update(true) { error("Do not inspect or restyle marked text") })
-        assertNull(style.update(false) { null })
-        assertNull(style.update(true) { error("Do not inspect or restyle marked text") })
-        assertEquals(48, style.update(false) { 48 })
+        val editor = NativeChiefRichEditing(emojiFont = { NativeChiefEmojiPolicy.composerFontSize(it, unicode) })
+        editor.commitText("🙂"); assertEquals(72.0, editor.typography.textPoints, 0.0)
+        editor.select(androidx.compose.ui.text.TextRange(0, 2))
+        editor.commitText("body", composing = true)
+        assertEquals(72.0, editor.typography.textPoints, 0.0)
+        editor.composition(null)
+        assertEquals(17.0, editor.typography.textPoints, 0.0); assertNull(editor.typography.emojiSize)
     }
 
     @Test fun checkedUnicodePropertiesAgreeWithTheSwiftRuntime() {

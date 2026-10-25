@@ -195,9 +195,14 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
     }
     val density = LocalDensity.current
     val bodyStyle = nativeChiefTextStyle()
-    val emojiDraftStyle = remember { NativeChiefEmojiDraftStyle() }
-    val emojiSize = emojiDraftStyle.update(editor.composition != null) { NativeChiefEmojiPolicy.composerFontSize(editor.text.toString()) }
-    val style = emojiSize?.let { bodyStyle.copy(fontSize = with(density) { it.dp.toSp() }) } ?: bodyStyle
+    val bodyPoints = with(density) { bodyStyle.fontSize.toPx() / density.density }.toDouble()
+    LaunchedEffect(rich, mount, visit, resumed, density.fontScale, bodyPoints) {
+        if (resumed) rich.observeTextMetrics(mount, visit, density.fontScale, bodyPoints)
+    }
+    val emojiSize = if (rich.hasTextMetrics) rich.emojiSize else NativeChiefEmojiPolicy.composerFontSize(editor.text.toString())
+    val points = if (rich.hasTextMetrics) rich.fontPoints else emojiSize?.toDouble() ?: bodyPoints
+    val style = if (kotlin.math.abs(points - bodyPoints) < .001) bodyStyle
+        else bodyStyle.copy(fontSize = with(density) { points.toFloat().dp.toSp() })
     val measurer = rememberTextMeasurer()
     val lineHeight = remember(measurer, bodyStyle, density) {
         measurer.measure("Hg", bodyStyle).let { it.getLineBottom(0) - it.getLineTop(0) }
@@ -237,7 +242,8 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
             val styled = nativeConversationStyled(AnnotatedString(text.ifEmpty { "Hg" }), runs, style, density, ink, false)
             val layout = measurer.measure(styled, style, constraints = Constraints(maxWidth = textWidth))
             if (emojiSize != null || runs.isNotEmpty()) maxOf(oneLine, ceil(layout.size.height / density.density + 20f).toFloat().dp)
-            else oneLine + with(density) { ((layout.lineCount - 1).coerceAtLeast(0) * lineHeight).toDp() }
+            else NativeChiefComposerPolicy.height(NativeChiefComposerPolicy.lines(layout.size.height.toDouble(), 0.0, lineHeight.toDouble()),
+                oneLine.value.toDouble(), with(density) { lineHeight.toDp().value.toDouble() }).toFloat().dp
         }
         val fieldHeight = naturalHeight.coerceIn(oneLine, cap)
         val shape = RoundedCornerShape(20.dp)
@@ -285,7 +291,7 @@ internal fun NativeChiefComposer(draft: String, draftRevision: Long, retired: Bo
                 decorator = { input ->
                     Box(Modifier.testTag("ChiefComposerTextViewport")) {
                         if (editor.text.isEmpty()) Text(stringResource(if (replyGeneration != null) R.string.chief_reply_placeholder else R.string.chief_composer_placeholder),
-                            color = if (dark) Color(0xFF5D5D61) else Color(0xFFB2B2B8), style = style)
+                            color = if (dark) Color(0xFF5D5D61) else Color(0xFFB2B2B8), style = bodyStyle)
                         input()
                     }
                 })
