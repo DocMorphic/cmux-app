@@ -299,7 +299,7 @@
       "path": "Packages/iOS/CmuxMobileSupport/Sources/CmuxMobileSupport/L10n.swift",
       "sha256": "631542639cfcf40815ef05a8bb372771a6bbaa75d2a97744c1a779530e91b202"
     },
-    "scope": "Source catalog copies in all nine Android locales; source helper count1/other branches. Actual original Home Bundle.main localization resolution and matched UIKit presentation remain unverified."
+    "scope": "Source catalog copies in nine Android locales. Effective main-bundle defaults and positive unread formatting follow original native run 40200670788; matched native UI remains unverified."
   },
   "questionStrings": {
     "path": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/Localizable.xcstrings",
@@ -314,7 +314,7 @@
       "mobile.chief.question.selectAll": "chief_question_select_all",
       "mobile.chief.question.otherPlaceholder": "chief_question_other"
     },
-    "scope": "Exact source catalog text in all nine Android locales; native Bundle.main resolution and matched native question window remain unverified."
+    "scope": "Source catalog copies in nine Android locales. Effective main-bundle defaults follow original native run 40200670788; matched native question window remains unverified."
   },
   "questionPresentationFiles": {
     "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ChiefHomeView.swift": "a52aa435572007905dec6ebcbe27d718bb0b363a6c8a823fead044732e1d449f",
@@ -336,5 +336,14 @@
       "mobile.chief.error.answeredQuestionMissing": "chief_question_error_answer_missing"
     },
     "scope": "Three full-question local backend errors resolve through source module strings; unknown transport/host text remains literal. Native original-app module resource capture is separate."
+  },
+  "mainBundleResolution": {
+    "nativeRun": 40200670788,
+    "projectCommit": "36ad7d1d9751f9135d78725dfddf90c8fc5edc92",
+    "artifactId": 12602481297,
+    "artifactSha256": "5b18590e20da1ee79cdca785aa4b2246aeb9b13c5d3a6c1a7ac50e58dde6ea8d",
+    "androidReferencePath": "app/src/androidTest/assets/parity/chief-main-bundle.json",
+    "sha256": "5021262fbab0af8d108e92ce503005f190ce3c950f55746111d091b95fe480b7",
+    "scope": "Original compiled pinned iOS app main/module lookups in nine languages and 54 unread-helper calls. Scoped Android labels and positive unread counts; no native Home/question view, backend static-property lifetime, real host or physical parity claim."
   }
 }

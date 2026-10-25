@@ -262,6 +262,7 @@ class NativeChiefQuestionRuntimeTest {
         expand()
         val manager=instrument.targetContext.getSystemService(android.app.LocaleManager::class.java)
         val records=org.json.JSONArray()
+        val nativeLabels=org.json.JSONObject(instrument.context.assets.open("parity/chief-main-bundle.json").bufferedReader().use { it.readText() }).getJSONObject("labels")
         for(language in listOf("en","ja","de","es","fr","ar","ko","zh-Hans","zh-Hant")) {
             val large=language in setOf("ja","ar")
             instrument.runOnMainSync {
@@ -275,8 +276,9 @@ class NativeChiefQuestionRuntimeTest {
             compose.waitUntil(15_000) {
                 runCatching { scenario!!.onActivity { activity ->
                     val config=activity.resources.configuration;resolved=config.locales[0].toLanguageTag()
-                    expectedTitle=activity.getString(R.string.chief_question_title);expectedCancel=activity.getString(R.string.chief_question_cancel)
-                    expectedOther=activity.getString(R.string.chief_question_other)
+                    val labels=nativeLabels.getJSONObject(language)
+                    expectedTitle=labels.getString("mobile.chief.question.title");expectedCancel=labels.getString("mobile.chief.cancel")
+                    expectedOther=labels.getString("mobile.chief.question.otherPlaceholder")
                 } }.isSuccess && java.util.Locale.forLanguageTag(resolved).let {
                     val wanted=java.util.Locale.forLanguageTag(language)
                     it.language==wanted.language && (wanted.script.isEmpty() || it.script==wanted.script)

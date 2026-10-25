@@ -68,8 +68,12 @@ class NativeChiefHomeRuntimeTest {
     }
     private fun ready() { compose.waitUntil(10_000) { compose.onAllNodesWithTag("ChiefPinnedConversation").fetchSemanticsNodes().size==1 } }
     private fun label(name: Int): String {
-        val config = android.content.res.Configuration(compose.activity.resources.configuration).apply { setLocale(Locale.forLanguageTag(this@NativeChiefHomeRuntimeTest.locale)) }
-        return compose.activity.createConfigurationContext(config).getString(name)
+        val fixture = org.json.JSONObject(InstrumentationRegistry.getInstrumentation().context.assets
+            .open("parity/chief-main-bundle.json").bufferedReader().use { it.readText() })
+        val resource = compose.activity.resources.getResourceEntryName(name)
+        val map = fixture.getJSONObject("resources")
+        val key = map.keys().asSequence().single { map.getString(it) == resource }
+        return fixture.getJSONObject("labels").getJSONObject(locale).getString(key)
     }
     private fun capture(name: String) {
         compose.waitForIdle()
@@ -162,13 +166,23 @@ class NativeChiefHomeRuntimeTest {
         capture("chief-home-started-empty-fallback")
     }
 
-    @Test fun sourceCatalogLabelsRenderAcrossNineLocalesAndLargeTextLightAndRtlProfiles() {
+    @Test fun originalMainBundleLabelsRenderAcrossNineLocalesAndLargeTextLightAndRtlProfiles() {
         api.rows = listOf(row("chief","Chief",unread=1,pinned=true),row("build","Build","Preview"));mount();ready()
+        val nativeUnread=org.json.JSONObject(InstrumentationRegistry.getInstrumentation().context.assets
+            .open("parity/chief-main-bundle.json").bufferedReader().use { it.readText() }).getJSONObject("unreadLabels")
+        val records=org.json.JSONArray()
         for (language in listOf("en","ja","de","es","fr","ar","ko","zh-Hans","zh-Hant")) {
             compose.runOnUiThread { locale=language };compose.waitForIdle()
             compose.onNodeWithText(label(R.string.chief_home_title)).assertIsDisplayed()
             compose.onNodeWithTag("ChiefSearch").assertContentDescriptionEquals(label(R.string.chief_home_search))
-            compose.onNodeWithTag("ChiefPinnedConversation").assertContentDescriptionEquals("Chief, "+label(R.string.chief_home_unread_one))
+            for(count in listOf(1L,2L,17L,1234L)) {
+                compose.runOnUiThread { api.changes.trySend(Result.success(NativeChiefSnapshot(
+                    listOf(row("chief","Chief",unread=count,pinned=true),row("build","Build","Preview")),"unread-$language-$count"))) }
+                compose.waitUntil(10_000) { computer.home.state.value.pinned?.unread==count }
+                val expected=nativeUnread.getJSONObject(language).getString(count.toString())
+                compose.onNodeWithTag("ChiefPinnedConversation").assertContentDescriptionEquals("Chief, "+expected)
+                records.put(org.json.JSONObject().put("language",language).put("count",count).put("value",expected))
+            }
         }
         for ((language,big,bright) in listOf(Triple("en",1f,false),Triple("ja",2f,true),Triple("ar",2f,false))) {
             compose.runOnUiThread { locale=language;scale=big;light=bright };compose.waitForIdle()
@@ -176,15 +190,17 @@ class NativeChiefHomeRuntimeTest {
             compose.onNodeWithTag("ChiefPinnedPreview",useUnmergedTree=true).getUnclippedBoundsInRoot().let {
                 assertTrue("180-point preview maximum",(it.right-it.left).value<=180.1f)
             }
-            if (language=="ar") for (tag in listOf("ChiefRecentTitle:build","ChiefRecentPreview:build")) {
+            if (language=="ar") for (tag in listOf("ChiefRecentTitle:build","ChiefRecentPreview:build","ChiefHomeTitle","ChiefHomeRecentHeading")) {
                 val layouts=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
                 compose.onNodeWithTag(tag,useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { assertTrue(it(layouts)) }
                 val layout=layouts.single()
-                assertTrue("Actual English glyphs stay beside the RTL leading edge: $tag",layout.getBoundingBox(0).left>layout.size.width/2f)
+                if (tag.startsWith("ChiefRecent"))
+                    assertTrue("Short row text stays beside the RTL leading edge: $tag",layout.getBoundingBox(0).left>layout.size.width/2f)
                 assertEquals("Last English character reaches the leading edge",layout.size.width.toFloat(),layout.getBoundingBox(layout.layoutInput.text.length-1).right,1f)
             }
             capture("chief-home-$language-$big")
         }
+        java.io.File(compose.activity.getExternalFilesDir(null),"rich-composer/chief-home-unread-locales.json").writeText(records.toString(2))
         compose.runOnUiThread { assertEquals(0,api.writes) }
     }
 

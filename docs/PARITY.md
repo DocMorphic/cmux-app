@@ -1,3 +1,78 @@
+## Physical723 acceptance and Mac reply correction — 2026-10-25
+
+The owner's available Pixel was upgraded712→723 in place with the same signer and
+original first-install time. Its saved account/Mac reconnected without sign-in or
+pairing. Real terminal output and direct keyboard input passed; the harmless
+command was checked on the Mac before Enter and produced one output line. An
+encrypted helper alert reached the actual Android shade, and a terminal-targeted
+alert exposed Reply. The verified RemoteInput submission then exposed a Mac ACK
+JSON crash, so inline execution/ACK and cold notification tap remain unaccepted.
+
+The real API returns a String instance tag; the old fixture returned String?.
+The resulting String.map produced Character values instead of a JSON tag. Source
+fix83878ea9 corrects that and the fixture API;20 client cases, the actual worker
+parser, five installer tests and eight cache tests pass. Follow-up bcbdb774 preserves the current stable String tag and binds the
+original producer/coordinator as well. Full Mac build40206417517 is pending behind
+the earlier tagged build; replacement requires exact-source artifact verification. See
+[MAC_NOTIFICATION_BUILD.md](MAC_NOTIFICATION_BUILD.md) for crash and recovery scope.
+
+The fresh saved Mac session is restored with the original three workspace IDs,
+order and selection. The disposable workspace/recovery window are removed,
+normal launch has no temporary listener override, and pairing remains enabled
+with one helper registration/zero retired rows. The phone's original power
+setting is restored. The owner reclaimed the phone; no further physical phone
+operations are authorized until they explicitly make it available again.
+Frozen signed723 predates the newer Chief/source changes below. All thirteen
+completion areas remain open. Evidence: private
+`captures/recovery-20261025/pixel-723-live-v1/checkpoint.json`.
+
+## Chief effective bundle text and unread formatting — 2026-10-25
+
+Original-app native run 40200670788 at 36ad7d1d succeeded. Its unmodified a5911a1f
+app and whole original L10n helper produced 207 main lookups, 306 explicit module
+lookups and 54 unread-label observations across nine launch languages. Executable,
+Info and catalog-resource hashes match the built product; the downloaded ZIP
+matches GitHub artifact 12602481297 and its SHA-256, every file matches the ZIP,
+and local verification reproduces CI. Both owned Simulator cleanup actions pass.
+The generated Objective-C constructor is included in this artifact.
+
+Android Home and question labels now follow the observed Bundle.main behavior:
+21 ShellUI keys use their English source defaults, while two unread-count keys
+resolve localized app resources. Only those resource lookups use an English
+configuration context; the Activity owner, UI locale, density and RTL environment
+remain intact. The three source backend errors retain their separate localized
+module behavior, and remote error text stays literal.
+
+Positive unread summaries use the localized format with Western digits, matching
+the native helper. In both Chinese locales the source plural format is English;
+Arabic keeps Arabic wording with Western digits. Screenshot review also exposed
+English Home headings aligned to the wrong edge in RTL: the title and recent
+heading now use the UI's leading edge, as the source recent heading specifies.
+
+The committed reference binds the native run/artifact and all 207 label values
+plus 54 helper observations; its source checker validates original hashes,
+source defaults, 21 fallback IDs, Android English values and capture agreement.
+The twelve native-verifier tests pass. Final JVM suite:3,552 pass/four existing
+skips across477 XML suites. Final API36 runtime:55/55 in201.374s, including36
+native-matched positive unread summaries,27 localized module errors and nine
+question locales. Source hashes match, settings restore, the crash log is empty
+and the owned AVD exits0. Both APK alignments and all22 native-library hashes
+match. Reviewed Arabic screens and glyph bounds confirm leading-edge headings.
+Eight additional positive-count cases execute the whole original L10n helper on
+local macOS Foundation and guard C percent-d signed32 conversion through Int.max;
+four agree with the actual iOS capture. Large-count iOS execution remains separate.
+Evidence: `captures/recovery-20261025/chief-main-bundle-checkpoint.json` and
+`chief-bundle-native-local-verification-40200670788.json`.
+
+The original native capture executes resource lookup, not Home/question views or
+the backend static-property language lifetime. Android runtime uses controlled
+Mac responses; actual native screens, terminal/notification/physical input,
+accessibility and wider source/backend gates remain open. These localization checks use owned emulators; the separate physical723
+session is documented above. Account/pairing/signing data is preserved. Frozen signed candidates 722/723 predate
+these changes. Fresh physical availability remains pending; reuse the existing
+notification enrollment and leave Pair Android Notifications closed. All thirteen
+completion areas remain open and the full-parity goal stays active.
+
 ## Full-question reopening and focused input corrected — 2026-10-25
 
 Canceling a pending full question and reopening the same card now permits a new

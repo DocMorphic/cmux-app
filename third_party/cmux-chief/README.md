@@ -27,8 +27,8 @@ The Home UI port follows the attributed ChiefHomeView.swift pinned/recent/
 invitation/empty branches, working/unread summaries and source layout anchors.
 `homeStrings` binds two exact catalogs and the shared L10n unread helper; all
 135 copied strings in nine Android locales are checked by check-chief-home-strings.py.
-Original built-app Bundle.main resolution and matched SwiftUI presentation remain
-unverified. Android date/search/pull rendering and the authored sparkles vector
+Original built-app Bundle.main resolution is verified separately below; matched
+SwiftUI presentation remains unverified. Android date/search/pull rendering and the authored sparkles vector
 are not exported UIKit/SF assets. See CHIEF.md for runtime scope and remaining gates.
 
 The full question form additionally binds `questionPresentationFiles` (the whole
@@ -41,8 +41,8 @@ poll reservation. `check-chief-question-submission.py --upstream PATH --output D
 executes the complete unmodified answerQuestion method with controlled state/client
 seams and checks 12 observations in `app/src/test/resources/parity/chief-question-submission.json`. Android
 regressions consume the reopened-submission and follow-up-read observations. This
-is not the whole backend, SwiftUI rendering, native Bundle.main resolution, actual
-transport or physical parity.
+is not the whole backend, SwiftUI rendering, actual transport or physical parity.
+Native Bundle.main resource resolution is verified separately below.
 
 The Android question form additionally expands its dialog for focused keyboard
 input and brings Other into view; its saveable editor retains text/selection
@@ -57,9 +57,13 @@ editing its sources/resources. A Foundation sidecar calls unmodified L10n in the
 actual app process and records main/module resolution with executable/resource
 identity checks. Run 40197041982 at 5bcce4c5 now supplies actual original-app resolution across nine
 languages: 21 Home/question keys use English main-bundle fallback; two unread
-keys resolve in main; 32 keys resolve in ShellUI. The probe extension adds original
-formatted unread observations and retains its generated constructor; its native
-execution is pending. Neither lookup capture executes Home/question views or the
+keys resolve in main; 32 keys resolve in ShellUI. Run 40200670788 at 36ad7d1d additionally verifies 54 original formatted-unread
+observations and retains its generated constructor. Android effective Home/question
+lookup follows the 21 English main-bundle defaults; positive unread formatting
+keeps Western digits with localized formats. The committed
+`app/src/androidTest/assets/parity/chief-main-bundle.json` reference is bound by
+`mainBundleResolution`. Check it with `check-chief-main-bundle-strings.py
+--upstream PATH --capture ORIGINAL_CAPTURE`. Neither lookup capture executes Home/question views or the
 backend's static-property language lifetime. See
 [HANDOFF.md](../../docs/HANDOFF.md) for the exact capture run and current verification state; native UI,
 authentication and physical behavior are outside this resource probe.
@@ -233,3 +237,11 @@ their canonical acknowledgement IDs join local tombstones. Three additional
 session tests cover refreshed history, late aliases, equal-text neighbours,
 draft/read preservation and owner retirement. This backend foundation is not
 a mounted More/selection toolbar or a remote deletion API.
+
+The positive unread-count adapter also follows Foundation's C `%d` signed32
+conversion for wide source Int values. `check-chief-unread-format.py --upstream
+PATH --output FRESH_DIR --native-capture ORIGINAL_CAPTURE` executes the whole
+unmodified L10n helper on local macOS Foundation: eight positive counts include
+signed32/signed64 boundaries. Four ordinary counts agree with the original iOS
+run. The committed JVM reference is `parity/chief-unread-format.json`; execution
+of the large-count cases on iOS remains a separate scope.

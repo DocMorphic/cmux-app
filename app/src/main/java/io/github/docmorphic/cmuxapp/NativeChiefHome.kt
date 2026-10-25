@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,6 +35,7 @@ import java.time.Instant
 @Composable
 internal fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier: Modifier = Modifier) {
     val state by computer.home.state.collectAsState()
+    val leading = if (LocalLayoutDirection.current == LayoutDirection.Rtl) TextAlign.Right else TextAlign.Left
     val query = computer.query
     val rows = state.matching(query)
     val pinned = state.pinned
@@ -59,13 +59,13 @@ internal fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier:
         refreshRequested = true
         computer.home.refresh()
     } }
-    val searchLabel = stringResource(R.string.chief_home_search)
+    val searchLabel = nativeChiefMainString(R.string.chief_home_search)
     Column(modifier.fillMaxSize().background(background).testTag("ChiefHome")) {
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.chief_home_title), Modifier.weight(1f).semantics { heading() },
-                color = ink, style = nativeChiefTextStyle(34).copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(nativeChiefMainString(R.string.chief_home_title), Modifier.weight(1f).testTag("ChiefHomeTitle").semantics { heading() },
+                color = ink, textAlign = leading, style = nativeChiefTextStyle(34).copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
             IconButton(onClick = refresh, modifier = Modifier.testTag("ChiefHomeRefresh")) {
-                Icon(painterResource(R.drawable.ic_browser_reload), stringResource(R.string.chief_home_refresh), Modifier.size(20.dp), tint = blue)
+                Icon(painterResource(R.drawable.ic_browser_reload), nativeChiefMainString(R.string.chief_home_refresh), Modifier.size(20.dp), tint = blue)
             }
         }
         OutlinedTextField(query, computer::search, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).testTag("ChiefSearch")
@@ -80,17 +80,17 @@ internal fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier:
             state.loading && state.conversations.isEmpty() -> Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
                 Column(Modifier.semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     CircularProgressIndicator(color = muted)
-                    Text(stringResource(R.string.chief_home_loading), color = muted, style = nativeChiefTextStyle())
+                    Text(nativeChiefMainString(R.string.chief_home_loading), color = muted, style = nativeChiefTextStyle())
                 }
             }
             state.conversations.isEmpty() -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp).testTag("ChiefHomeUnavailable"),
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(painterResource(R.drawable.ic_menu_chat), null, Modifier.size(48.dp), tint = muted)
                 Spacer(Modifier.height(12.dp))
-                Text(stringResource(if (state.error != null) R.string.chief_home_unavailable else R.string.chief_home_empty),
+                Text(nativeChiefMainString(if (state.error != null) R.string.chief_home_unavailable else R.string.chief_home_empty),
                     style = nativeChiefTextStyle(22).copy(fontWeight = FontWeight.Bold), color = ink, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
-                Text(state.error ?: stringResource(R.string.chief_home_empty_message), color = muted, style = nativeChiefTextStyle(15), textAlign = TextAlign.Center)
+                Text(state.error ?: nativeChiefMainString(R.string.chief_home_empty_message), color = muted, style = nativeChiefTextStyle(15), textAlign = TextAlign.Center)
             }
             else -> PullToRefreshBox(state.loading || refreshRequested, refresh, Modifier.weight(1f).fillMaxWidth().testTag("ChiefHomePullRefresh")) {
                 LazyColumn(Modifier.fillMaxSize().testTag("ChiefConversations")) {
@@ -103,16 +103,16 @@ internal fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier:
                                 .semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
                                 horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(painterResource(R.drawable.ic_chief_home_sparkles), null, Modifier.size(28.dp), tint = blue)
-                                Text(stringResource(R.string.chief_home_ready_title), color = ink,
+                                Text(nativeChiefMainString(R.string.chief_home_ready_title), color = ink,
                                     style = nativeChiefTextStyle().copy(fontWeight = FontWeight.SemiBold), textAlign = TextAlign.Center)
-                                Text(stringResource(R.string.chief_home_ready_message), Modifier.widthIn(max = 280.dp), color = muted,
+                                Text(nativeChiefMainString(R.string.chief_home_ready_message), Modifier.widthIn(max = 280.dp), color = muted,
                                     style = nativeChiefTextStyle(15), textAlign = TextAlign.Center)
                             }
                         }
                     }
                     if (recent.isNotEmpty()) item(key = "recent") {
-                        Text(stringResource(R.string.chief_home_recent), Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
-                            .semantics { heading() }, color = muted, style = nativeChiefTextStyle(15).copy(fontWeight = FontWeight.SemiBold))
+                        Text(nativeChiefMainString(R.string.chief_home_recent), Modifier.fillMaxWidth().testTag("ChiefHomeRecentHeading").padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
+                            .semantics { heading() }, color = muted, textAlign = leading, style = nativeChiefTextStyle(15).copy(fontWeight = FontWeight.SemiBold))
                     }
                     items(recent, key = { "recent:${it.id}" }) { conversation ->
                         ChiefHomeRow(conversation, ink, muted, blue, orange, background, dark) { computer.open(conversation) }
@@ -125,9 +125,8 @@ internal fun NativeChiefHomeView(computer: NativeChiefComputerSession, modifier:
 
 @Composable
 private fun chiefHomeSummary(conversation: NativeChiefConversation, stamp: String? = null): String {
-    val status = if (conversation.working) stringResource(R.string.chief_home_working)
-        else if (conversation.unread == 1L) stringResource(R.string.chief_home_unread_one)
-        else if (conversation.unread > 1) stringResource(R.string.chief_home_unread_other, conversation.unread) else null
+    val status = if (conversation.working) nativeChiefMainString(R.string.chief_home_working)
+        else if (conversation.unread > 0) nativeChiefHomeUnread(conversation.unread) else null
     return listOfNotNull(conversation.title, conversation.preview.takeIf { it.isNotEmpty() }, status, stamp).joinToString(", ")
 }
 
@@ -153,7 +152,7 @@ private fun ChiefHomePinned(conversation: NativeChiefConversation, ink: Color, m
                 .testTag("ChiefPinnedUnread"), color = Color.White, style = nativeChiefTextStyle(11).copy(fontWeight = FontWeight.Bold))
         }
         Text(conversation.title, color = ink, style = nativeChiefTextStyle(13).copy(fontWeight = FontWeight.SemiBold))
-        Text(conversation.preview.ifEmpty { stringResource(R.string.chief_home_ask) }, Modifier.widthIn(max = 180.dp).testTag("ChiefPinnedPreview"),
+        Text(conversation.preview.ifEmpty { nativeChiefMainString(R.string.chief_home_ask) }, Modifier.widthIn(max = 180.dp).testTag("ChiefPinnedPreview"),
             color = muted, style = nativeChiefTextStyle(12), maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
     }
 }
@@ -186,7 +185,7 @@ private fun ChiefHomeRow(conversation: NativeChiefConversation, ink: Color, mute
                 Icon(painterResource(R.drawable.ic_workspace_chevron_right), null, Modifier.size(10.dp, 14.dp), tint = muted.copy(alpha = .6f))
             }
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(conversation.preview.ifEmpty { stringResource(R.string.chief_home_no_messages) }, Modifier.weight(1f).testTag("ChiefRecentPreview:${conversation.id}"),
+                Text(conversation.preview.ifEmpty { nativeChiefMainString(R.string.chief_home_no_messages) }, Modifier.weight(1f).testTag("ChiefRecentPreview:${conversation.id}"),
                     color = muted, style = nativeChiefTextStyle(15), maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = leading)
                 if (conversation.unread > 0) Box(Modifier.padding(top = 6.dp).size(7.dp).background(blue, CircleShape).testTag("ChiefRecentUnread:${conversation.id}"))
             }

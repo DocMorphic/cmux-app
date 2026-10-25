@@ -1,0 +1,39 @@
+{
+  "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "helperSha256": "631542639cfcf40815ef05a8bb372771a6bbaa75d2a97744c1a779530e91b202",
+  "rows": [
+    {
+      "count": "1",
+      "value": "1 unread"
+    },
+    {
+      "count": "2",
+      "value": "2 unread"
+    },
+    {
+      "count": "17",
+      "value": "17 unread"
+    },
+    {
+      "count": "1234",
+      "value": "1234 unread"
+    },
+    {
+      "count": "2147483647",
+      "value": "2147483647 unread"
+    },
+    {
+      "count": "2147483648",
+      "value": "-2147483648 unread"
+    },
+    {
+      "count": "4294967296",
+      "value": "0 unread"
+    },
+    {
+      "count": "9223372036854775807",
+      "value": "-1 unread"
+    }
+  ],
+  "scope": "Whole unmodified source helper on local macOS Foundation with English main-bundle defaults. Counts1/2/17/1234 agree with original iOS run40200670788; large-count iOS execution remains separate."
+}

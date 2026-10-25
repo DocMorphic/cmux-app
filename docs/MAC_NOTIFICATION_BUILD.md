@@ -39,8 +39,8 @@ reply TTL; normal startup and the saved pairing preference1 are restored. The
 helper still has one registration and zero retired rows. No credential, signing
 material or pairing enrollment was replaced. Build40205170225 at exact source83878ea9 is still running and contains the
 tagged-build crash fix; its older stable normalization does not include the
-follow-up default-tag correction. The next full build must use the corrected
-source; do not replace the app before exact-source artifact verification. Actual post-fix reply/ACK and cold tap remain unaccepted. Evidence is private under
+follow-up default-tag correction. Full corrected build40206417517 is queued at exact sourcebcbdb774; do not replace
+the app before exact-source artifact verification. Actual post-fix reply/ACK and cold tap remain unaccepted. Evidence is private under
 `captures/recovery-20261025/pixel-723-live-v1` and
 `captures/recovery-20261025/reply-ack-real-string-v1`.
 

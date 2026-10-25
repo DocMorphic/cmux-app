@@ -85,7 +85,7 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
     val muted = if (dark) Color(0xFF98989E) else Color(0xFF6C6C70)
     val blue = if (dark) Color(0xFF0A84FF) else Color(0xFF007AFF)
     val leading = if (LocalLayoutDirection.current == LayoutDirection.Rtl) TextAlign.Right else TextAlign.Left
-    val otherLabel = stringResource(R.string.chief_question_other)
+    val otherLabel = nativeChiefMainString(R.string.chief_question_other)
     NativeModalBottomSheet(onDismissRequest = { if (!currentBusy) onDismiss() }, sheetState = sheet,
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !busy),
         containerColor = if (dark) Color(0xFF1C1C1E) else Color.White,
@@ -111,13 +111,13 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
         Column(Modifier.fillMaxWidth().fillMaxHeight(.92f).imePadding()) {
             Layout(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), content = {
                 TextButton(onClick = onDismiss, modifier = Modifier.testTag("ChiefQuestionCancel"), colors = ButtonDefaults.textButtonColors(contentColor = blue)) {
-                    Text(stringResource(R.string.chief_question_cancel), style = nativeChiefTextStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(nativeChiefMainString(R.string.chief_question_cancel), style = nativeChiefTextStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Text(stringResource(R.string.chief_question_title), Modifier.testTag("ChiefQuestionTitle").semantics { heading() },
+                Text(nativeChiefMainString(R.string.chief_question_title), Modifier.testTag("ChiefQuestionTitle").semantics { heading() },
                     color = ink, style = nativeChiefTextStyle().copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                 TextButton(onClick = { onSend(form) }, enabled = form.canSubmit && !busy, modifier = Modifier.testTag("ChiefQuestionSubmit"),
                     colors = ButtonDefaults.textButtonColors(contentColor = blue)) {
-                    Text(question.submitLabel ?: stringResource(R.string.chief_question_send), style = nativeChiefTextStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(question.submitLabel ?: nativeChiefMainString(R.string.chief_question_send), style = nativeChiefTextStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }) { children, constraints ->
                 val actions = constraints.copy(minWidth = 0, minHeight = 0, maxWidth = constraints.maxWidth / 3)
@@ -135,10 +135,10 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(R.drawable.ic_chief_home_sparkles), null, Modifier.size(20.dp), tint = ink)
-                        Text(stringResource(R.string.chief_question_needs_input), color = ink, style = nativeChiefTextStyle().copy(fontWeight = FontWeight.SemiBold))
+                        Text(nativeChiefMainString(R.string.chief_question_needs_input), color = ink, style = nativeChiefTextStyle().copy(fontWeight = FontWeight.SemiBold))
                     }
-                    Text(stringResource(R.string.chief_question_instructions), Modifier.fillMaxWidth(), color = muted, style = nativeChiefTextStyle(15), textAlign = leading)
-                    if (form.otherTarget != null) Text(stringResource(R.string.chief_question_other_hint), Modifier.fillMaxWidth(), color = muted,
+                    Text(nativeChiefMainString(R.string.chief_question_instructions), Modifier.fillMaxWidth(), color = muted, style = nativeChiefTextStyle(15), textAlign = leading)
+                    if (form.otherTarget != null) Text(nativeChiefMainString(R.string.chief_question_other_hint), Modifier.fillMaxWidth(), color = muted,
                         style = nativeChiefTextStyle(13), textAlign = leading)
                 }
                 question.items.forEach { item -> key(item.id) {
@@ -147,7 +147,7 @@ internal fun NativeChiefQuestionSheet(question: NativeChiefQuestion, busy: Boole
                             style = nativeChiefTextStyle(12).copy(fontWeight = FontWeight.SemiBold), textAlign = leading) }
                         Text(item.prompt, Modifier.fillMaxWidth().semantics { heading() }, color = ink,
                             style = nativeChiefTextStyle(20).copy(fontWeight = FontWeight.SemiBold), textAlign = leading)
-                        if (item.multiSelect) Text(stringResource(R.string.chief_question_select_all), Modifier.fillMaxWidth(), color = muted,
+                        if (item.multiSelect) Text(nativeChiefMainString(R.string.chief_question_select_all), Modifier.fillMaxWidth(), color = muted,
                             style = nativeChiefTextStyle(13), textAlign = leading)
                         Column(Modifier.fillMaxWidth().background(ink.copy(alpha = .045f), RoundedCornerShape(14.dp)).padding(horizontal = 12.dp)) {
                             item.options.forEachIndexed { index, option ->
