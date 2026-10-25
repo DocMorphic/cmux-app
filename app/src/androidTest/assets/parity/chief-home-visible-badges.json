@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "run": 40221580152,
+  "projectCommit": "c147788f5282019dcd198a72f4a44668220843ae",
+  "revision": "a5911a1f92f3eeb11c4d7f3e2ef89204718c5009",
+  "artifact": 12610303390,
+  "zipSha256": "33e4ea2963a9de9a6751d24d0bd9cb8d0f7c051236c7cda1b9d76c3f21799c75",
+  "appArchiveSha256": "a8bedf9306715eb9e262e326e50cc42d7a41d3471bd7f7836d9121ea46740bfd",
+  "labels": {
+    "en": {
+      "2": "2",
+      "1234": "1,234",
+      "9223372036854775807": "9,223,372,036,854,775,807"
+    },
+    "ar": {
+      "2": "٢",
+      "1234": "١٬٢٣٤",
+      "9223372036854775807": "٩٬٢٢٣٬٣٧٢٬٠٣٦٬٨٥٤٬٧٧٥٬٨٠٧"
+    }
+  },
+  "observations": {
+    "recent-tabs": {
+      "count": "2",
+      "label": "2",
+      "treeSha256": "9e869c7565d8f3d35eb98c712753b1e18c703fa373ce30cd8123ded24d711351",
+      "imageSha256": "3f4349c3797b0e435377641d3acd5dea6ebe9af707996ace3e5150ea57494fdb"
+    },
+    "badge-english-1234": {
+      "count": "1234",
+      "label": "1,234",
+      "treeSha256": "fe21cedb8f1ff9ea9e6291072223398714e97e4b1ae66e7dfa9346c83d2eac9f",
+      "imageSha256": "430aa321349b59fa0cd39a07392cfdc35136d4ba9b1c36c3a161cbcd3abbd083"
+    },
+    "badge-english-wide": {
+      "count": "9223372036854775807",
+      "label": "9,223,372,036,854,775,807",
+      "treeSha256": "80ea10dc33b17338a27a556025c7c3f4d9424a116ae3b56c60da4dcda68dd8a7",
+      "imageSha256": "600c12d542e762e94f4e97d8fad84658340bdebe74072dadd7ac3c8ff7b56a22"
+    },
+    "recent-tabs-arabic": {
+      "count": "2",
+      "label": "٢",
+      "treeSha256": "37a45991a241cf99881967e39aab53e1231d7e1bfdfc8146359aef69824f35f7",
+      "imageSha256": "2748839db88cf61a06c14e9a53d4f3c84187a2226827980e723a7b4fdc26f6a1"
+    },
+    "badge-arabic-1234": {
+      "count": "1234",
+      "label": "١٬٢٣٤",
+      "treeSha256": "dd1829d4d2b938c010d6f548117b0e059873992f89618d7b4baa63d6c48f0555",
+      "imageSha256": "6bc38c07870e72517c6ae2acd7be8add8247ec76b067be556782cb884075798b"
+    },
+    "badge-arabic-wide": {
+      "count": "9223372036854775807",
+      "label": "٩٬٢٢٣٬٣٧٢٬٠٣٦٬٨٥٤٬٧٧٥٬٨٠٧",
+      "treeSha256": "50107eab1847c2e7d963fbfc240ac6fd4d974505cce4e70770170963e428f024",
+      "imageSha256": "75da465d5f205087c61e979fd541e12343c7ade753c60c8aa4682bddece0b646"
+    }
+  },
+  "scope": "Visible integer badge strings extracted from six independently verified original Home AX trees; English and ar-SA only. Separate spoken unread labels intentionally use their original formatting. No full-screen or Android geometry acceptance."
+}

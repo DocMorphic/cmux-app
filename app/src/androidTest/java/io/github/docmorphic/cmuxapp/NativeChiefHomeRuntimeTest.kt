@@ -169,6 +169,35 @@ class NativeChiefHomeRuntimeTest {
         capture("chief-home-started-empty-fallback")
     }
 
+    @Test fun visibleIntegerBadgesMatchOriginalHomeIncludingGroupingAndIntMax() {
+        val native=org.json.JSONObject(InstrumentationRegistry.getInstrumentation().context.assets
+            .open("parity/chief-home-visible-badges.json").bufferedReader().use { it.readText() }).getJSONObject("labels")
+        fun referenceRows(count:Long)=listOf(
+            row("chief-main","Chief","Ready on your Mac",unread=count,pinned=true),
+            row("working","Build","Compiling the app",unread=3,working=true),
+            row("unicode","Straße","Café and a canonically composed search",unread=1),
+            row("empty-preview","No preview"))
+        api.rows=referenceRows(2);mount();ready()
+        val records=org.json.JSONArray()
+        for(language in listOf("en","ar")) {
+            compose.runOnUiThread { locale=language };compose.waitForIdle()
+            for(count in listOf(2L,1234L,Long.MAX_VALUE)) {
+                compose.runOnUiThread { api.changes.trySend(Result.success(NativeChiefSnapshot(referenceRows(count),"badge-$language-$count"))) }
+                compose.waitUntil(10_000) { computer.home.state.value.pinned?.unread==count }
+                val badge=compose.onNodeWithTag("ChiefPinnedUnread",useUnmergedTree=true)
+                badge.assertTextEquals(native.getJSONObject(language).getString(count.toString())).assertIsDisplayed()
+                val bounds=badge.getUnclippedBoundsInRoot();val root=compose.onRoot().getUnclippedBoundsInRoot()
+                assertTrue("Wide badge remains visible",bounds.left>=root.left && bounds.right<=root.right)
+                val visible=badge.fetchSemanticsNode().config[SemanticsProperties.Text].single().text
+                records.put(org.json.JSONObject().put("language",language).put("count",count).put("label",visible)
+                    .put("left",bounds.left.value).put("right",bounds.right.value).put("width",(bounds.right-bounds.left).value))
+                capture("chief-home-badge-$language-$count")
+            }
+        }
+        java.io.File(compose.activity.getExternalFilesDir(null),"rich-composer/chief-home-visible-badges.json").writeText(records.toString(2))
+        compose.runOnUiThread { assertEquals(0,api.writes) }
+    }
+
     @Test fun originalMainBundleLabelsRenderAcrossNineLocalesAndLargeTextLightAndRtlProfiles() {
         api.rows = listOf(row("chief","Chief",unread=1,pinned=true),row("build","Build","Preview"));mount();ready()
         val nativeUnread=org.json.JSONObject(InstrumentationRegistry.getInstrumentation().context.assets

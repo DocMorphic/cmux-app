@@ -1,3 +1,30 @@
+## Home visible badge grouping matched — 2026-10-25
+
+Visible unread badges now use the actual UI locale's integer formatter, including
+grouping through Int.max. Six labels for 2, 1234 and Int.max in English/ar-SA are
+extracted from verified original run 40221580152 AX trees and bound to its source,
+artifact, app archive and frame digests. Arabic uses U+066C, not an ASCII comma;
+the earlier screenshot interpretation is corrected. Spoken unread summaries keep
+their separate original L10n behavior.
+
+All six owned API 36 Home runtime tests pass in 18.201 seconds, including the six
+native visible strings and 72 native-matched spoken summaries. Wide labels remain
+visible. Four new images are reviewed; font metrics and surrounding Home/shell
+geometry remain open. Sources/APKs match, settings restore, the crash log is empty,
+22 native-library hashes are unchanged, both APK alignments pass and the owned
+emulator exits successfully. The first build failed only in the new test's DpRect
+width measurement; the corrected build and full runtime pass.
+
+Low disk space was addressed with byte-verified APFS copy-on-write clones of 38
+identical captured APK copies, retaining every path, byte, digest and a distinct
+inode; about 6.6 GB of duplicated storage was recovered. No evidence, signed
+candidate, account or pairing data was deleted. Private receipts:
+captures/recovery-20261025/chief-badge-grouping-checkpoint.json,
+chief-badge-grouping-runtime-v1 and captured-apk-clone-deduplication.json.
+The phone remains reclaimed; physical 723 and frozen signed 724 are unchanged.
+The full goal and all 13 completion gates remain open. Next: reconcile the known
+Home search cluster-rule gaps and remaining native Home/transcript presentation.
+
 ## Question keyboard fix and verified original references — 2026-10-25
 
 The Android full-question sheet now uses neutral capsule toolbar actions, an
@@ -24,8 +51,8 @@ Independent verification binds original source/package trees, regenerated
 project, templates, catalog, runner and cleanup. All 418 files in the complete
 app archive, including the ARM64 Debug implementation dylib, are rehashed.
 Seven new tab-context/badge frames were visually reviewed. They expose another
-Android gap: visible 1234/Int.max badges need comma grouping, including Arabic
-digits with an ASCII comma. Fix that against these frames next. The unused
+Android gap: visible 1234/Int.max badges need locale-aware grouping, including
+Arabic digits and U+066C separators (confirmed from the AX text). Fix that against these frames next. The unused
 sibling destinations remain placeholders; this is not authenticated shell parity.
 
 Original search run 40222183064 succeeds at de119d4b. Artifact 12609983965 matches

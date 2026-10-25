@@ -34,7 +34,7 @@ unchanged view; it does not invoke its callback or present the sheet directly.
 The source generator records package tree identities and source/resource hashes;
 the runner requires a clean committed project, preserves result exports/build
 identity and shuts down/deletes only its own Simulator.
-The next artifact also retains the built app ZIP and hashes every regular bundle
+The runner also retains the built app ZIP and hashes every regular bundle
 file and link, including the Debug implementation dylib. Independent verification
 must compare those bytes before accepting its built-product identity; a launcher
 hash alone does not identify the compiled Swift implementation.
@@ -45,9 +45,9 @@ contained/escaping links. This narrow bundle receipt still requires separate
 artifact/source/result binding and visual review.
 
 Run `.github/workflows/ios-chief-home.yml` manually. Local preparation, Swift
-syntax parsing and eight generator/guard tests pass. Native compilation/execution,
-independent artifact/result verification, screenshot review and matched Android
-acceptance are still required. This host omits the surrounding authenticated app
+syntax parsing and eight generator/guard tests pass. Native execution and artifact
+verification are recorded below; matched Android acceptance remains required.
+This host omits the surrounding authenticated app
 shell and real transport; it cannot establish complete app or physical parity.
 
 Run40210978473 at822f2f5c compiled the whole original packages and host. Its three
@@ -59,4 +59,20 @@ cannot find the merged option as an accessibility button. Nine frame sets now pa
 PNG/AX/RPC digest checks and visual review. The executable is not in this artifact,
 so its hash remains CI metadata. This accepts only scoped Home/search reference
 frames; question and full-shell geometry remain open. Corrected physical-input
-run40217714743 is active at9aa995fe.
+run40217714743 succeeds at9aa995fe: all three tests and 13 independently bound
+frame sets, including the actual original question flow. Its omitted app binary
+still limits built-product identity to CI metadata.
+
+Run 40221580152 succeeds at c147788f: four tests and 20 independently bound
+PNG/AX/RPC frame sets, with successful owned Simulator shutdown/deletion.
+Artifact 12610303390 matches SHA256
+33e4ea2963a9de9a6751d24d0bd9cb8d0f7c051236c7cda1b9d76c3f21799c75.
+The complete archived app has 418 independently rehashed files, including its
+ARM64 Debug implementation dylib; source/package trees, templates, catalog,
+regenerated project and runner are independently bound to the exact commit.
+Seven new tab-context/badge frames have been visually reviewed. Visible count
+strings for 2, 1234 and Int.max in English and ar-SA are extracted from those
+verified AX trees into
+`app/src/androidTest/assets/parity/chief-home-visible-badges.json`. Arabic uses
+U+066C grouping separators; its separate spoken unread summary follows L10n.
+This reference does not establish full-shell, real-transport or physical parity.

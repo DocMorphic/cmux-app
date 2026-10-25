@@ -141,9 +141,9 @@ private fun ChiefHomeAvatar(size: Dp, dark: Boolean) {
 private fun ChiefHomePinned(conversation: NativeChiefConversation, ink: Color, muted: Color, blue: Color, orange: Color, dark: Boolean, open: () -> Unit) {
     val summary = chiefHomeSummary(conversation)
     // Original SwiftUI integer interpolation localizes the visible badge's
-    // digits; its separate L10n unread accessibility summary uses Western digits.
+    // digits and grouping; its separate L10n accessibility summary uses Western digits.
     val locale = LocalConfiguration.current.locales[0] ?: java.util.Locale.getDefault()
-    val badge = remember(conversation.unread, locale) { String.format(locale, "%d", conversation.unread) }
+    val badge = remember(conversation.unread, locale) { java.text.NumberFormat.getIntegerInstance(locale).format(conversation.unread) }
     Column(Modifier.fillMaxWidth().testTag("ChiefPinnedConversation").clickable(onClick = open)
         .clearAndSetSemantics { contentDescription = summary; role = Role.Button; onClick { open(); true } }
         .padding(top = 24.dp, bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {

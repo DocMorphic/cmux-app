@@ -1,3 +1,30 @@
+## Home visible badge grouping matched — 2026-10-25
+
+Visible unread badges now use the actual UI locale's integer formatter, including
+grouping through Int.max. Six labels for 2, 1234 and Int.max in English/ar-SA are
+extracted from verified original run 40221580152 AX trees and bound to its source,
+artifact, app archive and frame digests. Arabic uses U+066C, not an ASCII comma;
+the earlier screenshot interpretation is corrected. Spoken unread summaries keep
+their separate original L10n behavior.
+
+All six owned API 36 Home runtime tests pass in 18.201 seconds, including the six
+native visible strings and 72 native-matched spoken summaries. Wide labels remain
+visible. Four new images are reviewed; font metrics and surrounding Home/shell
+geometry remain open. Sources/APKs match, settings restore, the crash log is empty,
+22 native-library hashes are unchanged, both APK alignments pass and the owned
+emulator exits successfully. The first build failed only in the new test's DpRect
+width measurement; the corrected build and full runtime pass.
+
+Low disk space was addressed with byte-verified APFS copy-on-write clones of 38
+identical captured APK copies, retaining every path, byte, digest and a distinct
+inode; about 6.6 GB of duplicated storage was recovered. No evidence, signed
+candidate, account or pairing data was deleted. Private receipts:
+captures/recovery-20261025/chief-badge-grouping-checkpoint.json,
+chief-badge-grouping-runtime-v1 and captured-apk-clone-deduplication.json.
+The phone remains reclaimed; physical 723 and frozen signed 724 are unchanged.
+The full goal and all 13 completion gates remain open. Next: reconcile the known
+Home search cluster-rule gaps and remaining native Home/transcript presentation.
+
 ## Question keyboard fix and verified original references — 2026-10-25
 
 The Android full-question sheet now uses neutral capsule toolbar actions, an
@@ -24,8 +51,8 @@ Independent verification binds original source/package trees, regenerated
 project, templates, catalog, runner and cleanup. All 418 files in the complete
 app archive, including the ARM64 Debug implementation dylib, are rehashed.
 Seven new tab-context/badge frames were visually reviewed. They expose another
-Android gap: visible 1234/Int.max badges need comma grouping, including Arabic
-digits with an ASCII comma. Fix that against these frames next. The unused
+Android gap: visible 1234/Int.max badges need locale-aware grouping, including
+Arabic digits and U+066C separators (confirmed from the AX text). Fix that against these frames next. The unused
 sibling destinations remain placeholders; this is not authenticated shell parity.
 
 Original search run 40222183064 succeeds at de119d4b. Artifact 12609983965 matches
@@ -5895,7 +5922,7 @@ unchanged until reconciliation. See the latest HANDOFF.md and PARITY.md entries.
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Chief conversations | Finish the outstanding transcript/question feature/UI reconciliation and matched native Home acceptance from the Oct 20 audit candidate. Home source branches, indicators, copied catalogs, grouped summaries, search and refresh have Android runtime evidence. The full question sheet now has captured presentation/payload, editable pending controls, explicit Cancel, scoped late completion, recreation/retirement and copied nine-locale form evidence; cancel/reopen submission now follows 12 executed source-method cases with per-presentation rather than compact-poll reservation. Android evidence also covers actual keyboard visibility and selected-range retention through enlarged-text Activity recreation. Original bundle lookup and90 unread helpers through Int.max are verified by run40209688789; whole-backend/native-question execution and matched presentation remain open. Reconcile Home Unicode search: the current Kotlin matcher differs from the source Foundation predicate; the accepted schema3 original-app probe executes102 title/preview cases per locale; current Kotlin execution differs on30 cases per locale. Original Home run40213828169 has verified/reviewed eight-state Home and expanded-case search frames, but its question test failed. Corrected physical-input run40217714743 passed all three tests and has13 independently bound frame sets, including the full original question flow. Matched Android presentation and broader concurrency remain open. Original tab-context/wide-badge/full-bundle run40221580152 is active atc147788f. Visible Arabic badge digits now have a focused Android/native comparison; full Home geometry remains open. Include broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped toolbar undo, rich navigation/configuration, controlled motion/warm scroll reuse, nonempty live global font-scale editing and Ctrl/Meta formatting key dispatch are verified; wider input/clipboard/focus, empty/font-trait/deep-navigation cases, long-distance scrolling/GPU budgets, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
+| Chief conversations | Finish the outstanding transcript/question feature/UI reconciliation and matched native Home acceptance from the Oct 20 audit candidate. Home source branches, indicators, copied catalogs, grouped summaries, search and refresh have Android runtime evidence. The full question sheet now has captured presentation/payload, editable pending controls, explicit Cancel, scoped late completion, recreation/retirement and copied nine-locale form evidence; cancel/reopen submission now follows 12 executed source-method cases with per-presentation rather than compact-poll reservation. Android evidence also covers actual keyboard visibility and selected-range retention through enlarged-text Activity recreation. Original bundle lookup and90 unread helpers through Int.max are verified by run40209688789; whole-backend/native-question execution and matched presentation remain open. Reconcile Home Unicode search: the current Kotlin matcher differs from the source Foundation predicate; the accepted run40222183064 executes5,546 title/preview cases in each of nine locales (49,914 observations). A private prototype agrees with those outputs but still differs on18 of150 additional local cluster cases; the current production matcher remains unchanged and incomplete. Original Home run40213828169 has verified/reviewed eight-state Home and expanded-case search frames, but its question test failed. Corrected physical-input run40217714743 passed all three tests and has13 independently bound frame sets, including the full original question flow. Matched Android presentation and broader concurrency remain open. Original tab-context/wide-badge/full-bundle run40221580152 succeeds atc147788f with4/4 tests,20 bound frame sets and418 independently rehashed app files including the Debug implementation dylib. Visible English/ar-SA grouping through Int.max now matches six native AX labels with6/6 Home runtime tests; full Home geometry remains open. The question toolbar/medium-sheet keyboard fix passes12/12 Android runtime tests; broader matched presentation remains open. Include broader acceptance of the mounted Text Effects palette, rich-edit/undo/IME owner, glyph overlay and optimistic/ACK formatting lifecycle. Scoped toolbar undo, rich navigation/configuration, controlled motion/warm scroll reuse, nonempty live global font-scale editing and Ctrl/Meta formatting key dispatch are verified; wider input/clipboard/focus, empty/font-trait/deep-navigation cases, long-distance scrolling/GPU budgets, physical input and matched presentation remain open; see CHIEF_RICH_TEXT.md and CHIEF.md. | Exact source mapping for list/search, unread state, history/live cursor, messages/parts, send/stop, approval/question actions, Mac/account ownership, transcript UI and navigation/recovery; runtime checks and a supporting real Mac. |
 | Agent Feed | Verify the revised reply editor and new native full-text reader, including original UI/traits, URL routing and broader composer/reader lifecycle and routed sidebar navigation; verify the new source-specific rows, Markdown, swipe triage and Display settings; physically verify all decision/reply families and event/reconnect/revocation behavior. | Scoped source mapping and evidence in [AGENT_FEED.md](AGENT_FEED.md); main-tab transport/UI implementation and fixture checks are not full Feed acceptance. |
 | Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
