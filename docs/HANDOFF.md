@@ -1,3 +1,23 @@
+## Original Home host route corrected — 2026-10-25
+
+Native UI run40210978473 compiled the complete original packages and host, then
+failed3/3 tests before the requested states. Its actual Home hierarchy displays
+Chief unavailable / insecureManualRoute: the fixture debug-loopback route was
+rejected by the unchanged original RPC authorization policy. GitHub artifact
+12606003234 is digest-verified and retained; owned Simulator shutdown/delete pass.
+This is a host setup failure, not accepted Home/question interaction evidence.
+
+The host now uses the original RPC tests' admitted-Iroh peer setup, backed solely
+by its offline byte transport. No Iroh socket is opened. Exact fixture peer/route
+checks remain; both token providers throw and requests carrying auth are rejected.
+The original view/client/backend and authorization checks are unchanged. A clear
+one-point observation node carries only fixture method/parameter data, and UI
+captures bind that report to PNG and AX-tree digests. Build identity and last RPC
+trace are preserved on test failure as well. Eight generator/guard tests, Swift
+syntax parsing and Python checks pass. A corrected native run is required; full
+UI, search and real-device parity remain open. Mac repair40208082394 is still
+compiling. The phone is unavailable; no phone or live Mac UI is operated.
+
 ## Native search/count evidence and Home anchor correction — 2026-10-25
 
 Original-app run40209688789 succeeded at source15e50ff9. Artifact12605626655

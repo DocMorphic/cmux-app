@@ -1,4 +1,5 @@
 import XCTest
+import CryptoKit
 
 @MainActor final class HomeUITests: XCTestCase {
     private func launch(_ id: String, language: String = "en") -> XCUIApplication {
@@ -12,10 +13,18 @@ import XCTest
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
     private func capture(_ app: XCUIApplication, _ id: String) {
-        let tree = XCTAttachment(string: app.debugDescription)
+        let description = app.debugDescription
+        let tree = XCTAttachment(string: description)
         tree.name = id + ".tree"; tree.lifetime = .keepAlways; add(tree)
-        let pixels = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        let png = XCUIScreen.main.screenshot().pngRepresentation
+        let pixels = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
         pixels.name = id + ".screen"; pixels.lifetime = .keepAlways; add(pixels)
+        let raw = element(app, "reference.home.observation").value as? String ?? "missing"
+        let report: [String: Any] = ["scene": id, "rpc": raw,
+            "imageSha256": SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined(),
+            "treeSha256": SHA256.hash(data: Data(description.utf8)).map { String(format: "%02x", $0) }.joined()]
+        let observation = XCTAttachment(data: try! JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]), uniformTypeIdentifier: "public.json")
+        observation.name = id + ".observation"; observation.lifetime = .keepAlways; add(observation)
     }
     func testHomeBranches() {
         continueAfterFailure = false

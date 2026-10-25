@@ -46,21 +46,23 @@ def main():
                 (out/name).write_bytes(export.stdout)
                 (out/(name+'.stderr')).write_bytes(export.stderr)
                 assert export.returncode==0,'Result export failed: '+name
-        result.check_returncode()
-        assert 'Executed 3 tests, with 0 failures' in (out/'test.log').read_text(),'Expected three real UI tests'
         app=out/'DerivedData/Build/Products/Debug-iphonesimulator/ChiefHomeReference.app'
-        info=plistlib.loads((app/'Info.plist').read_bytes())
-        sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
-        product=dict(bundleID=info['CFBundleIdentifier'],executableSha256=sha(app/info['CFBundleExecutable']),
-            infoSha256=sha(app/'Info.plist'),resourceSha256={str(p.relative_to(app)):sha(p) for p in app.rglob('*') if p.is_file() and p.name in ['Localizable.strings','Localizable.stringsdict']},
-            originalTrackedInputsUnchanged=not command(['git','-C',upstream,'diff','--name-only']),xcode=command(['xcodebuild','-version']))
-        assert product['originalTrackedInputsUnchanged']
-        (out/'build-product.json').write_text(json.dumps(product,indent=2)+'\n')
+        if (app/'Info.plist').exists():
+            info=plistlib.loads((app/'Info.plist').read_bytes())
+            sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+            product=dict(bundleID=info['CFBundleIdentifier'],executableSha256=sha(app/info['CFBundleExecutable']),
+                infoSha256=sha(app/'Info.plist'),resourceSha256={str(p.relative_to(app)):sha(p) for p in app.rglob('*') if p.is_file() and p.name in ['Localizable.strings','Localizable.stringsdict']},
+                originalTrackedInputsUnchanged=not command(['git','-C',upstream,'diff','--name-only']),xcode=command(['xcodebuild','-version']))
+            assert product['originalTrackedInputsUnchanged']
+            (out/'build-product.json').write_text(json.dumps(product,indent=2)+'\n')
         # The test runner installs its host in this owned Simulator. The last
         # persisted file records only authored reference method/parameter data.
-        container=Path(command(['xcrun','simctl','get_app_container',sid,info['CFBundleIdentifier'],'data']))
-        rpc=container/'Documents/reference-rpc.json'
-        if rpc.exists():(out/'last-reference-rpc.json').write_bytes(rpc.read_bytes())
+            lookup=subprocess.run(['xcrun','simctl','get_app_container',sid,info['CFBundleIdentifier'],'data'],capture_output=True,text=True,timeout=30)
+            if lookup.returncode==0:
+                rpc=Path(lookup.stdout.strip())/'Documents/reference-rpc.json'
+                if rpc.exists():(out/'last-reference-rpc.json').write_bytes(rpc.read_bytes())
+        result.check_returncode()
+        assert 'Executed 3 tests, with 0 failures' in (out/'test.log').read_text(),'Expected three real UI tests'
         passed=True
     finally:
         if sid:

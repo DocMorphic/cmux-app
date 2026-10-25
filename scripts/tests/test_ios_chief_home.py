@@ -90,6 +90,10 @@ class OriginalHomeHostPreparation(unittest.TestCase):
         self.assertIn('@testable import CmuxMobileShellUI',source)
         self.assertIn('ChiefHomeView(client: client)',source)
         self.assertNotIn('URLSession',source)
+        self.assertNotIn('.debugLoopback',source)
+        self.assertIn('route.kind == .iroh',source)
+        self.assertIn('throw HomeReferenceError.tokenProviderForbidden',source)
+        self.assertIn('request["auth"] == nil',source)
         self.assertIn('params["wait_for_change"] as? Bool == true { continue }',source)
         self.assertIn('params["message"] as? String == "question-message"',source)
 

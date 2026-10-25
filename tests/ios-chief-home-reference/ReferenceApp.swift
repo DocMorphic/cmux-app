@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import Combine
 import CMUXMobileCore
 import CmuxMobileRPC
 import CmuxMobileShell
@@ -17,54 +18,80 @@ private struct HomeScene: Decodable, Sendable {
 @main struct ChiefHomeReferenceApp: App {
     private let scene = HomeScene.selected()
     private let client: MobileChiefClient
+    private let diagnostics: HomeDiagnostics
     init() {
         let scene = HomeScene.selected()
-        let route = try! CmxAttachRoute(id: "offline-reference", kind: .debugLoopback,
-            endpoint: .hostPort(host: "127.0.0.1", port: 59999))
+        let diagnostics = HomeDiagnostics()
+        self.diagnostics = diagnostics
+        let identity = try! CmxIrohPeerIdentity(endpointID: String(repeating: "ab", count: 32))
+        let route = try! CmxAttachRoute(id: "offline-reference", kind: .iroh,
+            endpoint: .peer(identity: identity, pathHints: []))
         let ticket = try! CmxAttachTicket(workspaceID: "", terminalID: nil,
             macDeviceID: "offline-reference-mac", macDisplayName: "Offline reference",
             routes: [route], expiresAt: nil, authToken: nil)
-        let runtime = HomeRuntime(transportFactory: HomeFactory(transport: HomeTransport(mode: scene.mode)))
+        let runtime = HomeRuntime(transportFactory: HomeFactory(transport: HomeTransport(mode: scene.mode, diagnostics: diagnostics)))
         client = MobileChiefClient(client: MobileCoreRPCClient(runtime: runtime, route: route, ticket: ticket))
     }
     var body: some Scene {
         WindowGroup {
             // The original compiled view owns state, navigation, list and sheet.
             ChiefHomeView(client: client)
+                .overlay(alignment: .topLeading) { HomeObservation(diagnostics: diagnostics) }
                 .preferredColorScheme(scene.style == "dark" ? .dark : .light)
                 .environment(\.sizeCategory, scene.category == "large" ? .large : .accessibilityExtraExtraExtraLarge)
         }
     }
 }
 
+@MainActor private final class HomeDiagnostics: ObservableObject {
+    @Published var value = "{}"
+    func record(_ value: String) { self.value = value }
+}
+@MainActor private struct HomeObservation: View {
+    @ObservedObject var diagnostics: HomeDiagnostics
+    var body: some View {
+        Color.clear.frame(width: 1, height: 1).allowsHitTesting(false)
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier("reference.home.observation")
+            .accessibilityLabel("Offline Home RPC observation")
+            .accessibilityValue(diagnostics.value)
+    }
+}
+private enum HomeReferenceError: Error { case tokenProviderForbidden }
+
 /// The sole seam is the byte transport. No sockets, account or live Mac exist.
 private struct HomeRuntime: MobileSyncRuntime {
     let transportFactory: any CmxByteTransportFactory
-    let stackAccessTokenProvider: @Sendable () async throws -> String = { "offline-reference-only" }
-    let stackAccessTokenForceRefresher: @Sendable () async throws -> String = { "offline-reference-only" }
+    let stackAccessTokenProvider: @Sendable () async throws -> String = { throw HomeReferenceError.tokenProviderForbidden }
+    let stackAccessTokenForceRefresher: @Sendable () async throws -> String = { throw HomeReferenceError.tokenProviderForbidden }
     let rpcRequestTimeoutNanoseconds: UInt64 = 30_000_000_000
     let pairingRequestTimeoutNanoseconds: UInt64 = 30_000_000_000
     let now: @Sendable () -> Date = Date.init
-    let supportedRouteKinds: [CmxAttachTransportKind] = [.debugLoopback]
+    let supportedRouteKinds: [CmxAttachTransportKind] = [.iroh]
     let supportsServerPushEvents = false
 }
 private struct HomeFactory: CmxByteTransportFactory {
     let transport: HomeTransport
     func makeTransport(for route: CmxAttachRoute) throws -> any CmxByteTransport {
-        precondition(route.kind == .debugLoopback)
+        precondition(route.kind == .iroh)
+        guard case let .peer(identity, hints) = route.endpoint,
+            identity.endpointID == String(repeating: "ab", count: 32), hints.isEmpty else {
+            preconditionFailure("Unexpected reference peer")
+        }
         return transport
     }
 }
 
 private actor HomeTransport: CmxByteTransport {
     let mode: String
+    let diagnostics: HomeDiagnostics
     private var queued: [Data] = []
     private var readers: [CheckedContinuation<Data?, Never>] = []
     private var input = Data()
     private var closed = false
     private var answered = false
     private var requests: [[String: Any]] = []
-    init(mode: String) { self.mode = mode }
+    init(mode: String, diagnostics: HomeDiagnostics) { self.mode = mode; self.diagnostics = diagnostics }
     func connect() async throws {}
     func receive() async throws -> Data? {
         if !queued.isEmpty { return queued.removeFirst() }
@@ -80,6 +107,7 @@ private actor HomeTransport: CmxByteTransport {
         input.append(data)
         for bytes in try MobileSyncFrameCodec.decodeFrames(from: &input) {
             let request = try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
+            precondition(request["auth"] == nil, "Offline admitted reference must not request account credentials")
             let method = request["method"] as! String
             let id = request["id"] as! String
             let params = request["params"] as? [String: Any] ?? [:]
@@ -87,6 +115,7 @@ private actor HomeTransport: CmxByteTransport {
             let report = try JSONSerialization.data(withJSONObject: ["mode": mode, "requests": requests], options: [.sortedKeys])
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             try report.write(to: documents.appendingPathComponent("reference-rpc.json"), options: .atomic)
+            await diagnostics.record(String(decoding: report, as: UTF8.self))
             // A held event-backed read must not become an artificial busy loop.
             if params["wait_for_change"] as? Bool == true { continue }
             if mode == "loading" && method == "chief.conversations" { continue }
